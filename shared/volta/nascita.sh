@@ -1,5 +1,5 @@
 #!/bin/sh
-# La nascita in background di Volta Celeste (#5172 passi 2 e 3): un blocco marcato nel file di avvio della
+# La nascita in background di Volta (#5172 passi 2 e 3): un blocco marcato nel file di avvio della
 # shell che fa passare il comando claude da volta-claude. zsh e bash sul Mac, il profilo di PowerShell
 # (Windows PowerShell 5.1 e PowerShell 7) su Windows. Si toglie come si mette.
 #

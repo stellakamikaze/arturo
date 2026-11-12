@@ -1,4 +1,4 @@
-"""arturo note: il lato di Claude delle note sulla finestra di Volta Celeste (⌘⇧N).
+"""arturo note: il lato di Claude delle note sulla finestra di Volta (⌘⇧N).
 
 Federico lascia una nota su un punto della finestra: il mod scrive una cartella per nota in
 ~/.claude/data/note-finestra/<data-ora>/ con nota.json (versione 2) e finestra.png, e un todo di Claude.
@@ -45,7 +45,7 @@ ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 RITAGLIO = (640, 400)   # il ritaglio attorno al punto, in punti della finestra (lo scatto può essere al doppio)
 TENTATIVI = 5           # riletture se il file cambia fra lettura e scrittura
 
-AIUTO = """arturo note: le note sulla finestra di Volta Celeste (⌘⇧N), dal lato di Claude.
+AIUTO = """arturo note: le note sulla finestra di Volta (⌘⇧N), dal lato di Claude.
 
   arturo note elenco [--tutte] [--progetto P] [--json | --md]   le note aperte; --md come brief
   arturo note mostra ID [--json]                                 la nota intera e il ritaglio del punto
@@ -349,7 +349,7 @@ def _ultima_di_claude(n: dict) -> str | None:
 
 def _dove(n: dict) -> str:
     d = n["dove"]
-    # L'elemento (riga, bottone, scheda) c'è nelle note prese con Volta Celeste, che sa dove sta ogni elemento.
+    # L'elemento (riga, bottone, scheda) c'è nelle note prese con Volta, che sa dove sta ogni elemento.
     e = d.get("elemento") if isinstance(d.get("elemento"), dict) else None
     pezzi = [f"su {e.get('nome') or e['id']} ({e['id']})" if e and e.get("id") else "",
              f"parte {d['blocco']}" if d.get("blocco") else "",
@@ -394,7 +394,7 @@ def stampa_elenco(lista: list) -> None:
 def brief(lista: list) -> str:
     """Le note come il brief di Agentation: una sezione per nota, con cosa, dove e da dove partire."""
     aperte = [n for n in lista if n["stato"] in APERTE]
-    righe = [f"# Note sulla finestra di Volta Celeste: {len(aperte)} {'aperta' if len(aperte) == 1 else 'aperte'}", ""]
+    righe = [f"# Note sulla finestra di Volta: {len(aperte)} {'aperta' if len(aperte) == 1 else 'aperte'}", ""]
     if not lista:
         righe.append("Nessuna nota.")
     for n in lista:

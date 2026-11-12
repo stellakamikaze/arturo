@@ -1,4 +1,4 @@
-﻿# volta-claude.ps1: il comando claude di Volta Celeste in PowerShell (#5172 passo 3), gemello di volta-claude.sh.
+﻿# volta-claude.ps1: il comando claude di Volta in PowerShell (#5172 passo 3), gemello di volta-claude.sh.
 # In un terminale vero la sessione nasce in background (claude --bg) e si apre qui con claude attach:
 # così Volta la apre da qualunque macchina anche mentre lavora, e chiudere il terminale non la ferma.
 # Il resto passa a claude com'è: i sottocomandi (agents, attach, mcp, ...), -p, --version, e chi lancia

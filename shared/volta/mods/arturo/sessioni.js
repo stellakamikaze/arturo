@@ -1,4 +1,4 @@
-// Volta Celeste: le sessioni di Claude di tutte le macchine, come le legge teletrasporto.py volta.
+// Volta: le sessioni di Claude di tutte le macchine, come le legge teletrasporto.py volta.
 // Modulo puro, senza herdr: raggruppa, ordina, scrive le frasi e decide cosa fa un clic.
 // Lo prova il banco HZ17-HZ19 con node (tests/test_herdr_2026_11_08.py).
 //

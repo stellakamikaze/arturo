@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HZ01-HZ68: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
-/setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
+/setup installa Herdr (herdr.dev) con `shared/volta/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
 in una casa finta con un installer finto, senza rete e senza Herdr vero.
 
@@ -51,16 +51,16 @@ HZ15 ogni cartella o file che la parte Herdr scrive in ~/.claude/data/ (mod, hoo
 HZ16 servizi-gui.sh (9/11/2026): herdr-core da LaunchAgent senza KeepAlive (si passa da solo a
      launchd ed esce 0); il gestore delle sessioni non va in launchd senza --launchd (senza l'accesso
      a Documenti le sessioni morirebbero all'avvio), con --launchd sì e con KeepAlive; plist validi.
-HZ17 Volta Celeste, i gruppi (sessioni.js con node, #5068): per macchina nell'ordine del file con la nota
+HZ17 Volta, i gruppi (sessioni.js con node, #5068): per macchina nell'ordine del file con la nota
      della macchina giù; per progetto con la nota sull'ultimo gruppo; dentro il gruppo la più recente,
      poi l'alfabeto (HZ51); i nomi automatici ("claudecode-ca") lasciano il posto alla risposta.
-HZ18 Volta Celeste, il clic (sessioni.js con node): una sessione in background si aggancia con l'argv
+HZ18 Volta, il clic (sessioni.js con node): una sessione in background si aggancia con l'argv
      del file (locale o ssh), un'interattiva ferma passa da porta-volta, una al lavoro, che aspetta o di
      una macchina giù no, col motivo; la scheda già aperta si riconosce anche dall'argv avvolto da zsh
      da un ciclo ssh dentro sh -c e da pwsh -Command su Windows, senza prendere un id che ne contiene un altro.
-HZ19 Volta Celeste nella barra: barra.js monta volta.js e accetta il comando volta-<id>, volta.js
+HZ19 Volta nella barra: barra.js monta volta.js e accetta il comando volta-<id>, volta.js
      lancia teletrasporto.py volta --scrivi e porta-volta, e senza teletrasporto.py non mostra niente.
-HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia volta_sonda.py e teletrasporto.py col Python di arturo.json
+HZ20 Volta su Windows (9/11/2026): volta.js lancia volta_sonda.py e teletrasporto.py col Python di arturo.json
      (quello che installa-herdr.sh ha trovato), mai con un Python scritto a mano.
 HZ21 installa-herdr.sh su Windows scrive layout, mod e arturo.json in ~/.config/herdr-app e la shell
      di herdr-core in ~/.config/herdr-core/config.toml, dove Herdr 0.1.14 li legge; niente in %APPDATA%.
@@ -101,7 +101,7 @@ HZ31 Rispondi, Risolta e Scarta del velo (#5117 passo 5): notaui.js li manda ad 
      risposta di Federico arriva una volta sul todo, Risolta senza testo chiude nota e todo, Scarta col
      motivo scarta il todo, e una nota già chiusa da Claude esce 2 col motivo.
 HZ32 il formato in due copie (#5117 passo 6): TIPI, TIPO_PREDEFINITO, STATI, APERTE e VUOTO di nota.js
-     (node) e di bin/note_finestra.py dicono lo stesso; l'aiuto di arturo note e docs/volta-celeste.md
+     (node) e di bin/note_finestra.py dicono lo stesso; l'aiuto di arturo note e docs/volta.md
      spiegano --chi e --json, e la guida parla a chi usa Arturo.
 HZ33 "Trova i miei progetti" su ogni macchina (#5111, con node): il pulsante manda Claude al file di
      istruzioni nella cartella di Arturo, presa da arturo.json o, in un arturo.json di prima, dal bin
@@ -188,7 +188,7 @@ HZ49 una X in hover chiude per sempre una sessione ferma (11/11/2026): volta.js 
      clic passa da fare(), che al primo clic chiede "Sì, elimina".
 HZ50 le note si trovano a vista (11/11/2026): il piede della barra ha la voce "Note", che apre l'elenco
      e scrive accanto i tasti della nota nuova e dell'elenco; il layout arturo dà al piede 192 px, cinque voci.
-HZ51 Volta Celeste, l'ordine è l'ultima interazione (11/11/2026): dentro un gruppo la sessione toccata per
+HZ51 Volta, l'ordine è l'ultima interazione (11/11/2026): dentro un gruppo la sessione toccata per
      ultima sta in cima, qualunque stato abbia (una ferma di un minuto fa sta sopra una che aspetta da
      ieri); viene per primo il gruppo con la più recente, per progetto e per macchina, e "Senza progetto"
      non va in fondo d'ufficio. Senza trascrizione la sonda mette in "ultimo" la nascita (startedAt), così
@@ -214,8 +214,8 @@ HZ54 il menu del tasto destro su una sessione (#5291): menu() di sessioni.js dà
 HZ55 i verbi duplica e fork della sonda (#5291): passano da nasci, col servizio acceso prima; fork porta
      --resume <sessionId> --fork-session e parte dalla cartella della sessione, e senza cartella dà errore
      senza lanciare claude; duplica senza cartella ripiega sulla base. Un id strano non parte.
-HZ56 shared/volta-celeste/ è una copia (11/11/2026): la scrive volta/pubblica-mod.py del repository di
-     Volta Celeste, e ogni file ha l'impronta di ORIGINE. Un file toccato a mano, uno in più o uno in
+HZ56 shared/volta/ è una copia (11/11/2026): la scrive volta/pubblica-mod.py del repository di
+     Volta, e ogni file ha l'impronta di ORIGINE. Un file toccato a mano, uno in più o uno in
      meno fanno rosso: la fonte si cambia là.
 HZ57 il mod si aggiorna da solo (11/11/2026): volta.js chiede a volta_mod.py un controllo all'apertura e
      ogni ora, mai due insieme, e pubblica la versione in shared arturo.mod; il piede la scrive accanto
@@ -261,7 +261,7 @@ HZ62 il velo delle note sceglie il singolo elemento (nota.js con node): nomeElem
      fissi e prefissi; elementoSotto() prende il più piccolo sotto il punto fra quelli di window.elements(),
      lascia fuori il velo stesso e distingue due parti con lo stesso id; evidenza() mette l'elemento prima
      della parte e senza elementi resta com'era; il todo della nota nomina l'elemento.
-HZ64 notaui.js usa gli elementi solo se la finestra li dà (Volta Celeste), accende e spegne il registro,
+HZ64 notaui.js usa gli elementi solo se la finestra li dà (Volta), accende e spegne il registro,
      salva l'elemento nel dove; le parti danno un id agli elementi che non l'avevano.
 HZ65 il testo di un todo non finisce in una shell (revisione dell'11/11/2026, dati.js con node): se nella
      scheda agganciata claude attach è uscito, Lavoraci e i suggerimenti non scrivono il testo; la
@@ -399,7 +399,7 @@ import time
 from pathlib import Path
 
 CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91")
-INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
+INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
 # tetto alla connessione e battito, perché una connessione morta non tenga la scheda ferma.
@@ -576,7 +576,7 @@ def hz06(repo: Path, casa: Path) -> str | None:
     if "shared/setup-herdr.md" not in setup:
         return "/setup non porta a shared/setup-herdr.md"
     passo = (repo / "shared/setup-herdr.md").read_text(encoding="utf-8")
-    if "shared/volta-celeste/installa-herdr.sh" not in passo:
+    if "shared/volta/installa-herdr.sh" not in passo:
         return "setup-herdr.md non lancia installa-herdr.sh"
     for parola in ("HERDR OK", "HERDR NO", "HERDR ERRORE"):
         if parola not in passo or (parola != "HERDR ERRORE" and parola not in (repo / INSTALLA).read_text(encoding="utf-8")):
@@ -584,7 +584,7 @@ def hz06(repo: Path, casa: Path) -> str | None:
     # #5020: la firma locale si propone con una riga e il comando, e lo script è eseguibile come gli altri.
     if "HERDR FIRMA" not in passo:
         return "setup-herdr.md non dice cosa fare con la riga HERDR FIRMA"
-    if not os.access(repo / "shared/volta-celeste/firma-locale.sh", os.X_OK):
+    if not os.access(repo / "shared/volta/firma-locale.sh", os.X_OK):
         return "firma-locale.sh non è eseguibile"
     for firma, attesa in (("assente", True), ("presente", False)):
         with tempfile.TemporaryDirectory() as d:
@@ -601,14 +601,14 @@ def hz06(repo: Path, casa: Path) -> str | None:
 
 
 def hz07(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     for js in mod.glob("*.js"):
         for rel in re.findall(r'from "\./([^"]+)"', js.read_text(encoding="utf-8")):
             if not (mod / rel).exists():
                 return f"{js.name} importa {rel}, che non c'è"
     main = (mod / "main.js").read_text(encoding="utf-8")
     parti = set(re.findall(r"(\w+): \w+", re.search(r"const PARTI = \{(.*?)\};", main).group(1)))
-    layout = (repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8")
+    layout = (repo / "shared/volta/layouts/arturo.json").read_text(encoding="utf-8")
     # [^"]+ e non \w+: un nome col trattino o col punto non deve sparire dal controllo
     usate = set(re.findall(r'"parte": "([^"]+)"', layout)) | set(re.findall(r'parte: "([^"]+)"'," ".join(p.read_text(encoding="utf-8") for p in mod.glob("*.js"))))
     if usate - parti:
@@ -646,7 +646,7 @@ def hz08(repo: Path, casa: Path) -> str | None:
 
 
 def hz09(repo: Path, casa: Path) -> str | None:
-    dati = (repo / "shared/volta-celeste/mods/arturo/dati.js").read_text(encoding="utf-8")
+    dati = (repo / "shared/volta/mods/arturo/dati.js").read_text(encoding="utf-8")
     blocco = re.search(r"export const SUGGERIMENTI = \[(.*?)\n\];", dati, re.S)
     if not blocco:
         return "SUGGERIMENTI non trovato in dati.js"
@@ -661,7 +661,7 @@ def hz09(repo: Path, casa: Path) -> str | None:
         for rel in re.findall(r"\{radice\}/([\w./-]+\.md)", p):
             if not (repo / rel).exists():
                 return f"il suggerimento rimanda a {rel}, che non c'è"
-    trova = (repo / "shared/volta-celeste/trova-progetti.md").read_text(encoding="utf-8")
+    trova = (repo / "shared/volta/trova-progetti.md").read_text(encoding="utf-8")
     ritratto = (repo / "shared/setup-ritratto.md").read_text(encoding="utf-8")
     if "2c. Le cartelle" not in trova or "## 2c. Le cartelle" not in ritratto:
         return "trova-progetti.md non usa la parte 2c del ritratto"
@@ -695,7 +695,7 @@ def hz10(repo: Path, casa: Path) -> str | None:
     if not node:
         return None
     copia = casa / "partenza.mjs"  # .mjs: senza package.json node leggerebbe il .js come CommonJS
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/partenza.js", copia)
+    shutil.copyfile(repo / "shared/volta/mods/arturo/partenza.js", copia)
     modulo = copia.as_uri()
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_PARTENZA % json.dumps(modulo)],
                        capture_output=True, text=True, timeout=30)
@@ -733,7 +733,7 @@ console.log(JSON.stringify({ scaduti: forma(r.scaduti), te: forma(r.te), fermi: 
 
 
 def hz11(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     main = (mod / "main.js").read_text(encoding="utf-8")
     if "settimana: Settimana" not in main or 'from "./revisione.js"' not in main:
         return "main.js non ha la parte settimana"
@@ -781,7 +781,7 @@ GESTI = [("chi-tu", "chi", "tu"), ("chi-decidi", "chi", "decidi"), ("quando-sett
 
 
 def hz12(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     main = (mod / "main.js").read_text(encoding="utf-8")
     if "azioni: Azioni" not in main or "nuovo: Nuovo" not in main:
         return "main.js non ha le parti azioni e nuovo"
@@ -886,7 +886,7 @@ def hz13(repo: Path, casa: Path) -> str | None:
            "ARTURO_APP_COPIA": str(copia), "ARTURO_APP_NO_LAUNCHCTL": "1", "ARTURO_APP_FIRMA": "adhoc"}
 
     def giro(*arg):
-        return subprocess.run(["sh", str(repo / "shared/volta-celeste/arturo-app.sh"), *arg], capture_output=True,
+        return subprocess.run(["sh", str(repo / "shared/volta/arturo-app.sh"), *arg], capture_output=True,
                               text=True, timeout=60, env=env)
 
     def arturo_ok(versione):
@@ -914,7 +914,7 @@ def hz13(repo: Path, casa: Path) -> str | None:
     if lancia != ["/bin/sh", str(copia / "arturo-app.sh")]:
         return f"il LaunchAgent non lancia la copia fuori dal repository: {lancia}"
     if not (copia / "arturo-icona.svg").exists() \
-            or (copia / "arturo-app.sh").read_bytes() != (repo / "shared/volta-celeste/arturo-app.sh").read_bytes():
+            or (copia / "arturo-app.sh").read_bytes() != (repo / "shared/volta/arturo-app.sh").read_bytes():
         return "la copia per il LaunchAgent manca o non è uguale allo script del repository"
     if sorted(guarda) != sorted([str(herdr / "Contents/Info.plist"), str(arturo / "Contents/Info.plist")]):
         return f"il LaunchAgent non guarda i due Info.plist: {guarda}"
@@ -948,10 +948,10 @@ console.log(JSON.stringify({
 
 
 def hz14(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     if "nota: Nota" not in (mod / "main.js").read_text(encoding="utf-8"):
         return "main.js non ha la parte nota"
-    if json.loads((repo / "shared/volta-celeste/keys.json").read_text(encoding="utf-8")).get("global", {}).get("cmd-shift-n") != "arturo.nota":
+    if json.loads((repo / "shared/volta/keys.json").read_text(encoding="utf-8")).get("global", {}).get("cmd-shift-n") != "arturo.nota":
         return "keys.json non lega cmd-shift-n alle note"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     # apriNota sta in comuni.js dal passo 3 di #5117: la usano la barra e l'elenco delle note.
@@ -999,7 +999,7 @@ def hz14(repo: Path, casa: Path) -> str | None:
 
 def scritti_in_data(repo: Path) -> set[str]:
     """I nomi sotto ~/.claude/data/ che la parte Herdr scrive: mod, hook di stato e invito all'avvio."""
-    fonti = [f for f in (repo / "shared/volta-celeste").rglob("*") if f.is_file() and f.suffix in (".js", ".sh", ".py")]
+    fonti = [f for f in (repo / "shared/volta").rglob("*") if f.is_file() and f.suffix in (".js", ".sh", ".py")]
     fonti.append(repo / "hooks/herdr-stato.sh")
     testi = [f.read_text(encoding="utf-8") for f in fonti]
     testi += [r for r in (repo / "hooks/session-start.sh").read_text(encoding="utf-8").splitlines() if "herdr" in r]
@@ -1040,7 +1040,7 @@ def hz16(repo: Path, casa: Path) -> str | None:
         (bin_ / nome).chmod(0o755)
     agenti = casa / "agenti"
     env = dict(os.environ, HOME=str(casa), SERVIZI_AGENTI=str(agenti), SERVIZI_NO_LAUNCHCTL="1")
-    script = repo / "shared" / "volta-celeste" / "servizi-gui.sh"
+    script = repo / "shared" / "volta" / "servizi-gui.sh"
 
     def leggi(nome: str) -> dict | None:
         f = agenti / f"org.stellakamikaze.arturo.{nome}.plist"
@@ -1107,7 +1107,7 @@ def volta_node(repo: Path, casa: Path) -> dict | str | None:
     if not node:
         return None
     copia = casa / "sessioni.mjs"
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/sessioni.js", copia)
+    shutil.copyfile(repo / "shared/volta/mods/arturo/sessioni.js", copia)
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_VOLTA % json.dumps(copia.as_uri())],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -1158,7 +1158,7 @@ def hz18(repo: Path, casa: Path) -> str | None:
 
 
 def hz19(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo, dove in (('import { Volta } from "./volta.js";', "barra.js"), ("this.volta.init(cx);", "barra.js"),
@@ -1176,7 +1176,7 @@ def hz19(repo: Path, casa: Path) -> str | None:
 
 
 def hz20(repo: Path, casa: Path) -> str | None:
-    volta = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
+    volta = (repo / "shared/volta/mods/arturo/volta.js").read_text(encoding="utf-8")
     if "this.py = c.arturo[0];" not in volta or "const c = await config();" not in volta:
         return "volta.js non prende Python da arturo.json"
     for pezzo in ('exec(this.py, [this.script, "volta"', 'exec(this.py, [this.sposta, "porta-volta"'):
@@ -1223,7 +1223,7 @@ def hz22(repo: Path, casa: Path) -> str | None:
         esiti[sistema] = leggi(sotto / "app" / "keys.json").get("global", {})
     win, mac = esiti["windows"], esiti["mac-arm"]
     # I tasti che Herdr scrive in keys.json al primo avvio su Windows (src/keys/shipped/v0.1.12-keys.json
-    # di Volta Celeste, più ctrl-shift-c, -v e -f del terminale): Arturo non deve prenderne nessuno.
+    # di Volta, più ctrl-shift-c, -v e -f del terminale): Arturo non deve prenderne nessuno.
     sopra = casa / "sopra-herdr"
     (sopra / "app").mkdir(parents=True)
     (sopra / "app" / "keys.json").write_text(json.dumps({"global": {**dict.fromkeys(HERDR_CTRL, "herdr"), "ctrl-shift-t": "tab.new"}}), encoding="utf-8")
@@ -1258,7 +1258,7 @@ def hz23(repo: Path, casa: Path) -> str | None:
 
 
 def hz24(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     testata = (mod / "testata.js").read_text(encoding="utf-8")
     guida = (mod / "guida.js").read_text(encoding="utf-8")
     volta = (mod / "volta.js").read_text(encoding="utf-8")
@@ -1277,7 +1277,7 @@ def hz24(repo: Path, casa: Path) -> str | None:
 
 def hz25(repo: Path, casa: Path) -> str | None:
     # Una finestra di dialogo chiusa ferma il suo codice al primo await: la chiusura viene dopo l'azione.
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     prima = re.compile(r"(this\.chiudi\(\)|dopo\?\.\(\)|closeOverlay\([^)]*\));\s*(?:await\s+)?(apri|esegui|scrivi|chiedi|nuova|run)\(")
     for f in sorted(mod.glob("*.js")):
         m = prima.search(f.read_text(encoding="utf-8"))
@@ -1319,7 +1319,7 @@ console.log(JSON.stringify({
 
 
 def hz26(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     main = (mod / "main.js").read_text(encoding="utf-8")
     if '"marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"' not in main \
             or "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;" not in main \
@@ -1333,7 +1333,7 @@ def hz26(repo: Path, casa: Path) -> str | None:
         return None
     copia = casa / "nota.mjs"
     shutil.copyfile(mod / "nota.js", copia)
-    lay = (repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8")
+    lay = (repo / "shared/volta/layouts/arturo.json").read_text(encoding="utf-8")
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_REGIONE % (json.dumps(copia.as_uri()), lay)],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -1381,7 +1381,7 @@ console.log(JSON.stringify({
 
 
 def hz27(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     ui = (mod / "notaui.js").read_text(encoding="utf-8")
     for pezzo, perche in [
         ('exec(py, ["-c", LEGGI_NOTE, cartellaNote(home())]', "il velo non legge le note col Python di arturo.json"),
@@ -1472,7 +1472,7 @@ console.log(JSON.stringify({
 
 
 def hz28(repo: Path, casa: Path) -> str | None:
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     mod = vc / "mods/arturo"
     testo = {f: (mod / f).read_text(encoding="utf-8") for f in ("main.js", "barra.js", "testata.js", "noteui.js", "comuni.js")}
     for f, pezzo, perche in [
@@ -1578,7 +1578,7 @@ def hz29(repo: Path, casa: Path) -> str | None:
     if [(n["id"], n["numero"], n["stato"]) for n in note] != [("2026-11-10_07-00-00", 1, "aperta"), ("vecchia", 2, "aperta")]:
         return f"elenco: numeri o stati sbagliati (una v1 prende il primo libero, mai uno già preso): {[(n['id'], n['numero'], n['stato']) for n in note]}"
     md = cli("note", "elenco", "--md").stdout
-    if "# Note sulla finestra di Volta Celeste: 2 aperte" not in md or "`arturo note mostra 2026-11-10_07-00-00`" not in md:
+    if "# Note sulla finestra di Volta: 2 aperte" not in md or "`arturo note mostra 2026-11-10_07-00-00`" not in md:
         return f"elenco --md non è il brief: {md[:160]}"
     r = cli("note", "mostra", "1", "--json")
     try:
@@ -1662,7 +1662,7 @@ def hz30(repo: Path, casa: Path) -> str | None:
 
 
 def hz31(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     ui = (mod / "notaui.js").read_text(encoding="utf-8")
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     for testo, pezzo, perche in [
@@ -1741,8 +1741,8 @@ def hz32(repo: Path, casa: Path) -> str | None:
     aperti e dove vuoto devono dire lo stesso. L'aiuto e la guida nominano --chi e --json dei verbi."""
     aiuto = subprocess.run([sys.executable, str(repo / "bin/arturo"), "note", "aiuto"],  # il percorso vero, con l'UTF-8
                            capture_output=True, text=True, timeout=30).stdout
-    guida = (repo / "docs/volta-celeste.md").read_text(encoding="utf-8")
-    for dove, testo in (("l'aiuto di arturo note", aiuto), ("docs/volta-celeste.md", guida)):
+    guida = (repo / "docs/volta.md").read_text(encoding="utf-8")
+    for dove, testo in (("l'aiuto di arturo note", aiuto), ("docs/volta.md", guida)):
         for pezzo in ("--chi", "--json"):
             if pezzo not in testo:
                 return f"{dove} non spiega {pezzo}"
@@ -1757,7 +1757,7 @@ def hz32(repo: Path, casa: Path) -> str | None:
     if not node:
         return None
     copia = casa / "nota.mjs"
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/nota.js", copia)
+    shutil.copyfile(repo / "shared/volta/mods/arturo/nota.js", copia)
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_FORMATO % json.dumps(copia.as_uri())],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -1831,7 +1831,7 @@ export const run = (cmd, a) => {
 
 def mod_dati(repo: Path, mod: Path, dati: str) -> None:
     """dati.js per node: herdr finto, sessioni.js (puro) accanto come .mjs."""
-    sessioni = (repo / "shared/volta-celeste/mods/arturo/sessioni.js").read_text(encoding="utf-8")
+    sessioni = (repo / "shared/volta/mods/arturo/sessioni.js").read_text(encoding="utf-8")
     (mod / "sessioni.mjs").write_text(sessioni, encoding="utf-8")
     dati = dati.replace('from "herdr";', 'from "./herdr.mjs";').replace('from "./sessioni.js";', 'from "./sessioni.mjs";')
     (mod / "dati.mjs").write_text(dati, encoding="utf-8")
@@ -1856,7 +1856,7 @@ def hz33(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    dati = (repo / "shared/volta-celeste/mods/arturo/dati.js").read_text(encoding="utf-8")
+    dati = (repo / "shared/volta/mods/arturo/dati.js").read_text(encoding="utf-8")
     if 'from "herdr";' not in dati:
         return "dati.js non importa più da herdr: il banco non sa sostituirlo"
     mod = casa / "mod"
@@ -1887,7 +1887,7 @@ def hz33(repo: Path, casa: Path) -> str | None:
     if "{radice}" in prompt or "~/.claude" in prompt:
         return f"il prompt del pulsante non ha la cartella di Arturo: {prompt[:120]}"
     rimandi = [Path(x) for x in re.findall(r"(\S+/trova-progetti\.md)", prompt)]
-    if not rimandi or not rimandi[0].is_file() or rimandi[0].resolve() != (repo / "shared/volta-celeste/trova-progetti.md").resolve():
+    if not rimandi or not rimandi[0].is_file() or rimandi[0].resolve() != (repo / "shared/volta/trova-progetti.md").resolve():
         return f"il prompt non porta a un trova-progetti.md che esiste: {prompt[:160]}"
     if str(altrove) not in prima["argv"][0][-1]:
         return f"con un arturo.json di prima il prompt non usa la cartella del bin: {prima['argv'][0][-1][:120]}"
@@ -1932,7 +1932,7 @@ sys.exit(2)
 
 
 def hz34(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     # il percorso sta solo in config() di dati.js, e volta.js lo prende da lì
@@ -2030,7 +2030,7 @@ def volta_claude(repo: Path, casa: Path, args: list[str], tty: bool = True, **ex
     if tty:
         env["VOLTA_CLAUDE_TTY"] = "1"
     env.update(extra)
-    r = subprocess.run(["sh", str(repo / "shared/volta-celeste/volta-claude.sh"), *args],
+    r = subprocess.run(["sh", str(repo / "shared/volta/volta-claude.sh"), *args],
                        capture_output=True, text=True, timeout=30, env=env)
     if os.name != "nt":
         os.chmod(finto, 0o755)
@@ -2087,7 +2087,7 @@ def hz35(repo: Path, casa: Path) -> str | None:
 def hz36(repo: Path, casa: Path) -> str | None:
     if os.name == "nt":
         return None  # su Windows la nascita va nel profilo di PowerShell (HZ37, HZ38): non_gira_qui lo dichiara
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     home = casa / "home"
     home.mkdir()
     app = casa / "app"
@@ -2183,7 +2183,7 @@ def powershell() -> str | None:
 
 
 def hz37(repo: Path, casa: Path) -> str | None:
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     home = casa / "home"
     home.mkdir()
     app = casa / "app"
@@ -2253,7 +2253,7 @@ def hz38(repo: Path, casa: Path) -> str | None:
     ps = powershell()
     if not ps:
         return None  # gira dove c'è PowerShell (Windows): non_gira_qui lo dichiara
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     app = casa / "app"
     app.mkdir()
     shutil.copy(vc / "nascita.sh", app / "volta-nascita.sh")
@@ -2333,7 +2333,7 @@ console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, stati }));
 
 def hz39(repo: Path, casa: Path) -> str | None:
     import base64
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     sonda = mod / "volta_sonda.py"
     nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
     conf = {
@@ -2556,7 +2556,7 @@ console.log(JSON.stringify({
 
 
 def hz40(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     sonda = mod / "volta_sonda.py"
     log = casa / "log"
     log.write_text("", encoding="utf-8")
@@ -2628,7 +2628,7 @@ elif sys.argv[1:3] == ["daemon", "run"]:
 
 
 def hz41(repo: Path, casa: Path) -> str | None:
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
     conf = {
         "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto")],
@@ -2747,7 +2747,7 @@ print(json.dumps({"esito": d, "secondi": time.monotonic() - t0}))
 
 
 def hz42(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     sonda = mod / "volta_sonda.py"
     import ast  # noqa: PLC0415
     costanti = {n.targets[0].id: n.value.value for n in ast.parse(sonda.read_text(encoding="utf-8")).body
@@ -2787,7 +2787,7 @@ def hz42(repo: Path, casa: Path) -> str | None:
 
 
 def hz43(repo: Path, casa: Path) -> str | None:
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     gui = (vc / "servizi-gui.sh").read_text(encoding="utf-8")
     ps1 = (vc / "servizio-claude.ps1").read_text(encoding="utf-8-sig")
     installa = (vc / "installa-herdr.sh").read_text(encoding="utf-8")
@@ -2838,7 +2838,7 @@ if sys.argv[1:2] == ["agents"]:
 
 
 def hz44(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     bj = (mod / "barra.js").read_text(encoding="utf-8")
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     cj = (mod / "comandi.js").read_text(encoding="utf-8")
@@ -2900,7 +2900,7 @@ console.log(JSON.stringify({
 
 
 def hz45(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     hook = repo / "hooks/titolo-sessione.py"
     node = shutil.which("node")
     if node:
@@ -3028,7 +3028,7 @@ console.log(JSON.stringify({
 
 
 def hz46(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     presa, comando = vj.find('if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }'), vj.find("await azioneSessione(s, a.verbo)")
     if presa < 0 or comando < 0 or presa > comando:
@@ -3083,7 +3083,7 @@ def hz46(repo: Path, casa: Path) -> str | None:
 
 
 def hz47(repo: Path, casa: Path) -> str | None:
-    vj = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
+    vj = (repo / "shared/volta/mods/arturo/volta.js").read_text(encoding="utf-8")
     inizio, fine = vj.find("  pannello(t) {"), vj.find("  riga(t, s, modo, cx) {")
     if inizio < 0 or fine < inizio:
         return "volta.js non ha pannello() prima di riga()"
@@ -3105,7 +3105,7 @@ def hz47(repo: Path, casa: Path) -> str | None:
 
 def hz48(repo: Path, casa: Path) -> str | None:
     import importlib.util
-    sp = importlib.util.spec_from_file_location("volta_sonda_hz48", repo / "shared/volta-celeste/mods/arturo/volta_sonda.py")
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz48", repo / "shared/volta/mods/arturo/volta_sonda.py")
     m = importlib.util.module_from_spec(sp)
     sp.loader.exec_module(m)
     voce = {"macchina": "amaltea", "host": "amaltea", "questa": False, "target": "amaltea", "claude": "/c", "sessioni": [
@@ -3124,7 +3124,7 @@ def hz48(repo: Path, casa: Path) -> str | None:
 
 
 def hz49(repo: Path, casa: Path) -> str | None:
-    vj = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
+    vj = (repo / "shared/volta/mods/arturo/volta.js").read_text(encoding="utf-8")
     inizio, fine = vj.find("  riga(t, s, modo, cx) {"), vj.find("  interruttore(t) {")
     if inizio < 0 or fine < inizio:
         return "volta.js non ha riga() prima di interruttore()"
@@ -3144,13 +3144,13 @@ def hz49(repo: Path, casa: Path) -> str | None:
 
 
 def hz50(repo: Path, casa: Path) -> str | None:
-    bj = (repo / "shared/volta-celeste/mods/arturo/barra.js").read_text(encoding="utf-8")
+    bj = (repo / "shared/volta/mods/arturo/barra.js").read_text(encoding="utf-8")
     piede = bj[bj.find("export class Piede {"):]
     if '.child(voce("note", "pin", "Note", () => apriElenco())' not in piede:
         return "barra.js: il piede non ha la voce Note che apre l'elenco delle note"
     if "${tasti().nota} nuova · ${tasti().elenco}" not in piede:
         return "barra.js: la voce Note non scrive i tasti della nota nuova e dell'elenco"
-    lay = json.loads((repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8"))
+    lay = json.loads((repo / "shared/volta/layouts/arturo.json").read_text(encoding="utf-8"))
     alti = []
     def cerca(n):
         if isinstance(n, dict):
@@ -3192,7 +3192,7 @@ console.log(JSON.stringify({ progetto: forma(v.gruppi(dati, "progetto")), macchi
 
 def hz51(repo: Path, casa: Path) -> str | None:
     import importlib.util
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     node = shutil.which("node")
     if node:
         copia = casa / "sessioni.mjs"
@@ -3251,7 +3251,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     m = casa / "mod"
     m.mkdir()
     mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
@@ -3375,7 +3375,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
 
 
 def hz53(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     sonda = mod / "volta_sonda.py"
     nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
     conf = {
@@ -3425,7 +3425,7 @@ def hz53(repo: Path, casa: Path) -> str | None:
         if rc == 0 or ch:
             return f"apri {strano} non rifiutato, o lanciato lo stesso: rc {rc}, {d}"
     # i tasti: la scheda nuova è una sessione di Claude
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     if leggi(vc / "keys.json").get("global", {}).get("cmd-t") != "arturo.volta-nuova":
         return "keys.json non lega cmd-t alla scheda nuova di Volta"
     if leggi(vc / "keys-ctrl.json").get("global", {}).get("ctrl-shift-t") != "arturo.volta-nuova":
@@ -3478,7 +3478,7 @@ console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, esito }));
 
 
 def hz54(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("volta.js", "barra.js", "main.js", "menusessione.js", "dati.js")}
     attesi = (
         ("volta.js", '.on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })', "il tasto destro non apre il menu"),
@@ -3573,7 +3573,7 @@ def hz54(repo: Path, casa: Path) -> str | None:
 
 def hz55(repo: Path, casa: Path) -> str | None:
     import base64  # noqa: PLC0415
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     nata = {"id": "eeee2222", "sessionId": "eeee2222-bbbb", "claude": "C:/u/claude.exe", "cartella": "C:/lavori/x"}
     conf = {"macchine": [{"name": "Torre", "target": "torre.lan", "state": "connected"}], "exec": {"Torre": {"python3": nata}}}
     finto = casa / "hc_finto.py"
@@ -3669,21 +3669,21 @@ console.log(JSON.stringify({
 
 def hz56(repo: Path, casa: Path) -> str | None:
     import hashlib  # noqa: PLC0415
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     try:
         attesi = json.loads((vc / "ORIGINE").read_text(encoding="utf-8"))["file"]
     except (OSError, ValueError, KeyError):
-        return "shared/volta-celeste/ORIGINE manca o non si legge: la copia la scrive volta/pubblica-mod.py"
+        return "shared/volta/ORIGINE manca o non si legge: la copia la scrive volta/pubblica-mod.py"
     veri = {str(f.relative_to(vc)).replace(os.sep, "/"): hashlib.sha256(f.read_bytes()).hexdigest()
             for f in vc.rglob("*") if f.is_file() and f.name not in ("ORIGINE",) + GENERATI_DA_HERDR and "__pycache__" not in f.parts}
     diversi = sorted(k for k in set(attesi) | set(veri) if attesi.get(k) != veri.get(k))
     if diversi:
-        return f"shared/volta-celeste non è la copia di ORIGINE (la fonte è il repository di Volta Celeste): {diversi[:4]}"
+        return f"shared/volta non è la copia di ORIGINE (la fonte è il repository di Volta): {diversi[:4]}"
     return None
 
 
 def hz57(repo: Path, casa: Path) -> str | None:
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     mod = vc / "mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo in ("const script = `${appHome()}/volta_mod.py`;", "if (controlloMod || !(await esiste(script))) return;",
@@ -3718,7 +3718,7 @@ def hz57(repo: Path, casa: Path) -> str | None:
 
 def hz58(repo: Path, casa: Path) -> str | None:
     import base64  # noqa: PLC0415
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     radice, log, uscita = casa / "conf", casa / "log", casa / "scheda.out"
     (radice / "cache").mkdir(parents=True)
     log.write_text("", encoding="utf-8")
@@ -3930,7 +3930,7 @@ console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, esito }));
 
 
 def hz59(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("volta.js", "barra.js", "main.js", "menusessione.js", "cambio.js", "dati.js")}
     attesi = (
         ("volta.js", "if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);", "Rinomina e Cambia progetto non aprono il dialogo"),
@@ -4083,7 +4083,7 @@ console.log(JSON.stringify({
 
 
 def hz61(repo: Path, casa: Path) -> str | None:
-    mod_dir = repo / "shared/volta-celeste/mods/arturo"
+    mod_dir = repo / "shared/volta/mods/arturo"
     barra = (mod_dir / "barra.js").read_text(encoding="utf-8")
     for pezzo in ("this.memoria = await progettiMemoria();", "if (!this.memoria) {", "memoria: this.memoria ?? null",
                   "for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];"):
@@ -4139,7 +4139,7 @@ def hz60(repo: Path, casa: Path) -> str | None:
     import base64  # noqa: PLC0415
     import importlib.util  # noqa: PLC0415
     import zlib  # noqa: PLC0415
-    sp = importlib.util.spec_from_file_location("volta_sonda_hz60", repo / "shared/volta-celeste/mods/arturo/volta_sonda.py")
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz60", repo / "shared/volta/mods/arturo/volta_sonda.py")
     m = importlib.util.module_from_spec(sp)
     sp.loader.exec_module(m)
     spazio: dict = {}
@@ -4227,12 +4227,12 @@ console.log(JSON.stringify({
 
 def hz62(repo: Path, casa: Path) -> str | None:
     """Il velo delle note sul singolo elemento: le funzioni pure di nota.js, con elementi finti come li dà
-    window.elements() di Volta Celeste."""
+    window.elements() di Volta."""
     node = shutil.which("node")
     if not node:
         return None
     copia = casa / "nota.mjs"
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/nota.js", copia)
+    shutil.copyfile(repo / "shared/volta/mods/arturo/nota.js", copia)
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_ELEMENTO % json.dumps(copia.as_uri())],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -4287,7 +4287,7 @@ def hz62(repo: Path, casa: Path) -> str | None:
 
 def hz64(repo: Path, casa: Path) -> str | None:
     """Il velo usa gli elementi solo dove la finestra li dà, e le parti hanno gli id che servono."""
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     ui = (mod / "notaui.js").read_text(encoding="utf-8")
     for pezzo, cosa in (
             ('const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";',
@@ -4359,7 +4359,7 @@ console.log(JSON.stringify({ b, giro, righe }));
 
 def hz63(repo: Path, casa: Path) -> str | None:
     import signal  # noqa: PLC0415
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     script = mod / "volta_microfono.py"
     if not script.is_file() or not (mod / "microfono.js").is_file() or not (mod / "microfono.svg").is_file():
         return "nel mod mancano microfono.js, microfono.svg o volta_microfono.py"
@@ -4548,7 +4548,7 @@ def hz65(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     m = casa / "mod"
     m.mkdir()
     mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
@@ -4644,7 +4644,7 @@ def hz66(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     m = casa / "mod"
     m.mkdir()
     mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
@@ -4757,7 +4757,7 @@ def comandi_node(repo: Path, casa: Path) -> dict | str | None:
     if not node:
         return None
     copia = casa / "comandi.mjs"
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/comandi.js", copia)
+    shutil.copyfile(repo / "shared/volta/mods/arturo/comandi.js", copia)
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_COMANDI % (json.dumps(copia.as_uri()), json.dumps(list(COMANDI)))],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -4766,7 +4766,7 @@ def comandi_node(repo: Path, casa: Path) -> dict | str | None:
 
 
 def hz67(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("apri.js", "revisione.js", "suggerimenti.js", "testata.js", "barra.js")}
     # le finestre mandano il comando e si chiudono: un overlay chiuso ferma il suo codice al primo await
     for nome in ("apri.js", "revisione.js", "suggerimenti.js", "testata.js"):
@@ -4813,7 +4813,7 @@ def hz67(repo: Path, casa: Path) -> str | None:
 
 
 def hz68(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("testata.js", "barra.js")}
     attesi = (
         ("testata.js", "        const c = await nextCommand();\n        try { await this.rimanda(c, cx); } catch {", "la barra di stato non legge i comandi"),
@@ -4917,7 +4917,7 @@ def lotto4(casa: Path, conf: dict, hc_finto: str = HC_LENTO) -> tuple[dict, Path
 
 
 def hz69(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     sonda = mod / "volta_sonda.py"
     import ast  # noqa: PLC0415
     testo = sonda.read_text(encoding="utf-8")
@@ -5000,7 +5000,7 @@ def importlib_spec(nome: str, file: Path):
 
 
 def hz70(repo: Path, casa: Path) -> str | None:
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     if '"~/.local/bin/hc" + (".exe" if os.name == "nt" else "")' not in sonda.read_text(encoding="utf-8"):
         return "su Windows hc() ripiega su ~/.local/bin/hc senza .exe"
     sessione = lambda sid, **k: dict({"sessionId": sid, "kind": "background", "state": "done"}, **k)  # noqa: E731
@@ -5067,7 +5067,7 @@ def hz70(repo: Path, casa: Path) -> str | None:
 
 
 def hz71(repo: Path, casa: Path) -> str | None:
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     m = importlib_spec("volta_sonda_hz71", sonda)
     for testo, atteso in (('[{"a": 1}]', [{"a": 1}]), ('Warning: [beta] nuova versione\n[{"a": 1}]\n', [{"a": 1}]), ("[]", []),
                           ('avviso\n[{"a": 1}]\ncoda [x]', [{"a": 1}]), ("niente [qui]", None), ("", None), ("[1, 2]\n", None)):
@@ -5147,7 +5147,7 @@ def hz71(repo: Path, casa: Path) -> str | None:
 def hz72(repo: Path, casa: Path) -> str | None:
     if os.name == "nt":
         return None  # il claude finto è uno script con shebang
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     env, _log, _ = lotto4(casa, {"macchine": []})
     sid = "aaaa1111-trascritta"
     env.update(HZ_SESSIONI=json.dumps([{"id": "aaaa1111", "sessionId": sid, "kind": "background", "state": "idle", "cwd": "/p"}]))
@@ -5191,7 +5191,7 @@ def hz73(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     vecchia = '.split("\\n").pop() || "{}"'
@@ -5307,7 +5307,7 @@ def registro5(cache: Path, lavoro: str) -> dict:
 def hz74(repo: Path, casa: Path) -> str | None:
     if os.name == "nt":
         return None  # il claude finto è uno script con shebang
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     env, cache = lotto5(casa)
     try:
         scheda5(cache, "aaaa1111-uno", "due-mondi", "inizio")
@@ -5348,7 +5348,7 @@ def hz74(repo: Path, casa: Path) -> str | None:
 def hz75(repo: Path, casa: Path) -> str | None:
     if os.name == "nt":
         return None  # il claude finto è uno script con shebang
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     env, cache = lotto5(casa, base="Progetti")
     lavori = cache / "volta-lavori"
     lavori.mkdir(parents=True)
@@ -5409,7 +5409,7 @@ def hz75(repo: Path, casa: Path) -> str | None:
 def hz76(repo: Path, casa: Path) -> str | None:
     if os.name == "nt":
         return None  # il claude finto è uno script con shebang
-    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     env, cache = lotto5(casa)
 
     def titolo(sid, testo, fonte, **k):
@@ -5487,7 +5487,7 @@ console.log(JSON.stringify({ prima, staccati, dopo, esito, lanciati, senza: altr
 
 
 def hz77(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     volta_js = (mod / "volta.js").read_text(encoding="utf-8")
     # il clic: la frase del primo clic si legge prima di toglierla, e l'avviso ferma il clic prima della scheda
     ordine = ("const secondo = this.avvisi[s.sessionId] === ALTROVE;", "delete this.avvisi[s.sessionId];",
@@ -5579,7 +5579,7 @@ class Mic7:
     MIC, BH, ALTRO = "mic-vero", "BlackHole2ch_UID", "cuffie"
 
     def __init__(self, repo: Path, casa: Path):
-        self.script = repo / "shared/volta-celeste/mods/arturo/volta_microfono.py"
+        self.script = repo / "shared/volta/mods/arturo/volta_microfono.py"
         self.cache, self.audio = casa / "mic-cache", casa / "audio.json"
         self.ingressi = [{"uid": self.MIC, "nome": "Microfono"}, {"uid": self.BH, "nome": "BlackHole 2ch"}, {"uid": self.ALTRO, "nome": "Cuffie"}]
         self.beve = [sys.executable, "-c", "import sys\nwhile sys.stdin.buffer.read(4096): pass"]
@@ -5730,7 +5730,7 @@ def hz78(repo: Path, casa: Path) -> str | None:
         if m.comando("ripara").get("esito") != "ponte vivo" or m.ingresso() != BH or m.comando("stato").get("remoto", {}).get("ponte") is not True:
             return "un ricevitore vivo non è più riconosciuto"
         # la sonda delle sessioni lancia ripara quando trova microfono.json
-        sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+        sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
         env, _cache = lotto5(casa)
         (casa / "app/mods/arturo").mkdir(parents=True, exist_ok=True)
         shutil.copyfile(m.script, casa / "app/mods/arturo/volta_microfono.py")
@@ -5858,7 +5858,7 @@ print(json.dumps([vm.perche(x) for x in json.loads(sys.argv[2])]))
 
 
 def hz80(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     errori = ["ufficiofurore@amaltea: Permission denied (publickey,password,keyboard-interactive).",
               "Host key verification failed.",
               "[avfoundation @ 0x1] Failed to create AV capture input device: not authorized",
@@ -5893,7 +5893,7 @@ def hz80(repo: Path, casa: Path) -> str | None:
 
 
 def hz81(repo: Path, casa: Path) -> str | None:
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     mod = vc / "mods/arturo"
     bj = (mod / "barra.js").read_text(encoding="utf-8")
     vj = (mod / "volta.js").read_text(encoding="utf-8")
@@ -5928,7 +5928,7 @@ print(json.dumps({"quanti": volta_mod.tasti(Path(sys.argv[1])), "elenco": list(v
 
 
 def hz82(repo: Path, casa: Path) -> str | None:
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     # 1. l'installazione
     app = casa / "app"
     app.mkdir(parents=True)
@@ -6010,7 +6010,7 @@ def hz83(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/sessioni.js", casa / "sessioni.mjs")
+    shutil.copyfile(repo / "shared/volta/mods/arturo/sessioni.js", casa / "sessioni.mjs")
     (casa / "prova.mjs").write_text(PROVA_NOMI, encoding="utf-8")
     r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -6041,7 +6041,7 @@ console.log(JSON.stringify({
 
 
 def hz84(repo: Path, casa: Path) -> str | None:
-    mod_dir = repo / "shared/volta-celeste/mods/arturo"
+    mod_dir = repo / "shared/volta/mods/arturo"
     testata = (mod_dir / "testata.js").read_text(encoding="utf-8")
     if 'bottone("altra"' in testata:
         return "testata.js ha ancora Altra conversazione: la nuova sessione è Nuova richiesta (⌘T), HZ90"
@@ -6112,7 +6112,7 @@ console.log(JSON.stringify({ passi, ms: PORTA_MS, scritti: inviati.filter((x) =>
 
 
 def hz85(repo: Path, casa: Path) -> str | None:
-    mod_dir = repo / "shared/volta-celeste/mods/arturo"
+    mod_dir = repo / "shared/volta/mods/arturo"
     pannello = (mod_dir / "todo.js").read_text(encoding="utf-8")
     carica = pannello.split("  carica(cx) {", 1)[-1].split("\n  }\n", 1)[0]
     if "this.fatti = ancoraFatti(this.fatti, r.json);" not in carica or "fatti.clear()" in pannello:
@@ -6208,7 +6208,7 @@ console.log(JSON.stringify({ o, aperto: n.ordineGiro(g, { a: true }), vuoto: n.o
 
 def hz86(repo: Path, casa: Path) -> str | None:
     """⌘↓ e ⌘↑ girano fra le sessioni dell'elenco, di ogni macchina, col gesto del clic."""
-    vc = repo / "shared/volta-celeste"
+    vc = repo / "shared/volta"
     mod = vc / "mods/arturo"
     tasti = leggi(vc / "keys.json").get("global", {})
     if tasti.get("cmd-down") != "arturo.volta-giro-avanti" or tasti.get("cmd-up") != "arturo.volta-giro-indietro":
@@ -6284,7 +6284,7 @@ def hz87(repo: Path, casa: Path) -> str | None:
     node = shutil.which("node")
     if not node:
         return None
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     puro = casa / "puro"
     puro.mkdir()
     shutil.copyfile(mod / "sessioni.js", puro / "sessioni.mjs")
@@ -6379,7 +6379,7 @@ def contrasto(a: str, b: str) -> float:
 
 
 def hz88(repo: Path, casa: Path) -> str | None:
-    base = repo / "shared/volta-celeste"
+    base = repo / "shared/volta"
     for nome in ("arturo", "arturo-carta"):
         t = json.loads((base / f"themes/{nome}.json").read_text(encoding="utf-8"))
         fondo = t["background"]
@@ -6437,7 +6437,7 @@ console.log(JSON.stringify(out));
 
 
 def hz89(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     node = shutil.which("node")
     if node:
         puro = casa / "puro"
@@ -6466,7 +6466,7 @@ def hz89(repo: Path, casa: Path) -> str | None:
                 return f"passoCongedo, caso {k}: segna salvata una sessione senza /fine, e claude rm la perderebbe: {d[k]}"
     # la sonda: congeda con un claude finto, e il campo chiusa
     if os.name != "nt":
-        sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+        sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
         fbin, fapp, fcasa, lavoro = (casa / n for n in ("fbin", "fapp", "fcasa", "lavoro c"))
         for d_ in (fbin, fapp, fcasa, lavoro):
             d_.mkdir()
@@ -6554,7 +6554,7 @@ console.log(JSON.stringify(out));
 
 
 def hz90(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     testata = (mod / "testata.js").read_text(encoding="utf-8")
@@ -6582,7 +6582,7 @@ def hz_colonna_node(repo: Path, casa: Path, caso: str) -> str | None:
         return None
     puro = casa / f"puro-{caso}"
     puro.mkdir()
-    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/sessioni.js", puro / "sessioni.mjs")
+    shutil.copyfile(repo / "shared/volta/mods/arturo/sessioni.js", puro / "sessioni.mjs")
     (puro / "prova.mjs").write_text(PROVA_COLONNA, encoding="utf-8")
     r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -6602,7 +6602,7 @@ def hz_colonna_node(repo: Path, casa: Path, caso: str) -> str | None:
 
 
 def hz91(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/volta-celeste/mods/arturo"
+    mod = repo / "shared/volta/mods/arturo"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     cambio = (mod / "cambio.js").read_text(encoding="utf-8")
     barra = (mod / "barra.js").read_text(encoding="utf-8")
@@ -6634,387 +6634,387 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
-    ("HZ88", "shared/volta-celeste/themes/arturo.json", '"#7f90a8"', '"#4a5568"'),
-    ("HZ88", "shared/volta-celeste/themes/arturo.json", '"selection": "#1f4478"', '"selection": "#9fb4d0"'),
-    ("HZ88", "shared/volta-celeste/themes/arturo-carta.json", '"#6b717a"', '"#8a9099"'),
-    ("HZ88", "shared/volta-celeste/layouts/arturo.json", '"color": "ring"', '"color": "#2f6fe0"'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '            if processo(a["riprendi"]):\n                break\n        else:\n            continue', '            break\n        else:\n            continue'),
-    ('HZ90', 'shared/volta-celeste/mods/arturo/sessioni.js', '.replace(/\\s*\\([^)]*\\)\\s*$/, "")', '.replace(/\\s*\\(x\\)\\s*$/, "")'),
-    ('HZ90', 'shared/volta-celeste/mods/arturo/sessioni.js', '  const dove = modo === "progetto" ? macchinaBreve(s.macchina) :', '  const dove = modo === "progetto" ? s.macchina :'),
-    ('HZ90', 'shared/volta-celeste/mods/arturo/testata.js', '      .child(bottone("dafare"', '      .child(bottone("altra", "plus", "Altra conversazione", () => run("arturo.volta-nuova")))\n      .child(bottone("dafare"'),
-    ('HZ90', 'shared/volta-celeste/mods/arturo/testata.js', '    const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;', '    const macchina = null;'),
-    ('HZ90', 'shared/volta-celeste/mods/arturo/volta.js', '        .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))', ''),
-    ('HZ91', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (noto) return noto;', ''),
-    ('HZ91', 'shared/volta-celeste/mods/arturo/sessioni.js', '    for (const s of righe) metti(chiaveProgetto(s.progetto), nomeProgetto(s.progetto), s);', '    for (const s of righe) metti(s.progetto ? String(s.progetto) : "", nomeProgetto(s.progetto), s);'),
-    ('HZ91', 'shared/volta-celeste/mods/arturo/sessioni.js', '  const nomi = (p) => [p, slugDi(nomeProgetto(p))];', '  const nomi = (p) => [p];'),
-    ('HZ91', 'shared/volta-celeste/mods/arturo/dati.js', ' if (m.titolo) v.titolo = m.titolo; continue; }', ' continue; }'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return { ...dati, sessioni: (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(s.sessionId) && !via.has(s.id)) };', 'return { ...dati, sessioni: (dati.sessioni ?? []).filter((s) => !via.has(s.sessionId) && !via.has(s.id)) };'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/sessioni.js', "    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.sessionId || viste.has(s.sessionId)) continue;", "    if (ind in (adesso ?? {}) || !s?.sessionId || viste.has(s.sessionId)) continue;"),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/sessioni.js', '    if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };', '    if (s.stato === "lavora" && ora - da < 1) return { fai: "attendi" };'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/sessioni.js', '    if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso:', '    if (s.stato === "aspetta") return { fai: "attendi", fase: "ferma", avviso:'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', '    argv += ["--resume", a["riprendi"], "--fork-session"]'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '"chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",', '"chiusa": False,'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
-    ('HZ89', 'shared/volta-celeste/mods/arturo/dati.js', '    segnaTolto(t.address);\n    if (panes()', '    if (panes()'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/"));', 'const l = terminals().filter((x) => visti.has(x.address));'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata) return fallita(m);'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata || m) return fallita(m);'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '({ errore: m?.testo ?? "Claude non resta aperto', '({ errore: "Claude non resta aperto'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '    return r.code === 0 ? motivoUscita(r.stdout, s) : null;', '    return null;'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', 'fallita((await perche(s, indirizzo)) ?? m)', 'fallita(null)'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  righe.forEach((r, i) => { if (/[%$#>]\\s.*\\battach\\s+[\'"]?[\\w-]{4,}/.test(r)) da = i; });\n', ''),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return { testo: frase(m), fermo: true };', 'return { testo: frase(m), fermo: false };'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  const m = s?.questa ? "questa macchina" : (s?.macchina', '  const m = !s?.questa ? "questa macchina" : (s?.macchina'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (/before init/.test(perche)) return', '  if (false) return'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', 'Claude esce appena parte (${perche}).`, fermo: false };', 'Claude esce appena parte (${perche}).`, fermo: true };'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  [/No job matching/, (m)', '  [/No job matchingX/, (m)'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '.replace(/\\u001b\\[[0-9;?]*[A-Za-z]/g, "").split("\\n");', '.split("\\n");'),
-    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (perche) return { testo:', '  if (false) return { testo:'),
-    ("HZ86", "shared/volta-celeste/keys.json", '"cmd-down": "arturo.volta-giro-avanti"', '"cmd-down": "agent.next"'),
-    ("HZ86", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta-giro") this.volta.giro(arg, cx);', ""),
-    ("HZ86", "shared/volta-celeste/mods/arturo/comandi.js", 'return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };', 'return { verbo: "volta-giro", arg: 1, lungo: false };'),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '.filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);', '.map((s) => s.sessionId);'),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "const tiene = prima && ora - prima.quando <= GIRO_MS;", "const tiene = Boolean(prima);"),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "  return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];", "  return ids[Math.min(ids.length - 1, Math.max(0, i + (verso < 0 ? -1 : 1)))];"),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "    return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));", "    return vista;"),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '    .filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))\n', ""),
-    ("HZ86", "shared/volta-celeste/mods/arturo/volta.js", "    if (s) { this.scopri(s); this.premi(s, cx); }", "    if (s) this.premi(s, cx);"),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;', '    ?? null;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;', '  return t[0].toUpperCase() + t.slice(1);'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return true;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return ultimo ? m[1] === ultimo : true;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : false;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '.split(/[\\\\/]+/).filter(Boolean).pop();', '.split(/[/]+/).filter(Boolean).pop();'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '.split(/[\\\\/]+/).filter(Boolean).pop();', '.split(/[\\\\/]+/).pop();'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (!nome || nome === s.id) return true;', '  if (!nome) return true;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (!nome || nome === s.id) return true;', '  if (nome === s.id) return true;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (!nomeAutomatico(s)) return nome;', '  if (nome) return nome;'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").replace(/[^a-z0-9]/g, "");'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").toLowerCase();'),
-    ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', 'const m = /^([\\w.-]+)-[0-9a-f]{2}$/.exec(nome);', 'const m = /^([\\w.-]+)-\\w{2}$/.exec(nome);'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named);'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && Boolean(s.named) && slug(s.name) !== "volta";'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && slug(s.name) !== "volta";'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && s.name !== "volta";'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/dati.js', '    if (!eProgetto(s)) continue;', '    if (s.machine || !s.named) continue;'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/todo.js', '    return eProgetto(s) ? slug(s.name) : null;', '    return s && !s.machine && s.named ? slug(s.name) : null;'),
-    ('HZ84', 'shared/volta-celeste/mods/arturo/barra.js', 'this.lungo(c, cx, () => nuovaScheda());', 'this.lungo(c, cx, () => nuova(""));'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/todo.js', 'this.fatti = ancoraFatti(this.fatti, r.json);', 'this.fatti.clear();'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/todo.js', 'this.fatti = ancoraFatti(this.fatti, r.json);', ''),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/todo.js', '      setShared("arturo.scritto", Date.now());\n      if (r.ok) notify(', '      if (r.ok) notify('),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/azioni.js', '.filter((id) => vivi.has(id)));', ');'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/azioni.js', '  return new Set([...(fatti ?? [])].filter((id) => vivi.has(id)));', '  return new Set();'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/azioni.js', '  return new Set([...(fatti ?? [])].filter((id) => vivi.has(id)));', '  for (const id of fatti ?? []) if (!vivi.has(id)) fatti.delete(id);\n  return fatti ?? new Set();'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/azioni.js', 'for (const g of vista?.gruppi ?? []) for (const t of g.todo ?? []) vivi.add(t.id);', 'for (const g of (vista?.gruppi ?? []).slice(0, 1)) for (const t of g.todo ?? []) vivi.add(t.id);'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = false;'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = Boolean(p) && Date.now() - p.quando < PORTA_MS;'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = Boolean(p) && p.nome === nome;'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando <= PORTA_MS;'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });\n', ''),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });\n', '    portati.set(s.sessionId, { nome, quando: Date.now() });\n'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });\n', '    if (scritto) portati.set(s.sessionId, { nome, quando: 0 });\n'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', '  const p = portati.get(s.sessionId);', '  const p = [...portati.values()].pop();'),
-    ('HZ85', 'shared/volta-celeste/mods/arturo/dati.js', 'export const PORTA_MS = 5 * 60 * 1000;', 'export const PORTA_MS = 5 * 1000;'),
-    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', '        if mia.get(k) in VECCHI:\n            del mia[k]\n', ''),
-    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'if mia.get(k) in VECCHI:', 'if k in mia:'),
-    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'if mia.get(k) in VECCHI:', 'if str(mia.get(k)).startswith("mod.open:arturo-"):'),
-    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi'),
-    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-stato")\ntasti = leggi'),
-    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome")\ntasti = leggi'),
-    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if False:'),
-    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if tasto in mia:'),
-    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if str(mia.get(tasto)).startswith("mod.open:arturo-"):'),
-    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")', 'TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome")'),
-    ('HZ82', 'shared/volta-celeste/volta_mod.py', '    try:\n        tasti(fonte)\n', '    try:\n        pass\n'),
-    ('HZ82', 'shared/volta-celeste/volta_mod.py', '    if quanti:\n        scrivi(f, miei)', '    if quanti > 9:\n        scrivi(f, miei)'),
-    ('HZ81', 'shared/volta-celeste/mods/arturo/barra.js', '.size_full().overflow_hidden().bg(t.chrome)\n      .child(v_flex().id("barra-cima")', '.size_full().bg(t.chrome)\n      .child(v_flex().id("barra-cima")'),
-    ('HZ81', 'shared/volta-celeste/mods/arturo/barra.js', 'setShared("arturo.misura.cima", v);', ''),
-    ('HZ81', 'shared/volta-celeste/mods/arturo/volta.js', '.max_h(GESTI_MAX).flex_none().overflow_y_scroll()', ''),
-    ('HZ81', 'shared/volta-celeste/layouts/arturo.json', '      "resizable": false,\n      "background": "chrome",', '      "background": "chrome",'),
-    ('HZ81', 'shared/volta-celeste/layouts/arturo.json', '"px": 192', '"px": 190'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return salvo'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return veri[0] if veri else None'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', 'if x.get("uid") and VIRTUALE.lower() not in (x.get("nome") or "").lower()]', 'if x.get("uid")]'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if not messo or a.predefinito() != messo:\n        return False\n    uid = vero(', '    if not messo:\n        return False\n    uid = vero('),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    prima = attuale if attuale != bh["uid"] else (vero(a) or "")', '    prima = attuale'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return bool(uid) and a.metti(uid)', '    return bool(uid) and uid == stato.get("prima") and a.metti(uid)'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return True'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return "volta_microfono" in riga'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return False'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if nostro(stato.get("pid"), "ricevi"):\n        print(json.dumps({"esito": "ponte vivo"}))', '    if vivo(stato.get("pid")):\n        print(json.dumps({"esito": "ponte vivo"}))'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if nostro(stato.get("pid"), "ricevi"):\n        return esci(4,', '    if vivo(stato.get("pid")):\n        return esci(4,'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '"ponte": nostro(r.get("pid"), "ricevi"),', '"ponte": vivo(r.get("pid")),'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)', '        pass'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):', 'if os.path.exists(os.path.join(vc, "microfono-locale.json")) and os.path.exists(mic):'),
-    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)', '        subprocess.run([sys.executable, mic, "stato"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '            if not scrivi_entro(uscita, pezzo, SILENZIO):\n                break', '            os.set_blocking(uscita, True)\n            os.write(uscita, pezzo)'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '        resta = fine - time.time()\n        if resta <= 0:\n            return False', '        resta = 3600'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))', '        suo = nostro(pid, "ponte")'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))', '        suo = True'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '                    os.killpg(pid, segnale)', '                    os.kill(pid, segnale)'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if d.get("stato") in ("avvio", "attivo") and not nostro(d.get("pid"), "ponte"):', '    if d.get("stato") in ("avvio", "attivo") and not vivo(d.get("pid")):'),
-    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '                if not gruppo_vivo(pid):\n                    break\n    file_locale().unlink(missing_ok=True)', '                if not gruppo_vivo(pid):\n                    break\n        return\n    file_locale().unlink(missing_ok=True)'),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:\n        return "l\'altra macchina non accetta la chiave ssh di questa"\n', ''),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:', '    if "host key verification failed" in t:'),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:', '    if "permission denied (publickey" in t:'),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '  if (/\\.exe$/i.test(String(a[3])) || /^[a-z]:[\\\\/]/i.test(String(a[3]))) return null;\n', ''),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3])) || ', ''),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', ' || /^[a-z]:[\\\\/]/i.test(String(a[3]))', ''),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3]))', '/\\.exe$/.test(String(a[3]))'),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/^[a-z]:[\\\\/]/i.test(String(a[3]))', '/^[a-z]:\\\\/i.test(String(a[3]))'),
-    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3]))', '/exe/i.test(String(a[3]))'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!s?.id || schedeDi(s).length) return [];\n  return terminals().filter(', '  if (!s?.id) return [];\n  return terminals().filter('),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', 'return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&', 'return terminals().filter((x) => (x.state ?? "live") === "live" &&'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '!String(x.address).includes("/") && (x.state ?? "live") === "live" &&', '!String(x.address).includes("/") &&'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '(x.state ?? "live") === "live" &&', 'x.state === "live" &&'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));\n}\n\n// Stacca', '    agganciata(x.argv, s));\n}\n\n// Stacca'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));\n}\n\n// Stacca', '    (x.labels?.[ETICHETTA] === s.id));\n}\n\n// Stacca'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;', '  return l.length;'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;', '  for (const t of l.slice(0, 1)) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return 0;'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    if (d.azione === "aggancia" && this.fuori(s, secondo, cx)) return;\n', ''),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    const secondo = this.avvisi[s.sessionId] === ALTROVE;\n    delete this.avvisi[s.sessionId];', '    delete this.avvisi[s.sessionId];\n    const secondo = this.avvisi[s.sessionId] === ALTROVE;'),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    if (secondo) { stacca(s); return false; }\n', ''),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    if (!altrove(s).length) return false;\n', ''),
-    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return true;', '    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return false;'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if nuovo.get("progetto"):\n            s["progetto"] = nuovo["progetto"].strip()[:60]', '        if False:\n            s["progetto"] = nuovo["progetto"].strip()[:60]'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        nuovo.update(progetto=s["progetto"], fonte=fonte)', '        pass'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "cartella")'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "prompt")'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    k = s.get("id") if s.get("kind") == "background" else', '    k = s.get("sessionId", "")[:8] if s.get("kind") == "background" else'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    elif fonte in (None, "", "cartella"):', '    elif fonte == "cartella":'),
-    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if nuovo != {x: v for x, v in reg.items() if x != "quando"} and (len(nuovo) > 1 or reg):\n', '        if False:\n'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        elif s["progetto"] and s["progetto"].lower() in basi:', '        elif False:'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'for x in (base, casa)}', 'for x in (base,)}'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 's["progetto"].lower() in basi:', 's["progetto"] in basi:'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        base = json.load(fh).get("base")\n', '        base = None\n'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '("pid-%d" % s["pid"] if isinstance(s.get("pid"), int) else None)', 'None'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '(n.startswith("pid-") or time.time()', '(False or time.time()'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'os.path.getmtime(f) > LAVORI_GIORNI * 86400):', 'os.path.getmtime(f) > LAVORI_GIORNI * 86400000):'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'n[:-5] not in vivi and (', '('),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'vivi = {lavoro_di(s) for s in tutte}', 'vivi = {lavoro_di(s) for s in sessioni}'),
-    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'and (len(nuovo) > 1 or reg):', 'and True:'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    scrivi(os.path.join(cache, "volta-lavori", corto + ".json"),\n           {"progetto": a["progetto"], "fonte": "volta", "sessionId": sid, "quando": time.time()})', '    pass'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if scritto:\n        nuovo["titolo"] = s["titolo"]', '    if False:\n        nuovo["titolo"] = s["titolo"]'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    elif nuovo.get("titolo") and reg.get("sessionId") != sid:', '    elif False:'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    elif nuovo.get("titolo") and reg.get("sessionId") != sid:', '    elif nuovo.get("titolo"):'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '"quando": time.time(), "peso": 0, "portato": True})', '"quando": time.time(), "peso": 0, "portato": False})'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        scrivi(ftit, {"titolo": s["titolo"], "fonte": "persona", "quando": time.time(), "peso": 0, "portato": True})\n', ''),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '            scritto = tit.get("fonte") == "persona"', '            scritto = True'),
-    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        nuovo.pop("titolo", None)', '        pass'),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "ATTESA_LETTURA = 45", "ATTESA_LETTURA = 55"),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        return lancia(argv(t), timeout=t + margine)", "        return lancia(argv(t), timeout=90)"),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    return int(entro - time.monotonic()) if entro is not None else", "    return 30 if entro is not None else"),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",', 'lambda t: hc() + ["exec", "--on", nome, py, "-c",'),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "% (max(2, t - 3), compressa)],", "% (40, compressa)],"),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "timeout=max(2, min(40, scade - time.time())))", "timeout=40)"),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        raise RuntimeError("non ha risposto in %d s" % t) from None', "        raise"),
-    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        guasto[0] = "claude agents non ha risposto in tempo"\n        return None', "        return []"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'voci = json.loads(out).get("machines", []) if rc == 0 else None', 'voci = json.loads(out).get("machines", []) if rc == 0 else []'),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    except (ValueError, AttributeError):\n        voci = None\n    if not isinstance(voci, list):\n        return None", "    except (ValueError, AttributeError):\n        voci = []\n    if not isinstance(voci, list):\n        return None"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if not isinstance(voci, list):\n        return None", "    if not isinstance(voci, list):\n        return []"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    except FileNotFoundError:\n        return []\n    except (OSError, subprocess.SubprocessError):\n        return None", "    except FileNotFoundError:\n        return []\n    except (OSError, subprocess.SubprocessError):\n        return []"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    except FileNotFoundError:\n        return []\n", "    except FileNotFoundError:\n        return None\n"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "                 for m in (prima or []) if isinstance(m, dict)", "                 for m in [] if isinstance(m, dict)"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if "irraggiungibile" in v:\n            return v\n        if not v["questa"]', '        if not v["questa"]'),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if note is None:\n            return {"errore": "Herdr non dice le macchine: riprova fra poco"}\n', "        note = note or []\n"),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"~/.local/bin/hc" + (".exe" if os.name == "nt" else "")', '"~/.local/bin/hc"'),
-    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '(precedente or {}).get("macchine"), entro), precedente)', "None, entro), precedente)"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    v = elenco(r.stdout)\n    if v is None:", "    try:\n        v = json.loads(r.stdout)\n    except ValueError:\n        v = None\n    if v is None:"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    print(json.dumps({"errore": guasto[0] or "claude agents non risponde"})); raise SystemExit', "    sessioni = []"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        guasto[0] = "claude agents: " + (righe[0][:140] if righe else "uscita %d" % r.returncode)\n        return None', "        return []"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if v is None:\n        guasto[0] = "claude agents: risposta senza elenco"\n    return v', "    return v or []"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        i = testo.find(\"[\", i + 1)\n    return None\n'''", "        break\n    return None\n'''"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        if isinstance(v, list) and all(isinstance(x, dict) for x in v):\n            return v", "        if isinstance(v, list):\n            return v"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        for s in elenco(r.stdout) or []:", '        for s in json.loads(r.stdout or "[]"):'),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "for giro in range(3):", "for giro in range(1):"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    sessioni = elenco(out) if (out or "").strip() else []', '    sessioni = json.loads(out[out.find("["):])'),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if d.get("errore"):\n        raise RuntimeError(str(d["errore"])[:200])\n    return d', "    return d"),
-    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'NASCI = NASCI.replace("#ELENCO#", ELENCO.strip())\n', ""),
-    ("HZ72", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa\n            continue\n", ""),
-    ("HZ72", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        if not isinstance(m, dict):\n            continue\n", ""),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", ' && (r?.code === 0 || d.errore)) return d;', ') return d;'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '.filter((x) => x.startsWith("{"));\n  let d = null;', '.filter(Boolean);\n  let d = null;'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '/^Traceback/.test(caduto[0] ?? "") ? caduto[caduto.length - 1] : prima(r?.stderr) || detto;', 'prima(r?.stderr) || detto;'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", 'prima(r?.stderr) || detto;', 'detto || prima(r?.stderr);'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", 'const detto = d ? "" : prima(r?.stdout);', 'const detto = prima(r?.stdout);'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '(r?.code ? `uscita ${r.code}` : "nessuna risposta")).slice(0, 200) };', '(r?.code ? `uscita ${r.code}` : "nessuna risposta")) };'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '(motivo || (r?.code ? `uscita ${r.code}` : "nessuna risposta"))', '(motivo || "nessuna risposta")'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", "{ timeout: riavvia ? 210000 : 150000 });\n    return esito(r);", '{ timeout: riavvia ? 210000 : 150000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '...(valore ? ["--", valore] : [])], { timeout: 90000 });\n    return esito(r);', '...(valore ? ["--", valore] : [])], { timeout: 90000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '{ timeout: verbo === "respawn" ? 210000 : 90000 });\n    return esito(r);', '{ timeout: verbo === "respawn" ? 210000 : 90000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", "      nata = esito(await exec(c.arturo[0], args, { timeout: 360000 }));", '      nata = JSON.parse(((await exec(c.arturo[0], args, { timeout: 360000 })).stdout || "").trim() || "{}");'),
-    ("HZ73", "shared/volta-celeste/mods/arturo/volta.js", 'portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));', 'portata = JSON.parse((await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 })).stdout || "{}");'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", "  return ora - n.da < NASCITA_MAX ? n.macchina : null;", "  return n.macchina;"),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", "const NASCITA_MAX = 420000;", "const NASCITA_MAX = 360000;"),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  if (!n || typeof n !== "object" || typeof n.macchina !== "string" || !Number.isFinite(n.da)) return null;',
+    ("HZ88", "shared/volta/themes/arturo.json", '"#7f90a8"', '"#4a5568"'),
+    ("HZ88", "shared/volta/themes/arturo.json", '"selection": "#1f4478"', '"selection": "#9fb4d0"'),
+    ("HZ88", "shared/volta/themes/arturo-carta.json", '"#6b717a"', '"#8a9099"'),
+    ("HZ88", "shared/volta/layouts/arturo.json", '"color": "ring"', '"color": "#2f6fe0"'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '            if processo(a["riprendi"]):\n                break\n        else:\n            continue', '            break\n        else:\n            continue'),
+    ('HZ90', 'shared/volta/mods/arturo/sessioni.js', '.replace(/\\s*\\([^)]*\\)\\s*$/, "")', '.replace(/\\s*\\(x\\)\\s*$/, "")'),
+    ('HZ90', 'shared/volta/mods/arturo/sessioni.js', '  const dove = modo === "progetto" ? macchinaBreve(s.macchina) :', '  const dove = modo === "progetto" ? s.macchina :'),
+    ('HZ90', 'shared/volta/mods/arturo/testata.js', '      .child(bottone("dafare"', '      .child(bottone("altra", "plus", "Altra conversazione", () => run("arturo.volta-nuova")))\n      .child(bottone("dafare"'),
+    ('HZ90', 'shared/volta/mods/arturo/testata.js', '    const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;', '    const macchina = null;'),
+    ('HZ90', 'shared/volta/mods/arturo/volta.js', '        .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))', ''),
+    ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '  if (noto) return noto;', ''),
+    ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '    for (const s of righe) metti(chiaveProgetto(s.progetto), nomeProgetto(s.progetto), s);', '    for (const s of righe) metti(s.progetto ? String(s.progetto) : "", nomeProgetto(s.progetto), s);'),
+    ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '  const nomi = (p) => [p, slugDi(nomeProgetto(p))];', '  const nomi = (p) => [p];'),
+    ('HZ91', 'shared/volta/mods/arturo/dati.js', ' if (m.titolo) v.titolo = m.titolo; continue; }', ' continue; }'),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', 'return { ...dati, sessioni: (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(s.sessionId) && !via.has(s.id)) };', 'return { ...dati, sessioni: (dati.sessioni ?? []).filter((s) => !via.has(s.sessionId) && !via.has(s.id)) };'),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', "    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.sessionId || viste.has(s.sessionId)) continue;", "    if (ind in (adesso ?? {}) || !s?.sessionId || viste.has(s.sessionId)) continue;"),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };', '    if (s.stato === "lavora" && ora - da < 1) return { fai: "attendi" };'),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso:', '    if (s.stato === "aspetta") return { fai: "attendi", fase: "ferma", avviso:'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', '    argv += ["--resume", a["riprendi"], "--fork-session"]'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",', '"chiusa": False,'),
+    ('HZ89', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
+    ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    if (panes()', '    if (panes()'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/"));', 'const l = terminals().filter((x) => visti.has(x.address));'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata) return fallita(m);'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata || m) return fallita(m);'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', '({ errore: m?.testo ?? "Claude non resta aperto', '({ errore: "Claude non resta aperto'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', '    return r.code === 0 ? motivoUscita(r.stdout, s) : null;', '    return null;'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', 'fallita((await perche(s, indirizzo)) ?? m)', 'fallita(null)'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', '  righe.forEach((r, i) => { if (/[%$#>]\\s.*\\battach\\s+[\'"]?[\\w-]{4,}/.test(r)) da = i; });\n', ''),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', 'return { testo: frase(m), fermo: true };', 'return { testo: frase(m), fermo: false };'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', '  const m = s?.questa ? "questa macchina" : (s?.macchina', '  const m = !s?.questa ? "questa macchina" : (s?.macchina'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', '  if (/before init/.test(perche)) return', '  if (false) return'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', 'Claude esce appena parte (${perche}).`, fermo: false };', 'Claude esce appena parte (${perche}).`, fermo: true };'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', '  [/No job matching/, (m)', '  [/No job matchingX/, (m)'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', '.replace(/\\u001b\\[[0-9;?]*[A-Za-z]/g, "").split("\\n");', '.split("\\n");'),
+    ('HZ87', 'shared/volta/mods/arturo/sessioni.js', '  if (perche) return { testo:', '  if (false) return { testo:'),
+    ("HZ86", "shared/volta/keys.json", '"cmd-down": "arturo.volta-giro-avanti"', '"cmd-down": "agent.next"'),
+    ("HZ86", "shared/volta/mods/arturo/barra.js", 'else if (c === "volta-giro") this.volta.giro(arg, cx);', ""),
+    ("HZ86", "shared/volta/mods/arturo/comandi.js", 'return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };', 'return { verbo: "volta-giro", arg: 1, lungo: false };'),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", '.filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);', '.map((s) => s.sessionId);'),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", "const tiene = prima && ora - prima.quando <= GIRO_MS;", "const tiene = Boolean(prima);"),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", "  return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];", "  return ids[Math.min(ids.length - 1, Math.max(0, i + (verso < 0 ? -1 : 1)))];"),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", "    return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));", "    return vista;"),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", '    .filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))\n', ""),
+    ("HZ86", "shared/volta/mods/arturo/volta.js", "    if (s) { this.scopri(s); this.premi(s, cx); }", "    if (s) this.premi(s, cx);"),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", '    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;', '    ?? null;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;', '  return t[0].toUpperCase() + t.slice(1);'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return true;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return ultimo ? m[1] === ultimo : true;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : false;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '.split(/[\\\\/]+/).filter(Boolean).pop();', '.split(/[/]+/).filter(Boolean).pop();'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '.split(/[\\\\/]+/).filter(Boolean).pop();', '.split(/[\\\\/]+/).pop();'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  if (!nome || nome === s.id) return true;', '  if (!nome) return true;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  if (!nome || nome === s.id) return true;', '  if (nome === s.id) return true;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  if (!nomeAutomatico(s)) return nome;', '  if (nome) return nome;'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").replace(/[^a-z0-9]/g, "");'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").toLowerCase();'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'const m = /^([\\w.-]+)-[0-9a-f]{2}$/.exec(nome);', 'const m = /^([\\w.-]+)-\\w{2}$/.exec(nome);'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named);'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && Boolean(s.named) && slug(s.name) !== "volta";'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && slug(s.name) !== "volta";'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && s.name !== "volta";'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', '    if (!eProgetto(s)) continue;', '    if (s.machine || !s.named) continue;'),
+    ('HZ84', 'shared/volta/mods/arturo/todo.js', '    return eProgetto(s) ? slug(s.name) : null;', '    return s && !s.machine && s.named ? slug(s.name) : null;'),
+    ('HZ84', 'shared/volta/mods/arturo/barra.js', 'this.lungo(c, cx, () => nuovaScheda());', 'this.lungo(c, cx, () => nuova(""));'),
+    ('HZ85', 'shared/volta/mods/arturo/todo.js', 'this.fatti = ancoraFatti(this.fatti, r.json);', 'this.fatti.clear();'),
+    ('HZ85', 'shared/volta/mods/arturo/todo.js', 'this.fatti = ancoraFatti(this.fatti, r.json);', ''),
+    ('HZ85', 'shared/volta/mods/arturo/todo.js', '      setShared("arturo.scritto", Date.now());\n      if (r.ok) notify(', '      if (r.ok) notify('),
+    ('HZ85', 'shared/volta/mods/arturo/azioni.js', '.filter((id) => vivi.has(id)));', ');'),
+    ('HZ85', 'shared/volta/mods/arturo/azioni.js', '  return new Set([...(fatti ?? [])].filter((id) => vivi.has(id)));', '  return new Set();'),
+    ('HZ85', 'shared/volta/mods/arturo/azioni.js', '  return new Set([...(fatti ?? [])].filter((id) => vivi.has(id)));', '  for (const id of fatti ?? []) if (!vivi.has(id)) fatti.delete(id);\n  return fatti ?? new Set();'),
+    ('HZ85', 'shared/volta/mods/arturo/azioni.js', 'for (const g of vista?.gruppi ?? []) for (const t of g.todo ?? []) vivi.add(t.id);', 'for (const g of (vista?.gruppi ?? []).slice(0, 1)) for (const t of g.todo ?? []) vivi.add(t.id);'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = false;'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = Boolean(p) && Date.now() - p.quando < PORTA_MS;'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = Boolean(p) && p.nome === nome;'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;', '  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando <= PORTA_MS;'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });\n', ''),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });\n', '    portati.set(s.sessionId, { nome, quando: Date.now() });\n'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });\n', '    if (scritto) portati.set(s.sessionId, { nome, quando: 0 });\n'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', '  const p = portati.get(s.sessionId);', '  const p = [...portati.values()].pop();'),
+    ('HZ85', 'shared/volta/mods/arturo/dati.js', 'export const PORTA_MS = 5 * 60 * 1000;', 'export const PORTA_MS = 5 * 1000;'),
+    ('HZ82', 'shared/volta/installa-herdr.sh', '        if mia.get(k) in VECCHI:\n            del mia[k]\n', ''),
+    ('HZ82', 'shared/volta/installa-herdr.sh', 'if mia.get(k) in VECCHI:', 'if k in mia:'),
+    ('HZ82', 'shared/volta/installa-herdr.sh', 'if mia.get(k) in VECCHI:', 'if str(mia.get(k)).startswith("mod.open:arturo-"):'),
+    ('HZ82', 'shared/volta/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi'),
+    ('HZ82', 'shared/volta/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-stato")\ntasti = leggi'),
+    ('HZ82', 'shared/volta/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome")\ntasti = leggi'),
+    ('HZ82', 'shared/volta/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if False:'),
+    ('HZ82', 'shared/volta/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if tasto in mia:'),
+    ('HZ82', 'shared/volta/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if str(mia.get(tasto)).startswith("mod.open:arturo-"):'),
+    ('HZ82', 'shared/volta/volta_mod.py', 'TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")', 'TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome")'),
+    ('HZ82', 'shared/volta/volta_mod.py', '    try:\n        tasti(fonte)\n', '    try:\n        pass\n'),
+    ('HZ82', 'shared/volta/volta_mod.py', '    if quanti:\n        scrivi(f, miei)', '    if quanti > 9:\n        scrivi(f, miei)'),
+    ('HZ81', 'shared/volta/mods/arturo/barra.js', '.size_full().overflow_hidden().bg(t.chrome)\n      .child(v_flex().id("barra-cima")', '.size_full().bg(t.chrome)\n      .child(v_flex().id("barra-cima")'),
+    ('HZ81', 'shared/volta/mods/arturo/barra.js', 'setShared("arturo.misura.cima", v);', ''),
+    ('HZ81', 'shared/volta/mods/arturo/volta.js', '.max_h(GESTI_MAX).flex_none().overflow_y_scroll()', ''),
+    ('HZ81', 'shared/volta/layouts/arturo.json', '      "resizable": false,\n      "background": "chrome",', '      "background": "chrome",'),
+    ('HZ81', 'shared/volta/layouts/arturo.json', '"px": 192', '"px": 190'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return salvo'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return veri[0] if veri else None'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', 'if x.get("uid") and VIRTUALE.lower() not in (x.get("nome") or "").lower()]', 'if x.get("uid")]'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    if not messo or a.predefinito() != messo:\n        return False\n    uid = vero(', '    if not messo:\n        return False\n    uid = vero('),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    prima = attuale if attuale != bh["uid"] else (vero(a) or "")', '    prima = attuale'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return bool(uid) and a.metti(uid)', '    return bool(uid) and uid == stato.get("prima") and a.metti(uid)'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return True'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return "volta_microfono" in riga'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return False'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    if nostro(stato.get("pid"), "ricevi"):\n        print(json.dumps({"esito": "ponte vivo"}))', '    if vivo(stato.get("pid")):\n        print(json.dumps({"esito": "ponte vivo"}))'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    if nostro(stato.get("pid"), "ricevi"):\n        return esci(4,', '    if vivo(stato.get("pid")):\n        return esci(4,'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '"ponte": nostro(r.get("pid"), "ricevi"),', '"ponte": vivo(r.get("pid")),'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_sonda.py', '        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)', '        pass'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_sonda.py', 'if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):', 'if os.path.exists(os.path.join(vc, "microfono-locale.json")) and os.path.exists(mic):'),
+    ('HZ78', 'shared/volta/mods/arturo/volta_sonda.py', '        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)', '        subprocess.run([sys.executable, mic, "stato"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '            if not scrivi_entro(uscita, pezzo, SILENZIO):\n                break', '            os.set_blocking(uscita, True)\n            os.write(uscita, pezzo)'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '        resta = fine - time.time()\n        if resta <= 0:\n            return False', '        resta = 3600'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))', '        suo = nostro(pid, "ponte")'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))', '        suo = True'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '                    os.killpg(pid, segnale)', '                    os.kill(pid, segnale)'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '    if d.get("stato") in ("avvio", "attivo") and not nostro(d.get("pid"), "ponte"):', '    if d.get("stato") in ("avvio", "attivo") and not vivo(d.get("pid")):'),
+    ('HZ79', 'shared/volta/mods/arturo/volta_microfono.py', '                if not gruppo_vivo(pid):\n                    break\n    file_locale().unlink(missing_ok=True)', '                if not gruppo_vivo(pid):\n                    break\n        return\n    file_locale().unlink(missing_ok=True)'),
+    ('HZ80', 'shared/volta/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:\n        return "l\'altra macchina non accetta la chiave ssh di questa"\n', ''),
+    ('HZ80', 'shared/volta/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:', '    if "host key verification failed" in t:'),
+    ('HZ80', 'shared/volta/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:', '    if "permission denied (publickey" in t:'),
+    ('HZ80', 'shared/volta/mods/arturo/microfono.js', '  if (/\\.exe$/i.test(String(a[3])) || /^[a-z]:[\\\\/]/i.test(String(a[3]))) return null;\n', ''),
+    ('HZ80', 'shared/volta/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3])) || ', ''),
+    ('HZ80', 'shared/volta/mods/arturo/microfono.js', ' || /^[a-z]:[\\\\/]/i.test(String(a[3]))', ''),
+    ('HZ80', 'shared/volta/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3]))', '/\\.exe$/.test(String(a[3]))'),
+    ('HZ80', 'shared/volta/mods/arturo/microfono.js', '/^[a-z]:[\\\\/]/i.test(String(a[3]))', '/^[a-z]:\\\\/i.test(String(a[3]))'),
+    ('HZ80', 'shared/volta/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3]))', '/exe/i.test(String(a[3]))'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '  if (!s?.id || schedeDi(s).length) return [];\n  return terminals().filter(', '  if (!s?.id) return [];\n  return terminals().filter('),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', 'return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&', 'return terminals().filter((x) => (x.state ?? "live") === "live" &&'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '!String(x.address).includes("/") && (x.state ?? "live") === "live" &&', '!String(x.address).includes("/") &&'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '(x.state ?? "live") === "live" &&', 'x.state === "live" &&'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));\n}\n\n// Stacca', '    agganciata(x.argv, s));\n}\n\n// Stacca'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));\n}\n\n// Stacca', '    (x.labels?.[ETICHETTA] === s.id));\n}\n\n// Stacca'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;', '  return l.length;'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;', '  for (const t of l.slice(0, 1)) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;'),
+    ('HZ77', 'shared/volta/mods/arturo/dati.js', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return l.length;', '  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }\n  return 0;'),
+    ('HZ77', 'shared/volta/mods/arturo/volta.js', '    if (d.azione === "aggancia" && this.fuori(s, secondo, cx)) return;\n', ''),
+    ('HZ77', 'shared/volta/mods/arturo/volta.js', '    const secondo = this.avvisi[s.sessionId] === ALTROVE;\n    delete this.avvisi[s.sessionId];', '    delete this.avvisi[s.sessionId];\n    const secondo = this.avvisi[s.sessionId] === ALTROVE;'),
+    ('HZ77', 'shared/volta/mods/arturo/volta.js', '    if (secondo) { stacca(s); return false; }\n', ''),
+    ('HZ77', 'shared/volta/mods/arturo/volta.js', '    if (!altrove(s).length) return false;\n', ''),
+    ('HZ77', 'shared/volta/mods/arturo/volta.js', '    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return true;', '    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return false;'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', '        if nuovo.get("progetto"):\n            s["progetto"] = nuovo["progetto"].strip()[:60]', '        if False:\n            s["progetto"] = nuovo["progetto"].strip()[:60]'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', '        nuovo.update(progetto=s["progetto"], fonte=fonte)', '        pass'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "cartella")'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "prompt")'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', '    k = s.get("id") if s.get("kind") == "background" else', '    k = s.get("sessionId", "")[:8] if s.get("kind") == "background" else'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', '    elif fonte in (None, "", "cartella"):', '    elif fonte == "cartella":'),
+    ('HZ74', 'shared/volta/mods/arturo/volta_sonda.py', '        if nuovo != {x: v for x, v in reg.items() if x != "quando"} and (len(nuovo) > 1 or reg):\n', '        if False:\n'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', '        elif s["progetto"] and s["progetto"].lower() in basi:', '        elif False:'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', 'for x in (base, casa)}', 'for x in (base,)}'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', 's["progetto"].lower() in basi:', 's["progetto"] in basi:'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', '        base = json.load(fh).get("base")\n', '        base = None\n'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', '("pid-%d" % s["pid"] if isinstance(s.get("pid"), int) else None)', 'None'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', '(n.startswith("pid-") or time.time()', '(False or time.time()'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', 'os.path.getmtime(f) > LAVORI_GIORNI * 86400):', 'os.path.getmtime(f) > LAVORI_GIORNI * 86400000):'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', 'n[:-5] not in vivi and (', '('),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', 'vivi = {lavoro_di(s) for s in tutte}', 'vivi = {lavoro_di(s) for s in sessioni}'),
+    ('HZ75', 'shared/volta/mods/arturo/volta_sonda.py', 'and (len(nuovo) > 1 or reg):', 'and True:'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '    scrivi(os.path.join(cache, "volta-lavori", corto + ".json"),\n           {"progetto": a["progetto"], "fonte": "volta", "sessionId": sid, "quando": time.time()})', '    pass'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '    if scritto:\n        nuovo["titolo"] = s["titolo"]', '    if False:\n        nuovo["titolo"] = s["titolo"]'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '    elif nuovo.get("titolo") and reg.get("sessionId") != sid:', '    elif False:'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '    elif nuovo.get("titolo") and reg.get("sessionId") != sid:', '    elif nuovo.get("titolo"):'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '"quando": time.time(), "peso": 0, "portato": True})', '"quando": time.time(), "peso": 0, "portato": False})'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '        scrivi(ftit, {"titolo": s["titolo"], "fonte": "persona", "quando": time.time(), "peso": 0, "portato": True})\n', ''),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '            scritto = tit.get("fonte") == "persona"', '            scritto = True'),
+    ('HZ76', 'shared/volta/mods/arturo/volta_sonda.py', '        nuovo.pop("titolo", None)', '        pass'),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", "ATTESA_LETTURA = 45", "ATTESA_LETTURA = 55"),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", "        return lancia(argv(t), timeout=t + margine)", "        return lancia(argv(t), timeout=90)"),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", "    return int(entro - time.monotonic()) if entro is not None else", "    return 30 if entro is not None else"),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", 'lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",', 'lambda t: hc() + ["exec", "--on", nome, py, "-c",'),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", "% (max(2, t - 3), compressa)],", "% (40, compressa)],"),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", "timeout=max(2, min(40, scade - time.time())))", "timeout=40)"),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", '        raise RuntimeError("non ha risposto in %d s" % t) from None', "        raise"),
+    ("HZ69", "shared/volta/mods/arturo/volta_sonda.py", '        guasto[0] = "claude agents non ha risposto in tempo"\n        return None', "        return []"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", 'voci = json.loads(out).get("machines", []) if rc == 0 else None', 'voci = json.loads(out).get("machines", []) if rc == 0 else []'),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", "    except (ValueError, AttributeError):\n        voci = None\n    if not isinstance(voci, list):\n        return None", "    except (ValueError, AttributeError):\n        voci = []\n    if not isinstance(voci, list):\n        return None"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", "    if not isinstance(voci, list):\n        return None", "    if not isinstance(voci, list):\n        return []"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", "    except FileNotFoundError:\n        return []\n    except (OSError, subprocess.SubprocessError):\n        return None", "    except FileNotFoundError:\n        return []\n    except (OSError, subprocess.SubprocessError):\n        return []"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", "    except FileNotFoundError:\n        return []\n", "    except FileNotFoundError:\n        return None\n"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", "                 for m in (prima or []) if isinstance(m, dict)", "                 for m in [] if isinstance(m, dict)"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", '        if "irraggiungibile" in v:\n            return v\n        if not v["questa"]', '        if not v["questa"]'),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", '        if note is None:\n            return {"errore": "Herdr non dice le macchine: riprova fra poco"}\n', "        note = note or []\n"),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", '"~/.local/bin/hc" + (".exe" if os.name == "nt" else "")', '"~/.local/bin/hc"'),
+    ("HZ70", "shared/volta/mods/arturo/volta_sonda.py", '(precedente or {}).get("macchine"), entro), precedente)', "None, entro), precedente)"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", "    v = elenco(r.stdout)\n    if v is None:", "    try:\n        v = json.loads(r.stdout)\n    except ValueError:\n        v = None\n    if v is None:"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", '    print(json.dumps({"errore": guasto[0] or "claude agents non risponde"})); raise SystemExit', "    sessioni = []"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", '        guasto[0] = "claude agents: " + (righe[0][:140] if righe else "uscita %d" % r.returncode)\n        return None', "        return []"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", '    if v is None:\n        guasto[0] = "claude agents: risposta senza elenco"\n    return v', "    return v or []"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", "        i = testo.find(\"[\", i + 1)\n    return None\n'''", "        break\n    return None\n'''"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", "        if isinstance(v, list) and all(isinstance(x, dict) for x in v):\n            return v", "        if isinstance(v, list):\n            return v"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", '        for s in elenco(r.stdout) or []:\n            if s.get("id") == corto', '        for s in json.loads(r.stdout or "[]"):\n            if s.get("id") == corto'),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", "for giro in range(3):", "for giro in range(1):"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", '    sessioni = elenco(out) if (out or "").strip() else []', '    sessioni = json.loads(out[out.find("["):])'),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", '    if d.get("errore"):\n        raise RuntimeError(str(d["errore"])[:200])\n    return d', "    return d"),
+    ("HZ71", "shared/volta/mods/arturo/volta_sonda.py", 'NASCI = NASCI.replace("#ELENCO#", ELENCO.strip())\n', ""),
+    ("HZ72", "shared/volta/mods/arturo/volta_sonda.py", "        if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa\n            continue\n", ""),
+    ("HZ72", "shared/volta/mods/arturo/volta_sonda.py", "        if not isinstance(m, dict):\n            continue\n", ""),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", ' && (r?.code === 0 || d.errore)) return d;', ') return d;'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", '.filter((x) => x.startsWith("{"));\n  let d = null;', '.filter(Boolean);\n  let d = null;'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", '/^Traceback/.test(caduto[0] ?? "") ? caduto[caduto.length - 1] : prima(r?.stderr) || detto;', 'prima(r?.stderr) || detto;'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", 'prima(r?.stderr) || detto;', 'detto || prima(r?.stderr);'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", 'const detto = d ? "" : prima(r?.stdout);', 'const detto = prima(r?.stdout);'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", '(r?.code ? `uscita ${r.code}` : "nessuna risposta")).slice(0, 200) };', '(r?.code ? `uscita ${r.code}` : "nessuna risposta")) };'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", '(motivo || (r?.code ? `uscita ${r.code}` : "nessuna risposta"))', '(motivo || "nessuna risposta")'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", "{ timeout: riavvia ? 210000 : 150000 });\n    return esito(r);", '{ timeout: riavvia ? 210000 : 150000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", '...(valore ? ["--", valore] : [])], { timeout: 90000 });\n    return esito(r);', '...(valore ? ["--", valore] : [])], { timeout: 90000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", '{ timeout: verbo === "respawn" ? 210000 : 90000 });\n    return esito(r);', '{ timeout: verbo === "respawn" ? 210000 : 90000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta/mods/arturo/dati.js", "      nata = esito(await exec(c.arturo[0], args, { timeout: 360000 }));", '      nata = JSON.parse(((await exec(c.arturo[0], args, { timeout: 360000 })).stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta/mods/arturo/volta.js", 'portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));', 'portata = JSON.parse((await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 })).stdout || "{}");'),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", "  return ora - n.da < NASCITA_MAX ? n.macchina : null;", "  return n.macchina;"),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", "const NASCITA_MAX = 420000;", "const NASCITA_MAX = 360000;"),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", '  if (!n || typeof n !== "object" || typeof n.macchina !== "string" || !Number.isFinite(n.da)) return null;',
      '  if (!n) return null;\n  if (typeof n === "string") return n;'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", ' || !Number.isFinite(n.da)) return null;', ') return null;\n  if (!Number.isFinite(n.da)) return n.macchina;'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  if (inNascita()) return dico("Sta già nascendo', '  if (false) return dico("Sta già nascendo'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '    if (!copia) notify({ title: titolo, body: errore, level });\n', ""),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '    if (shared("arturo.nascita")?.da === da) setShared("arturo.nascita", null);\n', ""),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  setShared("arturo.nascita", { macchina, da });', '  setShared("arturo.nascita", macchina);'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", 'return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };',
+    ("HZ66", "shared/volta/mods/arturo/dati.js", ' || !Number.isFinite(n.da)) return null;', ') return null;\n  if (!Number.isFinite(n.da)) return n.macchina;'),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", '  if (inNascita()) return dico("Sta già nascendo', '  if (false) return dico("Sta già nascendo'),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", '    if (!copia) notify({ title: titolo, body: errore, level });\n', ""),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", '    if (shared("arturo.nascita")?.da === da) setShared("arturo.nascita", null);\n', ""),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", '  setShared("arturo.nascita", { macchina, da });', '  setShared("arturo.nascita", macchina);'),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", 'return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };',
      'return v.errore ? { errore: v.errore } : { ok: true, id: nata.id };'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/comuni.js", "const nascita = inNascita();", 'const nascita = shared("arturo.nascita");'),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };\n', ""),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-menu-")) return { verbo: "volta-menu", arg: dopo("volta-menu-"), lungo: false };\n', ""),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-cambia-")) return { verbo: "volta-cambia", arg: c, lungo: false };\n', ""),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (g) return { verbo: "volta-gesto", arg: { verbo: g[1], id: g[2] }, lungo: false };\n', ""),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", 'if (c === "nuova") return { verbo: "nuova", arg: null, lungo: true };', 'if (c === "nuova") return { verbo: "nuova", arg: null, lungo: false };'),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", 'return { verbo: "progetto", arg: dopo("apri-"), lungo: true };', 'return { verbo: "progetto", arg: dopo("apri-"), lungo: false };'),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", 'if (c === "apri") return { verbo: "apri", arg: null, lungo: false };\n', ""),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", "export const comandoApri = (slug) => `arturo.apri-${slug}`;", "export const comandoApri = (slug) => `arturo.apri.${slug}`;"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", "Math.max(0, Number(dopo(\"guida\") || 1) - 1)", "Number(dopo(\"guida\") || 1)"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "    apri(nome).finally(() => this.chiudi());"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/revisione.js", ".on_click(() => { run(comandoApri(k)); this.chiudi(); })", ".on_click(async () => { try { await apri(k); } finally { this.chiudi(); } })"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/suggerimenti.js", '.on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })',
+    ("HZ66", "shared/volta/mods/arturo/comuni.js", "const nascita = inNascita();", 'const nascita = shared("arturo.nascita");'),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", '  if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };\n', ""),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", '  if (c.startsWith("volta-menu-")) return { verbo: "volta-menu", arg: dopo("volta-menu-"), lungo: false };\n', ""),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", '  if (c.startsWith("volta-cambia-")) return { verbo: "volta-cambia", arg: c, lungo: false };\n', ""),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", '  if (g) return { verbo: "volta-gesto", arg: { verbo: g[1], id: g[2] }, lungo: false };\n', ""),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", 'if (c === "nuova") return { verbo: "nuova", arg: null, lungo: true };', 'if (c === "nuova") return { verbo: "nuova", arg: null, lungo: false };'),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", 'return { verbo: "progetto", arg: dopo("apri-"), lungo: true };', 'return { verbo: "progetto", arg: dopo("apri-"), lungo: false };'),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", 'if (c === "apri") return { verbo: "apri", arg: null, lungo: false };\n', ""),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", "export const comandoApri = (slug) => `arturo.apri-${slug}`;", "export const comandoApri = (slug) => `arturo.apri.${slug}`;"),
+    ("HZ67", "shared/volta/mods/arturo/comandi.js", "Math.max(0, Number(dopo(\"guida\") || 1) - 1)", "Number(dopo(\"guida\") || 1)"),
+    ("HZ67", "shared/volta/mods/arturo/apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "    apri(nome).finally(() => this.chiudi());"),
+    ("HZ67", "shared/volta/mods/arturo/revisione.js", ".on_click(() => { run(comandoApri(k)); this.chiudi(); })", ".on_click(async () => { try { await apri(k); } finally { this.chiudi(); } })"),
+    ("HZ67", "shared/volta/mods/arturo/suggerimenti.js", '.on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })',
      ".on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/testata.js", '() => run("arturo.nuova"),', "() => nuova(),"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n", "        this.comando(instrada(c), cx);\n"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", "      try { await lavoro(); } catch (e) { this.rotto(c, e); }\n", "      await lavoro();\n"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n",
+    ("HZ67", "shared/volta/mods/arturo/testata.js", '() => run("arturo.nuova"),', "() => nuova(),"),
+    ("HZ67", "shared/volta/mods/arturo/barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n", "        this.comando(instrada(c), cx);\n"),
+    ("HZ67", "shared/volta/mods/arturo/barra.js", "      try { await lavoro(); } catch (e) { this.rotto(c, e); }\n", "      await lavoro();\n"),
+    ("HZ67", "shared/volta/mods/arturo/barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n",
      "        try { await this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n"),
-    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "nuova") this.lungo(c, cx, () => nuova());', 'else if (c === "nuova") return nuova();'),
-    ("HZ68", "shared/volta-celeste/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "Boolean(nascosta) && instrada(c).verbo !== null;"),
-    ("HZ68", "shared/volta-celeste/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "c !== PING && instrada(c).verbo !== null;"),
-    ("HZ68", "shared/volta-celeste/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "Boolean(nascosta) && c !== PING;"),
-    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", '    if (!daRimandare(c, Boolean(trova(layout(), "sidebar")?.hidden))) return;\n', ""),
-    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", '    run("layout.toggle", { id: "sidebar" });\n', ""),
-    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", '      if (Number(shared("arturo.barra.viva")) >= da) return run(`arturo.${c}`);\n', ""),
-    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", "        try { await this.rimanda(c, cx); } catch {", "        try { } catch {"),
-    ("HZ68", "shared/volta-celeste/mods/arturo/barra.js", '    if (c === "ci-sei") setShared("arturo.barra.viva", Date.now());\n    else if (c === "apri")', '    if (c === "apri")'),
-    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "      if (await tornataShell(g)) return;\n", ""),
-    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", ""),
-    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!(await nuda(g.terminal))) return false;\n  const s = await sessioneDi(g);", "  if (true) return false;\n  const s = await sessioneDi(g);"),
-    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "find((x) => x?.id === g.id && Array.isArray(x.attach))", "find((x) => Array.isArray(x.attach))"),
-    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", "  if (await tornataShell(g ?? { terminal: a.address, id: \"ffff1111\" })) return;\n"),
-    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "    notify({ title: \"Ho riaperto la sessione\", body: \"Riprova fra qualche secondo.\", level: \"warning\" });\n", ""),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            figlio.kill()\n        rimetti(a, stato)\n", "            figlio.kill()\n"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if nostro(stato.get(\"pid\"), \"ricevi\"):\n        return esci(4,", "    if False:\n        return esci(4,"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if not bh:\n        return esci(3, esito=\"errore\", motivo=\"manca BlackHole\")\n", "    bh = bh or a.ingressi()[0]\n"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if not messo or a.predefinito() != messo:\n        return False\n    uid = vero(", "    if not messo:\n        return False\n    uid = vero("),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            if not pronto:\n                break\n", "            if not pronto:\n                continue\n"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA:", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA * 1000:"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if stesso and d.get(\"stato\") in (\"avvio\", \"attivo\") and nostro(d.get(\"pid\"), \"ponte\"):\n        print(json.dumps(stato_locale(), ensure_ascii=False))\n        return 0\n", ""),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "                elif d.get(\"esito\") == \"errore\":\n                    fermo[\"motivo\"] = d.get(\"motivo\") or \"errore sull'altra macchina\"\n", ""),
-    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", " || a[4] !== \"attach\") return null;", ") return null;"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "x.id === id && !x.questa && Array.isArray(x.attach)", "x.id === id && Array.isArray(x.attach)"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "if (!target || target.startsWith(\"-\")) return null;", "if (!target) return null;"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "  if (adesso - st.visto > TENUTA) return { st: null, azione: { verbo: \"spegni\" } };", "  if (adesso - st.visto > TENUTA * 1000) return { st: null, azione: { verbo: \"spegni\" } };"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "    if (!acceso || st.target !== b.target)", "    if (!acceso)"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta.js", "    cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));\n", ""),
-    ("HZ61", "shared/volta-celeste/mods/arturo/barra.js", "      if (!this.memoria) {\n", "      {\n"),
-    ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "    const k = capo.get(chiave(p)) ?? chiave(p);", "    const k = chiave(p);"),
-    ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  for (const nome of memoria ? [] : extra.cartelle ?? []) {", "  for (const nome of extra.cartelle ?? []) {"),
-    ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", 'ferma: noto && Boolean(limite) && (m.data || "") < limite });', "ferma: false });"),
-    ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", '(noto || !conCategorie ? "" : "Altre cartelle")', '""'),
-    ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  return r.ok && Array.isArray(r.json?.progetti) ? r.json.progetti : null;", "  return r.json?.progetti ?? [];"),
-    ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();", "  return cartelle();"),
-    ("HZ61", "shared/volta-celeste/mods/arturo/apri.js", "this.lista = await nomiProgetti();", "this.lista = await cartelle();"),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "Math.min(q.x, W - larga - 4 - (dentro ? 4 : 0))", "q.x"),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "const sotto = !sopra && q.altezza < 60 &&", "const sotto = false &&"),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", ".sort((a, b) => a.width * a.height - b.width * b.height ||", ".sort((a, b) => b.width * b.height - a.width * a.height ||"),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", 'typeof e.id === "string" && !e.own && ', 'typeof e.id === "string" && '),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "  if (Object.hasOwn(NOMI_ELEMENTO, k)) return NOMI_ELEMENTO[k];\n", ""),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.view === e.view && x.id.startsWith(RADICE));", "const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.id.startsWith(RADICE));"),
-    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "  if (!el && !r?.rettangolo) return null;\n  const q = el ? el.rettangolo : r.rettangolo,", "  if (!r?.rettangolo) return null;\n  const q = r.rettangolo,"),
-    ("HZ64", "shared/volta-celeste/mods/arturo/notaui.js", 'const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";', "const ELEMENTI = true;"),
-    ("HZ64", "shared/volta-celeste/mods/arturo/notaui.js", "  close() { segui(false); }", "  close() {}"),
-    ("HZ64", "shared/volta-celeste/mods/arturo/testata.js", 'div().id("stato-tasti").text_color', "div().text_color"),
+    ("HZ67", "shared/volta/mods/arturo/barra.js", 'else if (c === "nuova") this.lungo(c, cx, () => nuova());', 'else if (c === "nuova") return nuova();'),
+    ("HZ68", "shared/volta/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "Boolean(nascosta) && instrada(c).verbo !== null;"),
+    ("HZ68", "shared/volta/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "c !== PING && instrada(c).verbo !== null;"),
+    ("HZ68", "shared/volta/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "Boolean(nascosta) && c !== PING;"),
+    ("HZ68", "shared/volta/mods/arturo/testata.js", '    if (!daRimandare(c, Boolean(trova(layout(), "sidebar")?.hidden))) return;\n', ""),
+    ("HZ68", "shared/volta/mods/arturo/testata.js", '    run("layout.toggle", { id: "sidebar" });\n', ""),
+    ("HZ68", "shared/volta/mods/arturo/testata.js", '      if (Number(shared("arturo.barra.viva")) >= da) return run(`arturo.${c}`);\n', ""),
+    ("HZ68", "shared/volta/mods/arturo/testata.js", "        try { await this.rimanda(c, cx); } catch {", "        try { } catch {"),
+    ("HZ68", "shared/volta/mods/arturo/barra.js", '    if (c === "ci-sei") setShared("arturo.barra.viva", Date.now());\n    else if (c === "apri")', '    if (c === "apri")'),
+    ("HZ65", "shared/volta/mods/arturo/dati.js", "      if (await tornataShell(g)) return;\n", ""),
+    ("HZ65", "shared/volta/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", ""),
+    ("HZ65", "shared/volta/mods/arturo/dati.js", "  if (!(await nuda(g.terminal))) return false;\n  const s = await sessioneDi(g);", "  if (true) return false;\n  const s = await sessioneDi(g);"),
+    ("HZ65", "shared/volta/mods/arturo/dati.js", "find((x) => x?.id === g.id && Array.isArray(x.attach))", "find((x) => Array.isArray(x.attach))"),
+    ("HZ65", "shared/volta/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", "  if (await tornataShell(g ?? { terminal: a.address, id: \"ffff1111\" })) return;\n"),
+    ("HZ65", "shared/volta/mods/arturo/dati.js", "    notify({ title: \"Ho riaperto la sessione\", body: \"Riprova fra qualche secondo.\", level: \"warning\" });\n", ""),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "            figlio.kill()\n        rimetti(a, stato)\n", "            figlio.kill()\n"),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "    if nostro(stato.get(\"pid\"), \"ricevi\"):\n        return esci(4,", "    if False:\n        return esci(4,"),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "    if not bh:\n        return esci(3, esito=\"errore\", motivo=\"manca BlackHole\")\n", "    bh = bh or a.ingressi()[0]\n"),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "    if not messo or a.predefinito() != messo:\n        return False\n    uid = vero(", "    if not messo:\n        return False\n    uid = vero("),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "            if not pronto:\n                break\n", "            if not pronto:\n                continue\n"),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA:", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA * 1000:"),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "    if stesso and d.get(\"stato\") in (\"avvio\", \"attivo\") and nostro(d.get(\"pid\"), \"ponte\"):\n        print(json.dumps(stato_locale(), ensure_ascii=False))\n        return 0\n", ""),
+    ("HZ63", "shared/volta/mods/arturo/volta_microfono.py", "                elif d.get(\"esito\") == \"errore\":\n                    fermo[\"motivo\"] = d.get(\"motivo\") or \"errore sull'altra macchina\"\n", ""),
+    ("HZ63", "shared/volta/mods/arturo/microfono.js", " || a[4] !== \"attach\") return null;", ") return null;"),
+    ("HZ63", "shared/volta/mods/arturo/microfono.js", "x.id === id && !x.questa && Array.isArray(x.attach)", "x.id === id && Array.isArray(x.attach)"),
+    ("HZ63", "shared/volta/mods/arturo/microfono.js", "if (!target || target.startsWith(\"-\")) return null;", "if (!target) return null;"),
+    ("HZ63", "shared/volta/mods/arturo/microfono.js", "  if (adesso - st.visto > TENUTA) return { st: null, azione: { verbo: \"spegni\" } };", "  if (adesso - st.visto > TENUTA * 1000) return { st: null, azione: { verbo: \"spegni\" } };"),
+    ("HZ63", "shared/volta/mods/arturo/microfono.js", "    if (!acceso || st.target !== b.target)", "    if (!acceso)"),
+    ("HZ63", "shared/volta/mods/arturo/volta.js", "    cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));\n", ""),
+    ("HZ61", "shared/volta/mods/arturo/barra.js", "      if (!this.memoria) {\n", "      {\n"),
+    ("HZ61", "shared/volta/mods/arturo/dati.js", "    const k = capo.get(chiave(p)) ?? chiave(p);", "    const k = chiave(p);"),
+    ("HZ61", "shared/volta/mods/arturo/dati.js", "  for (const nome of memoria ? [] : extra.cartelle ?? []) {", "  for (const nome of extra.cartelle ?? []) {"),
+    ("HZ61", "shared/volta/mods/arturo/dati.js", 'ferma: noto && Boolean(limite) && (m.data || "") < limite });', "ferma: false });"),
+    ("HZ61", "shared/volta/mods/arturo/dati.js", '(noto || !conCategorie ? "" : "Altre cartelle")', '""'),
+    ("HZ61", "shared/volta/mods/arturo/dati.js", "  return r.ok && Array.isArray(r.json?.progetti) ? r.json.progetti : null;", "  return r.json?.progetti ?? [];"),
+    ("HZ61", "shared/volta/mods/arturo/dati.js", "  return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();", "  return cartelle();"),
+    ("HZ61", "shared/volta/mods/arturo/apri.js", "this.lista = await nomiProgetti();", "this.lista = await cartelle();"),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", "Math.min(q.x, W - larga - 4 - (dentro ? 4 : 0))", "q.x"),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", "const sotto = !sopra && q.altezza < 60 &&", "const sotto = false &&"),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", ".sort((a, b) => a.width * a.height - b.width * b.height ||", ".sort((a, b) => b.width * b.height - a.width * a.height ||"),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", 'typeof e.id === "string" && !e.own && ', 'typeof e.id === "string" && '),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", "  if (Object.hasOwn(NOMI_ELEMENTO, k)) return NOMI_ELEMENTO[k];\n", ""),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", "const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.view === e.view && x.id.startsWith(RADICE));", "const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.id.startsWith(RADICE));"),
+    ("HZ62", "shared/volta/mods/arturo/nota.js", "  if (!el && !r?.rettangolo) return null;\n  const q = el ? el.rettangolo : r.rettangolo,", "  if (!r?.rettangolo) return null;\n  const q = r.rettangolo,"),
+    ("HZ64", "shared/volta/mods/arturo/notaui.js", 'const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";', "const ELEMENTI = true;"),
+    ("HZ64", "shared/volta/mods/arturo/notaui.js", "  close() { segui(false); }", "  close() {}"),
+    ("HZ64", "shared/volta/mods/arturo/testata.js", 'div().id("stato-tasti").text_color', "div().text_color"),
     ("HZ32", "bin/note_finestra.py", '"parte": None, "elemento": None,', '"parte": None,'),
-    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())\n', ''),
-    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        s["terminale"] = terminale_di(s["pid"])', '        s["terminale"] = None'),
-    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()", "base64.b64encode(SONDA.encode()).decode()"),
-    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if os.name != \"nt\":\n        try:\n            amb = subprocess.run([\"ps\"", "    if os.name == \"nt\":\n        try:\n            amb = subprocess.run([\"ps\""),
-    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", '                if riga.startswith("HC_TERMINAL_ID="):', '                if riga.startswith("HC_TERMINALE="):', "windows"),
-    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "            blocco = numero(parametri + 0x80) if parametri else 0", "            blocco = numero(parametri + 0x70) if parametri else 0", "windows"),
-    ("HZ56", "shared/volta-celeste/keys.json", '"cmd-o": "arturo.apri",', '"cmd-o":  "arturo.apri",'),
-    ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "  if (controlloMod || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
-    ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),
-    ("HZ57", "shared/volta-celeste/mods/arturo/sessioni.js", "adesso / 1000 - m.giu_da > 86400", "adesso / 1000 - m.giu_da > 0"),
-    ("HZ57", "shared/volta-celeste/mods/arturo/sessioni.js", "d.toDateString() === oggi.toDateString() ? \"\" :", "true ? \"\" :"),
-    ("HZ57", "shared/volta-celeste/mods/arturo/barra.js", '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>', '.when(false, (el) =>'),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", 'if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ]', 'if [ -f "$sonda" ]'),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", '  esito=$(python3 "$sonda" servizio qui 2>&1) ||', '  esito=$(true) ||'),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", 'servizio qui 2>&1) ||', 'servizio qui 2>&1) || exit 1 ||'),
-    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if (-not $env:SSH_CONNECTION -and $py", "if ($py"),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if verbo == "respawn":\n        s = servizio(nome)', '    if False:\n        s = servizio(nome)'),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}\n    try:', '            pass\n    try:'),
-    ("HZ42", "shared/volta-celeste/mods/arturo/dati.js", 'verbo === "respawn" ? 210000 : 90000', 'verbo === "respawn" ? 150000 : 90000'),
-    ("HZ43", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'etichetta = "org.stellakamikaze.arturo.claude-daemon"', 'etichetta = "org.stellakamikaze.arturo.claude"'),
-    ("HZ43", "shared/volta-celeste/installa-herdr.sh", "schtasks /query /tn ArturoServizioClaude ", "schtasks /query /tn ArturoServizio "),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", 'SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())\n', ''),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '        s["terminale"] = terminale_di(s["pid"])', '        s["terminale"] = None'),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()", "base64.b64encode(SONDA.encode()).decode()"),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "    if os.name != \"nt\":\n        try:\n            amb = subprocess.run([\"ps\"", "    if os.name == \"nt\":\n        try:\n            amb = subprocess.run([\"ps\""),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '                if riga.startswith("HC_TERMINAL_ID="):', '                if riga.startswith("HC_TERMINALE="):', "windows"),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "            blocco = numero(parametri + 0x80) if parametri else 0", "            blocco = numero(parametri + 0x70) if parametri else 0", "windows"),
+    ("HZ56", "shared/volta/keys.json", '"cmd-o": "arturo.apri",', '"cmd-o":  "arturo.apri",'),
+    ("HZ57", "shared/volta/mods/arturo/volta.js", "  if (controlloMod || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
+    ("HZ57", "shared/volta/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),
+    ("HZ57", "shared/volta/mods/arturo/sessioni.js", "adesso / 1000 - m.giu_da > 86400", "adesso / 1000 - m.giu_da > 0"),
+    ("HZ57", "shared/volta/mods/arturo/sessioni.js", "d.toDateString() === oggi.toDateString() ? \"\" :", "true ? \"\" :"),
+    ("HZ57", "shared/volta/mods/arturo/barra.js", '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>', '.when(false, (el) =>'),
+    ("HZ35", "shared/volta/volta-claude.sh", 'if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ]', 'if [ -f "$sonda" ]'),
+    ("HZ35", "shared/volta/volta-claude.sh", '  esito=$(python3 "$sonda" servizio qui 2>&1) ||', '  esito=$(true) ||'),
+    ("HZ35", "shared/volta/volta-claude.sh", 'servizio qui 2>&1) ||', 'servizio qui 2>&1) || exit 1 ||'),
+    ("HZ38", "shared/volta/volta-claude.ps1", "if (-not $env:SSH_CONNECTION -and $py", "if ($py"),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '    if verbo == "respawn":\n        s = servizio(nome)', '    if False:\n        s = servizio(nome)'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '            return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}\n    try:', '            pass\n    try:'),
+    ("HZ42", "shared/volta/mods/arturo/dati.js", 'verbo === "respawn" ? 210000 : 90000', 'verbo === "respawn" ? 150000 : 90000'),
+    ("HZ43", "shared/volta/mods/arturo/volta_sonda.py", 'etichetta = "org.stellakamikaze.arturo.claude-daemon"', 'etichetta = "org.stellakamikaze.arturo.claude"'),
+    ("HZ43", "shared/volta/installa-herdr.sh", "schtasks /query /tn ArturoServizioClaude ", "schtasks /query /tn ArturoServizio "),
     ("HZ43", "shared/setup-herdr.md", "`HERDR SERVIZIO`", "la riga del servizio"),
-    ("HZ42", "shared/volta-celeste/mods/arturo/dati.js", "{ timeout: 360000 }", "{ timeout: 200000 }"),
-    ("HZ42", "shared/volta-celeste/mods/arturo/volta_sonda.py", "            t = min(90, int(entro - time.monotonic()))", "            t = 90"),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if acceso():\n    esci(acceso=True, come=\"già acceso\")", "if False:\n    pass"),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "(#5208)\n    s = servizio(nome)\n", "(#5208)\n    s = {}\n"),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"--name", "servizio-claude", "--no-parent", "--rm",', '"--name", "servizio-claude", "--rm",'),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)\n        come = "staccato"\nelif', 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, **nulla)\n        come = "staccato"\nelif'),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}', '        return {"come": "terminale di Herdr"}'),
-    ("HZ01", "shared/volta-celeste/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
-    ("HZ02", "shared/volta-celeste/installa-herdr.sh", "if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):", "if False:"),
-    ("HZ03", "shared/volta-celeste/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
+    ("HZ42", "shared/volta/mods/arturo/dati.js", "{ timeout: 360000 }", "{ timeout: 200000 }"),
+    ("HZ42", "shared/volta/mods/arturo/volta_sonda.py", "            t = min(90, int(entro - time.monotonic()))", "            t = 90"),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", "if acceso():\n    esci(acceso=True, come=\"già acceso\")", "if False:\n    pass"),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", "(#5208)\n    s = servizio(nome)\n", "(#5208)\n    s = {}\n"),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '"--name", "servizio-claude", "--no-parent", "--rm",', '"--name", "servizio-claude", "--rm",'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)\n        come = "staccato"\nelif', 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, **nulla)\n        come = "staccato"\nelif'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}', '        return {"come": "terminale di Herdr"}'),
+    ("HZ01", "shared/volta/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
+    ("HZ02", "shared/volta/installa-herdr.sh", "if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):", "if False:"),
+    ("HZ03", "shared/volta/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
     ("HZ04", "hooks/herdr-stato.sh", '[ -n "${HC_TERMINAL_ID:-}" ] || exit 0', ":"),
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
-    ("HZ09", "shared/volta-celeste/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
-    ("HZ10", "shared/volta-celeste/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
-    ("HZ11", "shared/volta-celeste/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
-    ("HZ12", "shared/volta-celeste/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
-    ("HZ12", "shared/volta-celeste/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
-    ("HZ12", "shared/volta-celeste/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
-    ("HZ14", "shared/volta-celeste/mods/arturo/nota.js", "if (!t) return null;", ""),
-    ("HZ14", "shared/volta-celeste/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
-    ("HZ13", "shared/volta-celeste/arturo-app.sh", 'python3 - "$plist" "$copia/arturo-app.sh"', 'python3 - "$plist" "$qui/arturo-app.sh"'),
-    ("HZ13", "shared/volta-celeste/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
-    ("HZ13", "shared/volta-celeste/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
-    ("HZ06", "shared/volta-celeste/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
-    ("HZ07", "shared/volta-celeste/mods/arturo/main.js", 'from "./notaui.js"', 'from "./notaui-perso.js"'),
-    ("HZ07", "shared/volta-celeste/mods/arturo/main.js", ", nota: Nota, note: Note };", ", note: Note };"),
-    ("HZ07", "shared/volta-celeste/layouts/arturo.json", '"parte": "stato"', '"parte": "stato-perso"'),
-    ("HZ16", "shared/volta-celeste/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
-    ("HZ16", "shared/volta-celeste/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
+    ("HZ09", "shared/volta/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
+    ("HZ10", "shared/volta/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
+    ("HZ11", "shared/volta/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
+    ("HZ12", "shared/volta/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
+    ("HZ12", "shared/volta/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
+    ("HZ12", "shared/volta/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
+    ("HZ14", "shared/volta/mods/arturo/nota.js", "if (!t) return null;", ""),
+    ("HZ14", "shared/volta/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
+    ("HZ13", "shared/volta/arturo-app.sh", 'python3 - "$plist" "$copia/arturo-app.sh"', 'python3 - "$plist" "$qui/arturo-app.sh"'),
+    ("HZ13", "shared/volta/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
+    ("HZ13", "shared/volta/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
+    ("HZ06", "shared/volta/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
+    ("HZ07", "shared/volta/mods/arturo/main.js", 'from "./notaui.js"', 'from "./notaui-perso.js"'),
+    ("HZ07", "shared/volta/mods/arturo/main.js", ", nota: Nota, note: Note };", ", note: Note };"),
+    ("HZ07", "shared/volta/layouts/arturo.json", '"parte": "stato"', '"parte": "stato-perso"'),
+    ("HZ16", "shared/volta/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
+    ("HZ16", "shared/volta/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
-    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", "|| titolo(a).localeCompare(titolo(b)));", "|| titolo(b).localeCompare(titolo(a)));"),
-    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", "if (giu.length && out.length) out[out.length - 1].nota", "if (giu.length && out.length) out[0].nota"),
-    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
-    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
-    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "|| argv.some((a) => dentro(a, s.id)))", ")"),
-    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", '${id.replace(/[^\\w-]/g, "")}\\\\b`', '${id.replace(/[^\\w-]/g, "")}`'),
-    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "\\\\battach['\"]?\\\\s+['\"]?", "\\\\battach\\\\s+"),
-    ("HZ19", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta") this.volta.premiId(arg, cx);', ""),
-    ("HZ19", "shared/volta-celeste/mods/arturo/volta.js", "if (!this.script) return null;", ""),
-    ("HZ20", "shared/volta-celeste/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
-    ("HZ21", "shared/volta-celeste/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
+    ("HZ17", "shared/volta/mods/arturo/sessioni.js", "|| titolo(a).localeCompare(titolo(b)));", "|| titolo(b).localeCompare(titolo(a)));"),
+    ("HZ17", "shared/volta/mods/arturo/sessioni.js", "if (giu.length && out.length) out[out.length - 1].nota", "if (giu.length && out.length) out[0].nota"),
+    ("HZ18", "shared/volta/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
+    ("HZ18", "shared/volta/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
+    ("HZ18", "shared/volta/mods/arturo/sessioni.js", "|| argv.some((a) => dentro(a, s.id)))", ")"),
+    ("HZ18", "shared/volta/mods/arturo/sessioni.js", '${id.replace(/[^\\w-]/g, "")}\\\\b`', '${id.replace(/[^\\w-]/g, "")}`'),
+    ("HZ18", "shared/volta/mods/arturo/sessioni.js", "\\\\battach['\"]?\\\\s+['\"]?", "\\\\battach\\\\s+"),
+    ("HZ19", "shared/volta/mods/arturo/barra.js", 'else if (c === "volta") this.volta.premiId(arg, cx);', ""),
+    ("HZ19", "shared/volta/mods/arturo/volta.js", "if (!this.script) return null;", ""),
+    ("HZ20", "shared/volta/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
+    ("HZ21", "shared/volta/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
      'if [ "$sistema" = windows ]; then app_home=${HERDR_APP_HOME:-${APPDATA:-$HOME/AppData/Roaming}/herdr-app}; '
      "else app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}; fi"),
-    ("HZ22", "shared/volta-celeste/installa-herdr.sh", '[ "$sistema" = mac-arm ] || tasti=keys-ctrl.json', ":"),
-    ("HZ22", "shared/volta-celeste/keys-ctrl.json", '"ctrl-shift-i": "arturo.note"', '"ctrl-shift-e": "arturo.note"'),
-    ("HZ23", "shared/volta-celeste/installa-herdr.sh", 'if "$c" -c "import sys" >/dev/null 2>&1; then py=$c; break; fi',
+    ("HZ22", "shared/volta/installa-herdr.sh", '[ "$sistema" = mac-arm ] || tasti=keys-ctrl.json', ":"),
+    ("HZ22", "shared/volta/keys-ctrl.json", '"ctrl-shift-i": "arturo.note"', '"ctrl-shift-e": "arturo.note"'),
+    ("HZ23", "shared/volta/installa-herdr.sh", 'if "$c" -c "import sys" >/dev/null 2>&1; then py=$c; break; fi',
      'if command -v "$c" >/dev/null 2>&1; then py=$c; break; fi'),
-    ("HZ24", "shared/volta-celeste/mods/arturo/testata.js", "const scorciatoie = `${k.apri} apri un progetto",
+    ("HZ24", "shared/volta/mods/arturo/testata.js", "const scorciatoie = `${k.apri} apri un progetto",
      "const scorciatoie = `⌘O apri un progetto"),
-    ("HZ25", "shared/volta-celeste/mods/arturo/suggerimenti.js", "else run(comandoSuggerimento(sug.id)); dopo?.(); })",
+    ("HZ25", "shared/volta/mods/arturo/suggerimenti.js", "else run(comandoSuggerimento(sug.id)); dopo?.(); })",
      "else { dopo?.(); run(comandoSuggerimento(sug.id)); } })"),
-    ("HZ25", "shared/volta-celeste/mods/arturo/apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "    this.chiudi();\n    run(comandoApri(slug(nome)));"),
-    ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "const mainW = testata.larghezza - 2 * pad - (pannelloW ? pannelloW + gap : 0);",
+    ("HZ25", "shared/volta/mods/arturo/apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "    this.chiudi();\n    run(comandoApri(slug(nome)));"),
+    ("HZ26", "shared/volta/mods/arturo/nota.js", "const mainW = testata.larghezza - 2 * pad - (pannelloW ? pannelloW + gap : 0);",
      "const mainW = testata.larghezza - 2 * pad;"),
-    ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(marchio.altezza + barra.altezza + piede.altezza - H) > 2) return null;", ""),
-    ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(S + (m.divisore ?? 1) + testata.larghezza - W) > 2) return null;", ""),
-    ("HZ26", "shared/volta-celeste/mods/arturo/main.js", "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;", "return el;"),
-    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "if (Number.isInteger(n.numero)) return n;", "return n;"),
-    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", 'stato: "aperta", chiusa_quando: null', 'stato: "presa", chiusa_quando: null'),
-    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "n.punto.x * W / f.larghezza", "n.punto.x"),
-    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", '"--note", riga, "--json", "--"', '"--note", riga, "--"'),
-    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "Per partire: arturo note mostra ${dati.id}", "Per partire: ${dati.id}"),
-    ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "recente(b).localeCompare(recente(a))", "recente(a).localeCompare(recente(b))"),
-    ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "numero: aperta ? n.numero : null", "numero: n.numero"),
-    ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "  if (!prima) return [];\n", ""),
-    ("HZ28", "shared/volta-celeste/keys.json", '"cmd-shift-e": "arturo.note"', '"cmd-shift-l": "arturo.note"'),
-    ("HZ28", "shared/volta-celeste/mods/arturo/testata.js", ".on_click(() => apriElenco())", ""),
-    ("HZ28", "shared/volta-celeste/mods/arturo/noteui.js", "run(`arturo.nota-${r.id}`);\n    this.chiudi();", "this.chiudi();\n    run(`arturo.nota-${r.id}`);"),
+    ("HZ26", "shared/volta/mods/arturo/nota.js", "if (Math.abs(marchio.altezza + barra.altezza + piede.altezza - H) > 2) return null;", ""),
+    ("HZ26", "shared/volta/mods/arturo/nota.js", "if (Math.abs(S + (m.divisore ?? 1) + testata.larghezza - W) > 2) return null;", ""),
+    ("HZ26", "shared/volta/mods/arturo/main.js", "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;", "return el;"),
+    ("HZ27", "shared/volta/mods/arturo/nota.js", "if (Number.isInteger(n.numero)) return n;", "return n;"),
+    ("HZ27", "shared/volta/mods/arturo/nota.js", 'stato: "aperta", chiusa_quando: null', 'stato: "presa", chiusa_quando: null'),
+    ("HZ27", "shared/volta/mods/arturo/nota.js", "n.punto.x * W / f.larghezza", "n.punto.x"),
+    ("HZ27", "shared/volta/mods/arturo/nota.js", '"--note", riga, "--json", "--"', '"--note", riga, "--"'),
+    ("HZ27", "shared/volta/mods/arturo/nota.js", "Per partire: arturo note mostra ${dati.id}", "Per partire: ${dati.id}"),
+    ("HZ28", "shared/volta/mods/arturo/nota.js", "recente(b).localeCompare(recente(a))", "recente(a).localeCompare(recente(b))"),
+    ("HZ28", "shared/volta/mods/arturo/nota.js", "numero: aperta ? n.numero : null", "numero: n.numero"),
+    ("HZ28", "shared/volta/mods/arturo/nota.js", "  if (!prima) return [];\n", ""),
+    ("HZ28", "shared/volta/keys.json", '"cmd-shift-e": "arturo.note"', '"cmd-shift-l": "arturo.note"'),
+    ("HZ28", "shared/volta/mods/arturo/testata.js", ".on_click(() => apriElenco())", ""),
+    ("HZ28", "shared/volta/mods/arturo/noteui.js", "run(`arturo.nota-${r.id}`);\n    this.chiudi();", "this.chiudi();\n    run(`arturo.nota-${r.id}`);"),
     ("HZ29", "bin/note_finestra.py", 'return {**n, "stato": "presa"}', "return n"),
     ("HZ29", "bin/note_finestra.py", 'presi = {n["numero"] for n in qui if n["numero"] is not None}', "presi = set()"),
     ("HZ29", "bin/note_finestra.py", 'sul_todo(n, ["fatto"] if stato == "risolta"', 'sul_todo(n, ["inizia"] if stato == "risolta"'),
@@ -7023,94 +7023,94 @@ VELENI = [
     ("HZ29", "bin/note_finestra.py", 'if n["stato"] not in APERTE:\n        raise ErroreNota(f"la nota {n[\'id\']} è già {n[\'stato\']}")\n    v = ', "v = "),
     ("HZ29", "bin/arturo", '    "note": ("note_finestra",', '    "notte": ("note_finestra",'),
     ("HZ30", "bin/note_finestra.py", "        if ora != letto:", "        if False:"),
-    ("HZ31", "shared/volta-celeste/mods/arturo/notaui.js", "const r = await gestoNota(VERBI[che], n.id, testo);", "const r = { ok: true };"),
-    ("HZ31", "shared/volta-celeste/mods/arturo/notaui.js", 'risolta: "risolvi"', 'risolta: "scarta"'),
-    ("HZ31", "shared/volta-celeste/mods/arturo/dati.js", '"--chi", "federico", "--json"', '"--json"'),
-    ("HZ31", "shared/volta-celeste/mods/arturo/dati.js", '...(t ? ["--", t] : [])', '...(t ? [t] : [])'),
+    ("HZ31", "shared/volta/mods/arturo/notaui.js", "const r = await gestoNota(VERBI[che], n.id, testo);", "const r = { ok: true };"),
+    ("HZ31", "shared/volta/mods/arturo/notaui.js", 'risolta: "risolvi"', 'risolta: "scarta"'),
+    ("HZ31", "shared/volta/mods/arturo/dati.js", '"--chi", "federico", "--json"', '"--json"'),
+    ("HZ31", "shared/volta/mods/arturo/dati.js", '...(t ? ["--", t] : [])', '...(t ? [t] : [])'),
     ("HZ31", "bin/note_finestra.py", 'if not testo and chi == "claude":', "if not testo:"),
-    ("HZ32", "shared/volta-celeste/mods/arturo/nota.js", '{ id: "va-bene", etichetta: "Va bene così" }', '{ id: "va-bene", etichetta: "Va bene" }'),
+    ("HZ32", "shared/volta/mods/arturo/nota.js", '{ id: "va-bene", etichetta: "Va bene così" }', '{ id: "va-bene", etichetta: "Va bene" }'),
     ("HZ32", "bin/note_finestra.py", '"presa": "Claude ci lavora", "risolta"', '"presa": "Presa", "risolta"'),
     ("HZ32", "bin/note_finestra.py", 'APERTE = ("aperta", "presa")', 'APERTE = ("aperta",)'),
-    ("HZ32", "shared/volta-celeste/mods/arturo/nota.js", 'export const TIPO_PREDEFINITO = "correggere";', 'export const TIPO_PREDEFINITO = "domanda";'),
+    ("HZ32", "shared/volta/mods/arturo/nota.js", 'export const TIPO_PREDEFINITO = "correggere";', 'export const TIPO_PREDEFINITO = "domanda";'),
     ("HZ32", "bin/note_finestra.py", '"cwd": None, "testo_terminale": None}', '"cwd": None}'),
-    ("HZ32", "docs/volta-celeste.md", "dice a chi l'ha scritta che ci lavori", "dice a Federico che ci lavori"),
-    ("HZ09", "shared/volta-celeste/mods/arturo/dati.js", "Segui {radice}/shared/volta-celeste/trova-progetti.md", "Segui ~/.claude/shared/volta-celeste/trova-progetti.md"),
-    ("HZ01", "shared/volta-celeste/installa-herdr.sh", '"radice": os.environ["ARTURO_RADICE"], ', ""),
-    ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", "const prompt = richiesta(sug.prompt, (await config()).radice);", "const prompt = sug.prompt;"),
-    ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", ": radiceDa(arturo[arturo.length - 1]),", ": `${home()}/.claude`,"),
-    ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", "[\\\\/]bin[\\\\/]arturo", "[/]bin[/]arturo"),
+    ("HZ32", "docs/volta.md", "dice a chi l'ha scritta che ci lavori", "dice a Federico che ci lavori"),
+    ("HZ09", "shared/volta/mods/arturo/dati.js", "Segui {radice}/shared/volta/trova-progetti.md", "Segui ~/.claude/shared/volta/trova-progetti.md"),
+    ("HZ01", "shared/volta/installa-herdr.sh", '"radice": os.environ["ARTURO_RADICE"], ', ""),
+    ("HZ33", "shared/volta/mods/arturo/dati.js", "const prompt = richiesta(sug.prompt, (await config()).radice);", "const prompt = sug.prompt;"),
+    ("HZ33", "shared/volta/mods/arturo/dati.js", ": radiceDa(arturo[arturo.length - 1]),", ": `${home()}/.claude`,"),
+    ("HZ33", "shared/volta/mods/arturo/dati.js", "[\\\\/]bin[\\\\/]arturo", "[/]bin[/]arturo"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
-    ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'for py in ("python3", "python"):', 'for py in ("python3",):'),
-    ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'return [v for v in voci if v.get("claude") or ("irraggiungibile" in v and (v["questa"] or v["host"] in viste))]', 'return voci'),
-    ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni += [dict(r, vecchia=True)', 'sessioni += [dict(r)'),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ "${CLAUDE_QUI:-0}" = 1 ] && qui_interattiva "$@"', ":"),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", "  agents | attach | auth |", "  agentsX | attach | auth |"),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", "grep -v '^Starting background service' | ", ""),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ -n "$senza_id" ] && qui_interattiva "$@"', ":"),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ -n "${HC_TERMINAL_ID:-}" ] && qui_interattiva "$@"', ":"),
-    ("HZ35", "shared/volta-celeste/volta-claude.sh", 'printf \'Volta: la sessione non parte in background (%s). La apro qui, come prima.\\n\' "$motivo" >&2', "exit 1"),
-    ("HZ36", "shared/volta-celeste/nascita.sh", "!dentro' \"$f\" > \"$tmp\"", "1' \"$f\" > \"$tmp\""),
-    ("HZ36", "shared/volta-celeste/nascita.sh", "! typeset -f claude >/dev/null 2>&1; then", "true; then"),
-    ("HZ36", "shared/volta-celeste/nascita.sh", "then printf '\\n' >> \"$1\"; fi", "then :; fi"),
-    ("HZ36", "shared/volta-celeste/installa-herdr.sh", "&& ! printf '%s\\n' \"$stato_nascita\" | grep -q '^rifiutata'; then", "; then"),
-    ("HZ36", "shared/volta-celeste/installa-herdr.sh", "if printf '%s\\n' \"$stato_nascita\" | grep -q '^assente' &&", "if false &&"),
-    ("HZ36", "shared/volta-celeste/nascita.sh", 'rm -f "$NO" "$app/nascita-no"', ":"),
-    ("HZ37", "shared/volta-celeste/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then togli_da", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then togli_da"),
-    ("HZ37", "shared/volta-celeste/nascita.sh", "{ l = $0; sub(/\\r$/, \"\", l) } l == a { dentro = 1; next }", "{ l = $0 } l == a { dentro = 1; next }"),
-    ("HZ37", "shared/volta-celeste/nascita.sh", "awk -v BINMODE=3 -v a=", "awk -v a=", "windows"),  # l'awk di Git per Windows toglie i \r
-    ("HZ37", "shared/volta-celeste/nascita.sh", '      if utf16 "$f"; then say "NASCITA UTF16 $f"; continue; fi', "      :"),
-    ("HZ37", "shared/volta-celeste/nascita.sh", '      mkdir -p "$(dirname "$f")"', "      :"),
-    ("HZ37", "shared/volta-celeste/nascita.sh", 'case "$pol" in Restricted | AllSigned) say', 'case "$pol" in Nessuna) say'),
-    ("HZ38", "shared/volta-celeste/nascita.sh", "and -not (Get-Command claude -CommandType Function -ErrorAction SilentlyContinue)) {", ") {"),
-    ("HZ37", "shared/volta-celeste/installa-herdr.sh", '[ "$sistema" = windows ] && cp "$qui/volta-claude.ps1"', '[ "$sistema" = nessuno ] && cp "$qui/volta-claude.ps1"'),
-    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($env:CLAUDE_QUI -eq '1') { Qui }", "#"),
-    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
-    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "\n        if rc != 0 and (non_parte(out, err) or rc == 9009):", "\n        if True:"),  # quella di nasci, non di servizio
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]'),
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if not ID.fullmatch(sid or ""):  # mai', "    if False:  # mai"),
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if fin == "G":\n                c = n - 1', '            if fin == "G":\n                pass'),
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    fuori = (\"Checking for updates\",)", "    fuori = (\"zzz\",)"),
-    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", 'if (s.stato === "lavora" || s.stato === "aspetta") out.push', 'if (s.stato === "lavora") out.push'),
-    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", "  if (!prima) return [];", "  if (!prima) prima = { sessioni: [] };"),
-    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.id && !s.vecchia) out[s.id]", "if (s.id) out[s.id]"),
-    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", 'out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" })', 'out.push({ verbo: "rm", testo: "Elimina" })'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'dati = {"prompt": prompt or "", "progetto": progetto}', 'dati = {"prompt": "", "progetto": progetto}'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);', "const v = {};"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, nata.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, nata.attach, true);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return statoAgganciata(schedaAgganciata(s)) ?? s.status;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (v?.host === "qui") out[id] = v.stato;', 'out[id] = v.stato;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "(b.tab === attiva) - (a.tab === attiva)", "0"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (statoAgganciata(g) === "blocked") return notify', 'if (false) return notify'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const g = a || !s ? null : schedaAgganciata(s);', 'const g = null;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'stato: statoSpazio(s)', 'stato: s?.status ?? null'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/testata.js", 'const st = statoSpazio(s);', 'const st = s?.status;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
-    ("HZ39", "shared/volta-celeste/mods/arturo/barra.js", '`|${JSON.stringify(statiQui())}|', '`|'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'app = os.environ.get("HERDR_APP_HOME") or ', "app = "),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const args = [c.volta, copia ? copia.verbo : "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, copia ? copia.verbo : "nasci", macchina,'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "const g = a ? null : schedaAgganciata(s);", "const g = null;"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (Array.isArray(t?.argv) && t.argv.includes("attach"))', "if (false)"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (sug.dove === "nuova") return nuova(prompt, true);', 'if (sug.dove === "nuova") return nuova(prompt);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "if (!a && !g) return nuova(prompt, true);", "if (!a && !g) return nuova(prompt);"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/testata.js", ".when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));", ";"),
-    ("HZ34", "shared/volta-celeste/mods/arturo/dati.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
-    ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            or (s.get("startedAt") or 0) >= soglia]', "            or True]"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    sessioni = agenti([])\n", "    sessioni = None\n"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta-altro") this.volta.altroId(arg, cx);', ""),
-    ("HZ44", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-altro-")) return { verbo: "volta-altro", arg: dopo("volta-altro-"), lungo: false };\n', ""),
-    ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;', ""),
+    ("HZ34", "shared/volta/mods/arturo/volta_sonda.py", 'for py in ("python3", "python"):', 'for py in ("python3",):'),
+    ("HZ34", "shared/volta/mods/arturo/volta_sonda.py", 'return [v for v in voci if v.get("claude") or ("irraggiungibile" in v and (v["questa"] or v["host"] in viste))]', 'return voci'),
+    ("HZ34", "shared/volta/mods/arturo/volta_sonda.py", 'sessioni += [dict(r, vecchia=True)', 'sessioni += [dict(r)'),
+    ("HZ35", "shared/volta/volta-claude.sh", '[ "${CLAUDE_QUI:-0}" = 1 ] && qui_interattiva "$@"', ":"),
+    ("HZ35", "shared/volta/volta-claude.sh", "  agents | attach | auth |", "  agentsX | attach | auth |"),
+    ("HZ35", "shared/volta/volta-claude.sh", "grep -v '^Starting background service' | ", ""),
+    ("HZ35", "shared/volta/volta-claude.sh", '[ -n "$senza_id" ] && qui_interattiva "$@"', ":"),
+    ("HZ35", "shared/volta/volta-claude.sh", '[ -n "${HC_TERMINAL_ID:-}" ] && qui_interattiva "$@"', ":"),
+    ("HZ35", "shared/volta/volta-claude.sh", 'printf \'Volta: la sessione non parte in background (%s). La apro qui, come prima.\\n\' "$motivo" >&2', "exit 1"),
+    ("HZ36", "shared/volta/nascita.sh", "!dentro' \"$f\" > \"$tmp\"", "1' \"$f\" > \"$tmp\""),
+    ("HZ36", "shared/volta/nascita.sh", "! typeset -f claude >/dev/null 2>&1; then", "true; then"),
+    ("HZ36", "shared/volta/nascita.sh", "then printf '\\n' >> \"$1\"; fi", "then :; fi"),
+    ("HZ36", "shared/volta/installa-herdr.sh", "&& ! printf '%s\\n' \"$stato_nascita\" | grep -q '^rifiutata'; then", "; then"),
+    ("HZ36", "shared/volta/installa-herdr.sh", "if printf '%s\\n' \"$stato_nascita\" | grep -q '^assente' &&", "if false &&"),
+    ("HZ36", "shared/volta/nascita.sh", 'rm -f "$NO" "$app/nascita-no"', ":"),
+    ("HZ37", "shared/volta/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then togli_da", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then togli_da"),
+    ("HZ37", "shared/volta/nascita.sh", "{ l = $0; sub(/\\r$/, \"\", l) } l == a { dentro = 1; next }", "{ l = $0 } l == a { dentro = 1; next }"),
+    ("HZ37", "shared/volta/nascita.sh", "awk -v BINMODE=3 -v a=", "awk -v a=", "windows"),  # l'awk di Git per Windows toglie i \r
+    ("HZ37", "shared/volta/nascita.sh", '      if utf16 "$f"; then say "NASCITA UTF16 $f"; continue; fi', "      :"),
+    ("HZ37", "shared/volta/nascita.sh", '      mkdir -p "$(dirname "$f")"', "      :"),
+    ("HZ37", "shared/volta/nascita.sh", 'case "$pol" in Restricted | AllSigned) say', 'case "$pol" in Nessuna) say'),
+    ("HZ38", "shared/volta/nascita.sh", "and -not (Get-Command claude -CommandType Function -ErrorAction SilentlyContinue)) {", ") {"),
+    ("HZ37", "shared/volta/installa-herdr.sh", '[ "$sistema" = windows ] && cp "$qui/volta-claude.ps1"', '[ "$sistema" = nessuno ] && cp "$qui/volta-claude.ps1"'),
+    ("HZ38", "shared/volta/volta-claude.ps1", "if ($env:CLAUDE_QUI -eq '1') { Qui }", "#"),
+    ("HZ38", "shared/volta/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
+    ("HZ38", "shared/volta/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
+    ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", "\n        if rc != 0 and (non_parte(out, err) or rc == 9009):", "\n        if True:"),  # quella di nasci, non di servizio
+    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]'),
+    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '    if not ID.fullmatch(sid or ""):  # mai', "    if False:  # mai"),
+    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),
+    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '            if fin == "G":\n                c = n - 1', '            if fin == "G":\n                pass'),
+    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", "    fuori = (\"Checking for updates\",)", "    fuori = (\"zzz\",)"),
+    ("HZ40", "shared/volta/mods/arturo/sessioni.js", 'if (s.stato === "lavora" || s.stato === "aspetta") out.push', 'if (s.stato === "lavora") out.push'),
+    ("HZ40", "shared/volta/mods/arturo/sessioni.js", "  if (!prima) return [];", "  if (!prima) prima = { sessioni: [] };"),
+    ("HZ40", "shared/volta/mods/arturo/sessioni.js", "if (s.id && !s.vecchia) out[s.id]", "if (s.id) out[s.id]"),
+    ("HZ40", "shared/volta/mods/arturo/sessioni.js", 'out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" })', 'out.push({ verbo: "rm", testo: "Elimina" })'),
+    ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'dati = {"prompt": prompt or "", "progetto": progetto}', 'dati = {"prompt": "", "progetto": progetto}'),
+    ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);', "const v = {};"),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, nata.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, nata.attach, true);'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return statoAgganciata(schedaAgganciata(s)) ?? s.status;'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'if (v?.host === "qui") out[id] = v.stato;', 'out[id] = v.stato;'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", "(b.tab === attiva) - (a.tab === attiva)", "0"),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'if (statoAgganciata(g) === "blocked") return notify', 'if (false) return notify'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'const g = a || !s ? null : schedaAgganciata(s);', 'const g = null;'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'stato: statoSpazio(s)', 'stato: s?.status ?? null'),
+    ("HZ39", "shared/volta/mods/arturo/testata.js", 'const st = statoSpazio(s);', 'const st = s?.status;'),
+    ("HZ39", "shared/volta/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
+    ("HZ39", "shared/volta/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),
+    ("HZ39", "shared/volta/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
+    ("HZ39", "shared/volta/mods/arturo/barra.js", '`|${JSON.stringify(statiQui())}|', '`|'),
+    ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'app = os.environ.get("HERDR_APP_HOME") or ', "app = "),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'const args = [c.volta, copia ? copia.verbo : "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, copia ? copia.verbo : "nasci", macchina,'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", "const g = a ? null : schedaAgganciata(s);", "const g = null;"),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'if (Array.isArray(t?.argv) && t.argv.includes("attach"))', "if (false)"),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'if (sug.dove === "nuova") return nuova(prompt, true);', 'if (sug.dove === "nuova") return nuova(prompt);'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", "if (!a && !g) return nuova(prompt, true);", "if (!a && !g) return nuova(prompt);"),
+    ("HZ39", "shared/volta/mods/arturo/testata.js", ".when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));", ";"),
+    ("HZ34", "shared/volta/mods/arturo/dati.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
+    ("HZ34", "shared/volta/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),
+    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
+    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", '            or (s.get("startedAt") or 0) >= soglia]', "            or True]"),
+    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", "    sessioni = agenti([])\n", "    sessioni = None\n"),
+    ("HZ44", "shared/volta/mods/arturo/barra.js", 'else if (c === "volta-altro") this.volta.altroId(arg, cx);', ""),
+    ("HZ44", "shared/volta/mods/arturo/comandi.js", '  if (c.startsWith("volta-altro-")) return { verbo: "volta-altro", arg: dopo("volta-altro-"), lungo: false };\n', ""),
+    ("HZ44", "shared/volta/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
+    ("HZ44", "shared/volta/mods/arturo/volta.js", 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;', ""),
     ("HZ45", 'hooks/titolo-sessione.py', '        if salvato.get("titolo"):\n            return 0\n', ''),
     ("HZ45", 'hooks/titolo-sessione.py', '    if salvato.get("fonte") == "modello" and adesso - float(salvato.get("quando") or 0) < ogni:\n        return 0\n', ''),
     ("HZ45", 'hooks/titolo-sessione.py', '    if salvato.get("fonte") == "modello" and peso <= int(salvato.get("peso") or 0):\n        return 0\n', ''),
@@ -7123,119 +7123,119 @@ VELENI = [
     ("HZ45", 'hooks/titolo-sessione.py', '    return r.stdout if r.returncode == 0 else ""', '    return r.stdout or "Titolo di ripiego"'),
     ("HZ45", 'hooks/titolo-sessione.py', ' or d.get("isMeta"):', ':'),
     ("HZ45", 'hooks/titolo-sessione.py', '        if " -- " in resto:\n            resto = resto.split(" -- ", 1)[1]\n', ''),
-    ("HZ45", 'shared/volta-celeste/mods/arturo/volta_sonda.py', '            s["titolo"] = t.strip()[:80]', '            pass'),
-    ("HZ45", 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (scritto) return scritto;\n', ''),
-    ("HZ45", 'shared/volta-celeste/mods/arturo/volta.js', '=== "macchina" ? "macchina" : "progetto"', '=== "progetto" ? "progetto" : "macchina"'),
-    ("HZ45", "shared/volta-celeste/mods/arturo/volta.js", "(s.titolo ? div().whitespace_normal() : div().truncate())", "div().truncate()"),
-    ("HZ46", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'tx[:400].rsplit(None, 1)[0] + "\\u2026"', 'tx[:400]'),
-    ("HZ46", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"risposta": (s.get("risposta") or "")[:420],', '"risposta": (s.get("risposta") or "")[:200],'),
-    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/^\\s*(#+|>)\\s*/, "")', ''),
-    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", 'const senzaSegni = (r) => r.replace(/\\*\\*|`/g, "")', 'const senzaSegni = (r) => r.replace(/[*_`]/g, "")'),
-    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '  return out.length ? out : null;', '  return out;'),
-    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/:$/, "")', ''),
-    ("HZ46", "shared/volta-celeste/mods/arturo/volta.js", '    if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }\n', ''),
-    ("HZ46", "shared/volta-celeste/mods/arturo/volta.js", ': div().id(id).whitespace_normal().text_size(12.5)', ': div().id(id).truncate().text_size(12.5)'),
-    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "      .when(Boolean(avviso) && !aperto, (el)", "      .when(aperto, (el) => el.child(this.gesti(t, s, az)))\n      .when(Boolean(avviso) && !aperto, (el)"),
-    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "\n      .when(Boolean(gesti), (el) => el.child(gesti.mb(10)));", ";"),
-    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "const gesti = this.pannello(t);", "const gesti = null;"),
-    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "      .child(this.gesti(t, s, az))\n      .when(Boolean(avviso), (el)", "      .when(Boolean(avviso), (el)"),
-    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
-    ("HZ48", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'lavoro = s.get("id") if fondo else None', "lavoro = None"),
-    ("HZ48", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'corto = lavoro if isinstance(lavoro, str)', 'corto = sid[:8] if isinstance(lavoro, str)'),
-    ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", 'const rm = az.find((a) => a.verbo === "rm");', 'const rm = az.find((a) => a.verbo === "stop");'),
-    ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
-    ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
-    ("HZ50", "shared/volta-celeste/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
-    ("HZ50", "shared/volta-celeste/layouts/arturo.json", '"px": 192', '"px": 156'),
-    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "].sort((a, b) => tempo(b) - tempo(a) || titolo(a)", "].sort((a, b) => tempo(a) - tempo(b) || titolo(a)"),
-    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "    out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));\n", ""),
-    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", ".filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));", ".filter((g) => g.sessioni.length));"),
-    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "const recente = (g) => Math.max(0, ...g.sessioni.map(tempo));", "const recente = (g) => Math.min(...g.sessioni.map(tempo));"),
-    ("HZ51", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"ultimo": s.get("ultimo") or nascita(s),', '"ultimo": s.get("ultimo") or "",'),
-    ("HZ51", "shared/volta-celeste/mods/arturo/volta_sonda.py", "time.gmtime(t / 1000))", "time.gmtime(t))"),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);', 'const etichetta = [];'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'for (const x of schede) if (!(await nuda(x.address))) { scheda = x; break; }', 'for (const x of schede) { scheda = x; break; }'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'f.pid === d.pid && JSON.stringify(f.argv) !== JSON.stringify(d.argv);', 'f.pid === d.pid;'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const a = await prepara(s, s.stato === "errore");', 'const a = await prepara(s, false);'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!pronta) {', '  if (true) {'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    if (a.errore) return { errore: `Non la apro: ${a.errore}.` };\n', ''),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);\n', ''),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!(await nuda(indirizzo))) return {};\n  const fallita', '  const fallita'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    run("space.select", { id: sp.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });', '    const tab = sp.tabs.find((tb) => tb.name === nome);\n    if (tab) return run("tab.select", { id: tab.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '(/^[\\w@%+=:,./-]+$/.test(String(a)) ? String(a)', '(true ? String(a)'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'slug(s.name) !== "volta" ? slug(s.name) : null;', 'slug(s.name) !== "volta" ? slug(s.name) : slug(s.name);'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    if (scheda) await etichetta(scheda, s);\n  }\n  return { come: rilancia', '  }\n  return { come: rilancia'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const r = await hc(["send", scheda.address, comando(argvScheda(argv))]);', 'const r = { code: 0 };'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];', 'return a;'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'return nasciSu(dove(), "", progetto, "Nuova sessione");', 'return nasciSu(dove(), "", progetto);'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/volta.js', '      if (v?.errore) this.nonApre(s, v.errore, cx);\n', ''),
-    ('HZ19', 'shared/volta-celeste/mods/arturo/volta.js', 'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);', 'if (d.azione === "aggancia") return this.apri(s, d.argv, true, cx);'),
-    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if riavvia:\n        r = azione(nome, "respawn", sid)', '    if False:\n        r = azione(nome, "respawn", sid)'),
-    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if ID.fullmatch(sid or "") is None:', '    if False:'),
-    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        return {"ok": True, "riavviata": True}\n    s = servizio(nome)', '        return {"ok": True, "riavviata": True}\n    s = {}'),
-    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if not r.get("ok"):\n            return {"errore": "non si riavvia: %s"', '        if False:\n            return {"errore": "non si riavvia: %s"'),
-    ('HZ53', 'shared/volta-celeste/keys.json', '"cmd-t": "arturo.volta-nuova"', '"cmd-y": "arturo.volta-nuova"'),
-    ('HZ53', 'shared/volta-celeste/keys-ctrl.json', '"ctrl-shift-t": "arturo.volta-nuova"', '"ctrl-shift-y": "arturo.volta-nuova"'),
-    ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):', 'if k in mia and mia[k] != v:'),
-    ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'mia[k] != PRENDE.get(v):', 'v not in PRENDE:'),
-    ('HZ53', 'shared/volta-celeste/mods/arturo/barra.js', '    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());\n', ''),
-    ('HZ22', 'shared/volta-celeste/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": "tab.new"}', 'PRENDE = {}'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'if (!s || s.vecchia) return [];\n  const out = [{ verbo: "apri"', 'if (!s) return [];\n  const out = [{ verbo: "apri"'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));', 'return out.concat(azioni(s));'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', '.slice(0, 53).trim()} (fork)`', '.slice(0, 53).trim()} (copia)`'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', '`${titolo(s).slice(0, 53).trim()} (fork)`', '`${titolo(s)} (fork)`'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });', 'out.push({ verbo: "duplica", testo: "Duplica" });'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.verbo === "fork" ? [copia.sessionId] : []),', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.cartella ? ["--cartella", copia.cartella] : []),', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.titolo ? ["--titolo", copia.titolo] : []),', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (!copia) notify({ title: titolo, body: errore, level });', 'notify({ title: titolo, body: errore, level });'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'return nasciSu(s.host ?? "qui", "", s.progetto', 'return nasciSu(dove(), "", s.progetto'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '{ verbo: fork ? "fork" : "duplica", sessionId: s.sessionId,', '{ verbo: fork ? "fork" : "duplica", sessionId: s.id,'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });', 'if (true) run("tab.close", { id: p.tab });'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };\n', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);\n', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (a.verbo === "apri") return this.premi(s, cx);\n', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    chiudiSchede(s);\n', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', 'false ? await copiaSessione(s, a.verbo)'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);', '      : dettaglio(s, modo);'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', 'const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));', 'const voci = azioni(s);'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/barra.js', '    else if (c === "volta-menu") this.volta.menuId(arg);\n', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', '    run(comandoGesto(this.s, v));\n    this.chiudi();', '    this.chiudi();\n    run(comandoGesto(this.s, v));'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${s.id}`', '`arturo.volta-fai-${v.verbo}-${s.id}`'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', 'kind: "popup", width: 230', 'kind: "dialog", width: 230'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', 'this.voci = menu(this.s);', 'this.voci = [];'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', 'argv += ["--resume", a["riprendi"]]'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if a.get("riprendi") and not qui:', 'if False:'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if qui:\n    base = cartella', 'if False:\n    base = cartella'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'qui = bool(cartella) and os.path.isdir(cartella)', 'qui = bool(cartella)'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'nome = str(a.get("nome") or "").lstrip("-").strip()[:60]', 'nome = str(a.get("nome") or "").strip()[:60]'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if riprendi is not None and not ID.fullmatch(riprendi or ""):', 'if False:'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '(("cartella", cartella), ("riprendi", riprendi), ("nome", titolo), ("stessa", stessa))', '(("cartella", cartella), ("riprendi", None), ("nome", titolo), ("stessa", stessa))'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '("riprendi", riprendi), ("nome", titolo), ("stessa", stessa)) if v})', '("riprendi", riprendi), ("nome", None), ("stessa", stessa)) if v})'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"))\n', '        esito = nasci(resto[0], "", opz.get("progetto"))\n'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))', '        esito = nasci(resto[0], "", None, opz.get("cartella"), resto[1], opz.get("titolo"))'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if argv and argv[0] in COPIE:\n', '    if False:\n'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    attesi = 2 if verbo == "fork" else 1\n', '    attesi = len(resto)\n'),
-    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'argv += ["-n", nome]', 'argv += [nome]'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'nuovo = {"titolo": valore, "fonte": "persona", "quando": time.time(), "peso": 0, "portato": False}', 'nuovo = {"titolo": valore, "fonte": "avvio", "quando": time.time(), "peso": 0, "portato": False}'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, quando=time.time())'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict({"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        nuovo = dict(prima, portato=True)', '        nuovo = dict(prima)'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if True:\n            os.remove(f)'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if False:\n            os.remove(f)'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if not SLUG.fullmatch(valore or ""):', '        if not valore:'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if verbo not in CAMBI:\n        return {"errore": "cambio sconosciuto: %s" % verbo}\n    if not ID.fullmatch(sid or ""):', '    if False:'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        valore = nome_pulito(valore)\n    arg = ', '        pass\n    arg = '),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if argv and argv[0] in CAMBI:\n', '    if False:\n'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if tit.get("fonte") == "persona":'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if not tit.get("portato"):'),
-    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '                "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,\n', ''),
+    ("HZ45", 'shared/volta/mods/arturo/volta_sonda.py', '            s["titolo"] = t.strip()[:80]', '            pass'),
+    ("HZ45", 'shared/volta/mods/arturo/sessioni.js', '  if (scritto) return scritto;\n', ''),
+    ("HZ45", 'shared/volta/mods/arturo/volta.js', '=== "macchina" ? "macchina" : "progetto"', '=== "progetto" ? "progetto" : "macchina"'),
+    ("HZ45", "shared/volta/mods/arturo/volta.js", "(s.titolo ? div().whitespace_normal() : div().truncate())", "div().truncate()"),
+    ("HZ46", "shared/volta/mods/arturo/volta_sonda.py", 'tx[:400].rsplit(None, 1)[0] + "\\u2026"', 'tx[:400]'),
+    ("HZ46", "shared/volta/mods/arturo/volta_sonda.py", '"risposta": (s.get("risposta") or "")[:420],', '"risposta": (s.get("risposta") or "")[:200],'),
+    ("HZ46", "shared/volta/mods/arturo/sessioni.js", '.replace(/^\\s*(#+|>)\\s*/, "")', ''),
+    ("HZ46", "shared/volta/mods/arturo/sessioni.js", 'const senzaSegni = (r) => r.replace(/\\*\\*|`/g, "")', 'const senzaSegni = (r) => r.replace(/[*_`]/g, "")'),
+    ("HZ46", "shared/volta/mods/arturo/sessioni.js", '  return out.length ? out : null;', '  return out;'),
+    ("HZ46", "shared/volta/mods/arturo/sessioni.js", '.replace(/:$/, "")', ''),
+    ("HZ46", "shared/volta/mods/arturo/volta.js", '    if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }\n', ''),
+    ("HZ46", "shared/volta/mods/arturo/volta.js", ': div().id(id).whitespace_normal().text_size(12.5)', ': div().id(id).truncate().text_size(12.5)'),
+    ("HZ47", "shared/volta/mods/arturo/volta.js", "      .when(Boolean(avviso) && !aperto, (el)", "      .when(aperto, (el) => el.child(this.gesti(t, s, az)))\n      .when(Boolean(avviso) && !aperto, (el)"),
+    ("HZ47", "shared/volta/mods/arturo/volta.js", "\n      .when(Boolean(gesti), (el) => el.child(gesti.mb(10)));", ";"),
+    ("HZ47", "shared/volta/mods/arturo/volta.js", "const gesti = this.pannello(t);", "const gesti = null;"),
+    ("HZ47", "shared/volta/mods/arturo/volta.js", "      .child(this.gesti(t, s, az))\n      .when(Boolean(avviso), (el)", "      .when(Boolean(avviso), (el)"),
+    ("HZ47", "shared/volta/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
+    ("HZ48", "shared/volta/mods/arturo/volta_sonda.py", 'lavoro = s.get("id") if fondo else None', "lavoro = None"),
+    ("HZ48", "shared/volta/mods/arturo/volta_sonda.py", 'corto = lavoro if isinstance(lavoro, str)', 'corto = sid[:8] if isinstance(lavoro, str)'),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", 'const rm = az.find((a) => a.verbo === "rm");', 'const rm = az.find((a) => a.verbo === "stop");'),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
+    ("HZ50", "shared/volta/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
+    ("HZ50", "shared/volta/layouts/arturo.json", '"px": 192', '"px": 156'),
+    ("HZ51", "shared/volta/mods/arturo/sessioni.js", "].sort((a, b) => tempo(b) - tempo(a) || titolo(a)", "].sort((a, b) => tempo(a) - tempo(b) || titolo(a)"),
+    ("HZ51", "shared/volta/mods/arturo/sessioni.js", "    out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));\n", ""),
+    ("HZ51", "shared/volta/mods/arturo/sessioni.js", ".filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));", ".filter((g) => g.sessioni.length));"),
+    ("HZ51", "shared/volta/mods/arturo/sessioni.js", "const recente = (g) => Math.max(0, ...g.sessioni.map(tempo));", "const recente = (g) => Math.min(...g.sessioni.map(tempo));"),
+    ("HZ51", "shared/volta/mods/arturo/volta_sonda.py", '"ultimo": s.get("ultimo") or nascita(s),', '"ultimo": s.get("ultimo") or "",'),
+    ("HZ51", "shared/volta/mods/arturo/volta_sonda.py", "time.gmtime(t / 1000))", "time.gmtime(t))"),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);', 'const etichetta = [];'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'for (const x of schede) if (!(await nuda(x.address))) { scheda = x; break; }', 'for (const x of schede) { scheda = x; break; }'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'f.pid === d.pid && JSON.stringify(f.argv) !== JSON.stringify(d.argv);', 'f.pid === d.pid;'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'const a = await prepara(s, s.stato === "errore");', 'const a = await prepara(s, false);'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '  if (!pronta) {', '  if (true) {'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '    if (a.errore) return { errore: `Non la apro: ${a.errore}.` };\n', ''),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);\n', ''),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '  if (!(await nuda(indirizzo))) return {};\n  const fallita', '  const fallita'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '    run("space.select", { id: sp.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });', '    const tab = sp.tabs.find((tb) => tb.name === nome);\n    if (tab) return run("tab.select", { id: tab.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '(/^[\\w@%+=:,./-]+$/.test(String(a)) ? String(a)', '(true ? String(a)'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'slug(s.name) !== "volta" ? slug(s.name) : null;', 'slug(s.name) !== "volta" ? slug(s.name) : slug(s.name);'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '    if (scheda) await etichetta(scheda, s);\n  }\n  return { come: rilancia', '  }\n  return { come: rilancia'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'const r = await hc(["send", scheda.address, comando(argvScheda(argv))]);', 'const r = { code: 0 };'),
+    ('HZ52', 'shared/volta/mods/arturo/sessioni.js', 'return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];', 'return a;'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(dove(), "", progetto, "Nuova sessione");', 'return nasciSu(dove(), "", progetto);'),
+    ('HZ52', 'shared/volta/mods/arturo/volta.js', '      if (v?.errore) this.nonApre(s, v.errore, cx);\n', ''),
+    ('HZ19', 'shared/volta/mods/arturo/volta.js', 'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);', 'if (d.azione === "aggancia") return this.apri(s, d.argv, true, cx);'),
+    ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '    if riavvia:\n        r = azione(nome, "respawn", sid)', '    if False:\n        r = azione(nome, "respawn", sid)'),
+    ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '    if ID.fullmatch(sid or "") is None:', '    if False:'),
+    ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '        return {"ok": True, "riavviata": True}\n    s = servizio(nome)', '        return {"ok": True, "riavviata": True}\n    s = {}'),
+    ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '        if not r.get("ok"):\n            return {"errore": "non si riavvia: %s"', '        if False:\n            return {"errore": "non si riavvia: %s"'),
+    ('HZ53', 'shared/volta/keys.json', '"cmd-t": "arturo.volta-nuova"', '"cmd-y": "arturo.volta-nuova"'),
+    ('HZ53', 'shared/volta/keys-ctrl.json', '"ctrl-shift-t": "arturo.volta-nuova"', '"ctrl-shift-y": "arturo.volta-nuova"'),
+    ('HZ53', 'shared/volta/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):', 'if k in mia and mia[k] != v:'),
+    ('HZ53', 'shared/volta/installa-herdr.sh', 'mia[k] != PRENDE.get(v):', 'v not in PRENDE:'),
+    ('HZ53', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());\n', ''),
+    ('HZ22', 'shared/volta/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": "tab.new"}', 'PRENDE = {}'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (!s || s.vecchia) return [];\n  const out = [{ verbo: "apri"', 'if (!s) return [];\n  const out = [{ verbo: "apri"'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));', 'return out.concat(azioni(s));'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '.slice(0, 53).trim()} (fork)`', '.slice(0, 53).trim()} (copia)`'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '`${titolo(s).slice(0, 53).trim()} (fork)`', '`${titolo(s)} (fork)`'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });', 'out.push({ verbo: "duplica", testo: "Duplica" });'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', '...(copia?.verbo === "fork" ? [copia.sessionId] : []),', ''),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', '...(copia?.cartella ? ["--cartella", copia.cartella] : []),', ''),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', '...(copia?.titolo ? ["--titolo", copia.titolo] : []),', ''),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'if (!copia) notify({ title: titolo, body: errore, level });', 'notify({ title: titolo, body: errore, level });'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(s.host ?? "qui", "", s.progetto', 'return nasciSu(dove(), "", s.progetto'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', '{ verbo: fork ? "fork" : "duplica", sessionId: s.sessionId,', '{ verbo: fork ? "fork" : "duplica", sessionId: s.id,'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });', 'if (true) run("tab.close", { id: p.tab });'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', '    if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', '    if (a.verbo === "apri") return this.premi(s, cx);\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', 'false ? await copiaSessione(s, a.verbo)'),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', '      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);', '      : dettaglio(s, modo);'),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', 'const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));', 'const voci = azioni(s);'),
+    ('HZ54', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-menu") this.volta.menuId(arg);\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),
+    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '    run(comandoGesto(this.s, v));\n    this.chiudi();', '    this.chiudi();\n    run(comandoGesto(this.s, v));'),
+    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${s.id}`', '`arturo.volta-fai-${v.verbo}-${s.id}`'),
+    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'kind: "popup", width: 230', 'kind: "dialog", width: 230'),
+    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'this.voci = menu(this.s);', 'this.voci = [];'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', 'argv += ["--resume", a["riprendi"]]'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'if a.get("riprendi") and not qui:', 'if False:'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'if qui:\n    base = cartella', 'if False:\n    base = cartella'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'qui = bool(cartella) and os.path.isdir(cartella)', 'qui = bool(cartella)'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'nome = str(a.get("nome") or "").lstrip("-").strip()[:60]', 'nome = str(a.get("nome") or "").strip()[:60]'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'if riprendi is not None and not ID.fullmatch(riprendi or ""):', 'if False:'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '(("cartella", cartella), ("riprendi", riprendi), ("nome", titolo), ("stessa", stessa))', '(("cartella", cartella), ("riprendi", None), ("nome", titolo), ("stessa", stessa))'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '("riprendi", riprendi), ("nome", titolo), ("stessa", stessa)) if v})', '("riprendi", riprendi), ("nome", None), ("stessa", stessa)) if v})'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"))\n', '        esito = nasci(resto[0], "", opz.get("progetto"))\n'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))', '        esito = nasci(resto[0], "", None, opz.get("cartella"), resto[1], opz.get("titolo"))'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '    if argv and argv[0] in COPIE:\n', '    if False:\n'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '    attesi = 2 if verbo == "fork" else 1\n', '    attesi = len(resto)\n'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'argv += ["-n", nome]', 'argv += [nome]'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = {"titolo": valore, "fonte": "persona", "quando": time.time(), "peso": 0, "portato": False}', 'nuovo = {"titolo": valore, "fonte": "avvio", "quando": time.time(), "peso": 0, "portato": False}'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, quando=time.time())'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict({"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        nuovo = dict(prima, portato=True)', '        nuovo = dict(prima)'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if True:\n            os.remove(f)'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if False:\n            os.remove(f)'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if not SLUG.fullmatch(valore or ""):', '        if not valore:'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    if verbo not in CAMBI:\n        return {"errore": "cambio sconosciuto: %s" % verbo}\n    if not ID.fullmatch(sid or ""):', '    if False:'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        valore = nome_pulito(valore)\n    arg = ', '        pass\n    arg = '),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    if argv and argv[0] in CAMBI:\n', '    if False:\n'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if tit.get("fonte") == "persona":'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if not tit.get("portato"):'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '                "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,\n', ''),
     ("HZ58", "hooks/titolo-sessione.py", '    if salvato.get("fonte") == "persona" and salvato.get("titolo"):\n        return 0  # il nome l\'ha scritto la persona: il modello non lo riscrive\n', ''),
     ("HZ58", "hooks/titolo-sessione.py", '            if leggi(f).get("fonte") == "persona" and viva(f.stem):\n                continue\n', ''),
     ("HZ58", "hooks/titolo-sessione.py", '            if leggi(f).get("fonte") == "persona" and viva(f.stem):', '            if leggi(f).get("fonte") == "persona":'),
@@ -7245,54 +7245,54 @@ VELENI = [
     ("HZ58", "hooks/scheda-terminale.py", '    if not progetto and evento == "PostToolUse" and not persona:', '    if evento == "PostToolUse":'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if True:\n            try:\n                f.unlink()'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if False:\n            try:\n                f.unlink()'),
-    ("HZ54", "shared/volta-celeste/mods/arturo/sessioni.js", '  out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/\\s+/g, " ").trim().slice(0, 60).trim();', '.trim();'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")\n', '\n'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '.padStart(4, "0")).join("");', ').join("");'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  if (m[1] === "progetto" && !valore) return null;\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", 'const valore = m[1] === "nome" ? nomeNuovo(decodifica(m[2])) : progettoNuovo(decodifica(m[2]));', 'const valore = decodifica(m[2]);'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '/^volta-cambia-(nome|progetto)-((?:[0-9a-f]{4})*)-(.+)$/', '/^volta-cambia-(\\w+)-((?:[0-9a-f]{4})*)-(.+)$/'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`', '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.sessionId}`'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '    if (k) visti.add(k);', '    visti.add(k);'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  return [...visti].sort((a, b) => a.localeCompare(b));', '  return [...visti];'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '[...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;', 'l.filter((p) => nomi(p).some((x) => x.includes(f))) : l;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  if (dentro.length !== 1 || !["\\u276f", ">"].includes(dentro[0][0])) return false;', '  if (!dentro.length) return false;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  return t === "" || /^Try ".*"$/.test(t);', '  return true;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  if (bordi.length < 2) return false;', '  if (bordi.length < 2) return true;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '(s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare', '(s && !s.vecchia && typeof s.daPortare'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '(s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare', '(s && s.stato === "ferma" && typeof s.daPortare'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,', 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.id, ...opzioni,'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,', 'cosa === "nome" ? "rinomina" : "progetto", "qui", s.sessionId, ...opzioni,'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '      ...(valore ? ["--", valore] : [])], { timeout: 90000 });', '      "--", valore], { timeout: 90000 });'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '    if (!p || panes().filter((x) => x.tab === p.tab).length !== 1) continue;', '    if (!p) continue;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'run("tab.rename", { id: p.tab, name: String(nome).slice(0, 40) });', 'run("tab.rename", { id: p.tab, name: String(nome) });'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '    if (await nuda(a)) continue;\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '      if (schermo.code !== 0 || !casellaVuota(schermo.stdout)) continue;', '      if (schermo.code !== 0) continue;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '      scritto = r.code === 0;', '      scritto = true;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '  if (!scritto) return false;\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '    } catch { /* si prova la scheda dopo */ }\n    break;\n', '    } catch { /* si prova la scheda dopo */ }\n'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);', 'const esito = { ok: true };'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'const r = await hc(["send", a, `/rename ${nome}`]);', 'const r = await hc(["send", a, nome]);'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '  if (s.tipo !== "background" || !Array.isArray(s.attach)) return s.terminale ? { resta: true } : {};', '  if (!Array.isArray(s.attach) && !s.terminale) return {};'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '  if (!chiudiSchede(s)) return {};', '  chiudiSchede(s);'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'const r = await apriSessione({ ...s, progetto }, s.attach);', 'const r = await apriSessione(s, s.attach);'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '    if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '(e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx))', '(this.premi(s, cx))'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '    this.portaNomi();\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '      if (!daPortare(s) || this.porto[k]) continue;', '      if (!daPortare(s)) continue;'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '        if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", 'String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', 'String(s.progetto ?? "") !== valore) dopo = {};'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '        r = await cambiaSessione(s, cosa, valore);', '        r = { ok: true };'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", 'then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));', 'then((l) => apriCambio(s, cosa, []));'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/barra.js", '    else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/main.js", 'macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo,', 'macchina: SceltaMacchina, nuovo: Nuovo,'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/menusessione.js", '      .when(cambi.length > 0, (el) => el.child(gruppo(cambi)))\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/menusessione.js", 'const cambi = this.voci.filter((v) => v.verbo in CAMBIA);', 'const cambi = [];'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", '    run(comandoCambio(this.s, this.cosa, valore));\n    this.chiudi();', '    this.chiudi();\n    run(comandoCambio(this.s, this.cosa, valore));'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", '    if (this.cosa === "progetto" && !valore) return;\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", '    this.input.on("submit", () => this.conferma());\n', ''),
-    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", 'kind: "dialog", width: 480 });', 'kind: "popup", width: 480 });'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", 'const valore = this.cosa === "nome" ? titolo(this.s) : String(this.s.progetto ?? "");', 'const valore = "";'),
+    ("HZ54", "shared/volta/mods/arturo/sessioni.js", '  out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.replace(/\\s+/g, " ").trim().slice(0, 60).trim();', '.trim();'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")\n', '\n'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.padStart(4, "0")).join("");', ').join("");'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  if (m[1] === "progetto" && !valore) return null;\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", 'const valore = m[1] === "nome" ? nomeNuovo(decodifica(m[2])) : progettoNuovo(decodifica(m[2]));', 'const valore = decodifica(m[2]);'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '/^volta-cambia-(nome|progetto)-((?:[0-9a-f]{4})*)-(.+)$/', '/^volta-cambia-(\\w+)-((?:[0-9a-f]{4})*)-(.+)$/'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`', '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.sessionId}`'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '    if (k) visti.add(k);', '    visti.add(k);'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  return [...visti].sort((a, b) => a.localeCompare(b));', '  return [...visti];'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '[...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;', 'l.filter((p) => nomi(p).some((x) => x.includes(f))) : l;'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  if (dentro.length !== 1 || !["\\u276f", ">"].includes(dentro[0][0])) return false;', '  if (!dentro.length) return false;'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  return t === "" || /^Try ".*"$/.test(t);', '  return true;'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  if (bordi.length < 2) return false;', '  if (bordi.length < 2) return true;'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '(s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare', '(s && !s.vecchia && typeof s.daPortare'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '(s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare', '(s && s.stato === "ferma" && typeof s.daPortare'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,', 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.id, ...opzioni,'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,', 'cosa === "nome" ? "rinomina" : "progetto", "qui", s.sessionId, ...opzioni,'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '      ...(valore ? ["--", valore] : [])], { timeout: 90000 });', '      "--", valore], { timeout: 90000 });'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '    if (!p || panes().filter((x) => x.tab === p.tab).length !== 1) continue;', '    if (!p) continue;'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'run("tab.rename", { id: p.tab, name: String(nome).slice(0, 40) });', 'run("tab.rename", { id: p.tab, name: String(nome) });'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '    if (await nuda(a)) continue;\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '      if (schermo.code !== 0 || !casellaVuota(schermo.stdout)) continue;', '      if (schermo.code !== 0) continue;'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '      scritto = r.code === 0;', '      scritto = true;'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (!scritto) return false;\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '    } catch { /* si prova la scheda dopo */ }\n    break;\n', '    } catch { /* si prova la scheda dopo */ }\n'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);', 'const esito = { ok: true };'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'const r = await hc(["send", a, `/rename ${nome}`]);', 'const r = await hc(["send", a, nome]);'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (s.tipo !== "background" || !Array.isArray(s.attach)) return s.terminale ? { resta: true } : {};', '  if (!Array.isArray(s.attach) && !s.terminale) return {};'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (!chiudiSchede(s)) return {};', '  chiudiSchede(s);'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'const r = await apriSessione({ ...s, progetto }, s.attach);', 'const r = await apriSessione(s, s.attach);'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '    if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '(e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx))', '(this.premi(s, cx))'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '    this.portaNomi();\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '      if (!daPortare(s) || this.porto[k]) continue;', '      if (!daPortare(s)) continue;'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '        if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", 'String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', 'String(s.progetto ?? "") !== valore) dopo = {};'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '        r = await cambiaSessione(s, cosa, valore);', '        r = { ok: true };'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", 'then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));', 'then((l) => apriCambio(s, cosa, []));'),
+    ("HZ59", "shared/volta/mods/arturo/barra.js", '    else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/main.js", 'macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo,', 'macchina: SceltaMacchina, nuovo: Nuovo,'),
+    ("HZ59", "shared/volta/mods/arturo/menusessione.js", '      .when(cambi.length > 0, (el) => el.child(gruppo(cambi)))\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/menusessione.js", 'const cambi = this.voci.filter((v) => v.verbo in CAMBIA);', 'const cambi = [];'),
+    ("HZ59", "shared/volta/mods/arturo/cambio.js", '    run(comandoCambio(this.s, this.cosa, valore));\n    this.chiudi();', '    this.chiudi();\n    run(comandoCambio(this.s, this.cosa, valore));'),
+    ("HZ59", "shared/volta/mods/arturo/cambio.js", '    if (this.cosa === "progetto" && !valore) return;\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/cambio.js", '    this.input.on("submit", () => this.conferma());\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/cambio.js", 'kind: "dialog", width: 480 });', 'kind: "popup", width: 480 });'),
+    ("HZ59", "shared/volta/mods/arturo/cambio.js", 'const valore = this.cosa === "nome" ? titolo(this.s) : String(this.s.progetto ?? "");', 'const valore = "";'),
 ]
 
 

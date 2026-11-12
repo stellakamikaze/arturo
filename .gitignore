@@ -154,5 +154,5 @@ node_modules
 data/note-finestra/
 data/herdr-invito
 # Scritti da herdr-app check nella cartella del mod (8/11/2026)
-shared/volta-celeste/mods/*/gpui-kit.d.ts
-shared/volta-celeste/mods/*/jsconfig.json
+shared/volta/mods/*/gpui-kit.d.ts
+shared/volta/mods/*/jsconfig.json

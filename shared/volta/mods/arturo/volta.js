@@ -1,4 +1,4 @@
-// Volta Celeste nella barra: tutte le sessioni di Claude di tutte le macchine, per macchina o per
+// Volta nella barra: tutte le sessioni di Claude di tutte le macchine, per macchina o per
 // progetto. L'elenco lo scrive volta_sonda.py (accanto a questo file) in ~/.cache/volta/sessioni.json ogni 30 s,
 // con le macchine aggiunte a Herdr (#5172); un
 // clic aggancia la sessione in una scheda (claude attach, via ssh se è su un'altra macchina), o la
@@ -112,7 +112,7 @@ export class Volta {
       await this.leggi();
       cx.notify();
       this.aggiorna(cx);
-      // Un altro Volta Celeste (o /teletrasporto) che riscrive il file: lo si rilegge subito.
+      // Un'altra Volta (o /teletrasporto) che riscrive il file: lo si rilegge subito.
       try {
         for (;;) { await watchFolder(this.cartella); await this.leggi(); cx.notify(); }
       } catch { /* senza cartella resta il timer */ }

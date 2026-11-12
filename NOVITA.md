@@ -24,7 +24,7 @@ stesso progetto diventano una voce sola.
 **Il principio**: l'elenco dei progetti non è un archivio nuovo. È una lettura della memoria che c'è, e
 non scrive niente.
 
-**Da sapere**: serve alla finestra di Arturo (Volta Celeste), che lo usa per la colonna di sinistra. Senza
+**Da sapere**: serve alla finestra di Arturo (Volta), che lo usa per la colonna di sinistra. Senza
 il verbo `catalogo` l'elenco resta quello su disco, con un avviso.
 
 ## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro

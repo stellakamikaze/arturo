@@ -1,4 +1,4 @@
-// La guida di Volta Celeste, la finestra di Arturo: quattro passi, con lo schema della finestra e la zona di cui si parla.
+// La guida di Volta, la finestra di Arturo: quattro passi, con lo schema della finestra e la zona di cui si parla.
 // Si apre da sola al primo avvio (shared "arturo.guida") e si riapre da "Guida" in basso a sinistra.
 // Frecce o Invio per andare avanti, Esc per chiudere.
 
@@ -60,7 +60,7 @@ function schema(t, zona) {
   if (!zona) {
     return v_flex().w(220).h(132).flex_none().items_center().justify_center().gap(10).rounded(9).bg(t.canvas).border_1().border_color(t.border)
       .child(image("mods/arturo/stella.svg").size(54))
-      .child(div().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Volta Celeste"));
+      .child(div().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Volta"));
   }
   return h_flex().w(220).h(132).flex_none().p(8).gap(6).rounded(9).bg(t.canvas).border_1().border_color(t.border)
     .child(blocco("progetti", 54).child(righe(5, acceso("progetti"), 36)))

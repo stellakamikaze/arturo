@@ -356,7 +356,7 @@ export async function nuovaScheda() {
 // e senza conversazione ne apre una; "apri" apre la finestra dei progetti.
 export const SUGGERIMENTI = [
   { id: "trova", titolo: "Trova i miei progetti", testo: "Claude cerca sul computer le cartelle di lavoro e te le propone come progetti.",
-    prompt: "Trova i miei progetti sul computer e proponimeli. Segui {radice}/shared/volta-celeste/trova-progetti.md: la cartella di Arturo è {radice}.", dove: "nuova" },
+    prompt: "Trova i miei progetti sul computer e proponimeli. Segui {radice}/shared/volta/trova-progetti.md (in un Arturo di prima del 12/11/2026 sta in shared/volta-celeste/): la cartella di Arturo è {radice}.", dove: "nuova" },
   { id: "guidami", titolo: "Cosa faccio adesso?", testo: "Claude guarda il lavoro recente e ti propone da dove partire.", prompt: "/guidami", dove: "qui" },
   { id: "ricorda", titolo: "Ricordami una cosa", testo: "Un todo nuovo, per te o per Claude, nel progetto giusto.",
     prompt: "Voglio aggiungere un todo. Chiedimi cosa, per quale progetto e chi lo fa.", dove: "qui" },

@@ -80,7 +80,7 @@ export const NOMI_BLOCCO = { marchio: "Marchio", progetti: "Barra dei progetti",
   testata: "Testata", stato: "Barra di stato", benvenuto: "Benvenuto", main: "Sessione", pannello: "Da fare" };
 
 // I nomi degli elementi come li legge la persona. Un elemento è un pezzo di una parte con un id suo: la
-// finestra dice dove sta (window.elements() di Volta Celeste), qui prende il nome. Prima gli id fissi, poi
+// finestra dice dove sta (window.elements() di Volta), qui prende il nome. Prima gli id fissi, poi
 // i prefissi degli id che portano una chiave (una sessione, un progetto, un todo).
 // Nessun prefisso è l'inizio di un altro: l'ordine non conta.
 export const NOMI_ELEMENTO = {

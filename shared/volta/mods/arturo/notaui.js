@@ -25,7 +25,7 @@ const PARTI = ["marchio", "barra", "piede", "testata", "todo", "stato", "benvenu
 const misure = (finestra) => misureDaLayout(layout(),
   Object.fromEntries(PARTI.map((x) => [x, shared(`arturo.misura.${x}`) ?? null])), finestra);
 
-// Gli elementi sotto un punto, da Volta Celeste: window.elements() dice dove sta ogni elemento con un id,
+// Gli elementi sotto un punto, da Volta: window.elements() dice dove sta ogni elemento con un id,
 // di qualunque parte. Herdr e una Volta più vecchia non ce l'hanno: lì il velo segue le parti, come prima.
 const W = globalThis.window;
 const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";

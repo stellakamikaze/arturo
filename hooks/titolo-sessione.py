@@ -12,7 +12,7 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
   - Fonte "persona": il nome che la persona ha scritto dalla finestra di Volta (volta_sonda.py rinomina,
     #5292). Nessuno dei due eventi lo riscrive, e resta finché la sessione ha una trascrizione.
 Il file è a parte da quello della scheda (cache/scheda), che scheda-terminale.py riscrive per intero e
-toglie a fine sessione. Lo leggono la sonda di Volta Celeste (volta_sonda.py) e chi elenca le sessioni.
+toglie a fine sessione. Lo leggono la sonda di Volta (volta_sonda.py) e chi elenca le sessioni.
 Richiesta di Federico del 10/11/2026: aprire Volta e capire dal titolo cosa fa ogni sessione.
 Si spegne con ARTURO_TITOLI=0. ARTURO_TITOLI_OGNI cambia l'intervallo in secondi (prove). La chiamata
 al modello porta ARTURO_TITOLO_FIGLIO=1: se un hook partisse dentro di lei, questo esce subito.

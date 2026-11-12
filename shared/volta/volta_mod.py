@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""volta_mod: il mod `arturo` di Volta Celeste si aggiorna da solo da un repository git.
+"""volta_mod: il mod `arturo` di Volta si aggiorna da solo da un repository git.
 
 La fonte è la cartella `arturo/` di questo repository (ramo `volta`): mods/arturo, layouts, themes e
 i lanciatori. Ogni macchina ne tiene un clone leggero in ~/.cache/volta/mod-git e lo confronta con

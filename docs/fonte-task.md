@@ -38,7 +38,7 @@ Tre verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Art
 | `catalogo --json` | tutti i progetti che il tuo strumento conosce, anche senza todo aperti | il JSON qui sotto |
 
 `catalogo` serve a `arturo progetti`, l'elenco che la finestra di Arturo mostra a sinistra
-([volta-celeste.md](volta-celeste.md)). Arturo lo unisce ai progetti che ha già su disco: cartelle, handoff,
+([volta.md](volta.md)). Arturo lo unisce ai progetti che ha già su disco: cartelle, handoff,
 righe di stato. Non scrive niente nel tuo strumento.
 
 ```json
@@ -102,7 +102,7 @@ aperti, dal più urgente. Se manca, il pannello lo ricava dai gruppi, con la rig
 primo passo all'ultimo; `da_dove` è il todo da cui ripartire, o `null`. Con `--progetto <slug>` il
 blocco ha solo quel progetto.
 
-Tre campi facoltativi servono alla finestra di Arturo in Herdr ([volta-celeste.md](volta-celeste.md)): `titolo`, il nome del
+Tre campi facoltativi servono alla finestra di Arturo in Herdr ([volta.md](volta.md)): `titolo`, il nome del
 progetto come lo leggono le persone ("Casa / Mutuo Torino"); `categoria`, la sezione in cui compare
 ("Commesse", "Personale"); `slug`, il nome per `/inizio` quando `nome` è diverso. Senza `titolo` la
 finestra ricava il nome da `nome`, senza `categoria` mette tutto sotto "I tuoi progetti".

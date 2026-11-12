@@ -1,4 +1,4 @@
-"""Volta Celeste: l'elenco delle sessioni di Claude di questa macchina e delle macchine di Herdr.
+"""Volta: l'elenco delle sessioni di Claude di questa macchina e delle macchine di Herdr.
 
 Le macchine sono quelle che la persona ha aggiunto a Herdr (`hc machine ls --json`); i comandi su
 un'altra macchina passano da herdr-core (`hc exec --on <macchina>`), che gira nella sua sessione

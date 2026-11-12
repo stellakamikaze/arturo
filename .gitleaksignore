@@ -1,4 +1,4 @@
 # Falsi positivi verificati di gitleaks, uno per riga (commit:file:regola:riga).
 # ORIGINE elenca l'impronta sha256 di ogni file della copia di Volta: quella di keys.json passa per una
 # chiave perché il nome contiene "keys". Verificato il 12/11/2026: il valore è lo sha256 del file.
-d122883197197489413e3cc776d5c7c8b724f425:shared/volta-celeste/ORIGINE:generic-api-key:11
+d122883197197489413e3cc776d5c7c8b724f425:shared/volta/ORIGINE:generic-api-key:11

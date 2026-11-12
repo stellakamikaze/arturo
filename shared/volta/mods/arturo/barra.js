@@ -22,7 +22,7 @@ export class Marchio {
     const mac = window()?.platform === "macos" && !window()?.fullscreen;
     return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : 18).pr(14).gap(10).items_center()
       .child(aspetta ? stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }) : stella)
-      .child(div().id("marchio-nome").font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta Celeste"));
+      .child(div().id("marchio-nome").font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta"));
   }
 }
 
@@ -31,7 +31,7 @@ export class Barra {
     this.vista = null;
     this.errore = null;
     this.firma = "";
-    // In cima alla barra: tutte le sessioni di tutte le macchine (Volta Celeste, volta.js).
+    // In cima alla barra: tutte le sessioni di tutte le macchine (Volta, volta.js).
     this.volta = new Volta();
     this.volta.init(cx);
     this.carica(cx);
