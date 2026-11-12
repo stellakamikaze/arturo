@@ -8185,7 +8185,10 @@ def avvelena(repo: Path) -> int:
             testo = (copia / rel).read_text(encoding="utf-8")
             assert testo.count(giusto) == 1, f"veleno {caso}: il testo da rompere non c'è più in {rel}"
             (copia / rel).write_text(testo.replace(giusto, rotto), encoding="utf-8")
-            rossi = prova(copia, caso)  # solo il caso sorvegliato: tutti i casi per ogni veleno superano i 30 minuti del gate
+            try:
+                rossi = prova(copia, caso)  # solo il caso sorvegliato: tutti i casi per ogni veleno superano i 30 minuti del gate
+            finally:
+                ferma_nati_in(copia)
             codici = [r.split()[0] for r in rossi]
             if caso not in codici:
                 print(f"VELENO {caso} NON ATTACCA: rossi {codici}")
@@ -8194,6 +8197,30 @@ def avvelena(repo: Path) -> int:
             esiti.append(caso)
     print(f"VELENI_ROSSI={','.join(esiti)} veleni={len(VELENI)} saltati={saltati}")
     return 0 if len(esiti) == len(VELENI) else 1
+
+
+def ferma_nati_in(cartella: Path) -> int:
+    """Ferma i processi lanciati da un file dentro `cartella` (la copia di un veleno), e dice quanti.
+    Un veleno che rompe lo spegnimento del ponte (HZ78, HZ79) lascia volta_microfono.py ricevi acceso
+    dopo che la copia è sparita: il 12/11/2026 sul Mac mini erano 8, sul MacBook più di 20 (#5423).
+    Solo dove c'è ps: su Windows i casi del ponte non lanciano ricevitori veri."""
+    if os.name == "nt":
+        return 0
+    try:
+        out = subprocess.run(["ps", "-axo", "pid=,args="], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    radici = {str(cartella), os.path.realpath(cartella)}
+    fermati = 0
+    for riga in out.splitlines():
+        pid, _, args = riga.strip().partition(" ")
+        if pid.isdigit() and int(pid) != os.getpid() and any(r + os.sep in args for r in radici):
+            try:
+                os.kill(int(pid), 15)
+                fermati += 1
+            except OSError:
+                pass
+    return fermati
 
 
 def veleni_senza_testo(repo: Path) -> list:
