@@ -58,8 +58,10 @@ def g(cartella, *args, t=60):
         return 1, str(e)
     return r.returncode, ((r.stdout or "") if r.returncode == 0 else (r.stderr or r.stdout or "")).strip()
 def relativo(p):
+    # sui due percorsi veri: git dice /private/var dove la base dice /var (macOS), e un link nella base
+    # farebbe sembrare fuori una cartella che sta dentro
     try:
-        r = os.path.relpath(p, base)
+        r = os.path.relpath(os.path.realpath(p), os.path.realpath(base))
     except ValueError:
         return None
     return None if r == ".." or r.startswith(".." + os.sep) or os.path.isabs(r) else r.replace(os.sep, "/")

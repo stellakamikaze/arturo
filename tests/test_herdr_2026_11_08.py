@@ -7008,7 +7008,7 @@ PROVA_TESSERE = r"""
 const m = await import("./tessere.mjs");
 const { instrada } = await import("./comandi.mjs");
 const l = [{ chiave: "sei-ore", titolo: "Sei ore" }, { chiave: "celestiale", titolo: "Celestiale" },
-  { chiave: "arturo", titolo: "Arturo" }, { chiave: "radio-ganimede", titolo: "Radio Ganimede" }, null, { titolo: "senza chiave" },
+  { chiave: "arturo", titolo: "Arturo" }, { chiave: "radio-lago", titolo: "Radio Lago" }, null, { titolo: "senza chiave" },
   { chiave: "solaris", titolo: "Solaris" }];
 console.log(JSON.stringify({
   vuoto: m.tessere(l, "").map((t) => t.chiave || t.tipo), nessuno: m.tessere(null, "").map((t) => t.tipo),
@@ -7082,9 +7082,9 @@ def hz96(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"tessere.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
     o = json.loads(r.stdout.strip().splitlines()[-1])
-    if o["vuoto"] != ["nuova", "sei-ore", "celestiale", "arturo", "radio-ganimede", "solaris"] or o["nessuno"] != ["nuova"]:
+    if o["vuoto"] != ["nuova", "sei-ore", "celestiale", "arturo", "radio-lago", "solaris"] or o["nessuno"] != ["nuova"]:
         return f"le tessere senza filtro non sono Nuova richiesta e poi i progetti in ordine: {o['vuoto']} {o['nessuno']}"
-    if o["ra"] != ["radio-ganimede"] or o["dentro"] != ["celestiale"] or o["s"] != ["sei-ore", "solaris", "celestiale"]:
+    if o["ra"] != ["radio-lago"] or o["dentro"] != ["celestiale"] or o["s"] != ["sei-ore", "solaris", "celestiale"]:
         return f"il filtro sbaglia (prima chi comincia così, poi chi lo contiene, senza Nuova richiesta): {o['ra']} {o['dentro']} {o['s']}"
     if o["col"] != [1, 1, 1, 1, 2]:
         return f"colonne() sbaglia quante tessere stanno in una riga: {o['col']}"
@@ -7214,7 +7214,7 @@ const t18 = { address: "t18", argv: ["pwsh.exe", "-NoExit", "-Command", String.r
               labels: { "arturo.sessione": "a8ee6d5e" } };
 const prima = { di: sessioneDi(t18, sessioni)?.id ?? null, agganciate: Object.keys(schedeAgganciate(sessioni)) };
 const occupate = typeof occupanti === "function" ? Object.fromEntries(Object.entries(occupanti(sessioni)).map(([a, s]) => [a, s.id])) : {};
-setShared("arturo.volta.dove", { qui: "Balthasar", schede: {}, occupate });
+setShared("arturo.volta.dove", { qui: "Torre", schede: {}, occupate });
 console.log(JSON.stringify({ ...prima, schedeDi: schedeDi(fuori).map((x) => x.address) }));
 """
 

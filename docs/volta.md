@@ -175,7 +175,7 @@ Una nota nasce sulla macchina dove la lasci, ma Claude la trova con `arturo note
 - Due note nate insieme su due macchine possono avere lo stesso numero: lo tiene la più vecchia, la più nuova prende il primo numero libero.
 - L'esito dell'ultimo giro, macchina per macchina, sta in `~/.cache/volta-note/stato.json` (`ok`, `salta` per una macchina non collegata, `errore` col motivo). Il file sta fuori da `~/.cache/volta`, perché la finestra guarda quella cartella e rileggerebbe l'elenco a ogni giro. A mano: `python3 ~/.config/herdr-app/mods/arturo/volta_note.py sincronizza`.
 - Una nota non si cancella: una cartella tolta a mano torna dall'altra macchina al giro dopo. Si chiude con Risolta o Scarta.
-- La cosa da fare collegata nasce sulla macchina della nota. Chi chiude la nota da un'altra macchina chiude la cosa da fare con la fonte dei task di quella macchina. Con una fonte condivisa fra le macchine, come NocoDB, la chiusura arriva; con la fonte locale di Arturo la cosa da fare resta aperta sulla macchina dove è nata.
+- La cosa da fare collegata nasce sulla macchina della nota. Chi chiude la nota da un'altra macchina chiude la cosa da fare con la fonte dei task di quella macchina. Con una fonte condivisa fra le macchine, come un database in rete, la chiusura arriva; con la fonte locale di Arturo la cosa da fare resta aperta sulla macchina dove è nata.
 
 **Per Claude**: le note si leggono e si chiudono con `arturo note`. Il giro è elenco, mostra, prendi, lavoro, risolvi:
 

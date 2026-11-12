@@ -838,7 +838,7 @@ def copia_arturo() -> dict:
     """Porta avanti la copia di Arturo che Volta legge (un clone o un worktree, come arturo-herdr), solo con
     un fast-forward e solo se è pulita: un file tracciato modificato, un commit suo o un ramo senza remoto la
     lasciano com'è, con esito "ferma". ~/.claude resta fuori: lì Arturo e la config si aggiornano da sé
-    (12/11/2026, #5442: la copia era indietro su MacBook e Mac mini, e la colonna dei progetti con lei)."""
+    (12/11/2026, #5442: la copia era indietro su due Mac, e la colonna dei progetti con lei)."""
     radice = radice_arturo()
     if radice is None:
         return {"esito": "assente", "motivo": "arturo.json non nomina la copia di Arturo"}

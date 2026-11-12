@@ -336,7 +336,7 @@ export function corrente(giroSt, idScheda, ora) {
 }
 
 // La sessione che una scheda mostra, anche quando la scheda sta in uno spazio di un'altra macchina
-// (indirizzo "balthasar/t13"): là Claude gira nel terminale t13 di balthasar, che la sonda di quella
+// (indirizzo "torre/t13"): là Claude gira nel terminale t13 di torre, che la sonda di quella
 // macchina scrive nel campo terminale. Chi gira nel terminale vince sull'etichetta, come in occupanti:
 // una scheda nata per una sessione può ospitarne dopo un'altra. Poi vale sessioneDi.
 export function sessioneDavanti(terminale, sessioni) {
