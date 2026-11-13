@@ -226,6 +226,25 @@ if visto:
 esci(ok=True, nessuno=True, claude=cl)
 '''
 
+# Su A: il progetto della sessione spostata nella sua scheda (cache/scheda/<sid>.json, la legge la sonda).
+# Il registro per lavoro della macchina di partenza non viaggia: il lavoro qui ha un altro id (12/11/2026,
+# Federico: "questa sessione è categorizzata senza progetto anche se dovrebbe essere su Volta").
+SEGNA = COMUNE + r'''
+f = os.path.join(radice, "cache", "scheda", a["sid"] + ".json")
+try:
+    with open(f, encoding="utf-8") as fh:
+        d = json.load(fh)
+except (OSError, ValueError):
+    d = {}
+d = d if isinstance(d, dict) else {}
+d.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())
+os.makedirs(os.path.dirname(f), exist_ok=True)
+with open(f + ".tmp", "w", encoding="utf-8") as fh:
+    json.dump(d, fh)
+os.replace(f + ".tmp", f)
+esci(ok=True)
+'''
+
 ATTESA_PACCO = 300
 
 
@@ -357,7 +376,9 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     if nata.get("errore"):
         return torna("non riparte su %s: %s" % (chi(a), nata["errore"]))
     if progetto:
-        vs.cambia(a, "progetto", sid, progetto)
+        # col progetto di prima: fonte "teletrasporto", forte per la sonda (FORTI) e senza il segno di /inizio
+        # che Cambia progetto lascia e che farebbe scrivere /inizio nella sessione appena spostata
+        esegui(a, SEGNA, {"sid": sid, "progetto": progetto})
     return {"id": nata["id"], "sessionId": sid, "attach": nata["attach"], "macchina": a or "qui", "cartella": pronto["cartella"]}
 
 

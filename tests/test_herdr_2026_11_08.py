@@ -449,7 +449,7 @@ HZ102 Sposta su porta la conversazione (12/11/2026): gli script di volta_sposta.
      nella stessa casa. LEGGI rifiuta file non salvati e commit non spinti e una cartella fuori dalla base;
      PREPARA clona il repository allo stesso commit sull'altra base e trova la cartella di Claude codificata;
      PACCO e SCARICA portano trascrizione e cartella, tengono da parte la copia di prima e rifiutano un
-     pacco con un nome fuori dalla cartella.
+     pacco con un nome fuori dalla cartella; SEGNA scrive il progetto con fonte teletrasporto, senza /inizio.
 HZ103 trascinare una sessione su un altro progetto (12/11/2026, Federico: "voglio poter fare drag & drop"):
      sessioni.js con node: mosso() passa da clic a trascinamento a MOSSA_PX; arrivoTrascino() dà lo slug
      del progetto d'arrivo e null sullo stesso progetto, nella vista per macchina, su "Senza progetto",
@@ -7617,6 +7617,9 @@ os.makedirs(fuori_claude)
 open(os.path.join(fuori_claude, sid2 + ".jsonl"), "w").write(json.dumps({"cwd": casa}) + "\n")
 fuori = lancia("da", vs.LEGGI, {"cartella": casa, "sid": sid2})
 out["fuori"] = bool(fuori.get("errore"))
+lancia("a", vs.SEGNA, {"sid": sid, "progetto": "prova"})
+scheda = json.load(open(os.path.join(casa, "a", "claude", "cache", "scheda", sid + ".json")))
+out["segna"] = [scheda.get("progetto"), scheda.get("fonte"), "inizio" in scheda]
 print(json.dumps(out))
 '''
 
@@ -7648,6 +7651,8 @@ def hz102(repo: Path, casa: Path) -> str | None:
         return f"SCARICA apre un pacco con un nome fuori dalla cartella: {g['cattivo']}"
     if not g["fuori"]:
         return "LEGGI accetta una cartella fuori dalla base dei progetti"
+    if g["segna"] != ["prova", "teletrasporto", False]:
+        return f"SEGNA non porta il progetto come teletrasporto, o lascia il segno di /inizio: {g['segna']}"
     return None
 
 
@@ -8657,6 +8662,7 @@ VELENI = [
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  return li ?? sessioneDi(terminale, sessioni);', '  return sessioneDi(terminale, sessioni) ?? li;'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["sporchi"]:\n', '    if False:\n'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', 'd.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())', 'd.update(progetto=a["progetto"], fonte="persona", inizio=False, quando=time.time())'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    return re.sub(r"[^A-Za-z0-9]", "-", p)', '    return re.sub(r"[^A-Za-z0-9/]", "-", p)'),
 ]
 
