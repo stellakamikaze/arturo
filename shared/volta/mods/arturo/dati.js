@@ -840,13 +840,21 @@ export function copiaSessione(s, verbo) {
 export async function spostaSessione(s, macchina, dormi = null) {
   const c = await config();
   const file = `${cacheVolta()}/sposta/${String(s.sessionId ?? s.id).replace(/[^0-9A-Za-z-]/g, "")}.json`;
+  // Le schede che la agganciano si chiudono prima: un claude attach rimasto aperto riaccende la sessione
+  // dopo claude stop, e la conversazione resta viva su tutte e due le macchine (#5537, 13/11/2026). Se lo
+  // spostamento non va, la scheda si riapre sulla sessione rimasta qui.
+  const chiuse = chiudiSchede(s);
+  const male = async (x) => {
+    if (chiuse && Array.isArray(s.attach) && s.attach.length) await apriSessione(s, s.attach).catch(() => null);
+    return x;
+  };
   let r;
   try {
     r = esito(await exec(c.arturo[0], [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId,
       "--cartella", s.cartella || "", ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
       "--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: 60000 }));
   } catch (e) {
-    return { errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` };
+    return male({ errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` });
   }
   if (r.avviato) {
     const dal = Date.now();
@@ -854,13 +862,13 @@ export async function spostaSessione(s, macchina, dormi = null) {
       await (dormi ? dormi(SPOSTA_OGNI_MS) : pausa(SPOSTA_OGNI_MS));
       const p = esitoSposta(await readTextFile(file).catch(() => null), dal, Date.now(), nomeMacchina(macchina));
       if (p.attendi) continue;
-      if (p.errore) return { errore: p.errore };
+      if (p.errore) return male({ errore: p.errore });
       r = p.fatto;
       break;
     }
   }
   // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
-  if (!r.attach?.length) return { errore: r.errore ?? "nessuna risposta", lavora: r.lavora === true };
+  if (!r.attach?.length) return male({ errore: r.errore ?? "nessuna risposta", lavora: r.lavora === true });
   chiudiSchede(s);
   const v = await apriSessione({ id: r.id, sessionId: r.sessionId, nome: titolo(s), progetto: s.progetto ?? null,
     questa: macchina === "qui", host: macchina }, r.attach, true);
