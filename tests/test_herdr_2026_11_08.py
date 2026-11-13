@@ -446,7 +446,10 @@ HZ101 la riga accesa, il comando di Sposta su e la tessera che fa nascere una co
      (torre/t13) prima dell'etichetta; unaPerConversazione() toglie la copia ferma di una sessione
      spostata. comandi.js legge volta-sposta-<macchina>-<id>; testata e main.js hanno pulsante e popup.
 HZ102 Sposta su porta la conversazione (12/11/2026): gli script di volta_sposta.py su due macchine finte
-     nella stessa casa. LEGGI rifiuta file non salvati e commit non spinti e una cartella fuori dalla base;
+     nella stessa casa. LEGGI rifiuta una cartella fuori dalla base; file non salvati e commit non spinti
+     viaggiano (#5500): COMMIT li mette in un bundle, MODIFICHE e APPLICA portano diff, file in stage, nuovi,
+     cancellati e binari con la stessa impronta, un'impronta diversa mette il lavoro nello stash, un file nuovo
+     con ".." si rifiuta; una sessione nata nella base ed entrata nel worktree porta il git dell'ultimo cwd;
      PREPARA clona il repository allo stesso commit sull'altra base e trova la cartella di Claude codificata;
      PACCO e SCARICA portano trascrizione e cartella, tengono da parte la copia di prima e rifiutano un
      pacco con un nome fuori dalla cartella; SEGNA scrive il progetto con fonte teletrasporto, senza /inizio.
@@ -7628,6 +7631,40 @@ out["fuori"] = bool(fuori.get("errore"))
 lancia("a", vs.SEGNA, {"sid": sid, "progetto": "prova"})
 scheda = json.load(open(os.path.join(casa, "a", "claude", "cache", "scheda", sid + ".json")))
 out["segna"] = [scheda.get("progetto"), scheda.get("fonte"), "inizio" in scheda]
+# lavoro non salvato (#5500): un commit non spinto, un file cambiato, uno in stage, uno cancellato, un binario nuovo
+arrivo = os.path.join(basi["a"], "prova")
+open(os.path.join(progetto, "z.txt"), "w").write("tre"); g(progetto, "add", "z.txt"); g(progetto, "commit", "-qm", "tre")
+open(os.path.join(progetto, "x.txt"), "a").write(" e mezzo")
+open(os.path.join(progetto, "s.txt"), "w").write("in stage"); g(progetto, "add", "s.txt")
+os.remove(os.path.join(progetto, "y.txt"))
+os.makedirs(os.path.join(progetto, "sotto")); open(os.path.join(progetto, "sotto", "n.bin"), "wb").write(bytes(range(256)))
+gi = lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid})["git"]
+out["sporco"] = vs.controlla_git(gi)
+commit = lancia("da", vs.COMMIT, {"top": gi["top"], "ramo": gi["ramo"]})
+p2 = lancia("a", vs.PREPARA, {"rel": "prova", "git": gi, "nome": "a", "bundle": bool(commit.get("bundle"))}, commit.get("bundle"))
+m = lancia("da", vs.MODIFICHE, {"top": gi["top"], "testa": gi["testa"], "limite": vs.LIMITE_MODIFICHE})
+dati = {"top": gi["top"], "testa": gi["testa"], "impronta": m.get("impronta"), "sid": sid}
+ap = lancia("a", vs.APPLICA, dati, json.dumps({"diff": m.get("diff"), "nuovi": m.get("nuovi")}))
+stato = lambda d: sorted(x[3:] for x in subprocess.run(["git", "status", "--porcelain"], cwd=d, capture_output=True, text=True).stdout.splitlines())
+binario = os.path.join(arrivo, "sotto", "n.bin")
+out["lavoro"] = [commit.get("commit"), p2.get("errore"), m.get("file"), ap.get("errore"), stato(progetto) == stato(arrivo),
+                 os.path.exists(binario) and open(binario, "rb").read() == bytes(range(256))]
+g(arrivo, "stash", "push", "-q", "-u", "-m", "pulizia"); g(arrivo, "stash", "drop", "-q")
+storta = lancia("a", vs.APPLICA, {**dati, "impronta": "0" * 64}, json.dumps({"diff": m.get("diff"), "nuovi": m.get("nuovi")}))
+liste = subprocess.run(["git", "stash", "list"], cwd=arrivo, capture_output=True, text=True).stdout
+out["storta"] = [bool(storta.get("errore")), stato(arrivo) == [], ("volta-sposta-" + sid) in liste]
+buf = io.BytesIO()
+with tarfile.open(fileobj=buf, mode="w:gz") as t:
+    info = tarfile.TarInfo("../scappa.txt"); info.size = 2; t.addfile(info, io.BytesIO(b"no"))
+fuga = lancia("a", vs.APPLICA, {**dati, "impronta": "0" * 64}, json.dumps({"diff": "", "nuovi": base64.b64encode(buf.getvalue()).decode()}))
+out["fuga"] = [bool(fuga.get("errore")), os.path.exists(os.path.join(basi["a"], "scappa.txt"))]
+# nata nella base, poi entrata nel progetto: trascrizione e claude agents dicono la base, l'ultimo cwd il progetto
+sid3 = "9abcabcd-0000-4000-8000-000000000000"
+nella_base = os.path.join(casa, "da", "claude", "projects", re.sub(r"[^A-Za-z0-9]", "-", basi["da"]))
+os.makedirs(nella_base)
+open(os.path.join(nella_base, sid3 + ".jsonl"), "w").write(json.dumps({"cwd": basi["da"]}) + "\n" + json.dumps({"cwd": progetto}) + "\n")
+entrata = lancia("da", vs.LEGGI, {"cartella": basi["da"], "sid": sid3})
+out["entrata"] = [entrata.get("rel"), (entrata.get("git") or {}).get("top")]
 print(json.dumps(out))
 '''
 
@@ -7648,8 +7685,8 @@ def hz102(repo: Path, casa: Path) -> str | None:
         return f"LEGGI non trova la cartella della trascrizione: {g['errore_letto'][:120]}"
     if g["letto"]["errore"] or g["letto"]["rel"] != "prova" or g["pulito"] is not None:
         return f"LEGGI non legge una cartella pulita e spinta: {g['letto']}, {g['pulito']}"
-    if "non salvati" not in str(g["sporco"]) or "non spinti" not in str(g["non_spinto"]):
-        return f"lo spostamento non si ferma davanti a file non salvati o commit non spinti: {g['sporco']} / {g['non_spinto']}"
+    if g["sporco"] is not None or g["non_spinto"] is not None:
+        return f"lo spostamento rifiuta ancora file non salvati o commit non spinti: {g['sporco']} / {g['non_spinto']}"
     p = g["pronto"]
     if p["errore"] or not p["y"] or not str(p["progetti"]).endswith(re.sub(r"[^A-Za-z0-9]", "-", str(p["cartella"]))):
         return f"PREPARA non porta il repository allo stesso commit, o sbaglia la cartella di Claude: {p}"
@@ -7661,6 +7698,14 @@ def hz102(repo: Path, casa: Path) -> str | None:
         return "LEGGI accetta una cartella fuori dalla base dei progetti"
     if g["segna"] != ["prova", "teletrasporto", False]:
         return f"SEGNA non porta il progetto come teletrasporto, o lascia il segno di /inizio: {g['segna']}"
+    if g["lavoro"] != [1, None, 4, None, True, True]:
+        return f"il lavoro non salvato non arriva uguale sull'altra macchina (commit, prepara, file, applica, stato, binario): {g['lavoro']}"
+    if g["storta"] != [True, True, True]:
+        return f"con un'impronta diversa il lavoro arrivato non va nello stash, o la cartella non resta pulita: {g['storta']}"
+    if g["entrata"] != [".", "prova"]:
+        return f"una sessione entrata in un worktree dalla base non porta il git dell'ultimo cwd: {g['entrata']}"
+    if g["fuga"] != [True, False]:
+        return f"APPLICA apre un file nuovo con un nome fuori dalla cartella: {g['fuga']}"
     return None
 
 
@@ -8419,7 +8464,7 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
-    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(sua ?? d, prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);', "const v = {};"),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, nata.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, nata.attach, true);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
@@ -8670,7 +8715,9 @@ VELENI = [
     ('HZ101', 'shared/volta/mods/arturo/comandi.js', '  if (c.startsWith("conversazione-")) return { verbo: "conversazione", arg: dopo("conversazione-"), lungo: true };\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  return li ?? sessioneDi(terminale, sessioni);', '  return sessioneDi(terminale, sessioni) ?? li;'),
-    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["sporchi"]:\n', '    if False:\n'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', 'if impronta(top) != a["impronta"]:', 'if False:'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', 'for c in (os.path.normpath(os.path.abspath(a["cartella"])), cartella, ultima):', 'for c in (os.path.normpath(os.path.abspath(a["cartella"])), cartella):'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    for p in n:\n        t.add(', '    for p in []:\n        t.add('),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', 'd.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())', 'd.update(progetto=a["progetto"], fonte="persona", inizio=False, quando=time.time())'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    return re.sub(r"[^A-Za-z0-9]", "-", p)', '    return re.sub(r"[^A-Za-z0-9/]", "-", p)'),
 ]
