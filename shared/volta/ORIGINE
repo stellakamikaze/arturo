@@ -1,5 +1,5 @@
 {
- "albero": "710d098094e8bc99d9f24f139356e39b5547ecff",
+ "albero": "ab7f914b652c54ce1d78f77c060478f29a159c37",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -20,7 +20,7 @@
   "mods/arturo/casa.js": "f7a8f663d77f84f4b4380e6af71cbb5c34551b62a522e84debe99aa64d8358c0",
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comandi.js": "d575cf6b094e1d15980531d545ccd817704f24943ce21567ad298cea0ef6305e",
-  "mods/arturo/comuni.js": "73e13d8bfe9f745dcbd06980c168488efcd5c67258caf5b4681d57c2cd209a85",
+  "mods/arturo/comuni.js": "52e3680da77e347b879abcdf58e8b3b3a3016a86cf46445c83e0e7fda151a416",
   "mods/arturo/contesto.js": "4b89d87f2a4e56ded2e807556e264db2596c87c62f9eadd25126fc0a6cc7b362",
   "mods/arturo/contestoui.js": "f3fad989231db63d999739261ac92cd692c509b9cb3ae0c11a1495472e7a2ef2",
   "mods/arturo/dati.js": "4ac8ba6124a8954b77755a9ce18471a913dd6630f0f06afcef96566fa21d73fa",
@@ -56,8 +56,8 @@
   "mods/arturo/stella.svg": "68fe3e95bbb6f8af192a144faf8257bf4dee25a4b7eb9f3e928f9b19c2948dba",
   "mods/arturo/suggerimenti.js": "925dd479a8e67c577c2d2205b42e10ddaa722e59343dd5d98f0cb968b2fcac33",
   "mods/arturo/tessere.js": "3c13e130d3d44238ebea8d895ecf4b36083b63d24710092ff734b11bff507dc0",
-  "mods/arturo/testata.js": "6f18bf2936e978d6e116bed428be9e34bf4f5fd29af586d31025bc98b59b0b2c",
-  "mods/arturo/todo.js": "c1da10845be254afae62e9456e5888acfd14ceb4c5e7cc9f8d6246c75aed820b",
+  "mods/arturo/testata.js": "587bbf37123ec3f51796ae4fc338b5b1b6340bfac5ae04b7a60b1035a6b0aff6",
+  "mods/arturo/todo.js": "f3a99f727feb65d4bc159855842780cb2454a3e0ac4b8bd505f5ab545d36e636",
   "mods/arturo/volta.js": "a26364424832c02b7edbb962713e3df4d863a2084c877f76e9f775129c48fe9a",
   "mods/arturo/volta_microfono.py": "c5f9f506837c56ae33f460a29f7ee607195703080e7a8789744f79dd615628c4",
   "mods/arturo/volta_note.py": "8f2819706f4b2cbcc315a976d2ecc46e21d383f17d6b3b3ec1f898c195f212a0",

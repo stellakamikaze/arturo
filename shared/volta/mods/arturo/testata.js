@@ -7,8 +7,9 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, panes, focused, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
 import { frase, slug, config, statoSpazio, statoScheda, SUGGERIMENTI } from "./dati.js";
 import { PING, daRimandare } from "./comandi.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu, segno, motoDi, vociMacchina } from "./comuni.js";
+import { ICONA, punto, pulsante, pulsanteIcona, colore, apriFinestra, apriElenco, tasti, nasceSu, segno, motoDi, vociMacchina } from "./comuni.js";
 import { apriSposta, ICONA_SPOSTA } from "./sposta.js";
+import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { leggiTutte } from "./notaui.js";
 import { macchinaBreve, sintesiTestata } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
@@ -54,24 +55,23 @@ export class Testata {
     const davanti = shared("arturo.volta.davanti");
     const sintesi = tab ? sintesiTestata(davanti, tab.named ? tab.name : null) : null;
     const progetto = s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta";
-    const bottone = (id, icona, testo, azione) => h_flex().id(id).flex_none().h(30).w(30).justify_center().items_center().rounded(7).cursor_pointer()
-      .text_color(t.muted).hover((st) => st.bg(t.hover).text_color(t.foreground))
-      .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(azione)
-      .tooltip(testo)
-      .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(15));
-    return h_flex().size_full().bg(t.chrome).pl(20).pr(12).gap(12).items_center()
-      .child(v_flex().flex_1().min_w(0).gap(2)
-        .child(div().id("testata-titolo").flex_none().font_family("Arturo Archivo").text_size(16).text_color(t.foreground).child(progetto))
-        .when(Boolean(sintesi) || Boolean(f) || Boolean(macchina), (el) => el.child(h_flex().id("testata-stato").min_w(0).gap(7).items_center()
-          .when(Boolean(f), (e) => e.child(segno(colore(t, f.colore), motoDi(f.colore, st === "blocked"), 7)))
-          .when(Boolean(sintesi), (e) => e.child(div().id("testata-sintesi").flex_none().text_size(12.5).text_color(t.foreground).child(sintesi)))
-          .child(div().id("testata-dove").min_w(0).truncate().text_size(12).text_color(t.dim)
+    // le icone della testata sono quelle del piede della colonna (pulsanteIcona, 36 px): stessa misura,
+    // stesso suggerimento e stessa lettura a voce
+    const bottone = (id, icona, testo, azione) => pulsanteIcona(id, icona, testo, azione);
+    // il titolo parte dal bordo del riquadro della sessione sotto (padding di work-body, 12 = MARGINE)
+    return h_flex().size_full().bg(t.chrome).px(MARGINE).gap(SPAZIO.xs).items_center()
+      .child(v_flex().flex_1().min_w(0).gap(SPAZIO.xs).pr(SPAZIO.m)
+        .child(div().id("testata-titolo").flex_none().font_family("Arturo Archivo").text_size(TESTO.testata).text_color(t.foreground).child(progetto))
+        .when(Boolean(sintesi) || Boolean(f) || Boolean(macchina), (el) => el.child(h_flex().id("testata-stato").min_w(0).gap(SPAZIO.s + 2).items_center()
+          .when(Boolean(f), (e) => e.child(segno(colore(t, f.colore), motoDi(f.colore, st === "blocked"), PALLINO)))
+          .when(Boolean(sintesi), (e) => e.child(div().id("testata-sintesi").flex_none().text_size(TESTO.etichetta).text_color(t.foreground).child(sintesi)))
+          .child(div().id("testata-dove").min_w(0).truncate().text_size(TESTO.etichetta).text_color(t.dim)
             .child(rigaDove(Boolean(sintesi), macchina ? macchinaBreve(macchina) : null, f ? f.testo : null))))))
       // "Sposta su un'altra macchina" (sposta.js): per la sessione in background della scheda in primo
       // piano, quando Volta conosce un'altra macchina. Durante lo spostamento resta acceso e non riapre.
       .when(Boolean(davanti) && davanti.tipo === "background" && vociMacchina().length > 1, (el) => el.child(davanti.sposto
-        ? h_flex().id("sposta-in-corso").flex_none().h(30).px(8).gap(6).items_center().text_size(12).text_color(t.working)
-          .child(svg(ICONA_SPOSTA).size(15)).child(div().child("La sposto…"))
+        ? h_flex().id("sposta-in-corso").flex_none().h(PULSANTE.grande).px(SPAZIO.m).gap(SPAZIO.s + 2).items_center().text_size(TESTO.etichetta).text_color(t.working)
+          .child(svg(ICONA_SPOSTA).size(ICONA_MISURA.grande)).child(div().child("La sposto…"))
         : bottone("sposta", ICONA_SPOSTA, "Sposta la sessione su un'altra macchina", () => apriSposta(davanti))))
       // il contesto del progetto aperto: cosa legge Claude quando lo apri (contestoui.js)
       .when(Boolean(s) && !s.machine && Boolean(s.named), (el) => el.child(bottone("contesto", "layers", "Contesto del progetto", () => apriContesto(s.name))))
@@ -94,18 +94,19 @@ export class Schede {
     const scheda = (x, i) => {
       const fx = x.status ? frase(x.status) : null;
       const vediX = x.active || this.sopra === x.id;
-      return h_flex().id(`scheda-${x.id}`).flex_none().max_w(LARGA).min_w(0).h(32).pl(12).pr(6).gap(7).items_center().rounded_t(8).cursor_pointer()
+      return h_flex().id(`scheda-${x.id}`).flex_none().max_w(LARGA).min_w(0).h(ALTA).pl(SPAZIO.l).pr(SPAZIO.s + 2).gap(SPAZIO.s + 2).items_center().rounded_t(RAGGIO.riga).cursor_pointer()
         .border_t(1).border_l(1).border_r(1)
         .when(x.active, (el) => el.relative().bg(fondo).border_color(t.border).text_color(t.foreground)
           // la linea accesa in alto: la scheda aperta si vede anche con la coda dell'occhio
-          .child(div().id(`scheda-acc-${x.id}`).absolute().top(0).left(8).right(8).h(2).rounded_full().bg(t.accent)))
+          .child(div().id(`scheda-acc-${x.id}`).absolute().top(0).left(SPAZIO.m).right(SPAZIO.m).h(SPAZIO.xs).rounded_full().bg(t.accent)))
         .when(!x.active, (el) => el.border_color(t.chrome).text_color(t.muted).hover((st) => st.bg(t.hover)))
         .on_hover((h, cx) => { if (h) this.sopra = x.id; else if (this.sopra === x.id) this.sopra = null; cx.notify(); })
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => run("tab.select", { id: x.id }))
-        .when(Boolean(fx), (el) => el.child(segno(colore(t, fx.colore), motoDi(fx.colore, x.status === "blocked"), 7)))
-        .child(div().min_w(0).truncate().text_size(12.5).child(nomeScheda(x, i)))
-        .child(div().id(`scheda-x-${x.id}`).flex_none().p(3).rounded(5)
+        .when(Boolean(fx), (el) => el.child(segno(colore(t, fx.colore), motoDi(fx.colore, x.status === "blocked"), PALLINO)))
+        .child(div().min_w(0).truncate().text_size(TESTO.etichetta).child(nomeScheda(x, i)))
+        // la X è più piccola delle icone della scala (11 px in un quadrato di 17): sta dentro la scheda
+        .child(div().id(`scheda-x-${x.id}`).flex_none().p(3).rounded(RAGGIO.controllo - 1)
           .when(!vediX, (el) => el.invisible())
           .when(vediX, (el) => el.cursor_pointer().hover((st) => st.bg(t.selected))
             .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
@@ -113,19 +114,18 @@ export class Schede {
           .tooltip("Chiudi la scheda")
           .child(svg(ICONA("x")).size(11).text_color(t.dim)));
     };
-    return h_flex().size_full().bg(t.chrome).pl(14).pr(12).gap(2).items_end().border_b(1).border_color(t.border)
+    // le schede partono dallo stesso bordo del titolo della testata e del riquadro della sessione
+    return h_flex().size_full().bg(t.chrome).px(MARGINE).gap(SPAZIO.xs).items_end().border_b(1).border_color(t.border)
       .children(tabs.map(scheda))
-      .child(h_flex().id("scheda-nuova").flex_none().mb(4).h(26).w(26).justify_center().items_center().rounded(6).cursor_pointer()
-        .text_color(t.dim).hover((st) => st.bg(t.hover).text_color(t.foreground))
-        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        .on_click(() => run("arturo.casa"))
-        .tooltip("Nuova scheda")
-        .child(svg(ICONA("plus")).size(13)));
+      // il + è un pulsante piccolo della scala, centrato sull'altezza della scheda (32 - 28 = 4: 2 sopra e 2 sotto)
+      .child(div().flex_none().mb(SPAZIO.xs).child(pulsanteIcona("scheda-nuova", "plus", "Nuova scheda", () => run("arturo.casa"), { misura: "piccolo" })));
   }
 }
 
 // La larghezza massima di una scheda: oltre, il nome si taglia.
 const LARGA = 240;
+// L'altezza di una scheda: la fila è alta 38 (layouts/arturo.json), la scheda tocca la linea in basso.
+const ALTA = 32;
 
 // Il nome di una scheda: quello che le ha dato Herdr o Volta (il titolo della sessione), altrimenti un numero.
 export const nomeScheda = (x, i) => (x.named && x.name ? x.name : `Scheda ${i + 1}`);

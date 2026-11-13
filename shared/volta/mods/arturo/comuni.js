@@ -113,7 +113,8 @@ export function pulsante(id, icona, testo, azione, forte = false, misura = "gran
     .when(forte, (el) => el.bg(t.accent).text_color(t.accent_foreground).font_semibold().hover((s) => s.opacity(0.9)))
     .when(!forte, (el) => el.border_1().border_color(t.border).text_color(t.foreground).hover((s) => s.bg(t.hover)))
     .on_click(azione)
-    .child(svg(ICONA(icona)).size(grande ? 15 : ICONA_MISURA.piccola))
+    // senza icona (icona null) resta il solo testo: Lavoraci e Altro nelle righe di Da fare
+    .when(Boolean(icona), (el) => el.child(svg(ICONA(icona)).size(grande ? 15 : ICONA_MISURA.piccola)))
     .child(div().text_size(grande ? TESTO.corpo : TESTO.etichetta).child(testo));
 }
 
