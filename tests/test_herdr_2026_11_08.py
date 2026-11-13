@@ -436,7 +436,8 @@ HZ99 i tasti della ricerca (#5369): ⌘K e ⌘O aprono Cerca, su Windows Ctrl+Sh
      testo di arturo.nuova-<esadecimale>; tasti() dice ⌘K e il giro.
 HZ100 installa-herdr.sh senza keys.json parte dai tasti di serie di Herdr (shared/volta/keys-herdr*.json):
      Volta ha ⌘W, ⌘C e gli altri, la sezione terminal, e i tasti di Arturo sopra, ⌘T sulle tessere (#5369).
-HZ101 la riga accesa e il comando di Sposta su (12/11/2026, Federico): sessioni.js con node: corrente() è
+HZ101 la riga accesa, il comando di Sposta su e la tessera che fa nascere una conversazione nel progetto
+     (conversazione-<slug>, casa.js e barra.js; 12/11/2026, Federico): sessioni.js con node: corrente() è
      l'ultima sessione del giro dentro la raffica di ⌘↓ e ⌘↑, poi quella della scheda in primo piano;
      sessioneDavanti() riconosce chi gira nel terminale di una scheda in uno spazio di un'altra macchina
      (torre/t13) prima dell'etichetta; unaPerConversazione() toglie la copia ferma di una sessione
@@ -6236,7 +6237,8 @@ import { eProgetto, progetti } from "./dati.mjs";
 const vista = { oggi: "2026-11-11", gruppi: [], progetti: [] };
 console.log(JSON.stringify({
   e: [{ name: "Volta", named: true }, { name: "volta", named: true }, { name: "arturo", named: true }, { name: "arturo", named: false },
-      { name: "arturo", named: true, machine: "torre" }, { name: "Volta Celeste", named: true }, null, undefined].map(eProgetto),
+      { name: "arturo", named: true, machine: "torre" }, { name: "Volta Celeste", named: true }, null, undefined,
+      { name: "Senza progetto", named: true }].map(eProgetto),
   chiavi: progetti(vista, { memoria: [] }).map((p) => p.chiave),
 }));
 """
@@ -6274,7 +6276,7 @@ def hz84(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"dati.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
-    if d["e"] != [False, False, True, False, False, True, False, False]:
+    if d["e"] != [False, False, True, False, False, True, False, False, False]:
         return f"eProgetto: {d['e']}"
     if d["chiavi"] != ["due-mondi"]:
         return f"fra i progetti della barra: {d['chiavi']}, atteso il solo due-mondi"
@@ -7183,7 +7185,7 @@ def hz96(repo: Path, casa: Path) -> str | None:
             return f"barra.js: {perche}"
     cs = (mod / "casa.js").read_text(encoding="utf-8")
     for pezzo, perche in [
-        ('run(t.tipo === "nuova" ? "arturo.volta-nuova" : comandoApri(t.chiave));', "Invio non apre la tessera come la barra"),
+        ('run(t.tipo === "nuova" ? "arturo.volta-nuova" : comandoConversazione(t.chiave));', "Invio non apre la tessera come la barra"),
         ('if (e.key === "escape") { terminale();', "Esc non torna al terminale"),
         ("readTextFile(`${appHome()}/immagini/elenco.json`)", "le tessere non leggono l'elenco delle immagini"),
         ("this.input.set_value(\"\");\n      this.input.focus();", "⌘T non riparte dal campo vuoto"),
@@ -7468,6 +7470,7 @@ console.log(JSON.stringify({
   davanti: [n.sessioneDavanti({ address: "torre/t13", labels: { "arturo.sessione": "d" } }, l)?.id ?? null,
     n.sessioneDavanti({ address: "amaltea/t13" }, l), n.sessioneDavanti(null, l)],
   una: n.unaPerConversazione(l).map((s) => s.host + "/" + s.id),
+  conversazione: c.instrada("conversazione-volta"),
   sposta: [c.instrada("volta-sposta-amaltea-936135fc"), c.instrada("volta-sposta-studio-ab12cd34").arg, c.instrada("volta-936135fc").verbo],
 }));
 """
@@ -7481,6 +7484,9 @@ def hz101(repo: Path, casa: Path) -> str | None:
                   "const acceso = this.acceso === k;", 'else if (c === "volta-sposta") this.volta.spostaId(arg.macchina, arg.id, cx);'):
         if pezzo not in volta + (mod / "barra.js").read_text(encoding="utf-8"):
             return f"volta.js o barra.js non hanno più: {pezzo[:70]}"
+    if "comandoConversazione(t.chiave)" not in (mod / "casa.js").read_text(encoding="utf-8") or \
+            'else if (c === "conversazione") { if (arg) this.lungo(c, cx, () => conversazione(arg)); }' not in (mod / "barra.js").read_text(encoding="utf-8"):
+        return "la tessera di un progetto su ⌘T non fa più nascere una conversazione nuova (comandoConversazione, conversazione())"
     testata = (mod / "testata.js").read_text(encoding="utf-8")
     if 'bottone("sposta", ICONA_SPOSTA' not in testata or "sposta: SceltaSposta" not in (mod / "main.js").read_text(encoding="utf-8"):
         return "la testata ha perso il pulsante Sposta su, o main.js il suo popup"
@@ -7504,6 +7510,8 @@ def hz101(repo: Path, casa: Path) -> str | None:
     if g["sposta"] != [{"verbo": "volta-sposta", "arg": {"macchina": "amaltea", "id": "936135fc"}, "lungo": False},
                        {"macchina": "studio", "id": "ab12cd34"}, "volta"]:
         return f"instrada() non legge volta-sposta-<macchina>-<id>: {g['sposta']}"
+    if g["conversazione"] != {"verbo": "conversazione", "arg": "volta", "lungo": True}:
+        return f"instrada() non legge conversazione-<slug>: {g['conversazione']}"
     return None
 
 
@@ -7909,10 +7917,10 @@ VELENI = [
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").replace(/[^a-z0-9]/g, "");'),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").toLowerCase();'),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'const m = /^([\\w.-]+)-[0-9a-f]{2}$/.exec(nome);', 'const m = /^([\\w.-]+)-\\w{2}$/.exec(nome);'),
-    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named);'),
-    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && Boolean(s.named) && slug(s.name) !== "volta";'),
-    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && slug(s.name) !== "volta";'),
-    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && s.name !== "volta";'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named);'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);', 'export const eProgetto = (s) => Boolean(s) && Boolean(s.named) && !libero(s.name);'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);', 'export const eProgetto = (s) => Boolean(s) && !s.machine && !libero(s.name);'),
+    ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const libero = (nome) => ["senza-progetto", "volta"].includes(slug(nome));', 'export const libero = (nome) => ["senza-progetto", "volta"].includes(nome);'),
     ('HZ84', 'shared/volta/mods/arturo/dati.js', '    if (!eProgetto(s)) continue;', '    if (s.machine || !s.named) continue;'),
     ('HZ84', 'shared/volta/mods/arturo/todo.js', '    return eProgetto(s) ? slug(s.name) : null;', '    return s && !s.machine && s.named ? slug(s.name) : null;'),
     ('HZ84', 'shared/volta/mods/arturo/barra.js', 'this.lungo(c, cx, () => nuovaScheda());', 'this.lungo(c, cx, () => nuova(""));'),
@@ -8381,7 +8389,7 @@ VELENI = [
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '  if (!(await nuda(indirizzo))) return {};\n  const fallita', '  const fallita'),
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '    run("space.select", { id: sp.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });', '    const tab = sp.tabs.find((tb) => tb.name === nome);\n    if (tab) return run("tab.select", { id: tab.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });'),
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '(/^[\\w@%+=:,./-]+$/.test(x) ? x', '(true ? x'),
-    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'slug(s.name) !== "volta" ? slug(s.name) : null;', 'slug(s.name) !== "volta" ? slug(s.name) : slug(s.name);'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '!libero(s.name) ? canonico(s.name) : null;', '!libero(s.name) ? canonico(s.name) : canonico(s.name);'),
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '    if (scheda) await etichetta(scheda, s);\n  }\n  return { come: rilancia', '  }\n  return { come: rilancia'),
     ('HZ52', 'shared/volta/mods/arturo/dati.js', 'const r = await hc(["send", scheda.address, comando(argvScheda(argv))]);', 'const r = { code: 0 };'),
     ('HZ52', 'shared/volta/mods/arturo/sessioni.js', 'return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];', 'return a;'),
@@ -8539,6 +8547,8 @@ VELENI = [
     ("HZ67", "shared/volta/mods/arturo/comandi.js", '  if (/^nuova-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "nuova", arg: dopo("nuova-"), lungo: true };', '  if (c.startsWith("nuova-")) return { verbo: "nuova", arg: dopo("nuova-"), lungo: true };'),
     ("HZ100", "shared/volta/installa-herdr.sh", "if tasti is None:\n", "if False:\n"),
     ("HZ100", "shared/volta/installa-herdr.sh", 'serie=keys-herdr-macos.json\n', 'serie=keys-herdr.json\n'),
+    ('HZ101', 'shared/volta/mods/arturo/casa.js', 'comandoConversazione(t.chiave)', 'comandoApri(t.chiave)'),
+    ('HZ101', 'shared/volta/mods/arturo/comandi.js', '  if (c.startsWith("conversazione-")) return { verbo: "conversazione", arg: dopo("conversazione-"), lungo: true };\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  return li ?? sessioneDi(terminale, sessioni);', '  return sessioneDi(terminale, sessioni) ?? li;'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["sporchi"]:\n', '    if False:\n'),

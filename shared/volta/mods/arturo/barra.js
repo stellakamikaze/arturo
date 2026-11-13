@@ -3,7 +3,7 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify, layout } from "herdr";
-import { todo, progetti, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
+import { todo, progetti, apri, nuova, nuovaScheda, conversazione, libera, slug, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
 import { STACK, CASA, senzaTessere } from "./tessere.js";
 import { terminale } from "./casa.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
@@ -39,6 +39,8 @@ export class Barra {
     this.volta.init(cx);
     // All'avvio lo stack "lavoro" mostra il terminale anche se .state/ ha salvato le tessere (sonda D2 del
     // 12/11): la barra c'è sempre, la parte Casa nasce solo a ⌘T.
+    // lo spazio delle sessioni senza progetto si chiama "Senza progetto" (12/11/2026): rinomina quelli "Volta"
+    libera();
     terminale();
     this.carica(cx);
     // La guida si apre da sola la prima volta, per chi arriva da /setup e per chi usa già Arturo.
@@ -82,6 +84,7 @@ export class Barra {
     if (c === "ci-sei") setShared("arturo.barra.viva", Date.now());
     else if (c === "apri") apriFinestra();
     else if (c === "progetto") { if (arg) this.lungo(c, cx, () => apri(arg)); }
+    else if (c === "conversazione") { if (arg) this.lungo(c, cx, () => conversazione(arg)); }
     else if (c === "chiedi") apriSuggerimenti();
     else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }
     else if (c === "settimana") apriRevisione();

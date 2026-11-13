@@ -102,9 +102,24 @@ export function esito(r) {
 // Lo slug come lo fa Arturo: minuscole, lettere, numeri e trattini.
 export const slug = (s) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 
-// Uno spazio è un progetto se sta su questo computer, ha un nome scritto e non è "Volta": quello
-// raccoglie le sessioni senza progetto (aggancia), non ha todo e non va fra i progetti della barra.
-export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";
+// Lo spazio che raccoglie le sessioni senza progetto (aggancia). Fino al 12/11/2026 si chiamava "Volta" e si
+// scontrava col progetto Volta (herdr-arturo, nome alternativo volta): la tessera Volta di ⌘T portava qui.
+// Uno spazio "Volta" di prima vale ancora come libero, e libera() lo rinomina.
+export const SPAZIO_LIBERO = "Senza progetto";
+export const libero = (nome) => ["senza-progetto", "volta"].includes(slug(nome));
+
+// Uno spazio è un progetto se sta su questo computer, ha un nome scritto e non è lo spazio libero: quello
+// non ha todo e non va fra i progetti della barra.
+export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);
+
+// La chiave di un progetto: un nome alternativo ("volta") porta alla chiave della scheda ("herdr-arturo"),
+// così il progetto trova il suo spazio e non uno che ha per nome l'alternativo.
+export const canonico = (nome) => shared("arturo.progetti")?.[slug(nome)]?.chiave ?? slug(nome);
+
+// Rinomina in "Senza progetto" gli spazi "Volta" di prima su questo computer (una volta, all'avvio della barra).
+export function libera() {
+  for (const s of spaces()) if (!s.machine && slug(s.name) === "volta") run("space.rename", { id: s.id, name: SPAZIO_LIBERO });
+}
 
 // Lo spazio di Herdr di un progetto: quello su questo computer col nome del progetto.
 export const spazio = (nome) => spaces().find((s) => !s.machine && slug(s.name) === slug(nome));
@@ -255,7 +270,7 @@ export function sezioni(lista) {
 
 // La scheda di uno spazio che aggancia una sessione con claude attach (qui o via ssh): Herdr non la vede
 // come un agente, perché nella scheda gira ssh o attach e non claude. { terminal, tab } oppure null.
-// Prima la scheda attiva: lo spazio "Volta" ne tiene più d'una, e la testata parla di quella che vedi.
+// Prima la scheda attiva: lo spazio libero ne tiene più d'una, e la testata parla di quella che vedi.
 // Una scheda dove gira un'interattiva di questa macchina (occupate) è la scheda di quella sessione, non
 // dell'aggancio con cui è nata: su Windows Herdr non la vede come agente, e senza questo la testata
 // mostrava lo stato di un'altra scheda dello spazio (12/11/2026).
@@ -344,7 +359,7 @@ async function tornataShell(g) {
 // di "Nasce su" (il clic nella barra, Lavoraci, Fai il punto e la finestra Apri: la riga sta sotto Apri
 // un progetto). `todoScelto` ({id, titolo}) porta Claude direttamente su quel todo.
 export async function apri(nome, todoScelto) {
-  nome = slug(nome);
+  nome = canonico(nome);
   const s = spazio(nome);
   if (s) {
     run("space.select", { id: s.id });
@@ -379,13 +394,21 @@ export async function nuova(prompt, soloQui = false) {
   return nasciSu(soloQui ? "qui" : dove(), prompt, null);
 }
 
+// Una conversazione nuova in un progetto (la tessera di ⌘T, Federico 12/11/2026): sempre una sessione nuova
+// che parte da /inizio, sulla macchina di "Nasce su", in una scheda nuova dello spazio del progetto se c'è
+// (aggancia), altrimenti in uno spazio nuovo. apri() invece porta allo spazio che c'è già.
+export async function conversazione(nome) {
+  nome = canonico(nome);
+  return nasciSu(dove(), `/inizio ${nome}`, nome);
+}
+
 // La scheda nuova (Nuova richiesta, la prima tessera di ⌘T, o ⌘T in un layout senza tessere; comando
 // arturo.volta-nuova): una sessione di Claude vuota, non una shell. Nasce
 // in background sulla macchina di "Nasce su" e si aggancia nello spazio che la persona sta guardando,
-// col suo progetto; dallo spazio "Volta", o senza spazio, nasce senza progetto.
+// col suo progetto; dallo spazio libero, o senza spazio, nasce senza progetto.
 export async function nuovaScheda() {
   const s = spaces().find((x) => x.active && !x.machine);
-  const progetto = s?.named && slug(s.name) !== "volta" ? slug(s.name) : null;
+  const progetto = s?.named && !libero(s.name) ? canonico(s.name) : null;
   return nasciSu(dove(), "", progetto, "Nuova sessione");
 }
 
@@ -588,12 +611,12 @@ export async function prepara(s, riavvia = false) {
 }
 
 // La scheda nuova che aggancia una sessione: nello spazio del progetto (lo stesso della barra) o nello
-// spazio "Volta" per le sessioni senza progetto. Mai una scheda ritrovata per nome: quella la cerca
+// spazio libero ("Senza progetto") per le sessioni senza progetto. Mai una scheda ritrovata per nome: quella la cerca
 // apriSessione, per etichetta e per argv.
 export function aggancia(s, argv) {
   const nome = titolo(s).slice(0, 40);
-  const nomeSpazio = s.progetto ? slug(s.progetto) : "Volta";
-  const sp = spaces().find((x) => !x.machine && slug(x.name) === slug(nomeSpazio));
+  const nomeSpazio = s.progetto ? slug(s.progetto) : SPAZIO_LIBERO;
+  const sp = spaces().find((x) => !x.machine && (s.progetto ? slug(x.name) === nomeSpazio : libero(x.name)));
   const cartella = s.questa && s.cartella ? s.cartella : home();
   if (sp) {
     run("space.select", { id: sp.id });

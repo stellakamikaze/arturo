@@ -7,7 +7,7 @@
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, shared, setShared, run, readTextFile, appHome, layout } from "herdr";
-import { comandoApri } from "./comandi.js";
+import { comandoConversazione } from "./comandi.js";
 import { ICONA, punto, colore, tasti } from "./comuni.js";
 import { tessere, passo, colonne, iniziali, tinta, immagine, senzaTessere, STACK, TERMINALE, GAP, MIN_W } from "./tessere.js";
 
@@ -59,11 +59,13 @@ export class Casa {
     return tessere(shared("arturo.casa.progetti"), this.filtro);
   }
 
-  // Apre la tessera: la richiesta nuova o il progetto li esegue la barra, come la finestra Apri.
+  // Apre la tessera: la esegue la barra, come la finestra Apri. La tessera di un progetto fa nascere sempre
+  // una conversazione nuova nel progetto, anche col suo spazio già aperto (Federico, 12/11/2026: "ho scelto
+  // Volta ma non mi apre una nuova convo").
   vai(t) {
     if (!t) return;
     terminale();
-    run(t.tipo === "nuova" ? "arturo.volta-nuova" : comandoApri(t.chiave));
+    run(t.tipo === "nuova" ? "arturo.volta-nuova" : comandoConversazione(t.chiave));
   }
 
   render() {

@@ -10,6 +10,9 @@ export const PING = "ci-sei";
 // Il comando che apre un progetto (la finestra "Apri un progetto", "Fai il punto" della settimana).
 export const comandoApri = (slug) => `arturo.apri-${slug}`;
 
+// Il comando che fa nascere una conversazione nuova in un progetto (la tessera di ⌘T, 12/11/2026).
+export const comandoConversazione = (slug) => `arturo.conversazione-${slug}`;
+
 // Il comando che esegue una richiesta di "Cosa posso chiedere".
 export const comandoSuggerimento = (id) => `arturo.suggerimento-${id}`;
 
@@ -24,6 +27,8 @@ export function instrada(c) {
   if (c === "apri") return { verbo: "apri", arg: null, lungo: false };
   // "apri-<slug>": il progetto, nel suo spazio o in una sessione nuova.
   if (c.startsWith("apri-")) return { verbo: "progetto", arg: dopo("apri-"), lungo: true };
+  // "conversazione-<slug>": una conversazione nuova nel progetto, anche se il suo spazio c'è già.
+  if (c.startsWith("conversazione-")) return { verbo: "conversazione", arg: dopo("conversazione-"), lungo: true };
   if (c === "chiedi") return { verbo: "chiedi", arg: null, lungo: false };
   // "suggerimento-<id>": una richiesta di "Cosa posso chiedere".
   if (c.startsWith("suggerimento-")) return { verbo: "suggerimento", arg: dopo("suggerimento-"), lungo: true };
