@@ -28,7 +28,7 @@ Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di 
 
 ### Le correzioni della revisione di novembre {#revisione-novembre}
 
-Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, sul Python che manca e sui comandi di Windows che cancellano o eseguono (`robocopy`, `reg delete`, PowerShell, `wsl`, node) e sull'avvio automatico (cartella Esecuzione automatica, profili PowerShell, `schtasks`, chiavi `Run` del registro, `sc create`).
+Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, sul Python che manca e sui comandi di Windows che cancellano o eseguono (`robocopy`, `reg delete`, PowerShell, `wsl`, node) e sull'avvio automatico (cartella Esecuzione automatica, profili PowerShell, `schtasks`, chiavi `Run` del registro, `sc create`) e sul codice Python e node che scrive la config (`open()`, `shutil.copy`, `write_text`, `writeFileSync`, archivi estratti).
 
 Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con `.exe` passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.
 
