@@ -25,6 +25,11 @@ import subprocess
 import sys
 import time
 import zlib
+# Niente .pyc nella cartella del mod: Herdr ricarica il mod a ogni file nuovo che vi compare, anche in
+# __pycache__, e la ricarica ferma per sempre le attese di Volta (cx.sleep di Sposta, #5556, 13/11/2026).
+# La variabile vale per i Python figli (lo spostamento staccato, il microfono).
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from volta_sonda import errore_hc, hc, leggi_json, macchine, non_parte, scrivi_atomico  # noqa: E402

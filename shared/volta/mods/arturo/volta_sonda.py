@@ -78,6 +78,11 @@ import subprocess
 import sys
 import time
 import zlib
+# Niente .pyc nella cartella del mod: Herdr ricarica il mod a ogni file nuovo che vi compare, anche in
+# __pycache__, e la ricarica ferma per sempre le attese di Volta (cx.sleep di Sposta, #5556, 13/11/2026).
+# La variabile vale per i Python figli (lo spostamento staccato, il microfono).
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 from concurrent.futures import ThreadPoolExecutor
 
 # Il terminale di Herdr che ospita un processo: Herdr mette HC_TERMINAL_ID nell'ambiente della shell di
