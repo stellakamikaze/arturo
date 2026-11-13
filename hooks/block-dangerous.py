@@ -91,8 +91,9 @@ _FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE +
 # `fetch` conta solo come comando in testa a un segmento (il fetch di BSD): `git fetch && git show
 # x:f.py | python3 -` legge un file del repo, e non scarica niente (2/11/2026, #4478). _DOWNLOAD
 # resta un solo gruppo che cattura: la regola python sotto conta i gruppi per il \3.
+# `curl u | powershell -` e `| pwsh -c -` eseguono lo script scaricato come `| bash` (HK-5, 10/11/2026).
 DANGEROUS_ISTRUZIONE = [
-    (_DOWNLOAD + _FINO_ALLO_STADIO + r"(bash|sh|zsh|fish|perl|ruby|node|php)\b",
+    (_DOWNLOAD + _FINO_ALLO_STADIO + r"(bash|sh|zsh|fish|perl|ruby|node|php|powershell|pwsh)\b",
      "pipe di script remoto in un interprete"),
     # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
     # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
@@ -1623,6 +1624,28 @@ def _rmtree_bersagli(command):
     return bersagli
 
 
+# rmSync, rmdirSync e fs.rm di node, bun e deno con `recursive: true` cancellano una cartella intera come
+# shutil.rmtree (revisione del 10/11/2026, HK-5). Senza recursive cancellano un file solo, o falliscono.
+_NODE_RE = re.compile(r"(?:^|[\s;&|(/])(?:node|bun|deno)(?=\s|$)", _RE_NOMI)
+_RMSYNC_RE = re.compile(r"(?:\brm(?:dir)?Sync|\.rm)\s*\(\s*(?:(['\"`])([^'\"`]*)\1(?=\s*[,)]))?")
+_RICORSIVO_RE = re.compile(r"\brecursive\s*:\s*(?:true|!0|1)\b")
+
+
+def _rmsync_bersagli(command):
+    """I bersagli di rmSync, rmdirSync e fs.rm ricorsivi nel codice di node, bun o deno: il percorso scritto,
+    o None se arriva da una variabile o da un'espressione. Il corpo di un heredoc che va a un lettore non conta."""
+    testo = _hd.togli(command, lambda h: h.quotato and h.inerte())
+    if "rm" not in testo or not _NODE_RE.search(testo):
+        return []
+    bersagli = []
+    for m in _RMSYNC_RE.finditer(testo):
+        fine = re.search(r"[;\n]", testo[m.end():])
+        istruzione = testo[m.end(): m.end() + fine.start()] if fine else testo[m.end():]
+        if _RICORSIVO_RE.search(istruzione):
+            bersagli.append(m.group(2) if m.group(1) else None)
+    return bersagli
+
+
 # Le opzioni di git prima del sottocomando che prendono un valore staccato.
 _GIT_OPZIONI_CON_VALORE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
                                      "--config-env", "--super-prefix"))
@@ -1993,6 +2016,19 @@ def _codici_windows(testo):
     return out
 
 
+# PowerShell che scarica uno script ed esegue il testo (revisione del 10/11/2026, HK-5): `irm u | iex`,
+# `iex (New-Object Net.WebClient).DownloadString(u)`, anche dentro -EncodedCommand, che _codice_powershell
+# decodifica. In PowerShell 5 `curl` e `wget` sono alias di Invoke-WebRequest.
+_PS_ESEGUE_TESTO = re.compile(r"(?<![\w-])(?:iex|invoke-expression)(?![\w-])", re.IGNORECASE)
+_PS_SCARICA = re.compile(r"(?<![\w-])(?:irm|iwr|invoke-restmethod|invoke-webrequest|curl|wget)(?![\w-])|"
+                         r"downloadstring|downloaddata|net\.webclient", re.IGNORECASE)
+
+
+def _powershell_scarica_ed_esegue(testo):
+    """True se il codice di un `powershell` o `pwsh` del comando scarica dalla rete ed esegue il testo con iex."""
+    return any(_PS_ESEGUE_TESTO.search(c) and _PS_SCARICA.search(c) for c in _codici_windows(testo))
+
+
 def _regole_windows(testo):
     """Le regole che il codice di cmd e powershell tocca: segreto se nomina un file segreto, e la regola del
     percorso (config, sblocco, claude-md, avvio-automatico) se scrive e nomina un percorso protetto."""
@@ -2200,6 +2236,11 @@ def main() -> int:
             pericoloso = None
         if pericoloso:
             regole.insert(0, (r"[\s\S]", pericoloso, [testo]))
+        try:
+            if _powershell_scarica_ed_esegue(testo):
+                regole.insert(0, (r"[\s\S]", "codice PowerShell che scarica uno script e lo esegue con iex", [testo]))
+        except Exception:
+            pass
         for pattern, why, testi in regole:
             if any(re.search(pattern, t, re.IGNORECASE) for t in testi):
                 sys.stderr.write(
@@ -2370,26 +2411,29 @@ def main() -> int:
             "Conferma solo se hai controllato cosa trova."
         )
 
-    # 7) shutil.rmtree -> ask, come rm ricorsivo: tranne cartelle rigenerabili e file temporanei.
+    # 7) shutil.rmtree e rmSync di node -> ask, come rm ricorsivo: tranne cartelle rigenerabili e file
+    # temporanei. Le regole restano quelle di rmtree: i nomi sono un elenco chiuso del server.
+    chi = "shutil.rmtree"
     try:
-        for t in _rmtree_bersagli(command):
+        for chi, t in [("shutil.rmtree", t) for t in _rmtree_bersagli(command)] + \
+                [("rmSync di node", t) for t in _rmsync_bersagli(command)]:
             if t == _TEMPORANEA:
                 continue
             p = _resolve(t, os.path.normpath(cwd)) if t else None
             if p is None:
                 return _ask("rmtree-variabile",
-                    "shutil.rmtree su un percorso che arriva da una variabile: cancella una cartella "
+                    f"{chi} su un percorso che arriva da una variabile: cancella una cartella "
                     "intera, senza cestino. Controlla quale prima di confermare."
                 )
             reale = _reale(p)
             if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)) or \
                     _is_protected_tree(reale) or not (_rigenerabile(reale) or _temporaneo(reale)):
                 return _ask("rmtree-cartella",
-                    f"shutil.rmtree su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
+                    f"{chi} su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
                     "c'è lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla."
                 )
     except Exception:
-        return _ask("rmtree-illeggibile", "shutil.rmtree che la guardia non riesce a leggere: controlla prima di confermare.")
+        return _ask("rmtree-illeggibile", f"{chi} che la guardia non riesce a leggere: controlla prima di confermare.")
 
     # 8) git clean -f -> ask: i file non tracciati non stanno in nessun commit.
     if _git_clean_forzato(command):

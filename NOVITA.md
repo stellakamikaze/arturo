@@ -13,6 +13,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-13 — Guardie su Windows: robocopy, registro, PowerShell, wsl e node
+
+**Cosa cambia**: su Windows alcuni comandi che cancellano o eseguono codice passavano senza nessuna conferma.
+Adesso le guardie li vedono.
+- `robocopy` con `/MIR` o `/PURGE` chiede conferma: cancella nella destinazione tutto quello che la sorgente non
+  ha. Con `/L`, che elenca e basta, tace.
+- `reg delete` chiede conferma, e il messaggio ricorda di salvare prima la chiave con `reg export`.
+- PowerShell che scarica uno script e lo esegue con `iex` (`irm ... | iex`, `DownloadString`) si blocca, anche
+  quando il codice è nascosto in `-EncodedCommand`. Si blocca anche `curl ... | powershell`, come `curl ... | bash`.
+- `wsl rm -rf` passa dalle stesse guardie di `rm -rf`.
+- `rmSync`, `rmdirSync` e `fs.rm` di node, bun e deno con `recursive: true` chiedono conferma come `shutil.rmtree`
+  di Python. Su `node_modules` tacciono.
+
+**Il principio**: una guardia vale quanto la forma più semplice che la aggira.
+
+**Da sapere**: riguarda solo Windows, salvo `rmSync` e `curl ... | powershell`, che valgono ovunque.
+
+---
+
 ## 2026-11-13 — Col plugin /aggiorna rimette una copia cambiata
 
 **Cosa cambia**: se un file nella copia del plugin viene modificato, all'avvio la riga `DERIVA` lo segnala e ti
