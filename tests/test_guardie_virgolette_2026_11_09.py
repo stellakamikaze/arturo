@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GV01-GV15: le guardie leggono i percorsi fra virgolette e i percorsi alla maniera di Windows (#5096).
+"""GV01-GV17: le guardie leggono i percorsi fra virgolette e i percorsi alla maniera di Windows (#5096).
 
 La review del 9/11/2026 ha trovato che una redirezione verso un file fra virgolette passava senza conferma su
 ogni sistema, anche verso settings.json e il file di sblocco: la guardia leggeva il bersaglio fino alla prima
@@ -32,6 +32,12 @@ GV14 l'avvio automatico su Windows (HK-6): Write nella cartella Esecuzione autom
      Run chiedono.
 GV15 falsi positivi di HK-6: schtasks /query, reg query, reg add su un'altra chiave, lettura e copia del profilo,
      echo, sc query, Get-ScheduledTask, un .ps1 qualsiasi.
+GV16 la config scritta dal codice python e node (HK-7): open() di expanduser e con le barre rovesciate, shutil.copy
+     e move, os.replace, write_text con Path.home() /, una variabile nello stesso heredoc, writeFileSync e
+     copyFileSync di node, open() dopo un cd, extractall, `python -m zipfile -e` e `7z x -o` chiedono; tar, unzip e
+     patch verso la config chiedono ancora.
+GV17 falsi positivi di HK-7: lettura della config, copia verso /tmp, estrazione altrove, una nota in ~/.claude,
+     un join che comincia con una variabile ignota, il codice dentro un heredoc verso cat o un echo.
 
 Sulla base ce1cafc ogni gruppo fallisce con un AssertionError che comincia col suo codice, salvo GV08 (i falsi
 positivi tacciono anche lì). Con --avvelena il banco lo prova da solo: rimette nella copia le guardie di ce1cafc
@@ -554,11 +560,95 @@ def test_gv15(b: Banco):
     return verifica("GV15", casi)
 
 
+@gruppo
+def test_gv16(b: Banco):
+    # Revisione del 10/11/2026, HK-7: il codice python e node scriveva la config senza conferma, se il
+    # percorso non era scritto per intero con le barre dritte.
+    rovesce = b.H.replace("/", "\\\\")
+    casi = [
+        ("open di expanduser",
+         b.guardia("python3 -c \"import os; open(os.path.expanduser('~/.claude/settings.json'), 'w').write('{}')\""),
+         "ask:config"),
+        ("open con le barre rovesciate", b.guardia(f"python3 -c \"open('{rovesce}\\\\.claude\\\\settings.json', "
+                                                   "mode='a')\""), "ask:config"),
+        ("shutil.copy con os.path.join",
+         b.guardia("python3 -c \"import shutil, os; shutil.copy('/tmp/s.json', os.path.join(os.path.expanduser('~'), "
+                   "'.claude', 'settings.json'))\""), "ask:config"),
+        ("shutil.copy verso la cartella degli hook", b.guardia(f"python3 -c \"import shutil; shutil.copy('/tmp/a.py', "
+                                                               f"'{b.H}/.claude/hooks/')\""), "ask:config"),
+        ("os.replace", b.guardia("python3 -c \"import os; os.replace('/tmp/s', os.path.expanduser("
+                                 "'~/.claude/settings.json'))\""), "ask:config"),
+        ("write_text con Path.home() /", b.guardia("python3 -c \"from pathlib import Path; (Path.home() / '.claude' / "
+                                                   "'settings.json').write_text('{}')\""), "ask:config"),
+        ("heredoc python con una variabile", b.guardia(
+            "python3 - <<'PY'\nimport os\np = os.path.join(os.environ['HOME'], '.claude', 'settings.json')\n"
+            "with open(p, 'w') as f:\n    f.write('{}')\nPY"), "ask:config"),
+        ("heredoc python con shutil.move", b.guardia(f"python3 - <<'PY'\nimport shutil\nshutil.move('/tmp/a', "
+                                                     f"'{b.H}/.claude/settings.json')\nPY"), "ask:config"),
+        ("node writeFileSync con homedir()", b.guardia(
+            "node -e \"require('fs').writeFileSync(require('os').homedir() + '/.claude/settings.json', '{}')\""),
+         "ask:config"),
+        ("node copyFileSync", b.guardia(f"node -e \"require('fs').copyFileSync('/tmp/a', "
+                                        f"'{b.H}/.claude/hooks/x.py')\""), "ask:config"),
+        ("python dopo un cd nella config", b.guardia("cd ~/.claude && python3 -c \"open('settings.json', 'w')\""),
+         "ask:config"),
+        ("extractall nella config", b.guardia("python3 -c \"import tarfile, os; tarfile.open('a.tgz').extractall("
+                                              "os.path.expanduser('~/.claude'))\""), "ask:config"),
+        ("python -m zipfile -e nella config", b.guardia("python3 -m zipfile -e a.zip ~/.claude"), "ask:config"),
+        ("7z x -o nella config", b.guardia('7z x a.zip -o"$HOME/.claude"'), "ask:config"),
+        ("tar -x -C nella config", b.guardia("tar -xzf a.tgz -C ~/.claude"), "ask:config"),
+        ("unzip -d nella config", b.guardia("unzip -o a.zip -d ~/.claude/hooks"), "ask:config"),
+        ("patch -d nella config", b.guardia('patch -p1 -d "$HOME/.claude" < x.diff'), "ask:config"),
+        ("dispatcher: open di expanduser", b.dispatcher(
+            "python3 -c \"import os; open(os.path.expanduser('~/.claude/settings.json'), 'w')\""), "ask"),
+        ("dispatcher: heredoc python con write_text", b.dispatcher(
+            "python3 - <<'PY'\nfrom pathlib import Path\ncfg = Path.home() / '.claude' / 'settings.json'\n"
+            "cfg.write_text('{}')\nPY"), "ask"),
+    ]
+    return verifica("GV16", casi)
+
+
+@gruppo
+def test_gv17(b: Banco):
+    # Falsi positivi di HK-7: leggere la config, copiarla altrove ed estrarre altrove tacciono.
+    casi = [
+        ("lettura di settings con open",
+         b.guardia("python3 -c \"import json, os; print(json.load(open(os.path.expanduser('~/.claude/settings.json'))"
+                   "))\""), "silent"),
+        ("lettura con read_text", b.guardia("python3 -c \"from pathlib import Path; print((Path.home() / '.claude' / "
+                                            "'settings.json').read_text())\""), "silent"),
+        ("copia della config verso /tmp",
+         b.guardia("python3 -c \"import shutil, os; shutil.copy(os.path.expanduser('~/.claude/settings.json'), "
+                   "'/tmp/s.json')\""), "silent"),
+        ("copytree degli hook verso /tmp", b.guardia("python3 -c \"import shutil, os; shutil.copytree("
+                                                     "os.path.expanduser('~/.claude/hooks'), '/tmp/copia')\""), "silent"),
+        ("tar -C ~/Downloads", b.guardia("tar -xzf a.tgz -C ~/Downloads"), "silent"),
+        ("zipfile -e ~/Downloads", b.guardia("python3 -m zipfile -e a.zip ~/Downloads"), "silent"),
+        ("extractall in /tmp", b.guardia("python3 -c \"import tarfile; tarfile.open('a.tgz').extractall('/tmp/o')\""),
+         "silent"),
+        ("node readFileSync", b.guardia(
+            "node -e \"require('fs').readFileSync(require('os').homedir() + '/.claude/settings.json')\""), "silent"),
+        ("una nota qualsiasi in ~/.claude", b.guardia(
+            "python3 -c \"import os; open(os.path.expanduser('~/.claude/note.txt'), 'w')\""), "silent"),
+        ("join con una variabile ignota", b.guardia(
+            "python3 -c \"import os; open(os.path.join(d, '.claude', 'settings.json'), 'w')\""), "silent"),
+        ("heredoc verso cat con il codice", b.guardia(
+            f"cat > /tmp/nota.py <<'EOF'\nimport shutil\nshutil.copy('/tmp/s', '{b.H}/.claude/settings.json')\nEOF"),
+         "silent"),
+        ("echo del codice", b.guardia("echo \"shutil.copy('/tmp/s', '~/.claude/settings.json')\""), "silent"),
+        ("script con la config come argomento", b.guardia("python3 script.py ~/.claude/settings.json"), "silent"),
+        ("dispatcher: tar czf che legge la config", b.dispatcher("tar czf /tmp/b.tgz -C ~/.claude settings.json"),
+         "silent"),
+    ]
+    return verifica("GV17", casi)
+
+
 TESTS = {"GV01": test_gv01, "GV02": test_gv02, "GV03": test_gv03, "GV04": test_gv04, "GV05": test_gv05,
          "GV06": test_gv06, "GV07": test_gv07, "GV08": test_gv08, "GV09": test_gv09, "GV10": test_gv10,
-         "GV11": test_gv11, "GV12": test_gv12, "GV13": test_gv13, "GV14": test_gv14, "GV15": test_gv15}
+         "GV11": test_gv11, "GV12": test_gv12, "GV13": test_gv13, "GV14": test_gv14, "GV15": test_gv15,
+         "GV16": test_gv16, "GV17": test_gv17}
 # I falsi positivi tacciono anche sulla base: il veleno non li tocca.
-SENZA_VELENO = {"GV08", "GV10", "GV13", "GV15"}
+SENZA_VELENO = {"GV08", "GV10", "GV13", "GV15", "GV17"}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "protect_claude_md.py", "forma_comando.py",
            "gh-destructive-guard.py", "commit-secret-gate.py", "comms-prefilter.py", "heredoc.py", "data-guard.py")
 

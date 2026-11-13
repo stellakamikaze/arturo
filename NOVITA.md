@@ -29,10 +29,15 @@ Adesso le guardie li vedono.
   automatica (`Start Menu/Programs/Startup`) o in un profilo di PowerShell vuole lo sblocco di sistema. Chiedono
   conferma `schtasks /create`, `reg add` sulle chiavi `Run`, `Winlogon` e `Image File Execution Options`,
   `reg import`, `sc create`, `Register-ScheduledTask` e `New-Service`. `schtasks /query` e `reg query` tacciono.
+- Il codice Python e node che scrive la config chiede conferma come la shell: `open()` di `expanduser`,
+  `shutil.copy`, `os.replace`, `Path.home() / '.claude'`, `write_text`, `writeFileSync`, anche dentro un heredoc
+  e con le barre rovesciate. Chiedono anche `extractall`, `python -m zipfile -e` e `7z x -o` verso `~/.claude`.
+  Leggere la config e copiarla altrove tacciono.
 
 **Il principio**: una guardia vale quanto la forma più semplice che la aggira.
 
-**Da sapere**: riguarda solo Windows, salvo `rmSync` e `curl ... | powershell`, che valgono ovunque.
+**Da sapere**: riguarda solo Windows, salvo `rmSync`, `curl ... | powershell` e il codice che scrive la config,
+che valgono ovunque.
 
 ---
 
