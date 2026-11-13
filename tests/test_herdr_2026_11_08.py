@@ -1902,11 +1902,21 @@ CLIC_VOLTA = 'if (c.startsWith("volta-")) return { verbo: "volta",'
 
 
 HERDR_FINTO = r"""
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 export const lanciati = [];
 export const appHome = () => process.env.HZ_APP;
 export const home = () => process.env.HZ_CASA;
 export const readTextFile = async (p) => { try { return readFileSync(p, "utf-8"); } catch { return null; } };
+// writeTextFile come Herdr: scrive solo se il file è ancora quello atteso (null = nuovo); la cartella deve esserci.
+export const scritti = [];
+export const writeTextFile = async (p, testo, atteso) => {
+  scritti.push([p, testo]);
+  let ora = null;
+  try { ora = readFileSync(p, "utf-8"); } catch { ora = null; }
+  if (ora !== atteso) throw new Error("stale snapshot");
+  writeFileSync(p, testo, "utf-8");
+  return null;
+};
 export const eseguiti = [];
 export const avvisi = [];
 const condivisi = JSON.parse(process.env.HZ_SHARED || "{}");

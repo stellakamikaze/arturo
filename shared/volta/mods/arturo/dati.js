@@ -1,7 +1,7 @@
 // I dati di Arturo per Herdr: configurazione, todo, progetti e le azioni che aprono Claude.
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
-import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
+import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
@@ -839,13 +839,18 @@ export function copiaSessione(s, verbo) {
 // solo. `dormi(ms)`: l'attesa fra due letture (cx.sleep di chi chiama); senza, pausa().
 export async function spostaSessione(s, macchina, dormi = null) {
   const c = await config();
-  const file = `${cacheVolta()}/sposta/${String(s.sessionId ?? s.id).replace(/[^0-9A-Za-z-]/g, "")}.json`;
+  const file = `${cacheVolta()}/sposta/${nomeSposta(s)}.json`;
+  const traccia = (passo, dati) => tracciaSposta(s, passo, dati);
   // Le schede che la agganciano si chiudono prima: un claude attach rimasto aperto riaccende la sessione
   // dopo claude stop, e la conversazione resta viva su tutte e due le macchine (#5537, 13/11/2026). Se lo
   // spostamento non va, la scheda si riapre sulla sessione rimasta qui.
+  const schede = schedeDi(s).map((t) => t.address);
   const chiuse = chiudiSchede(s);
+  await traccia("inizio", { da: s.host ?? "qui", a: macchina, id: s.id, attach: s.attach ?? null, schede, chiuse });
   const male = async (x) => {
-    if (chiuse && Array.isArray(s.attach) && s.attach.length) await apriSessione(s, s.attach).catch(() => null);
+    let riaperta = null;
+    if (chiuse && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach).catch((e) => ({ errore: String(e?.message ?? e) }));
+    await traccia("male", { esito: x, riaperta: riaperta && { come: riaperta.come, errore: riaperta.errore } });
     return x;
   };
   let r;
@@ -856,12 +861,15 @@ export async function spostaSessione(s, macchina, dormi = null) {
   } catch (e) {
     return male({ errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` });
   }
+  await traccia("avvio", { risposta: r });
   if (r.avviato) {
     const dal = Date.now();
-    for (;;) {
+    for (let giri = 1; ; giri++) {
       await (dormi ? dormi(SPOSTA_OGNI_MS) : pausa(SPOSTA_OGNI_MS));
       const p = esitoSposta(await readTextFile(file).catch(() => null), dal, Date.now(), nomeMacchina(macchina));
-      if (p.attendi) continue;
+      // l'attesa una volta al minuto: 25 minuti di giri ogni 5 secondi riempirebbero la traccia
+      if (p.attendi) { if (giri === 1 || giri % 12 === 0) await traccia("attesa", { giri }); continue; }
+      await traccia("esito", { giri, esito: p.fatto ?? p });
       if (p.errore) return male({ errore: p.errore });
       r = p.fatto;
       break;
@@ -869,10 +877,35 @@ export async function spostaSessione(s, macchina, dormi = null) {
   }
   // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
   if (!r.attach?.length) return male({ errore: r.errore ?? "nessuna risposta", lavora: r.lavora === true });
-  chiudiSchede(s);
-  const v = await apriSessione({ id: r.id, sessionId: r.sessionId, nome: titolo(s), progetto: s.progetto ?? null,
-    questa: macchina === "qui", host: macchina }, r.attach, true);
+  const dopo = chiudiSchede(s);
+  const nuova = { id: r.id, sessionId: r.sessionId, nome: titolo(s), progetto: s.progetto ?? null, questa: macchina === "qui", host: macchina };
+  await traccia("apro", { nuova, attach: r.attach, chiuseDopo: dopo, schedeNuova: schedeDi(nuova).map((t) => t.address) });
+  const v = await apriSessione(nuova, r.attach, true);
+  await traccia("aperta", { come: v.come ?? null, errore: v.errore ?? null, schedeNuova: schedeDi(nuova).map((t) => t.address) });
   return v.errore ? { errore: `è su ${nomeMacchina(macchina)}, ma non si apre: ${v.errore}` } : { ok: true };
+}
+
+// Il nome dei file di uno spostamento in cacheVolta()/sposta: il sessionId senza caratteri strani.
+const nomeSposta = (s) => String(s?.sessionId ?? s?.id ?? "").replace(/[^0-9A-Za-z-]/g, "");
+
+// La traccia di Sposta (#5556): i passi di uno spostamento, in cacheVolta()/sposta/<sessionId>.traccia.json,
+// perché le notifiche di Volta non si leggono da fuori. `nuova`: il primo passo (il comando), che toglie la
+// traccia di prima. Ogni passo rilegge il file prima di scriverlo: la barra che sposta e chi la chiama
+// possono essere copie diverse del mod. Una traccia che non si scrive non ferma lo spostamento: torna false.
+export async function tracciaSposta(s, passo, dati = {}, nuova = false) {
+  const file = `${cacheVolta()}/sposta/${nomeSposta(s)}.traccia.json`;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const prima = await readTextFile(file).catch(() => null);
+      let l = [];
+      if (!nuova) { try { l = JSON.parse(prima ?? "[]"); } catch { l = []; } }
+      if (!Array.isArray(l)) l = [];
+      l.push({ ora: new Date().toISOString(), passo, ...dati });
+      await writeTextFile(file, JSON.stringify(l.slice(-100), null, 1), prima);
+      return true;
+    } catch { /* un'altra copia ha scritto in mezzo, o la cartella manca: si riprova */ }
+  }
+  return false;
 }
 
 // Chiude le schede che agganciano la sessione: la prima metà di "Chiudi", prima di claude stop. La

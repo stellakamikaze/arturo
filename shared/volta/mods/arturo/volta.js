@@ -24,7 +24,7 @@ import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } f
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi, cacheVolta, spostaSessione, nomeMacchina } from "./dati.js";
+import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina } from "./dati.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
@@ -646,10 +646,15 @@ export class Volta {
     const no = nonSiSposta(s) ?? ((s.host ?? "qui") === macchina ? `È già su ${nomeMacchina(macchina)}.` : null);
     if (no) {
       if (!zitto) notify({ title: "Non la sposto", body: no, level: "warning" });
+      tracciaSposta(s, "comando", { a: macchina, id, no }, true);
       return false;
     }
     const k = s.sessionId;
-    if (this.faccio[k] || this.codaSposta[k]) return false;
+    if (this.faccio[k] || this.codaSposta[k]) {
+      tracciaSposta(s, "comando", { a: macchina, id, no: "già in corso o in coda", faccio: this.faccio[k] ?? null, coda: this.codaSposta[k] ?? null });
+      return false;
+    }
+    tracciaSposta(s, "comando", { a: macchina, id, da: s.host ?? "qui", aFineTurno: aFineTurno(s) }, true);
     this.codaSposta[k] = { macchina, id: s.id, da: s.host ?? "qui", dopo: 0 };
     this.spostoSu = { ...(this.spostoSu ?? {}), [k]: macchina };
     if (!zitto && aFineTurno(s)) notify({ title: `La sposto su ${nomeMacchina(macchina)} a turno finito`, body: titolo(s), level: "info", timeout: 5000 });
@@ -688,7 +693,11 @@ export class Volta {
       cx.notify();
       cx.spawn(async (cx) => {
         let r;
-        try { r = await spostaSessione(s, v.macchina, (ms) => cx.sleep(ms)); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
+        try { r = await spostaSessione(s, v.macchina, (ms) => cx.sleep(ms)); } catch (e) {
+          r = { errore: String(e?.message ?? e).slice(0, 160) };
+          await tracciaSposta(s, "caduto", { errore: r.errore });
+        }
+        await tracciaSposta(s, "fine", { esito: r });
         delete this.faccio[k];
         this.spostando = false;
         if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };
