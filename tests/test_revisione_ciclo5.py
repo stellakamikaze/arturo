@@ -458,7 +458,11 @@ def test_x13(repo: Path) -> None:
         testo = " ".join(read(repo / nome).split())
         assert "`arturo web` nel terminale" not in testo and "con `arturo web`." not in testo, \
             f"X13 {nome} fa scrivere `arturo web`, che esiste solo con l'alias di /setup"
-        assert "python3 ~/.claude/bin/arturo web" in testo, f"X13 {nome} non dà la forma che funziona sempre"
+        # Col plugin ~/.claude/bin/arturo non esiste: dal 12/11/2026 (#5266) il README dà la riga dell'alias
+        # di /setup, che legge la cartella del plugin da ~/.claude/arturo/radice. NOVITA tiene le voci storiche.
+        sempre = ('python3 "$(cat ~/.claude/arturo/radice 2>/dev/null || echo ~/.claude)/bin/arturo"'
+                  if nome == "README.md" else "python3 ~/.claude/bin/arturo web")
+        assert sempre in testo, f"X13 {nome} non dà la forma che funziona sempre"
     novita = " ".join(read(repo / "NOVITA.md").split())
     assert "scrivi `arturo todo deciso" not in novita, "X13 NOVITA fa scrivere `arturo todo deciso` senza l'alias"
     assert "FASE 7c" in read(repo / "commands" / "aggiorna.md"), "X13 /aggiorna non propone il comando breve"

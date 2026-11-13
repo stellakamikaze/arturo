@@ -13,6 +13,30 @@ modo di lavorare.
 
 ---
 
+## 2026-11-12 — Col plugin i testi di Arturo dicono il vero
+
+**Cosa cambia**: da quando Arturo si installa anche come plugin, alcuni testi descrivevano solo la copia dentro
+`~/.claude`. Chi aveva il plugin trovava comandi che non partivano e risposte che mancavano.
+
+- I comandi `arturo …` del README e della pagina della privacy, compreso quello che spegne la telemetria, in un
+  terminale col plugin non partivano. Adesso le due pagine danno una riga che vale in tutte e due le
+  installazioni, e ricordano che basta chiedere a Claude: "spegni la telemetria".
+- Col plugin nessuno proponeva `/setup`. Un plugin non porta permessi, regole di blocco e barra in basso: li
+  aggiunge `/setup`. Adesso l'avvio te lo ricorda una volta al giorno, finché non lo fai.
+- `/aggiorna indietro` col plugin non rispondeva niente. Adesso dice che col plugin una versione di prima non si
+  reinstalla, e ti propone di segnalare il problema della versione nuova.
+- `/diagnosi` chiamava "non un errore" anche una copia del plugin cambiata da qualcuno. Adesso dice per prima
+  una possibile compromissione e ti chiede se il file l'hai cambiato tu.
+- `/novita` diceva che solo `/aggiorna` installa le versioni nuove, e più sotto che si installano da sole. Vale
+  la seconda: `/aggiorna` serve per averle subito o quando l'avvio lo chiede.
+
+**Da sapere**: se hai il plugin e non hai mai lanciato `/setup`, lancialo alla prossima sessione.
+
+**Il principio**: un testo che descrive un'altra installazione dalla tua ti lascia davanti a un comando che non
+parte, proprio nel momento in cui volevi toglierti un dubbio.
+
+---
+
 ## 2026-11-12 — Il controllo della configurazione non dà più errori falsi
 
 **Cosa cambia**: `/system-audit`, che gira anche dentro `/diagnosi`, segnava errori su configurazioni che

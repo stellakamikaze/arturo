@@ -323,6 +323,18 @@ if [ -d "$HOME/.claude/.git" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ] \
     echo "SETUP: la prima configurazione di Arturo non è finita$RIPRESA_SETUP. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che la guida una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
   fi
 fi
+# Col plugin l'invito non partiva mai: ~/.claude non è il repository di Arturo (review del 10/11/2026, #5266).
+# Un plugin non porta permessi, regole di blocco e barra: li unisce /setup, che scrive il file di blocco
+# data/arturo-impostazioni.lock. Senza blocco e senza setup-fatto l'invito esce, una volta al giorno.
+if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$ORSA_RADICE" 2>/dev/null && pwd -P)" ] \
+  && [ -f "$ARTURO_CODICE/.claude-plugin/plugin.json" ] \
+  && [ ! -f "$ORSA_RADICE/data/arturo-impostazioni.lock" ] && [ ! -f "$ORSA_RADICE/data/setup-fatto" ]; then
+  OGGI_SETUP=$(date +%Y-%m-%d)
+  if [ "$(cat "$ORSA_RADICE/session-env/setup-invito" 2>/dev/null)" != "$OGGI_SETUP" ]; then
+    mkdir -p "$ORSA_RADICE/session-env" && printf '%s\n' "$OGGI_SETUP" > "$ORSA_RADICE/session-env/setup-invito"
+    echo "SETUP: Arturo è installato come plugin, ma i suoi permessi, le regole di blocco e la barra in basso non sono ancora nelle impostazioni di Claude Code: un plugin non li porta. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che li applica e guida il resto una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
+  fi
+fi
 
 # Segnalazioni (11/11/2026): di default Claude le scrive e le manda da solo a chi mantiene Arturo, e dice cosa è
 # partito. L'avviso esce una volta sola (arturo segnala avviso, segno in session-env/segnalazioni-annuncio). Con

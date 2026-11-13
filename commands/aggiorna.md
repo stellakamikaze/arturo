@@ -1,5 +1,5 @@
 ---
-description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi
+description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi. Col plugin `indietro` e `personale` dicono perché non servono
 argument-hint: "(nessuno) | indietro | personale"
 ---
 
@@ -50,6 +50,15 @@ senza firma: la verifica la fa Arturo, prima.
   Se la riga dice "ho disattivato Arturo", la copia nuova non ha superato il controllo e quella di prima
   non è tornata: Arturo resta spento finché la persona non lo riattiva. Dille di segnalarlo come dice
   `SECURITY.md`, e di lanciare `claude plugin enable arturo@arturo` solo dopo la risposta di chi mantiene Arturo.
+
+Col plugin `/aggiorna indietro` e `/aggiorna personale` non propongono l'aggiornamento e hanno una risposta
+sola. Con `rc=3` o `rc=4` di' prima la riga della verifica, come sopra.
+- `indietro`: "Col plugin Arturo non torna alla versione di prima: Claude Code installa solo il rilascio
+  che indica il catalogo firmato. Se la versione nuova ti dà un problema, dimmi cosa succede e lo segnalo a
+  chi mantiene Arturo." Poi, col suo racconto, segui `/segnala`. Niente `claude plugin install` di una
+  versione vecchia a mano: salta la verifica della firma.
+- `personale`: "Col plugin le tue aggiunte stanno già fuori da Arturo, in `~/.claude/personale/`: un
+  aggiornamento non le tocca, e non c'è niente da spostare."
 
 Con `COPIA IN ~/.claude` (`rc=5`) Arturo è una copia in `~/.claude`: prosegui dal Passo 1, senza
 dirlo alla persona. Con `NESSUN RILASCIO` il plugin non trova il suo catalogo: mostra la riga e
@@ -386,7 +395,8 @@ niente, non c'era niente da spostare: diglielo in una riga.
 
 ## Tornare indietro
 
-Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento. Ogni
+Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento. Col plugin vale
+la risposta del Passo 0. Ogni
 `/aggiorna` scrive una riga in `session-env/aggiornamenti` (versione prima, versione dopo,
 data): tornare indietro toglie l'ultima riga, e un secondo `/aggiorna indietro` toglie la
 precedente. I passi 1-4 qui sopra non c'entrano.
