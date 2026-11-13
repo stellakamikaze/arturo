@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GV01-GV13: le guardie leggono i percorsi fra virgolette e i percorsi alla maniera di Windows (#5096).
+"""GV01-GV15: le guardie leggono i percorsi fra virgolette e i percorsi alla maniera di Windows (#5096).
 
 La review del 9/11/2026 ha trovato che una redirezione verso un file fra virgolette passava senza conferma su
 ogni sistema, anche verso settings.json e il file di sblocco: la guardia leggeva il bersaglio fino alla prima
@@ -26,6 +26,12 @@ GV12 i comandi di Windows che cancellano o eseguono (HK-5): robocopy con /MIR o 
      e rmSync, rmdirSync o fs.rm ricorsivi di node, bun e deno chiedono.
 GV13 falsi positivi di HK-5: robocopy con /L o senza /MIR, reg query, wsl ls, rmSync di node_modules, PowerShell
      senza download.
+GV14 l'avvio automatico su Windows (HK-6): Write nella cartella Esecuzione automatica e sui profili di PowerShell
+     si ferma; la scrittura via shell, schtasks /create, reg add sulle chiavi Run, Winlogon e Image File
+     Execution Options, reg import e load, sc create, Register-ScheduledTask, New-Service e Set-ItemProperty su
+     Run chiedono.
+GV15 falsi positivi di HK-6: schtasks /query, reg query, reg add su un'altra chiave, lettura e copia del profilo,
+     echo, sc query, Get-ScheduledTask, un .ps1 qualsiasi.
 
 Sulla base ce1cafc ogni gruppo fallisce con un AssertionError che comincia col suo codice, salvo GV08 (i falsi
 positivi tacciono anche lì). Con --avvelena il banco lo prova da solo: rimette nella copia le guardie di ce1cafc
@@ -477,11 +483,82 @@ def test_gv13(b: Banco):
     return verifica("GV13", casi)
 
 
+@gruppo
+def test_gv14(b: Banco):
+    # Revisione del 10/11/2026, HK-6: l'avvio automatico su Windows passava senza conferma.
+    avvio = "Start Menu/Programs/Startup"
+    utente = f"{b.H}/AppData/Roaming/Microsoft/Windows/{avvio}"
+    profilo = f"{b.H}/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1"
+    run = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+    casi = [
+        ("Write nella cartella Esecuzione automatica", b.scrittura(f"{utente}/x.bat"), "deny"),
+        ("Write sul profilo di Windows PowerShell", b.scrittura(profilo), "deny"),
+        ("Write sul profilo di PowerShell 7", b.scrittura(f"{b.H}/Documents/PowerShell/profile.ps1"), "deny"),
+        ("Write sul profilo di $PSHOME", b.scrittura(f"{b.H}/pwsh/PowerShell/7/Microsoft.PowerShell_profile.ps1"),
+         "deny"),
+        ("guardia: redirezione nella cartella Esecuzione automatica",
+         b.guardia(f'echo x > "$APPDATA/Microsoft/Windows/{avvio}/x.bat"'), "ask:avvio-automatico"),
+        ("guardia: cp sul profilo", b.guardia(f'cp a.ps1 "{profilo}"'), "ask:avvio-automatico"),
+        ("guardia: powershell Add-Content sul profilo",
+         b.guardia(f"powershell -c \"Add-Content -Path '{profilo}' -Value x\""), "ask:avvio-automatico"),
+        ("guardia: schtasks //create", b.guardia("schtasks //create //tn x //tr C:/x.bat //sc onlogon"),
+         "ask:avvio-automatico"),
+        ("guardia: reg add su Run", b.guardia(f"reg add {run} //v x //d C:/x.exe"), "ask:avvio-automatico"),
+        ("dispatcher: Write in Esecuzione automatica via shell", b.dispatcher(f'echo x > "{utente}/x.bat"'), "ask"),
+        ("dispatcher: schtasks //create", b.dispatcher("schtasks //create //tn x //tr C:/x.bat"), "ask"),
+        ("dispatcher: schtasks.exe -Create", b.dispatcher("schtasks.exe -Create -tn x -tr C:/x.bat"), "ask"),
+        ("dispatcher: reg add su Run senza virgolette", b.dispatcher(f"reg add {run} //v x //d C:/x.exe"), "ask"),
+        ("dispatcher: reg add su RunOnce fra virgolette", b.dispatcher(f'reg add "{run}Once" //v x //d y'), "ask"),
+        ("dispatcher: reg add su Winlogon",
+         b.dispatcher('reg add "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" //v Shell //d x'),
+         "ask"),
+        ("dispatcher: reg add su Image File Execution Options",
+         b.dispatcher('reg add "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution '
+                      'Options\\notepad.exe" //v Debugger //d x'), "ask"),
+        ("dispatcher: reg import", b.dispatcher("reg import impostazioni.reg"), "ask"),
+        ("dispatcher: reg load", b.dispatcher("reg load HKU\\Prova C:/x/NTUSER.DAT"), "ask"),
+        ("dispatcher: sc create", b.dispatcher("sc create servizio binPath= C:/x.exe"), "ask"),
+        ("dispatcher: Register-ScheduledTask", b.dispatcher('powershell -c "Register-ScheduledTask -TaskName x"'),
+         "ask"),
+        ("dispatcher: New-Service", b.dispatcher('pwsh -Command "New-Service -Name x -BinaryPathName C:/x.exe"'),
+         "ask"),
+        ("dispatcher: Set-ItemProperty su Run",
+         b.dispatcher(f"powershell -c \"Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion"
+                      "\\Run' -Name x -Value C:/x.exe\""), "ask"),
+        ("dispatcher: cmd /c schtasks /create", b.dispatcher('cmd /c "schtasks /create /tn x /tr C:\\x.bat"'), "ask"),
+    ]
+    if WINDOWS:
+        casi.append(("Write in Esecuzione automatica di %PROGRAMDATA%",
+                     b.scrittura("C:/ProgramData/Microsoft/Windows/Start Menu/Programs/StartUp/x.lnk"), "deny"))
+    return verifica("GV14", casi)
+
+
+@gruppo
+def test_gv15(b: Banco):
+    # Falsi positivi di HK-6: elencare, leggere e copiare altrove tacciono.
+    profilo = f"{b.H}/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1"
+    casi = [
+        ("schtasks //query", b.dispatcher("schtasks //query //fo LIST"), "silent"),
+        ("reg query su Run", b.dispatcher("reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+         "silent"),
+        ("reg add su una chiave qualsiasi", b.dispatcher("reg add HKCU\\Software\\Prova //v x //d 1"), "silent"),
+        ("cat del profilo", b.dispatcher(f'cat "{profilo}"'), "silent"),
+        ("copia del profilo altrove", b.dispatcher(f'cp "{profilo}" "{b.H}/tmp/copia.ps1"'), "silent"),
+        ("echo di schtasks /create", b.dispatcher("echo schtasks /create"), "silent"),
+        ("sc query", b.dispatcher("sc query"), "silent"),
+        ("powershell Get-ScheduledTask", b.dispatcher('powershell -c "Get-ScheduledTask"'), "silent"),
+        ("ls della cartella Esecuzione automatica",
+         b.dispatcher(f'ls "{b.H}/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"'), "silent"),
+        ("Write su un .ps1 qualsiasi", b.scrittura(f"{b.H}/Documents/ClaudeCode/x/build.ps1"), "silent"),
+    ]
+    return verifica("GV15", casi)
+
+
 TESTS = {"GV01": test_gv01, "GV02": test_gv02, "GV03": test_gv03, "GV04": test_gv04, "GV05": test_gv05,
          "GV06": test_gv06, "GV07": test_gv07, "GV08": test_gv08, "GV09": test_gv09, "GV10": test_gv10,
-         "GV11": test_gv11, "GV12": test_gv12, "GV13": test_gv13}
+         "GV11": test_gv11, "GV12": test_gv12, "GV13": test_gv13, "GV14": test_gv14, "GV15": test_gv15}
 # I falsi positivi tacciono anche sulla base: il veleno non li tocca.
-SENZA_VELENO = {"GV08", "GV10", "GV13"}
+SENZA_VELENO = {"GV08", "GV10", "GV13", "GV15"}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "protect_claude_md.py", "forma_comando.py",
            "gh-destructive-guard.py", "commit-secret-gate.py", "comms-prefilter.py", "heredoc.py", "data-guard.py")
 

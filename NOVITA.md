@@ -13,7 +13,7 @@ modo di lavorare.
 
 ---
 
-## 2026-11-13 — Guardie su Windows: robocopy, registro, PowerShell, wsl e node
+## 2026-11-13 — Guardie su Windows: robocopy, registro, PowerShell, wsl, node e avvio automatico
 
 **Cosa cambia**: su Windows alcuni comandi che cancellano o eseguono codice passavano senza nessuna conferma.
 Adesso le guardie li vedono.
@@ -25,6 +25,10 @@ Adesso le guardie li vedono.
 - `wsl rm -rf` passa dalle stesse guardie di `rm -rf`.
 - `rmSync`, `rmdirSync` e `fs.rm` di node, bun e deno con `recursive: true` chiedono conferma come `shutil.rmtree`
   di Python. Su `node_modules` tacciono.
+- L'avvio automatico di Windows è protetto come i LaunchAgents del Mac. Scrivere nella cartella Esecuzione
+  automatica (`Start Menu/Programs/Startup`) o in un profilo di PowerShell vuole lo sblocco di sistema. Chiedono
+  conferma `schtasks /create`, `reg add` sulle chiavi `Run`, `Winlogon` e `Image File Execution Options`,
+  `reg import`, `sc create`, `Register-ScheduledTask` e `New-Service`. `schtasks /query` e `reg query` tacciono.
 
 **Il principio**: una guardia vale quanto la forma più semplice che la aggira.
 

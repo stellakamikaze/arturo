@@ -7,6 +7,7 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     .git/hooks/** di qualunque repository
     ~/Library/LaunchAgents/** (macOS)
     ~/.config/systemd/user/** e ~/.config/autostart/** (Linux)
+    Start Menu/Programs/Startup/** e i profili *profile.ps1 di PowerShell (Windows)
     -> unlock: touch ~/.claude/system-unlock-{session_id}
 
   CLAUDE.md e CLAUDE.local.md (qualsiasi cartella; il .local dal 10/11/2026, #5159)
@@ -191,7 +192,14 @@ def _persistenza(rp):
         r = piega(os.path.realpath(os.path.expanduser(radice)))
         if rp == r or rp.startswith(r + os.sep):
             return True
-    return False
+    # Windows (revisione del 10/11/2026, HK-6): la cartella Esecuzione automatica, dell'utente e di
+    # %PROGRAMDATA%, e i profili di PowerShell, che girano a ogni shell aperta.
+    parti = rp.split(os.sep)
+    esecuzione = [piega(x) for x in ('Start Menu', 'Programs', 'Startup')]
+    if any(parti[i:i + 3] == esecuzione for i in range(len(parti) - 2)):
+        return True
+    cartelle_ps = (piega('WindowsPowerShell'), piega('PowerShell'))
+    return parti[-1].endswith(piega('profile.ps1')) and any(c in cartelle_ps for c in parti[:-1])
 
 
 def _mod_di(rp, claude_dir):

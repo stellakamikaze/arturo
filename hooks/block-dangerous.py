@@ -141,7 +141,8 @@ _BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(
 #   nome-cartella  "cartella/nome": un nome, anche con *, in una cartella di ~/.claude;
 #   albero-home    la cartella sotto la home e tutto quello che contiene;
 #   pezzo          un pezzo di percorso in qualunque punto, e quello che sta sotto;
-#   nome-ovunque   il nome del file, in qualunque cartella.
+#   nome-ovunque   il nome del file, in qualunque cartella;
+#   nome-sotto     "cartella/nome": un nome, anche con *, a qualunque profondità sotto una cartella con quel nome.
 # `riserva` dice se la voce entra nelle regex sul testo dei comandi bash. plugins/cache, plugins/marketplaces,
 # firme, bin e arturo ne stanno fuori di proposito: nel testo sembrerebbero scritture anche come sorgente di
 # un cp (/inizio, /aggiorna).
@@ -186,6 +187,13 @@ PERCORSI_PROTETTI = (
     ("avvio-automatico", "albero-home", "Library/LaunchAgents", "~/Library/LaunchAgents/x.plist", True),
     ("avvio-automatico", "albero-home", ".config/systemd/user", "~/.config/systemd/user/x.service", True),
     ("avvio-automatico", "albero-home", ".config/autostart", "~/.config/autostart/x.desktop", True),
+    # Su Windows (revisione del 10/11/2026, HK-6): la cartella Esecuzione automatica, dell'utente e di
+    # %PROGRAMDATA%, e i profili di PowerShell, che girano a ogni shell aperta.
+    ("avvio-automatico", "pezzo", "Start Menu/Programs/Startup",
+     "~/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/x.bat", True),
+    ("avvio-automatico", "nome-sotto", "WindowsPowerShell/*profile.ps1",
+     "~/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1", True),
+    ("avvio-automatico", "nome-sotto", "PowerShell/*profile.ps1", "~/Documents/PowerShell/profile.ps1", True),
 )
 # Come ogni regola tratta le maiuscole, uguale a prima della tabella. Nel predicato "piega" confronta con
 # _piega (macOS e Windows ignorano le maiuscole, finding 11), "nome" mette in minuscolo solo il nome del
@@ -195,8 +203,10 @@ PERCORSI_PROTETTI = (
 # 10/11/2026, HK-1b). Stessa regola di forma_comando.RE_NOMI, che qui non è ancora caricato.
 _RE_NOMI = re.IGNORECASE if sys.platform in ("darwin", "win32") else 0
 _SED = r"(?i:\bsed\b)" if _RE_NOMI else r"\bsed\b"
+# Per l'avvio automatico la riserva ignora le maiuscole dove le ignora il disco: la cartella di
+# %PROGRAMDATA% si scrive `StartUp` (HK-6).
 _MAIUSCOLE = {"config": ("piega", True), "sblocco": ("nome", True), "claude-md": ("esatte", False),
-              "avvio-automatico": ("piega", False)}
+              "avvio-automatico": ("piega", bool(_RE_NOMI))}
 # Un pezzo di nome nelle regex, al posto di *.
 _DENTRO_NOME = r"[^/\s'\";|&]*"
 
@@ -215,7 +225,9 @@ def _frammento(forma, percorso, modo="bash"):
         parti = pezzi[-1].split("*")
         primo = next(i for i, x in enumerate(parti) if x)
         pezzi[-1] = "*".join(parti[:primo + 1])
-    testo = "/".join(_DENTRO_NOME.join(re.escape(x) for x in pezzo.split("*")) for pezzo in pezzi)
+    esc = [_DENTRO_NOME.join(re.escape(x) for x in pezzo.split("*")) for pezzo in pezzi]
+    # nome-sotto: fra la cartella e il nome possono stare altre cartelle (`PowerShell/7/profile.ps1`).
+    testo = esc[0] + "/(?:" + _DENTRO_NOME + "/)*" + esc[1] if forma == "nome-sotto" else "/".join(esc)
     if forma in ("albero-claude", "file-claude", "nome-radice", "nome-cartella"):
         testo = r"\.claude/" + testo
     if forma in ("albero-claude", "albero-home", "pezzo"):
@@ -791,6 +803,10 @@ def _protetto(regola, p):
             continue
         if forma == "nome-ovunque":
             if nome == piega(percorso):
+                return True
+            continue
+        if forma == "nome-sotto":
+            if piega(pezzi[0]) in cartella.split(os.sep) and fnmatch.fnmatchcase(nome, piega(pezzi[-1])):
                 return True
             continue
         base = os.path.join(home, ".claude") if forma != "albero-home" else home
@@ -2043,6 +2059,42 @@ def _regole_windows(testo):
     return regole
 
 
+# Programmi che registrano altro codice da far partire da solo su Windows (revisione del 10/11/2026, HK-6):
+# un'operazione pianificata, una chiave di avvio del registro, un servizio. Le chiavi si cercano sul testo con
+# `\W*` fra i pezzi: in Git Bash una barra rovesciata fuori dalle virgolette sparisce, e
+# `HKCU\...\CurrentVersion\Run` arriva come `HKCU...CurrentVersionRun`.
+_AVVIO_CHIAVI = r"currentversion\W*(?:policies\W*explorer\W*)?run|winlogon|image\W*file\W*execution\W*options"
+_AVVIO_CHIAVI_RE = re.compile(_AVVIO_CHIAVI, re.IGNORECASE)
+# Lo stesso nel codice di cmd e powershell, più i cmdlet di PowerShell. In PowerShell `sc` è Set-Content, ma
+# `sc create` non scrive niente di utile: vale come sc.exe.
+_AVVIO_CODICE = re.compile(
+    r"(?:^|[\s;&|(])(?:schtasks(?:\.exe)?\s(?:[^;&|\n]*\s)?[/-]+create(?![\w-])"
+    r"|reg(?:\.exe)?\s+(?:import|restore|load)(?![\w-])"
+    r"|reg(?:\.exe)?\s+add\s[^;&|\n]*(?:" + _AVVIO_CHIAVI + r")"
+    r"|sc(?:\.exe)?\s+create(?![\w-])"
+    r"|(?:register-scheduledtask|new-service)(?![\w-])"
+    r"|(?:new|set)-itemproperty\s[^;|\n]*currentversion\W*(?:policies\W*explorer\W*)?run)",
+    re.IGNORECASE)
+
+
+def _avvio_windows(testo):
+    """Il motivo se il comando registra codice che parte da solo su Windows, None altrimenti."""
+    for nome, args in _fc.programmi(testo):
+        nome = nome.lower()
+        sotto = args[0].lower() if args else ""
+        if nome == "schtasks" and any(a[:1] in "/-" and a.lstrip("/-").lower() == "create" for a in args if a):
+            return "schtasks /create, un'operazione pianificata"
+        if nome == "reg" and sotto in ("import", "restore", "load"):
+            return f"reg {sotto}, che scrive chiavi intere del registro"
+        if nome == "reg" and sotto == "add" and _AVVIO_CHIAVI_RE.search(" ".join(args[1:])):
+            return "reg add su una chiave di avvio (Run, Winlogon, Image File Execution Options)"
+        if nome == "sc" and sotto == "create":
+            return "sc create, un servizio di Windows"
+    if any(_AVVIO_CODICE.search(c) for c in _codici_windows(testo)):
+        return "codice di cmd o PowerShell che registra un'operazione pianificata, un servizio o una chiave di avvio"
+    return None
+
+
 _PUSH_RISCRIVE = ("--force", "--force-with-lease", "--force-if-includes", "--mirror", "--delete", "--prune")
 
 
@@ -2307,8 +2359,19 @@ def main() -> int:
     if PERSIST_WRITE_RE.search(dritto) or "avvio-automatico" in windows or _writes_config(testo, cwd, _is_persistenza):
         return _ask("avvio-automatico",
             "Scrittura via shell su un git hook o su un servizio di avvio automatico "
-            "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
-            "commit o a ogni accesso. Conferma solo se l'hai chiesto tu."
+            "(LaunchAgents, systemd, autostart, la cartella Esecuzione automatica o un profilo "
+            "di PowerShell): il codice partirebbe da solo a ogni commit, a ogni accesso o a ogni "
+            "shell aperta. Conferma solo se l'hai chiesto tu."
+        )
+    # Su Windows anche i programmi che registrano l'avvio: schtasks, reg, sc, PowerShell (HK-6).
+    try:
+        avvio = _avvio_windows(testo)
+    except Exception:
+        avvio = None
+    if avvio:
+        return _ask("avvio-automatico",
+            f"Avvio automatico su Windows ({avvio}): il programma partirebbe da solo, a ogni "
+            "accesso o a un orario, anche fuori da Claude Code. Conferma solo se l'hai chiesto tu."
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)

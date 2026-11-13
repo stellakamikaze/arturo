@@ -232,22 +232,26 @@ def test_su06(b: Banco):
     for regola, forma, percorso, esempio, riserva in tabella:
         assert esempio.startswith(("~/", "progetto/")), f"SU06 esempio fuori forma per {percorso}: {esempio}"
         attesa = ("ask", regola)
-        casi.append((f"{percorso}: redirezione", b.guardia_regola(BD, f"echo x > {esempio}"), attesa))
+        # Un esempio con uno spazio (`Start Menu`) va fra virgolette singole dopo `~/`: la tilde resta fuori e si
+        # espande, e le singole stanno anche dentro le doppie di cmd e powershell.
+        testa = "~/" if esempio.startswith("~/") else ""
+        resto = esempio[len(testa):]
+        citato = f"'{resto}'" if " " in resto else resto
+        casi.append((f"{percorso}: redirezione", b.guardia_regola(BD, f"echo x > {testa}{citato}"), attesa))
         # Con una variabile davanti il percorso risolto non è protetto: lo vede solo la riserva sul testo, e le
         # voci fuori dalla riserva restano libere di proposito.
-        resto = esempio[2:] if esempio.startswith("~/") else esempio
         if percorso in ATTESI:
             riserva = percorso not in FUORI_DALLA_RISERVA
         if riserva:
-            casi.append((f"{percorso}: riserva", b.guardia_regola(BD, f"echo x > $X/{resto}"), attesa))
+            casi.append((f"{percorso}: riserva", b.guardia_regola(BD, f"echo x > $X/{citato}"), attesa))
         else:
             casi.append((f"{percorso}: fuori dalla riserva",
-                         b.guardia_regola(BD, f"echo x > $X/{resto}") == attesa, False))
-        casi.append((f"{percorso}: cp", b.guardia_regola(BD, f"cp x {esempio}"), attesa))
-        casi.append((f"{percorso}: cmd", b.guardia_regola(BD, f'cmd /c "echo x > {esempio}"'), attesa))
-        casi.append((f"{percorso}: powershell", b.guardia_regola(BD, f'powershell -Command "Set-Content {esempio} x"'),
-                     attesa))
-        casi.append((f"{percorso}: dispatcher", b.dispatcher(f"echo x > {esempio}"), "ask"))
+                         b.guardia_regola(BD, f"echo x > $X/{citato}") == attesa, False))
+        casi.append((f"{percorso}: cp", b.guardia_regola(BD, f"cp x {testa}{citato}"), attesa))
+        casi.append((f"{percorso}: cmd", b.guardia_regola(BD, f'cmd /c "echo x > {testa}{citato}"'), attesa))
+        casi.append((f"{percorso}: powershell",
+                     b.guardia_regola(BD, f'powershell -Command "Set-Content {testa}{citato} x"'), attesa))
+        casi.append((f"{percorso}: dispatcher", b.dispatcher(f"echo x > {testa}{citato}"), "ask"))
         if percorso in SENZA_EDIT:
             continue
         vero = b.home / (esempio[2:] if esempio.startswith("~/") else esempio)
@@ -260,7 +264,8 @@ ATTESI = frozenset((
     "settings*.json", ".claude.json", "hooks", "plugins/cache", "plugins/marketplaces", "firme",
     "bin/aggiornamenti.py", "bin/aggiorna-applica.sh", "arturo/radice", "arturo/rilasci.allowed_signers",
     "arturo/*.local", "*unlock*", "CLAUDE.md", "CLAUDE.local.md", ".git/hooks", "Library/LaunchAgents",
-    ".config/systemd/user", ".config/autostart",
+    ".config/systemd/user", ".config/autostart", "Start Menu/Programs/Startup", "WindowsPowerShell/*profile.ps1",
+    "PowerShell/*profile.ps1",
 ))
 # Le voci di ATTESI fuori dalla riserva sul testo: nel testo sembrerebbero scritture anche quando sono lette.
 # La scelta sta qui e non nella tabella, così cambiarla nella tabella fa rosso SU06.
