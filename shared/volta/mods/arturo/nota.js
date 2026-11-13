@@ -14,7 +14,7 @@ export function cartellaNota(home, d = new Date()) {
 
 // Le misure che servono a regione(), dal layout vivo (layout() di herdr) e dalle misure che le parti riportano
 // in shared arturo.misura.<parte>: divisore fra barra e lavoro, padding e gap attorno alla sessione, pannello
-// Da fare nascosto. Senza un nodo, valgono i numeri di layouts/arturo.json.
+// Da fare nascosto, tessere di ⌘T al posto del terminale. Senza un nodo, valgono i numeri di layouts/arturo.json.
 export function misureDaLayout(lay, parti, finestra) {
   const trova = (n, id) => {
     if (n?.id === id) return n;
@@ -24,7 +24,10 @@ export function misureDaLayout(lay, parti, finestra) {
   const corpo = trova(lay, "work-body");
   return { ...parti, finestra,
     divisore: lay?.divider?.width ?? 1, padding: corpo?.padding ?? 12, gap: corpo?.gap ?? 12,
-    pannello_nascosto: Boolean(trova(lay, "pannello")?.hidden) };
+    pannello_nascosto: Boolean(trova(lay, "pannello")?.hidden),
+    // Lo stack "lavoro" mostra "casa", le tessere (STACK e CASA di tessere.js: qui niente import, il banco
+    // prova nota.js da sola con node).
+    tessere: trova(lay, "lavoro")?.active === "casa" };
 }
 
 // Il benvenuto galleggia in cima alla sessione, 12 px sotto il bordo (herdr-app status: y 78 su main.y 66).
@@ -64,7 +67,8 @@ export function regione(punto, m) {
     ["testata", "testata", rett(x0, 0, testata.larghezza, testata.altezza)],
     ["stato", "stato", rett(x0, H - stato.altezza, testata.larghezza, stato.altezza)],
     ["benvenuto", "benvenuto", benvenuto],
-    ["main", null, main],
+    // Con le tessere di ⌘T mostrate, il posto della sessione è loro: una nota lì non va sul terminale (#5456).
+    m.tessere ? ["tessere", "casa", main] : ["main", null, main],
     ["pannello", "todo", pannelloW ? rett(W - pad - pannelloW, main.y, pannelloW, main.altezza) : null],
   ];
   for (const [blocco, parte, r] of blocchi) if (dentro(p, r)) return { blocco, parte, rettangolo: r };
@@ -72,12 +76,13 @@ export function regione(punto, m) {
   if (p.x < x0) return { blocco: "progetti", parte: "barra", rettangolo: blocchi[1][2] };
   const pannello = blocchi[7][2];
   if (pannello && p.x >= main.x + main.larghezza + gap / 2) return { blocco: "pannello", parte: "todo", rettangolo: pannello };
-  return { blocco: "main", parte: null, rettangolo: main };
+  return m.tessere ? { blocco: "tessere", parte: "casa", rettangolo: main } : { blocco: "main", parte: null, rettangolo: main };
 }
 
 // I nomi delle parti come li legge la persona: l'etichetta del riquadro che segue il puntatore.
 export const NOMI_BLOCCO = { marchio: "Marchio", progetti: "Barra dei progetti", piede: "Piede della barra",
-  testata: "Testata", stato: "Barra di stato", benvenuto: "Benvenuto", main: "Sessione", pannello: "Da fare" };
+  testata: "Testata", stato: "Barra di stato", benvenuto: "Benvenuto", main: "Sessione", pannello: "Da fare",
+  tessere: "Tessere dei progetti" };
 
 // I nomi degli elementi come li legge la persona. Un elemento è un pezzo di una parte con un id suo: la
 // finestra dice dove sta (window.elements() di Volta), qui prende il nome. Prima gli id fissi, poi
@@ -88,7 +93,7 @@ export const NOMI_ELEMENTO = {
   "volta-testa": "Tutte le sessioni", "volta-macchina": "Vista per macchina", "volta-progetto": "Vista per progetto",
   "volta-elenco": "Elenco delle sessioni", "volta-gesti": "Gesti della sessione", "volta-gesti-chiudi": "Chiudi i gesti",
   chiedi: "Cosa posso chiedere", settimana: "La settimana", note: "Note", guida: "Guida", impostazioni: "Impostazioni",
-  "testata-titolo": "Titolo del progetto", "testata-stato": "Stato della sessione", altra: "Altra conversazione",
+  "testata-titolo": "Titolo del progetto", "testata-stato": "Stato della sessione",
   dafare: "Mostra o nascondi Da fare",
   "stato-sessioni": "Sessioni aperte", "stato-aspettano": "Sessioni che ti aspettano", "stato-lavoro": "Sessioni al lavoro",
   "stato-finito": "Sessioni che hanno finito", "stato-note": "Note aperte", "stato-tasti": "Tasti",
@@ -100,6 +105,7 @@ export const NOMI_ELEMENTO = {
   "volta-gesti-avviso": "Avviso dei gesti", "todo-vuoto": "Da fare vuoto", "partenza-titolo": "Titolo Da dove partire",
   "partenza-todo": "Todo da cui partire", "partenza-motivo": "Motivo della partenza",
   "benvenuto-titolo": "Titolo del benvenuto", "benvenuto-testo": "Testo del benvenuto", "b-nuova": "Nuova richiesta",
+  "casa-tessere": "Elenco delle tessere", "casa-nuova": "Tessera Nuova richiesta",
 };
 const PREFISSI = [
   ["todo-elenco-", "Elenco delle cose da fare"], ["scheda-", "Scheda"], ["dove-", "Dove nasce la sessione"], ["macchina-", "Macchina dove nasce la sessione"],
@@ -112,7 +118,7 @@ const PREFISSI = [
   ["st-", "Titolo del suggerimento"], ["sx-", "Testo del suggerimento"],
   ["vr-", "Riga di sessione"], ["va-", "Azioni della sessione"], ["vx-", "Togli la sessione"], ["vf-", "Sessioni ferme"],
   ["vg-", "Gesto della sessione"], ["vl-", "Anteprima della sessione"], ["v-", "Sessione"],
-  ["p-", "Progetto"], ["g-", "Gruppo di todo"], ["t-", "Cosa da fare"], ["c-", "Spunta del todo"],
+  ["casa-", "Tessera del progetto"], ["p-", "Progetto"], ["g-", "Gruppo di todo"], ["t-", "Cosa da fare"], ["c-", "Spunta del todo"],
   ["l-", "Lavoraci"], ["m-", "Altro sul todo"], ["s-", "Suggerimento"],
 ];
 
@@ -126,7 +132,7 @@ export function nomeElemento(id) {
 // Le parti del layout e il loro blocco: la radice di ogni parte ha l'id misura-<parte> (main.js).
 const RADICE = "misura-";
 const PARTE_BLOCCO = { marchio: "marchio", barra: "progetti", piede: "piede", testata: "testata", todo: "pannello",
-  stato: "stato", benvenuto: "benvenuto" };
+  stato: "stato", benvenuto: "benvenuto", casa: "tessere" };
 
 // L'elemento più piccolo sotto il punto, fra quelli che la finestra riporta: { id, nome, blocco, parte,
 // rettangolo } oppure null. Restano fuori gli elementi del velo stesso (own, nota-*) e quelli vuoti. A pari

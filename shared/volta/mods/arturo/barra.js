@@ -2,9 +2,9 @@
 
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify } from "herdr";
+import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify, layout } from "herdr";
 import { todo, progetti, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
-import { STACK, CASA } from "./tessere.js";
+import { STACK, CASA, senzaTessere } from "./tessere.js";
 import { terminale } from "./casa.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
 import { APERTE } from "./nota.js";
@@ -96,6 +96,8 @@ export class Barra {
     else if (c === "movimento") giraMovimento(arg);
     else if (c === "impostazioni") apriImpostazioni();
     // ⌘T: le tessere al posto del terminale; il segno dice alla parte Casa di ripartire dal campo vuoto.
+    // Un layout senza tessere (fatto a mano, di Herdr) apre la sessione nuova, la prima tessera (#5456).
+    else if (c === "casa" && senzaTessere(layout())) this.lungo("volta-nuova", cx, () => nuovaScheda());
     else if (c === "casa") { run("layout.select", { stack: STACK, child: CASA }); setShared("arturo.casa.apri", Date.now()); }
     else if (c === "casa-chiudi") terminale();
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());

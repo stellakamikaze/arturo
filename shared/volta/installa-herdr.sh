@@ -107,10 +107,10 @@ arturo.update({"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "r
 scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.
-# Uno solo si prende a Herdr: la scheda nuova (tab.new, una shell) diventa la sessione nuova di Claude,
-# e solo se quel tasto fa ancora la scheda nuova di Herdr (#5290). Dal 12/11/2026 ⌘T apre le tessere dei
-# progetti (arturo.casa, #5371): prende anche il tasto che faceva la sessione nuova della Volta di prima.
-PRENDE = {"arturo.volta-nuova": ("tab.new",), "arturo.casa": ("tab.new", "arturo.volta-nuova")}
+# Uno solo si prende a Herdr: il tasto della scheda nuova (tab.new, una shell), e solo se fa ancora quella
+# (#5290). Dal 12/11/2026 quel tasto apre le tessere dei progetti (arturo.casa, #5371) e prende anche il
+# tasto che faceva la sessione nuova della Volta di prima (arturo.volta-nuova, ora la prima tessera).
+PRENDE = {"arturo.casa": ("tab.new", "arturo.volta-nuova")}
 # Un tasto rimasto su un mod di Arturo tolto non apre più niente: vale come libero e si riallinea.
 # Solo questi tre valori esatti, e solo sui tasti di Arturo: ogni altro tasto resta della persona.
 VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")

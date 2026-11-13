@@ -10,6 +10,25 @@ export const STACK = "lavoro";
 export const TERMINALE = "main";
 export const CASA = "casa";
 
+// Il nodo `id` nell'albero del layout vivo (layout() di Herdr), o null.
+function nodo(n, id) {
+  if (n?.id === id) return n;
+  for (const c of n?.children ?? []) { const x = nodo(c, id); if (x) return x; }
+  return null;
+}
+
+// Il layout ha le tessere: lo stack "lavoro" con il figlio "casa". Un layout fatto a mano o di Herdr non le
+// ha, e allora ⌘T apre una sessione nuova, come prima del 12/11/2026 (#5456).
+export const haTessere = (lay) => (nodo(lay, STACK)?.children ?? []).some((c) => c?.id === CASA);
+
+// Il layout è noto e non ha le tessere. Prima che Herdr pubblichi il layout, layout() è null: lì si prova lo
+// stesso a mostrare le tessere, come prima. layout.select su uno stack che non c'è apre un avviso d'errore.
+export const senzaTessere = (lay) => Boolean(lay) && !haTessere(lay);
+
+// Le tessere sono mostrate al posto del terminale: lo stack "lavoro" ha "casa" come figlio attivo. Senza
+// `active` lo stack mostra il primo figlio, il terminale.
+export const tessereMostrate = (lay) => haTessere(lay) && nodo(lay, STACK).active === CASA;
+
 // Larghezza minima di una tessera e spazio fra le tessere, in px logici: dalla larghezza dell'area
 // si ricava quante tessere stanno in una riga, per le frecce su e giù.
 export const MIN_W = 190;

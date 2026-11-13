@@ -34,7 +34,7 @@ const PASSI = [
     titolo: "Chiudi pure la finestra",
     righe: [
       "Le conversazioni continuano anche a finestra chiusa, e le ritrovi dove le avevi lasciate.",
-      "Altra conversazione, in alto, ne apre una seconda sullo stesso progetto.",
+      () => `${tasti().tessere} mostra le tessere dei progetti, una per progetto: scrivi per cercarne uno, Invio lo apre, Esc torna alla sessione. La prima tessera, Nuova richiesta, apre una conversazione da zero.`,
     ],
   },
   {

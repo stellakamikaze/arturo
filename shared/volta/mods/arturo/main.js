@@ -27,7 +27,7 @@ import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
-const MISURATE = new Set(["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"]);
+const MISURATE = new Set(["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto", "casa"]);
 
 const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto };
 

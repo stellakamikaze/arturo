@@ -419,7 +419,11 @@ HZ96 le tessere dei progetti su ⌘T (12/11/2026, #5371): nel layout lo stack "l
      arturo.casa-chiudi ed Esc tornano al terminale, la barra all'avvio rimette il terminale e scrive i
      progetti delle tessere; casa.js non torna al terminale quando nasce. tessere.js con node: prima
      "Nuova richiesta", poi i progetti in ordine; il filtro mette prima chi comincia così; colonne, frecce
-     che si fermano ai bordi, iniziali, tinta stabile, immagine solo se è nell'elenco arrivato.
+     che si fermano ai bordi, iniziali, tinta stabile, immagine solo se è nell'elenco arrivato. Dal
+     13/11 (#5456): la tessera Nuova richiesta e la guida scrivono il tasto della macchina (Ctrl+Shift+T su
+     Windows) e la guida nomina le tessere; con un layout senza lo stack ⌘T apre la sessione nuova e il
+     ritorno al terminale non manda layout.select; una nota sulle tessere mostrate va alla parte "Tessere
+     dei progetti", non alla sessione.
 HZ97 le note fra le macchine partono (12/11/2026, #5447): volta_note.py si importa accanto a volta_sonda.py
      e trova le sei funzioni che ne prende; volta.js lo cerca nella cartella del mod e lo lancia dopo
      ogni giro dell'elenco, con lo stato in ~/.cache/volta-note/stato.json (cacheVolta("volta-note"), #5449).
@@ -7124,6 +7128,26 @@ console.log(JSON.stringify({
   nuova: m.NUOVA, stack: [m.STACK, m.TERMINALE, m.CASA],
   comandi: ["casa", "casa-chiudi"].map((c) => instrada(c)),
 }));
+// #5456: il layout con o senza tessere, le tessere mostrate, e una nota sulle tessere che non va al terminale.
+const fs = await import("node:fs");
+const n = await import("./nota.mjs");
+const lay = JSON.parse(fs.readFileSync(new URL("./arturo.json", import.meta.url), "utf-8"));
+const su = structuredClone(lay);
+(function f(x) { if (x?.id === "lavoro") x.active = "casa"; for (const c of x?.children ?? []) f(c); })(su);
+const senza = { id: "radice", type: "row", children: [{ id: "main", type: "block" }] };
+const parti = { marchio: { larghezza: 292, altezza: 54 }, barra: { larghezza: 292, altezza: 690 }, piede: { larghezza: 292, altezza: 156 },
+  testata: { larghezza: 1147, altezza: 54 }, stato: { larghezza: 1147, altezza: 40 }, todo: { larghezza: 340, altezza: 700 } };
+const fin = { larghezza: 1440, altezza: 900 };
+const el = [{ id: "misura-casa", view: 9, x: 305, y: 66, width: 800, height: 780 }, { id: "casa-arturo", view: 9, x: 330, y: 200, width: 200, height: 160 }];
+const r = (l) => n.regione({ x: 700, y: 400 }, n.misureDaLayout(l, parti, fin));
+console.log(JSON.stringify({
+  ha: [m.haTessere(lay), m.haTessere(senza), m.haTessere(null)],
+  senza: [m.senzaTessere(lay), m.senzaTessere(senza), m.senzaTessere(null)],
+  mostrate: [m.tessereMostrate(lay), m.tessereMostrate(su), m.tessereMostrate(senza)],
+  regione: [r(lay)?.blocco, r(su)?.blocco, r(su)?.parte],
+  sotto: n.elementoSotto({ x: 400, y: 250 }, el),
+  nomi: ["casa-tessere", "casa-nuova", "casa-arturo", "altra"].map(n.nomeElemento),
+}));
 """
 
 
@@ -7150,6 +7174,7 @@ def hz96(repo: Path, casa: Path) -> str | None:
     for pezzo, perche in [
         ('else if (c === "casa") { run("layout.select", { stack: STACK, child: CASA }); setShared("arturo.casa.apri", Date.now()); }', "arturo.casa non mostra le tessere col campo vuoto"),
         ('else if (c === "casa-chiudi") terminale();', "arturo.casa-chiudi non torna al terminale"),
+        ('else if (c === "casa" && senzaTessere(layout())) this.lungo("volta-nuova", cx, () => nuovaScheda());\n    else if (c === "casa") {', "con un layout senza tessere ⌘T non apre la sessione nuova (#5456)"),
         ("    this.volta.init(cx);\n", "manca la barra"),
         ("    terminale();\n    this.carica(cx);", "all'avvio lo stack non torna al terminale"),
         ('setShared("arturo.casa.progetti", tutti.map((p) => ({ chiave: p.chiave, titolo: p.titolo, frase: frase(p.stato, p) })));', "la barra non scrive i progetti delle tessere"),
@@ -7162,6 +7187,8 @@ def hz96(repo: Path, casa: Path) -> str | None:
         ('if (e.key === "escape") { terminale();', "Esc non torna al terminale"),
         ("readTextFile(`${appHome()}/immagini/elenco.json`)", "le tessere non leggono l'elenco delle immagini"),
         ("this.input.set_value(\"\");\n      this.input.focus();", "⌘T non riparte dal campo vuoto"),
+        ('export const terminale = () => { if (!senzaTessere(layout())) run("layout.select"', "il ritorno al terminale manda layout.select anche a un layout senza tessere, con un avviso d'errore (#5456)"),
+        ("child(`${tasti().tessere} poi Invio`)", "la tessera Nuova richiesta non scrive il tasto della macchina (#5456)"),
     ]:
         if pezzo not in cs:
             return f"casa.js: {perche}"
@@ -7170,6 +7197,14 @@ def hz96(repo: Path, casa: Path) -> str | None:
         return "casa.js torna al terminale quando nasce, cioè subito dopo ⌘T"
     if "casa: Casa" not in (mod / "main.js").read_text(encoding="utf-8"):
         return "main.js non monta la parte casa"
+    if '"benvenuto", "casa"]);' not in (mod / "main.js").read_text(encoding="utf-8"):
+        return "la parte casa non riporta la sua misura: una nota sulle tessere non sa dove cade (#5456)"
+    cm = (mod / "comuni.js").read_text(encoding="utf-8")
+    if 'elenco: "⌘⇧E", tessere: "⌘T" }' not in cm or 'elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T" }' not in cm:
+        return "tasti() non ha il tasto delle tessere per Mac e per Windows (#5456)"
+    gd = (mod / "guida.js").read_text(encoding="utf-8")
+    if "${tasti().tessere} mostra le tessere dei progetti" not in gd or "Altra conversazione" in gd:
+        return "la guida non nomina le tessere, o parla ancora di Altra conversazione (#5456)"
     node = shutil.which("node")
     if not node:
         return None
@@ -7177,11 +7212,22 @@ def hz96(repo: Path, casa: Path) -> str | None:
     puro.mkdir()
     shutil.copyfile(mod / "tessere.js", puro / "tessere.mjs")
     shutil.copyfile(mod / "comandi.js", puro / "comandi.mjs")
+    shutil.copyfile(mod / "nota.js", puro / "nota.mjs")
+    shutil.copyfile(vc / "layouts/arturo.json", puro / "arturo.json")
     (puro / "prova.mjs").write_text(PROVA_TESSERE, encoding="utf-8")
     r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         return f"tessere.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
-    o = json.loads(r.stdout.strip().splitlines()[-1])
+    righe = r.stdout.strip().splitlines()
+    o, t = json.loads(righe[-2]), json.loads(righe[-1])
+    if t["ha"] != [True, False, False] or t["senza"] != [False, True, False] or t["mostrate"] != [False, True, False]:
+        return f"tessere.js non riconosce il layout con le tessere o le tessere mostrate: {t['ha']} {t['senza']} {t['mostrate']}"
+    if t["regione"] != ["main", "tessere", "casa"]:
+        return f"una nota sulle tessere mostrate va alla sessione: {t['regione']}"
+    if (t["sotto"] or {}).get("blocco") != "tessere" or (t["sotto"] or {}).get("nome") != "Tessera del progetto · Tessere dei progetti":
+        return f"elementoSotto() non riconosce una tessera: {t['sotto']}"
+    if t["nomi"] != ["Elenco delle tessere", "Tessera Nuova richiesta", "Tessera del progetto", None]:
+        return f"nomi degli elementi delle tessere sbagliati: {t['nomi']}"
     if o["vuoto"] != ["nuova", "sei-ore", "celestiale", "arturo", "radio-lago", "solaris"] or o["nessuno"] != ["nuova"]:
         return f"le tessere senza filtro non sono Nuova richiesta e poi i progetti in ordine: {o['vuoto']} {o['nessuno']}"
     if o["ra"] != ["radio-lago"] or o["dentro"] != ["celestiale"] or o["s"] != ["sei-ore", "solaris", "celestiale"]:
@@ -7758,6 +7804,16 @@ VELENI = [
     ('HZ96', 'shared/volta/mods/arturo/tessere.js', 'Math.floor(((Number(w) || 0) + GAP) / (MIN_W + GAP))', 'Math.ceil(((Number(w) || 0) + GAP) / (MIN_W + GAP))'),
     ('HZ96', 'shared/volta/mods/arturo/tessere.js', 'arrivate instanceof Set && arrivate.has(chiave)', 'arrivate instanceof Set'),
     ('HZ96', 'shared/volta/mods/arturo/comandi.js', '  if (c === "casa" || c === "casa-chiudi") return { verbo: c, arg: null, lungo: false };\n', ''),
+    # #5456: tasto della macchina, guida, note sulle tessere, layout senza tessere
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', 'export const senzaTessere = (lay) => Boolean(lay) && !haTessere(lay);', 'export const senzaTessere = (lay) => !haTessere(lay);'),
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', 'export const tessereMostrate = (lay) => haTessere(lay) && nodo(lay, STACK).active === CASA;', 'export const tessereMostrate = (lay) => haTessere(lay);'),
+    ('HZ96', 'shared/volta/mods/arturo/nota.js', '    tessere: trova(lay, "lavoro")?.active === "casa" };', '    tessere: false };'),
+    ('HZ96', 'shared/volta/mods/arturo/nota.js', 'benvenuto: "benvenuto", casa: "tessere" };', 'benvenuto: "benvenuto" };'),
+    ('HZ96', 'shared/volta/mods/arturo/barra.js', '    else if (c === "casa" && senzaTessere(layout())) this.lungo("volta-nuova", cx, () => nuovaScheda());\n', ''),
+    ('HZ96', 'shared/volta/mods/arturo/casa.js', '{ if (!senzaTessere(layout())) run("layout.select"', '{ run("layout.select"'),
+    ('HZ96', 'shared/volta/mods/arturo/comuni.js', 'tessere: "Ctrl+Shift+T" }', 'tessere: "⌘T" }'),
+    ('HZ96', 'shared/volta/mods/arturo/guida.js', '${tasti().tessere} mostra le tessere dei progetti', 'Altra conversazione mostra le tessere dei progetti'),
+    ('HZ96', 'shared/volta/mods/arturo/main.js', '"benvenuto", "casa"]);', '"benvenuto"]);'),
     ('HZ97', 'shared/volta/mods/arturo/volta_note.py', 'from volta_sonda import errore_hc, hc, leggi_json,', 'from volta_sonda import errore_hc, hc_vecchio as hc, leggi_json,'),
     ('HZ97', 'shared/volta/mods/arturo/volta.js', '`${cacheVolta("volta-note")}/stato.json`', '`${cacheVolta()}/note.json`'),
     ('HZ97', 'shared/volta/mods/arturo/volta.js', '      cx.notify();\n      this.sincronizzaNote(cx);', '      cx.notify();'),
@@ -8342,7 +8398,7 @@ VELENI = [
     ('HZ53', 'shared/volta/installa-herdr.sh', '"arturo.casa": ("tab.new", "arturo.volta-nuova")}', '"arturo.casa": ("tab.new",)}'),
     ('HZ53', 'shared/volta/installa-herdr.sh', 'mia[k] not in PRENDE.get(v, ()):', 'v not in PRENDE:'),
     ('HZ53', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());\n', ''),
-    ('HZ22', 'shared/volta/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": ("tab.new",), "arturo.casa": ("tab.new", "arturo.volta-nuova")}', 'PRENDE = {}'),
+    ('HZ22', 'shared/volta/installa-herdr.sh', 'PRENDE = {"arturo.casa": ("tab.new", "arturo.volta-nuova")}', 'PRENDE = {}'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (!s || s.vecchia) return [];\n  const out = [{ verbo: "apri"', 'if (!s) return [];\n  const out = [{ verbo: "apri"'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));', 'return out.concat(azioni(s));'),

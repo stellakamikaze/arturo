@@ -379,7 +379,8 @@ export async function nuova(prompt, soloQui = false) {
   return nasciSu(soloQui ? "qui" : dove(), prompt, null);
 }
 
-// La scheda nuova (⌘T, comando arturo.volta-nuova): una sessione di Claude vuota, non una shell. Nasce
+// La scheda nuova (Nuova richiesta, la prima tessera di ⌘T, o ⌘T in un layout senza tessere; comando
+// arturo.volta-nuova): una sessione di Claude vuota, non una shell. Nasce
 // in background sulla macchina di "Nasce su" e si aggancia nello spazio che la persona sta guardando,
 // col suo progetto; dallo spazio "Volta", o senza spazio, nasce senza progetto.
 export async function nuovaScheda() {

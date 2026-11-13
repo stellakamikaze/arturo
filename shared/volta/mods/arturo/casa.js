@@ -6,13 +6,14 @@
 
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { theme, shared, setShared, run, readTextFile, appHome } from "herdr";
+import { theme, shared, setShared, run, readTextFile, appHome, layout } from "herdr";
 import { comandoApri } from "./comandi.js";
-import { ICONA, punto, colore } from "./comuni.js";
-import { tessere, passo, colonne, iniziali, tinta, immagine, STACK, TERMINALE, GAP, MIN_W } from "./tessere.js";
+import { ICONA, punto, colore, tasti } from "./comuni.js";
+import { tessere, passo, colonne, iniziali, tinta, immagine, senzaTessere, STACK, TERMINALE, GAP, MIN_W } from "./tessere.js";
 
-// Torna al terminale: lo stack del layout mostra di nuovo la scheda.
-export const terminale = () => run("layout.select", { stack: STACK, child: TERMINALE });
+// Torna al terminale: lo stack del layout mostra di nuovo la scheda. Un layout senza tessere non ha lo
+// stack: niente comando, che aprirebbe un avviso d'errore a ogni avvio della barra (#5456).
+export const terminale = () => { if (!senzaTessere(layout())) run("layout.select", { stack: STACK, child: TERMINALE }); };
 
 export class Casa {
   init(_p, cx) {
@@ -78,7 +79,7 @@ export class Casa {
       if (tt.tipo === "nuova") {
         return v_flex().w(w).h(h).items_center().justify_center().gap(10).bg(t.raised)
           .child(svg(ICONA("square-pen")).size(28).text_color(t.accent))
-          .child(div().text_size(12.5).text_color(t.muted).child("⌘T poi Invio"));
+          .child(div().text_size(12.5).text_color(t.muted).child(`${tasti().tessere} poi Invio`));
       }
       const img = immagine(tt.chiave, this.arrivate);
       if (img) return image(img).w(w).h(h);
