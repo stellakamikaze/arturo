@@ -1,5 +1,5 @@
 {
- "albero": "c3d4b62de175af8e2ff433036c505b4a7544988f",
+ "albero": "710d098094e8bc99d9f24f139356e39b5547ecff",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -16,7 +16,7 @@
   "mods/arturo/apri.js": "4d8aa62d02147ffb83a65476705d34833817fc6c28b254ea198008afa4bd0ed5",
   "mods/arturo/azioni.js": "5ac5026b8b0f6ee794e576b59c6183012a14f76504c74aaafdfde817c0c1c166",
   "mods/arturo/barra.js": "b868407539b27730d95b9fd3ffbce3b1ffef14956c63023c2623181d7bfc03c4",
-  "mods/arturo/cambio.js": "b4a35bdcd53d2ad2549937921dcddba08672c613205d2ac9128d97d88342fc6b",
+  "mods/arturo/cambio.js": "66f75162f50cced3b7a125a85116bb5580a325cec29ee634a4d34ea8bfe2fa41",
   "mods/arturo/casa.js": "f7a8f663d77f84f4b4380e6af71cbb5c34551b62a522e84debe99aa64d8358c0",
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comandi.js": "d575cf6b094e1d15980531d545ccd817704f24943ce21567ad298cea0ef6305e",

@@ -1,5 +1,6 @@
 // Il dialogo che cambia il nome o il progetto di una sessione di Volta (#5292). Si apre da Rinomina e
-// Cambia progetto del menu del tasto destro e col doppio clic sul titolo. È un'altra copia del mod: non
+// "Sposta in un progetto…" del menu del tasto destro (il titolo del dialogo ripete la voce, #5504) e col
+// doppio clic sul titolo. È un'altra copia del mod: non
 // ha l'elenco, quindi manda il cambio alla barra come comando (comandoCambio di sessioni.js, lo stesso
 // di herdr-app do) e si chiude. Il progetto si sceglie fra quelli noti o si scrive.
 
@@ -16,7 +17,7 @@ export function apriCambio(s, cosa, noti = []) {
 const TESTI = {
   nome: { titolo: "Rinomina la sessione", campo: "Il nome nuovo", fai: "Rinomina",
     nota: "Il nome resta: il titolo automatico non lo riscrive. Lascia vuoto per tornare al titolo automatico." },
-  progetto: { titolo: "Cambia progetto", campo: "Scrivi o scegli un progetto", fai: "Sposta",
+  progetto: { titolo: "Sposta in un progetto", campo: "Scrivi o scegli un progetto", fai: "Sposta",
     nota: "La sessione passa nello spazio di quel progetto. L'handoff già scritto resta dov'è: il prossimo /fine scrive nel progetto nuovo." },
 };
 

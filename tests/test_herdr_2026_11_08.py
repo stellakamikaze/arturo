@@ -234,8 +234,9 @@ HZ58 il nome e il progetto scritti dalla persona (#5292): i verbi rinomina e pro
      il file sparisce e il titolo torna al modello. hooks/scheda-terminale.py tiene il progetto della
      persona davanti a un altro /inizio e a un file scritto altrove, e a SessionEnd lascia il file. La
      sonda porta nell'elenco daPortare finché Claude Code non ha il nome (--portato).
-HZ59 nome e progetto si cambiano dalla finestra (#5292): il menu ha Rinomina e Cambia progetto, che
-     aprono il dialogo di cambio.js, come il doppio clic sul titolo; il dialogo manda il comando
+HZ59 nome e progetto si cambiano dalla finestra (#5292): il menu ha Rinomina e "Sposta in un progetto…",
+     che aprono il dialogo di cambio.js, come il doppio clic sul titolo, e il titolo del dialogo del
+     progetto ripete la voce del menu senza i puntini (#5504); il dialogo manda il comando
      arturo.volta-cambia-<cosa>-<esadecimale>-<id>, che barra.js legge prima del clic su una sessione
      (sessioni.js con node: codifica, leggiCambio, nomeNuovo, progettoNuovo, progettiNoti, casellaVuota).
      dati.js (herdr finto): cambiaSessione chiama la sonda sulla macchina della sessione col sessionId;
@@ -4151,6 +4152,11 @@ def hz59(repo: Path, casa: Path) -> str | None:
     for file, pezzo, motivo in attesi:
         if pezzo not in testi[file]:
             return f"{file}: {motivo}"
+    # #5504: il titolo del dialogo del progetto ripete la voce del menu, senza i puntini.
+    voce = re.search(r'\{ verbo: "progetto", testo: "([^"]+)" \}', (mod / "sessioni.js").read_text(encoding="utf-8"))
+    titolo = re.search(r'progetto: \{ titolo: "([^"]+)"', testi["cambio.js"])
+    if not voce or not titolo or titolo.group(1) != voce.group(1).rstrip("…"):
+        return f"cambio.js: il titolo del dialogo ({titolo and titolo.group(1)!r}) non ripete la voce del menu ({voce and voce.group(1)!r})"
     cj = (mod / "comandi.js").read_text(encoding="utf-8")
     if cj.index('c.startsWith("volta-cambia-")') > cj.index(CLIC_VOLTA):
         return "comandi.js: volta-cambia-… finisce nel clic su una sessione, che viene prima"
@@ -8633,6 +8639,7 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/cambio.js", '    this.input.on("submit", () => this.conferma());\n', ''),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", 'kind: "dialog", width: 480 });', 'kind: "popup", width: 480 });'),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", 'const valore = this.cosa === "nome" ? titolo(this.s) : String(this.s.progetto ?? "");', 'const valore = "";'),
+    ("HZ59", "shared/volta/mods/arturo/cambio.js", 'progetto: { titolo: "Sposta in un progetto",', 'progetto: { titolo: "Cambia progetto",'),
     ("HZ98", "shared/volta/mods/arturo/sessioni.js", "prese.sort((a, b) => a.chiusa - b.chiusa || a.v - b.v || a.i - b.i);", "prese.sort((a, b) => a.v - b.v || a.i - b.i);"),
     ("HZ98", "shared/volta/mods/arturo/sessioni.js", "return c.some((x) => x.startsWith(f)) ? 0 : c.some((x) => x.includes(f)) ? 1 : null;", "return c.some((x) => x.includes(f)) ? 0 : null;"),
     ("HZ98", "shared/volta/mods/arturo/sessioni.js", 'const piano = (x) => String(x ?? "").toLowerCase().normalize("NFD")', 'const piano = (x) => String(x ?? "").toLowerCase().normalize("NFC")'),
