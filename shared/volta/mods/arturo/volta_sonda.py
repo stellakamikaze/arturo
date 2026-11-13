@@ -782,6 +782,12 @@ def nome_qui():
     return platform.node().split(".")[0] or "Questa macchina"
 
 
+def chi(nome):
+    """Il nome di `nome` nei messaggi per le persone: "qui" o vuoto è il nome vero di questa macchina, mai
+    "qui" (#5534: gli errori dicevano "non parte su qui"). Lo usano anche volta_sposta.py e PREPARA."""
+    return nome_qui() if nome in (None, "", "qui") else nome
+
+
 def macchine(attesa=ATTESA_MACCHINE):
     """Le macchine di Herdr: [{nome, target, stato, perche}]. Senza hc o senza macchine: [].
     None se Herdr non risponde (hc esce male, non fa in tempo, risponde altro): non vuol dire che le
@@ -1135,13 +1141,13 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
     # tempo dentro hc exec, e la sessione morirebbe con lui (#5208)
     s = servizio(nome)
     if s.get("errore"):
-        return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}
+        return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
     ultimo = "nessun Python"
     for argv in tentativi:
         try:
             rc, out, err = lancia(argv, timeout=ATTESA_NASCITA)
         except (OSError, subprocess.SubprocessError) as e:
-            return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
+            return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
         # hc dice spawn_failed (anche lui in JSON) se il programma non c'è: prima di leggere la risposta
         if rc != 0 and (non_parte(out, err) or rc == 9009):
             continue
@@ -1158,7 +1164,7 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
         voce["claude"] = d["claude"]
         return {"id": d["id"], "sessionId": d["sessionId"], "attach": argv_attach(voce, d["id"]),
                 "macchina": "qui" if questa else nome, "progetto": progetto, "cartella": d.get("cartella")}
-    return {"errore": "non parte su %s: %s" % (nome or "questa macchina", ultimo)}
+    return {"errore": "non parte su %s: %s" % (chi(nome), ultimo)}
 
 
 SEQ = re.compile(r"\x1b\[([0-9;?]*)[ -/]*([@-~])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>78DEM]")
@@ -1281,11 +1287,11 @@ def azione(nome, verbo, sid):
     if verbo == "respawn":
         s = servizio(nome)
         if s.get("errore"):
-            return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}
+            return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
     try:
         rc, out, err = lancia(argv, timeout=ATTESA_AZIONE)
     except (OSError, subprocess.SubprocessError) as e:
-        return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
+        return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
     if rc != 0:
         testo = (err or out).strip()
         return {"errore": testo.splitlines()[-1][:200] if testo else "rc %d" % rc}
@@ -1376,7 +1382,7 @@ def cambia(nome, verbo, sid, valore="", portato=False):
         try:
             rc, out, err = lancia(argv, timeout=ATTESA_AZIONE)
         except (OSError, subprocess.SubprocessError) as e:
-            return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
+            return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
         if rc != 0 and (rc == 9009 or non_parte(out, err)):  # il Python non è partito: si prova l'altro
             continue
         try:
@@ -1420,7 +1426,7 @@ def apri(nome, sid, riavvia=False):
         return {"ok": True, "riavviata": True}
     s = servizio(nome)
     if s.get("errore"):
-        return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}
+        return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
     return {"ok": True, "riavviata": False, "servizio": s.get("come")}
 
 

@@ -483,6 +483,16 @@ HZ110 Volta rilegge l'elenco solo quando cambia sessioni.json (tocca), non per i
 HZ111 lo spostamento parte staccato (13/11/2026): sposta --esito risponde subito {"avviato"}, il figlio
      scrive l'esito finito nel file anche quando cade, Volta lo legge a giri con cx.sleep fino a 25 minuti
      (esitoSposta) invece di chiedere a exec 20 minuti oltre il tetto di 10.
+HZ113 una fonte sola per il progetto (#5487, 13/11/2026): progettoDi di sessioni.js porta un nome
+     alternativo ("volta", "Volta Celeste") alla chiave della scheda; chiaveProgetto, canonico e spazio di
+     dati.js passano da lì (con node). aggancia mette la sessione di "volta" nello spazio herdr-arturo, mai
+     in uno spazio "volta" (che libera() rinominerebbe "Senza progetto"), anche quando lo spazio del
+     progetto porta un nome alternativo; apri("volta") (Lavoraci) va nello stesso spazio; lo spazio libero
+     "Volta" di prima resta libero. Testata e colonna leggono il progetto aperto con progettoDi.
+HZ114 i messaggi nominano la macchina vera (#5534, 13/11/2026): chi() di volta_sonda.py dà il nome di
+     questa macchina per "qui" e per il vuoto, e lo usano gli errori della sonda e di volta_sposta.py;
+     nomeMacchina di sessioni.js e di dati.js (con node) legge il nome dall'elenco delle macchine, e
+     "La sessione non nasce su ..." dice quel nome, mai "qui".
 """
 from __future__ import annotations
 
@@ -498,7 +508,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -8220,7 +8230,164 @@ def hz111(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111}
+PROVA_PROGETTO = r"""
+import { progettoDi, chiaveProgetto, titoloNoto, impostaProgetti } from "./sessioni.mjs";
+import { canonico, spazio, aggancia, apri, slug } from "./dati.mjs";
+import { lanciati } from "./herdr.mjs";
+const noti = JSON.parse(process.env.HZ_SHARED)["arturo.progetti"];
+const fonte = [progettoDi("volta", noti), progettoDi("Volta Celeste", noti), progettoDi("Due Mondi", noti), progettoDi("", noti), progettoDi(null, noti)];
+const senza = progettoDi("volta", {});
+impostaProgetti(noti);
+const chiavi = ["volta", "volta-celeste", "herdr-arturo", "due-mondi", ""].map(chiaveProgetto);
+const titoli = ["volta", "due-mondi"].map(titoloNoto);
+const canonici = ["volta", "Volta Celeste", "Due Mondi"].map(canonico);
+const spazi = ["volta", "herdr-arturo", "due-mondi", "niente"].map((n) => spazio(n)?.id ?? null);
+aggancia({ progetto: process.env.HZ_PROGETTO, id: "aaaa1111", sessionId: "aaaa1111-s", nome: "prova", host: "qui" }, ["claude", "attach", "aaaa1111"]);
+const agganciata = lanciati.splice(0);
+await apri("volta");
+console.log(JSON.stringify({ fonte, senza, chiavi, titoli, canonici, spazi, agganciata, aperta: lanciati.splice(0), stessoSlug: slug("Due Mondì") }));
+"""
+
+
+def hz113(repo: Path, casa: Path) -> str | None:
+    mod_dir = repo / "shared/volta/mods/arturo"
+    testata = (mod_dir / "testata.js").read_text(encoding="utf-8")
+    if 'progettoDi(s.name, shared("arturo.progetti")).titolo ?? s.name' not in testata:
+        return "testata.js non legge il titolo del progetto aperto con progettoDi"
+    if "const aperto = progettoDi(spaces().find((x) => x.active)?.name).chiave;" not in (mod_dir / "volta.js").read_text(encoding="utf-8"):
+        return "volta.js non legge il progetto dello spazio aperto con progettoDi"
+    dati = (mod_dir / "dati.js").read_text(encoding="utf-8")
+    if "export const slug" in dati or "export { slug };" not in dati:
+        return "dati.js ha ancora una sua copia di slug: la copia sola sta in sessioni.js"
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, dati)
+    (mod / "prova.mjs").write_text(PROVA_PROGETTO, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python3", str(casa / "bin" / "arturo")], "radice": str(repo), "base": str(casa)}), encoding="utf-8")
+    voce = {"chiave": "herdr-arturo", "titolo": "Volta"}
+    noti = {"herdr-arturo": voce, "volta": voce, "volta-celeste": voce, "due-mondi": {"chiave": "due-mondi", "titolo": "Due mondi"}}
+    condivisi = json.dumps({"arturo.progetti": noti, "arturo.volta.macchine": [], "arturo.dove": "qui"})
+
+    def gira(spazi, progetto="volta"):
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30,
+                           env={**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa), "HZ_SHARED": condivisi,
+                                "HZ_HERDR": json.dumps({"spaces": spazi}), "HZ_PROGETTO": progetto})
+        if r.returncode != 0:
+            raise RuntimeError(f"dati.js non gira: {(r.stderr or r.stdout).strip()[-200:]}")
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def nuove(d):
+        return [x for x in d["agganciata"] if x["cmd"] in ("tab.new", "space.new")]
+
+    vecchio = {"id": "s1", "name": "Volta", "named": True}
+    d = gira([vecchio, {"id": "s2", "name": "herdr-arturo", "named": True}, {"id": "s3", "name": "due-mondi", "named": True},
+              {"id": "s9", "name": "herdr-arturo", "named": True, "machine": "torre"}])
+    atteso = [{"chiave": "herdr-arturo", "titolo": "Volta"}, {"chiave": "herdr-arturo", "titolo": "Volta"},
+              {"chiave": "due-mondi", "titolo": "Due mondi"}, {"chiave": "", "titolo": None}, {"chiave": "", "titolo": None}]
+    if d["fonte"] != atteso:
+        return f"progettoDi: {d['fonte']}"
+    if d["senza"] != {"chiave": "volta", "titolo": None}:
+        return f"progettoDi senza progetti noti dà lo slug: {d['senza']}"
+    if d["chiavi"] != ["herdr-arturo", "herdr-arturo", "herdr-arturo", "due-mondi", ""] or d["titoli"] != ["Volta", "Due mondi"]:
+        return f"chiaveProgetto e titoloNoto non passano da progettoDi: {d['chiavi']} {d['titoli']}"
+    if d["canonici"] != ["herdr-arturo", "herdr-arturo", "due-mondi"]:
+        return f"canonico: {d['canonici']}"
+    if d["spazi"] != ["s2", "s2", "s3", None]:
+        return f"spazio(): {d['spazi']}, atteso lo spazio herdr-arturo di questa macchina e mai il libero Volta"
+    n = nuove(d)
+    if len(n) != 1 or n[0]["cmd"] != "tab.new" or n[0].get("space") != "s2":
+        return f"aggancia di una sessione di volta: {d['agganciata']}, attesa una scheda nello spazio herdr-arturo"
+    if d["aperta"] != [{"cmd": "space.select", "id": "s2"}]:
+        return f"apri(volta) (Lavoraci) non va nello spazio della sessione: {d['aperta']}"
+    if d["stessoSlug"] != "due-mondi":
+        return f"slug di dati.js non è quello di sessioni.js: {d['stessoSlug']}"
+    # senza lo spazio del progetto: nasce uno spazio herdr-arturo, non uno "volta" che libera() rinominerebbe
+    d = gira([vecchio])
+    n = nuove(d)
+    if len(n) != 1 or n[0]["cmd"] != "space.new" or n[0].get("name") != "herdr-arturo":
+        return f"aggancia senza lo spazio del progetto: {d['agganciata']}, atteso uno spazio nuovo herdr-arturo"
+    # lo spazio del progetto col nome alternativo (scritto dalla persona) è lo stesso progetto
+    d = gira([vecchio, {"id": "s4", "name": "Volta Celeste", "named": True}], "herdr-arturo")
+    n = nuove(d)
+    if len(n) != 1 or n[0]["cmd"] != "tab.new" or n[0].get("space") != "s4":
+        return f"aggancia con lo spazio Volta Celeste: {d['agganciata']}, attesa una scheda in s4"
+    # una sessione senza progetto va ancora nello spazio libero di prima
+    d = gira([vecchio, {"id": "s2", "name": "herdr-arturo", "named": True}], "")
+    n = nuove(d)
+    if len(n) != 1 or n[0].get("space") != "s1":
+        return f"una sessione senza progetto non va nello spazio libero: {d['agganciata']}"
+    return None
+
+
+PROVA_MACCHINA = r"""
+import { nomeMacchina as nomeSessioni, macchinaQui } from "./sessioni.mjs";
+import { nomeMacchina, nuova } from "./dati.mjs";
+import { avvisi } from "./herdr.mjs";
+const elenco = [{ host: "qui", macchina: "Torre", questa: true }, { host: "Studio", macchina: "Studio", questa: false }];
+const puri = [nomeSessioni("qui", elenco), nomeSessioni("qui", { macchine: elenco }), nomeSessioni("qui", []), nomeSessioni("Studio", elenco),
+  macchinaQui({ macchine: elenco }), macchinaQui(null)];
+await nuova("ciao");
+console.log(JSON.stringify({ puri, dati: [nomeMacchina("qui"), nomeMacchina("Studio")], avvisi }));
+"""
+
+PROVA_CHI = r"""
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("volta_sonda", sys.argv[1])
+vs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vs)
+print(json.dumps({"qui": vs.chi("qui"), "vuoto": vs.chi(""), "niente": vs.chi(None), "torre": vs.chi("Torre"), "vero": vs.nome_qui()}))
+"""
+
+
+def hz114(repo: Path, casa: Path) -> str | None:
+    mod_dir = repo / "shared/volta/mods/arturo"
+    sonda = (mod_dir / "volta_sonda.py").read_text(encoding="utf-8")
+    sposta = (mod_dir / "volta_sposta.py").read_text(encoding="utf-8")
+    if 'or "questa macchina"' in sonda or sonda.count("chi(nome)") < 7:
+        return 'volta_sonda.py: gli errori scrivono ancora nome or "questa macchina", che per "qui" dice "qui"'
+    if "def chi(" in sposta or sposta.count("vs.chi(") < 9:
+        return "volta_sposta.py ha una sua copia di chi(): la copia sola sta in volta_sonda.py"
+    prova = casa / "prova_chi.py"
+    prova.write_text(PROVA_CHI, encoding="utf-8")
+    r = subprocess.run([sys.executable, str(prova), str(mod_dir / "volta_sonda.py")], capture_output=True, text=True, timeout=60)
+    if r.returncode != 0:
+        return f"volta_sonda.py non si carica: {(r.stderr or r.stdout).strip()[-200:]}"
+    c = json.loads(r.stdout.strip().splitlines()[-1])
+    if not c["vero"] or c["vero"] == "qui" or [c["qui"], c["vuoto"], c["niente"]] != [c["vero"]] * 3 or c["torre"] != "Torre":
+        return f"chi(): {c}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, (mod_dir / "dati.js").read_text(encoding="utf-8"))
+    (mod / "prova.mjs").write_text(PROVA_MACCHINA, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python3", str(casa / "bin" / "arturo")], "radice": str(repo), "base": str(casa)}), encoding="utf-8")
+    condivisi = {"arturo.volta.macchine": [{"host": "qui", "macchina": "Torre", "questa": True, "giu": False}], "arturo.dove": "qui"}
+    r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30,
+                       env={**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa), "HZ_SHARED": json.dumps(condivisi),
+                            "HZ_EXEC": json.dumps({"errore": "il servizio di Claude non parte su Torre: spento"})})
+    if r.returncode != 0:
+        return f"dati.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["puri"] != ["Torre", "Torre", "questa macchina", "Studio", "Torre", None]:
+        return f"nomeMacchina e macchinaQui di sessioni.js: {d['puri']}"
+    if d["dati"] != ["Torre", "Studio"]:
+        return f"nomeMacchina di dati.js non legge l'elenco delle macchine: {d['dati']}"
+    titoli = [a.get("title") for a in d["avvisi"]]
+    if titoli != ["La sessione non nasce su Torre"]:
+        return f"l'avviso di una nascita fallita: {titoli}, atteso il nome della macchina"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -8239,6 +8406,18 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ113', 'shared/volta/mods/arturo/sessioni.js', '  return { chiave: n?.chiave ?? k, titolo: n?.titolo ?? null };', '  return { chiave: k, titolo: n?.titolo ?? null };'),
+    ('HZ113', 'shared/volta/mods/arturo/sessioni.js', 'export const chiaveProgetto = (p) => progettoDi(p).chiave;', 'export const chiaveProgetto = (p) => String(p ?? "");'),
+    ('HZ113', 'shared/volta/mods/arturo/dati.js', 'export const canonico = (nome) => progettoDi(nome, shared("arturo.progetti")).chiave;', 'export const canonico = (nome) => slug(nome);'),
+    ('HZ113', 'shared/volta/mods/arturo/dati.js', '  const nomeSpazio = s.progetto ? canonico(s.progetto) : SPAZIO_LIBERO;', '  const nomeSpazio = s.progetto ? slug(s.progetto) : SPAZIO_LIBERO;'),
+    ('HZ113', 'shared/volta/mods/arturo/dati.js', '  const sp = s.progetto ? spazio(nomeSpazio) :', '  const sp = s.progetto ? spaces().find((x) => !x.machine && slug(x.name) === nomeSpazio) :'),
+    ('HZ113', 'shared/volta/mods/arturo/dati.js', ' && !libero(s.name) && progettoDi(s.name, m).chiave === k) : undefined;', ' && progettoDi(s.name, m).chiave === k) : undefined;'),
+    ('HZ113', 'shared/volta/mods/arturo/testata.js', 'progettoDi(s.name, shared("arturo.progetti")).titolo ?? s.name', 'shared("arturo.progetti")?.[s.name]?.titolo ?? s.name'),
+    ('HZ114', 'shared/volta/mods/arturo/volta_sonda.py', '    return nome_qui() if nome in (None, "", "qui") else nome', '    return nome or "questa macchina"'),
+    ('HZ114', 'shared/volta/mods/arturo/sessioni.js', 'export const nomeMacchina = (m, macchine) => (m === "qui" ? macchinaQui(macchine) ?? "questa macchina" : m);', 'export const nomeMacchina = (m, macchine) => (m === "qui" ? "questa macchina" : m);'),
+    ('HZ114', 'shared/volta/mods/arturo/sessioni.js', '.find((x) => x?.questa)?.macchina ?? null;', '[0]?.host ?? null;'),
+    ('HZ114', 'shared/volta/mods/arturo/dati.js', 'export const nomeMacchina = (m) => nomeMacchinaDi(m, shared("arturo.volta.macchine"));', 'export const nomeMacchina = (m) => nomeMacchinaDi(m, []);'),
+    ('HZ114', 'shared/volta/mods/arturo/dati.js', '    return dico(`La sessione non nasce su ${nomeMacchina(macchina)}`, nata.errore ?? "nessuna risposta");', '    return dico(`La sessione non nasce su ${macchina}`, nata.errore ?? "nessuna risposta");'),
     ('HZ111', 'shared/volta/mods/arturo/volta_sposta.py', '    if f and not os.environ.get("VOLTA_SPOSTA_FIGLIO"):', '    if False:'),
     ('HZ111', 'shared/volta/mods/arturo/volta_sposta.py', '    if f:\n        scrivi_esito(f, dict(esito, finito=True))', '    if f and "errore" not in esito:\n        scrivi_esito(f, dict(esito, finito=True))'),
     ('HZ111', 'shared/volta/mods/arturo/sessioni.js', 'export const SPOSTA_MAX_MS = 25 * 60000,', 'export const SPOSTA_MAX_MS = 9 * 60000,'),
@@ -8657,7 +8836,7 @@ VELENI = [
     ("HZ35", "shared/volta/volta-claude.sh", 'servizio qui 2>&1) ||', 'servizio qui 2>&1) || exit 1 ||'),
     ("HZ38", "shared/volta/volta-claude.ps1", "if (-not $env:SSH_CONNECTION -and $py", "if ($py"),
     ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '    if verbo == "respawn":\n        s = servizio(nome)', '    if False:\n        s = servizio(nome)'),
-    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '            return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}\n    try:', '            pass\n    try:'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '            return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}\n    try:', '            pass\n    try:'),
     ("HZ42", "shared/volta/mods/arturo/dati.js", 'verbo === "respawn" ? 210000 : 90000', 'verbo === "respawn" ? 150000 : 90000'),
     ("HZ43", "shared/volta/mods/arturo/volta_sonda.py", 'etichetta = "org.stellakamikaze.arturo.claude-daemon"', 'etichetta = "org.stellakamikaze.arturo.claude"'),
     ("HZ43", "shared/volta/installa-herdr.sh", "schtasks /query /tn ArturoServizioClaude ", "schtasks /query /tn ArturoServizio "),

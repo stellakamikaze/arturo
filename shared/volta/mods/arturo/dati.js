@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
+import { macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -40,7 +40,7 @@ export async function config() {
 // ("volta-note"). La finestra vera, con la cartella di Herdr di serie (~/.config/herdr-app), usa ~/.cache/<nome>.
 // Una finestra di prova (HERDR_APP_HOME altrove) usa <cartella di Herdr>/cache/<nome>: prima riscriveva
 // l'elenco della finestra vera col suo core senza macchine, e le sessioni remote sparivano (#5449).
-// La stessa regola sta in cache_volta() di volta_sonda.py, volta_microfono.py e volta_mod.py.
+// La stessa regola sta in volta_sonda.py (la variabile vc), in cache() di volta_microfono.py e di volta_mod.py.
 export function cacheVolta(nome = "volta") {
   const pulito = (p) => String(p).replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
   const vera = pulito(appHome()) === pulito(`${home()}/.config/herdr-app`);
@@ -123,8 +123,8 @@ export function esito(r) {
   return { errore: (motivo || (r?.code ? `uscita ${r.code}` : "nessuna risposta")).slice(0, 200) };
 }
 
-// Lo slug come lo fa Arturo: minuscole, lettere, numeri e trattini.
-export const slug = (s) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+// Lo slug come lo fa Arturo: la copia sola sta in sessioni.js (slug, progettoDi).
+export { slug };
 
 // Lo spazio che raccoglie le sessioni senza progetto (aggancia). Fino al 12/11/2026 si chiamava "Volta" e si
 // scontrava col progetto Volta (herdr-arturo, nome alternativo volta): la tessera Volta di ⌘T portava qui.
@@ -137,16 +137,22 @@ export const libero = (nome) => ["senza-progetto", "volta"].includes(slug(nome))
 export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);
 
 // La chiave di un progetto: un nome alternativo ("volta") porta alla chiave della scheda ("herdr-arturo"),
-// così il progetto trova il suo spazio e non uno che ha per nome l'alternativo.
-export const canonico = (nome) => shared("arturo.progetti")?.[slug(nome)]?.chiave ?? slug(nome);
+// così il progetto trova il suo spazio e non uno che ha per nome l'alternativo (progettoDi di sessioni.js).
+export const canonico = (nome) => progettoDi(nome, shared("arturo.progetti")).chiave;
 
 // Rinomina in "Senza progetto" gli spazi "Volta" di prima su questo computer (una volta, all'avvio della barra).
 export function libera() {
   for (const s of spaces()) if (!s.machine && slug(s.name) === "volta") run("space.rename", { id: s.id, name: SPAZIO_LIBERO });
 }
 
-// Lo spazio di Herdr di un progetto: quello su questo computer col nome del progetto.
-export const spazio = (nome) => spaces().find((s) => !s.machine && slug(s.name) === slug(nome));
+// Lo spazio di Herdr di un progetto: quello su questo computer col nome del progetto, anche se lo spazio
+// porta un nome alternativo ("volta-celeste" per herdr-arturo). Lo spazio libero non è mai di un progetto,
+// nemmeno quando il suo nome di prima ("Volta") è un nome alternativo. La mappa dei progetti si legge una volta.
+export function spazio(nome) {
+  const m = shared("arturo.progetti");
+  const k = progettoDi(nome, m).chiave;
+  return k ? spaces().find((s) => !s.machine && !libero(s.name) && progettoDi(s.name, m).chiave === k) : undefined;
+}
 
 export const PAROLE = {
   tu: "Tocca a te",
@@ -242,16 +248,17 @@ export function progetti(vista, extra = {}) {
     const st = extra.stati?.[nome] ?? extra.stati?.[k];
     per.set(k, { chiave: k, nome, titolo: bello(nome), categoria: conCategorie ? "Altre cartelle" : "", riga: st?.riga ?? "", calcolato: !st?.riga, tu: 0, decidi: 0, io: 0, fermo: 0, cartella: true });
   }
+  const noti = shared("arturo.progetti");
   for (const s of spaces()) {
     if (!eProgetto(s)) continue;
-    const k = slug(s.name);
+    const k = progettoDi(s.name, noti).chiave;
     if (!per.has(k)) per.set(k, { chiave: k, nome: s.name, titolo: bello(s.name), categoria: "", tu: 0, decidi: 0, io: 0, fermo: 0 });
   }
   const RANGO = { blocked: 5, done: 4, working: 3, idle: 2 };
   // Gli spazi si leggono una volta sola: spaces() attraversa il confine con Herdr, e chiamarlo due volte
   // per ognuna delle cento e più voci (cartelle della base comprese) sfora i 50 ms del render.
   const locali = new Map();
-  for (const s of spaces()) if (!s.machine) { const k = slug(s.name); if (!locali.has(k)) locali.set(k, s); }
+  for (const s of spaces()) if (!s.machine && !libero(s.name)) { const k = progettoDi(s.name, noti).chiave; if (!locali.has(k)) locali.set(k, s); }
   return [...per.values()]
     .map((v) => { const s = locali.get(v.chiave); return { ...v, stato: statoSpazio(s), aperto: Boolean(s) }; })
     .sort((a, b) => (RANGO[b.stato] ?? 0) - (RANGO[a.stato] ?? 0) || Number(b.aperto) - Number(a.aperto)
@@ -660,8 +667,10 @@ export async function prepara(s, riavvia = false) {
 // apriSessione, per etichetta e per argv.
 export function aggancia(s, argv) {
   const nome = titolo(s).slice(0, 40);
-  const nomeSpazio = s.progetto ? slug(s.progetto) : SPAZIO_LIBERO;
-  const sp = spaces().find((x) => !x.machine && (s.progetto ? slug(x.name) === nomeSpazio : libero(x.name)));
+  // lo spazio prende la chiave del progetto, mai il nome alternativo: uno spazio "volta" sarebbe preso per
+  // quello libero e rinominato "Senza progetto" (#5487)
+  const nomeSpazio = s.progetto ? canonico(s.progetto) : SPAZIO_LIBERO;
+  const sp = s.progetto ? spazio(nomeSpazio) : spaces().find((x) => !x.machine && libero(x.name));
   const cartella = s.questa && s.cartella ? s.cartella : home();
   if (sp) {
     run("space.select", { id: sp.id });
@@ -743,8 +752,9 @@ async function veglia(s, argv, indirizzo, riavviata) {
   return (await nuda(indirizzo)) ? fallita((await perche(s, indirizzo)) ?? m) : { riavviata: true };
 }
 
-// Il nome di una macchina di "Nasce su" per le persone: "qui" è questa macchina.
-export const nomeMacchina = (m) => (m === "qui" ? "questa macchina" : m);
+// Il nome di una macchina di "Nasce su" per le persone: "qui" è il nome vero di questa macchina, letto
+// dall'elenco che volta.js pubblica (nomeMacchina di sessioni.js).
+export const nomeMacchina = (m) => nomeMacchinaDi(m, shared("arturo.volta.macchine"));
 
 // Una sessione nuova in background (volta_sonda.py nasci), su questa macchina o su un'altra, agganciata
 // qui in una scheda: continua a girare anche chiusa la scheda, e Volta la apre da ogni macchina. Anche

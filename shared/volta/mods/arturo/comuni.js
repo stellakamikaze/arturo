@@ -4,7 +4,7 @@ import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, props, openOverlay, closeOverlay, window, exec, home, shared, setShared, notify, run } from "herdr";
 import { cartellaNota } from "./nota.js";
-import { altreMacchine, dove, nomeMacchina, inNascita } from "./dati.js";
+import { dove, nomeMacchina, inNascita } from "./dati.js";
 import { SPAZIO, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { rigaMod } from "./sessioni.js";
 

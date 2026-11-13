@@ -1,4 +1,4 @@
-// Volta: le sessioni di Claude di tutte le macchine, come le legge teletrasporto.py volta.
+// Volta: le sessioni di Claude di tutte le macchine, come le scrive volta_sonda.py volta.
 // Modulo puro, senza herdr: raggruppa, ordina, scrive le frasi e decide cosa fa un clic.
 // Lo prova il banco HZ17-HZ19 con node (tests/test_herdr_2026_11_08.py).
 //
@@ -25,12 +25,26 @@ const tempo = (s) => Date.parse(s.ultimo || "") || 0;
 // cambio.js). Senza, vale il nome ricavato dallo slug.
 let NOTI = {};
 export function impostaProgetti(mappa) { NOTI = mappa && typeof mappa === "object" ? mappa : {}; }
-const slugDi = (p) => String(p ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+// Lo slug come lo fa Arturo: minuscole senza accenti, lettere, numeri e trattini. Una copia sola: dati.js
+// la riesporta.
+export const slug = (p) => String(p ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+const slugDi = slug;
+
+// Il progetto di un nome (il progetto di una sessione, il nome di uno spazio di Herdr, una tessera): la
+// chiave del suo progetto e il titolo noto, o null (#5487). Un nome alternativo ("volta", "volta-celeste")
+// porta alla chiave della scheda ("herdr-arturo"): colonna, spazi, testata, Da fare e tessere passano tutti
+// da qui, così una sessione e il suo spazio non si separano. `noti` è la mappa di shared arturo.progetti:
+// chi non chiama impostaProgetti (dati.js, testata.js) la passa letta da shared.
+export function progettoDi(p, noti = NOTI) {
+  const k = slug(p);
+  const n = k ? noti?.[k] : null;
+  return { chiave: n?.chiave ?? k, titolo: n?.titolo ?? null };
+}
 // La chiave del progetto: quella del suo gruppo anche quando la sessione porta un nome alternativo.
-export const chiaveProgetto = (p) => (p ? NOTI[slugDi(p)]?.chiave ?? String(p) : "");
+export const chiaveProgetto = (p) => progettoDi(p).chiave;
 // Il titolo vero del progetto se è noto ("Volta" per herdr-arturo), altrimenti null: chi ha un suo modo
 // di scrivere il nome ricavato dallo slug (bello() di dati.js) lo usa solo quando il titolo manca.
-export const titoloNoto = (p) => (p ? NOTI[slugDi(p)]?.titolo ?? null : null);
+export const titoloNoto = (p) => progettoDi(p).titolo;
 // Il nome di un gruppo "Per progetto" apre il progetto (/inizio) solo se il progetto è noto: un nome
 // nato da una cartella che non è un progetto ("arturo-inizio-5465", un worktree) aprirebbe una sessione
 // su un progetto che non esiste (12/11/2026). Senza elenco dei progetti non si sa: resta apribile.
@@ -176,6 +190,13 @@ export function registroProva(prima, scelte, adesso) {
   }
   return [...per.values()].sort((a, b) => b.ultima - a.ultima).slice(0, 40);
 }
+
+// Il nome vero di questa macchina, dall'elenco delle macchine (`dati` di sessioni.json o shared
+// arturo.volta.macchine): null se l'elenco non c'è ancora.
+export const macchinaQui = (dati) => (Array.isArray(dati) ? dati : dati?.macchine ?? []).find((x) => x?.questa)?.macchina ?? null;
+// Il nome di una macchina di "Nasce su" e dei messaggi: "qui" è il nome vero di questa macchina (#5534:
+// gli errori dicevano "non parte su qui"), "questa macchina" solo finché l'elenco manca.
+export const nomeMacchina = (m, macchine) => (m === "qui" ? macchinaQui(macchine) ?? "questa macchina" : m);
 
 // Il nome di una macchina in una riga stretta: senza il proprietario e senza la coda fra parentesi che
 // macOS aggiunge ("MacBook Air di Federico (156)" → "MacBook Air"). Il nome intero resta nei gruppi.

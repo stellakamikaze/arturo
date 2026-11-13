@@ -447,10 +447,6 @@ def esegui(nome, codice, dati, entrata=None, timeout=vs.ATTESA_AZIONE):
     return {"errore": ultimo}
 
 
-def chi(nome):
-    return "questa macchina" if nome in (None, "", "qui") else nome
-
-
 def controlla_git(gi):
     """Il motivo per non spostare, o None. File non salvati e commit non spinti viaggiano con la sessione
     (MODIFICHE e COMMIT); una HEAD staccata no, perché sull'altra macchina non c'è un ramo da preparare."""
@@ -503,7 +499,7 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
         if not vs.ID.fullmatch(x or ""):
             return {"errore": "id di sessione non valido"}
     if (da or "qui") == (a or "qui"):
-        return {"errore": "la sessione è già su %s" % chi(a)}
+        return {"errore": "la sessione è già su %s" % vs.chi(a)}
     if not cartella:
         return {"errore": "non so in che cartella gira la sessione"}
     occupata = lavora(da, sid)
@@ -522,7 +518,7 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
         if commit.get("errore"):
             return {"errore": commit["errore"]}
         bundle = commit.get("bundle")
-    pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": gi, "nome": chi(a), "bundle": bool(bundle)},
+    pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": gi, "nome": vs.chi(a), "bundle": bool(bundle)},
                     entrata=bundle, timeout=360)
     if pronto.get("errore"):
         return {"errore": pronto["errore"]}
@@ -535,27 +531,27 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     vs.azione(da, "stop", id_lavoro)  # una sessione già ferma risponde con un errore: si va avanti
     def torna(perche):
         r = riprendi_su(da, sid, cartella, titolo)
-        dove = "riaperta su %s" % chi(da) if not r.get("errore") else "e non si riapre su %s: %s" % (chi(da), r["errore"])
+        dove = "riaperta su %s" % vs.chi(da) if not r.get("errore") else "e non si riapre su %s: %s" % (vs.chi(da), r["errore"])
         return {"errore": "%s; la sessione è %s" % (perche, dove)}
     if gi:
         # a sessione ferma il lavoro non cambia più: adesso si legge quello non salvato
         mod = esegui(da, MODIFICHE, {"top": gi["top"], "testa": gi["testa"], "limite": LIMITE_MODIFICHE}, timeout=ATTESA_PACCO)
         if mod.get("errore"):
-            return torna("non leggo le modifiche non salvate su %s: %s" % (chi(da), mod["errore"]))
+            return torna("non leggo le modifiche non salvate su %s: %s" % (vs.chi(da), mod["errore"]))
         if not mod.get("vuoto"):
             messe = esegui(a, APPLICA, {"top": gi["top"], "testa": gi["testa"], "impronta": mod["impronta"], "sid": sid},
                            entrata=json.dumps({"diff": mod["diff"], "nuovi": mod["nuovi"]}), timeout=ATTESA_PACCO)
             if messe.get("errore"):
-                return torna("le modifiche non salvate non arrivano su %s: %s" % (chi(a), messe["errore"]))
+                return torna("le modifiche non salvate non arrivano su %s: %s" % (vs.chi(a), messe["errore"]))
     pacco = esegui(da, PACCO, {"trascrizione": letto["trascrizione"], "sid": sid}, timeout=ATTESA_PACCO)
     if pacco.get("errore") or not pacco.get("pacco"):
-        return torna("non leggo la conversazione su %s: %s" % (chi(da), pacco.get("errore") or "pacco vuoto"))
+        return torna("non leggo la conversazione su %s: %s" % (vs.chi(da), pacco.get("errore") or "pacco vuoto"))
     scarico = esegui(a, SCARICA, {"sid": sid, "progetti": pronto["progetti"]}, entrata=pacco["pacco"], timeout=ATTESA_PACCO)
     if scarico.get("errore") or scarico.get("byte") != pacco["byte"]:
-        return torna("la conversazione non arriva intera su %s: %s" % (chi(a), scarico.get("errore") or "%s byte su %s" % (scarico.get("byte"), pacco["byte"])))
+        return torna("la conversazione non arriva intera su %s: %s" % (vs.chi(a), scarico.get("errore") or "%s byte su %s" % (scarico.get("byte"), pacco["byte"])))
     nata = riprendi_su(a, sid, pronto["cartella"], titolo)
     if nata.get("errore"):
-        return torna("non riparte su %s: %s" % (chi(a), nata["errore"]))
+        return torna("non riparte su %s: %s" % (vs.chi(a), nata["errore"]))
     if progetto:
         # col progetto di prima: fonte "teletrasporto", forte per la sonda (FORTI) e senza il segno di /inizio
         # che Cambia progetto lascia e che farebbe scrivere /inizio nella sessione appena spostata

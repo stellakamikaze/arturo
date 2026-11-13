@@ -19,9 +19,9 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window, settings } from "herdr";
-import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, progettoApribile, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, progettoApribile, progettoDi, macchinaQui, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
-import { ICONA, punto, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
+import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi, cacheVolta, spostaSessione, nomeMacchina } from "./dati.js";
@@ -255,7 +255,7 @@ export class Volta {
     this.schede = adesso;
     // Per la testata: la macchina di ogni scheda di questa finestra che mostra una sessione, anche
     // un'interattiva partita nella shell di una scheda; le altre schede sono di questa macchina.
-    const qui = (this.dati.macchine ?? []).find((x) => x.questa)?.macchina ?? null;
+    const qui = macchinaQui(this.dati);
     const dove = Object.fromEntries(Object.entries(adesso).map(([a, s]) => [a, s.questa ? qui : s.macchina]));
     // chi gira davvero nel terminale vince sull'aggancio con cui la scheda è nata (occupanti)
     const dentro = occupanti(this.dati.sessioni);
@@ -1066,7 +1066,7 @@ export class Volta {
     const lista = gruppi(this.vis(), modo);
     // lo spazio aperto, letto una volta sola: spaces() passa il confine con Herdr, e una chiamata per
     // gruppo faceva sforare il tempo del disegno ("This view could not be re-rendered", 12/11/2026)
-    const aperto = slug(spaces().find((x) => x.active)?.name);
+    const aperto = progettoDi(spaces().find((x) => x.active)?.name).chiave;
     // la riga accesa a sinistra: l'ultima del giro, altrimenti quella della scheda in primo piano
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) ?? { address: f.terminal } : null;

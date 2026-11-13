@@ -2,8 +2,8 @@
 
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify, layout } from "herdr";
-import { todo, progetti, apri, nuova, nuovaScheda, conversazione, libera, slug, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
+import { theme, run, agents, window, shared, setShared, nextCommand, updates, notify, layout } from "herdr";
+import { todo, progetti, apri, nuova, nuovaScheda, conversazione, libera, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
 import { STACK, CASA, senzaTessere } from "./tessere.js";
 import { terminale } from "./casa.js";
 import { ICONA, pulsante, pulsanteIcona, segnaleImpostazioni, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";

@@ -5,13 +5,13 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, panes, focused, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
-import { frase, slug, config, statoSpazio, statoScheda, SUGGERIMENTI } from "./dati.js";
+import { frase, config, statoScheda, SUGGERIMENTI } from "./dati.js";
 import { PING, daRimandare } from "./comandi.js";
-import { ICONA, punto, pulsante, pulsanteIcona, colore, apriFinestra, apriElenco, tasti, nasceSu, segno, motoDi, vociMacchina } from "./comuni.js";
+import { ICONA, punto, pulsante, pulsanteIcona, colore, apriElenco, tasti, nasceSu, segno, motoDi, vociMacchina } from "./comuni.js";
 import { apriSposta, ICONA_SPOSTA } from "./sposta.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { leggiTutte } from "./notaui.js";
-import { macchinaBreve, sintesiTestata } from "./sessioni.js";
+import { macchinaBreve, sintesiTestata, progettoDi } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
 
@@ -22,7 +22,7 @@ export function progettoAdesso(scelto) {
   const s = spaces().find((x) => x.active);
   return progettoNota(scelto, s && !s.machine && s.named ? s.name : null);
 }
-import { apriSuggerimenti, voce } from "./suggerimenti.js";
+import { voce } from "./suggerimenti.js";
 
 function trova(nodo, id) {
   if (nodo?.id === id) return nodo;
@@ -54,7 +54,7 @@ export class Testata {
     const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;
     const davanti = shared("arturo.volta.davanti");
     const sintesi = tab ? sintesiTestata(davanti, tab.named ? tab.name : null) : null;
-    const progetto = s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta";
+    const progetto = s ? (progettoDi(s.name, shared("arturo.progetti")).titolo ?? s.name) : "Volta";
     // le icone della testata sono quelle del piede della colonna (pulsanteIcona, 36 px): stessa misura,
     // stesso suggerimento e stessa lettura a voce
     const bottone = (id, icona, testo, azione) => pulsanteIcona(id, icona, testo, azione);
