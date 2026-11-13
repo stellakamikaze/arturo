@@ -144,7 +144,8 @@ HZ39 la nascita su un'altra macchina (#5172 passo 4, volta_sonda.py nasci con un
      vince, Lavoraci non scrive in chi aspetta, e un suggerimento scrive nella sessione agganciata aperta.
 
 HZ40 i gesti di Volta su una sessione (#5172 passo 4): volta_sonda.py azione lancia claude logs, stop,
-     respawn e rm qui o con hc exec --on, rifiuta un verbo o un id strani senza lanciare niente, e
+     respawn e rm qui o con hc exec --on, rifiuta un verbo o un id strani senza lanciare niente, trova
+     claude anche fuori dal PATH di hc exec (~/.local/bin dei Mac, #5555, con python3), e
      l'anteprima rifà lo schermo di claude logs (parole spaziate dai movimenti del cursore). sessioni.js
      (node): Anteprima su ogni sessione in background, Ferma solo se è viva, Riavvia dopo un errore,
      Elimina con conferma solo se è ferma; avviso solo per chi passa a "ti aspetta" dopo la prima
@@ -155,6 +156,7 @@ HZ41 il servizio di Claude prima della nascita (#5208, volta_sonda.py servizio c
      terminale di herdr-core, e uno che dopo non risponde dà errore; nasci accende il servizio prima della
      sessione e senza servizio non fa nascere niente; su questa macchina il servizio spento nasce
      staccato (una sessione sua) nella home. Riavvia passa dal servizio come nasci, Ferma no (#5215).
+     Sul Mac, dove hc exec non trova claude, Riavvia riprova con python3 (#5555).
 HZ42 le attese della nascita (#5214): Volta (dati.js nasciSu) aspetta più della somma dei tetti di
      volta_sonda.py, con 30 s di margine; il servizio che non risponde si ferma al suo tetto, anche
      dopo hc run. Riavvia aspetta servizio più azione più il margine, gli altri gesti azione più il
@@ -2685,6 +2687,21 @@ with open(os.environ["HZ_LOG"], "a", encoding="utf-8") as f:
 print("stopped " + sys.argv[-1])
 """
 
+# Un hc che esegue davvero il comando (#5555): come hc exec sul Mac, il PATH non ha ~/.local/bin, dove
+# l'installatore mette claude. python3 è il Python del banco; un altro programma fuori dal PATH non parte.
+HC_ESEGUE = r"""import json, os, shutil, subprocess, sys
+a = sys.argv[1:]
+if "--timeout" in a[:6]:
+    i = a.index("--timeout"); del a[i:i + 2]
+with open(os.environ["HZ_HC_LOG"], "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(a) + "\n")
+env = dict(os.environ, PATH="/usr/bin:/bin", HOME=os.environ["HZ_CASA"])
+prog = sys.executable if a[3] == "python3" else shutil.which(a[3], path=env["PATH"])
+if a[:2] != ["exec", "--on"] or prog is None:
+    print(json.dumps({"error": {"kind": "spawn_failed", "message": "cannot start %s: No such file or directory" % a[3]}})); sys.exit(1)
+sys.exit(subprocess.call([prog] + a[4:], env=env))
+"""
+
 CLAUDE_FINTO_AZIONE = r"""#!/bin/sh
 printf '%s\n' "$*" >> "$HZ_LOG"
 if [ "$1" = logs ]; then printf 'Sta\033[5Glavorando\033[15Gsul\033[19Gdeck\n\033[2Cpronto\nChecking for updates\n'; exit 0; fi
@@ -2742,6 +2759,23 @@ def hz40(repo: Path, casa: Path) -> str | None:
         r = az("qui", "rm", "abcd1234", HZ_RIFIUTA="1")
         if r.returncode == 0 or "has unpushed commits" not in r.stdout:
             return f"rm rifiutato da claude senza il suo motivo: {r.stdout.strip()[-120:]}"
+        # sul Mac claude sta in ~/.local/bin, fuori dal PATH di hc exec (#5555): la sonda lo trova lo stesso
+        mcasa = casa / "mcasa"
+        (mcasa / ".local/bin").mkdir(parents=True)
+        shutil.copyfile(bindir / "claude", mcasa / ".local/bin/claude")
+        os.chmod(mcasa / ".local/bin/claude", 0o755)
+        (casa / "hc_esegue.py").write_text(HC_ESEGUE, encoding="utf-8")
+        hlog = casa / "hc.log"
+        hlog.write_text("", encoding="utf-8")
+        log.write_text("", encoding="utf-8")
+        r = az("Mac", "stop", "abcd1234", VOLTA_HC=json.dumps([sys.executable, str(casa / "hc_esegue.py")]),
+               HZ_HC_LOG=str(hlog), HZ_CASA=str(mcasa))
+        gesti = [json.loads(x)[3] for x in hlog.read_text(encoding="utf-8").splitlines() if x.strip()]
+        fine = json.loads((r.stdout.strip().splitlines() or ["{}"])[-1])
+        if fine.get("ok") is not True or fine.get("testo") != "stop ok" or gesti != ["claude", "python3"]:
+            return f"stop sul Mac senza claude nel PATH di hc exec: {fine}, hc ha lanciato {gesti}, {r.stderr.strip()[-120:]}"
+        if log.read_text(encoding="utf-8").split() != ["stop", "abcd1234"]:
+            return f"il claude di ~/.local/bin non ha ricevuto stop abcd1234: {log.read_text(encoding='utf-8')!r}"
     node = shutil.which("node")
     if node:
         copia = casa / "sessioni.mjs"
@@ -2783,8 +2817,9 @@ def hz41(repo: Path, casa: Path) -> str | None:
     sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
     conf = {
-        "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto")],
+        "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto", "Mac")],
         "exec": {"Torre": {"python": nata}, "Win": {"python": nata, "claude": "respawned ffff1111"},
+                 "Mac": {"python3": "respawned ffff1111"},
                  "Rotto": {"python3": nata, "claude": "respawned ffff1111"}, "Muto": {"python3": nata}},
         "servizio": {"Win": {"serve": "hc-run"}, "Rotto": {"errore": "Claude Code non c'è su questa macchina"},
                      "Muto": {"serve": "hc-run"}},
@@ -2846,6 +2881,11 @@ def hz41(repo: Path, casa: Path) -> str | None:
     rc, d, ch = lancia("azione", "Rotto", "stop", "ffff1111")
     if rc != 0 or any(c[-1] == "remoto" for c in ch):
         return f"Ferma non deve passare dal servizio: rc {rc}, {d}, {ch}"
+    # sul Mac hc exec non trova claude nel PATH (#5555): Riavvia riprova con python3, che lo cerca in ~/.local/bin
+    rc, d, ch = lancia("azione", "Mac", "respawn", "ffff1111")
+    gesti = [c[3] for c in ch if c[:2] == ["exec", "--on"] and c[-1] != "remoto"]
+    if rc != 0 or d.get("ok") is not True or gesti != ["claude", "python3"] or ch[-1][-2:] != ["respawn", "ffff1111"]:
+        return f"Riavvia sul Mac senza claude nel PATH di hc exec: rc {rc}, {d}, {ch}"
     # SERVIZIO vero su questa macchina, con un claude finto (script con shebang: su Windows si salta)
     if os.name == "nt":
         return None
@@ -9047,7 +9087,9 @@ VELENI = [
     ("HZ38", "shared/volta/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
     ("HZ38", "shared/volta/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
     ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", "\n        if rc != 0 and (non_parte(out, err) or rc == 9009):", "\n        if True:"),  # quella di nasci, non di servizio
-    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]'),
+    ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '        rc, out, err = lancia(hc() + ["exec", "--on", nome, "--timeout", str(t - 5)] + prog + args, timeout=t)', '        rc, out, err = lancia(hc() + ["exec", nome, "--timeout", str(t - 5)] + prog + args, timeout=t)'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '    for prog in (["claude"], ["python3", "-c", codice], ["python", "-c", codice]):', '    for prog in (["claude"],):'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '            primo = primo or (rc, out, err)\n            continue', '            primo = primo or (rc, out, err)\n            break'),
     ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '    if not ID.fullmatch(sid or ""):  # mai', "    if False:  # mai"),
     ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),
     ("HZ40", "shared/volta/mods/arturo/volta_sonda.py", '            if fin == "G":\n                c = n - 1', '            if fin == "G":\n                pass'),

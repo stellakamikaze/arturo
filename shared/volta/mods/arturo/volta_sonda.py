@@ -1275,6 +1275,36 @@ def schermo(testo, quante=12):
 VERBI = ("logs", "stop", "respawn", "rm")
 ID = re.compile(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}")
 
+# Gira sulla macchina della sessione quando hc exec non trova claude (#5555): sui Mac hc exec parte con
+# un PATH senza ~/.local/bin, dove l'installatore mette claude. Lo cerca come SONDA e NASCI, lo lancia
+# con gli stessi argomenti e ne passa uscita e codice d'uscita.
+CLAUDE_FUORI_PATH = r'''
+import os, shutil, subprocess, sys
+fine = ".exe" if os.name == "nt" else ""
+cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+if not os.path.exists(cl):
+    sys.stderr.write("Claude Code non c'è su questa macchina\n"); raise SystemExit(127)
+raise SystemExit(subprocess.call([cl] + sys.argv[1:], stdin=subprocess.DEVNULL))
+'''
+
+
+def claude_remoto(nome, args, entro):
+    """claude con `args` su `nome` via hc exec, entro l'istante `entro`. Prima claude nudo, come lo trova
+    il PATH di hc exec (Windows); se non parte, python3 e poi python con CLAUDE_FUORI_PATH (i Mac, #5555).
+    Se non parte niente, resta l'errore di claude nudo, che dice cosa manca."""
+    codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(CLAUDE_FUORI_PATH.encode()).decode()
+    primo = None
+    for prog in (["claude"], ["python3", "-c", codice], ["python", "-c", codice]):
+        t = round(entro - time.monotonic())
+        if t < 10:
+            break
+        rc, out, err = lancia(hc() + ["exec", "--on", nome, "--timeout", str(t - 5)] + prog + args, timeout=t)
+        if rc != 0 and (rc == 9009 or non_parte(out, err)):  # il programma non è partito: il prossimo
+            primo = primo or (rc, out, err)
+            continue
+        return rc, out, err
+    return primo or (1, "", "nessuna risposta in %d s" % ATTESA_AZIONE)
+
 
 def azione(nome, verbo, sid):
     """Un comando di claude su una sessione di `nome` ("qui" = questa macchina): logs (l'anteprima,
@@ -1288,16 +1318,16 @@ def azione(nome, verbo, sid):
         return {"errore": "azione sconosciuta: %s" % verbo}
     if not ID.fullmatch(sid or ""):  # mai un'opzione come --all
         return {"errore": "id di sessione non valido"}
-    if nome in (None, "", "qui"):
-        argv = [shutil.which("claude") or "claude", verbo, sid]
-    else:
-        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]
+    qui = nome in (None, "", "qui")
     if verbo == "respawn":
         s = servizio(nome)
         if s.get("errore"):
             return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
     try:
-        rc, out, err = lancia(argv, timeout=ATTESA_AZIONE)
+        if qui:
+            rc, out, err = lancia([shutil.which("claude") or "claude", verbo, sid], timeout=ATTESA_AZIONE)
+        else:
+            rc, out, err = claude_remoto(nome, [verbo, sid], time.monotonic() + ATTESA_AZIONE)
     except (OSError, subprocess.SubprocessError) as e:
         return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
     if rc != 0:
