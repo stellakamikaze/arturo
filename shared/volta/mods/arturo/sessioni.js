@@ -564,11 +564,13 @@ export const progettoNuovo = (testo) => String(testo ?? "").toLowerCase().normal
   .replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
 
 // I progetti fra cui scegliere nel dialogo: quelli delle sessioni dell'elenco e quelli che passa chi
-// chiama (spazi aperti, cartelle della base), senza doppi, in ordine alfabetico.
+// chiama (spazi aperti, cartelle della base), senza doppi, in ordine alfabetico. Un nome alternativo vale
+// la chiave del suo progetto: una sessione nata nella cartella volta-celeste e il progetto herdr-arturo
+// sono una riga sola, "Volta" (#5506).
 export function progettiNoti(dati, altri = []) {
   const visti = new Set();
   for (const p of [...(dati?.sessioni ?? []).map((s) => s.progetto), ...altri]) {
-    const k = progettoNuovo(p);
+    const k = progettoNuovo(chiaveProgetto(p));
     if (k) visti.add(k);
   }
   return [...visti].sort((a, b) => a.localeCompare(b));

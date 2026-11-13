@@ -4095,6 +4095,14 @@ console.log(JSON.stringify({
   iniziare: [m.daIniziare({ stato: "ferma", daIniziare: "due-mondi" }), m.daIniziare({ stato: "lavora", daIniziare: "due-mondi" }),
              m.daIniziare({ stato: "aspetta", daIniziare: "due-mondi" }), m.daIniziare({ stato: "ferma", daIniziare: "Due Mondi; rm" }),
              m.daIniziare({ stato: "ferma", daIniziare: "due-mondi", vecchia: true }), m.daIniziare({ stato: "ferma" })],
+  // #5506: un nome alternativo (la cartella volta-celeste) e la chiave (herdr-arturo) sono una riga sola
+  alias: (() => {
+    const v = { chiave: "herdr-arturo", titolo: "Volta" };
+    m.impostaProgetti({ "herdr-arturo": v, "volta-celeste": v, volta: v });
+    const l = m.progettiNoti({ sessioni: [{ progetto: "volta-celeste" }, { progetto: "Volta" }, { progetto: "zeta" }] }, ["herdr-arturo", "arturo"]);
+    m.impostaProgetti({});
+    return l;
+  })(),
 }));
 """
 
@@ -4176,7 +4184,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
             "storti": [None, None, None], "cambia": {"rinomina": "nome", "progetto": "progetto"},
             "noti": ["arturo", "due-mondi", "zeta"], "filtro": [["mondo", "due-mondi"], ["a", "b"]],
             "casella": [True, True, True, False, False, False, False, False], "portare": ["Nome", None, None, None, None],
-            "iniziare": ["due-mondi", None, None, None, None, None]}
+            "iniziare": ["due-mondi", None, None, None, None, None], "alias": ["arturo", "herdr-arturo", "zeta"]}
     for k, v in puri.items():
         if d.get(k) != v:
             return f"sessioni.js, {k}: {d.get(k)}, atteso {v}"
@@ -8645,6 +8653,7 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/cambio.js", 'kind: "dialog", width: 480 });', 'kind: "popup", width: 480 });'),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", 'const valore = this.cosa === "nome" ? titolo(this.s) : String(this.s.progetto ?? "");', 'const valore = "";'),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", 'progetto: { titolo: "Sposta in un progetto",', 'progetto: { titolo: "Cambia progetto",'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", "    const k = progettoNuovo(chiaveProgetto(p));\n", "    const k = progettoNuovo(p);\n"),
     ("HZ98", "shared/volta/mods/arturo/sessioni.js", "prese.sort((a, b) => a.chiusa - b.chiusa || a.v - b.v || a.i - b.i);", "prese.sort((a, b) => a.v - b.v || a.i - b.i);"),
     ("HZ98", "shared/volta/mods/arturo/sessioni.js", "return c.some((x) => x.startsWith(f)) ? 0 : c.some((x) => x.includes(f)) ? 1 : null;", "return c.some((x) => x.includes(f)) ? 0 : null;"),
     ("HZ98", "shared/volta/mods/arturo/sessioni.js", 'const piano = (x) => String(x ?? "").toLowerCase().normalize("NFD")', 'const piano = (x) => String(x ?? "").toLowerCase().normalize("NFC")'),
