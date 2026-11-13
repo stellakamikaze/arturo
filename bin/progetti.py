@@ -21,7 +21,7 @@ la persona lo apre da solo con /inizio, e dalla fonte prende solo la categoria.
 Se la fonte non conosce "catalogo" o non risponde, resta l'elenco locale con un avviso.
 
 Uscita --json: {versione, progetti: [{slug, nome, titolo, categoria, descrizione, riga, data, stato,
-prossimo, filoni, cartella, handoff, alias, fonte}], avvisi}, dal progetto con l'handoff più recente.
+prossimo, filoni, cartella, handoff, alias, fonte, dove, macchine, repo}], avvisi}, dal progetto con l'handoff più recente.
 Il secondo modo scrive il titolo di un progetto nella sua scheda (solo la riga `titolo:` del frontmatter,
 al più 60 caratteri): lo chiama /fine quando il nome del progetto cambia. Lo slug non cambia mai.
 Exit: 0 · 2 scheda che non c'è · 3 uso sbagliato.
@@ -42,7 +42,7 @@ import todo_store as ts  # noqa: E402
 VERSIONE = 1
 ATTESA_FONTE = 10  # secondi: Volta rilegge l'elenco ogni 30 e non può restare appesa alla fonte
 MAX_RIGA = 200
-RIGHE_SCHEDA = 40  # il frontmatter di una scheda sta in cima: non serve leggerla tutta
+RIGHE_SCHEDA = 150  # il frontmatter sta in cima; 40 righe tagliavano 8 schede vere con answers lunghi (13/11/2026)
 
 
 def cartelle() -> dict:
@@ -140,8 +140,9 @@ def schede() -> dict:
 
 
 def testa(f: Path) -> dict:
-    """Descrizione, titolo e alias dal frontmatter di una scheda; i campi che mancano restano vuoti."""
-    v = {"descrizione": "", "titolo": "", "alias": []}
+    """Descrizione, titolo, alias, dove sta il codice (cartella, macchina, repo) e status dal frontmatter
+    di una scheda; i campi che mancano restano vuoti."""
+    v = {"descrizione": "", "titolo": "", "alias": [], "dove": "", "macchine": [], "repo": "", "status": ""}
     try:
         with open(f, encoding="utf-8", errors="replace") as fh:
             righe = [next(fh, "") for _ in range(RIGHE_SCHEDA)]
@@ -160,6 +161,10 @@ def testa(f: Path) -> dict:
             v["titolo"] = corta(valore.strip("\"'"))[:MAX_TITOLO]
         elif chiave == "alias":
             v["alias"] = [a for a in (cx.slug(x.strip().strip("\"'")) for x in valore.strip("[]").split(",")) if a]
+        elif chiave == "macchina":
+            v["macchine"] = [m for m in (x.strip().strip("\"'") for x in valore.strip("[]").split(",")) if m]
+        elif chiave in ("cartella", "repo", "status"):
+            v["dove" if chiave == "cartella" else chiave] = valore.strip("\"'")
     return v
 
 
@@ -212,11 +217,15 @@ def locali() -> dict:
     for nome, v in ts.stati().items():
         stati.setdefault(cx.slug(nome), v)
     voci = {}
-    for s in sorted(set(dirs) | set(ultimi) | set(stati)):
+    # una scheda aperta è un progetto anche senza cartella né handoff: il catalogo sono le schede della memoria (13/11/2026)
+    aperte = {s for s, n in note.items() if n.get("status") != "closed"}
+    for s in sorted(set(dirs) | set(ultimi) | set(stati) | aperte):
         fonte = [n for n, c in (("cartella", dirs), ("handoff", ultimi), ("stato", stati), ("scheda", note)) if s in c]
         v = {"slug": s, "nome": dirs.get(s) or (ultimi[s][0] if s in ultimi else s), "titolo": "", "categoria": "",
              "descrizione": note.get(s, {}).get("descrizione", ""), "riga": "", "data": "", "stato": "", "prossimo": "", "filoni": 0,
-             "cartella": s in dirs, "handoff": s in ultimi, "alias": [], "fonte": fonte}
+             "cartella": s in dirs, "handoff": s in ultimi, "alias": [], "fonte": fonte,
+             "dove": note.get(s, {}).get("dove", ""), "macchine": note.get(s, {}).get("macchine", []),
+             "repo": note.get(s, {}).get("repo", "")}
         if s in ultimi:
             _, v["data"], percorso = ultimi[s]
             riga = index.get(s)
@@ -254,7 +263,7 @@ def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
         else:
             capo = {"slug": c["slug"], "nome": c["slug"], "titolo": "", "categoria": "", "descrizione": "", "riga": "",
                     "data": "", "stato": "", "prossimo": "", "filoni": 0, "cartella": False, "handoff": False,
-                    "alias": [], "fonte": []}
+                    "alias": [], "fonte": [], "dove": "", "macchine": [], "repo": ""}
             voci[c["slug"]] = capo
         for v in presenti:
             if v is capo:
@@ -266,8 +275,8 @@ def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
                 continue
             capo["cartella"] = capo["cartella"] or v["cartella"]
             capo["filoni"] += v["filoni"]
-            for campo in ("descrizione", "riga"):
-                capo[campo] = capo[campo] or v[campo]
+            for campo in ("descrizione", "riga", "dove", "macchine", "repo"):
+                capo[campo] = capo[campo] or v.get(campo)
             capo["fonte"] += [f for f in v["fonte"] if f not in capo["fonte"]]
             del voci[v["slug"]]
         capo["alias"] = sorted(set(capo["alias"]) | {s for s in gruppo if s != capo["slug"] and s not in voci})

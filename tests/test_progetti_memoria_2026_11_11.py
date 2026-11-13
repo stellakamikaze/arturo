@@ -21,6 +21,8 @@ PM12 la scheda di un progetto porta titolo e nomi alternativi (12/11/2026): il c
 PM13 `arturo progetti titolo <slug> "<Titolo>"` scrive solo la riga `titolo:` della scheda: la prima volta
      la aggiunge sotto `name:`, la seconda la riscrive, il resto del file resta identico; una scheda che
      non c'è esce 2 e non crea niente.
+PM14 il catalogo sono le schede della memoria (13/11/2026): una scheda aperta senza cartella né handoff compare, con dove,
+     macchine e repo del frontmatter anche oltre la quarantesima riga; una scheda chiusa da sola no.
 
 Veleno: --avvelena rompe bin/progetti.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso (VELENI del gate).
@@ -38,7 +40,7 @@ import time
 import os
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
@@ -62,6 +64,7 @@ VELENI = {
     "PM10": ("    dati = elenco()\n", "    import time\n    time.sleep(4)\n    dati = elenco()\n"),
     "PM11": ('            if v["handoff"]:  # un filone', '            if False:  # un filone'),
     "PM12": ('= capo["titolo"] or c["titolo"], c["categoria"]', '= c["titolo"] or capo["titolo"], c["categoria"]'),
+    "PM14": ('aperte = {s for s, n in note.items() if n.get("status") != "closed"}', "aperte = set()"),
     "PM13": ("        righe[i] = nuova\n", "        righe[i:fine] = [nuova]\n"),
 }
 
@@ -159,6 +162,13 @@ def prova(lab: Lab) -> list:
                                                         encoding="utf-8")
     (scheda.parent / "progetto-con-index.md").write_text("---\nname: progetto-con-index\nalias: [vecchio-nome]\n---\n", encoding="utf-8")
     lab.scrivi_handoff("titolata", "2026-10-02_09-00", "in progress", "PASSO-TITOLATA")
+    lunghe = "".join(f"  - domanda {n}\n" for n in range(50))
+    (scheda.parent / "progetto-sola-scheda.md").write_text(
+        "---\nname: progetto-sola-scheda\nstatus: active\nanswers:\n" + lunghe
+        + "cartella: ~/Documents/ClaudeCode/sola-src\nmacchina: [studio, torre]\nrepo: stellakamikaze/sola\n---\n",
+        encoding="utf-8")
+    (scheda.parent / "progetto-chiusa-sola.md").write_text("---\nname: progetto-chiusa-sola\nstatus: closed\n---\n",
+                                                           encoding="utf-8")
 
     prima = lab.impronta()
     p, avvisi, r = lab.progetti()
@@ -179,6 +189,10 @@ def prova(lab: Lab) -> list:
     if v.get("riga") != "RIGA-DI-STATO" or not v.get("cartella") or v.get("handoff") \
             or "bozze" in p or "nascosta" in p or avvisi:
         rossi.append(f"PM07 cartella e stato: {v} bozze={'bozze' in p} nascosta={'nascosta' in p} avvisi={avvisi}")
+    v = p.get("sola-scheda", {})
+    if v.get("dove") != "~/Documents/ClaudeCode/sola-src" or v.get("macchine") != ["studio", "torre"] \
+            or v.get("repo") != "stellakamikaze/sola" or "chiusa-sola" in p:
+        rossi.append(f"PM14 scheda sola: {v} chiusa in elenco={'chiusa-sola' in p}")
     if p.get("solo-handoff", {}).get("descrizione") != "DESCRIZIONE-DALLA-SCHEDA":
         rossi.append(f"PM08 scheda: {p.get('solo-handoff')}")
 
