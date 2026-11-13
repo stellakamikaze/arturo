@@ -6,6 +6,6 @@
     "ctrl-shift-i": "arturo.note",
     "ctrl-down": "arturo.volta-giro-avanti",
     "ctrl-up": "arturo.volta-giro-indietro",
-    "ctrl-w": "tab.close"
+    "ctrl-w": "arturo.volta-chiudi"
   }
 }

@@ -61,7 +61,7 @@
           "id": "piede",
           "type": "block",
           "size": {
-            "px": 192
+            "px": 44
           },
           "content": {
             "mod": "arturo",
@@ -88,6 +88,20 @@
             "mod": "arturo",
             "props": {
               "parte": "testata"
+            }
+          }
+        },
+        {
+          "id": "schede",
+          "type": "block",
+          "size": {
+            "px": 38
+          },
+          "window_drag": true,
+          "content": {
+            "mod": "arturo",
+            "props": {
+              "parte": "schede"
             }
           }
         },

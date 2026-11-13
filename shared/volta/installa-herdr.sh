@@ -110,7 +110,9 @@ scrivi("arturo.json", arturo)
 # Uno solo si prende a Herdr: il tasto della scheda nuova (tab.new, una shell), e solo se fa ancora quella
 # (#5290). Dal 12/11/2026 quel tasto apre le tessere dei progetti (arturo.casa, #5371) e prende anche il
 # tasto che faceva la sessione nuova della Volta di prima (arturo.volta-nuova, ora la prima tessera).
-PRENDE = {"arturo.casa": ("tab.new", "arturo.volta-nuova")}
+PRENDE = {"arturo.casa": ("tab.new", "arturo.volta-nuova"),
+          # ⌘W e Ctrl+W: la sessione davanti si chiude col congedo e lascia subito elenco e giro (12/11/2026)
+          "arturo.volta-chiudi": ("tab.close",)}
 # Un tasto rimasto su un mod di Arturo tolto non apre più niente: vale come libero e si riallinea.
 # Solo questi tre valori esatti, e solo sui tasti di Arturo: ogni altro tasto resta della persona.
 VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")

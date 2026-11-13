@@ -45,7 +45,7 @@ export function pastigliaTutto(t, sessioni, coda = 0) {
   const voci = vociMacchina();
   if (voci.length < 2) return null;
   if (!coda && !voci.some((m) => spostabili(sessioni, m.host).length > 0)) return null;
-  return h_flex().child(h_flex().id("sposta-tutto").h(26).px(8).gap(6).items_center().rounded(6).text_size(12.5)
+  return h_flex().child(h_flex().id("sposta-tutto").h(28).px(8).gap(6).items_center().rounded(6).text_size(12.5)
     .border_1().border_color(t.border)
     .when(!coda, (el) => el.cursor_pointer().hover((s) => s.bg(t.hover))
       .on_click(() => apriSpostaTutto((sessioni ?? []).map(perSposta))))

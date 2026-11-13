@@ -5,6 +5,8 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, props, openOverlay, closeOverlay, window, exec, home, shared, setShared, notify, run } from "herdr";
 import { cartellaNota } from "./nota.js";
 import { altreMacchine, dove, nomeMacchina, inNascita } from "./dati.js";
+import { SPAZIO, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
+import { rigaMod } from "./sessioni.js";
 
 export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 
@@ -69,14 +71,28 @@ export class Impostazioni {
         .child(v_flex().flex_1().min_w(0).gap(2)
           .child(div().text_size(13).text_color(t.foreground).child("Movimento"))
           .child(div().whitespace_normal().text_size(12).text_color(t.muted)
-            .child(ridotto ? "Spento da Riduci movimento del Mac." : acceso ? "La stella gira su chi lavora, il pallino pulsa su chi ti aspetta." : "Pallini fermi, righe senza dissolvenza.")))
+            .child(ridotto ? "Spento da Riduci movimento del sistema." : acceso ? "La stella gira su chi lavora, il pallino pulsa su chi ti aspetta." : "Pallini fermi, righe senza dissolvenza.")))
         .child(leva))
       .child(div().h(1).mx(6).bg(t.border))
       .child(voce("imp-app").h(30).items_center()
         .on_click(() => { run("app.settings"); this.chiudi(); })
         .child(div().flex_1().text_size(13).text_color(t.foreground).child("Impostazioni dell'app"))
-        .child(div().text_size(12).text_color(t.dim).child(tasti().impostazioni)));
+        .child(div().text_size(12).text_color(t.dim).child(tasti().impostazioni)))
+      // La versione del mod sta qui dal 13/11 (#5371): il piede è una fila di icone e non ha più la riga.
+      // In rosso se il controllo è fermo o un aggiornamento di Arturo è bloccato, col motivo sotto.
+      .when(Boolean(rigaMod(shared("arturo.mod"))), (el) => {
+        const r = rigaMod(shared("arturo.mod"));
+        return el.child(v_flex().id("imp-versione").px(10).pt(4).pb(2).gap(2)
+          .child(div().text_size(TESTO.nota).text_color(r.avviso ? t.blocked : t.dim).child(r.testo))
+          .when(Boolean(r.avviso), (e) => e.child(div().whitespace_normal().text_size(TESTO.nota).text_color(t.muted).child(r.avviso))));
+      });
   }
+}
+
+// Il segnale sull'icona di Impostazioni: rosso per un avviso del mod, accento per una versione dell'app pronta.
+export function segnaleImpostazioni(app = false) {
+  if (rigaMod(shared("arturo.mod"))?.avviso) return "blocked";
+  return app ? "accent" : null;
 }
 export const PULSA = { from: 0.45, to: 1, period: 2000 };
 export function segno(colore, moto = null, d = 8) {
@@ -86,16 +102,38 @@ export function segno(colore, moto = null, d = 8) {
     .child(svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore).spin(GIRO_MS));
 }
 
-// Un pulsante con icona e testo. `forte`: il pulsante principale della barra.
-export function pulsante(id, icona, testo, azione, forte = false) {
+// Un pulsante con icona e testo, in due misure (misure.js): `grande` per le azioni della colonna,
+// `piccolo` dentro una riga o un pannello. `forte`: il pulsante principale, col fondo dell'accento.
+export function pulsante(id, icona, testo, azione, forte = false, misura = "grande") {
   const t = theme();
-  return h_flex().id(id).h(36).px(12).gap(9).items_center().rounded(8).cursor_pointer()
+  const grande = misura !== "piccolo";
+  return h_flex().id(id).h(PULSANTE[grande ? "grande" : "piccolo"]).px(grande ? SPAZIO.l : SPAZIO.m + 2).gap(grande ? 9 : 7)
+    .items_center().rounded(grande ? RAGGIO.riga : RAGGIO.controllo).cursor_pointer()
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
     .when(forte, (el) => el.bg(t.accent).text_color(t.accent_foreground).font_semibold().hover((s) => s.opacity(0.9)))
     .when(!forte, (el) => el.border_1().border_color(t.border).text_color(t.foreground).hover((s) => s.bg(t.hover)))
     .on_click(azione)
-    .child(svg(ICONA(icona)).size(15))
-    .child(div().text_size(13.5).child(testo));
+    .child(svg(ICONA(icona)).size(grande ? 15 : ICONA_MISURA.piccola))
+    .child(div().text_size(grande ? TESTO.corpo : TESTO.etichetta).child(testo));
+}
+
+// Un pulsante di sola icona, quadrato, col nome nel suggerimento e per la lettura a voce. `forte` come
+// sopra; `segnale` è un pallino nell'angolo (un colore del tema), `numero` un conto accanto all'icona.
+export function pulsanteIcona(id, icona, testo, azione, { forte = false, misura = "grande", segnale = null, numero = 0 } = {}) {
+  const t = theme();
+  const lato = PULSANTE[misura === "piccolo" ? "piccolo" : "grande"];
+  const conto = numero > 0 ? String(numero) : null;
+  return h_flex().id(id).relative().h(lato).min_w(lato).px(conto ? SPAZIO.m : 0).gap(SPAZIO.s + 2).flex_none()
+    .justify_center().items_center().rounded(RAGGIO.riga).cursor_pointer()
+    .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+    .when(forte, (el) => el.bg(t.accent).text_color(t.accent_foreground).hover((s) => s.opacity(0.9)))
+    .when(!forte, (el) => el.text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground)))
+    .on_click(azione)
+    .tooltip(testo)
+    .accessibility_label(testo)
+    .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(ICONA_MISURA.grande))
+    .when(Boolean(conto), (el) => el.child(div().text_size(TESTO.nota).text_color(t.accent).child(conto)))
+    .when(Boolean(segnale), (el) => el.child(div().absolute().top(5).right(5).size(PALLINO).rounded_full().bg(colore(t, segnale))));
 }
 
 export const colore = (t, nome) => t[nome] ?? nome;
@@ -112,7 +150,7 @@ export function nasceSu(t) {
   const d = dove();
   const nascita = inNascita();
   const scelta = voci.find((m) => m.host === d) ?? voci[0];
-  return h_flex().child(h_flex().id("dove-scelta").h(26).px(8).gap(6).items_center().rounded(6).cursor_pointer().text_size(12.5)
+  return h_flex().child(h_flex().id("dove-scelta").h(PULSANTE.piccolo).px(8).gap(6).items_center().rounded(6).cursor_pointer().text_size(12.5)
     .border_1().border_color(t.border).hover((s) => s.bg(t.hover))
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
     .on_click(() => apriSceltaMacchina())

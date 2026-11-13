@@ -81,10 +81,9 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
               ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"))
 # I mod di Arturo tolti: un tasto rimasto su uno di questi non apre più niente (installa-herdr.sh ha lo stesso elenco).
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
-# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026) e, su Windows,
-# Ctrl+W che chiude la scheda come ⌘W sul Mac, cioè col congedo (Federico, 12/11 sera). Ctrl+Maiusc+W di
-# Herdr resta.
-TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro", "tab.close")
+# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026). Ctrl+W su
+# Windows e ⌘W sul Mac stanno in PRENDE (arturo.volta-chiudi). Ctrl+Maiusc+W di Herdr resta.
+TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
 # Tasti nuovi di un comando che c'era già: ⌘K apre la stessa ricerca di ⌘O (#5369). Si offre il solo tasto:
 # un ⌘O tolto dalla persona non torna.
 TASTI_AGGIUNTI = (("cmd-k", "arturo.apri"),)
@@ -93,7 +92,11 @@ TASTI_AGGIUNTI = (("cmd-k", "arturo.apri"),)
 TASTI_SPOSTATI = ("arturo.volta-nuova",)
 # Il tasto che Arturo prende a Herdr (installa-herdr.sh ha lo stesso): la scheda nuova di Herdr (tab.new,
 # una shell) diventa le tessere dei progetti, se quel tasto fa ancora la scheda di Herdr o manca (#5290).
-PRENDE = {"arturo.casa": ("tab.new",)}
+PRENDE = {"arturo.casa": ("tab.new",), "arturo.volta-chiudi": ("tab.close",)}
+# ⌘W e Ctrl+W chiudono la sessione davanti col congedo e la tolgono subito da elenco e giro (Federico,
+# 12/11/2026 sera): prendono il tab.close di Herdr. Il registro li segna per tasto e comando, perché su
+# Windows "global ctrl-w" era già segnato da quando Ctrl+W faceva tab.close (TASTI_NUOVI di prima).
+REGISTRO_PER_COMANDO = ("arturo.volta-chiudi",)
 # I tasti di serie di Herdr, copie di defaults/ (il banco VM36 le confronta). Herdr li scrive in keys.json
 # solo se il file manca: un keys.json scritto prima del primo avvio (installa-herdr.sh fino al 12/11/2026)
 # aveva i soli tasti di Arturo, e mancavano ⌘W, ⌘C, ⌘V e gli altri.
@@ -406,7 +409,7 @@ def tasti(fonte: Path) -> int:
         if not isinstance(voci, dict) or not isinstance(mia, dict):
             continue
         for tasto, comando in voci.items():
-            chiave = "%s %s" % (sezione, tasto)
+            chiave = ("%s %s %s" % (sezione, tasto, comando)) if comando in REGISTRO_PER_COMANDO else ("%s %s" % (sezione, tasto))
             if mia.get(tasto) in TASTI_VECCHI or (mia.get(tasto) in TASTI_SPOSTATI and comando != mia.get(tasto)):
                 mia[tasto] = comando
                 quanti += 1

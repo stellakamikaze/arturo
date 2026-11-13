@@ -6,7 +6,8 @@ import { theme, run, agents, spaces, window, shared, setShared, nextCommand, upd
 import { todo, progetti, apri, nuova, nuovaScheda, conversazione, libera, slug, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
 import { STACK, CASA, senzaTessere } from "./tessere.js";
 import { terminale } from "./casa.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
+import { ICONA, pulsante, pulsanteIcona, segnaleImpostazioni, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
+import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
@@ -16,6 +17,7 @@ import { Volta } from "./volta.js";
 import { rigaMod, decodifica } from "./sessioni.js";
 import { instrada } from "./comandi.js";
 import { pastigliaTutto } from "./sposta.js";
+import { apriContesto } from "./contestoui.js";
 
 export class Marchio {
   render() {
@@ -23,7 +25,7 @@ export class Marchio {
     const aspetta = agents().some((a) => a.status === "blocked") || Object.values(statiQui()).includes("aspetta");
     const stella = image("mods/arturo/stella.svg").size(20).flex_none();
     const mac = window()?.platform === "macos" && !window()?.fullscreen;
-    return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : 18).pr(14).gap(10).items_center()
+    return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : MARGINE + SPAZIO.m).pr(14).gap(10).items_center()
       .child(aspetta && movimento() ? stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }) : stella)
       .child(div().id("marchio-nome").font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta"));
   }
@@ -105,6 +107,8 @@ export class Barra {
     else if (c === "casa-chiudi") terminale();
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
     else if (c === "volta-giro") this.volta.giro(arg, cx);
+    else if (c === "volta-chiudi") this.volta.chiudiDavanti(cx, arg);
+    else if (c === "contesto") apriContesto(arg);
     else if (c === "volta-menu") this.volta.menuId(arg);
     else if (c === "volta-altro") this.volta.altroId(arg, cx);
     else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);
@@ -178,23 +182,37 @@ export class Barra {
     // "Sposta tutto su…" sotto "Nasce su" (Federico, 12/11/2026): le sessioni delle altre macchine su una sola.
     const tutto = dove && this.volta ? pastigliaTutto(t, this.volta.vis()?.sessioni ?? [], this.volta.inCoda()) : null;
     let vuoto = null;
-    if (this.vista === null && !this.errore && !v) vuoto = div().id("progetti-vuoto").px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
-    else if (!quanti && this.vista !== null) vuoto = v_flex().px(14).gap(10)
+    if (this.vista === null && !this.errore && !v) vuoto = div().id("progetti-vuoto").px(MARGINE + SPAZIO.m).py(SPAZIO.s + 2).text_size(TESTO.corpo).text_color(t.muted).child("Leggo i tuoi progetti…");
+    else if (!quanti && this.vista !== null) vuoto = v_flex().px(MARGINE).gap(SPAZIO.l)
       .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
         .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))
       .when(!this.errore, (el) => el.child(pulsante("trova", "search", "Trova i miei progetti", () => esegui(SUGGERIMENTI[0]), true)));
+    // In cima (fase 4 del piano di design, #5371): il campo "Cerca o chiedi" apre la ricerca (⌘K), che trova
+    // sessioni e progetti e manda anche una richiesta scritta; accanto, Nuova richiesta come icona. "Apri un
+    // progetto" stava qui come secondo pulsante: oggi lo fanno la ricerca e le tessere di ⌘T.
+    const forte = quanti > 0 || Boolean(this.errore);
+    const campo = h_flex().id("cerca").flex_1().min_w(0).h(PULSANTE.grande).px(SPAZIO.l).gap(SPAZIO.m).items_center()
+      .rounded(RAGGIO.riga).border_1().border_color(t.border).bg(t.raised).cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click(() => apriFinestra())
+      .accessibility_label("Cerca o chiedi")
+      .child(svg(ICONA("search")).size(15).flex_none().text_color(t.muted))
+      .child(div().flex_1().min_w(0).truncate().text_size(TESTO.corpo).text_color(t.muted).child("Cerca o chiedi"))
+      .child(div().flex_none().text_size(TESTO.nota).text_color(t.dim).child(tasti().apri));
+    const fila = [dove, tutto].filter(Boolean);
     // overflow_hidden sulla radice: quello che non entra si taglia qui e la barra non chiede più altezza
-    // del suo posto nel layout (senza, il piede sotto perdeva 89 px dei suoi 190).
+    // del suo posto nel layout.
     return v_flex().size_full().overflow_hidden().bg(t.chrome)
-      .child(v_flex().id("barra-cima").flex_none().px(14).pt(6).pb(14).gap(8)
+      .child(v_flex().id("barra-cima").flex_none().px(MARGINE).pt(SPAZIO.s).pb(SPAZIO.l).gap(SPAZIO.m)
         .on_size_change((m) => {
           const v = { altezza: Math.round(m.height) };
           if (shared("arturo.misura.cima")?.altezza !== v.altezza) setShared("arturo.misura.cima", v);
         })
-        .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), quanti > 0 || Boolean(this.errore)))
-        .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))
-        .when(Boolean(dove), (el) => el.child(dove))
-        .when(Boolean(tutto), (el) => el.child(tutto)))
+        .child(h_flex().gap(SPAZIO.m).items_center()
+          .child(campo)
+          .child(pulsanteIcona("nuova", "square-pen", `Nuova richiesta · ${tasti().tessere}`, () => nuova(), { forte })))
+        .when(fila.length > 0, (el) => el.child(h_flex().flex_wrap().gap(SPAZIO.s + 2).children(fila))))
       .when(Boolean(vuoto), (el) => el.child(vuoto))
       .when(Boolean(v), (el) => el.child(v));
   }
@@ -204,23 +222,23 @@ export class Barra {
 const aperteNote = () => (shared("arturo.note") ?? []).filter((n) => APERTE.has(n?.stato)).length;
 
 export class Piede {
+  // Una fila di icone alta PIEDE px (fase 4, #5371): prima erano cinque righe in 192 px, che toglievano
+  // spazio all'elenco delle sessioni. Il nome di ogni voce sta nel suggerimento; Note porta il conto delle
+  // note da guardare; Impostazioni un pallino (rosso per un avviso del mod, accento per un'app nuova
+  // pronta) e, nel suo menu, la versione del mod.
   render() {
     const t = theme();
-    const voce = (id, icona, testo, azione) => h_flex().id(id).h(32).px(10).gap(10).items_center().rounded(8).cursor_pointer()
-      .text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground)).on_click(azione)
-      .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(15)).child(div().flex_1().text_size(13).child(testo));
-    return v_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).py(8).gap(2)
-      .child(voce("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
-      .child(voce("settimana", "mods/arturo/settimana.svg", "La settimana", () => apriRevisione()))
-      // Le note alla maniera di Agentation: il clic apre l'elenco, i due tasti stanno scritti accanto
-      // perché la nota nuova parte dallo scatto della finestra, non da un pulsante (#5156).
-      .child(voce("note", "pin", "Note", () => apriElenco())
-        .when(aperteNote() > 0, (el) => el.child(div().text_size(12).text_color(t.accent).child(String(aperteNote()))))
-        .child(div().text_size(11.5).text_color(t.dim).child(`${tasti().nota} nuova · ${tasti().elenco}`)))
-      .child(voce("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida()))
-      // Un clic apre il menu con l'interruttore del movimento e le impostazioni dell'app (⌘, le apre dirette).
-      .child(voce("impostazioni", "settings", "Impostazioni", () => apriImpostazioni())
-        .when(Boolean(rigaMod(shared("arturo.mod"))), (el) => { const r = rigaMod(shared("arturo.mod")); return el.child(div().text_size(11.5).text_color(r.avviso ? t.blocked : t.dim).child(r.testo)); })
-        .when(Boolean(updates().app.ready), (el) => el.child(punto(t.accent, 7))));
+    const note = aperteNote();
+    return h_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).px(MARGINE - SPAZIO.s).gap(SPAZIO.xs).items_center()
+      .child(pulsanteIcona("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti(), { misura: "piccolo" }))
+      .child(pulsanteIcona("settimana", "mods/arturo/settimana.svg", "La settimana", () => apriRevisione(), { misura: "piccolo" }))
+      // Le note alla maniera di Agentation: il clic apre l'elenco; la nota nuova parte dallo scatto della
+      // finestra, col tasto scritto nel suggerimento (#5156).
+      .child(pulsanteIcona("note", "pin", `Note · ${tasti().nota} nuova · ${tasti().elenco} elenco`, () => apriElenco(), { misura: "piccolo", numero: note }))
+      .child(pulsanteIcona("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida(), { misura: "piccolo" }))
+      .child(div().flex_1())
+      // Un clic apre il menu col movimento, le impostazioni dell'app (⌘, le apre dirette) e la versione del mod.
+      .child(pulsanteIcona("impostazioni", "settings", `Impostazioni · ${rigaMod(shared("arturo.mod"))?.testo ?? tasti().impostazioni}`, () => apriImpostazioni(),
+        { misura: "piccolo", segnale: segnaleImpostazioni(Boolean(updates().app.ready)) }));
   }
 }

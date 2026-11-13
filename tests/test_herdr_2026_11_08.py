@@ -8576,7 +8576,7 @@ VELENI = [
     ("HZ58", "hooks/scheda-terminale.py", '    if not progetto and evento == "PostToolUse" and not persona:', '    if evento == "PostToolUse":'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if True:\n            try:\n                f.unlink()'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if False:\n            try:\n                f.unlink()'),
-    ("HZ54", "shared/volta/mods/arturo/sessioni.js", '{ verbo: "progetto", testo: "Sposta in un progetto…" }, { verbo: "rinomina", testo: "Rinomina…" }];', '];'),
+    ("HZ54", "shared/volta/mods/arturo/sessioni.js", '  out.push({ verbo: "rinomina", testo: "Rinomina…" });\n', ''),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.replace(/\\s+/g, " ").trim().slice(0, 60).trim();', '.trim();'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")\n', '\n'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.padStart(4, "0")).join("");', ').join("");'),

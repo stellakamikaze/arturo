@@ -10,26 +10,27 @@
 import { View } from "gpui-kit";
 import { props, shared, setShared } from "herdr";
 import { Marchio, Barra, Piede } from "./barra.js";
-import { Testata, Stato, Benvenuto } from "./testata.js";
+import { Testata, Schede, Stato, Benvenuto } from "./testata.js";
 import { Todo } from "./todo.js";
 import { Apri } from "./apri.js";
 import { Guida } from "./guida.js";
 import { Chiedi } from "./suggerimenti.js";
 import { Settimana } from "./revisione.js";
 import { Azioni, Nuovo } from "./menu.js";
-import { MenuSessione } from "./menusessione.js";
+import { MenuSessione, MenuProgetto } from "./menusessione.js";
 import { SceltaMacchina, Impostazioni } from "./comuni.js";
 import { Cambio } from "./cambio.js";
 import { Nota } from "./notaui.js";
 import { Note } from "./noteui.js";
 import { Casa } from "./casa.js";
 import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
+import { Contesto } from "./contestoui.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
-const MISURATE = new Set(["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto", "casa"]);
+const MISURATE = new Set(["marchio", "barra", "piede", "testata", "schede", "todo", "stato", "benvenuto", "casa"]);
 
-const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto };
+const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto, contesto: Contesto, menuprogetto: MenuProgetto, schede: Schede };
 
 export default class Arturo extends View {
   init(p, cx) {

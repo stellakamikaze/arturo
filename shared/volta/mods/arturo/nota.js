@@ -89,7 +89,7 @@ export const NOMI_BLOCCO = { marchio: "Marchio", progetti: "Barra dei progetti",
 // i prefissi degli id che portano una chiave (una sessione, un progetto, un todo).
 // Nessun prefisso è l'inizio di un altro: l'ordine non conta.
 export const NOMI_ELEMENTO = {
-  nuova: "Nuova richiesta", apri: "Apri un progetto", trova: "Trova i miei progetti", "progetti-elenco": "Elenco dei progetti",
+  nuova: "Nuova richiesta", cerca: "Cerca o chiedi", apri: "Apri un progetto", trova: "Trova i miei progetti", "progetti-elenco": "Elenco dei progetti",
   "volta-testa": "Tutte le sessioni", "volta-macchina": "Vista per macchina", "volta-progetto": "Vista per progetto",
   "volta-elenco": "Elenco delle sessioni", "volta-gesti": "Gesti della sessione", "volta-gesti-chiudi": "Chiudi i gesti",
   chiedi: "Cosa posso chiedere", settimana: "La settimana", note: "Note", guida: "Guida", impostazioni: "Impostazioni",
