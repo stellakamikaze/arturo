@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-10
+Aggiornata il 2026-11-13
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico.
 
@@ -28,7 +28,7 @@ Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di 
 
 ### Le correzioni della revisione di novembre {#revisione-novembre}
 
-Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, e sul Python che manca.
+Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, sul Python che manca e sui comandi di Windows che cancellano o eseguono (`robocopy`, `reg delete`, PowerShell, `wsl`, node).
 
 Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con `.exe` passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.
 
