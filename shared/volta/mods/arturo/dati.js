@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
+import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -537,11 +537,15 @@ export const comando = (argv) => {
 // Solo quelli di questa macchina: la finestra mostra anche le schede delle altre macchine di Herdr
 // ("amaltea/t21"), ma lì l'argv dell'aggancio non vale (è scritto per partire da qui: sarebbe un ssh
 // dalla macchina verso sé stessa), e chiudere o rinominare da qui le schede di un'altra finestra non
-// è il gesto chiesto.
+// è il gesto chiesto. Un terminale che Volta ha appena chiuso (segnaTolto) non conta: Herdr lo elenca
+// ancora per un attimo, e dopo Sposta la sessione arrivata ha lo stesso id della partita, quindi la
+// scheda vecchia passava per la nuova e la nuova non si apriva (13/11/2026, #5537).
 export function schedeDi(s) {
   if (!s?.id) return [];
   const visti = new Set(panes().map((p) => p.terminal));
-  const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s));
+  const tolti = shared("arturo.volta.tolti") ?? {};
+  const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s) &&
+    !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));
   const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);
   return etichetta.concat(l.filter((x) => !etichetta.includes(x) && agganciata(x.argv, s)));
 }

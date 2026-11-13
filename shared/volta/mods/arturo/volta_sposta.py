@@ -405,7 +405,13 @@ try:
 except (OSError, ValueError):
     d = {}
 d = d if isinstance(d, dict) else {}
-d.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())
+if a.get("spostata"):
+    # la macchina di partenza: la conversazione ora vive altrove, la sonda la conta chiusa (#5537)
+    d["spostata"] = {"su": a["spostata"], "quando": time.time()}
+else:
+    d.pop("spostata", None)
+    if a.get("progetto"):
+        d.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())
 os.makedirs(os.path.dirname(f), exist_ok=True)
 with open(f + ".tmp", "w", encoding="utf-8") as fh:
     json.dump(d, fh)
@@ -552,10 +558,13 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     nata = riprendi_su(a, sid, pronto["cartella"], titolo)
     if nata.get("errore"):
         return torna("non riparte su %s: %s" % (vs.chi(a), nata["errore"]))
-    if progetto:
-        # col progetto di prima: fonte "teletrasporto", forte per la sonda (FORTI) e senza il segno di /inizio
-        # che Cambia progetto lascia e che farebbe scrivere /inizio nella sessione appena spostata
-        esegui(a, SEGNA, {"sid": sid, "progetto": progetto})
+    # Su A col progetto di prima: fonte "teletrasporto", forte per la sonda (FORTI) e senza il segno di
+    # /inizio che Cambia progetto lascia e che farebbe scrivere /inizio nella sessione appena spostata; e
+    # via il segno di una partenza vecchia, se la conversazione torna dove era già stata.
+    esegui(a, SEGNA, {"sid": sid, "progetto": progetto})
+    # Su DA la copia ferma resta "done" anche dopo claude stop, e la sonda la darebbe addormentata: il
+    # clic la riprenderebbe lì, con due copie vive della stessa conversazione (#5537, 13/11/2026).
+    esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})
     return {"id": nata["id"], "sessionId": sid, "attach": nata["attach"], "macchina": a or "qui", "cartella": pronto["cartella"]}
 
 

@@ -269,11 +269,13 @@ for s in sessioni:
     nuovo = {x: reg[x] for x in ("progetto", "fonte", "titolo") if isinstance(reg.get(x), str) and reg[x].strip()}
     s["progetto"] = None
     s["daIniziare"] = None
+    s["spostata"] = False
     fonte = None
     try:  # il progetto lo scrive hooks/scheda-terminale.py di Arturo; senza Arturo resta vuoto
         with open(os.path.join(radice, "cache", "scheda", sid + ".json"), encoding="utf-8") as fh:
             scheda = json.load(fh)
         p, fonte = scheda.get("progetto"), scheda.get("fonte")
+        s["spostata"] = bool(scheda.get("spostata"))
         if isinstance(p, str) and p.strip():
             s["progetto"] = p.strip()[:60]
             # spostata dalla persona in un progetto e non ancora ripartita da /inizio (#5465): Volta lo
@@ -1014,9 +1016,10 @@ def righe(voci):
                 # il congedo di ⌘W. Volta non la mostra più; una in errore resta, per Riavvia.
                 # dorme: ritirata dal servizio di Claude (ferma da un'ora, 8 con Remote Control, 60 s
                 # con poca memoria) o rimasta senza processo dopo un riavvio. Resta nell'elenco e nel
-                # giro: claude attach la riprende.
-                "chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True),
-                "dorme": senza and not (s.get("state") == "stopped" or s.get("fineFatta") is True),
+                # giro: claude attach la riprende. Spostata su un'altra macchina (volta_sposta.py): chiusa,
+                # perché claude stop lascia "done" una sessione che aveva finito il turno (#5537).
+                "chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),
+                "dorme": senza and not (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),
             })
     return out
 

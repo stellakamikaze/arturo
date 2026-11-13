@@ -6809,14 +6809,33 @@ def hz89(repo: Path, casa: Path) -> str | None:
              "{'sessionId':'b2','id':'b2bb','kind':'background','state':'done','status':'idle','pid':4},"
              "{'sessionId':'c3','id':'c3cc','kind':'background','state':'failed'},"
              "{'sessionId':'d4','id':'d4dd','kind':'background','state':'done'},"
-             "{'sessionId':'e5','id':'e5ee','kind':'background','state':'done','fineFatta':True}]}\n"
+             "{'sessionId':'e5','id':'e5ee','kind':'background','state':'done','fineFatta':True},"
+             "{'sessionId':'f6','id':'f6ff','kind':'background','state':'done','spostata':True}]}\n"
              "print(json.dumps([[x['chiusa'], x['dorme']] for x in m.righe([v])]))")
     r = subprocess.run([sys.executable, "-c", prova, str(sonda)], capture_output=True, text=True, timeout=30)
-    # chiusa: senza processo e fermata con claude stop o dopo /fine; dorme: senza processo, ritirata dal
-    # servizio di Claude (#5495). Una in errore non è né l'una né l'altra: resta, per Riavvia.
+    # chiusa: senza processo e fermata con claude stop, dopo /fine o spostata su un'altra macchina (#5537:
+    # claude stop lascia "done" chi aveva finito il turno); dorme: senza processo, ritirata dal servizio
+    # di Claude (#5495). Una in errore non è né l'una né l'altra: resta, per Riavvia.
     if r.returncode != 0 or json.loads(r.stdout.strip().splitlines()[-1]) != [[True, False], [False, False], [False, False],
-                                                                               [False, True], [True, False]]:
+                                                                               [False, True], [True, False], [True, False]]:
         return f"righe() non distingue la sessione chiusa da quella che dorme: {(r.stdout or r.stderr).strip()[-200:]}"
+    # Sposta segna la partenza (spostata) e la toglie all'arrivo: lo script SEGNA vero, in una casa finta
+    if 'esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})' not in (mod / "volta_sposta.py").read_text(encoding="utf-8"):
+        return "Sposta non segna spostata la conversazione sulla macchina di partenza (#5537)"
+    with tempfile.TemporaryDirectory() as t:
+        prova = ("import base64,json,os,subprocess,sys\nsys.path.insert(0,sys.argv[1])\nimport volta_sposta as v\n"
+                 "def segna(d):\n"
+                 "    subprocess.run([sys.executable,'-c',v.SEGNA,base64.b64encode(json.dumps(d).encode()).decode()],check=True,capture_output=True)\n"
+                 "    return json.load(open(os.path.join(sys.argv[2],'cache','scheda','s1.json'),encoding='utf-8'))\n"
+                 "a=segna({'sid':'s1','spostata':'torre'}); b=segna({'sid':'s1','progetto':'x'}); c=segna({'sid':'s1','progetto':None})\n"
+                 "print(json.dumps([a.get('spostata',{}).get('su'), 'spostata' in b, b.get('progetto'), 'spostata' in c, c.get('progetto')]))")
+        env = dict(os.environ, CLAUDE_CONFIG_DIR=t, HERDR_APP_HOME=t)
+        r = subprocess.run([sys.executable, "-c", prova, str(mod), t], capture_output=True, text=True, timeout=60, env=env)
+        if r.returncode != 0 or json.loads(r.stdout.strip().splitlines()[-1]) != ["torre", False, "x", False, "x"]:
+            return f"SEGNA non segna e non toglie spostata come deve: {(r.stdout or r.stderr).strip()[-200:]}"
+    # la scheda appena chiusa da Volta non passa per quella della sessione arrivata con lo stesso id
+    if "!(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS)" not in (mod / "dati.js").read_text(encoding="utf-8"):
+        return "schedeDi conta anche le schede che Volta ha appena chiuso (#5537)"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     if "cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));" not in volta or "sparite(this.schede, adesso" not in volta:
@@ -8546,14 +8565,18 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };', '    if (s.stato === "lavora" && ora - da < 1) return { fai: "attendi" };'),
     ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso:', '    if (s.stato === "aspetta") return { fai: "attendi", fase: "ferma", avviso:'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', '    argv += ["--resume", a["riprendi"], "--fork-session"]'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True),'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    d.pop("spostata", None)\n', '    pass\n'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})', '    pass'),
+    ('HZ89', 'shared/volta/mods/arturo/dati.js', ' &&\n    !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));', ');'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    ferma = azione(nome, "stop", sid_lavoro)  # già ferma', '    ferma = {}  # già ferma'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', 'r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id, stessa=True)', 'r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id)'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    if argv and argv[0] == "inizia":\n', '    if False:\n'),
-    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True),', '"chiusa": False,'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),', '"chiusa": False,'),
     ('HZ89', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    // confirmed:', '    // confirmed:'),
-    ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s));', 'const l = terminals().filter((x) => visti.has(x.address) && !occupataDaAltra(x, s));'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s) &&', 'const l = terminals().filter((x) => visti.has(x.address) && !occupataDaAltra(x, s) &&'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata) return fallita(m);'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata || m) return fallita(m);'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '({ errore: m?.testo ?? "Claude non resta aperto', '({ errore: "Claude non resta aperto'),

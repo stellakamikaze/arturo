@@ -1,5 +1,5 @@
 {
- "albero": "f1db5ee22e9366d0e4fb4c930a2fa4f56cb04349",
+ "albero": "2acaf056cb3801572ab54639a3aad527aa856256",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -23,7 +23,7 @@
   "mods/arturo/comuni.js": "cf69127f3de4dfa3f16b055a01458f9f478fcbbc66d9ce3af7ecbedfebacfa36",
   "mods/arturo/contesto.js": "4b89d87f2a4e56ded2e807556e264db2596c87c62f9eadd25126fc0a6cc7b362",
   "mods/arturo/contestoui.js": "b34addd6ed1140ec4f3ed9a42992d2315256223f8fe246f4451cbdf9d4c9a9ce",
-  "mods/arturo/dati.js": "781ac99b673775ea04b20929b4489af51da63287e72ed59f7b2fcd186dd04667",
+  "mods/arturo/dati.js": "a6c67731b73ad3c5ea2860091671f8cf5bbc9ffab5a135c0f0f60b03bec56f2b",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -63,8 +63,8 @@
   "mods/arturo/volta.js": "63bc301b08308300562ad23f378bd19cb3781eb7437dc2690816b611e8d8c78b",
   "mods/arturo/volta_microfono.py": "c5f9f506837c56ae33f460a29f7ee607195703080e7a8789744f79dd615628c4",
   "mods/arturo/volta_note.py": "8f2819706f4b2cbcc315a976d2ecc46e21d383f17d6b3b3ec1f898c195f212a0",
-  "mods/arturo/volta_sonda.py": "47733d9d7d8b6d542e9d25c5d595fb5ea168f6338895834ade6a4dc91c826ec3",
-  "mods/arturo/volta_sposta.py": "95a2562f29bbc7acf6af8c52f0d781e989ae4c65eed6373b21a5b815b11ae186",
+  "mods/arturo/volta_sonda.py": "473593855a1313875bc6a89ef87c5dc98e73a41d19cbc7fb8b165d833111f15c",
+  "mods/arturo/volta_sposta.py": "162ef46f7389c9215dc5b45617e62626a540892286b43146ddd4601c3342f332",
   "nascita.sh": "4a757a34f4199688ac33c2752da07f81bfd23bd6446fa40178a4fb6ed8e94349",
   "servizi-gui.sh": "a3eaeb26e61f1143781e17ff282bc2b06a4598814d48dde22842769e95e7f7c7",
   "servizio-claude.ps1": "11b379c862c59b6f97ce28964df31414a0641cbf498640aef6c0f14f07743960",
