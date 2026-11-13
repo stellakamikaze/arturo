@@ -30,7 +30,7 @@ import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 import { run, panes } from "herdr";
-import { xRiga, uscenti, nascitePerAvviso, congediOrfani } from "./sessioni.js";
+import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
 
@@ -162,9 +162,11 @@ export class Volta {
       await this.leggi(cx);
       cx.notify();
       this.aggiorna(cx);
-      // Un'altra Volta (o /teletrasporto) che riscrive il file: lo si rilegge subito.
+      // Un'altra Volta che riscrive il file: lo si rilegge subito. Solo per sessioni.json (o la cartella
+      // intera, che per l'API vuol dire "rileggi tutto"): la cartella tiene anche il clone del mod e i file
+      // del microfono, riscritti ogni 2 s, e ogni lotto rileggeva e ridisegnava l'elenco (13/11/2026).
       try {
-        for (;;) { await watchFolder(this.cartella); await this.leggi(cx); cx.notify(); }
+        for (;;) { if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggi(cx); cx.notify(); } }
       } catch { /* senza cartella resta il timer */ }
     });
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
@@ -472,7 +474,6 @@ export class Volta {
       } catch (e) {
         this.errore = String(e?.message ?? e);
       }
-      setShared("arturo.volta.errore", this.errore ?? null);
       await this.leggi(cx);
       this.inCorso = false;
       this.passiCongedo(cx);
@@ -685,7 +686,7 @@ export class Volta {
       cx.notify();
       cx.spawn(async (cx) => {
         let r;
-        try { r = await spostaSessione(s, v.macchina); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
+        try { r = await spostaSessione(s, v.macchina, (ms) => cx.sleep(ms)); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
         delete this.faccio[k];
         this.spostando = false;
         if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };

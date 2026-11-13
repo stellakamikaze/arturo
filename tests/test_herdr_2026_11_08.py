@@ -475,7 +475,14 @@ HZ107 il clic non fa ripartire una sessione in errore su una macchina rotta, né
      una volta per episodio; i gruppi dicono "non fa partire sessioni"; arturo() ha un tempo massimo.
 HZ108 i congedi rimasti a metà di questa macchina: stop se vivi con /fine in fondo, rm se fermi o in
      errore, niente su una riaperta, una recente, una nel registro o una viva con la scheda aperta; una
-     ferma si elimina anche con la scheda aperta, dove resta solo la shell.
+     ferma si elimina anche con la scheda aperta, dove resta solo la shell; una ritirata senza /fine in fondo
+     (riaperta dopo il congedo) resta.
+HZ110 Volta rilegge l'elenco solo quando cambia sessioni.json (tocca), non per il clone del mod o il
+     microfono; arturo() tiene un solo comando in volo e dopo uno appeso non ne lancia altri per 5 minuti
+     (voloArturo); cartelle() ha un tempo massimo; nessuno scrive più arturo.volta.errore.
+HZ111 lo spostamento parte staccato (13/11/2026): sposta --esito risponde subito {"avviato"}, il figlio
+     scrive l'esito finito nel file anche quando cade, Volta lo legge a giri con cx.sleep fino a 25 minuti
+     (esitoSposta) invece di chiedere a exec 20 minuti oltre il tetto di 10.
 """
 from __future__ import annotations
 
@@ -491,7 +498,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -2641,7 +2648,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
     dj = (mod / "dati.js").read_text(encoding="utf-8")
     for file, pezzo in (("dati.js", "stato: statoSpazio(s)"), ("testata.js", "const st = statoScheda(s, tab);"), ("dati.js", "const volta = g && g.tab === tab?.id ? statoAgganciata(g) : null;"),
                         ("todo.js", "statoSpazio(spazio(p))"), ("todo.js", "    const st = statoSpazio(s);"),
-                        ("barra.js", '|| Object.values(statiQui()).includes("aspetta")'), ("barra.js", "`|${JSON.stringify(statiQui())}|")):
+                        ("barra.js", "`|${JSON.stringify(statiQui())}|")):  # la stella del marchio è ferma dal 13/11 (#5488)
         if pezzo not in (dj if file == "dati.js" else (mod / file).read_text(encoding="utf-8")):
             return f"{file} non legge lo stato di Volta per le sessioni agganciate: manca {pezzo}"
     return None
@@ -7095,14 +7102,14 @@ console.log(JSON.stringify(out));
 
 
 def hz94(repo: Path, casa: Path) -> str | None:
-    """Le animazioni di Volta (#5410): la stella che gira, il pallino che pulsa, le righe in dissolvenza e
-    l'interruttore del movimento, che spegne tutto e segue "Riduci movimento" del Mac."""
+    """Le animazioni di Volta (#5410): righe in dissolvenza e interruttore del movimento, che segue "Riduci
+    movimento" del Mac. Dal 13/11/2026 (#5488) i segni sono fermi: nessun .spin né .loop nel mod."""
     mod = repo / "shared/volta/mods/arturo"
     if not (mod / "stella-lavora.svg").is_file():
         return "manca stella-lavora.svg, il segno di chi lavora"
     cj = (mod / "comuni.js").read_text(encoding="utf-8")
     for pezzo in ('export const movimento = () => shared("arturo.movimento") !== false && shared("arturo.movimento.ridotto") !== true;',
-                  "if (!moto || !movimento()) return punto(colore, d);", '.spin(GIRO_MS)', 'punto(colore, d).loop("opacity", PULSA)',
+                  'if (moto !== "gira") return punto(colore, d);', 'svg("mods/arturo/stella-lavora.svg")',
                   'run("app.settings")', 'setShared("arturo.movimento", v);'):
         if pezzo not in cj:
             return f"comuni.js non ha più: {pezzo}"
@@ -7120,8 +7127,13 @@ def hz94(repo: Path, casa: Path) -> str | None:
     bj = (mod / "barra.js").read_text(encoding="utf-8")
     if 'else if (c === "impostazioni") apriImpostazioni();' not in bj:
         return "barra.js non apre il menu di Impostazioni col comando arturo.impostazioni"
-    if 'aspetta && movimento() ? stella.loop(' not in bj or "apriImpostazioni()" not in bj or 'c === "movimento") giraMovimento(arg)' not in bj:
-        return "barra.js: la stella del marchio pulsa anche col movimento spento, o Impostazioni non apre l'interruttore"
+    # segni fermi (Federico, 13/11/2026, #5488): un'animazione continua ridisegna la finestra 30 volte al secondo
+    for f in sorted(mod.glob("*.js")):
+        testo = f.read_text(encoding="utf-8")
+        if ".spin(" in testo or ".loop(" in testo:
+            return f"{f.name} ha ancora un'animazione continua (.spin o .loop): Volta torna al 35% di CPU"
+    if '      .child(stella)' not in bj or "apriImpostazioni()" not in bj or 'c === "movimento") giraMovimento(arg)' not in bj:
+        return "barra.js: la stella del marchio non è ferma, o Impostazioni non apre l'interruttore"
     mj = (mod / "main.js").read_text(encoding="utf-8")
     if "impostazioni: Impostazioni" not in mj:
         return "main.js non conosce la parte impostazioni"
@@ -8031,7 +8043,8 @@ const b = (x) => ({ questa: true, tipo: "background", congedo: true, sessionId: 
 const dati = { sessioni: [b({ id: "viva", fineFatta: true }), b({ id: "riaperta", fineFatta: false }), b({ id: "errore", stato: "errore" }),
   b({ id: "salvata", chiusa: true, fineFatta: true }), b({ id: "fresca", ultimo: "2026-11-13T12:55:00Z", fineFatta: true }),
   b({ id: "lavora", stato: "lavora", fineFatta: true }), b({ id: "altrove", questa: false, fineFatta: true }),
-  b({ id: "normale", congedo: false, fineFatta: true }), b({ id: "interattiva", tipo: "interattiva", fineFatta: true })] };
+  b({ id: "normale", congedo: false, fineFatta: true }), b({ id: "interattiva", tipo: "interattiva", fineFatta: true }),
+  b({ id: "ritirata", dorme: true, fineFatta: false }), b({ id: "fermata", chiusa: true, fineFatta: false })] };
 console.log(JSON.stringify({
   tutti: S.congediOrfani(dati, {}, ora).map((p) => [p.s.id, p.fai, Boolean(p.avviso)]),
   filtrati: S.congediOrfani(dati, { k: { sessionId: "errore-s" } }, ora, new Set(["viva-s", "salvata-s"])).map((p) => p.s.id),
@@ -8065,7 +8078,149 @@ def hz108(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108}
+
+PROVA_VOLO = r"""
+const S = await import(%s);
+const T = 45000, ora = 1000000;
+console.log(JSON.stringify({
+  niente: S.voloArturo(undefined, ora, T), gira: S.voloArturo({ da: ora - 1000, p: 1 }, ora, T),
+  oltre: S.voloArturo({ da: ora - 50000, p: 1 }, ora, T), appeso: S.voloArturo({ da: 0, appeso: ora - 60000 }, ora, T),
+  riprova: S.voloArturo({ da: 0, appeso: ora - S.ARTURO_PAUSA_MS - 1 }, ora, T),
+  win: S.tocca([String.raw`C:\Users\f\.cache\volta\sessioni.json`], "C:/Users/f/.cache/volta", "C:/Users/f/.cache/volta/sessioni.json"),
+  mic: S.tocca(["/h/.cache/volta/microfono-rinnovo", "/h/.cache/volta/mod-git/arturo/volta.js"], "/h/.cache/volta", "/h/.cache/volta/sessioni.json"),
+  radice: S.tocca(["/h/.cache/volta/"], "/h/.cache/volta", "/h/.cache/volta/sessioni.json"),
+  vuoto: S.tocca([], "/h/.cache/volta", "/h/.cache/volta/sessioni.json"),
+}));
+"""
+
+
+def hz110(repo: Path, casa: Path) -> str | None:
+    """Volta rilegge l'elenco solo per sessioni.json, e non accumula comandi di Arturo appesi."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    if "if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggi(cx); cx.notify(); }" not in vj:
+        return "volta.js rilegge l'elenco a ogni file della cartella di Volta (clone del mod, microfono)"
+    if 'setShared("arturo.volta.errore"' in vj:
+        return "volta.js scrive ancora arturo.volta.errore a ogni giro, e nessuno lo legge"
+    dj = (mod / "dati.js").read_text(encoding="utf-8")
+    for pezzo, perche in (('if (passo.fai === "appeso") return { ok: false, errore: ARTURO_APPESO };', "un comando appeso non ferma i lanci nuovi"),
+                          ('if (passo.fai === "aspetta") return voli[chiave].p;', "due chiamate uguali lanciano due processi"),
+                          ("if (r.errore === ARTURO_APPESO) voli[chiave] = { da: voli[chiave].da, appeso: Date.now() };", "un comando appeso non si ricorda"),
+                          ("c.base], { timeout: 15000 });", "cartelle() aspetta i 30 s di serie")):
+        if pezzo not in dj:
+            return f"dati.js: {perche}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_VOLO % json.dumps((casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    passi = [g[k]["fai"] for k in ("niente", "gira", "oltre", "appeso", "riprova")]
+    if passi != ["lancia", "aspetta", "appeso", "appeso", "lancia"]:
+        return f"voloArturo sbaglia: {passi}, atteso lancia aspetta appeso appeso lancia"
+    if [g["win"], g["mic"], g["radice"], g["vuoto"]] != [True, False, True, False]:
+        return f"tocca sbaglia: windows {g['win']}, microfono {g['mic']}, cartella {g['radice']}, vuoto {g['vuoto']}"
+    return None
+
+
+
+PROVA_ESITO_SPOSTA = r"""
+const S = await import(%s);
+const dal = 1000000;
+console.log(JSON.stringify({
+  finito: S.esitoSposta(JSON.stringify({ finito: true, id: "n1", attach: ["claude", "attach", "n1"] }), dal, dal + 700000, "studio"),
+  gira: S.esitoSposta(JSON.stringify({ finito: false, da: 1 }), dal, dal + 700000, "studio"),
+  rotto: S.esitoSposta("{mezzo", dal, dal + 1000, "studio"),
+  manca: S.esitoSposta(null, dal, dal + 1000, "studio"),
+  tardi: S.esitoSposta(null, dal, dal + S.SPOSTA_MAX_MS + 1, "studio"),
+  tetto: S.SPOSTA_MAX_MS,
+}));
+"""
+
+
+def hz111(repo: Path, casa: Path) -> str | None:
+    """Lo spostamento parte staccato e scrive l'esito in un file: Volta non dipende più dai 10 minuti di exec."""
+    mod = repo / "shared/volta/mods/arturo"
+    dj = (mod / "dati.js").read_text(encoding="utf-8")
+    for pezzo, perche in (('"--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: 60000 }));', "lo spostamento non parte staccato, o aspetta più di un minuto la partenza"),
+                          ("const p = esitoSposta(await readTextFile(file).catch(() => null), dal, Date.now(), nomeMacchina(macchina));", "Volta non legge l'esito dal file"),
+                          ("await (dormi ? dormi(SPOSTA_OGNI_MS) : pausa(SPOSTA_OGNI_MS));", "le letture dell'esito non aspettano fra loro")):
+        if pezzo not in dj:
+            return f"dati.js: {perche}"
+    if "1200000" in dj:
+        return "dati.js chiede ancora a exec 20 minuti, oltre il tetto di 10 di Herdr"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    if "r = await spostaSessione(s, v.macchina, (ms) => cx.sleep(ms));" not in vj:
+        return "volta.js non dà a spostaSessione l'attesa di cx.sleep"
+    # il lato Python: risponde subito, il figlio staccato scrive l'esito, anche quando cade
+    esito = casa / "sposta" / "s1.json"
+    argv = [sys.executable, str(mod / "volta_sonda.py"), "sposta", "qui", "studio", "a1", "s1", "--cartella", str(casa), "--esito", str(esito)]
+    env = {**os.environ, "VOLTA_SPOSTA_FINTO": json.dumps({"dorme": 3, "esito": {"id": "n1", "sessionId": "s1", "attach": ["claude", "attach", "n1"]}})}
+    env.pop("VOLTA_SPOSTA_FIGLIO", None)
+    t0 = time.time()
+    r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+    subito = time.time() - t0
+    try:
+        a = json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return f"sposta --esito non risponde in JSON: {(r.stdout + r.stderr).strip()[-200:]}"
+    if a != {"avviato": True, "esito": str(esito)} or subito > 2.5:
+        return f"sposta --esito non risponde subito con avviato: {a} in {subito:.1f} s"
+    try:
+        prima = json.loads(esito.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "il file d'esito non c'è appena partito lo spostamento"
+    if prima.get("finito") is not False:
+        return f"il file d'esito dice finito prima della fine: {prima}"
+    fine = None
+    for _ in range(60):
+        time.sleep(0.25)
+        try:
+            d = json.loads(esito.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if d.get("finito"):
+            fine = d
+            break
+    if fine != {"id": "n1", "sessionId": "s1", "attach": ["claude", "attach", "n1"], "finito": True}:
+        return f"il figlio staccato non scrive l'esito finito: {fine}"
+    rotto = casa / "sposta" / "s2.json"
+    env2 = {**env, "VOLTA_SPOSTA_FINTO": json.dumps({"rompi": True})}
+    subprocess.run(argv[:-1] + [str(rotto)], capture_output=True, text=True, timeout=30, env=env2)
+    caduto = None
+    for _ in range(40):
+        time.sleep(0.25)
+        try:
+            d = json.loads(rotto.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if d.get("finito"):
+            caduto = d
+            break
+    if not caduto or "lo spostamento è caduto" not in (caduto.get("errore") or ""):
+        return f"uno spostamento che cade non scrive finito con l'errore: {caduto}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_ESITO_SPOSTA % json.dumps((casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["finito"] != {"fatto": {"id": "n1", "attach": ["claude", "attach", "n1"]}}:
+        return f"esitoSposta non dà l'esito finito senza il campo finito: {g['finito']}"
+    if g["gira"] != {"attendi": True} or g["rotto"] != {"attendi": True} or g["manca"] != {"attendi": True}:
+        return f"esitoSposta non aspetta un file che gira, mezzo scritto o assente: {g['gira']} {g['rotto']} {g['manca']}"
+    if g["tetto"] <= 600000 or "studio non ha finito in 25 minuti" not in (g["tardi"].get("errore") or ""):
+        return f"esitoSposta non arriva oltre i 10 minuti di exec, o non lo dice: {g['tetto']} {g['tardi']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -8084,6 +8239,16 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ111', 'shared/volta/mods/arturo/volta_sposta.py', '    if f and not os.environ.get("VOLTA_SPOSTA_FIGLIO"):', '    if False:'),
+    ('HZ111', 'shared/volta/mods/arturo/volta_sposta.py', '    if f:\n        scrivi_esito(f, dict(esito, finito=True))', '    if f and "errore" not in esito:\n        scrivi_esito(f, dict(esito, finito=True))'),
+    ('HZ111', 'shared/volta/mods/arturo/sessioni.js', 'export const SPOSTA_MAX_MS = 25 * 60000,', 'export const SPOSTA_MAX_MS = 9 * 60000,'),
+    ('HZ111', 'shared/volta/mods/arturo/sessioni.js', '  if (d && typeof d === "object" && d.finito === true) { const { finito: _, ...resto } = d; return { fatto: resto }; }', '  if (d && typeof d === "object") return { fatto: d };'),
+    ('HZ111', 'shared/volta/mods/arturo/volta.js', 'r = await spostaSessione(s, v.macchina, (ms) => cx.sleep(ms));', 'r = await spostaSessione(s, v.macchina);'),
+    ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  return (percorsi ?? []).some((p) => { const x = n(p); return x === c || x === f; });', '  return (percorsi ?? []).length > 0;'),
+    ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  if (v.appeso) return ora - v.appeso < ARTURO_PAUSA_MS ? { fai: "appeso" } : { fai: "lancia" };', '  if (v.appeso) return { fai: "lancia" };'),
+    ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  return ora - v.da < tetto ? { fai: "aspetta" } : { fai: "appeso" };', '  return { fai: "lancia" };'),
+    ('HZ110', 'shared/volta/mods/arturo/dati.js', '  if (passo.fai === "aspetta") return voli[chiave].p;\n', ''),
+    ('HZ108', 'shared/volta/mods/arturo/sessioni.js', '    else if (s.stato === "errore") out.push({ s, fai: "rm", avviso:', '    else out.push({ s, fai: "rm", avviso:'),
     ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '    if any(x > crash[-1][0] for x in nati):\n        return None', '    if False:\n        return None'),
     ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '> NASCITE_MIN * 60:', '> NASCITE_MIN * 6000:'),
     ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '            s["congedo"] = True', '            pass'),
@@ -8136,7 +8301,8 @@ VELENI = [
     ('HZ97', 'shared/volta/mods/arturo/volta.js', '      cx.notify();\n      this.sincronizzaNote(cx);', '      cx.notify();'),
     ('HZ94', 'shared/volta/mods/arturo/sessioni.js', '.filter((k) => k && !viste.has(k));', '.filter((k) => k);'),
     ('HZ94', 'shared/volta/mods/arturo/sessioni.js', 'export const ESCE = { duration: 140, easing: "ease-in" };', 'export const ESCE = { duration: 400, easing: "ease-in" };'),
-    ('HZ94', 'shared/volta/mods/arturo/comuni.js', 'if (!moto || !movimento()) return punto(colore, d);', 'if (!moto) return punto(colore, d);'),
+    ('HZ94', 'shared/volta/mods/arturo/comuni.js', 'svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore));', 'svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore).spin(GIRO_MS));'),
+    ('HZ94', 'shared/volta/mods/arturo/barra.js', '      .child(stella)', '      .child(stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }))'),
     ('HZ94', 'shared/volta/mods/arturo/volta.js', 'if (!c.uscita && this.esce(s, c, cx)) return;', 'if (this.esce(s, c, cx)) return;'),
     ('HZ94', 'shared/volta/mods/arturo/volta.js', '    if (!movimento()) return false;\n    const k = s.sessionId;', '    const k = s.sessionId;'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";', '  if (chiede(s.coda)) return "stasi";'),
@@ -8645,7 +8811,6 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const volta = g && g.tab === tab?.id ? statoAgganciata(g) : null;', 'const volta = null;'),
     ("HZ39", "shared/volta/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
     ("HZ39", "shared/volta/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),
-    ("HZ39", "shared/volta/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
     ("HZ39", "shared/volta/mods/arturo/barra.js", '`|${JSON.stringify(statiQui())}|', '`|'),
     ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'app = os.environ.get("HERDR_APP_HOME") or ', "app = "),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const args = [c.volta, copia ? copia.verbo : "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, copia ? copia.verbo : "nasci", macchina,'),

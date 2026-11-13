@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { macchinaDelProgetto, riparteAlClic, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
+import { macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -64,7 +64,24 @@ export const richiesta = (prompt, radice) => (prompt ?? "").split("{radice}").jo
 // la risposta dice almeno perché, invece del solo "non riesco a leggere".
 export const ARTURO_MAX_MS = 45000;
 export const ARTURO_APPESO = "Arturo non risponde su questa macchina: forse macOS aspetta un permesso sullo schermo.";
+// Un solo comando per argomenti in volo, e niente processi nuovi dopo uno appeso (13/11/2026): la barra
+// ne lanciava fino a quattro ogni 30 s e i todo uno a ogni cambio di spazio, e sul Mac mini se ne erano
+// accumulati decine. La regola sta in voloArturo() di sessioni.js.
+const voli = {};
 async function arturo(comando, args, errore) {
+  const chiave = JSON.stringify([comando, ...args]);
+  const passo = voloArturo(voli[chiave], Date.now(), ARTURO_MAX_MS);
+  if (passo.fai === "appeso") return { ok: false, errore: ARTURO_APPESO };
+  if (passo.fai === "aspetta") return voli[chiave].p;
+  const p = arturoUnaVolta(comando, args, errore);
+  voli[chiave] = { da: Date.now(), p };
+  const r = await p;
+  // appeso: la voce resta, con l'ora, così per ARTURO_PAUSA_MS nessuno ne lancia un altro
+  if (r.errore === ARTURO_APPESO) voli[chiave] = { da: voli[chiave].da, appeso: Date.now() };
+  else delete voli[chiave];
+  return r;
+}
+async function arturoUnaVolta(comando, args, errore) {
   const t0 = Date.now();
   try {
     const c = await config();
@@ -803,15 +820,30 @@ export function copiaSessione(s, verbo) {
 // Sposta una sessione in background su un'altra macchina (volta_sonda.py sposta, 12/11/2026): la stessa
 // conversazione riparte là, la scheda che la agganciava qui si chiude e una scheda nuova aggancia quella
 // di là. 20 minuti: una trascrizione grande e un git clone ci mettono. { ok } oppure { errore }.
-export async function spostaSessione(s, macchina) {
+// Lo spostamento parte staccato e scrive l'esito in cacheVolta()/sposta/<sessionId>.json (13/11/2026): exec
+// di Herdr si ferma a 10 minuti, uno spostamento ne può chiedere di più, e lo script restava a girare da
+// solo. `dormi(ms)`: l'attesa fra due letture (cx.sleep di chi chiama); senza, pausa().
+export async function spostaSessione(s, macchina, dormi = null) {
   const c = await config();
+  const file = `${cacheVolta()}/sposta/${String(s.sessionId ?? s.id).replace(/[^0-9A-Za-z-]/g, "")}.json`;
   let r;
   try {
     r = esito(await exec(c.arturo[0], [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId,
       "--cartella", s.cartella || "", ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
-      "--titolo", titolo(s).slice(0, 60)], { timeout: 1200000 }));
+      "--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: 60000 }));
   } catch (e) {
-    return { errore: `${nomeMacchina(macchina)} non ha risposto in 20 minuti (${String(e?.message ?? e).slice(0, 80)}): guarda fra le sessioni dove è rimasta` };
+    return { errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` };
+  }
+  if (r.avviato) {
+    const dal = Date.now();
+    for (;;) {
+      await (dormi ? dormi(SPOSTA_OGNI_MS) : pausa(SPOSTA_OGNI_MS));
+      const p = esitoSposta(await readTextFile(file).catch(() => null), dal, Date.now(), nomeMacchina(macchina));
+      if (p.attendi) continue;
+      if (p.errore) return { errore: p.errore };
+      r = p.fatto;
+      break;
+    }
   }
   // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
   if (!r.attach?.length) return { errore: r.errore ?? "nessuna risposta", lavora: r.lavora === true };
@@ -989,7 +1021,7 @@ export async function nomiProgetti() {
 export async function cartelle() {
   try {
     const c = await config();
-    const r = await exec("sh", ["-c", 'cd "$1" 2>/dev/null && ls -td -- */ 2>/dev/null', "sh", c.base], {});
+    const r = await exec("sh", ["-c", 'cd "$1" 2>/dev/null && ls -td -- */ 2>/dev/null', "sh", c.base], { timeout: 15000 });
     if (r.code !== 0) return [];
     return r.stdout.split("\n").map((d) => d.trim().replace(/\/$/, "")).filter((d) => d && !d.startsWith("_") && !d.startsWith("."));
   } catch {

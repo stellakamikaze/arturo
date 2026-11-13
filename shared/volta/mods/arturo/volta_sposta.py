@@ -563,20 +563,72 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     return {"id": nata["id"], "sessionId": sid, "attach": nata["attach"], "macchina": a or "qui", "cartella": pronto["cartella"]}
 
 
+def scrivi_esito(f, d):
+    """L'esito di uno spostamento staccato, scritto con una rinomina: chi legge vede il file intero o niente."""
+    os.makedirs(os.path.dirname(f) or ".", exist_ok=True)
+    tmp = "%s.%d.tmp" % (f, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(d, fh, ensure_ascii=True)
+    os.replace(tmp, f)
+
+
+def stacca(argv):
+    """Rilancia questo spostamento staccato da chi l'ha chiesto (13/11/2026): Volta aspettava la risposta
+    di exec, che Herdr ferma a 10 minuti mentre uno spostamento ne può chiedere di più; lo script restava
+    a girare da solo, Volta non apriva la scheda nuova e la coda partiva con lo spostamento dopo. Il figlio
+    ha VOLTA_SPOSTA_FIGLIO e scrive l'esito nel file di --esito; qui si risponde subito {"avviato"}."""
+    nulla = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    env = dict(os.environ, VOLTA_SPOSTA_FIGLIO="1")
+    cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "volta_sonda.py"), "sposta"] + argv
+    if os.name == "nt":
+        # fuori dal job di chi chiama, se il job lo permette; altrimenti staccato e basta
+        for flag in (0x01000000 | 0x00000008 | 0x00000200, 0x00000008 | 0x00000200):
+            try:
+                subprocess.Popen(cmd, env=env, creationflags=flag, **nulla)
+                return True
+            except OSError:
+                continue
+        return False
+    subprocess.Popen(cmd, env=env, start_new_session=True, **nulla)
+    return True
+
+
 def main(argv):
     opz = {}
     resto = []
     i = 0
     while i < len(argv):
-        if argv[i] in ("--cartella", "--progetto", "--titolo") and i + 1 < len(argv):
+        if argv[i] in ("--cartella", "--progetto", "--titolo", "--esito") and i + 1 < len(argv):
             opz[argv[i][2:]] = argv[i + 1]
             i += 2
         else:
             resto.append(argv[i])
             i += 1
     if len(resto) != 4 or any(x.startswith("--") for x in resto):
-        print("uso: volta_sonda.py sposta <da> <a> <id> <sessionId> --cartella <dir> [--progetto <slug>] [--titolo <nome>]")
+        print("uso: volta_sonda.py sposta <da> <a> <id> <sessionId> --cartella <dir> [--progetto <slug>] [--titolo <nome>] [--esito <file>]")
         return 2
-    esito = sposta(resto[0], resto[1], resto[2], resto[3], opz.get("cartella"), opz.get("progetto"), opz.get("titolo"))
+    f = opz.get("esito")
+    if f and not os.environ.get("VOLTA_SPOSTA_FIGLIO"):
+        scrivi_esito(f, {"finito": False, "da": time.time()})
+        if not stacca(argv):
+            scrivi_esito(f, {"finito": True, "errore": "non riesco a far partire lo spostamento staccato"})
+            print(json.dumps({"errore": "non riesco a far partire lo spostamento staccato"}))
+            return 1
+        print(json.dumps({"avviato": True, "esito": f}))
+        return 0
+    try:
+        finto = os.environ.get("VOLTA_SPOSTA_FINTO")  # solo per le prove: {"dorme": s, "esito": {...}} o {"rompi": true}
+        if finto:
+            f_ = json.loads(finto)
+            time.sleep(float(f_.get("dorme") or 0))
+            if f_.get("rompi"):
+                raise RuntimeError("rotto per prova")
+            esito = f_.get("esito") or {}
+        else:
+            esito = sposta(resto[0], resto[1], resto[2], resto[3], opz.get("cartella"), opz.get("progetto"), opz.get("titolo"))
+    except Exception as e:  # il file d'esito deve dire finito anche quando lo spostamento cade
+        esito = {"errore": ("lo spostamento è caduto: %s" % e)[:200]}
+    if f:
+        scrivi_esito(f, dict(esito, finito=True))
     print(json.dumps(esito, ensure_ascii=True))
     return 0 if "errore" not in esito else 1

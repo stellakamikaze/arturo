@@ -374,9 +374,40 @@ export function nascitePerAvviso(dati, viste = {}) {
 // `congedo`) che il registro non ha più, ferma da più di CONGEDO_ORFANO_MS; se è viva, senza scheda aperta qui.
 // Solo questa macchina, come la chiusura automatica. Torna [{ s, fai, avviso? }]: "rm" se /fine ha finito
 // e la sessione non ha più processo; "stop" se è ancora viva con /fine come ultimo messaggio (poi, ferma,
-// diventa "rm"); "rm" con avviso se è in errore o chiusa senza /fine: la persona l'aveva chiusa, la
-// trascrizione resta su disco. Una viva usata dopo il congedo non si tocca.
+// diventa "rm"); "rm" con avviso se è in errore senza /fine (la ripresa è caduta): la persona l'aveva
+// chiusa, la trascrizione resta su disco. Una viva, ferma o ritirata usata dopo il congedo non si tocca.
 export const CONGEDO_ORFANO_MS = 10 * 60000;
+
+// Lo spostamento staccato (13/11/2026): volta_sposta.py scrive l'esito in un file e Volta lo legge a giri.
+// `testo`: il file (o null), `dal`: quando è partito, `ora`. Torna { fatto } con l'esito finito, { attendi }
+// finché gira, { errore } oltre SPOSTA_MAX_MS: allora lo spostamento non si sa com'è andato.
+export const SPOSTA_MAX_MS = 25 * 60000, SPOSTA_OGNI_MS = 5000;
+export function esitoSposta(testo, dal, ora, macchina = "l'altra macchina") {
+  let d = null;
+  try { d = testo ? JSON.parse(testo) : null; } catch { d = null; }
+  if (d && typeof d === "object" && d.finito === true) { const { finito: _, ...resto } = d; return { fatto: resto }; }
+  if (ora - dal > SPOSTA_MAX_MS) return { errore: `${macchina} non ha finito in 25 minuti: guarda fra le sessioni dove è rimasta` };
+  return { attendi: true };
+}
+
+// Il passo di arturo() di dati.js per un comando, dalla sua voce in volo: `v` = { da, p } se gira, { da,
+// appeso } se l'ultimo è rimasto appeso (exec rifiuta ma il processo resta). "lancia" se non c'è niente;
+// "aspetta" la stessa promessa se gira da meno del tetto; "appeso" se gira oltre il tetto o se l'ultimo è
+// rimasto appeso da meno di ARTURO_PAUSA_MS: un processo in più non risponderebbe comunque.
+export const ARTURO_PAUSA_MS = 5 * 60000;
+export function voloArturo(v, ora, tetto) {
+  if (!v) return { fai: "lancia" };
+  if (v.appeso) return ora - v.appeso < ARTURO_PAUSA_MS ? { fai: "appeso" } : { fai: "lancia" };
+  return ora - v.da < tetto ? { fai: "aspetta" } : { fai: "appeso" };
+}
+
+// Un lotto di watchFolder tocca l'elenco se contiene il file (o la cartella intera: rileggi tutto).
+// I percorsi si confrontano senza barre finali e senza maiuscole: su Windows arrivano con \.
+export function tocca(percorsi, cartella, file) {
+  const n = (p) => String(p ?? "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  const c = n(cartella), f = n(file);
+  return (percorsi ?? []).some((p) => { const x = n(p); return x === c || x === f; });
+}
 export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = new Set()) {
   const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c?.sessionId, c?.id].filter(Boolean)));
   const out = [];
@@ -392,7 +423,8 @@ export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = 
     // viva: si ferma solo se /fine è ancora l'ultimo messaggio; riaperta e usata dopo il congedo, resta
     if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }
     else if (s.fineFatta && s.stato !== "errore") out.push({ s, fai: "rm" });
-    else out.push({ s, fai: "rm", avviso: `${titolo(s)}: chiusa senza salvataggio, /fine non era finito. La conversazione resta su disco.` });
+    // ferma o ritirata senza /fine in fondo: riaperta e usata dopo il congedo, poi lasciata. Resta.
+    else if (s.stato === "errore") out.push({ s, fai: "rm", avviso: `${titolo(s)}: chiusa senza salvataggio, /fine non era finito. La conversazione resta su disco.` });
   }
   return out;
 }

@@ -95,11 +95,13 @@ export function segnaleImpostazioni(app = false) {
   return app ? "accent" : null;
 }
 export const PULSA = { from: 0.45, to: 1, period: 2000 };
+// Segni fermi (Federico, 13/11/2026, #5488): ogni segno che girava o pulsava faceva ridisegnare tutta la
+// finestra 30 volte al secondo, il 35% di un processore contro il 4% (misura del 12/11). Chi lavora ha la
+// stella, gli altri il pallino; il colore dice lo stato. `moto` resta per chi chiama: "gira" = la stella.
 export function segno(colore, moto = null, d = 8) {
-  if (!moto || !movimento()) return punto(colore, d);
-  if (moto === "pulsa") return punto(colore, d).loop("opacity", PULSA);
+  if (moto !== "gira") return punto(colore, d);
   return div().size(d).flex_none().flex().items_center().justify_center()
-    .child(svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore).spin(GIRO_MS));
+    .child(svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore));
 }
 
 // Un pulsante con icona e testo, in due misure (misure.js): `grande` per le azioni della colonna,

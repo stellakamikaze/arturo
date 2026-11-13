@@ -22,11 +22,11 @@ import { apriContesto } from "./contestoui.js";
 export class Marchio {
   render() {
     const t = theme();
-    const aspetta = agents().some((a) => a.status === "blocked") || Object.values(statiQui()).includes("aspetta");
+    // ferma anche quando una sessione aspetta un permesso: il pulsare ridisegnava la finestra (#5488)
     const stella = image("mods/arturo/stella.svg").size(20).flex_none();
     const mac = window()?.platform === "macos" && !window()?.fullscreen;
     return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : MARGINE + SPAZIO.m).pr(14).gap(10).items_center()
-      .child(aspetta && movimento() ? stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }) : stella)
+      .child(stella)
       .child(div().id("marchio-nome").font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta"));
   }
 }
