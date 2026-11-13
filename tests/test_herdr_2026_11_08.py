@@ -2989,13 +2989,16 @@ def hz44(repo: Path, casa: Path) -> str | None:
         return "volta.js: gestoId non preme il bottone, o altroId non apre e chiude Altro"
     if 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;' not in vj:
         return "volta.js: il comando non apre il gruppo delle ferme, e la sessione resta nascosta"
-    if os.name == "nt":
-        return None  # il claude finto è uno script con shebang
     bindir = casa / "bin"
     bindir.mkdir()
-    cl = bindir / "claude"
-    cl.write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
-    os.chmod(cl, 0o755)
+    if os.name == "nt":
+        # su Windows lo shebang non vale: shutil.which della sonda trova claude.cmd, che lancia lo script
+        (bindir / "claude.py").write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
+        (bindir / "claude.cmd").write_text(f'@"{sys.executable}" "%~dp0claude.py" %*\r\n', encoding="utf-8")
+    else:
+        cl = bindir / "claude"
+        cl.write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
+        os.chmod(cl, 0o755)
     hcf = casa / "hc_finto.py"
     hcf.write_text('print(\'{"machines": []}\')\n', encoding="utf-8")
     (casa / "conf").mkdir()
@@ -4653,7 +4656,11 @@ def hz63(repo: Path, casa: Path) -> str | None:
                  {"testo": "Microfono: spento, le sessioni delle altre macchine sentono il loro"}, None]
         if v["righe"] != righe:
             return f"rigaMicrofono: avuto {v['righe']}"
-    # volta_microfono.py con l'audio finto: un file JSON al posto di CoreAudio
+    # volta_microfono.py con l'audio finto: un file JSON al posto di CoreAudio. Il ricevitore gira solo sui Mac
+    # (BlackHole, SIGHUP e SIGTERM con il loro gestore): su Windows questa parte si salta, finché il ponte non
+    # arriva lì (#5332).
+    if os.name == "nt":
+        return None
     cache, audio = casa / "mic-cache", casa / "audio.json"
     MIC, BH, ALTRO = "mic-vero", "BlackHole2ch_UID", "cuffie"
     ingressi = [{"uid": MIC, "nome": "Microfono"}, {"uid": BH, "nome": "BlackHole 2ch"}, {"uid": ALTRO, "nome": "Cuffie"}]
@@ -6794,15 +6801,22 @@ def hz89(repo: Path, casa: Path) -> str | None:
             return f"inizia non ferma prima la sessione: rc {r.returncode}, {r.stdout.strip()[-160:]}, {[c[1:] for c in chiamate]}"
         if len(ripresa) != 1 or ripresa[0][2:4] != ["--resume", "aaaa1111-bbbb-cccc"] or "--fork-session" in ripresa[0] or ripresa[0][-1] != "/inizio due-mondi":
             return f"inizia non riprende la stessa conversazione col solo /inizio del progetto: {ripresa}"
-        prova = ("import importlib.util,json,sys\nsp=importlib.util.spec_from_file_location('s',sys.argv[1]);m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)\n"
-                 "v={'macchina':'M','host':'qui','questa':True,'target':None,'claude':'claude','sessioni':["
-                 "{'sessionId':'a1','id':'a1aa','kind':'background','state':'done'},"
-                 "{'sessionId':'b2','id':'b2bb','kind':'background','state':'done','status':'idle','pid':4},"
-                 "{'sessionId':'c3','id':'c3cc','kind':'background','state':'failed'}]}\n"
-                 "print(json.dumps([x['chiusa'] for x in m.righe([v])]))")
-        r = subprocess.run([sys.executable, "-c", prova, str(sonda)], capture_output=True, text=True, timeout=30)
-        if r.returncode != 0 or json.loads(r.stdout.strip().splitlines()[-1]) != [True, False, False]:
-            return f"righe() non segna chiusa la sessione senza processo, o segna le altre: {(r.stdout or r.stderr).strip()[-200:]}"
+    # righe() è Python puro: gira anche su Windows, fuori dal blocco del claude finto
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
+    prova = ("import importlib.util,json,sys\nsp=importlib.util.spec_from_file_location('s',sys.argv[1]);m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)\n"
+             "v={'macchina':'M','host':'qui','questa':True,'target':None,'claude':'claude','sessioni':["
+             "{'sessionId':'a1','id':'a1aa','kind':'background','state':'stopped'},"
+             "{'sessionId':'b2','id':'b2bb','kind':'background','state':'done','status':'idle','pid':4},"
+             "{'sessionId':'c3','id':'c3cc','kind':'background','state':'failed'},"
+             "{'sessionId':'d4','id':'d4dd','kind':'background','state':'done'},"
+             "{'sessionId':'e5','id':'e5ee','kind':'background','state':'done','fineFatta':True}]}\n"
+             "print(json.dumps([[x['chiusa'], x['dorme']] for x in m.righe([v])]))")
+    r = subprocess.run([sys.executable, "-c", prova, str(sonda)], capture_output=True, text=True, timeout=30)
+    # chiusa: senza processo e fermata con claude stop o dopo /fine; dorme: senza processo, ritirata dal
+    # servizio di Claude (#5495). Una in errore non è né l'una né l'altra: resta, per Riavvia.
+    if r.returncode != 0 or json.loads(r.stdout.strip().splitlines()[-1]) != [[True, False], [False, False], [False, False],
+                                                                               [False, True], [True, False]]:
+        return f"righe() non distingue la sessione chiusa da quella che dorme: {(r.stdout or r.stderr).strip()[-200:]}"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     if "cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));" not in volta or "sparite(this.schede, adesso" not in volta:
@@ -7631,6 +7645,9 @@ g(progetto, "add", "y.txt")
 g(progetto, "commit", "-qm", "due")
 out["non_spinto"] = vs.controlla_git(lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid}).get("git"))
 g(progetto, "push", "-q")
+g(progetto, "checkout", "-q", "--detach")
+out["staccata"] = vs.controlla_git(lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid}).get("git"))
+g(progetto, "checkout", "-q", "main")
 letto = lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid})
 if letto.get("errore"):
     print(json.dumps({"errore_letto": letto["errore"]}))
@@ -7678,8 +7695,11 @@ def hz102(repo: Path, casa: Path) -> str | None:
         return f"LEGGI non trova la cartella della trascrizione: {g['errore_letto'][:120]}"
     if g["letto"]["errore"] or g["letto"]["rel"] != "prova" or g["pulito"] is not None:
         return f"LEGGI non legge una cartella pulita e spinta: {g['letto']}, {g['pulito']}"
-    if "non salvati" not in str(g["sporco"]) or "non spinti" not in str(g["non_spinto"]):
-        return f"lo spostamento non si ferma davanti a file non salvati o commit non spinti: {g['sporco']} / {g['non_spinto']}"
+    # File non salvati e commit non spinti viaggiano con la sessione (#5500); una HEAD staccata la ferma.
+    if g["sporco"] is not None or g["non_spinto"] is not None:
+        return f"lo spostamento si ferma davanti a file non salvati o commit non spinti, che viaggiano: {g['sporco']} / {g['non_spinto']}"
+    if "HEAD staccata" not in str(g["staccata"]):
+        return f"lo spostamento non si ferma su una HEAD staccata: {g['staccata']}"
     p = g["pronto"]
     if p["errore"] or not p["y"] or not str(p["progetti"]).endswith(re.sub(r"[^A-Za-z0-9]", "-", str(p["cartella"]))):
         return f"PREPARA non porta il repository allo stesso commit, o sbaglia la cartella di Claude: {p}"
@@ -8490,7 +8510,7 @@ VELENI = [
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\?[\\s*_`)]*$/,\n  /\\?\\s*\\n/,\n', ''),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.stato === "aspetta" || s.aspetta) return "stasi";', '  if (s.stato === "aspetta") return "stasi";'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  const vive = g.sessioni.filter((s) => !inAttesa(s));', '  const vive = g.sessioni.filter((s) => s.stato !== "ferma");'),
-    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (f === "stasi") return { testo: q ? `Ti aspetta ${q}` : "Ti aspetta", colore: "blocked" };\n', ''),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (f === "stasi") return { testo: (q ? `Ti aspetta ${q}` : "Ti aspetta") + zz, colore: "blocked" };\n', ''),
     ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '                    chi, interazione = "claude", d.get("timestamp", interazione)', '                    chi = "claude"'),
     ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '            fine_fatta = bool(re.match(', '            fine_fatta = False and bool(re.match('),
     ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '"chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,', '"chi": s.get("chi") or "",'),
@@ -8530,7 +8550,7 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    ferma = azione(nome, "stop", sid_lavoro)  # già ferma', '    ferma = {}  # già ferma'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', 'r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id, stessa=True)', 'r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id)'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    if argv and argv[0] == "inizia":\n', '    if False:\n'),
-    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",', '"chiusa": False,'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True),', '"chiusa": False,'),
     ('HZ89', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    // confirmed:', '    // confirmed:'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s));', 'const l = terminals().filter((x) => visti.has(x.address) && !occupataDaAltra(x, s));'),
@@ -8568,8 +8588,8 @@ VELENI = [
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  if (!nome || nome === s.id) return true;', '  if (!nome) return true;'),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  if (!nome || nome === s.id) return true;', '  if (nome === s.id) return true;'),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  if (!nomeAutomatico(s)) return nome;', '  if (nome) return nome;'),
-    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").replace(/[^a-z0-9]/g, "");'),
-    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'String(x ?? "").toLowerCase();'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'const piatto = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'const piatto = (x) => String(x ?? "").replace(/[^a-z0-9]/g, "");'),
+    ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'const piatto = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");', 'const piatto = (x) => String(x ?? "").toLowerCase();'),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', 'const m = /^([\\w.-]+)-[0-9a-f]{2}$/.exec(nome);', 'const m = /^([\\w.-]+)-\\w{2}$/.exec(nome);'),
     ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named);'),
     ('HZ84', 'shared/volta/mods/arturo/dati.js', 'export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);', 'export const eProgetto = (s) => Boolean(s) && Boolean(s.named) && !libero(s.name);'),
@@ -8976,7 +8996,7 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
-    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'return nasciSu(sua ?? d, prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);', "const v = {};"),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, nata.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, nata.attach, true);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
@@ -9001,7 +9021,7 @@ VELENI = [
     ("HZ34", "shared/volta/mods/arturo/dati.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
     ("HZ34", "shared/volta/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),
     ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
-    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", '            or (s.get("startedAt") or 0) >= soglia]', "            or True]"),
+    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", '    if (s.get("startedAt") or 0) >= soglia:\n        return True', "    if True:\n        return True"),
     ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", "    sessioni = agenti([])\n", "    sessioni = None\n"),
     ("HZ44", "shared/volta/mods/arturo/barra.js", 'else if (c === "volta-altro") this.volta.altroId(arg, cx);', ""),
     ("HZ44", "shared/volta/mods/arturo/comandi.js", '  if (c.startsWith("volta-altro-")) return { verbo: "volta-altro", arg: dopo("volta-altro-"), lungo: false };\n', ""),
@@ -9226,7 +9246,7 @@ VELENI = [
     ('HZ101', 'shared/volta/mods/arturo/comandi.js', '  if (c.startsWith("conversazione-")) return { verbo: "conversazione", arg: dopo("conversazione-"), lungo: true };\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;\n', ''),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  return li ?? sessioneDi(terminale, sessioni);', '  return sessioneDi(terminale, sessioni) ?? li;'),
-    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["sporchi"]:\n', '    if False:\n'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["ramo"] == "HEAD":\n', '    if False:\n'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', 'd.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())', 'd.update(progetto=a["progetto"], fonte="persona", inizio=False, quando=time.time())'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    return re.sub(r"[^A-Za-z0-9]", "-", p)', '    return re.sub(r"[^A-Za-z0-9/]", "-", p)'),
 ]
@@ -9249,6 +9269,8 @@ def non_gira_qui(caso: str) -> str | None:
         return "su Windows la nascita va nel profilo di PowerShell, non nei file di zsh e bash"
     if caso == "HZ38" and not (shutil.which("pwsh") or shutil.which("powershell")):
         return "niente PowerShell qui: volta-claude.ps1 gira su Windows"
+    if caso == "HZ92" and os.name == "nt":
+        return "il claude finto della sonda è uno script sh: su Windows il caso si ferma prima di fasi e frasi"
     if caso in ("HZ63", "HZ78", "HZ79") and os.name == "nt":
         return "il ponte del microfono c'è solo sul Mac: su Windows mancano il microfono virtuale e i segnali"
     if caso in ("HZ13", "HZ16") and not mac:

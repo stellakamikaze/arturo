@@ -1430,6 +1430,8 @@ def apri(nome, sid, riavvia=False):
     return {"ok": True, "riavviata": False, "servizio": s.get("come")}
 
 
+# Le risposte JSON per Volta escono in ASCII (le accentate come è): su Windows lo stdout di Python è
+# cp1252 e Volta lo legge come UTF-8, così un errore con un'accentata arrivava illeggibile (#5536).
 def main_nasci(argv):
     resto = argv[argv.index("--") + 1:] if "--" in argv else []
     testa = argv[:argv.index("--")] if "--" in argv else argv
@@ -1438,7 +1440,7 @@ def main_nasci(argv):
         return 2
     progetto = testa[testa.index("--progetto") + 1] if "--progetto" in testa[:-1] else None
     esito = nasci(testa[0], " ".join(resto), progetto)
-    print(json.dumps(esito, ensure_ascii=False))
+    print(json.dumps(esito, ensure_ascii=True))
     return 0 if "errore" not in esito else 1
 
 
@@ -1468,7 +1470,7 @@ def main_copia(verbo, argv):
         esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))
     else:
         esito = nasci(resto[0], prompt, opz.get("progetto"), opz.get("cartella"))
-    print(json.dumps(esito, ensure_ascii=False))
+    print(json.dumps(esito, ensure_ascii=True))
     return 0 if "errore" not in esito else 1
 
 
@@ -1489,7 +1491,7 @@ def main(argv):
             print("uso: volta_sonda.py servizio <macchina>")
             return 2
         esito = servizio(argv[1])
-        print(json.dumps(esito, ensure_ascii=False))
+        print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "apri":
         resto = [a for a in argv[1:] if a != "--riavvia"]
