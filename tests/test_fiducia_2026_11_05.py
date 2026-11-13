@@ -47,6 +47,11 @@ FD19 impacchetta --firma genera il pacchetto dal tag con git archive: un file no
 FD20 (#5101) il plugin aggiornato fuori da /aggiorna, con un frammento che il blocco non ha: /aggiorna dice
      "GIÀ AGGIORNATO" e unisce lo stesso le voci nuove a settings.json, l'avvio fa lo stesso e al giro dopo tace;
      da una copia con una guardia cambiata dopo la firma non si unisce niente.
+FD21 (#5480, CLI vera) la copia installata è lo sha del catalogo ma ha una guardia cambiata, un file tolto e uno in
+     più, col plugin spento: `--verifica` dice "DA RIMETTERE" e non tocca niente; `plugin` dice "RIMESSO", la
+     copia torna col suo MANIFEST firmato senza il file in più, i dati del plugin restano, il plugin resta spento,
+     la deriva tace e il giro dopo dice "GIÀ AGGIORNATO". `claude plugin update` e `install` da soli non
+     rimettono niente.
 
 Sulla base 809868a (il dev prima di F3) sono tutti rossi: fiducia.py, il MANIFEST e `plugin` non ci
 sono. Su a442b38 (prima del lotto L4) è rosso FD14. Su 78dc1a2 è rosso FD20. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire il caso
@@ -65,8 +70,8 @@ import time
 from pathlib import Path
 
 CASI = ["FD01", "FD02", "FD03", "FD04", "FD05", "FD06", "FD07", "FD08", "FD09", "FD10", "FD11", "FD12", "FD13",
-        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19", "FD20"]
-CLI = ["FD06", "FD07", "FD08", "FD09"]  # i casi con la CLI vera di Claude Code
+        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19", "FD20", "FD21"]
+CLI = ["FD06", "FD07", "FD08", "FD09", "FD21"]  # i casi con la CLI vera di Claude Code
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
 
@@ -638,7 +643,57 @@ def casi_cli(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
             rossi.append(f"FD09 vX → vY: verifica {vista.stdout.strip()!r}, rc {p.returncode}, installato "
                          f"{dopo.get('version')} {str(dopo.get('gitCommitSha'))[:12]}, deriva {deriva.stdout.strip()[:80]!r}, "
                          f"giro {giro.stdout.strip()[:40]!r}, {(p.stdout + p.stderr).strip()[-160:]!r}")
+    if solo in (None, "FD21"):
+        rossi += caso_fd21(repo, r)
     return rossi
+
+
+def caso_fd21(repo: Path, r: Rilasci) -> list:
+    """FD21: una copia del plugin cambiata sullo sha del catalogo si rimette con /aggiorna (#5480)."""
+    voce = r.installato()
+    sha, copia = voce.get("gitCommitSha"), Path(str(voce.get("installPath") or r.tmp / "manca"))
+    r.indica(f"plugin-v{voce.get('version')}", str(sha))
+    guardia = copia / "hooks" / "block-dangerous.py"
+    guardia.write_text(guardia.read_text(encoding="utf-8") + "\n# allentata\n", encoding="utf-8")
+    (copia / "hooks" / "heredoc.py").unlink()
+    (copia / "hooks" / "estraneo.py").write_text("print('in più')\n", encoding="utf-8")
+    dati = r.orsa / "plugins" / "data" / "arturo-arturo"
+    dati.mkdir(parents=True, exist_ok=True)
+    (dati / "segno").write_text("mio\n", encoding="utf-8")
+    spento = r.claude("disable", "arturo@arturo")
+    fiducia = modulo_fiducia(repo)
+    sporca = fiducia.controlla(copia, r.orsa)
+    avviso = esegui([sys.executable, copia / "hooks" / "deriva.py", r.orsa], env=r.env).stdout
+    vista = r.aggiorna("--verifica")
+    dopo_vista = fiducia.controlla(copia, r.orsa)
+    p = r.aggiorna()
+    dopo = r.installato()
+    copia = Path(str(dopo.get("installPath") or r.tmp / "manca"))
+    pulita = fiducia.controlla(copia, r.orsa)
+    deriva = esegui([sys.executable, copia / "hooks" / "deriva.py", r.orsa], env=r.env)
+    giro = r.aggiorna()
+    try:
+        acceso = json.loads((r.orsa / "settings.json").read_text(encoding="utf-8")).get("enabledPlugins", {}).get("arturo@arturo")
+    except (OSError, ValueError):
+        acceso = None
+    sbagli = []
+    if spento.returncode != 0 or not sporca["cambiati"] or not sporca["mancano"] or not sporca["in_piu"]:
+        sbagli.append(f"partenza: disable rc {spento.returncode}, copia {sporca['cambiati']} {sporca['mancano']} {sporca['in_piu']}")
+    if "/aggiorna, che reinstalla la copia" not in avviso:
+        sbagli.append(f"la riga DERIVA non dà il rimedio di /aggiorna: {avviso.strip()[:160]!r}")
+    if vista.returncode != 0 or not vista.stdout.startswith("DA RIMETTERE: plugin-v") or dopo_vista["cambiati"] != sporca["cambiati"]:
+        sbagli.append(f"--verifica rc {vista.returncode} {(vista.stdout + vista.stderr).strip()[-160:]!r}")
+    if p.returncode != 0 or not p.stdout.startswith("RIMESSO: plugin-v") or dopo.get("gitCommitSha") != sha:
+        sbagli.append(f"plugin rc {p.returncode}, sha {str(dopo.get('gitCommitSha'))[:12]}, {(p.stdout + p.stderr).strip()[-200:]!r}")
+    if pulita["firma"] != "ok" or pulita["cambiati"] or pulita["mancano"] or pulita["in_piu"]:
+        sbagli.append(f"copia dopo: {pulita['firma']} {pulita['cambiati']} {pulita['mancano']} {pulita['in_piu']}")
+    if not (dati / "segno").is_file():
+        sbagli.append("i dati del plugin sono spariti")
+    if acceso is not False:
+        sbagli.append(f"il plugin spento è tornato acceso: enabledPlugins {acceso!r}")
+    if deriva.stdout.strip() or not giro.stdout.startswith("GIÀ AGGIORNATO"):
+        sbagli.append(f"deriva {deriva.stdout.strip()[:80]!r}, giro {giro.stdout.strip()[:60]!r}")
+    return [f"FD21 copia del plugin cambiata sullo sha del catalogo: {s}" for s in sbagli]
 
 
 def prova(repo: Path, solo: str | None = None) -> list:
@@ -714,6 +769,11 @@ VELENI = [
     ("FD20", "bin/aggiornamenti.py", '    riga = "" if stato.get("compromesso") else impostazioni_indietro(', '    riga = "" if True else impostazioni_indietro('),
     ("FD20", "bin/aggiornamenti.py", '    if controllo["firma"] != "ok" or controllo["cambiati"] or controllo["mancano"]:\n        return ""',
      '    if controllo["firma"] != "ok":\n        return ""'),
+    ("FD21", "bin/aggiornamenti.py", "        cambiata = da_rimettere(orsa)\n", '        cambiata = ""\n'),
+    ("FD21", "hooks/deriva.py", '"per rimettere il rilascio firmato: /aggiorna, che reinstalla la copia e la controlla"',
+     '"per rimettere il rilascio: /aggiorna"'),
+    ("FD21", "bin/aggiornamenti.py", '_claude("uninstall", "--keep-data", NOME_PLUGIN', '_claude("uninstall", NOME_PLUGIN'),
+    ("FD21", "bin/aggiornamenti.py", '    if not acceso:\n        _claude("disable"', '    if False:\n        _claude("disable"'),
     ("FD15", "bin/aggiornamenti.py", '    if not TAG_PLUGIN.fullmatch(tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):\n',
      "    if False:\n"),
 ]

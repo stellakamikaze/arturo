@@ -13,6 +13,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-13 — Col plugin /aggiorna rimette una copia cambiata
+
+**Cosa cambia**: se qualcuno cambia un file nella copia del plugin, l'avvio lo dice nella riga `DERIVA` e ti
+manda a `/aggiorna`. Fino a ieri `/aggiorna` rispondeva "già aggiornato" e non rimetteva niente: la versione era
+quella giusta, solo i file erano diversi.
+
+- Adesso `/aggiorna` se ne accorge e risponde `DA RIMETTERE`. Col tuo sì reinstalla lo stesso rilascio firmato,
+  controlla la copia nuova col suo elenco firmato dei file e risponde `RIMESSO`.
+- I dati del plugin restano, e un plugin che avevi spento resta spento.
+- Se il file l'hai cambiato tu, la modifica si perde: mettila prima in `~/.claude/personale/`.
+
+**Da sapere**: la riga `DERIVA` e `/diagnosi` adesso dicono questa strada. Se il file non l'hai cambiato tu,
+segnalalo prima a chi mantiene Arturo, come dice `SECURITY.md`.
+
+**Il principio**: un avviso che indica un rimedio deve indicarne uno che funziona. Questo è provato con Claude
+Code vero in una configurazione di prova.
+
+---
+
 ## 2026-11-12 — Col plugin i testi di Arturo dicono il vero
 
 **Cosa cambia**: da quando Arturo si installa anche come plugin, alcuni testi descrivevano solo la copia dentro

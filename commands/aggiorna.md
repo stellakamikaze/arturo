@@ -35,6 +35,12 @@ Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag f
 dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
 senza firma: la verifica la fa Arturo, prima.
 
+- `DA RIMETTERE`: la versione installata è quella giusta, ma i file della copia non sono come nel rilascio
+  firmato (la riga `DERIVA:` dell'avvio). Chiedi alla persona se li ha cambiati lei: le sue modifiche vanno in
+  `~/.claude/personale/`, e la reinstallazione le cancella. Se non li ha cambiati lei, prima segnala come dice
+  `SECURITY.md`. Poi, col suo sì, lancia `python3 ~/.claude/bin/aggiornamenti.py plugin`: disinstalla la copia
+  tenendo i dati del plugin, reinstalla lo stesso rilascio firmato e lo controlla. Con `RIMESSO` chiedi di
+  riavviare Claude Code. Un plugin spento resta spento.
 - `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
   (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
   frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.

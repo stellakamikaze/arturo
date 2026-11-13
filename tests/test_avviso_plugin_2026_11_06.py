@@ -59,6 +59,23 @@ def catalogo(cartella: Path, versione: str) -> None:
         encoding="utf-8")
 
 
+def firma_copia(copia: Path, tmp: Path) -> None:
+    """Firma la copia con una chiave di prova, che la copia stessa elenca: come un rilascio vero."""
+    privata = tmp / "chiave-prova"
+    esegui(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "prova", "-f", str(privata)])
+    pubblica = (tmp / "chiave-prova.pub").read_text(encoding="utf-8").split()
+    (copia / "firme").mkdir(exist_ok=True)
+    (copia / "firme" / "rilasci.allowed_signers").write_text(
+        f'rilasci@arturo namespaces="git,arturo-manifest" {pubblica[0]} {pubblica[1]}\n', encoding="utf-8")
+    sys.path.insert(0, str(copia / "hooks"))
+    try:
+        import fiducia
+        fiducia.scrivi_manifest(copia)
+        fiducia.firma(copia, privata)
+    finally:
+        sys.path.pop(0)
+
+
 def prova(repo: Path) -> list[str]:
     rossi = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -171,6 +188,8 @@ def prova(repo: Path) -> list[str]:
             {"scope": "user", "version": "0.2.6", "installPath": str(copia), "gitCommitSha": sha}]}}), encoding="utf-8")
         stato_file.write_text(json.dumps({"controllato": int(time.time()), "versione": "0.2.6", "stato": "manuale",
                                           "plugin": True}), encoding="utf-8")
+        # Una copia vera del plugin ha il MANIFEST firmato: senza, /aggiorna la reinstallerebbe (#5480, banco FD21).
+        firma_copia(copia, tmp)
         aggiorna = esegui(agg + ["plugin"], env=env)
         barra2 = esegui([NODE, str(copia / "hooks" / "statusline.js")], input=entrata, env=env_barra).stdout
         if "GIÀ AGGIORNATO" not in aggiorna.stdout or "serve /aggiorna" in barra2:

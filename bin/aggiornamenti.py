@@ -15,7 +15,8 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
   firmato      l'ultimo rilascio, solo se la sua firma è valida: è l'unico che /aggiorna applica
   plugin       col plugin: aggiorna il catalogo, verifica che il tag indicato sia firmato e porti lo sha
                del catalogo, poi claude plugin update e il controllo della copia installata col suo
-               MANIFEST firmato; con --verifica si ferma prima di installare (strati F3)
+               MANIFEST firmato; con --verifica si ferma prima di installare (strati F3). Una copia
+               diversa dal MANIFEST sulla versione già installata la reinstalla (DA RIMETTERE, #5480)
 
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
 riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (lo
@@ -794,9 +795,10 @@ def _blocca(motivo: str, compromesso: bool, scaricata: str = "") -> int:
     return 4
 
 
-def verifica_catalogo(orsa: Path) -> tuple:
+def verifica_catalogo(orsa: Path, anche_installato: bool = False) -> tuple:
     """(rc, tag, sha): rc 0 se il catalogo indica un tag firmato dalla chiave dell'ancora e il tag porta
-    proprio lo sha del catalogo; rc 2 se quello sha è già installato. Gli errori li stampa."""
+    proprio lo sha del catalogo; rc 2 se quello sha è già installato, salvo con `anche_installato` (la copia da
+    rimettere di _rimetti). Gli errori li stampa."""
     fiducia, radici = _moduli()
     radice_arturo = radici.radice_arturo
     voce = voce_catalogo(orsa)
@@ -822,7 +824,7 @@ def verifica_catalogo(orsa: Path) -> tuple:
     if voce.get("version") and numero(str(voce["version"])) != numero(tag):
         return _blocca(f"il catalogo chiama {voce['version']} il rilascio {tag}", True), tag, sha
     prima = installato(orsa)
-    if prima.get("gitCommitSha") == sha:
+    if prima.get("gitCommitSha") == sha and not anche_installato:
         return 2, tag, sha
     if numero(tag) < numero(str(prima.get("version") or "")):
         return _blocca(f"il catalogo indica {tag}, più vecchio della versione installata {prima.get('version')}",
@@ -1026,9 +1028,10 @@ def esito_plugin(r: Path, in_uso: str, stato: dict = None) -> str:
 
 
 def cmd_plugin(solo_verifica: bool = False) -> int:
-    """/aggiorna col plugin. Uscite: 0 applicato o già aggiornato, 1 niente da applicare o errore, 3 possibile
-    compromissione, 4 firma non verificabile su questo computer."""
-    fiducia, radici = _moduli()
+    """/aggiorna col plugin. Uscite: 0 applicato, rimesso o già aggiornato, 1 niente da applicare o errore, 3 possibile
+    compromissione, 4 firma non verificabile su questo computer. Con lo sha del catalogo già installato ma la copia
+    diversa dal suo MANIFEST firmato, la reinstalla (_rimetti, #5480)."""
+    _, radici = _moduli()
     orsa = radici.radice_orsa()
     catalogo = _claude("marketplace", "update", "arturo", timeout=180)
     if catalogo.returncode != 0:
@@ -1041,6 +1044,9 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
             # Lo sha è quello del catalogo, ma la copia non ha superato il controllo dopo l'installazione: dire
             # "già aggiornato" cancellerebbe l'allarme con la copia ancora lì (review dell'11/11/2026).
             return _blocca(str(vecchio.get("motivo") or "la copia installata non è verificata"), True)
+        cambiata = da_rimettere(orsa)
+        if cambiata:
+            return _rimetti(orsa, cambiata, solo_verifica)
         segna_aggiornato(radice())
         print(f"GIÀ AGGIORNATO: {tag}")
         # Il plugin può essere arrivato da un'altra strada (claude plugin update, il pannello /plugin): le
@@ -1062,6 +1068,13 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
         print(f"APPLICAZIONE NON PARTITA: claude plugin update non è riuscito "
               f"({(aggiorna.stderr or aggiorna.stdout).strip()[:200]}). Non ho toccato niente.")
         return 1
+    return _controlla_installata(orsa, prima, tag, sha)
+
+
+def _controlla_installata(orsa: Path, prima: dict, tag: str, sha: str, rimessa: bool = False) -> int:
+    """Dopo `claude plugin update`, o dopo la reinstallazione di _rimetti: la copia installata è lo sha verificato e
+    torna col suo MANIFEST firmato, se no si torna alla voce di `prima` (vuota per _rimetti: si disattiva)."""
+    fiducia, _ = _moduli()
     dopo = installato(orsa)
     copia = Path(str(dopo.get("installPath") or ""))
     if dopo.get("gitCommitSha") != sha:
@@ -1080,10 +1093,72 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     fiducia.fissa_ancora(copia, orsa)
     segna_aggiornato(radice())
     impostazioni = applica_impostazioni(copia)
-    print(f"APPLICATO: {tag}. Riavvia Claude Code per usarlo.")
+    if rimessa:
+        print(f"RIMESSO: {tag}. La copia del plugin è di nuovo come il rilascio firmato. Riavvia Claude Code per usarla.")
+    else:
+        print(f"APPLICATO: {tag}. Riavvia Claude Code per usarlo.")
     if impostazioni:
         print(impostazioni)
     return 0
+
+
+# Le cartelle dove un file in più cambia quello che Arturo fa: le stesse della riga DERIVA (hooks/deriva.py).
+CARTELLE_ATTIVE = ("hooks/", "bin/", "skills/", "agents/", "shared/")
+
+
+def da_rimettere(orsa: Path) -> str:
+    """Il motivo per reinstallare la copia del plugin, se è lo sha del catalogo ma i suoi file non sono come nel
+    MANIFEST firmato; altrimenti "". `claude plugin update` e `install` su una versione già installata non
+    rimettono niente (prova con la CLI vera del 13/11/2026, #5480). Con la firma non verificabile su questo
+    computer la copia reinstallata non si potrebbe controllare: "" anche lì."""
+    fiducia, _ = _moduli()
+    percorso = str(installato(orsa).get("installPath") or "")
+    if not percorso:
+        return ""
+    try:
+        controllo = fiducia.controlla(Path(percorso), orsa)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return ""
+    if controllo["firma"] == "non-verificabile":
+        return ""
+    if controllo["firma"] != "ok":
+        return str(controllo["motivo"] or "la copia installata non ha una firma valida")
+    diversi = sorted(set(controllo["cambiati"]) | set(controllo["mancano"])
+                     | {p for p in controllo["in_piu"] if p.startswith(CARTELLE_ATTIVE)})
+    if not diversi:
+        return ""
+    return (f"{len(diversi)} file della copia installata non sono come nel rilascio firmato "
+            f"({', '.join(diversi[:3])}{'…' if len(diversi) > 3 else ''})")
+
+
+def _rimetti(orsa: Path, motivo: str, solo_verifica: bool) -> int:
+    """Rimette la copia firmata del rilascio già installato (#5480): verifica il tag come per una versione nuova,
+    poi `claude plugin uninstall --keep-data` e `claude plugin install`, l'unica strada che con la CLI vera
+    riscrive la cartella della copia (13/11/2026). Tiene il plugin spento se la persona l'aveva spento: install
+    lo riaccende."""
+    rc, tag, sha = verifica_catalogo(orsa, anche_installato=True)
+    if rc != 0:
+        return rc
+    if solo_verifica:
+        print(f"DA RIMETTERE: {tag}: {motivo}. Col sì lancia aggiornamenti.py plugin: reinstalla il rilascio "
+              "firmato e lo controlla.")
+        return 0
+    acceso = plugin_acceso(orsa)
+    _rinnova_lucchetto()
+    tolto = _claude("uninstall", "--keep-data", NOME_PLUGIN, timeout=120)
+    if tolto.returncode != 0:
+        print(f"APPLICAZIONE NON PARTITA: claude plugin uninstall non è riuscito "
+              f"({(tolto.stderr or tolto.stdout).strip()[:200]}). Non ho toccato niente.")
+        return 1
+    messo = _claude("install", NOME_PLUGIN)
+    if messo.returncode != 0:
+        print(f"APPLICAZIONE NON PARTITA: ho tolto la copia cambiata, ma claude plugin install non è riuscito "
+              f"({(messo.stderr or messo.stdout).strip()[:200]}). Arturo adesso non è installato: rilancia /aggiorna, "
+              f"o nel terminale claude plugin install {NOME_PLUGIN}.")
+        return 1
+    if not acceso:
+        _claude("disable", NOME_PLUGIN, timeout=120)
+    return _controlla_installata(orsa, {}, tag, sha, rimessa=True)
 
 
 ESITI_PLUGIN = re.compile(r"(APPLICATO|GIÀ AGGIORNATO|POSSIBILE COMPROMISSIONE|FIRMA NON VERIFICABILE|NESSUN RILASCIO|"

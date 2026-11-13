@@ -89,6 +89,8 @@ Quarta prova, 5/11/2026 (Claude Code 2.1.318), col primo rilascio pubblicato (`p
 
 Quinta prova, 9/11/2026 (Claude Code 2.1.321, Windows 11, Python 3.11): il banco `tests/test_migra_2026_11_05.py` su un PC Windows, con la CLI vera e un `CLAUDE_CONFIG_DIR` di prova. Migrazione, ritorno e forma upstream passano, 18 casi su 18: la copia di `.git` coi file in sola lettura, gli spostamenti e `claude plugin` reggono. La prova ha trovato due difetti, corretti: le cartelle vuote di Arturo restavano in `~/.claude`, e il comando per tornare indietro usciva con le barre rovesciate. L'avviso dell'avvio su Windows resta spento (`SISTEMI_PROVATI`): il comando che propone parte da `python3`, che su un Windows senza Python vero è lo stub dello Store.
 
+Sesta prova, 13/11/2026 (Claude Code 2.1.317, Mac): una copia del plugin cambiata sullo sha già installato, in un `CLAUDE_CONFIG_DIR` di prova col catalogo vero. `claude plugin install arturo@arturo` risponde "already installed" e `claude plugin update` "already at the latest version": nessuno dei due riscrive la cartella. `claude plugin uninstall --keep-data` seguito da `claude plugin install` la riscrive: tornano il file cambiato e quello tolto, sparisce quello in più, i dati in `plugins/data/` restano, e un plugin spento torna acceso. `aggiornamenti.py plugin` usa questa strada quando la copia non è come il suo MANIFEST firmato, e rispegne il plugin se era spento (#5480, banco FD21).
+
 Da provare: `arturo migra` su Windows da un terminale vero, su un'installazione di una persona; barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto

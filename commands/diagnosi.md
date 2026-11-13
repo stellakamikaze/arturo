@@ -34,12 +34,15 @@ git rev-parse --git-dir >/dev/null 2>&1 && { python3 -c "import subprocess,sys; 
 - `CONFIG ROTTA` o un FAIL dell'audit: le guardie possono essere spente. È la prima cosa da
   dire, e la cura è `/setup`, che rifà la fase giusta.
 - Una riga `DERIVA:` con `possibile compromissione`: col plugin la copia di Arturo non ha una firma
-  valida. È la prima cosa da dire, con le parole della riga: non aggiornare, non fidarti delle guardie di
-  questa copia, segnala a chi mantiene Arturo (`/segnala`, o la via privata di `SECURITY.md`).
+  valida. È la prima cosa da dire, con le parole della riga: non fidarti delle guardie di questa copia e
+  segnala a chi mantiene Arturo (`/segnala`, o la via privata di `SECURITY.md`). Dopo la segnalazione,
+  `/aggiorna` reinstalla il rilascio firmato e lo controlla.
 - Una riga `DERIVA:` sui file del plugin (`file del plugin non sono come nel rilascio firmato`): qualcuno
   ha cambiato la copia di Arturo che Claude Code ha installato. La persona di solito non la tocca: chiedile
   se l'ha cambiata lei. Se non l'ha cambiata lei, trattala come una possibile compromissione, come sopra.
   Se l'ha cambiata lei, le sue modifiche vanno in `~/.claude/personale/`: la copia del plugin non è sua.
+  In tutti e due i casi `/aggiorna` rimette la copia firmata, anche sulla versione già installata: la
+  reinstalla e la controlla col suo MANIFEST firmato. `claude plugin update` da solo non rimette niente.
 - Una riga `DERIVA:` con `gli hook sono spenti` o `mancano dal settings.json gli hook`: quelle guardie
   non girano, col plugin e col clone. Dillo prima del resto.
 - Un'altra riga `DERIVA:`: col clone la persona ha cambiato file di Arturo. Non è un errore. Diglielo,

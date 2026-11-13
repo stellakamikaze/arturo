@@ -17,6 +17,7 @@ if [ -n "${ARTURO_CODICE:-}" ] && [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P
   VERIFICA=$(python3 ~/.claude/bin/aggiornamenti.py plugin --verifica 2>&1); rc=$?
   case "$rc:$VERIFICA" in
     0:*"GIÀ AGGIORNATO"*) echo "Aggiornamenti di Arturo non ancora applicati: 0 (col plugin)" ;;
+    0:*"DA RIMETTERE"*) echo "Aggiornamenti di Arturo non ancora applicati: 0 (col plugin). La copia del plugin non è come il rilascio firmato: /aggiorna la rimette" ;;
     0:*) echo "Aggiornamenti di Arturo non ancora applicati: c'è il rilascio firmato $(printf '%s\n' "$VERIFICA" | tail -1)" ;;
     *) printf '%s\n' "$VERIFICA" ;;
   esac
