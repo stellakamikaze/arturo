@@ -260,7 +260,10 @@ def main():
         home_claude = os.path.expanduser('~/.claude')
 
         def unlocked(token):
-            return os.path.exists(os.path.join(home_claude, f'{token}-{safe_id}'))
+            # Solo un file vero sblocca: una cartella o un link col nome giusto si creano con comandi che
+            # le guardie della shell possono non vedere (review del 10/11/2026, #5261).
+            p = os.path.join(home_claude, f'{token}-{safe_id}')
+            return os.path.isfile(p) and not os.path.islink(p)
 
         # Su macOS e Windows il disco ignora le maiuscole: ~/.CLAUDE/settings.json è la config. Il confronto
         # si fa in minuscolo, e il percorso si riscrive con la radice vera (review del 7/11/2026, finding 11).
@@ -326,7 +329,8 @@ def main():
             relativo = relativo.casefold()
         # L'ancora dei rilasci (finding 11): fiducia.py verifica ogni aggiornamento con questa chiave, e se manca
         # vale quella della copia da verificare.
-        ancore = ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice', 'arturo/rilasci.allowed_signers')
+        ancore = ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice', 'arturo/rilasci.allowed_signers',
+                  'plugins/installed_plugins.json', 'plugins/known_marketplaces.json')
         is_config = under_claude and (
             re.match(r'SETTINGS.*\.JSON$', base) is not None
             or base == '.CLAUDE.JSON'
@@ -335,6 +339,8 @@ def main():
             or rp.endswith(os.sep + 'hooks')
             or relativo == 'firme' or relativo.startswith('firme/')
             or relativo in ancore
+            # Tutta bin: gli hook eseguono telemetria.py, telemetria-esito.sh, correzioni.py (#5262, n. 5).
+            or relativo == 'bin' or relativo.startswith('bin/')
             or (relativo.startswith('arturo/') and relativo.endswith('.local'))
             or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
         )

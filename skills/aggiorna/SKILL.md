@@ -1,6 +1,6 @@
 ---
 name: aggiorna
-description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi
+description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi. Col plugin `indietro` e `personale` dicono perché non servono
 argument-hint: "(nessuno) | indietro | personale"
 disable-model-invocation: true
 ---
@@ -37,6 +37,12 @@ Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag f
 dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
 senza firma: la verifica la fa Arturo, prima.
 
+- `DA RIMETTERE`: la versione installata è quella giusta, ma i file della copia non sono come nel rilascio
+  firmato (la riga `DERIVA:` dell'avvio). Chiedi alla persona se li ha cambiati lei: le sue modifiche vanno in
+  `~/.claude/personale/`, e la reinstallazione le cancella. Se non li ha cambiati lei, prima segnala come dice
+  `SECURITY.md`. Poi, col suo sì, lancia `python3 ${CLAUDE_PLUGIN_ROOT}/bin/aggiornamenti.py plugin`: disinstalla la copia
+  tenendo i dati del plugin, reinstalla lo stesso rilascio firmato e lo controlla. Con `RIMESSO` chiedi di
+  riavviare Claude Code. Un plugin spento resta spento.
 - `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
   (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
   frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.
@@ -52,6 +58,15 @@ senza firma: la verifica la fa Arturo, prima.
   Se la riga dice "ho disattivato Arturo", la copia nuova non ha superato il controllo e quella di prima
   non è tornata: Arturo resta spento finché la persona non lo riattiva. Dille di segnalarlo come dice
   `SECURITY.md`, e di lanciare `claude plugin enable arturo@arturo` solo dopo la risposta di chi mantiene Arturo.
+
+Col plugin `/aggiorna indietro` e `/aggiorna personale` non propongono l'aggiornamento e hanno una risposta
+sola. Con `rc=3` o `rc=4` di' prima la riga della verifica, come sopra.
+- `indietro`: "Col plugin Arturo non torna alla versione di prima: Claude Code installa solo il rilascio
+  che indica il catalogo firmato. Se la versione nuova ti dà un problema, dimmi cosa succede e lo segnalo a
+  chi mantiene Arturo." Poi, col suo racconto, segui `/segnala`. Niente `claude plugin install` di una
+  versione vecchia a mano: salta la verifica della firma.
+- `personale`: "Col plugin le tue aggiunte stanno già fuori da Arturo, in `~/.claude/personale/`: un
+  aggiornamento non le tocca, e non c'è niente da spostare."
 
 Con `COPIA IN ~/.claude` (`rc=5`) Arturo è una copia in `~/.claude`: prosegui dal Passo 1, senza
 dirlo alla persona. Con `NESSUN RILASCIO` il plugin non trova il suo catalogo: mostra la riga e
@@ -388,7 +403,8 @@ niente, non c'era niente da spostare: diglielo in una riga.
 
 ## Tornare indietro
 
-Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento. Ogni
+Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento. Col plugin vale
+la risposta del Passo 0. Ogni
 `/aggiorna` scrive una riga in `session-env/aggiornamenti` (versione prima, versione dopo,
 data): tornare indietro toglie l'ultima riga, e un secondo `/aggiorna indietro` toglie la
 precedente. I passi 1-4 qui sopra non c'entrano.

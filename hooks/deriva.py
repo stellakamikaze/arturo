@@ -234,19 +234,23 @@ def riga_plugin(esito: dict) -> str:
     controllo = esito["plugin"]
     if controllo["firma"] in ("manca", "non-torna"):
         return (f"DERIVA: {controllo['motivo']}: possibile compromissione. Non usare le guardie di questa copia come "
-                "prova di niente, non aggiornare e segnala a chi mantiene Arturo (/segnala, o SECURITY.md). Per "
-                "rimettere il rilascio firmato: /aggiorna.")
+                "prova di niente e segnala a chi mantiene Arturo (/segnala, o SECURITY.md). Dopo la segnalazione, "
+                "/aggiorna reinstalla il rilascio firmato e lo controlla.")
     parti = []
     if esito["hook"] == ["tutti"]:
         parti.append("gli hook sono spenti (disableAllHooks): le guardie di Arturo non girano")
     if esito["file"]:
         elenco = ", ".join(esito["file"][:3]) + ("…" if len(esito["file"]) > 3 else "")
-        parti.append(f"{len(esito['file'])} file del plugin non sono come nel rilascio firmato ({elenco}): un file "
-                     "cambiato nella cartella del plugin si perde al prossimo aggiornamento, e se è una guardia "
-                     "protegge come l'ha scritto chi l'ha cambiato. Per rimettere il rilascio: /aggiorna. Una "
-                     "modifica tua va in ~/.claude/personale/")
-    if controllo["firma"] == "non-verificabile" and esito["file"]:
-        parti.append(f"la firma non si può controllare su questo computer ({controllo['motivo']})")
+        # /aggiorna li rimette anche sulla versione già installata: claude plugin update e install da soli non
+        # riscrivono la copia (#5480, banco FD21). Senza una firma controllabile /aggiorna non reinstalla niente.
+        if controllo["firma"] == "non-verificabile":
+            rimedio = (f"la firma non si può controllare su questo computer ({controllo['motivo']}): dopo aver "
+                       "aggiornato git e OpenSSH, /aggiorna reinstalla la copia e la controlla")
+        else:
+            rimedio = "per rimettere il rilascio firmato: /aggiorna, che reinstalla la copia e la controlla"
+        parti.append(f"{len(esito['file'])} file del plugin non sono come nel rilascio firmato ({elenco}): se è una "
+                     "guardia, protegge come l'ha scritta chi l'ha cambiata. Una modifica tua va in "
+                     f"~/.claude/personale/; {rimedio}")
     return ("DERIVA: " + "; ".join(parti) + ".") if parti else ""
 
 

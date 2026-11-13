@@ -13,6 +13,127 @@ modo di lavorare.
 
 ---
 
+## 2026-11-13 — Col plugin /aggiorna rimette una copia cambiata
+
+**Cosa cambia**: se un file nella copia del plugin viene modificato, all'avvio la riga `DERIVA` lo segnala e ti
+manda a `/aggiorna`. Finora `/aggiorna` rispondeva "già aggiornato" e non rimetteva niente, perché controllava la
+versione, che era giusta, e non i file, che erano diversi.
+
+- Adesso `/aggiorna` se ne accorge e risponde `DA RIMETTERE`. Col tuo sì reinstalla lo stesso rilascio firmato,
+  controlla la copia nuova col suo elenco firmato dei file e risponde `RIMESSO`.
+- I dati del plugin restano, e un plugin che avevi spento resta spento.
+- Se il file l'hai cambiato tu, la modifica si perde: mettila prima in `~/.claude/personale/`.
+
+**Da sapere**: la riga `DERIVA` e `/diagnosi` adesso spiegano che `/aggiorna` rimette la copia del plugin
+com'era. Se il file non l'hai cambiato tu, può essere una compromissione: segnalalo a chi mantiene Arturo prima
+di lanciare `/aggiorna`, come dice `SECURITY.md`, perché la reinstallazione cancella la copia cambiata.
+
+**Il principio**: un avviso che ti manda a `/aggiorna`, dove poi leggi "già aggiornato", ti lascia con il file
+cambiato e senza una strada per rimetterlo.
+
+---
+
+## 2026-11-12 — Col plugin i testi di Arturo dicono il vero
+
+**Cosa cambia**: da quando Arturo si installa anche come plugin, alcuni testi descrivevano solo la copia dentro
+`~/.claude`. Chi aveva il plugin trovava comandi che non partivano e risposte che mancavano.
+
+- I comandi `arturo …` del README e della pagina della privacy, compreso quello che spegne la telemetria, in un
+  terminale col plugin non partivano. Adesso le due pagine danno una riga che vale in tutte e due le
+  installazioni, e ricordano che basta chiedere a Claude: "spegni la telemetria".
+- Col plugin nessuno proponeva `/setup`. Un plugin non porta permessi, regole di blocco e barra in basso: li
+  aggiunge `/setup`. Adesso l'avvio te lo ricorda una volta al giorno, finché non lo fai.
+- `/aggiorna indietro` col plugin non rispondeva niente. Adesso dice che col plugin una versione di prima non si
+  reinstalla, e ti propone di segnalare il problema della versione nuova.
+- `/diagnosi` chiamava "non un errore" anche una copia del plugin cambiata da qualcuno. Adesso dice per prima
+  una possibile compromissione e ti chiede se il file l'hai cambiato tu.
+- `/novita` diceva che solo `/aggiorna` installa le versioni nuove, e più sotto che si installano da sole. Vale
+  la seconda: `/aggiorna` serve per averle subito o quando l'avvio lo chiede.
+
+**Da sapere**: se hai il plugin e non hai mai lanciato `/setup`, lancialo alla prossima sessione.
+
+**Il principio**: un testo che descrive un'altra installazione dalla tua ti lascia davanti a un comando che non
+parte, proprio nel momento in cui volevi toglierti un dubbio.
+
+---
+
+## 2026-11-12 — Il controllo della configurazione non dà più errori falsi
+
+**Cosa cambia**: `/system-audit`, che gira anche dentro `/diagnosi`, segnava errori su configurazioni che
+funzionavano: su un Mac con tutte le guardie accese ne ha dati tre, e adesso quei casi passano.
+
+- Alcuni hook partono con un ripiego: `test -f X || python3 Y`, cioè "se X manca, lancia Y". Il controllo
+  cercava anche X, che manca apposta, e lo dava per un hook perso. Adesso controlla solo Y, lo script che parte
+  davvero.
+- Claude Code lascia in `skills/` una cartella nascosta, `.trash`, con le skill tolte. Il controllo la leggeva
+  come una skill rotta; adesso la salta, e quando una skill è rotta sul serio l'errore ne dice il nome.
+- Un indirizzo di pagina scritto fra apici, come la vista `/gare` della dashboard, il controllo lo prendeva per
+  un comando che non esiste. Adesso lo riconosce dalla parola che lo precede (vista, pagina, rotta, indirizzo),
+  e un comando vero scritto più avanti nella stessa riga resta controllato.
+- Il controllo segnava come inesistente `/bg`, che è un comando di Claude Code; adesso lo conosce.
+
+**Da sapere**: non devi fare niente. La correzione arriva con l'aggiornamento, e al prossimo `/diagnosi`
+quegli errori non compaiono più.
+
+**Il principio**: un controllo che segna errori su una configurazione sana ti abitua a non leggerlo, e il
+giorno che l'errore è vero passa inosservato.
+
+---
+
+## 2026-11-11 — Altri cinque buchi chiusi nelle guardie
+
+**Cosa cambia**: la revisione che ha chiuso i tre buchi della voce qui sotto ne ha trovati altri cinque, casi in
+cui un comando passava senza controllo perché le guardie non lo vedevano. Adesso le guardie li vedono e chiedono
+conferma anche lì.
+
+- Un comando scritto in modo insolito passava senza controllo: `'rm' -rf` fra virgolette, un `git commit` dentro
+  un `if`, il nome del programma messo in una variabile. Le guardie sapevano già leggere questi comandi, ma il
+  filtro che decide quando chiamarle non li riconosceva, quindi restavano fuori; adesso le chiama anche per questi.
+- Un comando poteva modificare impostazioni e guardie senza conferma se ci arrivava per una via indiretta:
+  attraverso un collegamento, con un carattere jolly al posto del nome, estraendo un archivio dentro `~/.claude`,
+  con `git reset --hard` in quella cartella o spostando la cartella intera. Adesso le guardie controllano i file
+  su cui il comando scrive davvero, non solo i nomi che compaiono nel comando.
+- La cartella `$ARTURO_CODICE/bin` contiene programmi che Arturo esegue da solo a ogni sessione, quindi chi la modifica
+  cambia quello che Arturo fa senza che tu lo veda. Per questo adesso modificarla chiede lo stesso sblocco delle
+  guardie.
+- Un comando poteva contenere un secondo comando scritto come testo e farlo eseguire per una via indiretta, per
+  esempio salvandolo in un file, copiando il file e lanciando la copia. Le guardie controllavano il primo e non
+  leggevano il secondo; adesso leggono anche quello.
+- Un comando di oltre un milione di caratteri passava senza nessuna guardia, perché il programma che lo consegna
+  alle guardie non partiva e loro ricevevano un testo vuoto. Adesso, oltre i 100.000 caratteri, Arturo non prova a
+  leggerlo e ti chiede conferma.
+
+**Da sapere**: vedrai qualche conferma in più quando un comando scrive dentro `~/.claude` fuori dalle cartelle
+di handoff e memorie, o quando supera i 100.000 caratteri, e nessun comando viene bloccato.
+
+**Il principio**: una guardia giudica quello che il comando fa, non come è scritto, e quando non riesce a capirlo,
+come con un comando troppo lungo, lascia la decisione a te.
+
+---
+
+## 2026-11-11 — Tre buchi chiusi nelle guardie
+
+**Cosa cambia**: una revisione delle guardie ha trovato tre casi in cui un comando passava senza chiederti
+conferma anche quando toccava file che non doveva, e li ha chiusi.
+
+- Salvare un handoff o una memoria da terminale non chiede conferma: è una comodità di Arturo. Il via libera però
+  arrivava anche a un comando che nominava la cartella degli handoff e intanto scriveva altrove, per esempio nel
+  file delle chiavi SSH. Adesso arriva solo se ogni file che il comando legge o scrive sta nella cartella degli
+  handoff o in quella delle memorie.
+- Lo stesso via libera copriva lo spostamento di una cartella qualunque dentro gli handoff, anche quella delle
+  chiavi o dei Documenti, e adesso non lo copre più.
+- Il file che sblocca la modifica di impostazioni e guardie si poteva creare senza conferma, creando una cartella
+  con lo stesso nome o copiando un file con quel nome dentro `~/.claude`. Quei comandi adesso chiedono conferma, e
+  lo sblocco vale solo se è un file vero, non una cartella né un collegamento con quel nome.
+
+**Da sapere**: per te cambia poco: un comando che copia negli handoff un file preso da un'altra cartella ora
+chiede conferma, come ogni altra scrittura sotto `~/.claude`, e nessun comando viene bloccato.
+
+**Il principio**: un controllo che approva da solo guarda tutto il comando, non solo la parte che conosce, e
+quando un pezzo non lo riconosce lascia la decisione a te.
+
+---
+
 ## 2026-11-11 — Le segnalazioni partono da sole
 
 **Cosa cambia**: quando qualcosa di Arturo o di Claude Code si inceppa, Claude scrive la segnalazione e la manda

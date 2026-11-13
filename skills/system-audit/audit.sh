@@ -392,6 +392,9 @@ STORICO = re.compile(r"rimoss|deprecat|eliminat|dismess|assorbit|archiviat|sosti
 ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\d{4}", re.I)
 # Il backtick d'apertura non segue una lettera: in "`nc`/altro" il backtick chiude, non apre.
 PAT = re.compile(r"(?<![A-Za-z0-9_])`/([a-z][a-z0-9:_-]{1,30})(?:\s[^`]*)?`")
+# Un percorso di pagina web ("vista `/gare` su uf-dashboard", "la pagina `/roadmap/`") non è un comando.
+# Conta solo la parola subito prima: un comando vero più avanti nella stessa riga resta controllato.
+PAGINA = re.compile(r"\b(?:vista|pagina|rotta|indirizzo|url|sezione)\s*$", re.I)
 docs = [(ORSA, "CLAUDE.md")] + [(H, "README.md") for H in RADICI] + sorted(
     (H, os.path.relpath(p, H).replace(os.sep, "/")) for H in RADICI for p in glob.glob(H + "/commands/*.md")
     + glob.glob(H + "/skills/*/SKILL.md") + glob.glob(H + "/agents/*.md") + glob.glob(H + "/shared/*.md"))
@@ -405,7 +408,10 @@ for H, doc in dict.fromkeys(docs):
     for i, line in enumerate(righe, 1):
         if STORICO.search(line) or ENDPOINT.search(line):
             continue
-        for nome in PAT.findall(line):
+        for m in PAT.finditer(line):
+            nome = m.group(1)
+            if PAGINA.search(line[:m.start()]):
+                continue
             if nome not in known:
                 print("WARN|%s:%d cita /%s, che non esiste (nessuna skill, comando o mod)" % (doc, i, nome))
                 tot += 1

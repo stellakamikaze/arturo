@@ -28,7 +28,9 @@ import tokenize
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
 # Programmi che leggono il corpo come dati e non eseguono niente.
-LETTORI = frozenset("cat tee grep rg jq sort head tail wc patch diff git cut tr uniq less more column".split())
+# patch non è un lettore: applica il corpo ai file che il diff nomina (review del 10/11/2026, n. 6). git resta
+# per `git commit -F -`, ma `git apply` e `git am` sono incerti (vedi togli).
+LETTORI = frozenset("cat tee grep rg jq sort head tail wc diff git cut tr uniq less more column".split())
 # Interpreti che eseguono il corpo come codice loro, non come shell.
 INTERPRETI = frozenset("python python3 node ruby perl php".split())
 # Parole che stanno davanti al programma senza esserlo, e involucri che eseguono il comando dopo.
@@ -299,6 +301,39 @@ def _eseguito_dopo(prima: str, dopo: str, resto_riga: str, righe_dopo: List[str]
     return False
 
 
+# Una riga che chiude un gruppo o un blocco e ne manda l'uscita a un altro programma: `} | bash`, `) | sh`,
+# `fi | bash`, `done > >(sh)`. Il corpo di un heredoc scritto dentro il blocco arriva a quel programma.
+_BLOCCO_IN_PIPE = re.compile(r"^\s*(?:\}|\)|fi\b|done\b|esac\b)[^\n#]*?(?:\|(?!\|)|>\()", re.M)
+_ARGOMENTO_MOBILE = re.compile(_ESECUTORI + r"[^\n;&|]*[*?\[$]", _RE_NOMI)
+_COSTRUTTORI = re.compile(r"(?:^|[\s;&|(])(?:\S*/)?(?:g?make|ninja|just|npm|pnpm|yarn|bun)(?=\s|$)", _RE_NOMI)
+_FILE_DI_COSTRUZIONE = re.compile(r"(?i)^(?:gnu)?makefile$|\.mk$|^justfile$|^package\.json$|^build\.ninja$")
+_MODULO_PYTHON = re.compile(r"(?:^|[\s;&|(])(?:\S*/)?python3?(?:\.\d+)?\s[^\n;&|]*-m\s", _RE_NOMI)
+
+
+def _eseguito_per_altra_via(prima: str, dopo: str, resto_riga: str, righe_dopo: List[str]) -> bool:
+    """Il file scritto dall'heredoc può girare senza che il suo nome segua un esecutore (review del 10/11/2026,
+    n. 6): un esecutore con un glob o una variabile (`bash /tmp/x.s?`), il nome che ricompare accanto a un
+    esecutore qualunque (`cp x.sh y; bash y`), un Makefile seguito da make, un .py seguito da `python -m`."""
+    bersagli = _bersagli(prima + " " + dopo)
+    if not bersagli:
+        return False
+    resto = _REDIREZIONE.sub(" ", dopo, count=1) + "\n" + resto_riga + "\n" + "\n".join(righe_dopo)
+    esecutore = re.search(_ESECUTORI, resto, _RE_NOMI) is not None
+    if esecutore and _ARGOMENTO_MOBILE.search(resto):
+        return True
+    for b in bersagli:
+        nome = os.path.basename(b)
+        if not nome:
+            continue
+        if esecutore and re.search(r"(?<![\w.-])" + re.escape(nome) + r"(?![\w.-])", resto):
+            return True
+        if _FILE_DI_COSTRUZIONE.search(nome) and _COSTRUTTORI.search(resto):
+            return True
+        if nome.endswith(".py") and _MODULO_PYTHON.search(resto):
+            return True
+    return False
+
+
 def togli(cmd: str, via: Callable[[Heredoc], bool], segnaposto: Optional[str] = None) -> str:
     """`cmd` senza il corpo degli heredoc per cui `via` dice sì.
 
@@ -332,7 +367,15 @@ def togli(cmd: str, via: Callable[[Heredoc], bool], segnaposto: Optional[str] = 
             prossima = aperture[n + 1].inizio if n + 1 < len(aperture) else len(riga)
             dopo = riga[ap.fine:prossima]
             seguito = righe[i].lstrip() if i < len(righe) else ""
+            prima = riga[ap.segmento:ap.inizio]
             certo = not (ap.annidato
+                         # una sostituzione di processo sulla riga: `cat <<'F' > >(bash)`, `tee >(sh) <<'F'`
+                         or ">(" in riga
+                         # il blocco che contiene l'heredoc finisce in una pipe, anche dopo righe vuote
+                         or _BLOCCO_IN_PIPE.search("\n".join(righe[i:]))
+                         # git apply e git am applicano il corpo ai file
+                         or (_consumatore(prima) == "git" and re.search(r"\s(?:apply|am)(?:\s|$)", prima))
+                         or _eseguito_per_altra_via(prima, dopo, riga[prossima:], righe[i:])
                          or re.search(r"(^|[^|])\|(?!\|)", dopo)
                          or riga.rstrip().endswith(("|", "&&", "||"))
                          or seguito.startswith(("|", ")", "&&", "||"))

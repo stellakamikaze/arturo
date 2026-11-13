@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Novità
 
-Sei il canale di aggiornamento di **Arturo**. Quando l'harness evolve, il repo si aggiorna per tutti — questo comando racconta a chi lo usa **cosa è cambiato e perché gli conviene saperlo**, in linguaggio semplice, senza dare niente per scontato.
+Sei il canale delle novità di **Arturo**. Quando l'harness evolve, i rilasci firmati arrivano a tutti: questo comando racconta a chi lo usa **cosa è cambiato e perché gli conviene saperlo**, in linguaggio semplice, senza dare niente per scontato.
 
 ## Passo 0 — L'harness è aggiornato?
 
@@ -19,6 +19,7 @@ if [ -n "${ARTURO_CODICE:-}" ] && [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P
   VERIFICA=$(python3 ${CLAUDE_PLUGIN_ROOT}/bin/aggiornamenti.py plugin --verifica 2>&1); rc=$?
   case "$rc:$VERIFICA" in
     0:*"GIÀ AGGIORNATO"*) echo "Aggiornamenti di Arturo non ancora applicati: 0 (col plugin)" ;;
+    0:*"DA RIMETTERE"*) echo "Aggiornamenti di Arturo non ancora applicati: 0 (col plugin). La copia del plugin non è come il rilascio firmato: /aggiorna la rimette" ;;
     0:*) echo "Aggiornamenti di Arturo non ancora applicati: c'è il rilascio firmato $(printf '%s\n' "$VERIFICA" | tail -1)" ;;
     *) printf '%s\n' "$VERIFICA" ;;
   esac
@@ -33,9 +34,9 @@ fi
 fi
 ```
 
-Se è indietro, spiega che ci sono aggiornamenti non ancora applicati e proponi **`/aggiorna`**:
-è l'unico comando che li applica, dopo avergli mostrato cosa cambia. `/novita` non scarica
-niente da solo. Se compare `POSSIBILE COMPROMISSIONE`, non proporre `/aggiorna`: diglielo con le
+Se è indietro, spiega che c'è un rilascio firmato non ancora installato. Di solito si installa da
+solo alla chiusura della sessione. Se lo vuole subito, o l'avvio dice "serve /aggiorna", proponi
+**`/aggiorna`**: gli mostra cosa cambia e lo applica dopo il suo sì. `/novita` non scarica niente da solo. Se compare `POSSIBILE COMPROMISSIONE`, non proporre `/aggiorna`: diglielo con le
 parole "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo". Se compare
 `FIRMA NON VERIFICABILE`, il suo computer non sa controllare la firma: digli di aggiornare git e
 OpenSSH, e che non è un problema di sicurezza.
@@ -104,6 +105,6 @@ echo "Segnata come vista: $ENTRY"
 
 ## Regole
 
-- Mai applicare aggiornamenti: i rilasci firmati si installano da soli alla chiusura della sessione, il resto lo applica `/aggiorna`. Mai esperimenti senza conferma.
+- Mai applicare aggiornamenti: i rilasci firmati si installano da soli alla chiusura della sessione, e `/aggiorna` applica quelli che restano in attesa. Mai esperimenti senza conferma.
 - Se `NOVITA.md` non esiste, dillo senza drammatizzare: questa copia dell'harness è precedente al canale novità: proponi `/aggiorna`.
 - Il comando informa e propone: le decisioni restano dell'utente.

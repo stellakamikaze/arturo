@@ -45,7 +45,7 @@ PLUGIN=0
 if [ "$PLUGIN" = 1 ]; then
   VERIFICA=$(python3 ${CLAUDE_PLUGIN_ROOT}/bin/aggiornamenti.py plugin --verifica 2>&1); FIRMA=$?
   case "$FIRMA" in
-    0) case "$VERIFICA" in *"GIÀ AGGIORNATO"*) ;; *) echo "ARTURO: c'è la versione $(printf '%s\n' "$VERIFICA" | tail -1) — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna" ;; esac ;;
+    0) case "$VERIFICA" in *"GIÀ AGGIORNATO"*) ;; *"DA RIMETTERE"*) echo "ARTURO: la copia del plugin non è come il rilascio firmato: /aggiorna la reinstalla e la controlla" ;; *) echo "ARTURO: c'è la versione $(printf '%s\n' "$VERIFICA" | tail -1) — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna" ;; esac ;;
     3) echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo ($(printf '%s\n' "$VERIFICA" | tail -1))" ;;
     4) echo "ARTURO: questo computer non sa controllare la firma dei rilasci (servono git 2.34 e OpenSSH 8.2): Arturo non si aggiorna finché non li aggiorni. Non è un problema di sicurezza" ;;
     *) echo "Config sync: controllo aggiornamenti non riuscito: $(printf '%s\n' "$VERIFICA" | tail -1)" ;;

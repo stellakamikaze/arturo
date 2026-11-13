@@ -183,6 +183,10 @@ def _expand(word: str, variables: dict):
     return _UNRESOLVED if "$" in expanded else expanded
 
 
+# Parole della shell che stanno davanti a un programma senza esserlo.
+_PAROLE_DAVANTI = frozenset("! { } then do else elif if while until time".split())
+
+
 def _segments(command: str):
     # Senza commentatore e senza commenti (review del 7/11/2026, finding 0): `git status # nota` seguito da un
     # a capo e da `git commit` faceva del commit tre argomenti di git status, e il gate tace.
@@ -199,6 +203,10 @@ def _segments(command: str):
             for ch in token:
                 if ch in "()":
                     yield ["\x00" + ch]  # subshell o $(...): un cd qui dentro non vale fuori
+        elif not segment and token in _PAROLE_DAVANTI:
+            # `if …; then git commit`, `else git commit`, `do git commit`, `{ git commit; }`, `! git commit`:
+            # la parola chiave sta davanti al programma e il commit gira lo stesso (review del 10/11/2026, n. 7).
+            continue
         else:
             segment.append(token)
     if segment:

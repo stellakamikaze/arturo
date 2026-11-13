@@ -40,7 +40,7 @@ Di un segreto fermato in un commit esce solo la famiglia, come `segreto-cloud`, 
 Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo scritto, fino a 64 KB per messaggio.
 
 Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`), lo stato della telemetria (`~/.claude/session-env/telemetria.json`), i codici delle ricevute delle segnalazioni (`~/.claude/data/segnalazioni/ricevute.json`, leggibile solo da te), il contatto che hai dato (`~/.claude/data/contatto.json`, leggibile solo da te) e l'ultima risposta letta per ognuna (`~/.claude/cache/sportello.json`).
-Li vedi con `python3 $ARTURO_CODICE/bin/arturo telemetria mostra`.
+Li vedi con `arturo telemetria mostra` (come si lancia: [I tuoi diritti](#i-tuoi-diritti)).
 
 ## Il ritratto di /setup
 
@@ -82,13 +82,15 @@ Nessun altro riceve i dati. Non si vendono e non servono per pubblicità.
 
 ## I tuoi diritti
 
-- **Vedere cosa parte.** `python3 $ARTURO_CODICE/bin/arturo telemetria mostra` stampa l'id e gli eventi in coda, così come partono.
+I comandi `arturo …` qui sotto li lancia Claude, se glielo chiedi ("spegni la telemetria"). In un terminale tuo, al posto di `arturo` scrivi `python3 "$(cat ~/.claude/arturo/radice 2>/dev/null || echo ~/.claude)/bin/arturo"`: vale con Arturo dentro `~/.claude` e col plugin.
+
+- **Vedere cosa parte.** `arturo telemetria mostra` stampa l'id e gli eventi in coda, così come partono.
 - **Accesso.** Scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`: ricevi i dati legati a quell'id.
 - **Cancellazione.** Scrivi allo stesso indirizzo con l'id: chi mantiene Arturo cancella i tuoi eventi e le tue segnalazioni dal server, e a mano le copie su Telegram e Gmail (vedi "Chi li riceve"). Se usi Lancillotto, aggiungi il suo id, che leggi con `lancillotto telemetria mostra`. Una segnalazione partita senza id (la casella "collega" spenta) si cancella col suo numero, oppure la ritiri tu con `arturo segnala ritira`.
-- **Ritiro di una segnalazione.** `python3 $ARTURO_CODICE/bin/arturo segnala ritira N --conferma`, col codice della ricevuta che Arturo ha salvato sul tuo computer: dal server spariscono titolo, testo, pacchetto tecnico e aggiunte, restano numero, tipo e data. Lo stesso codice serve a leggere la risposta (`arturo segnala stato`) e ad aggiungere informazioni (`arturo segnala seguito N`).
-- **Il tuo contatto.** `python3 $ARTURO_CODICE/bin/arturo contatto` mostra cosa hai dato, `arturo contatto togli` lo cancella dal tuo computer e la domanda non torna. Dal server se ne va col ritiro di ogni segnalazione, o scrivendo allo stesso indirizzo.
-- **Opposizione.** `python3 $ARTURO_CODICE/bin/arturo telemetria spegni` spegne la telemetria e svuota la coda. Valgono anche `ARTURO_TELEMETRIA=0` e `DO_NOT_TRACK=1`. `/segnala` continua a funzionare: con la telemetria spenta ogni segnalazione parte solo col tuo sì.
-- **Segnalazioni solo col tuo sì.** `python3 $ARTURO_CODICE/bin/arturo segnalazioni manuali`, o la variabile `ARTURO_SEGNALAZIONI=manuali`: Claude prepara il testo, te lo mostra e chiede "La mando?". `arturo segnalazioni automatiche` torna al modo di default. `arturo segnalazioni` dice quale vale.
+- **Ritiro di una segnalazione.** `arturo segnala ritira N --conferma`, col codice della ricevuta che Arturo ha salvato sul tuo computer: dal server spariscono titolo, testo, pacchetto tecnico e aggiunte, restano numero, tipo e data. Lo stesso codice serve a leggere la risposta (`arturo segnala stato`) e ad aggiungere informazioni (`arturo segnala seguito N`).
+- **Il tuo contatto.** `arturo contatto` mostra cosa hai dato, `arturo contatto togli` lo cancella dal tuo computer e la domanda non torna. Dal server se ne va col ritiro di ogni segnalazione, o scrivendo allo stesso indirizzo.
+- **Opposizione.** `arturo telemetria spegni` spegne la telemetria e svuota la coda. Valgono anche `ARTURO_TELEMETRIA=0` e `DO_NOT_TRACK=1`. `/segnala` continua a funzionare: con la telemetria spenta ogni segnalazione parte solo col tuo sì.
+- **Segnalazioni solo col tuo sì.** `arturo segnalazioni manuali`, o la variabile `ARTURO_SEGNALAZIONI=manuali`: Claude prepara il testo, te lo mostra e chiede "La mando?". `arturo segnalazioni automatiche` torna al modo di default. `arturo segnalazioni` dice quale vale.
 - **Reclamo.** Puoi rivolgerti al Garante per la protezione dei dati personali (garanteprivacy.it).
 
 Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione.
