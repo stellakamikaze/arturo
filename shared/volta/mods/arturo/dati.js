@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
+import { macchinaDelProgetto, riparteAlClic, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -59,16 +59,23 @@ export function radiceDa(bin) {
 export const richiesta = (prompt, radice) => (prompt ?? "").split("{radice}").join(radice);
 
 // arturo <comando> <args>: { ok, json, errore }. Mai un'eccezione verso l'interfaccia.
+// Tempo massimo esplicito (13/11/2026): sul Mac mini `arturo todo --json` è rimasto appeso cinque ore su
+// una richiesta di permesso di macOS mai vista. exec rifiuta allo scadere ma non ferma il processo:
+// la risposta dice almeno perché, invece del solo "non riesco a leggere".
+export const ARTURO_MAX_MS = 45000;
+export const ARTURO_APPESO = "Arturo non risponde su questa macchina: forse macOS aspetta un permesso sullo schermo.";
 async function arturo(comando, args, errore) {
+  const t0 = Date.now();
   try {
     const c = await config();
     const [cmd, ...pre] = c.arturo;
-    const r = await exec(cmd, [...pre, comando, ...args], { cwd: c.base });
+    const r = await exec(cmd, [...pre, comando, ...args], { cwd: c.base, timeout: ARTURO_MAX_MS });
+    if (r.code !== 0 && Date.now() - t0 >= ARTURO_MAX_MS - 1000) return { ok: false, errore: ARTURO_APPESO, codice: r.code };
     if (r.code !== 0) return { ok: false, errore: prima(r.stderr) || prima(r.stdout) || `uscita ${r.code}`, codice: r.code };
     if (!args.includes("--json")) return { ok: true, testo: prima(r.stdout) };
     return { ok: true, json: JSON.parse(r.stdout) };
   } catch (e) {
-    return { ok: false, errore };
+    return { ok: false, errore: Date.now() - t0 >= ARTURO_MAX_MS - 1000 ? ARTURO_APPESO : errore };
   }
 }
 
@@ -204,11 +211,11 @@ export function progetti(vista, extra = {}) {
     if (!m?.slug) continue;
     const v = per.get(m.slug);
     // il titolo della memoria (scheda del progetto, poi fonte) vince sul nome ricavato dallo slug
-    if (v) { v.alias = m.alias ?? []; v.data = m.data || ""; if (m.titolo) v.titolo = m.titolo; continue; }
+    if (v) { v.alias = m.alias ?? []; v.data = m.data || ""; v.macchine = m.macchine ?? []; if (m.titolo) v.titolo = m.titolo; continue; }
     const noto = Boolean(m.handoff || m.riga || m.titolo);
     per.set(m.slug, { chiave: m.slug, nome: m.cartella ? m.nome : m.slug, titolo: m.titolo || bello(m.nome || m.slug),
       categoria: m.categoria || (noto || !conCategorie ? "" : "Altre cartelle"), riga: m.riga ?? "", calcolato: !m.riga,
-      tu: 0, decidi: 0, io: 0, fermo: 0, cartella: Boolean(m.cartella), alias: m.alias ?? [], data: m.data || "",
+      tu: 0, decidi: 0, io: 0, fermo: 0, cartella: Boolean(m.cartella), alias: m.alias ?? [], data: m.data || "", macchine: m.macchine ?? [],
       ferma: noto && Boolean(limite) && (m.data || "") < limite });
   }
   // Con un Arturo senza il comando: le cartelle della base dei progetti senza todo, come prima.
@@ -328,11 +335,17 @@ export function statoSpazio(s) {
 // volta_sonda.py ogni 30 s), chiuse comprese: la ricerca di ⌘K (apri.js) le legge da qui, perché la
 // finestra è un'altra copia del mod e non vede l'elenco della barra. Senza file: [].
 export async function sessioniVolta() {
+  return (await elencoVolta()).sessioni;
+}
+
+// L'elenco intero di Volta ({ macchine, sessioni }): le macchine portano `nascita` quando non fanno
+// partire sessioni (riparteAlClic di sessioni.js). Vuoto se il file non si legge.
+export async function elencoVolta() {
   try {
     const d = JSON.parse((await readTextFile(`${cacheVolta()}/sessioni.json`)) ?? "{}");
-    return Array.isArray(d.sessioni) ? d.sessioni : [];
+    return { macchine: Array.isArray(d.macchine) ? d.macchine : [], sessioni: Array.isArray(d.sessioni) ? d.sessioni : [] };
   } catch {
-    return [];
+    return { macchine: [], sessioni: [] };
   }
 }
 
@@ -395,7 +408,11 @@ export async function apri(nome, todoScelto) {
     return;
   }
   const prompt = todoScelto ? `/inizio ${nome} -- #${todoScelto.id} ${pulito(todoScelto.titolo)}` : `/inizio ${nome}`;
-  return nasciSu(dove(), prompt, nome);
+  // Con "Nasce su" su questa macchina, un progetto la cui cartella sta solo altrove nasce lì (campo
+  // macchina: della scheda del progetto). Una scelta esplicita in "Nasce su" vince sempre.
+  const d = dove();
+  const sua = d === "qui" ? macchinaDelProgetto(shared("arturo.progetti")?.[nome]?.macchine, shared("arturo.volta.macchine")) : null;
+  return nasciSu(sua ?? d, prompt, nome);
 }
 
 // Una richiesta nuova, senza progetto: Claude nella cartella dei progetti, sulla macchina scelta in
@@ -658,6 +675,9 @@ export async function apriSessione(s, argv, pronta = false) {
   }
   if (schede.length) { scheda = schede[0]; rilancia = true; }
   let riavviata = false;
+  // in errore su una macchina che non fa partire sessioni: niente respawn, cadrebbe ancora (13/11/2026)
+  const rc = s.stato === "errore" ? riparteAlClic(s, await elencoVolta()) : { riparte: false };
+  if (rc.errore) return { errore: rc.errore };
   if (!pronta) {
     const a = await prepara(s, s.stato === "errore");
     if (a.errore) return { errore: `Non la apro: ${a.errore}.` };
@@ -696,6 +716,8 @@ async function veglia(s, argv, indirizzo, riavviata) {
   const fallita = (m) => ({ errore: m?.testo ?? "Claude non resta aperto in questa sessione: riprova, oppure eliminala da Altro." });
   const m = await perche(s, indirizzo);
   if (riavviata || m?.fermo) return fallita(m);
+  const rotta = riparteAlClic({ ...s, stato: "errore" }, await elencoVolta());
+  if (rotta.errore) return { errore: rotta.errore };
   const a = await prepara(s, true);
   if (a.errore) return { errore: `Claude non si riapre: ${a.errore}.` };
   const r = await hc(["send", indirizzo, comando(argvScheda(argv))]);

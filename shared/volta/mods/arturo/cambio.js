@@ -8,6 +8,7 @@ import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, run, shared } from "herdr";
 import { titolo, nomeNuovo, progettoNuovo, nomeProgetto, filtraProgetti, comandoCambio, impostaProgetti } from "./sessioni.js";
+import { TESTO } from "./misure.js";
 
 // `noti`: i progetti fra cui scegliere (progettiNoti di sessioni.js), solo per cosa = "progetto".
 export function apriCambio(s, cosa, noti = []) {
@@ -82,7 +83,7 @@ export class Cambio {
         cx.notify();
       })
       .child(v_flex().gap(3)
-        .child(div().font_family("Arturo Archivo").text_size(18).text_color(t.foreground).child(x.titolo))
+        .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child(x.titolo))
         .child(div().truncate().text_size(12.5).text_color(t.muted).child(titolo(this.s))))
       .child(h_flex().h(40).px(12).items_center().rounded(9).border_1().border_color(t.accent).bg(t.raised)
         .child(Input.new(this.input).flex_1().h_full().text_size(14).text_color(t.foreground)))

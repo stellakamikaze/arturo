@@ -7,15 +7,21 @@ sessionId. Gira su questa macchina e parla con le due con herdr-core (hc exec --
 Stampa {id, sessionId, attach, macchina, cartella} oppure {errore}.
 
 I passi, in quest'ordine:
-  1. legge su DA la cartella della sessione, la trascrizione e lo stato di git. Rifiuta se ci sono file
-     non salvati o commit non spinti: sull'altra macchina il lavoro non ci sarebbe.
+  1. legge su DA la cartella della sessione, la trascrizione e lo stato di git. Rifiuta solo una HEAD
+     staccata: file non salvati e commit non spinti viaggiano con la sessione (#5500, 13/11/2026).
   2. prepara la cartella su A: lo stesso percorso relativo alla base dei progetti (arturo.json), col
-     repository allo stesso commit. Un worktree che manca nasce da `git worktree add`, un repository che
-     manca da `git clone`; una cartella che c'è viene avanti con `git pull --ff-only`.
-  3. ferma la sessione su DA (claude stop) e copia la trascrizione nella cartella dei progetti di Claude
-     su A: `<cartella codificata>/<SESSIONID>.jsonl` e la cartella `<SESSIONID>/` se c'è. Una copia che
-     c'era già su A resta accanto, come `.prima-<ora>`.
-  4. riprende la stessa conversazione su A (claude --bg --resume, senza fork). Se non riparte, la
+     repository allo stesso commit. I commit che non stanno in nessun ramo remoto arrivano in un bundle
+     (`git bundle create - <ramo> --not --remotes`), preso in `refs/volta-sposta/<ramo>`. Un worktree che
+     manca nasce da `git worktree add`, un repository che manca da `git clone`; una cartella che c'è viene
+     avanti con `git merge --ff-only`.
+  3. ferma la sessione su DA (claude stop). Solo adesso legge le modifiche non salvate, che la sessione
+     ferma non cambia più: `git diff --binary HEAD` e i file nuovi (non ignorati) in un tar. Su A la diff
+     entra con `git apply --index` (staged e non staged diventano tutte staged), i file nuovi con gli stessi
+     controlli della trascrizione, e un'impronta dei contenuti deve tornare uguale. Se non torna, su A il
+     lavoro va in `git stash` ("volta-sposta-<sessionId>") e la sessione riparte su DA.
+  4. copia la trascrizione nella cartella dei progetti di Claude su A: `<cartella codificata>/<SESSIONID>.jsonl`
+     e la cartella `<SESSIONID>/` se c'è. Una copia che c'era già su A resta accanto, come `.prima-<ora>`.
+  5. riprende la stessa conversazione su A (claude --bg --resume, senza fork). Se non riparte, la
      riprende su DA: la sessione non resta mai senza macchina.
 Su DA la trascrizione resta com'è. Mai claude rm.
 Prima del passo 1 e prima del 3 guarda se la sessione sta facendo un turno: se sì rifiuta con
@@ -36,7 +42,7 @@ import volta_sonda as vs
 # codifica delle cartelle dei progetti di Claude Code (ogni carattere non alfanumerico diventa "-",
 # provato l'12/11/2026 su Mac e su Windows: "C:\\Users\\feder" diventa "C--Users-feder").
 COMUNE = r'''
-import base64, glob, json, os, re, shutil, subprocess, sys, tarfile, io, time
+import base64, glob, hashlib, json, os, re, shutil, subprocess, sys, tarfile, tempfile, io, time
 a = json.loads(base64.b64decode(sys.argv[1]).decode("utf-8"))
 def esci(**d):
     print(json.dumps(d)); raise SystemExit
@@ -67,6 +73,43 @@ def relativo(p):
     except ValueError:
         return None
     return None if r == ".." or r.startswith(".." + os.sep) or os.path.isabs(r) else r.replace(os.sep, "/")
+def gb(cartella, *args, entrata=None, t=120):
+    # git coi byte: diff binarie e nomi con -z
+    try:
+        r = subprocess.run(["git", "-C", cartella] + list(args), capture_output=True, input=entrata,
+                           stdin=None if entrata is not None else subprocess.DEVNULL, timeout=t)
+    except (OSError, subprocess.SubprocessError) as e:
+        return 1, str(e).encode()
+    return r.returncode, r.stdout if r.returncode == 0 else (r.stderr or r.stdout)
+def ultima(out):
+    out = out.decode("utf-8", "replace") if isinstance(out, bytes) else str(out)
+    return out.strip().splitlines()[-1][:160] if out.strip() else "nessun messaggio"
+def cambiati(top):
+    # i file tracciati diversi da HEAD e i file nuovi non ignorati, coi percorsi relativi a top
+    a1, d = gb(top, "diff", "--name-only", "-z", "HEAD")
+    a2, n = gb(top, "ls-files", "-o", "--exclude-standard", "-z")
+    if a1 or a2:
+        return None, None
+    dec = lambda b: [x.decode("utf-8", "surrogateescape") for x in b.split(b"\0") if x]
+    return dec(d), dec(n)
+def impronta(top):
+    # contenuto di ogni file cambiato o nuovo, non il testo della diff: due macchine con git configurati in
+    # modo diverso scrivono diff diverse per lo stesso lavoro
+    d, n = cambiati(top)
+    if d is None:
+        return None
+    h = hashlib.sha256(g(top, "rev-parse", "HEAD")[1].encode())
+    for p in sorted(set(d) | set(n)):
+        f = os.path.join(top, p)
+        h.update(b"\0" + p.encode("utf-8", "surrogateescape") + b"\0")
+        if os.path.islink(f):
+            h.update(b"link:" + os.readlink(f).encode("utf-8", "surrogateescape"))
+        elif os.path.isfile(f):
+            with open(f, "rb") as fh:
+                h.update(hashlib.sha256(fh.read()).digest())
+        else:
+            h.update(b"-")
+    return h.hexdigest()
 '''
 
 # Su DA: cartella, trascrizione e git. {"rel", "trascrizione", "byte", "git": {...} | null}.
@@ -98,20 +141,33 @@ if not qui:
 rel = relativo(cartella)
 if rel is None:
     esci(errore="la cartella %s non sta nella base dei progetti (%s)" % (cartella, base))
+# Il lavoro git sta dove la sessione era all'ultimo messaggio: una sessione nata nella base ed entrata in un
+# worktree (EnterWorktree, cd) tiene la trascrizione e la cartella di claude agents nella base, ma l'ultimo
+# cwd della trascrizione è il worktree (provato il 13/11/2026, #5500).
+ultima = None
+with open(tr, encoding="utf-8", errors="replace") as fh:
+    for riga in fh:
+        for m in re.finditer(r'"cwd":\s*"((?:[^"\\]|\\.)*)"', riga):
+            ultima = json.loads('"%s"' % m.group(1))
+dove_git = None
+for c in (os.path.normpath(os.path.abspath(a["cartella"])), cartella, ultima):
+    if c and os.path.isdir(c) and relativo(c) is not None and g(c, "rev-parse", "--is-inside-work-tree")[0] == 0:
+        dove_git = c
+        break
 git = None
-if g(cartella, "rev-parse", "--is-inside-work-tree")[0] == 0:
-    top = os.path.normpath(g(cartella, "rev-parse", "--show-toplevel")[1])
-    comune = g(cartella, "rev-parse", "--path-format=absolute", "--git-common-dir")[1]
+if dove_git:
+    top = os.path.normpath(g(dove_git, "rev-parse", "--show-toplevel")[1])
+    comune = g(dove_git, "rev-parse", "--path-format=absolute", "--git-common-dir")[1]
     principale = os.path.normpath(os.path.dirname(comune)) if comune.endswith(".git") else top
     if relativo(top) is None or relativo(principale) is None:
-        esci(errore="il repository di %s non sta nella base dei progetti (%s)" % (cartella, base))
-    ramo = g(cartella, "rev-parse", "--abbrev-ref", "HEAD")[1]
-    rc, url = g(cartella, "remote", "get-url", "origin")
-    rcl, lr = g(cartella, "ls-remote", "origin", "refs/heads/" + ramo) if rc == 0 and ramo != "HEAD" else (1, "")
+        esci(errore="il repository di %s non sta nella base dei progetti (%s)" % (dove_git, base))
+    ramo = g(dove_git, "rev-parse", "--abbrev-ref", "HEAD")[1]
+    rc, url = g(dove_git, "remote", "get-url", "origin")
+    rcl, lr = g(dove_git, "ls-remote", "origin", "refs/heads/" + ramo) if rc == 0 and ramo != "HEAD" else (1, "")
     git = {"top": relativo(top), "principale": relativo(principale), "worktree": principale != top,
-           "ramo": ramo, "testa": g(cartella, "rev-parse", "HEAD")[1], "url": url if rc == 0 else None,
+           "ramo": ramo, "testa": g(dove_git, "rev-parse", "HEAD")[1], "url": url if rc == 0 else None,
            "remoto": lr.split()[0] if rcl == 0 and lr.split() else None,
-           "sporchi": len([x for x in g(cartella, "status", "--porcelain")[1].splitlines() if x.strip()])}
+           "sporchi": len([x for x in g(dove_git, "status", "--porcelain")[1].splitlines() if x.strip()])}
 esci(ok=True, rel=rel, trascrizione=tr, byte=os.path.getsize(tr), git=git)
 '''
 
@@ -123,30 +179,57 @@ nome = a.get("nome") or "questa macchina"
 if gi:
     top = os.path.normpath(os.path.join(base, gi["top"]))
     ramo = gi["ramo"]
+    pacco = base64.b64decode(sys.stdin.read().strip()) if a.get("bundle") else None
+    def sorgente(repo):
+        # da dove viene il commit della sessione: il bundle dei commit non spinti, il ramo su origin, o il
+        # commit stesso se sta già in un altro ramo remoto (un ramo nuovo senza commit suoi)
+        rc, out = g(repo, "fetch", "origin", t=180)
+        if pacco is None:
+            if gi.get("remoto"):
+                if rc != 0:
+                    esci(errore="su %s git fetch non va: %s" % (nome, ultima(out)))
+                return "origin/" + ramo
+            return gi["testa"]
+        fd, f = tempfile.mkstemp(suffix=".bundle")
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(pacco)
+        try:
+            rc, out = g(repo, "fetch", "--no-tags", f, "+refs/heads/%s:refs/volta-sposta/%s" % (ramo, ramo), t=300)
+        finally:
+            os.remove(f)
+        if rc != 0:
+            esci(errore="su %s i commit non spinti non entrano: %s" % (nome, ultima(out)))
+        return "refs/volta-sposta/" + ramo
     if not os.path.isdir(top):
         if gi["worktree"]:
             principale = os.path.normpath(os.path.join(base, gi["principale"]))
             if not os.path.isdir(principale):
                 esci(errore="su %s manca il repository %s: clonalo lì" % (nome, gi["principale"]))
-            rc, out = g(principale, "fetch", "origin", ramo, t=120)
-            if rc != 0:
-                esci(errore="su %s git fetch non va: %s" % (nome, out.splitlines()[-1][:160] if out else rc))
+            src = sorgente(principale)
             if g(principale, "rev-parse", "--verify", "--quiet", "refs/heads/" + ramo)[0] == 0:
                 rc, out = g(principale, "worktree", "add", top, ramo, t=120)
+                if rc == 0:
+                    rc, out = g(top, "merge", "--ff-only", src, t=120)
             else:
-                rc, out = g(principale, "worktree", "add", "--track", "-b", ramo, top, "origin/" + ramo, t=120)
+                rc, out = g(principale, "worktree", "add", "-b", ramo, top, src, t=120)
+                if rc == 0 and src.startswith("origin/"):
+                    g(top, "branch", "--set-upstream-to", src)
         else:
             if not gi.get("url"):
                 esci(errore="su %s manca %s, e il repository non ha un remoto da cui clonarlo" % (nome, gi["top"]))
             os.makedirs(os.path.dirname(top), exist_ok=True)
+            sul_remoto = bool(gi.get("remoto")) and pacco is None
             try:
-                r = subprocess.run(["git", "clone", "--branch", ramo, gi["url"], top], capture_output=True, text=True,
-                                   encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=300)
+                r = subprocess.run(["git", "clone"] + (["--branch", ramo] if sul_remoto else []) + [gi["url"], top],
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                   stdin=subprocess.DEVNULL, timeout=300)
                 rc, out = r.returncode, (r.stderr or r.stdout or "").strip()
             except (OSError, subprocess.SubprocessError) as e:
                 rc, out = 1, str(e)
+            if rc == 0 and not sul_remoto:
+                rc, out = g(top, "checkout", "-q", "-B", ramo, sorgente(top), t=120)
         if rc != 0:
-            esci(errore="su %s non preparo %s: %s" % (nome, gi["top"], out.splitlines()[-1][:160] if out else rc))
+            esci(errore="su %s non preparo %s: %s" % (nome, gi["top"], ultima(out)))
     else:
         sporchi = [x for x in g(top, "status", "--porcelain")[1].splitlines() if x.strip()]
         if sporchi:
@@ -154,9 +237,9 @@ if gi:
         qui_ramo = g(top, "rev-parse", "--abbrev-ref", "HEAD")[1]
         if qui_ramo != ramo:
             esci(errore="su %s la cartella sta sul ramo %s, la sessione su %s" % (nome, qui_ramo, ramo))
-        rc, out = g(top, "pull", "--ff-only", "origin", ramo, t=120)
+        rc, out = g(top, "merge", "--ff-only", sorgente(top), t=120)
         if rc != 0:
-            esci(errore="su %s git pull non va: %s" % (nome, out.splitlines()[-1][:160] if out else rc))
+            esci(errore="su %s la cartella non viene avanti: %s" % (nome, ultima(out)))
     testa = g(top, "rev-parse", "HEAD")[1]
     if testa != gi["testa"]:
         esci(errore="su %s la cartella è al commit %s, la sessione al %s" % (nome, testa[:8], gi["testa"][:8]))
@@ -200,6 +283,91 @@ with tarfile.open(fileobj=io.BytesIO(dati), mode="r:gz") as t:
     t.extractall(dest)
 tr = os.path.join(dest, sid + ".jsonl")
 esci(ok=True, byte=os.path.getsize(tr) if os.path.exists(tr) else -1)
+'''
+
+# Su DA, prima dello stop: i commit del ramo che non stanno in nessun ramo remoto, in un bundle in base64.
+# {"bundle"} oppure {"vuoto": true} se ogni commit sta già in un remoto (un ramo nuovo senza commit suoi).
+COMMIT = COMUNE + r'''
+top = os.path.normpath(os.path.join(base, a["top"]))
+ramo = a["ramo"]
+rc, n = g(top, "rev-list", "--count", ramo, "--not", "--remotes")
+if rc != 0:
+    esci(errore="non conto i commit non spinti: %s" % ultima(n))
+if int(n or 0) == 0:
+    esci(ok=True, vuoto=True)
+fd, f = tempfile.mkstemp(suffix=".bundle")
+os.close(fd)
+try:
+    rc, out = g(top, "bundle", "create", f, ramo, "--not", "--remotes", t=300)
+    if rc != 0:
+        esci(errore="non preparo il bundle dei commit non spinti: %s" % ultima(out))
+    with open(f, "rb") as fh:
+        dati = fh.read()
+finally:
+    os.remove(f)
+print(json.dumps({"ok": True, "commit": int(n), "bundle": base64.b64encode(dati).decode()}))
+'''
+
+LIMITE_MODIFICHE = 100 * 1024 * 1024
+
+# Su DA, a sessione ferma: la diff da HEAD, i file nuovi in un tar.gz e l'impronta dei contenuti.
+# {"vuoto": true} senza modifiche; un commit fatto dopo LEGGI ferma tutto (la cartella su A è a un altro commit).
+MODIFICHE = COMUNE + r'''
+top = os.path.normpath(os.path.join(base, a["top"]))
+testa = g(top, "rev-parse", "HEAD")[1]
+if testa != a["testa"]:
+    esci(errore="la sessione ha fatto un commit mentre la spostavo (%s, prima %s)" % (testa[:8], a["testa"][:8]))
+d, n = cambiati(top)
+if d is None:
+    esci(errore="git non dice quali file sono cambiati")
+if not d and not n:
+    esci(ok=True, vuoto=True)
+rc, diff = gb(top, "diff", "--binary", "HEAD", t=300)
+if rc != 0:
+    esci(errore="git diff non va: %s" % ultima(diff))
+buf = io.BytesIO()
+with tarfile.open(fileobj=buf, mode="w:gz") as t:
+    for p in n:
+        t.add(os.path.join(top, p), arcname=p, recursive=False)
+if len(diff) + buf.tell() > a["limite"]:
+    esci(errore="le modifiche non salvate pesano %d MB: troppo per portarle" % ((len(diff) + buf.tell()) // 1048576))
+print(json.dumps({"ok": True, "file": len(d) + len(n), "impronta": impronta(top),
+                  "diff": base64.b64encode(diff).decode(), "nuovi": base64.b64encode(buf.getvalue()).decode()}))
+'''
+
+# Su A: diff e file nuovi da stdin, sopra la cartella pulita allo stesso commit. Se l'impronta non torna, il
+# lavoro arrivato va in uno stash: la cartella resta pulita per il prossimo tentativo, e niente si perde.
+APPLICA = COMUNE + r'''
+top = os.path.normpath(os.path.join(base, a["top"]))
+if g(top, "rev-parse", "HEAD")[1] != a["testa"]:
+    esci(errore="la cartella su questa macchina non è al commit della sessione")
+dati = json.loads(sys.stdin.read())
+def indietro(perche):
+    rc, out = g(top, "stash", "push", "-u", "-m", "volta-sposta-" + a["sid"])
+    messo = rc == 0 and "No local changes" not in out
+    esci(errore=perche + ("; il lavoro arrivato è nello stash volta-sposta-%s" % a["sid"][:8] if messo else ""))
+diff = base64.b64decode(dati.get("diff") or "")
+if diff:
+    rc, out = gb(top, "apply", "--index", "--binary", "--whitespace=nowarn", entrata=diff, t=300)
+    if rc != 0:
+        indietro("la diff non entra: %s" % ultima(out))
+with tarfile.open(fileobj=io.BytesIO(base64.b64decode(dati.get("nuovi") or "")), mode="r:gz") as t:
+    voci = t.getmembers()
+    for m in voci:
+        nm = m.name.replace("\\", "/")
+        parti = nm.split("/")
+        if ".." in parti or nm.startswith("/") or re.match(r"^[A-Za-z]:", nm) or ".git" in parti:
+            indietro("nome inatteso fra i file nuovi: %s" % nm[:80])
+        if not (m.isfile() or m.isdir() or m.issym()):
+            indietro("voce inattesa fra i file nuovi: %s" % nm[:80])
+        if m.issym() and (os.path.isabs(m.linkname) or ".." in m.linkname.replace("\\", "/").split("/")):
+            indietro("collegamento che esce dalla cartella: %s" % nm[:80])
+        if os.path.lexists(os.path.join(top, nm)):
+            indietro("un file nuovo c'è già qui: %s" % nm[:80])
+    t.extractall(top, members=voci)
+if impronta(top) != a["impronta"]:
+    indietro("le modifiche arrivate non sono uguali a quelle di partenza")
+esci(ok=True)
 '''
 
 # Su una macchina: il lavoro di claude agents che tiene la conversazione `sid`, e il percorso di claude.
@@ -284,17 +452,12 @@ def chi(nome):
 
 
 def controlla_git(gi):
-    """Il motivo per non spostare, o None: il lavoro deve essere su GitHub per arrivare sull'altra macchina."""
+    """Il motivo per non spostare, o None. File non salvati e commit non spinti viaggiano con la sessione
+    (MODIFICHE e COMMIT); una HEAD staccata no, perché sull'altra macchina non c'è un ramo da preparare."""
     if not gi:
         return None
-    if gi["sporchi"]:
-        return "%d file non salvati in git: chiedi alla sessione commit e push, poi riprova" % gi["sporchi"]
     if gi["ramo"] == "HEAD":
         return "la cartella non sta su un ramo (HEAD staccata)"
-    if not gi.get("url"):
-        return "il repository non ha un remoto su GitHub"
-    if gi.get("remoto") != gi["testa"]:
-        return "il ramo %s ha commit non spinti su GitHub: chiedi alla sessione il push, poi riprova" % gi["ramo"]
     return None
 
 
@@ -349,10 +512,18 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     letto = esegui(da, LEGGI, {"cartella": cartella, "sid": sid})
     if letto.get("errore"):
         return {"errore": letto["errore"]}
-    motivo = controlla_git(letto.get("git"))
+    gi = letto.get("git")
+    motivo = controlla_git(gi)
     if motivo:
         return {"errore": motivo}
-    pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": letto.get("git"), "nome": chi(a)}, timeout=360)
+    bundle = None
+    if gi and gi.get("remoto") != gi["testa"]:
+        commit = esegui(da, COMMIT, {"top": gi["top"], "ramo": gi["ramo"]}, timeout=ATTESA_PACCO)
+        if commit.get("errore"):
+            return {"errore": commit["errore"]}
+        bundle = commit.get("bundle")
+    pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": gi, "nome": chi(a), "bundle": bool(bundle)},
+                    entrata=bundle, timeout=360)
     if pronto.get("errore"):
         return {"errore": pronto["errore"]}
     # Preparare la cartella dura anche minuti: nel frattempo la persona può averle scritto. Un turno
@@ -366,6 +537,16 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
         r = riprendi_su(da, sid, cartella, titolo)
         dove = "riaperta su %s" % chi(da) if not r.get("errore") else "e non si riapre su %s: %s" % (chi(da), r["errore"])
         return {"errore": "%s; la sessione è %s" % (perche, dove)}
+    if gi:
+        # a sessione ferma il lavoro non cambia più: adesso si legge quello non salvato
+        mod = esegui(da, MODIFICHE, {"top": gi["top"], "testa": gi["testa"], "limite": LIMITE_MODIFICHE}, timeout=ATTESA_PACCO)
+        if mod.get("errore"):
+            return torna("non leggo le modifiche non salvate su %s: %s" % (chi(da), mod["errore"]))
+        if not mod.get("vuoto"):
+            messe = esegui(a, APPLICA, {"top": gi["top"], "testa": gi["testa"], "impronta": mod["impronta"], "sid": sid},
+                           entrata=json.dumps({"diff": mod["diff"], "nuovi": mod["nuovi"]}), timeout=ATTESA_PACCO)
+            if messe.get("errore"):
+                return torna("le modifiche non salvate non arrivano su %s: %s" % (chi(a), messe["errore"]))
     pacco = esegui(da, PACCO, {"trascrizione": letto["trascrizione"], "sid": sid}, timeout=ATTESA_PACCO)
     if pacco.get("errore") or not pacco.get("pacco"):
         return torna("non leggo la conversazione su %s: %s" % (chi(da), pacco.get("errore") or "pacco vuoto"))

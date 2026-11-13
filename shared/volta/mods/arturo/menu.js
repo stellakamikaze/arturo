@@ -7,6 +7,7 @@ import { theme, props, closeOverlay, openOverlay, notify, setShared } from "herd
 import { todo, titoloTodo } from "./dati.js";
 import { ICONA } from "./comuni.js";
 import { azioni, aggiungi, CHI, QUANDO } from "./azioni.js";
+import { TESTO } from "./misure.js";
 
 // Scrive con `arturo todo`, avvisa com'è andata e fa rileggere barra e pannello.
 export async function scrivi(argv, esito, titolo) {
@@ -147,7 +148,7 @@ export class Nuovo {
     return v_flex().id("nuovo").track_focus(this.handle).w_full().p(22).gap(16).bg(t.popover)
       .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
       .child(v_flex().gap(3)
-        .child(div().font_family("Arturo Archivo").text_size(18).text_color(t.foreground).child("Aggiungi un todo"))
+        .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Aggiungi un todo"))
         .child(div().text_size(12.5).text_color(t.muted).child(this.titolo)))
       .child(h_flex().h(40).px(12).gap(9).items_center().rounded(9).border_1().border_color(t.accent).bg(t.raised)
         .child(svg(ICONA("plus")).size(15).text_color(t.muted))

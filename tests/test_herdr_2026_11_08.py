@@ -468,6 +468,13 @@ HZ105 la colonna di sinistra sulla scala comune (13/11/2026, #5371, fase 4 del p
      che apre la ricerca (⌘K) e Nuova richiesta a icona, senza più "Apri un progetto"; il piede è una fila
      di pulsanteIcona col nome nel suggerimento e per la lettura a voce; gruppi e righe di volta.js partono
      dallo stesso MARGINE; lo schermo di claude logs prende il font dalle impostazioni.
+HZ106 le nascite che cadono (13/11/2026): la SONDA legge i lavori di <config>/jobs e segna la macchina
+     rotta con tre crash "before init" su più lavori negli ultimi 30 minuti, senza una nascita riuscita
+     dopo; il documento porta `nascita` nella voce della macchina; l'intento del congedo segna la riga.
+HZ107 il clic non fa ripartire una sessione in errore su una macchina rotta, né la veglia; l'avviso arriva
+     una volta per episodio; i gruppi dicono "non fa partire sessioni"; arturo() ha un tempo massimo.
+HZ108 i congedi rimasti a metà di questa macchina: stop se vivi con /fine in fondo, rm se fermi o in
+     errore, niente su una riaperta, una recente, una nel registro o con la scheda aperta.
 """
 from __future__ import annotations
 
@@ -483,7 +490,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -4411,13 +4418,13 @@ def hz60(repo: Path, casa: Path) -> str | None:
         return f"la sonda verso un'altra macchina è una riga di {len(codice)} caratteri: cmd.exe ne regge 8191"
     try:
         dentro_riga = codice.split("'")[1]
-        if zlib.decompress(base64.b64decode(dentro_riga)).decode("utf-8") != m.SONDA:
-            return "la riga compressa non torna la SONDA"
+        if zlib.decompress(base64.b64decode(dentro_riga)).decode("utf-8") != m.senza_commenti(m.SONDA):
+            return "la riga compressa non torna la SONDA (senza le righe di commento)"
         spazio = {"exec": lambda testo: righe.append(testo)}
         exec(codice, spazio)  # noqa: S102
     except Exception as e:  # noqa: BLE001
         return f"la riga della sonda remota non si apre: {type(e).__name__}: {e}"
-    if righe[-1] != m.SONDA.encode("utf-8"):
+    if righe[-1] != m.senza_commenti(m.SONDA).encode("utf-8"):
         return "la riga della sonda remota non esegue la SONDA"
     return None
 
@@ -7865,7 +7872,199 @@ def hz105(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105}
+
+# HZ106: il claude finto della SONDA, multipiattaforma. Elenca le sessioni di HZ_AGENTI.
+CLAUDE_FINTO_NASCITE = r"""import json, os, sys
+if sys.argv[1:2] == ["agents"]:
+    print(os.environ.get("HZ_AGENTI", "[]"))
+"""
+
+
+def claude_finto_ovunque(bindir: Path, codice: str) -> None:
+    """Un claude finto che shutil.which trova anche su Windows: claude.cmd che lancia lo script Python."""
+    bindir.mkdir(parents=True, exist_ok=True)
+    py = bindir / "claude_finto.py"
+    py.write_text(codice, encoding="utf-8")
+    if os.name == "nt":
+        (bindir / "claude.cmd").write_text(f'@"{sys.executable}" "{py}" %*\r\n', encoding="utf-8")
+    else:
+        cl = bindir / "claude"
+        cl.write_text(f"#!/bin/sh\nexec \"{sys.executable}\" \"{py}\" \"$@\"\n", encoding="utf-8")
+        os.chmod(cl, 0o755)
+
+
+def lavoro_finto(jobs: Path, nome: str, stato: str, creato: str, aggiornato: str, detail: str = "", intent: str = "", eta: float = 0) -> None:
+    (jobs / nome).mkdir(parents=True, exist_ok=True)
+    f = jobs / nome / "state.json"
+    f.write_text(json.dumps({"state": stato, "detail": detail, "intent": intent, "createdAt": creato, "updatedAt": aggiornato}), encoding="utf-8")
+    if eta:
+        t = time.time() - eta
+        os.utime(f, (t, t))
+
+
+def hz106(repo: Path, casa: Path) -> str | None:
+    """Le nascite che cadono e il congedo nella SONDA, e la voce della macchina nel documento."""
+    mod = repo / "shared/volta/mods/arturo"
+    bindir = casa / "bin"
+    claude_finto_ovunque(bindir, CLAUDE_FINTO_NASCITE)
+    hcf = casa / "hc_finto.py"
+    hcf.write_text('print(\'{"machines": []}\')\n', encoding="utf-8")
+    conf = casa / "conf"
+    jobs = conf / "jobs"
+    jobs.mkdir(parents=True)
+    agenti = [{"id": "cg01", "sessionId": "cg01-x", "kind": "background", "state": "working", "status": "idle", "pid": 1, "cwd": "/p"},
+              {"id": "nc01", "sessionId": "nc01-x", "kind": "background", "state": "working", "status": "idle", "pid": 2, "cwd": "/p"}]
+    lavoro_finto(jobs, "cg01", "working", "2026-11-13T08:00:00.000Z", "2026-11-13T08:00:00.000Z", intent="/fine congedo da Volta: la persona ha chiuso questa sessione.", eta=7200)
+    lavoro_finto(jobs, "nc01", "working", "2026-11-13T08:00:00.000Z", "2026-11-13T08:00:00.000Z", intent="/inizio volta", eta=7200)
+    rotto = "exit 1 before init — …/$bunfs/root/chunk-3zne3bbr.js:11:20730) Bun v1.4.4 (macOS arm64)"
+    for i, n in enumerate(("ko01", "ko02", "ko03")):
+        lavoro_finto(jobs, n, "failed", "2026-11-13T12:00:00.000Z", f"2026-11-13T12:3{i}:00.000Z", detail=rotto)
+    env = {**os.environ, "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "VOLTA_HC": json.dumps([sys.executable, str(hcf)]),
+           "CLAUDE_CONFIG_DIR": str(conf), "PYTHONIOENCODING": "utf-8", "HZ_AGENTI": json.dumps(agenti)}
+    env.pop("VOLTA_SONDA_LOCALE", None)
+
+    def leggi() -> dict | str:
+        r = subprocess.run([sys.executable, str(mod / "volta_sonda.py"), "volta"], capture_output=True, text=True, encoding="utf-8", timeout=90, env=env)
+        try:
+            return json.loads(r.stdout)
+        except ValueError:
+            return f"volta_sonda.py volta senza JSON: {(r.stdout + r.stderr).strip()[-200:]}"
+
+    d = leggi()
+    if isinstance(d, str):
+        return d
+    qui = next((m for m in d.get("macchine", []) if m.get("questa")), {})
+    n = qui.get("nascita") or {}
+    if n.get("rotta") is not True or n.get("quante") != 3 or n.get("motivo") != "exit 1 before init" or n.get("da") != "2026-11-13T12:30:00.000Z":
+        return f"tre crash before init su tre lavori: la macchina non risulta rotta ({qui})"
+    righe = {x["sessionId"]: x.get("congedo") for x in d.get("sessioni", [])}
+    if righe != {"cg01-x": True, "nc01-x": False}:
+        return f"il congedo non viene dall'intento del lavoro: {righe}"
+    # un lavoro nato dopo l'ultimo crash e in piedi: le sessioni partono di nuovo
+    lavoro_finto(jobs, "ok01", "done", "2026-11-13T12:40:00.000Z", "2026-11-13T12:41:00.000Z")
+    d = leggi()
+    if isinstance(d, str):
+        return d
+    if any(m.get("nascita") for m in d.get("macchine", [])):
+        return "una sessione nata e finita dopo i crash non toglie l'avviso"
+    shutil.rmtree(jobs / "ok01")
+    # crash vecchi di 40 minuti: fuori dalla finestra
+    for nome in ("ko01", "ko02", "ko03"):
+        t = time.time() - 2400
+        os.utime(jobs / nome / "state.json", (t, t))
+    d = leggi()
+    if isinstance(d, str):
+        return d
+    if any(m.get("nascita") for m in d.get("macchine", [])):
+        return "crash di 40 minuti fa tengono la macchina rotta"
+    return None
+
+
+PROVA_NASCITE = r"""
+const S = await import(%s);
+const dati = { macchine: [{ macchina: "Torre", host: "qui", questa: true },
+  { macchina: "studio", host: "studio", questa: false, nascita: { rotta: true, da: "2026-11-13T12:30:13Z", quante: 9 } },
+  { macchina: "spenta", host: "spenta", questa: false, irraggiungibile: "giù", nascita: { rotta: true, da: "2026-11-13T12:30:13Z", quante: 9 } }],
+  sessioni: [{ macchina: "studio", host: "studio", sessionId: "s1", id: "a1", stato: "errore", ultimo: "2026-11-13T12:00:00Z" }] };
+const prima = S.nascitePerAvviso(dati, {}), dopo = S.nascitePerAvviso(dati, prima.viste);
+const guarito = S.nascitePerAvviso({ macchine: [{ host: "studio", macchina: "studio" }] }, prima.viste);
+console.log(JSON.stringify({
+  rotta: S.riparteAlClic({ stato: "errore", host: "studio" }, dati),
+  buona: S.riparteAlClic({ stato: "errore", host: "qui" }, dati),
+  viva: S.riparteAlClic({ stato: "ferma", host: "studio" }, dati),
+  prima, dopo: dopo.avvisi, guarito: guarito.viste,
+  senzaOra: S.avvisoNascita({ macchina: "studio", da: "", quante: 0 }),
+  macchina: S.gruppi(dati).map((g) => [g.titolo, g.nota ?? null]),
+  progetto: S.gruppi(dati, "progetto").map((g) => g.nota ?? null),
+}));
+"""
+
+
+def hz107(repo: Path, casa: Path) -> str | None:
+    """Niente ripartenza al clic su una macchina che non fa partire sessioni, avviso una volta, Arturo con un tempo massimo."""
+    mod = repo / "shared/volta/mods/arturo"
+    dj = (mod / "dati.js").read_text(encoding="utf-8")
+    a = dj.find("export async function apriSessione(")
+    guardia = dj.find("if (rc.errore) return { errore: rc.errore };", a)
+    prepara = dj.find('const a = await prepara(s, s.stato === "errore");', a)
+    if a < 0 or guardia < 0 or prepara < 0 or guardia > prepara:
+        return "apriSessione fa ripartire una sessione in errore prima di guardare la sua macchina"
+    v = dj.find("async function veglia(")
+    g_v, p_v = dj.find("if (rotta.errore) return { errore: rotta.errore };", v), dj.find("const a = await prepara(s, true);", v)
+    if v < 0 or g_v < 0 or p_v < 0 or g_v > p_v:
+        return "la veglia fa ripartire la sessione anche su una macchina che non fa partire sessioni"
+    if "{ cwd: c.base, timeout: ARTURO_MAX_MS }" not in dj or "errore: ARTURO_APPESO" not in dj:
+        return "arturo() non ha un tempo massimo, o non dice che è rimasto appeso"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    if "this.avvisaNascite();" not in vj or 'setShared("arturo.volta.nascite", viste)' not in vj:
+        return "volta.js non avvisa delle nascite, o non ricorda gli avvisi dati"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_NASCITE % json.dumps((casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    e = g["rotta"].get("errore") or ""
+    if g["rotta"].get("riparte") is not False or "Su studio le sessioni non partono dalle " not in e or "(9 volte)" not in e or "riavvia studio" not in e:
+        return f"riparteAlClic fa ripartire su una macchina rotta, o non dice perché: {g['rotta']}"
+    if g["buona"] != {"riparte": True} or g["viva"] != {"riparte": False}:
+        return f"riparteAlClic sbaglia su una macchina buona o una sessione viva: {g['buona']} {g['viva']}"
+    if len(g["prima"]["avvisi"]) != 1 or g["prima"]["viste"] != {"studio": True} or g["dopo"] != [] or g["guarito"] != {}:
+        return f"l'avviso non arriva una volta sola per episodio: {g['prima']} {g['dopo']} {g['guarito']}"
+    if g["senzaOra"] != "Su studio le sessioni non partono: Claude esce prima di iniziare (più volte). Spesso macOS aspetta un permesso sullo schermo di studio: rispondi lì, o riavvia studio.":
+        return f"avvisoNascita senza ora né conto: {g['senzaOra']}"
+    if ["studio", "Non fa partire sessioni nuove"] not in g["macchina"] or ["spenta", "Non risponde"] not in g["macchina"]:
+        return f"il gruppo della macchina non dice che non fa partire sessioni: {g['macchina']}"
+    if g["progetto"][-1] != "spenta non risponde · studio non fa partire sessioni":
+        return f"la vista per progetto non nomina la macchina rotta: {g['progetto']}"
+    return None
+
+
+PROVA_ORFANI = r"""
+const S = await import(%s);
+const ora = Date.parse("2026-11-13T13:00:00Z");
+const b = (x) => ({ questa: true, tipo: "background", congedo: true, sessionId: x.id + "-s", stato: "ferma", ultimo: "2026-11-13T12:40:00Z", ...x });
+const dati = { sessioni: [b({ id: "viva", fineFatta: true }), b({ id: "riaperta", fineFatta: false }), b({ id: "errore", stato: "errore" }),
+  b({ id: "salvata", chiusa: true, fineFatta: true }), b({ id: "fresca", ultimo: "2026-11-13T12:55:00Z", fineFatta: true }),
+  b({ id: "lavora", stato: "lavora", fineFatta: true }), b({ id: "altrove", questa: false, fineFatta: true }),
+  b({ id: "normale", congedo: false, fineFatta: true }), b({ id: "interattiva", tipo: "interattiva", fineFatta: true })] };
+console.log(JSON.stringify({
+  tutti: S.congediOrfani(dati, {}, ora).map((p) => [p.s.id, p.fai, Boolean(p.avviso)]),
+  filtrati: S.congediOrfani(dati, { k: { sessionId: "viva-s" } }, ora, new Set(["salvata-s"])).map((p) => p.s.id),
+}));
+"""
+
+
+def hz108(repo: Path, casa: Path) -> str | None:
+    """I congedi rimasti a metà: stop se vivi con /fine in fondo, rm se fermi, niente su chi è stato riaperto."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, perche in (("this.chiudiOrfani(cx); });", "nessun giro chiude i congedi rimasti a metà"),
+                          ("congediOrfani(this.dati, this.congedi(), Date.now(), conScheda).find((x) => !this.orfaniNo.has(x.s.sessionId))", "il giro non salta le sessioni già rifiutate"),
+                          ("this.orfaniNo.add(p.s.sessionId);", "un rm rifiutato si riprova e si ridice a ogni giro"),
+                          ("await azioneSessione(p.s, p.fai)", "il giro non usa l'azione della sonda")):
+        if pezzo not in vj:
+            return f"volta.js: {perche}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_ORFANI % json.dumps((casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["tutti"] != [["viva", "stop", False], ["errore", "rm", True], ["salvata", "rm", False]]:
+        return f"congediOrfani sceglie male: {g['tutti']}"
+    if g["filtrati"] != ["errore"]:
+        return f"congediOrfani tocca un congedo nel registro o una sessione con la scheda aperta: {g['filtrati']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -7884,6 +8083,17 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '    if any(x > crash[-1][0] for x in nati):\n        return None', '    if False:\n        return None'),
+    ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '> NASCITE_MIN * 60:', '> NASCITE_MIN * 6000:'),
+    ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '            s["congedo"] = True', '            pass'),
+    ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '            voce["nascita"] = v["nascita"]', '            pass'),
+    ('HZ107', 'shared/volta/mods/arturo/sessioni.js', 'return n ? { riparte: false, errore: avvisoNascita(n) } : { riparte: true };', 'return { riparte: true };'),
+    ('HZ107', 'shared/volta/mods/arturo/sessioni.js', 'if (!viste?.[k]) avvisi.push', 'avvisi.push'),
+    ('HZ107', 'shared/volta/mods/arturo/dati.js', '  if (rc.errore) return { errore: rc.errore };\n', ''),
+    ('HZ107', 'shared/volta/mods/arturo/dati.js', '{ cwd: c.base, timeout: ARTURO_MAX_MS }', '{ cwd: c.base }'),
+    ('HZ108', 'shared/volta/mods/arturo/sessioni.js', 'if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }', 'if (!morta) out.push({ s, fai: "stop" });'),
+    ('HZ108', 'shared/volta/mods/arturo/sessioni.js', 'ora - tempo(s) < CONGEDO_ORFANO_MS) continue;', 'ora - tempo(s) < 0) continue;'),
+    ('HZ108', 'shared/volta/mods/arturo/volta.js', '        this.orfaniNo.add(p.s.sessionId);\n', ''),
     ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  && s.stato !== "errore" && !nonSiSposta(s) &&', '  && !nonSiSposta(s) &&'),
     ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  if (s.tipo === "background") out.push({ verbo: "sposta", testo: "Sposta su…" });\n', ''),
     ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  return null;\n}\n\n// Una sessione che sta facendo un turno', '  if (s.stato === "lavora") return "Sta lavorando.";\n  return null;\n}\n\n// Una sessione che sta facendo un turno'),
@@ -8262,7 +8472,7 @@ VELENI = [
     ("HZ32", "bin/note_finestra.py", '"parte": None, "elemento": None,', '"parte": None,'),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", 'SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())\n', ''),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '        s["terminale"] = terminale_di(s["pid"])', '        s["terminale"] = None'),
-    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()", "base64.b64encode(SONDA.encode()).decode()"),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(senza_commenti(SONDA).encode(), 9)).decode()", "base64.b64encode(senza_commenti(SONDA).encode()).decode()"),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "    if os.name != \"nt\":\n        try:\n            amb = subprocess.run([\"ps\"", "    if os.name == \"nt\":\n        try:\n            amb = subprocess.run([\"ps\""),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '                if riga.startswith("HC_TERMINAL_ID="):', '                if riga.startswith("HC_TERMINALE="):', "windows"),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "            blocco = numero(parametri + 0x80) if parametri else 0", "            blocco = numero(parametri + 0x70) if parametri else 0", "windows"),
@@ -8316,7 +8526,7 @@ VELENI = [
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
     ("HZ17", "shared/volta/mods/arturo/sessioni.js", "|| titolo(a).localeCompare(titolo(b)));", "|| titolo(b).localeCompare(titolo(a)));"),
-    ("HZ17", "shared/volta/mods/arturo/sessioni.js", "if (giu.length && out.length) out[out.length - 1].nota", "if (giu.length && out.length) out[0].nota"),
+    ("HZ17", "shared/volta/mods/arturo/sessioni.js", "if (note.length && out.length) out[out.length - 1].nota", "if (note.length && out.length) out[0].nota"),
     ("HZ18", "shared/volta/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
     ("HZ18", "shared/volta/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
     ("HZ18", "shared/volta/mods/arturo/sessioni.js", "|| argv.some((a) => dentro(a, s.id)))", ")"),

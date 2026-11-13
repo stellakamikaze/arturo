@@ -12,6 +12,7 @@ import { tasti } from "./comuni.js";
 import { leggiTutte } from "./notaui.js";
 import { progettoAdesso } from "./testata.js";
 import { righeElenco, contaNote } from "./nota.js";
+import { TESTO } from "./misure.js";
 
 const ARANCIO = "#f2a24a";
 const FILTRI = [{ id: "aperte", etichetta: "Aperte" }, { id: "tutte", etichetta: "Tutte" }];
@@ -104,7 +105,7 @@ export class Note {
     return v_flex().id("note").track_focus(this.handle).size_full().p(24).gap(14).bg(t.popover)
       .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
       .child(v_flex().gap(4)
-        .child(div().font_family("Arturo Archivo").text_size(19).text_color(t.foreground).child("Note sulla finestra"))
+        .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Note sulla finestra"))
         .child(div().whitespace_normal().text_size(13).text_color(t.muted)
           .child(`${progetto ? `Le note di ${progetto}` : "Le note senza progetto"}. Una nota aperta si apre nel suo punto: lì rispondi a Claude, la dai per risolta o la scarti.`)))
       .child(h_flex().gap(8).children(FILTRI.map((f) => this.pastiglia(t, f, f.id === "aperte" ? conta.aperte : conta.tutte))))

@@ -9,6 +9,7 @@ import { theme, props, closeOverlay, run, shared } from "herdr";
 import { nomiProgetti, slug, spazio, frase, bello, sessioniVolta } from "./dati.js";
 import { comandoApri } from "./comandi.js";
 import { ICONA, punto, colore, nasceSu } from "./comuni.js";
+import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
 import { cerca, comandoNuova, impostaProgetti, titolo, nomeProgetto, titoloNoto, fraseStato, chiusa, macchinaBreve } from "./sessioni.js";
 
 export class Apri {
@@ -54,11 +55,12 @@ export class Apri {
     const t = theme();
     const righe = this.righe();
     this.at = Math.max(0, Math.min(this.at, righe.length - 1));
-    const base = (chiave, i, r) => h_flex().id(chiave).h(42).px(12).gap(11).items_center().rounded(8).cursor_pointer()
+    // 42: una riga porta due righe di testo (titolo e dove), più alta di un pulsante grande
+    const base = (chiave, i, r) => h_flex().id(chiave).h(42).px(SPAZIO.l).gap(SPAZIO.l).items_center().rounded(RAGGIO.riga).cursor_pointer()
       .when(i === this.at, (el) => el.bg(t.selected)).hover((st) => st.bg(t.hover))
       .on_click(() => this.vai(r));
-    const testo = (x) => div().truncate().text_size(14).text_color(t.foreground).child(x);
-    const dopo = (x, c) => div().flex_none().max_w(200).truncate().text_size(12).text_color(c).child(x);
+    const testo = (x) => div().truncate().text_size(TESTO.riga).text_color(t.foreground).child(x);
+    const dopo = (x, c) => div().flex_none().max_w(200).truncate().text_size(TESTO.etichetta).text_color(c).child(x);
     const riga = (r, i) => {
       if (r.tipo === "sessione") {
         const s = r.s;
@@ -68,25 +70,25 @@ export class Apri {
           .child(punto(colore(t, st.colore)))
           .child(v_flex().flex_1().min_w(0)
             .child(testo(titolo(s)))
-            .child(div().truncate().text_size(11.5).text_color(t.muted).child(dove)))
+            .child(div().truncate().text_size(TESTO.nota).text_color(t.muted).child(dove)))
           .child(dopo(st.testo, colore(t, st.colore)));
       }
       if (r.tipo === "progetto") {
         const s = spazio(r.nome);
         const f = s?.status ? frase(s.status) : null;
         return base(`c-p-${r.nome}`, i, r)
-          .child(svg(ICONA("folder")).size(14).flex_none().text_color(f ? colore(t, f.colore) : t.muted))
+          .child(svg(ICONA("folder")).size(ICONA_MISURA.piccola).flex_none().text_color(f ? colore(t, f.colore) : t.muted))
           .child(div().flex_1().min_w(0).child(testo(titoloNoto(r.nome) ?? bello(r.nome))))
           .child(dopo(f ? f.testo : s ? "Conversazione aperta" : "Progetto", f ? colore(t, f.colore) : t.dim));
       }
       return base("c-nuova", i, r)
-        .child(svg(ICONA("square-pen")).size(14).flex_none().text_color(t.accent))
+        .child(svg(ICONA("square-pen")).size(ICONA_MISURA.piccola).flex_none().text_color(t.accent))
         .child(div().flex_1().min_w(0).child(testo(`Nuova richiesta: ${r.testo}`)))
         .child(dopo("Claude parte da qui", t.dim));
     };
     const vuoto = this.lista === null ? "Cerco sessioni e progetti…"
       : "Non ci sono ancora sessioni né progetti. Scrivi una richiesta: Invio la manda a Claude.";
-    return v_flex().id("apri").track_focus(this.handle).w_full().p(20).gap(12).bg(t.popover)
+    return v_flex().id("apri").track_focus(this.handle).w_full().p(SPAZIO.xxl).gap(SPAZIO.l).bg(t.popover)
       .on_key_down((e, cx) => {
         if (e.key === "escape") return this.chiudi();
         if (e.key === "down") this.at = (this.at + 1) % Math.max(1, righe.length);
@@ -95,14 +97,14 @@ export class Apri {
         cx.stop_propagation();
         cx.notify();
       })
-      .child(div().font_family("Arturo Archivo").text_size(18).text_color(t.foreground).child("Cerca"))
+      .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Cerca"))
       .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)))
-      .child(h_flex().h(40).px(12).gap(9).items_center().rounded(9).border_1().border_color(t.accent).bg(t.raised)
-        .child(svg(ICONA("search")).size(15).text_color(t.muted))
-        .child(Input.new(this.input).flex_1().h_full().text_size(14).text_color(t.foreground)))
+      .child(h_flex().h(PULSANTE.grande).px(SPAZIO.l).gap(SPAZIO.m).items_center().rounded(RAGGIO.riga).border_1().border_color(t.accent).bg(t.raised)
+        .child(svg(ICONA("search")).size(ICONA_MISURA.grande).text_color(t.muted))
+        .child(Input.new(this.input).flex_1().h_full().text_size(TESTO.riga).text_color(t.foreground)))
       .child(this.lista !== null && righe.length
-        ? v_flex().gap(2).children(righe.map(riga))
-        : div().px(12).py(8).text_size(13).text_color(t.muted).whitespace_normal().child(vuoto))
-      .child(div().px(2).text_size(12).text_color(t.dim).child("Invio apre · Esc chiude"));
+        ? v_flex().gap(SPAZIO.xs).children(righe.map(riga))
+        : div().px(SPAZIO.l).py(SPAZIO.m).text_size(TESTO.corpo).text_color(t.muted).whitespace_normal().child(vuoto))
+      .child(div().px(SPAZIO.xs).text_size(TESTO.etichetta).text_color(t.dim).child("Invio apre · Esc chiude"));
   }
 }

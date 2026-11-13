@@ -203,8 +203,20 @@ if sessioni is None:
     print(json.dumps({"errore": guasto[0] or "claude agents non risponde"})); raise SystemExit
 tutte = list(sessioni)
 soglia = (time.time() - CHIUSE_GIORNI * 86400) * 1000
+def usata(s):
+    # Nata da più di CHIUSE_GIORNI giorni ma usata da poco: il servizio di Claude ritira da solo una
+    # sessione ferma da un'ora (#5495) e la lascia "done", anche se è nata una settimana fa. Conta
+    # l'ultima scrittura della trascrizione.
+    if (s.get("startedAt") or 0) >= soglia:
+        return True
+    sid = s.get("sessionId")
+    f = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl")) if isinstance(sid, str) and re.fullmatch(r"[0-9A-Za-z-]{4,64}", sid) else []
+    try:
+        return bool(f) and os.path.getmtime(f[0]) * 1000 >= soglia
+    except OSError:
+        return False
 sessioni = [s for s in sessioni if s.get("kind") != "background" or (s.get("state") or s.get("status")) not in CHIUSE
-            or (s.get("startedAt") or 0) >= soglia]
+            or usata(s)]
 def testo(c):
     if isinstance(c, str):
         return c
@@ -386,11 +398,70 @@ if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):
         subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
     except (OSError, subprocess.SubprocessError):
         pass
+# Le nascite che cadono (13/11/2026): con Documenti bloccato da macOS ogni sessione nuova del Mac mini
+# usciva in 10 s con "exit 1 before init", e Volta la faceva ripartire a ogni clic senza dire niente
+# della macchina. I job stanno in <config>/jobs/<id>/state.json, fuori da Documenti: si leggono anche
+# quando Documenti non risponde. Rotta = almeno NASCITE_CRASH crash "before init" su almeno due lavori
+# negli ultimi NASCITE_MIN minuti, e nessun lavoro nato dopo l'ultimo crash che stia in piedi.
+NASCITE_MIN = 30
+NASCITE_CRASH = 3
+CONGEDO_INTENTO = "/fine congedo da Volta"
+lavori_dir = os.path.join(radice, "jobs")
+def stato_lavoro(n):
+    try:
+        with open(os.path.join(lavori_dir, n, "state.json"), encoding="utf-8") as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+def nascite(ora=None):
+    ora = ora or time.time()
+    crash, nati = [], []
+    try:
+        nomi = os.listdir(lavori_dir)
+    except OSError:
+        return None
+    for n in nomi:
+        try:
+            if ora - os.path.getmtime(os.path.join(lavori_dir, n, "state.json")) > NASCITE_MIN * 60:
+                continue
+        except OSError:
+            continue
+        d = stato_lavoro(n)
+        perche = str(d.get("detail") or "")
+        if d.get("state") in ("failed", "crashed") and "before init" in perche:
+            m = re.search(r"(exit \d+|SIGKILL \(\d+\)) before init", perche)
+            crash.append((str(d.get("updatedAt") or ""), n, m.group(0) if m else "before init"))
+        elif d.get("state") not in ("failed", "crashed"):
+            nati.append(str(d.get("createdAt") or ""))
+    if len(crash) < NASCITE_CRASH or len({c[1] for c in crash}) < 2:
+        return None
+    crash.sort()
+    if any(x > crash[-1][0] for x in nati):
+        return None
+    return {"rotta": True, "da": crash[0][0], "ultimo": crash[-1][0], "quante": len(crash), "motivo": crash[-1][2]}
+# Un congedo rimasto a metà (13/11/2026): la sessione ripresa con /fine resta viva, o in errore, e il
+# registro dei congedi l'ha persa. L'intento del lavoro dice che la persona l'aveva chiusa.
+for s in sessioni:
+    if s.get("kind") == "background" and isinstance(s.get("id"), str) and re.fullmatch(r"[0-9A-Za-z-]{4,64}", s["id"]):
+        if str(stato_lavoro(s["id"]).get("intent") or "").startswith(CONGEDO_INTENTO):
+            s["congedo"] = True
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
-print(json.dumps({"claude": cl, "sessioni": sessioni}))
+uscita = {"claude": cl, "sessioni": sessioni}
+rotta = nascite()
+if rotta:
+    uscita["nascita"] = rotta
+print(json.dumps(uscita))
 '''
 SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())
 SONDA = SONDA.replace("#ELENCO#", ELENCO.strip())
+
+
+def senza_commenti(codice):
+    """Il codice senza le righe di solo commento: la sonda verso un'altra macchina viaggia in una riga
+    di cmd.exe (8191 caratteri), e i commenti ne prendevano quasi metà (13/11/2026). Un # dentro una
+    riga di codice resta: si tolgono solo le righe che cominciano con #."""
+    return "\n".join(r for r in codice.split("\n") if not r.lstrip().startswith("#"))
 
 # Gira sulla macchina dove nasce la sessione (anche con hc exec). L'argomento è un JSON in base64
 # ({"prompt", "progetto"}, e per Duplica e Fork anche "cartella", "riprendi", "nome"): passa intero anche
@@ -776,7 +847,7 @@ def sonda_remota(nome, entro=None):
     può essere lo stub dello Store, che esce 9009). I due tentativi e l'elenco nudo dividono lo stesso
     tetto (`entro`), che vale anche per hc exec e per claude agents dentro la sonda."""
     # compressa: con terminale_di la sonda in base64 supererebbe gli 8191 caratteri di una riga di cmd.exe
-    compressa = base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()
+    compressa = base64.b64encode(zlib.compress(senza_commenti(SONDA).encode(), 9)).decode()
     ultimo, senza = "nessun Python", 0
     for py in ("python3", "python"):
         rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",
@@ -869,6 +940,8 @@ def raccogli(viste=None, prima=None, entro=None):
             return v
         v["claude"] = d.get("claude")
         v["sessioni"] = d.get("sessioni") or []
+        if isinstance(d.get("nascita"), dict):
+            v["nascita"] = d["nascita"]
         return v
 
     voci = [qui] + altre
@@ -905,6 +978,7 @@ def righe(voci):
             if not sid:
                 continue
             fondo = s.get("kind") == "background"
+            senza = fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore"
             # claude attach, stop, logs e respawn vogliono l'id del lavoro in background, che resta
             # quello della nascita: dopo /clear o una rotazione il sessionId cambia e il suo inizio
             # non aggancia più ("No job matching"). Un'interattiva non ha lavoro: l'inizio del sessionId.
@@ -925,11 +999,18 @@ def righe(voci):
                 # le fasi di Volta (#5366): ultimo messaggio vero, fine dell'ultimo testo, chi ha parlato
                 "interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],
                 "chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,
+                # ripresa da un congedo di Volta (/fine dopo ⌘W): la persona l'aveva chiusa
+                "congedo": s.get("congedo") is True,
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
                 "daIniziare": s.get("daIniziare") if isinstance(s.get("daIniziare"), str) else None,
-                # chiusa: in background, senza processo e senza status (dopo claude stop, sonda S1
-                # dell'11/11/2026). Volta non la mostra più; una in errore resta, per Riavvia.
-                "chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",
+                # In background senza processo e senza status ci sono due casi (#5495, 13/11/2026).
+                # chiusa: fermata con claude stop ("stopped") o dopo /fine come ultimo messaggio, cioè
+                # il congedo di ⌘W. Volta non la mostra più; una in errore resta, per Riavvia.
+                # dorme: ritirata dal servizio di Claude (ferma da un'ora, 8 con Remote Control, 60 s
+                # con poca memoria) o rimasta senza processo dopo un riavvio. Resta nell'elenco e nel
+                # giro: claude attach la riprende.
+                "chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True),
+                "dorme": senza and not (s.get("state") == "stopped" or s.get("fineFatta") is True),
             })
     return out
 
@@ -941,6 +1022,8 @@ def documento(voci, precedente=None, adesso=None):
     elenco = []
     for v in voci:
         voce = {"macchina": v["macchina"], "host": v["host"], "questa": v["questa"]}
+        if isinstance(v.get("nascita"), dict):
+            voce["nascita"] = v["nascita"]
         if "irraggiungibile" in v:
             voce["irraggiungibile"] = v["irraggiungibile"]
             sessioni += [dict(r, vecchia=True) for r in (precedente or {}).get("sessioni", [])

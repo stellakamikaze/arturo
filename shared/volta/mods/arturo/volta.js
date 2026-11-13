@@ -30,7 +30,7 @@ import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 import { run, panes } from "herdr";
-import { xRiga, uscenti } from "./sessioni.js";
+import { xRiga, uscenti, nascitePerAvviso, congediOrfani } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
 
@@ -178,6 +178,37 @@ export class Volta {
       this.davanti(k);
     });
     cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));
+    cx.timer.every(OGNI_AUTO, (cx) => { this.avvisaNascite(); this.chiudiOrfani(cx); });
+  }
+
+  // Una macchina che smette di far partire sessioni (13/11/2026): un avviso solo per episodio, in shared
+  // arturo.volta.nascite ({ host: true }), così un mod ricaricato non lo ripete.
+  avvisaNascite() {
+    if (!this.dati) return;
+    const prima = shared("arturo.volta.nascite") ?? {};
+    const { avvisi, viste } = nascitePerAvviso(this.dati, prima);
+    for (const testo of avvisi) if (testo) notify({ title: "Sessioni che non partono", body: testo, level: "warning" });
+    if (JSON.stringify(viste) !== JSON.stringify(prima)) setShared("arturo.volta.nascite", viste);
+  }
+
+  // I congedi rimasti a metà di questa macchina (congediOrfani di sessioni.js): uno alla volta, stop se è
+  // ancora viva, rm se è ferma. Un rm rifiutato (un worktree con modifiche) si dice una volta e la riga resta.
+  async chiudiOrfani(cx) {
+    if (this.orfaniLavora || !this.dati) return;
+    const conScheda = new Set(Object.values(this.schede ?? {}).flatMap((x) => [x?.sessionId, x?.id]).filter(Boolean));
+    this.orfaniNo = this.orfaniNo ?? new Set();
+    const p = congediOrfani(this.dati, this.congedi(), Date.now(), conScheda).find((x) => !this.orfaniNo.has(x.s.sessionId));
+    if (!p) return;
+    this.orfaniLavora = true;
+    try {
+      const r = await azioneSessione(p.s, p.fai).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 160) }));
+      if (r?.errore) {
+        this.orfaniNo.add(p.s.sessionId);
+        notify({ title: `${titolo(p.s)}: non riesco a chiuderla`, body: r.errore, level: "warning" });
+      } else if (p.fai === "rm" && p.avviso) notify({ title: `${titolo(p.s)}: chiusa`, body: p.avviso, level: "info" });
+      this.aggiorna(cx);
+      cx.notify();
+    } finally { this.orfaniLavora = false; }
   }
 
   // Le sessioni in congedo (shared, così restano anche se il mod si ricarica): { sessionId: c }.

@@ -134,7 +134,10 @@ export function fraseStato(s, adesso = Date.now()) {
   if (f === "attiva") return { testo: "Sta lavorando", colore: "working" };
   if (f === "errore") return { testo: "Si è fermata con un errore", colore: "blocked" };
   const q = daQuanto(s.interazione || s.ultimo, adesso);
-  if (f === "stasi") return { testo: q ? `Ti aspetta ${q}` : "Ti aspetta", colore: "blocked" };
+  // addormentata (#5495): il servizio di Claude l'ha ritirata, il clic o il giro la riprendono
+  const zz = dorme(s) ? ", addormentata" : "";
+  if (f === "stasi") return { testo: (q ? `Ti aspetta ${q}` : "Ti aspetta") + zz, colore: "blocked" };
+  if (zz) return { testo: q ? `Addormentata ${q}` : "Addormentata", colore: "dim" };
   return { testo: q ? `Aspetta un comando ${q}` : "Aspetta un comando", colore: "muted" };
 }
 
@@ -207,7 +210,10 @@ export function gruppi(dati, modo = "macchina") {
     const out = [...per.values()];
     out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));
     const giu = (dati?.macchine ?? []).filter((m) => m.irraggiungibile).map((m) => m.macchina);
-    if (giu.length && out.length) out[out.length - 1].nota = `${giu.join(", ")} non ${giu.length > 1 ? "rispondono" : "risponde"}`;
+    const rotte = (dati?.macchine ?? []).filter((m) => !m.irraggiungibile && m.nascita?.rotta === true).map((m) => m.macchina);
+    const note = [giu.length ? `${giu.join(", ")} non ${giu.length > 1 ? "rispondono" : "risponde"}` : "",
+      rotte.length ? `${rotte.join(", ")} non fa${rotte.length > 1 ? "nno" : ""} partire sessioni` : ""].filter(Boolean);
+    if (note.length && out.length) out[out.length - 1].nota = note.join(" · ");
     return out;
   }
   for (const m of dati?.macchine ?? []) metti(m.host, m.macchina, null);
@@ -216,6 +222,7 @@ export function gruppi(dati, modo = "macchina") {
   for (const m of dati?.macchine ?? []) {
     const g = per.get(m.host);
     if (m.irraggiungibile) g.nota = g.sessioni.length ? "Non risponde: mostro l'ultima lettura" : "Non risponde";
+    else if (m.nascita?.rotta === true) g.nota = "Non fa partire sessioni nuove";
     if (g.sessioni.length || g.nota) out.push(g);
     per.delete(m.host);
   }
@@ -224,9 +231,12 @@ export function gruppi(dati, modo = "macchina") {
 
 // Chiudere una sessione (12/11/2026, decisione di Federico): ⌘W, la X della scheda o Chiudi del menu
 // fanno il congedo, cioè /fine e poi claude stop. Una sessione chiusa o in congedo non compare più
-// nell'elenco: si ritrova con Apri un progetto. Chiusa = in background, senza processo e senza status
-// (claude agents dopo claude stop: sonda S1 dell'11/11); una in errore resta, perché Riavvia serve.
+// nell'elenco: si ritrova con Apri un progetto. Chiusa = in background, senza processo e senza status,
+// fermata con claude stop o dopo /fine (il campo `chiusa` di volta_sonda.py); una in errore resta,
+// perché Riavvia serve. Addormentata = senza processo per altro, di solito ritirata dal servizio di
+// Claude dopo un'ora ferma (#5495, 13/11/2026): resta nell'elenco e nel giro, e claude attach la riprende.
 export const chiusa = (s) => Boolean(s) && s.tipo === "background" && s.chiusa === true;
+export const dorme = (s) => Boolean(s) && s.tipo === "background" && s.dorme === true && !chiusa(s);
 export function visibili(dati, congedi = {}) {
   if (!dati) return dati;
   const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c.sessionId, c.id].filter(Boolean)));
@@ -307,16 +317,81 @@ export function passoCongedo(c, s, ora = Date.now()) {
   if (c.fase === "fine") {
     if (ora - dal < CONGEDO_AVVIO_MS) return { fai: "attendi" };
     if (s.stato === "errore") return { fai: "togli", avviso: `${nome}: /fine si è fermato con un errore. La sessione resta ferma.` };
-    if (chiusa(s)) return ora - dal > CONGEDO_SENZA_FINE_MS ? { fai: "togli", avviso: `${nome} non è ripartita per /fine: l'ho lasciata chiusa senza salvataggio.` } : { fai: "attendi" };
+    // senza processo dopo lo stop di Volta: claude agents la dice "stopped" o la lascia "done" (dorme)
+    if (chiusa(s) || dorme(s)) return ora - dal > CONGEDO_SENZA_FINE_MS ? { fai: "togli", avviso: `${nome} non è ripartita per /fine: l'ho lasciata chiusa senza salvataggio.` } : { fai: "attendi" };
     if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso: `${nome} ha chiesto qualcosa durante /fine: l'ho fermata lo stesso.` };
     if (s.stato === "lavora") return ora - dal > CONGEDO_MAX_MS ? { fai: "stop", fase: "ferma", avviso: `${nome}: /fine non ha finito in 20 minuti, l'ho fermata.` } : { fai: "attendi" };
     // ferma e viva: /fine ha finito il turno se la trascrizione è andata avanti dopo la ripresa
     if (tempo(s) > dal - 5000) return { fai: "stop", fase: "ferma", salvata: true };
     return ora - dal > CONGEDO_SENZA_FINE_MS ? { fai: "stop", fase: "ferma", avviso: `${nome} non ha fatto /fine: l'ho fermata senza salvataggio.` } : { fai: "attendi" };
   }
-  // fase "ferma": aspetta che claude agents la dica chiusa, e riprova lo stop dopo due minuti
-  if (chiusa(s)) return c.salvata ? { fai: "rm" } : { fai: "togli" };
+  // fase "ferma": aspetta che claude agents la dica senza processo, e riprova lo stop dopo due minuti.
+  // Lo stop l'ha chiesto Volta: anche "done" senza processo (dorme) vuol dire fermata.
+  if (chiusa(s) || dorme(s)) return c.salvata ? { fai: "rm" } : { fai: "togli" };
   return ora - dal > 120000 ? { fai: "stop", fase: "ferma" } : { fai: "attendi" };
+}
+
+// Le nascite che cadono su una macchina (13/11/2026): la sonda scrive `nascita` nella voce della macchina
+// quando le sessioni nuove escono prima di iniziare ("exit 1 before init"), come sul Mac mini con
+// Documenti bloccato da macOS. Volta lo dice una volta per episodio e non fa ripartire al clic una
+// sessione in errore di quella macchina: ogni ripartenza cadeva di nuovo, due volte per clic.
+export function nascitaDi(dati, host) {
+  const m = (dati?.macchine ?? []).find((x) => (x.host ?? "qui") === (host ?? "qui"));
+  if (m?.nascita?.rotta !== true) return null;
+  return { ...m.nascita, macchina: m.questa ? "questa macchina" : (m.macchina ?? m.host) };
+}
+const oraCorta = (iso) => {
+  const d = new Date(iso ?? "");
+  return Number.isNaN(d.getTime()) ? null : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+export function avvisoNascita(n) {
+  if (!n) return null;
+  const m = n.macchina ?? "quella macchina", da = oraCorta(n.da);
+  const volte = Number.isInteger(n.quante) && n.quante > 0 ? `${n.quante} volte` : "più volte";
+  return `Su ${m} le sessioni non partono${da ? ` dalle ${da}` : ""}: Claude esce prima di iniziare (${volte}). Spesso macOS aspetta un permesso sullo schermo di ${m}: rispondi lì, o riavvia ${m}.`;
+}
+// Il clic su una sessione in errore la fa ripartire (claude respawn) solo se la sua macchina fa partire
+// sessioni. Riavvia del menu resta: è un gesto esplicito.
+export function riparteAlClic(s, dati) {
+  if (s?.stato !== "errore") return { riparte: false };
+  const n = nascitaDi(dati, s.host);
+  return n ? { riparte: false, errore: avvisoNascita(n) } : { riparte: true };
+}
+// Gli avvisi da dare: una macchina che ha appena smesso di far partire sessioni. `viste`: le macchine già
+// avvisate in questo episodio ({ host: true }); torna anche le viste nuove, senza quelle tornate a posto.
+export function nascitePerAvviso(dati, viste = {}) {
+  const avvisi = [], tieni = {};
+  for (const m of dati?.macchine ?? []) {
+    if (m?.irraggiungibile || m?.nascita?.rotta !== true) continue;
+    const k = m.host ?? "qui";
+    tieni[k] = true;
+    if (!viste?.[k]) avvisi.push(avvisoNascita(nascitaDi(dati, k)));
+  }
+  return { avvisi, viste: tieni };
+}
+
+// I congedi rimasti a metà (13/11/2026): una sessione ripresa con /fine da un congedo (la sonda la segna
+// `congedo`) che il registro non ha più, ferma da più di CONGEDO_ORFANO_MS e senza scheda aperta qui.
+// Solo questa macchina, come la chiusura automatica. Torna [{ s, fai, avviso? }]: "rm" se /fine ha finito
+// e la sessione non ha più processo; "stop" se è ancora viva con /fine come ultimo messaggio (poi, ferma,
+// diventa "rm"); "rm" con avviso se è in errore o chiusa senza /fine: la persona l'aveva chiusa, la
+// trascrizione resta su disco. Una viva usata dopo il congedo non si tocca.
+export const CONGEDO_ORFANO_MS = 10 * 60000;
+export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = new Set()) {
+  const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c?.sessionId, c?.id].filter(Boolean)));
+  const out = [];
+  for (const s of dati?.sessioni ?? []) {
+    if (!s?.questa || s.tipo !== "background" || s.vecchia || s.congedo !== true) continue;
+    if (via.has(s.sessionId) || via.has(s.id) || conScheda.has(s.sessionId) || conScheda.has(s.id)) continue;
+    if (s.stato === "lavora") continue;
+    if (!(tempo(s) > 0) || ora - tempo(s) < CONGEDO_ORFANO_MS) continue;
+    const morta = chiusa(s) || dorme(s) || s.stato === "errore";
+    // viva: si ferma solo se /fine è ancora l'ultimo messaggio; riaperta e usata dopo il congedo, resta
+    if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }
+    else if (s.fineFatta && s.stato !== "errore") out.push({ s, fai: "rm" });
+    else out.push({ s, fai: "rm", avviso: `${titolo(s)}: chiusa senza salvataggio, /fine non era finito. La conversazione resta su disco.` });
+  }
+  return out;
 }
 
 // Le sessioni di un gruppo che l'elenco mostra: quelle che lavorano, ti aspettano o sono in errore
@@ -797,4 +872,25 @@ export function contoTutto(sessioni, dest) {
   if (!l.length) return { n: 0, testo: "niente da spostare" };
   const dopo = l.filter(aFineTurno).length;
   return { n: l.length, testo: `${l.length === 1 ? "1 sessione" : `${l.length} sessioni`}${dopo ? `, ${dopo} a turno finito` : ""}` };
+}
+
+// La macchina dove nasce un progetto aperto da Volta. La scheda del progetto nella memoria dice in
+// `macchina:` dove sta la sua cartella, con etichette corte scelte dalla persona ("macmini", "portatile").
+// Volta conosce le macchine coi nomi di Herdr (host e nome leggibile). Un'etichetta vale per una macchina
+// quando, tolti spazi e segni, sta dentro il suo host o il suo nome. Torna l'host della prima macchina della
+// scheda che risponde, oppure null: la cartella c'è anche qui, la scheda non lo dice, o nessuna risponde.
+// Con null vale "Nasce su", come prima.
+const compatto = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+export function macchinaDelProgetto(etichette, macchine) {
+  const voglio = (etichette ?? []).map(compatto).filter(Boolean);
+  const tutte = Array.isArray(macchine) ? macchine : [];
+  const questa = tutte.find((m) => m?.questa);
+  if (!voglio.length || !questa) return null;
+  const tocca = (m, e) => compatto(m?.host).includes(e) || compatto(m?.macchina).includes(e);
+  if (voglio.some((e) => tocca(questa, e))) return null;
+  for (const e of voglio) {
+    const m = tutte.find((x) => x && !x.questa && !x.giu && x.host && tocca(x, e));
+    if (m) return m.host;
+  }
+  return null;
 }

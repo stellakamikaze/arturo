@@ -140,7 +140,7 @@ export class Barra {
         const tutti = progetti(this.vista, this.extra());
         this.quanti = tutti.length;
         for (const p of tutti) {
-          mappa[p.chiave] = { chiave: p.chiave, nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
+          mappa[p.chiave] = { chiave: p.chiave, nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? ""), macchine: p.macchine ?? [] };
           // Uno spazio aperto col nome alternativo trova lo stesso progetto.
           for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];
         }

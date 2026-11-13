@@ -10,6 +10,7 @@ import { theme, props, closeOverlay, openOverlay, spaces, notify } from "herdr";
 import { contestoProgetto, apriFile, slug } from "./dati.js";
 import { vistaContesto } from "./contesto.js";
 import { ICONA } from "./comuni.js";
+import { TESTO } from "./misure.js";
 
 // `progetto`: lo slug o il nome; senza, quello dello spazio aperto. false se non c'è un progetto.
 export function apriContesto(progetto) {
@@ -77,7 +78,7 @@ export class Contesto {
       .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
       .child(h_flex().gap(12).items_start()
         .child(v_flex().flex_1().min_w(0).gap(4)
-          .child(div().id("cx-titolo").truncate().font_family("Arturo Archivo").text_size(19).text_color(t.foreground).child(v ? `Contesto di ${v.titolo}` : "Contesto del progetto"))
+          .child(div().id("cx-titolo").truncate().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child(v ? `Contesto di ${v.titolo}` : "Contesto del progetto"))
           .child(div().whitespace_normal().text_size(12.5).text_color(t.muted)
             .child(v ? `Cosa legge Claude quando apri il progetto, nell'ordine. In tutto: ${v.totale}.` : "Cosa legge Claude quando apri il progetto.")))
         .child(div().id("cx-chiudi").flex_none().p(4).rounded(6).cursor_pointer().hover((s) => s.bg(t.hover))
