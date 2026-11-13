@@ -166,6 +166,14 @@ def test_y01(repo: Path) -> None:
         assert not zitti(), "Y01 accesa, gli hook tacciono lo stesso"
         assert "progetto-cantiere.md" in lab.hook("memory-autoload.py", {}, cwd=lab.dir / "cantiere").stdout, \
             "Y01 accesa, memory-autoload non indica la scheda del progetto"
+        # il catalogo del frontmatter: una cartella col nome vecchio o diverso trova la sua scheda
+        (lab.mem.parent.parent / "-progetto-scheda" / "memory" / "progetto-officina.md").write_text(
+            "---\nname: progetto-officina\ndescription: officina\nalias: [bottega]\n"
+            "cartella: ~/Documents/ClaudeCode/officina-src\n---\ncorpo\n", encoding="utf-8")
+        for nome in ("bottega", "officina-src"):
+            (lab.dir / nome).mkdir()
+            assert "progetto-officina.md" in lab.hook("memory-autoload.py", {}, cwd=lab.dir / nome).stdout, \
+                f"Y01 memory-autoload non legge alias e cartella delle schede ({nome})"
         assert zitti(dict(lab.env, ARTURO_MEMORIA="0")), "Y01 ARTURO_MEMORIA=0 non spegne gli hook"
         assert lab.arturo("spegni").returncode == 0 and zitti(), "Y01 spegni non spegne gli hook"
         assert not zitti(dict(lab.env, ARTURO_MEMORIA="1")), "Y01 ARTURO_MEMORIA=1 non accende gli hook"
