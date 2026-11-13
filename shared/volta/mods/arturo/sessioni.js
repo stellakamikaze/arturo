@@ -371,7 +371,7 @@ export function nascitePerAvviso(dati, viste = {}) {
 }
 
 // I congedi rimasti a metà (13/11/2026): una sessione ripresa con /fine da un congedo (la sonda la segna
-// `congedo`) che il registro non ha più, ferma da più di CONGEDO_ORFANO_MS e senza scheda aperta qui.
+// `congedo`) che il registro non ha più, ferma da più di CONGEDO_ORFANO_MS; se è viva, senza scheda aperta qui.
 // Solo questa macchina, come la chiusura automatica. Torna [{ s, fai, avviso? }]: "rm" se /fine ha finito
 // e la sessione non ha più processo; "stop" se è ancora viva con /fine come ultimo messaggio (poi, ferma,
 // diventa "rm"); "rm" con avviso se è in errore o chiusa senza /fine: la persona l'aveva chiusa, la
@@ -382,10 +382,13 @@ export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = 
   const out = [];
   for (const s of dati?.sessioni ?? []) {
     if (!s?.questa || s.tipo !== "background" || s.vecchia || s.congedo !== true) continue;
-    if (via.has(s.sessionId) || via.has(s.id) || conScheda.has(s.sessionId) || conScheda.has(s.id)) continue;
+    if (via.has(s.sessionId) || via.has(s.id)) continue;
     if (s.stato === "lavora") continue;
     if (!(tempo(s) > 0) || ora - tempo(s) < CONGEDO_ORFANO_MS) continue;
     const morta = chiusa(s) || dorme(s) || s.stato === "errore";
+    // una scheda aperta protegge solo una sessione viva: su una ferma resta la shell, e la riga restava
+    // in Volta per sempre (13/11/2026, Balthasar: scheda t1z con PowerShell sul congedo 261279d3)
+    if (!morta && (conScheda.has(s.sessionId) || conScheda.has(s.id))) continue;
     // viva: si ferma solo se /fine è ancora l'ultimo messaggio; riaperta e usata dopo il congedo, resta
     if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }
     else if (s.fineFatta && s.stato !== "errore") out.push({ s, fai: "rm" });

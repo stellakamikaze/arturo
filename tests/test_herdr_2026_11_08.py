@@ -474,7 +474,8 @@ HZ106 le nascite che cadono (13/11/2026): la SONDA legge i lavori di <config>/jo
 HZ107 il clic non fa ripartire una sessione in errore su una macchina rotta, né la veglia; l'avviso arriva
      una volta per episodio; i gruppi dicono "non fa partire sessioni"; arturo() ha un tempo massimo.
 HZ108 i congedi rimasti a metà di questa macchina: stop se vivi con /fine in fondo, rm se fermi o in
-     errore, niente su una riaperta, una recente, una nel registro o con la scheda aperta.
+     errore, niente su una riaperta, una recente, una nel registro o una viva con la scheda aperta; una
+     ferma si elimina anche con la scheda aperta, dove resta solo la shell.
 """
 from __future__ import annotations
 
@@ -8033,7 +8034,7 @@ const dati = { sessioni: [b({ id: "viva", fineFatta: true }), b({ id: "riaperta"
   b({ id: "normale", congedo: false, fineFatta: true }), b({ id: "interattiva", tipo: "interattiva", fineFatta: true })] };
 console.log(JSON.stringify({
   tutti: S.congediOrfani(dati, {}, ora).map((p) => [p.s.id, p.fai, Boolean(p.avviso)]),
-  filtrati: S.congediOrfani(dati, { k: { sessionId: "viva-s" } }, ora, new Set(["salvata-s"])).map((p) => p.s.id),
+  filtrati: S.congediOrfani(dati, { k: { sessionId: "errore-s" } }, ora, new Set(["viva-s", "salvata-s"])).map((p) => p.s.id),
 }));
 """
 
@@ -8059,8 +8060,8 @@ def hz108(repo: Path, casa: Path) -> str | None:
     g = json.loads(r.stdout.strip().splitlines()[-1])
     if g["tutti"] != [["viva", "stop", False], ["errore", "rm", True], ["salvata", "rm", False]]:
         return f"congediOrfani sceglie male: {g['tutti']}"
-    if g["filtrati"] != ["errore"]:
-        return f"congediOrfani tocca un congedo nel registro o una sessione con la scheda aperta: {g['filtrati']}"
+    if g["filtrati"] != ["salvata"]:
+        return f"congediOrfani tocca un congedo nel registro o una viva con la scheda aperta, o salta una ferma con la scheda: {g['filtrati']}"
     return None
 
 
@@ -8093,6 +8094,7 @@ VELENI = [
     ('HZ107', 'shared/volta/mods/arturo/dati.js', '{ cwd: c.base, timeout: ARTURO_MAX_MS }', '{ cwd: c.base }'),
     ('HZ108', 'shared/volta/mods/arturo/sessioni.js', 'if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }', 'if (!morta) out.push({ s, fai: "stop" });'),
     ('HZ108', 'shared/volta/mods/arturo/sessioni.js', 'ora - tempo(s) < CONGEDO_ORFANO_MS) continue;', 'ora - tempo(s) < 0) continue;'),
+    ('HZ108', 'shared/volta/mods/arturo/sessioni.js', '    if (!morta && (conScheda.has(s.sessionId) || conScheda.has(s.id))) continue;', '    if (conScheda.has(s.sessionId) || conScheda.has(s.id)) continue;'),
     ('HZ108', 'shared/volta/mods/arturo/volta.js', '        this.orfaniNo.add(p.s.sessionId);\n', ''),
     ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  && s.stato !== "errore" && !nonSiSposta(s) &&', '  && !nonSiSposta(s) &&'),
     ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  if (s.tipo === "background") out.push({ verbo: "sposta", testo: "Sposta su…" });\n', ''),

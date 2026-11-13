@@ -1,5 +1,5 @@
 {
- "albero": "f7860398ecb7611da895c7903d23be6c9a060546",
+ "albero": "2560a55d2e4ee490c59c4dd41947c30abd55f8d6",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -49,7 +49,7 @@
   "mods/arturo/noteui.js": "37be03a37e0ceb685789053454f0a5984cf62a1ea61b1e75d1825790ad3bdad5",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "395655beab66f4ac78f4adf8aa9f53ee99b7d831be58913e06e6e2b191124c84",
+  "mods/arturo/sessioni.js": "51dc69b81b5cd3a18cc3a8e5bd9d3cb9ee1fe95541e1000d189f9ff58dfc2058",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/sposta.js": "dbecedecf537d25b0a5e1e041366b8144d2eac028b9578d380a8ca44ed297f38",
