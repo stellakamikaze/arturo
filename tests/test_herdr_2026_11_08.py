@@ -188,8 +188,9 @@ HZ48 una sessione in background si aggancia anche dopo /clear (11/11/2026): righ
 HZ49 una X in hover chiude per sempre una sessione ferma (11/11/2026): volta.js la mette nella riga solo
      se azioni() dà rm, visibile col puntatore sopra la riga (on_hover) o mentre chiede conferma, e il
      clic passa da fare(), che al primo clic chiede "Sì, elimina".
-HZ50 le note si trovano a vista (11/11/2026): il piede della barra ha la voce "Note", che apre l'elenco
-     e scrive accanto i tasti della nota nuova e dell'elenco; il layout arturo dà al piede 192 px, cinque voci.
+HZ50 le note si trovano a vista (11/11/2026): il piede della barra ha l'icona "Note", che apre l'elenco
+     e porta nel suggerimento i tasti della nota nuova e dell'elenco; dal 13/11 (#5371) il piede è una fila
+     di icone e il layout arturo gli dà l'altezza PIEDE di misure.js (44 px).
 HZ51 Volta, l'ordine è l'ultima interazione (11/11/2026): dentro un gruppo la sessione toccata per
      ultima sta in cima, qualunque stato abbia (una ferma di un minuto fa sta sopra una che aspetta da
      ieri); viene per primo il gruppo con la più recente, per progetto e per macchina, e "Senza progetto"
@@ -221,7 +222,8 @@ HZ56 shared/volta/ è una copia (11/11/2026): la scrive volta/pubblica-mod.py de
      Volta, e ogni file ha l'impronta di ORIGINE. Un file toccato a mano, uno in più o uno in
      meno fanno rosso: la fonte si cambia là.
 HZ57 il mod si aggiorna da solo (11/11/2026): volta.js chiede a volta_mod.py un controllo all'apertura e
-     ogni ora, mai due insieme, e pubblica la versione in shared arturo.mod; il piede la scrive accanto
+     ogni ora, mai due insieme, e pubblica la versione in shared arturo.mod; dal 13/11 il menu di Impostazioni
+     (comuni.js) la scrive, e il piede la porta nel suggerimento; prima la scriveva accanto
      a Impostazioni con rigaMod() di sessioni.js (node): ora dell'installazione, giorno se non è oggi,
      avviso dopo un giorno senza controllo, avviso quando il plugin di Arturo è fermo per una possibile
      compromissione (volta_mod.py programmi, 12/11/2026).
@@ -332,7 +334,7 @@ HZ80 l'errore di chiave ssh ha la sua frase, diversa dal permesso del microfono 
 HZ81 la colonna di sinistra tiene a vista il piede (revisione dell'11/11/2026; dal 12/11 l'elenco di Volta
      prende tutta l'altezza, HZ90): il riquadro dei gesti ha al più 160 px e scorre, la radice della barra
      taglia quello che non entra e misura la sua cima; nel layout il divisore sopra il piede non si trascina
-     (un trascinamento salvato in layouts/.state aveva portato il piede a 101 px) e il piede è alto 192 px:
+     (un trascinamento salvato in layouts/.state aveva portato il piede a 101 px) e il piede è alto PIEDE px:
      la misura cambiata fa cadere quel trascinamento al primo caricamento.
 HZ82 un tasto di Arturo rimasto su un mod tolto si riallinea (revisione dell'11/11/2026): sul MacBook ⌘O
      puntava a mod.open:arturo-progetti e non apriva niente. installa-herdr.sh tratta i tre valori esatti
@@ -460,6 +462,11 @@ HZ104 Sposta su dal menu e Sposta tutto su (12/11/2026, Federico: "senza interro
      volta_sposta.py rifiuta con lavora: true se la sessione fa un turno, prima di leggere e prima di
      fermarla; volta.js fa girare la coda a ogni giro e non parte su chi lavora; barra, menu e main.js
      hanno la pastiglia, la voce e il popup.
+HZ105 la colonna di sinistra sulla scala comune (13/11/2026, #5371, fase 4 del piano di design): misure.js
+     dà spazi, margine, raggi, testo, pulsanti e l'altezza del piede; la cima ha il campo "Cerca o chiedi"
+     che apre la ricerca (⌘K) e Nuova richiesta a icona, senza più "Apri un progetto"; il piede è una fila
+     di pulsanteIcona col nome nel suggerimento e per la lettura a voce; gruppi e righe di volta.js partono
+     dallo stesso MARGINE; lo schermo di claude logs prende il font dalle impostazioni.
 """
 from __future__ import annotations
 
@@ -475,7 +482,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -3251,8 +3258,8 @@ def hz49(repo: Path, casa: Path) -> str | None:
 def hz50(repo: Path, casa: Path) -> str | None:
     bj = (repo / "shared/volta/mods/arturo/barra.js").read_text(encoding="utf-8")
     piede = bj[bj.find("export class Piede {"):]
-    if '.child(voce("note", "pin", "Note", () => apriElenco())' not in piede:
-        return "barra.js: il piede non ha la voce Note che apre l'elenco delle note"
+    if 'pulsanteIcona("note", "pin", `Note · ${tasti().nota} nuova · ${tasti().elenco} elenco`, () => apriElenco()' not in piede:
+        return "barra.js: il piede non ha l'icona Note che apre l'elenco delle note"
     if "${tasti().nota} nuova · ${tasti().elenco}" not in piede:
         return "barra.js: la voce Note non scrive i tasti della nota nuova e dell'elenco"
     lay = json.loads((repo / "shared/volta/layouts/arturo.json").read_text(encoding="utf-8"))
@@ -3267,9 +3274,16 @@ def hz50(repo: Path, casa: Path) -> str | None:
             for v in n:
                 cerca(v)
     cerca(lay)
-    if alti != [192]:
-        return f"layout arturo: il piede è alto {alti}, le cinque voci vogliono 192 px"
+    attesa = piede_misure(repo)
+    if attesa is None or alti != [attesa]:
+        return f"layout arturo: il piede è alto {alti}, misure.js vuole PIEDE = {attesa}"
     return None
+
+
+def piede_misure(repo: Path) -> int | None:
+    """L'altezza del piede scritta in misure.js (export const PIEDE = N;), o None."""
+    m = re.search(r"^export const PIEDE = (\d+);$", (repo / "shared/volta/mods/arturo/misure.js").read_text(encoding="utf-8"), re.M)
+    return int(m.group(1)) if m else None
 
 
 PROVA_ORDINE = r"""
@@ -3827,10 +3841,14 @@ def hz57(repo: Path, casa: Path) -> str | None:
         if pezzo not in vj:
             return f"volta.js non chiede il controllo del mod: manca {pezzo}"
     bj = (mod / "barra.js").read_text(encoding="utf-8")
-    if '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>' not in bj[bj.find("export class Piede {"):] or 'else if (c === "versione")' not in bj:
-        return "barra.js: il piede non scrive la versione del mod, o manca il comando arturo.versione"
-    if '"id": "piede", "type": "block", "size": {"px": 192}' not in json.dumps(json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))):
-        return "il piede non è più alto 192 px: la versione sta sulla riga di Impostazioni proprio per non aggiungerne una"
+    cj = (mod / "comuni.js").read_text(encoding="utf-8")
+    menu = cj[cj.find("export class Impostazioni {"):cj.find("export function segnaleImpostazioni")]
+    if '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>' not in menu or 'else if (c === "versione")' not in bj:
+        return "comuni.js: il menu di Impostazioni non scrive la versione del mod, o manca il comando arturo.versione"
+    if '`Impostazioni · ${rigaMod(shared("arturo.mod"))?.testo ?? tasti().impostazioni}`' not in bj[bj.find("export class Piede {"):]:
+        return "barra.js: l'icona di Impostazioni non porta la versione del mod nel suggerimento"
+    if f'"id": "piede", "type": "block", "size": {{"px": {piede_misure(repo)}}}' not in json.dumps(json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))):
+        return "il piede non è alto PIEDE di misure.js: la versione sta nel menu di Impostazioni proprio per non aggiungere righe"
     sonda = (vc / "volta_mod.py").read_text(encoding="utf-8")
     for pezzo in ('if not isinstance(url, str) or not url:', 'motivo, rosso = controlla_mod(nuovo)', 'c.get("mod_modo") == "manuale"'):
         if pezzo not in sonda:
@@ -6104,8 +6122,8 @@ def hz81(repo: Path, casa: Path) -> str | None:
     if lay.get("resizable") is False:
         return "layout arturo: la colonna di sinistra non si allarga più (resizable false sulla radice)"
     piede = next((n for n in barra.get("children", []) if n.get("id") == "piede"), {})
-    if (piede.get("size") or {}).get("px") != 192:
-        return f"layout arturo: il piede è alto {(piede.get('size') or {}).get('px')}, atteso 192 (una misura diversa da 190 fa cadere il trascinamento salvato)"
+    if (piede.get("size") or {}).get("px") != piede_misure(repo):
+        return f"layout arturo: il piede è alto {(piede.get('size') or {}).get('px')}, atteso PIEDE di misure.js (una misura diversa da quella salvata fa cadere il trascinamento)"
     return None
 
 
@@ -7726,7 +7744,7 @@ def hz104(repo: Path, casa: Path) -> str | None:
         if pezzo not in volta:
             return f"volta.js: {perche}"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
-    if 'else if (c === "volta-spostatutto") this.volta.spostaTutto(arg, cx);' not in barra or ".when(Boolean(tutto), (el) => el.child(tutto)))" not in barra:
+    if 'else if (c === "volta-spostatutto") this.volta.spostaTutto(arg, cx);' not in barra or "const fila = [dove, tutto].filter(Boolean);" not in barra or ".children(fila))))" not in barra:
         return "la barra non ha Sposta tutto su… sotto Nasce su, o non esegue il suo comando"
     if 'spostatutto: SceltaSpostaTutto' not in (mod / "main.js").read_text(encoding="utf-8"):
         return "main.js non ha il popup di Sposta tutto su"
@@ -7768,7 +7786,60 @@ def hz104(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104}
+
+def hz105(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta/mods/arturo"
+    mj = (mod / "misure.js").read_text(encoding="utf-8")
+    bj = (mod / "barra.js").read_text(encoding="utf-8")
+    cj = (mod / "comuni.js").read_text(encoding="utf-8")
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for nome in ("SPAZIO", "MARGINE", "RAGGIO", "TESTO", "PULSANTE", "ICONA_MISURA", "PALLINO", "PIEDE"):
+        if f"export const {nome} = " not in mj:
+            return f"misure.js non esporta {nome}"
+    if "export const MARGINE = SPAZIO.l;" not in mj:
+        return "misure.js: il margine della colonna non viene dalla scala degli spazi"
+    cima = bj[bj.find("const campo = "):bj.find("export class Piede {")]
+    for pezzo, guasto in (
+        ('h_flex().id("cerca")', "la cima non ha il campo Cerca o chiedi"),
+        (".on_click(() => apriFinestra())", "il campo Cerca o chiedi non apre la ricerca"),
+        ('.child("Cerca o chiedi"))', "il campo non dice Cerca o chiedi"),
+        (".child(tasti().apri))", "il campo non scrive il tasto della ricerca"),
+        ('pulsanteIcona("nuova", "square-pen", `Nuova richiesta · ${tasti().tessere}`, () => nuova(), { forte })', "Nuova richiesta non è l'icona accanto al campo"),
+        ('.id("barra-cima").flex_none().px(MARGINE)', "la cima non parte dal margine comune"),
+    ):
+        if pezzo not in cima:
+            return f"barra.js: {guasto}"
+    if 'pulsante("apri", "folder", "Apri un progetto"' in bj:
+        return "barra.js: Apri un progetto è ancora un pulsante della colonna"
+    piede = bj[bj.find("export class Piede {"):]
+    if piede.count("pulsanteIcona(") != 5 or "voce(" in piede:
+        return "barra.js: il piede non è una fila di cinque pulsanteIcona"
+    if "segnale: segnaleImpostazioni(Boolean(updates().app.ready))" not in piede:
+        return "barra.js: l'icona di Impostazioni non ha il pallino dell'avviso o dell'app pronta"
+    pi = cj[cj.find("export function pulsanteIcona("):cj.find("// La finestra")]
+    for pezzo in (".tooltip(testo)", ".accessibility_label(testo)", 'PULSANTE[misura === "piccolo" ? "piccolo" : "grande"]'):
+        if pezzo not in pi:
+            return f"comuni.js: pulsanteIcona senza {pezzo}"
+    if 'if (rigaMod(shared("arturo.mod"))?.avviso) return "blocked";' not in cj:
+        return "comuni.js: segnaleImpostazioni non accende il rosso per un avviso del mod"
+    if "h(PULSANTE[grande ? \"grande\" : \"piccolo\"])" not in cj:
+        return "comuni.js: pulsante() non prende la misura"
+    for pezzo, guasto in (
+        ('.id(`vr-${s.host}-${s.id}`).relative().mx(MARGINE)', "le righe non partono dal margine comune"),
+        ('.id(`vgh-${g.chiave || "senza"}`).mx(MARGINE)', "le testate dei gruppi non partono dal margine comune"),
+        ('return h_flex().mx(MARGINE).mb(SPAZIO.s).h(PULSANTE.piccolo)', "l'interruttore non parte dal margine comune"),
+        (".font_family(fontTerminale())", "lo schermo di claude logs ha ancora il font scritto fisso"),
+        ("const f = settings()?.font;", "fontTerminale non legge le impostazioni"),
+        ("un progetto si apre da Cerca (${tasti().apri}) o dalle tessere (${tasti().tessere})", "il vuoto dell'elenco cita ancora Apri un progetto"),
+    ):
+        if pezzo not in vj:
+            return f"volta.js: {guasto}"
+    if 'font_family("Atkinson Hyperlegible Mono").text_size(11.5)' in vj:
+        return "volta.js: lo schermo di claude logs ha ancora il font scritto fisso"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -7956,7 +8027,22 @@ VELENI = [
     ('HZ81', 'shared/volta/mods/arturo/barra.js', 'setShared("arturo.misura.cima", v);', ''),
     ('HZ81', 'shared/volta/mods/arturo/volta.js', '.max_h(GESTI_MAX).flex_none().overflow_y_scroll()', ''),
     ('HZ81', 'shared/volta/layouts/arturo.json', '      "resizable": false,\n      "background": "chrome",', '      "background": "chrome",'),
-    ('HZ81', 'shared/volta/layouts/arturo.json', '"px": 192', '"px": 190'),
+    ('HZ81', 'shared/volta/layouts/arturo.json', '"px": 44', '"px": 48'),
+    ('HZ104', 'shared/volta/mods/arturo/barra.js', 'const fila = [dove, tutto].filter(Boolean);', 'const fila = [dove].filter(Boolean);'),
+    ('HZ105', 'shared/volta/mods/arturo/misure.js', 'export const MARGINE = SPAZIO.l;', 'export const MARGINE = 14;'),
+    ('HZ105', 'shared/volta/mods/arturo/barra.js', '      .on_click(() => apriFinestra())\n      .accessibility_label("Cerca o chiedi")', '      .accessibility_label("Cerca o chiedi")'),
+    ('HZ105', 'shared/volta/mods/arturo/barra.js', '          .child(campo)\n', '          .child(campo)\n          .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))\n'),
+    ('HZ105', 'shared/volta/mods/arturo/barra.js', '.id("barra-cima").flex_none().px(MARGINE)', '.id("barra-cima").flex_none().px(14)'),
+    ('HZ105', 'shared/volta/mods/arturo/barra.js', '      .child(div().flex_1())\n', '      .child(voce("vuota"))\n'),
+    ('HZ105', 'shared/volta/mods/arturo/barra.js', '{ misura: "piccolo", segnale: segnaleImpostazioni(Boolean(updates().app.ready)) }', '{ misura: "piccolo" }'),
+    ('HZ105', 'shared/volta/mods/arturo/comuni.js', '    .tooltip(testo)\n    .accessibility_label(testo)\n', '    .tooltip(testo)\n'),
+    ('HZ105', 'shared/volta/mods/arturo/comuni.js', 'if (rigaMod(shared("arturo.mod"))?.avviso) return "blocked";', 'if (false) return "blocked";'),
+    ('HZ105', 'shared/volta/mods/arturo/comuni.js', 'h(PULSANTE[grande ? "grande" : "piccolo"])', 'h(36)'),
+    ('HZ105', 'shared/volta/mods/arturo/volta.js', '.id(`vr-${s.host}-${s.id}`).relative().mx(MARGINE)', '.id(`vr-${s.host}-${s.id}`).relative().mx(8)'),
+    ('HZ105', 'shared/volta/mods/arturo/volta.js', '.id(`vgh-${g.chiave || "senza"}`).mx(MARGINE)', '.id(`vgh-${g.chiave || "senza"}`).mx(8)'),
+    ('HZ105', 'shared/volta/mods/arturo/volta.js', 'return h_flex().mx(MARGINE).mb(SPAZIO.s).h(PULSANTE.piccolo)', 'return h_flex().mx(14).mb(SPAZIO.s).h(PULSANTE.piccolo)'),
+    ('HZ105', 'shared/volta/mods/arturo/volta.js', '.font_family(fontTerminale())', '.font_family("Atkinson Hyperlegible Mono")'),
+    ('HZ105', 'shared/volta/mods/arturo/volta.js', 'o dalle tessere (${tasti().tessere}).`', 'o da Apri un progetto.`'),
     ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return salvo'),
     ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return veri[0] if veri else None'),
     ('HZ78', 'shared/volta/mods/arturo/volta_microfono.py', 'if x.get("uid") and VIRTUALE.lower() not in (x.get("nome") or "").lower()]', 'if x.get("uid")]'),
@@ -8159,7 +8245,8 @@ VELENI = [
     ("HZ57", "shared/volta/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", "adesso / 1000 - m.giu_da > 86400", "adesso / 1000 - m.giu_da > 0"),
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", "d.toDateString() === oggi.toDateString() ? \"\" :", "true ? \"\" :"),
-    ("HZ57", "shared/volta/mods/arturo/barra.js", '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>', '.when(false, (el) =>'),
+    ("HZ57", "shared/volta/mods/arturo/comuni.js", '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>', '.when(false, (el) =>'),
+    ("HZ57", "shared/volta/mods/arturo/barra.js", '`Impostazioni · ${rigaMod(shared("arturo.mod"))?.testo ?? tasti().impostazioni}`', '"Impostazioni"'),
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", 'if (plugin?.esito === "compromesso")', 'if (false)'),
     ("HZ35", "shared/volta/volta-claude.sh", 'if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ]', 'if [ -f "$sonda" ]'),
     ("HZ35", "shared/volta/volta-claude.sh", '  esito=$(python3 "$sonda" servizio qui 2>&1) ||', '  esito=$(true) ||'),
@@ -8371,8 +8458,8 @@ VELENI = [
     ("HZ49", "shared/volta/mods/arturo/volta.js", 'const rm = az.find((a) => a.verbo === "rm");', 'const rm = az.find((a) => a.verbo === "stop");'),
     ("HZ49", "shared/volta/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
     ("HZ49", "shared/volta/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
-    ("HZ50", "shared/volta/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
-    ("HZ50", "shared/volta/layouts/arturo.json", '"px": 192', '"px": 156'),
+    ("HZ50", "shared/volta/mods/arturo/barra.js", ' nuova · ${tasti().elenco} elenco`, () => apriElenco()', ' nuova · ${tasti().elenco} elenco`, () => apriGuida()'),
+    ("HZ50", "shared/volta/layouts/arturo.json", '"px": 44', '"px": 156'),
     ("HZ51", "shared/volta/mods/arturo/sessioni.js", "].sort((a, b) => tempo(b) - tempo(a) || titolo(a)", "].sort((a, b) => tempo(a) - tempo(b) || titolo(a)"),
     ("HZ51", "shared/volta/mods/arturo/sessioni.js", "    out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));\n", ""),
     ("HZ51", "shared/volta/mods/arturo/sessioni.js", ".filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));", ".filter((g) => g.sessioni.length));"),
