@@ -847,36 +847,90 @@ export async function spostaSessione(s, macchina, dormi = null) {
   const schede = schedeDi(s).map((t) => t.address);
   const chiuse = chiudiSchede(s);
   await traccia("inizio", { da: s.host ?? "qui", a: macchina, id: s.id, attach: s.attach ?? null, schede, chiuse });
-  const male = async (x) => {
-    let riaperta = null;
-    if (chiuse && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach).catch((e) => ({ errore: String(e?.message ?? e) }));
-    await traccia("male", { esito: x, riaperta: riaperta && { come: riaperta.come, errore: riaperta.errore } });
-    return x;
-  };
   let r;
   try {
     r = esito(await exec(c.arturo[0], [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId,
       "--cartella", s.cartella || "", ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
       "--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: 60000 }));
   } catch (e) {
-    return male({ errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` });
+    return fineSposta(s, macchina, { errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` }, chiuse);
   }
   await traccia("avvio", { risposta: r });
-  if (r.avviato) {
-    const dal = Date.now();
-    for (let giri = 1; ; giri++) {
-      await (dormi ? dormi(SPOSTA_OGNI_MS) : pausa(SPOSTA_OGNI_MS));
-      const p = esitoSposta(await readTextFile(file).catch(() => null), dal, Date.now(), nomeMacchina(macchina));
-      // l'attesa una volta al minuto: 25 minuti di giri ogni 5 secondi riempirebbero la traccia
-      if (p.attendi) { if (giri === 1 || giri % 12 === 0) await traccia("attesa", { giri }); continue; }
-      await traccia("esito", { giri, esito: p.fatto ?? p });
-      if (p.errore) return male({ errore: p.errore });
-      r = p.fatto;
-      break;
-    }
+  if (!r.avviato) return fineSposta(s, macchina, r, chiuse);
+  const v = { s, macchina, file, dal: Date.now(), chiuse };
+  await cambiaVolo((d) => { d[nomeSposta(s)] = { ...v, preso: Date.now() }; });
+  return attendiSposta(v, dormi);
+}
+
+// Uno spostamento rimasto in volo da una ricarica del mod (#5559, voloSposta di sessioni.js): riprende
+// l'attesa dell'esito dove l'aveva lasciata la copia di prima, poi apre la scheda d'arrivo o riapre quella
+// chiusa. `v`: la voce di volo.json. Torna come spostaSessione.
+export async function riprendiSposta(v, dormi = null) {
+  await tracciaSposta(v.s, "ripresa", { a: v.macchina, dal: v.dal, chiuse: v.chiuse ?? 0 });
+  return attendiSposta(v, dormi);
+}
+
+// Gli spostamenti in volo di questa macchina: le voci di volo.json, rotte comprese (le scarta chi chiama).
+export async function spostamentiInVolo() {
+  try {
+    const d = JSON.parse((await readTextFile(fileVolo())) ?? "{}");
+    return d && typeof d === "object" && !Array.isArray(d) ? Object.entries(d).map(([k, v]) => ({ k, v })) : [];
+  } catch { return []; }
+}
+
+// Toglie da volo.json la voce `k`: uno spostamento finito, o rotto.
+export const togliVolo = (k) => cambiaVolo((d) => { delete d[k]; });
+
+const fileVolo = () => `${cacheVolta()}/sposta/volo.json`;
+
+// Cambia volo.json con `f(d)`, solo se il file è ancora quello letto: un'altra copia del mod può scrivere
+// in mezzo. Tre tentativi; false se non ci è riuscita (lo spostamento va avanti lo stesso).
+async function cambiaVolo(f) {
+  for (let i = 0; i < 3; i++) {
+    try {
+      const prima = await readTextFile(fileVolo()).catch(() => null);
+      let d = {};
+      try { d = JSON.parse(prima ?? "{}"); } catch { d = {}; }
+      if (!d || typeof d !== "object" || Array.isArray(d)) d = {};
+      f(d);
+      await writeTextFile(fileVolo(), JSON.stringify(d, null, 1), prima);
+      return true;
+    } catch { /* scritto in mezzo, o la cartella manca: si riprova */ }
   }
+  return false;
+}
+
+// L'attesa dell'esito di uno spostamento staccato e la sua fine, per spostaSessione e per riprendiSposta.
+// A ogni giro segna `preso` in volo.json (questa copia del mod è viva); la voce si toglie dopo la fine, così
+// una ricarica durante l'apertura della scheda la rifà: apriSessione porta davanti una scheda già aperta.
+async function attendiSposta(v, dormi) {
+  const { s, macchina, file, dal } = v;
+  const k = nomeSposta(s);
+  for (let giri = 1; ; giri++) {
+    await (dormi ? dormi(SPOSTA_OGNI_MS) : pausa(SPOSTA_OGNI_MS));
+    const p = esitoSposta(await readTextFile(file).catch(() => null), dal, Date.now(), nomeMacchina(macchina));
+    await cambiaVolo((d) => { if (d[k]) d[k].preso = Date.now(); });
+    // l'attesa una volta al minuto: 25 minuti di giri ogni 5 secondi riempirebbero la traccia
+    if (p.attendi) { if (giri === 1 || giri % 12 === 0) await tracciaSposta(s, "attesa", { giri }); continue; }
+    await tracciaSposta(s, "esito", { giri, esito: p.fatto ?? p });
+    const x = await fineSposta(s, macchina, p.errore ? { errore: p.errore } : p.fatto, v.chiuse);
+    await togliVolo(k);
+    return x;
+  }
+}
+
+// La fine di uno spostamento con la risposta `r` di volta_sposta.py: con l'aggancio apre la scheda
+// d'arrivo; senza, riapre la scheda chiusa all'inizio (`chiuse`) sulla sessione rimasta qui.
+async function fineSposta(s, macchina, r, chiuse) {
   // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
-  if (!r.attach?.length) return male({ errore: r.errore ?? "nessuna risposta", lavora: r.lavora === true });
+  if (!r?.attach?.length) {
+    const x = { errore: r?.errore ?? "nessuna risposta", lavora: r?.lavora === true };
+    let riaperta = null;
+    if (chiuse && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach).catch((e) => ({ errore: String(e?.message ?? e) }));
+    await tracciaSposta(s, "male", { esito: x, riaperta: riaperta && { come: riaperta.come, errore: riaperta.errore } });
+    return x;
+  }
+  const traccia = (passo, dati) => tracciaSposta(s, passo, dati);
   const dopo = chiudiSchede(s);
   const nuova = { id: r.id, sessionId: r.sessionId, nome: titolo(s), progetto: s.progetto ?? null, questa: macchina === "qui", host: macchina };
   await traccia("apro", { nuova, attach: r.attach, chiuseDopo: dopo, schedeNuova: schedeDi(nuova).map((t) => t.address) });

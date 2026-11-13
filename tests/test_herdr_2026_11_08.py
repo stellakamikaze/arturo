@@ -499,6 +499,10 @@ HZ115 gli script Python del mod non scrivono .pyc nella sua cartella (#5556, 13/
      mod a ogni file nuovo che vi compare, anche in __pycache__, e la ricarica ferma per sempre l'attesa
      di Sposta (cx.sleep). volta_sonda.py sposta e volta_note.py, lanciati da una copia del mod, non
      lasciano __pycache__.
+HZ116 uno spostamento lasciato a metà da una ricarica del mod riprende (#5559, 13/11/2026): spostaSessione
+     segna lo spostamento staccato in cache/volta/sposta/volo.json; riprendiSposta legge l'esito finito,
+     apre la scheda d'arrivo e toglie la voce, o con un errore riapre la scheda chiusa; voloSposta scarta
+     le voci rotte o di ore fa e lascia quelle che un'altra copia viva segue; Volta le riprende al caricamento.
 """
 from __future__ import annotations
 
@@ -514,7 +518,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -6896,7 +6900,7 @@ def hz89(repo: Path, casa: Path) -> str | None:
     # le schede che agganciano la sessione si chiudono prima dello spostamento: un attach aperto la riaccende dopo stop
     dj = (mod / "dati.js").read_text(encoding="utf-8")
     i, j = dj.find("  const chiuse = chiudiSchede(s);"), dj.find("r = esito(await exec(c.arturo[0], [c.volta, \"sposta\"")
-    if i < 0 or j < 0 or i > j or "return male({ errore: p.errore });" not in dj:
+    if i < 0 or j < 0 or i > j or "const x = await fineSposta(s, macchina, p.errore ? { errore: p.errore } : p.fatto, v.chiuse);" not in dj:
         return "Sposta non chiude le schede della sessione prima di fermarla, o non le riapre se non va (#5537)"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     dati = (mod / "dati.js").read_text(encoding="utf-8")
@@ -8502,7 +8506,100 @@ def hz115(repo: Path, casa: Path) -> str | None:
             return f"{' '.join(argv)} lascia {sorted(x.name for x in cache.iterdir())} nella cartella del mod: Herdr lo ricarica"
     return None
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115}
+PROVA_VOLO_SPOSTA = r"""
+import { spostaSessione, riprendiSposta, spostamentiInVolo } from "./dati.mjs";
+import { voloSposta, VOLO_FRESCO_MS, VOLO_MAX_MS } from "./sessioni.mjs";
+import { lanciati } from "./herdr.mjs";
+import { readFileSync, writeFileSync } from "node:fs";
+const caso = process.env.HZ_CASO, dir = process.env.HZ_SPOSTA, ora = Date.now();
+const s = { id: "a1", sessionId: "s1", host: "qui", questa: true, tipo: "background", nome: "Prova", attach: ["claude", "attach", "a1"] };
+const file = `${dir}/s1.json`;
+const leggi = (f) => { try { return JSON.parse(readFileSync(f, "utf-8")); } catch { return null; } };
+let out = {};
+if (caso === "puro") {
+  const v = { s, macchina: "studio", file, dal: ora - 1000, chiuse: 1 };
+  out = { mia: voloSposta({ ...v, preso: ora - VOLO_FRESCO_MS - 1 }, ora), senza: voloSposta(v, ora),
+          altrui: voloSposta({ ...v, preso: ora - 1000 }, ora), vecchia: voloSposta({ ...v, dal: ora - VOLO_MAX_MS - 1 }, ora),
+          rotta: voloSposta({ ...v, s: null }, ora), nulla: voloSposta(null, ora) };
+} else if (caso === "volo") {
+  // la ricarica: l'attesa di cx.sleep non torna più (qui getta), lo spostamento resta in volo.json
+  try { await spostaSessione(s, "studio", async () => { throw new Error("ricarica"); }); } catch { /* atteso */ }
+  out = { volo: await spostamentiInVolo() };
+} else {
+  const v = { s, macchina: "studio", file, dal: ora - 60000, chiuse: 1, preso: ora - 60000 };
+  writeFileSync(`${dir}/volo.json`, JSON.stringify({ s1: v }), "utf-8");
+  writeFileSync(file, JSON.stringify(caso === "fatto"
+    ? { id: "n1", sessionId: "s1", attach: ["ssh", "-t", "studio", "claude", "attach", "n1"], macchina: "studio", finito: true }
+    : { errore: "lost the line", finito: true }), "utf-8");
+  const r = await riprendiSposta(v, async () => {});
+  out = { r, volo: leggi(`${dir}/volo.json`), traccia: leggi(`${dir}/s1.traccia.json`), lanciati };
+}
+console.log(JSON.stringify(out));
+process.exit(0);
+"""
+
+
+def hz116(repo: Path, casa: Path) -> str | None:
+    """Uno spostamento che una ricarica del mod lascia a metà si riprende al caricamento (#5559)."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, perche in (("      this.riprendiVolo(cx);\n", "Volta non riprende gli spostamenti in volo al caricamento"),
+                          ("try { r = await riprendiSposta(v, (ms) => cx.sleep(ms)); }", "la ripresa non aspetta con cx.sleep"),
+                          ('if (che === "altrui" || this.faccio[v.s.sessionId]) { altrui = true; continue; }', "la ripresa prende anche uno spostamento che un'altra copia segue")):
+        if pezzo not in vj:
+            return f"volta.js: {perche}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_VOLO_SPOSTA, encoding="utf-8")
+    app = casa / "app"
+    sposta = app / "cache" / "volta" / "sposta"
+    sposta.mkdir(parents=True)
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+
+    def volta(caso, **extra):
+        for f in sposta.iterdir():
+            f.unlink()
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_SPOSTA": str(sposta),
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}), "HZ_HERDR": "{}", "HZ_NASCE": "t9", **extra}
+        for k in ("HZ_EXEC", "HZ_EXEC_CODICE", "HZ_HC_GET", "HZ_HC_READ", "HZ_CHIUDE"):
+            if k not in extra:
+                e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=60, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:300])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    g = volta("puro")
+    if [g["mia"], g["senza"], g["altrui"], g["vecchia"], g["rotta"], g["nulla"]] != ["mia", "mia", "altrui", "scarta", "scarta", "scarta"]:
+        return f"voloSposta sbaglia: {g}"
+    g = volta("volo", HZ_EXEC=json.dumps({"avviato": True}))
+    voci = {x["k"]: x["v"] for x in g["volo"]}
+    v = voci.get("s1") or {}
+    if v.get("macchina") != "studio" or (v.get("s") or {}).get("id") != "a1" or not str(v.get("file", "")).endswith("s1.json") \
+            or not isinstance(v.get("dal"), (int, float)) or not isinstance(v.get("preso"), (int, float)):
+        return f"uno spostamento staccato non resta segnato in volo.json: {g['volo']}"
+    g = volta("fatto")
+    nuove = [x for x in g["lanciati"] if x["cmd"] in ("tab.new", "space.new")]
+    if g["r"] != {"ok": True} or not any("n1" in (x.get("argv") or []) for x in nuove):
+        return f"la ripresa di uno spostamento finito non apre la scheda d'arrivo: {g['r']}, {nuove}"
+    if "s1" in (g["volo"] or {}):
+        return f"lo spostamento ripreso e finito resta in volo.json: {g['volo']}"
+    if "ripresa" not in [x.get("passo") for x in g["traccia"] or []]:
+        return "la traccia non dice che lo spostamento è stato ripreso"
+    g = volta("male")
+    male = [x for x in g["traccia"] or [] if x.get("passo") == "male"]
+    if "lost the line" not in (g["r"].get("errore") or "") or not male or not male[-1].get("riaperta"):
+        return f"la ripresa di uno spostamento andato male non riapre la scheda chiusa: {g['r']}, {male}"
+    if "s1" in (g["volo"] or {}):
+        return f"lo spostamento ripreso e andato male resta in volo.json: {g['volo']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -8521,6 +8618,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ116', 'shared/volta/mods/arturo/dati.js', '  await cambiaVolo((d) => { d[nomeSposta(s)] = { ...v, preso: Date.now() }; });\n', ''),
+    ('HZ116', 'shared/volta/mods/arturo/dati.js', '    await togliVolo(k);\n    return x;', '    return x;'),
+    ('HZ116', 'shared/volta/mods/arturo/dati.js', '    if (chiuse && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach)', '    if (false) riaperta = await apriSessione(s, s.attach)'),
+    ('HZ116', 'shared/volta/mods/arturo/sessioni.js', '  if (ora - v.dal > VOLO_MAX_MS) return "scarta";\n', ''),
+    ('HZ116', 'shared/volta/mods/arturo/sessioni.js', '? "altrui" : "mia";', '? "mia" : "mia";'),
+    ('HZ116', 'shared/volta/mods/arturo/volta.js', '      this.riprendiVolo(cx);\n', ''),
     ('HZ113', 'shared/volta/mods/arturo/sessioni.js', '  return { chiave: n?.chiave ?? k, titolo: n?.titolo ?? null };', '  return { chiave: k, titolo: n?.titolo ?? null };'),
     ('HZ113', 'shared/volta/mods/arturo/sessioni.js', 'export const chiaveProgetto = (p) => progettoDi(p).chiave;', 'export const chiaveProgetto = (p) => String(p ?? "");'),
     ('HZ113', 'shared/volta/mods/arturo/dati.js', 'export const canonico = (nome) => progettoDi(nome, shared("arturo.progetti")).chiave;', 'export const canonico = (nome) => slug(nome);'),
@@ -8647,7 +8750,7 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    d.pop("spostata", None)\n', '    pass\n'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})', '    pass'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', '  const chiuse = chiudiSchede(s);', '  const chiuse = 0;'),
-    ('HZ89', 'shared/volta/mods/arturo/dati.js', 'return male({ errore: p.errore });', 'return { errore: p.errore };'),
+    ('HZ89', 'shared/volta/mods/arturo/dati.js', 'const x = await fineSposta(s, macchina, p.errore ? { errore: p.errore } : p.fatto, v.chiuse);', 'const x = p.errore ? { errore: p.errore } : await fineSposta(s, macchina, p.fatto, v.chiuse);'),
     ('HZ89', 'shared/volta/mods/arturo/volta.js', '    const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);', '    const s = tra(this.dati?.sessioni);'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', ' &&\n    !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));', ');'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),

@@ -24,7 +24,8 @@ import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } f
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina } from "./dati.js";
+import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo } from "./dati.js";
+import { voloSposta, VOLO_FRESCO_MS } from "./sessioni.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
@@ -162,6 +163,8 @@ export class Volta {
       await this.leggi(cx);
       cx.notify();
       this.aggiorna(cx);
+      // uno spostamento lasciato a metà dalla ricarica che ha appena caricato questo mod (#5559)
+      this.riprendiVolo(cx);
       // Un'altra Volta che riscrive il file: lo si rilegge subito. Solo per sessioni.json (o la cartella
       // intera, che per l'API vuol dire "rileggi tutto"): la cartella tiene anche il clone del mod e i file
       // del microfono, riscritti ogni 2 s, e ogni lotto rileggeva e ridisegnava l'elenco (13/11/2026).
@@ -698,22 +701,64 @@ export class Volta {
           await tracciaSposta(s, "caduto", { errore: r.errore });
         }
         await tracciaSposta(s, "fine", { esito: r });
-        delete this.faccio[k];
-        this.spostando = false;
-        if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };
-        else {
-          delete this.codaSposta[k];
-          if (r.errore) {
-            notify({ title: `Non la sposto su ${nomeMacchina(v.macchina)}`, body: r.errore, level: "error" });
-            this.avvisa(s, `Non la sposto: ${r.errore}`, cx);
-          } else notify({ title: `Spostata su ${nomeMacchina(v.macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
-        }
-        this.aggiorna(cx);
-        cx.notify();
-        this.giraCoda(cx);
+        this.finitoSposta(s, v, r, cx);
       });
       return;
     }
+  }
+
+  // Dopo uno spostamento (dalla coda o ripreso): libera la coda, dice com'è andata e passa al prossimo.
+  // `v` = { macchina, id, da }. Una sessione che ha cominciato un turno (`lavora`) torna in coda.
+  finitoSposta(s, v, r, cx) {
+    const k = s.sessionId;
+    delete this.faccio[k];
+    this.spostando = false;
+    if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };
+    else {
+      delete this.codaSposta[k];
+      if (r.errore) {
+        notify({ title: `Non la sposto su ${nomeMacchina(v.macchina)}`, body: r.errore, level: "error" });
+        this.avvisa(s, `Non la sposto: ${r.errore}`, cx);
+      } else notify({ title: `Spostata su ${nomeMacchina(v.macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
+    }
+    this.aggiorna(cx);
+    cx.notify();
+    this.giraCoda(cx);
+  }
+
+  // Gli spostamenti rimasti in volo da una ricarica del mod (#5559, voloSposta di sessioni.js): al
+  // caricamento Volta li riprende uno alla volta, come la coda. Uno che un'altra copia viva segue
+  // ("altrui") si riguarda dopo VOLO_FRESCO_MS, finché non finisce o resta senza nessuno; per al più un'ora.
+  riprendiVolo(cx) {
+    if (this.riprendo) return;
+    this.riprendo = true;
+    cx.spawn(async (cx) => {
+      try {
+        for (let giri = 0; giri < 180; giri++) {
+          let altrui = false;
+          for (const { k, v } of await spostamentiInVolo()) {
+            const che = voloSposta(v, Date.now());
+            if (che === "scarta") { await togliVolo(k); continue; }
+            if (che === "altrui" || this.faccio[v.s.sessionId]) { altrui = true; continue; }
+            while (this.spostando) await cx.sleep(1000);
+            const s = v.s, k2 = s.sessionId;
+            this.spostando = true;
+            this.faccio[k2] = "sposta";
+            this.spostoSu = { ...(this.spostoSu ?? {}), [k2]: v.macchina };
+            cx.notify();
+            let r;
+            try { r = await riprendiSposta(v, (ms) => cx.sleep(ms)); } catch (e) {
+              r = { errore: String(e?.message ?? e).slice(0, 160) };
+              await tracciaSposta(s, "caduto", { errore: r.errore });
+            }
+            await tracciaSposta(s, "fine", { esito: r, ripreso: true });
+            this.finitoSposta(s, { macchina: v.macchina, id: s.id, da: s.host ?? "qui" }, r, cx);
+          }
+          if (!altrui) break;
+          await cx.sleep(VOLO_FRESCO_MS);
+        }
+      } finally { this.riprendo = false; }
+    });
   }
 
   premiId(id, cx) {

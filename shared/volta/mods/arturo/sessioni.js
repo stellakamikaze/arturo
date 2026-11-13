@@ -411,6 +411,21 @@ export function esitoSposta(testo, dal, ora, macchina = "l'altra macchina") {
   return { attendi: true };
 }
 
+// Gli spostamenti in volo (#5559, 13/11/2026): una ricarica del mod (dirama, controllo orario) cancella
+// l'attesa di cx.sleep, e nessuno apriva la scheda d'arrivo né riapriva quella chiusa. Ogni spostamento
+// staccato resta segnato in cacheVolta()/sposta/volo.json finché la sua fine non è fatta, e al caricamento
+// Volta riprende quelli rimasti. `v` = { s, macchina, file, dal, chiuse, preso }: `preso` è l'ultima volta
+// che una copia del mod ci ha lavorato (ogni giro dell'attesa). Torna "mia" se tocca a chi legge, "altrui"
+// se un'altra copia viva lo segue, "scarta" se è rotto o più vecchio di VOLO_MAX_MS: dopo ore la sessione
+// sta dove l'elenco la mostra, e una scheda che si apre da sola sorprenderebbe.
+export const VOLO_FRESCO_MS = 20000, VOLO_MAX_MS = 2 * 3600000;
+export function voloSposta(v, ora) {
+  if (!v || typeof v !== "object" || !v.s || typeof v.s !== "object" || !v.s.sessionId || !v.s.id) return "scarta";
+  if (typeof v.macchina !== "string" || !v.macchina || typeof v.file !== "string" || !v.file || !Number.isFinite(v.dal)) return "scarta";
+  if (ora - v.dal > VOLO_MAX_MS) return "scarta";
+  return Number.isFinite(v.preso) && ora - v.preso < VOLO_FRESCO_MS ? "altrui" : "mia";
+}
+
 // Il passo di arturo() di dati.js per un comando, dalla sua voce in volo: `v` = { da, p } se gira, { da,
 // appeso } se l'ultimo è rimasto appeso (exec rifiuta ma il processo resta). "lancia" se non c'è niente;
 // "aspetta" la stessa promessa se gira da meno del tetto; "appeso" se gira oltre il tetto o se l'ultimo è
