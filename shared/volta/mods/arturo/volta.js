@@ -583,9 +583,11 @@ export class Volta {
   }
 
   // Dal comando `do` può arrivare l'id di una sessione appena nata, che il giro in corso non ha
-  // ancora scritto nell'elenco: si dice, invece di non fare niente (#5078).
+  // ancora scritto nell'elenco: si dice, invece di non fare niente (#5078). Prima le righe visibili: dopo
+  // Sposta la copia chiusa di partenza ha lo stesso id, e il clic (o ⌘K) la riaprirebbe lì (#5537).
   trovaId(id) {
-    const s = (this.dati?.sessioni ?? []).find((x) => x.id === id || String(x.sessionId).startsWith(id));
+    const tra = (l) => (l ?? []).find((x) => x.id === id || String(x.sessionId).startsWith(id));
+    const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);
     if (!s) notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
     return s;
   }

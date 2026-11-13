@@ -6836,6 +6836,9 @@ def hz89(repo: Path, casa: Path) -> str | None:
     # la scheda appena chiusa da Volta non passa per quella della sessione arrivata con lo stesso id
     if "!(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS)" not in (mod / "dati.js").read_text(encoding="utf-8"):
         return "schedeDi conta anche le schede che Volta ha appena chiuso (#5537)"
+    # il clic per id (herdr-app do, ⌘K) prende prima la riga visibile: la copia chiusa di partenza ha lo stesso id
+    if "const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);" not in (mod / "volta.js").read_text(encoding="utf-8"):
+        return "trovaId prende la copia chiusa di partenza prima della sessione visibile (#5537)"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     if "cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));" not in volta or "sparite(this.schede, adesso" not in volta:
@@ -8568,6 +8571,7 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),', '"chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True),'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    d.pop("spostata", None)\n', '    pass\n'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})', '    pass'),
+    ('HZ89', 'shared/volta/mods/arturo/volta.js', '    const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);', '    const s = tra(this.dati?.sessioni);'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', ' &&\n    !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));', ');'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    ferma = azione(nome, "stop", sid_lavoro)  # già ferma', '    ferma = {}  # già ferma'),
