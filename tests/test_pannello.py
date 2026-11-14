@@ -150,12 +150,14 @@ def test_u02(repo: Path) -> None:
     testo = r.stdout + r.stderr
     assert r.returncode == 0 and "Validation passed" in testo, f"U02 validate rc={r.returncode}: {testo[-800:]}"
     hooks = [x for x in testo.splitlines() if "register.tsx hooks:" in x]
+    # Da Claude Code 2.1.325 un elenco lungo di chiamate esce su più righe "calls:" (14/11/2026): si uniscono.
     calls = [x for x in testo.splitlines() if "register.tsx calls:" in x]
-    assert len(hooks) == 1 and len(calls) == 1, f"U02 validate non elenca hooks e calls: {testo[-800:]}"
+    assert len(hooks) == 1 and calls, f"U02 validate non elenca hooks e calls: {testo[-800:]}"
     for evento in ("session.start", "turn.complete", "command.run{command=dafare}",
                    "ui.render{component=Pane, requestId=dafare}", "ui.render{component=AbovePrompt}"):
         assert evento in hooks[0], f"U02 il mod non aggancia {evento}: {hooks[0]}"
-    assert "$.process.run" in calls[0], f"U02 il mod non lancia la CLI: {calls[0]}"
+    chiamate = " ".join(calls)
+    assert "$.process.run" in chiamate, f"U02 il mod non lancia la CLI: {chiamate}"
     # Nel mod unico validate elenca le chiamate di tutte le parti: il pannello si legge nel suo sorgente.
     pannello = "".join(read(f) for f in sorted((mod(repo) / "hooks" / "dafare").iterdir()) if f.is_file())
     assert "$.process.run" in pannello, "U02 il pannello non lancia la CLI"
