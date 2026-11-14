@@ -632,17 +632,21 @@ export function segnaTolto(indirizzo) {
 }
 
 // Le schede di questa macchina che agganciano una sessione in background dell'elenco, con la sessione:
-// { indirizzo: { sessionId, id, host, macchina, cartella, titolo } }. Conta il terminale vivo nel core,
-// non il pannello: cambiare spazio non chiude niente. Per etichetta, poi per argv (come schedeDi), con la
-// macchina: lo stesso id su due macchine è di due sessioni (#5634).
+// { indirizzo: { sessionId, id, host, macchina, cartella, titolo } }. Conta solo il terminale vivo che un
+// pannello mostra, come schedeDi: panes() di Herdr elenca i pannelli di ogni spazio e di ogni scheda, quindi
+// cambiare spazio non chiude niente. Un terminale del core senza pannello (un claude attach aperto con
+// hc run, o col lanciatore volta-claude) non è una scheda: chiuderlo non manda la sessione in congedo
+// (#5630). Per etichetta, poi per argv (come schedeDi), con la macchina: lo stesso id su due macchine è di
+// due sessioni (#5634).
 export function schedeAgganciate(sessioni) {
   const out = {};
   // anche le righe vecchie (macchina che non risponde): la scheda resta aperta, e senza la sua riga
   // la guardia del congedo la prenderebbe per chiusa
   const fondo = (sessioni ?? []).filter((s) => s.tipo === "background" && s.id);
   const dentro = occupanti(sessioni);
+  const visti = new Set(panes().map((p) => p.terminal));
   for (const x of terminals()) {
-    if (String(x.address).includes("/") || (x.state ?? "live") !== "live" || dentro[x.address]) continue;
+    if (!visti.has(x.address) || String(x.address).includes("/") || (x.state ?? "live") !== "live" || dentro[x.address]) continue;
     const dice = (y) => etichettaDice(x.labels?.[ETICHETTA], y, doppio(sessioni, y.id));
     const s = fondo.find((y) => dice(y) === true) ?? fondo.find((y) => dice(y) === null && agganciata(x.argv, y));
     if (s) out[x.address] = { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina, questa: Boolean(s.questa), cartella: s.cartella ?? null, titolo: titolo(s) };

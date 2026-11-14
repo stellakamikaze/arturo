@@ -532,6 +532,11 @@ HZ120 i comandi di Volta portano la chiave macchina:id (#5643, 14/11/2026): il m
      volta-sposta-<chiave>-<macchina> anche con trattini nei nomi delle macchine (e la forma vecchia
      volta-sposta-<macchina>-<id>). trovaId trova la copia per chiave; un id nudo che sta su due macchine
      non sceglie la prima copia, ma avvisa; vistaId e Sposta tutto passano la chiave.
+HZ121 solo le schede vere contano per il congedo (S2 del piano F3·S, #5630, 14/11/2026): dati.js e sessioni.js
+     con node. schedeAgganciate conta solo i terminali che un pannello mostra: un claude attach aperto con
+     hc run, senza pannello, non entra, e quando sparisce la sessione non va in congedo. Una scheda vera
+     chiusa va in congedo come prima. Una scheda dove ora gira un'interattiva (claude lanciato a mano nella
+     shell) non vale come chiusa: sparite() salta le occupate, e volta.js gliele passa.
 """
 from __future__ import annotations
 
@@ -547,7 +552,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -9023,7 +9028,74 @@ def hz120(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120}
+PROVA_SCHEDE_VERE = r"""
+import { schedeAgganciate } from "./dati.mjs";
+import { sparite, occupanti, chiave } from "./sessioni.mjs";
+import { terminals, panes } from "./herdr.mjs";
+const T = Date.parse("2026-11-14T18:00:00Z");
+const bg = (id, x) => ({ id, sessionId: `${id}-x`, host: "qui", questa: true, tipo: "background", stato: "ferma", attach: ["/u/claude", "attach", id], ...x });
+const prova = bg("a1"), vera = bg("c3"), sotto = bg("d4");
+const mano = { id: "b2", sessionId: "b2-y", tipo: "interattiva", questa: true, terminale: null };
+const l = [prova, vera, sotto, mano];
+const togli = (a) => {
+  for (const arr of [terminals(), panes()]) { const i = arr.findIndex((x) => (x.address ?? x.terminal) === a); if (i >= 0) arr.splice(i, 1); }
+};
+const giro = (prima) => { const adesso = schedeAgganciate(l); return { adesso, via: sparite(prima, adesso, {}, T, occupanti(l)).map(chiave) }; };
+const out = {};
+const g1 = giro(null);
+out.primo = Object.keys(g1.adesso).sort();
+// l'aggancio di prova aperto con hc run (t2, nessun pannello) si chiude: nessun congedo
+togli("t2");
+const g2 = giro(g1.adesso);
+out.senzaPannello = g2.via;
+// claude lanciato a mano nella shell di t4: la scheda resta, mostra un'altra sessione
+mano.terminale = "t4";
+const g3 = giro(g2.adesso);
+out.occupata = g3.via;
+out.dopoOccupata = Object.keys(g3.adesso).sort();
+// la scheda vera t1 si chiude (⌘W): congedo come prima
+togli("t1");
+out.vera = giro(g3.adesso).via;
+console.log(JSON.stringify(out));
+"""
+
+
+def hz121(repo: Path, casa: Path) -> str | None:
+    """Solo le schede vere contano per il congedo (S2 del piano F3·S, #5630)."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    if 'sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro);' not in vj:
+        return "volta.js: la guardia delle schede non passa a sparite() le schede occupate da un'altra sessione"
+    node = shutil.which("node")
+    if not node:
+        return None
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_SCHEDE_VERE, encoding="utf-8")
+    herdr = {"panes": [{"terminal": a, "tab": f"tb{a}"} for a in ("t1", "t4")],
+             "terminals": [{"address": "t1", "argv": ["/u/claude", "attach", "c3"], "state": "live"},
+                           {"address": "t2", "argv": ["sh", "-c", "/u/claude attach a1"], "state": "live"},
+                           {"address": "t4", "argv": ["zsh"], "labels": {"arturo.sessione": "qui:d4"}, "state": "live"}]}
+    e = {**os.environ, "HZ_APP": str(casa), "HZ_CASA": str(casa), "HZ_SHARED": "{}", "HZ_HERDR": json.dumps(herdr)}
+    r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=e)
+    if r.returncode != 0:
+        return f"dati.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["primo"] != ["t1", "t4"]:
+        return f"schedeAgganciate conta un terminale che nessun pannello mostra: {d['primo']}"
+    if d["senzaPannello"]:
+        return f"chiudere un aggancio senza pannello (hc run) manda la sessione in congedo: {d['senzaPannello']}"
+    if d["occupata"]:
+        return f"una scheda dove ora gira un'interattiva vale come chiusa: {d['occupata']}"
+    if d["dopoOccupata"] != ["t1"]:
+        return f"una scheda occupata conta ancora come aggancio della sessione di prima: {d['dopoOccupata']}"
+    if d["vera"] != ["qui:c3"]:
+        return f"una scheda vera chiusa non manda la sua sessione in congedo: {d['vera']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -9068,6 +9140,9 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ121', 'shared/volta/mods/arturo/dati.js', '    if (!visti.has(x.address) || String(x.address).includes("/") || (x.state', '    if (String(x.address).includes("/") || (x.state'),
+    ('HZ121', 'shared/volta/mods/arturo/sessioni.js', 'if (ind in (adesso ?? {}) || occupate?.[ind] ||', 'if (ind in (adesso ?? {}) ||'),
+    ('HZ121', 'shared/volta/mods/arturo/volta.js', '    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro);', '    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {});'),
     ('HZ120', 'shared/volta/mods/arturo/comandi.js', '  if (sk) return { verbo: "volta-sposta", arg: { macchina: sk[2], id: sk[1] }, lungo: false };\n', ''),
     ('HZ120', 'shared/volta/mods/arturo/comandi.js', '  const sp = /^volta-sposta-([^:]+)-([0-9A-Za-z]+)$/.exec(c);', '  const sp = null;'),
     ('HZ120', 'shared/volta/mods/arturo/menusessione.js', '${v.verbo}-${chiaveSessione(s)}`;', '${v.verbo}-${s.id}`;'),
@@ -9227,7 +9302,7 @@ VELENI = [
     ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '  const nomi = (p) => [p, slugDi(nomeProgetto(p))];', '  const nomi = (p) => [p];'),
     ('HZ91', 'shared/volta/mods/arturo/dati.js', ' if (m.titolo) v.titolo = m.titolo; continue; }', ' continue; }'),
     ('HZ89', 'shared/volta/mods/arturo/sessioni.js', 'const l = (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(chiave(s)));', 'const l = (dati.sessioni ?? []).filter((s) => !via.has(chiave(s)));'),
-    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', "    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.id || viste.has(chiave(s))) continue;", "    if (ind in (adesso ?? {}) || !s?.id || viste.has(chiave(s))) continue;"),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', "    if (ind in (adesso ?? {}) || occupate?.[ind] || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.id || viste.has(chiave(s))) continue;", "    if (ind in (adesso ?? {}) || occupate?.[ind] || !s?.id || viste.has(chiave(s))) continue;"),
     ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };', '    if (s.stato === "lavora" && ora - da < 1) return { fai: "attendi" };'),
     ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso:', '    if (s.stato === "aspetta") return { fai: "attendi", fase: "ferma", avviso:'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', '    argv += ["--resume", a["riprendi"], "--fork-session"]'),

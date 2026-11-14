@@ -1,5 +1,5 @@
 {
- "albero": "547d513553d10b9c0b96ea761486f6ec74a9962f",
+ "albero": "b86618a84cfe54853e26f941240ee564f8ee600c",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -23,7 +23,7 @@
   "mods/arturo/comuni.js": "cf69127f3de4dfa3f16b055a01458f9f478fcbbc66d9ce3af7ecbedfebacfa36",
   "mods/arturo/contesto.js": "4b89d87f2a4e56ded2e807556e264db2596c87c62f9eadd25126fc0a6cc7b362",
   "mods/arturo/contestoui.js": "b34addd6ed1140ec4f3ed9a42992d2315256223f8fe246f4451cbdf9d4c9a9ce",
-  "mods/arturo/dati.js": "a1c4084a550aaefd695ef84a96ac408cd09e2263fe1e6ee6fe021de9585cc730",
+  "mods/arturo/dati.js": "b09e26d654793c5e5cd8dcff1768188305f827cd4c78d897d4f8c170f201312b",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -49,7 +49,7 @@
   "mods/arturo/noteui.js": "37be03a37e0ceb685789053454f0a5984cf62a1ea61b1e75d1825790ad3bdad5",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "bc324a17b3f5782d390e631478b24b0c2182f134720e20601f8ef9e0b41314ee",
+  "mods/arturo/sessioni.js": "c527a3f5e9bcef1b0b1cb96cadb8ca78fad7f70a26fe7ed6a1bbc68abf0026df",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/sposta.js": "02cb4f96636468baa9ef3864c7b3e049f008f3d8c30ab0abe90ff27879acd44d",
@@ -60,7 +60,7 @@
   "mods/arturo/tessere.js": "3c13e130d3d44238ebea8d895ecf4b36083b63d24710092ff734b11bff507dc0",
   "mods/arturo/testata.js": "1ffc6760b0da8248b452c6e91f39d23a665d24b5de7581919acc3bda60ca7449",
   "mods/arturo/todo.js": "f3a99f727feb65d4bc159855842780cb2454a3e0ac4b8bd505f5ab545d36e636",
-  "mods/arturo/volta.js": "66ac19893081763cc79213ae83d08e6c677a8ff3a2868a18f026d0cff30bd886",
+  "mods/arturo/volta.js": "162ea28fbf2e04e51178c1fa7be3d4d46093ce533ca6a1be95aa450deeed332a",
   "mods/arturo/volta_microfono.py": "5b8855d04ae8da533d2898a7f17fd9437947814999e5a591cb2421546b05e246",
   "mods/arturo/volta_note.py": "a446620df277a44c5e9f02b657e2e2ef2900f5c9932fbbc85a8f32ee6a23a29d",
   "mods/arturo/volta_registro.py": "121a42f48d5465d8fe88463995708abf4e62045e2ef035c50846cf833a77081b",

@@ -315,13 +315,16 @@ export function unaPerConversazione(l) {
 // Le schede chiuse da chi usa la finestra: i terminali che agganciavano una sessione al giro di prima e
 // ora non ci sono più, tolti quelli che ha chiuso Volta stessa (`tolti`: indirizzo → ms, per Sposta,
 // Cambia progetto, Stacca) negli ultimi TOLTI_MS. `prima` e `adesso`: { indirizzo: sessione }.
+// `occupate`: { indirizzo: sessione } di occupanti(). Una scheda dove ora gira un'altra sessione (claude
+// lanciato a mano nella shell rimasta dopo lo stacco) non è chiusa: la scheda c'è ancora, mostra solo
+// un'altra sessione, e quella di prima non va in congedo (#5630).
 export const TOLTI_MS = 60000;
-export function sparite(prima, adesso, tolti = {}, ora = Date.now()) {
+export function sparite(prima, adesso, tolti = {}, ora = Date.now(), occupate = {}) {
   if (prima == null) return [];  // il primo giro dopo l'apertura solo guarda
   const viste = new Set();
   const out = [];
   for (const [ind, s] of Object.entries(prima)) {
-    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.id || viste.has(chiave(s))) continue;
+    if (ind in (adesso ?? {}) || occupate?.[ind] || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.id || viste.has(chiave(s))) continue;
     // un'altra scheda aggancia ancora la stessa sessione: chiusa una copia, la sessione resta aperta
     if (Object.values(adesso ?? {}).some((x) => x?.id && chiave(x) === chiave(s))) continue;
     viste.add(chiave(s));

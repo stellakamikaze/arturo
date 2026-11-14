@@ -248,7 +248,10 @@ export class Volta {
   guardaSchede(cx) {
     if (!this.dati || !terminals().length) return;
     const adesso = schedeAgganciate(this.dati.sessioni);
-    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {});
+    // chi gira davvero nel terminale vince sull'aggancio con cui la scheda è nata (occupanti): una scheda
+    // occupata da un'altra sessione non è chiusa, e quella di prima non va in congedo (#5630)
+    const dentro = occupanti(this.dati.sessioni);
+    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro);
     if (ora.length > SPARITE_MAX) {
       this.troppe = (this.troppe ?? 0) + 1;
       if (this.troppe < 3) return;
@@ -266,8 +269,6 @@ export class Volta {
     // un'interattiva partita nella shell di una scheda; le altre schede sono di questa macchina.
     const qui = macchinaQui(this.dati);
     const dove = Object.fromEntries(Object.entries(adesso).map(([a, s]) => [a, s.questa ? qui : s.macchina]));
-    // chi gira davvero nel terminale vince sull'aggancio con cui la scheda è nata (occupanti)
-    const dentro = occupanti(this.dati.sessioni);
     for (const a of Object.keys(dentro)) dove[a] = qui;
     const occupate = Object.fromEntries(Object.entries(dentro).map(([a, s]) => [a, s.id]));
     const m = { qui, schede: dove, occupate };
