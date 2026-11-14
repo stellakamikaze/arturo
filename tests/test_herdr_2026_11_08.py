@@ -527,6 +527,11 @@ HZ119 la chiave macchina:id delle sessioni (S1 del piano F3·S, #5634, 14/11/202
      l'elenco tiene la copia viva anche dopo un /clear; il congedo e trova() vanno per macchina e id;
      statiCorti segna l'id doppio per le parti senza elenco; il microfono segue la macchina dell'etichetta;
      volta.js tiene congedi, coda di Sposta e mappe per chiave.
+HZ120 i comandi di Volta portano la chiave macchina:id (#5643, 14/11/2026): il menu del tasto destro, il
+     dialogo di cambio, Sposta su e la ricerca ⌘K mandano alla barra macchina:id, e comandi.js legge
+     volta-sposta-<chiave>-<macchina> anche con trattini nei nomi delle macchine (e la forma vecchia
+     volta-sposta-<macchina>-<id>). trovaId trova la copia per chiave; un id nudo che sta su due macchine
+     non sceglie la prima copia, ma avvisa; vistaId e Sposta tutto passano la chiave.
 """
 from __future__ import annotations
 
@@ -542,7 +547,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1423,7 +1428,7 @@ def hz24(repo: Path, casa: Path) -> str | None:
             return f"{nome} non prende i tasti da tasti()"
     if 'window()?.platform === "macos"' not in (mod / "comuni.js").read_text(encoding="utf-8"):
         return "tasti() non sceglie per sistema"
-    if "if (!s) notify({ title: `Non trovo la sessione ${id}`" not in volta:
+    if "if (!l.length) notify({ title: `Non trovo la sessione ${id}`" not in volta:
         return "premiId non avvisa quando la sessione non è nell'elenco"
     return None
 
@@ -1437,7 +1442,7 @@ def hz25(repo: Path, casa: Path) -> str | None:
         if m:
             return f"{f.name} chiude la finestra prima di {m.group(2)}(): l'azione non parte"
     attesi = {"suggerimenti.js": "else run(comandoSuggerimento(sug.id)); dopo?.(); })",
-              "apri.js": "    if (r.tipo === \"sessione\") run(`arturo.volta-${r.s.id}`);\n    else if (r.tipo === \"progetto\") run(comandoApri(slug(r.nome)));\n    else if (r.tipo === \"nuova\" && r.testo) run(comandoNuova(r.testo));\n    else return;\n    this.chiudi();",
+              "apri.js": "    if (r.tipo === \"sessione\") run(`arturo.volta-${chiaveSessione(r.s)}`);\n    else if (r.tipo === \"progetto\") run(comandoApri(slug(r.nome)));\n    else if (r.tipo === \"nuova\" && r.testo) run(comandoNuova(r.testo));\n    else return;\n    this.chiudi();",
               "revisione.js": ".on_click(() => { run(comandoApri(k)); this.chiudi(); })",
               "menu.js": "scrivi(v.argv(testo), v.esito, titolo).finally(() => this.chiudi());"}
     for nome, pezzo in attesi.items():
@@ -3769,7 +3774,7 @@ def hz54(repo: Path, casa: Path) -> str | None:
         ("main.js", "sessione: MenuSessione,", "main.js non monta il menu di una sessione"),
         ("menusessione.js", 'openOverlay({ mod: "arturo", props: { parte: "sessione", sessione: s }, kind: "popup"', "il menu non è un popup del mod"),
         ("menusessione.js", "    run(comandoGesto(this.s, v));\n    this.chiudi();", "il menu si chiude prima di mandare il gesto"),
-        ("menusessione.js", "`arturo.volta-gesto-${v.verbo}-${s.id}`", "il menu non manda il comando che barra.js legge"),
+        ("menusessione.js", "`arturo.volta-gesto-${v.verbo}-${chiaveSessione(s)}`", "il menu non manda il comando che barra.js legge"),
         ("menusessione.js", "this.voci = menu(this.s);", "le voci del menu non vengono da menu() di sessioni.js"),
     )
     for file, pezzo, motivo in attesi:
@@ -4206,7 +4211,7 @@ def hz58(repo: Path, casa: Path) -> str | None:
 
 PROVA_CAMBIO_PURO = """
 import * as m from %s;
-const s = { id: "ab12-cd34", sessionId: "ab12-cd34-x" };
+const s = { id: "ab12-cd34", sessionId: "ab12-cd34-x", host: "torre-due" };
 const giro = (cosa, v) => m.leggiCambio(m.comandoCambio(s, cosa, v).slice(7));
 const b = "\\u2500".repeat(30);
 console.log(JSON.stringify({
@@ -4306,10 +4311,11 @@ def hz59(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
-    puri = {"comando": "arturo.volta-cambia-nome-004100e8-ab12-cd34",
-            "nome": {"cosa": "nome", "valore": "Preventivo per l'estate è 🙂", "id": "ab12-cd34"}, "lungo": 60,
-            "vuoto": {"cosa": "nome", "valore": "", "id": "ab12-cd34"},
-            "progetto": {"cosa": "progetto", "valore": "due-mondi", "id": "ab12-cd34"}, "accenti": "caffe-te", "niente": None,
+    # il cambio porta la chiave macchina:id (#5643), anche con una macchina che ha trattini
+    puri = {"comando": "arturo.volta-cambia-nome-004100e8-torre-due:ab12-cd34",
+            "nome": {"cosa": "nome", "valore": "Preventivo per l'estate è 🙂", "id": "torre-due:ab12-cd34"}, "lungo": 60,
+            "vuoto": {"cosa": "nome", "valore": "", "id": "torre-due:ab12-cd34"},
+            "progetto": {"cosa": "progetto", "valore": "due-mondi", "id": "torre-due:ab12-cd34"}, "accenti": "caffe-te", "niente": None,
             "storti": [None, None, None], "cambia": {"rinomina": "nome", "progetto": "progetto"},
             "noti": ["arturo", "due-mondi", "zeta"], "filtro": [["mondo", "due-mondi"], ["a", "b"]],
             "casella": [True, True, True, False, False, False, False, False], "portare": ["Nome", None, None, None, None],
@@ -5138,7 +5144,7 @@ def hz67(repo: Path, casa: Path) -> str | None:
         if m:
             return f"{nome} aspetta {m.group(1)}() dentro una parte che può chiudersi: la nascita resta a metà"
     attesi = (
-        ("apri.js", "    if (r.tipo === \"sessione\") run(`arturo.volta-${r.s.id}`);\n    else if (r.tipo === \"progetto\") run(comandoApri(slug(r.nome)));\n    else if (r.tipo === \"nuova\" && r.testo) run(comandoNuova(r.testo));\n    else return;\n    this.chiudi();", "Cerca non manda il comando alla barra"),
+        ("apri.js", "    if (r.tipo === \"sessione\") run(`arturo.volta-${chiaveSessione(r.s)}`);\n    else if (r.tipo === \"progetto\") run(comandoApri(slug(r.nome)));\n    else if (r.tipo === \"nuova\" && r.testo) run(comandoNuova(r.testo));\n    else return;\n    this.chiudi();", "Cerca non manda il comando alla barra"),
         ("revisione.js", ".on_click(() => { run(comandoApri(k)); this.chiudi(); })", "Fai il punto non manda il comando alla barra"),
         ("suggerimenti.js", '.on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })',
          "una richiesta di Cosa posso chiedere non manda il comando alla barra"),
@@ -6940,7 +6946,7 @@ def hz89(repo: Path, casa: Path) -> str | None:
     if "!(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS)" not in (mod / "dati.js").read_text(encoding="utf-8"):
         return "schedeDi conta anche le schede che Volta ha appena chiuso (#5537)"
     # il clic per id (herdr-app do, ⌘K) prende prima la riga visibile: la copia chiusa di partenza ha lo stesso id
-    if "const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);" not in (mod / "volta.js").read_text(encoding="utf-8"):
+    if "const l = [this.vis()?.sessioni, this.dati?.sessioni].map(tra).find((x) => x.length) ?? [];" not in (mod / "volta.js").read_text(encoding="utf-8"):
         return "trovaId prende la copia chiusa di partenza prima della sessione visibile (#5537)"
     # le schede che agganciano la sessione si chiudono prima dello spostamento: un attach aperto la riaccende dopo stop
     dj = (mod / "dati.js").read_text(encoding="utf-8")
@@ -8934,8 +8940,90 @@ def hz119(repo: Path, casa: Path) -> str | None:
         return f"con l'id su due macchine l'etichetta vecchia decide ancora: qui {d['doppioQui']}, amaltea {d['doppioLa']}"
     return None
 
+PROVA_COMANDI_CHIAVE = r"""
+const S = await import(process.env.HZ_SESSIONI);
+const { instrada } = await import(process.env.HZ_COMANDI);
+const src = JSON.parse(process.env.HZ_SRC);
+const chiave = S.chiave, chiaveSessione = S.chiave;
+const avvisi = [];
+const notify = (x) => avvisi.push(x.title);
+const comandoGesto = eval(src.gesto), comandoSposta = eval(src.sposta);
+// i metodi di volta.js su un oggetto finto: vis() è l'elenco mostrato, dati.sessioni tutte le righe
+const volta = (vis, tutte) => {
+  const o = { vis: () => ({ sessioni: vis }), dati: { sessioni: tutte } };
+  o.trovaId = eval("(function " + src.trovaId + ")").bind(o);
+  o.vistaId = eval("(function " + src.vistaId + ")").bind(o);
+  return o;
+};
+const host = (s) => (s ? s.host : null);
+// dopo Sposta su: a1 c'è qui (ferma) e su amaltea (viva)
+const qui = { id: "a1", sessionId: "a1-x", host: "qui", stato: "ferma" };
+const la = { id: "a1", sessionId: "c9-y", host: "amaltea", stato: "lavora" };
+const mini = { id: "b2", sessionId: "b2-z", host: "torre-tre", stato: "ferma" };
+const arg = (c) => instrada(c.slice("arturo.".length)).arg;
+const tutte = volta([qui, la], [qui, la]), una = volta([la], [qui, la]), sola = volta([], [qui]);
+const r = {
+  gesto: [comandoGesto(la, { verbo: "elimina" }), arg(comandoGesto(la, { verbo: "elimina" }))],
+  sposta: [comandoSposta("torre-due", la), arg(comandoSposta("torre-due", la)), arg(comandoSposta("torre-due", mini)),
+           arg(comandoSposta("amaltea", qui)), instrada("volta-sposta-torre-due-a1b2").arg],
+  cambio: S.leggiCambio(S.comandoCambio(la, "nome", "x").slice(7)).id,
+  trova: [host(tutte.trovaId("qui:a1")), host(tutte.trovaId("amaltea:a1")), host(una.trovaId("a1")), host(sola.trovaId("a1"))],
+};
+avvisi.length = 0;
+r.nudo = [host(tutte.trovaId("a1")), avvisi.slice()];
+avvisi.length = 0;
+r.manca = [host(tutte.trovaId("zz")), avvisi.slice()];
+r.vista = [host(una.vistaId("qui:a1")), host(una.vistaId("amaltea:a1")), host(una.vistaId("a1"))];
+console.log(JSON.stringify(r));
+"""
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119}
+
+def hz120(repo: Path, casa: Path) -> str | None:
+    """I comandi di Volta con la chiave macchina:id (#5643)."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    if "    const prese = l.filter((s) => this.spostaId(macchina, chiave(s), cx, true));" not in vj:
+        return "Sposta tutto passa a spostaId il solo id: dopo uno spostamento sta su due macchine"
+    node = shutil.which("node")
+    if not node:
+        return None
+    pezzi = {}
+    for nome, file, schema in (("gesto", "menusessione.js", r"export const comandoGesto = ([^\n]*);\n"),
+                               ("sposta", "sposta.js", r"export const comandoSposta = ([^\n]*);\n"),
+                               ("trovaId", "volta.js", r"\n  (trovaId\(id\) \{\n.*?\n  \})\n"),
+                               ("vistaId", "volta.js", r"\n  (vistaId\(id\) \{\n.*?\n  \})\n")):
+        m = re.search(schema, (mod / file).read_text(encoding="utf-8"), re.S)
+        if not m:
+            return f"{file}: non trovo {nome}"
+        pezzi[nome] = m.group(1)
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    shutil.copyfile(mod / "comandi.js", casa / "comandi.mjs")
+    (casa / "prova.mjs").write_text(PROVA_COMANDI_CHIAVE, encoding="utf-8")
+    e = {**os.environ, "HZ_SESSIONI": (casa / "sessioni.mjs").as_uri(), "HZ_COMANDI": (casa / "comandi.mjs").as_uri(), "HZ_SRC": json.dumps(pezzi)}
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=e)
+    if r.returncode != 0:
+        return f"la prova dei comandi non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["gesto"] != ["arturo.volta-gesto-elimina-amaltea:a1", {"verbo": "elimina", "id": "amaltea:a1"}]:
+        return f"il gesto del menu non porta la chiave macchina:id: {d['gesto']}"
+    if d["sposta"] != ["arturo.volta-sposta-amaltea:a1-torre-due", {"macchina": "torre-due", "id": "amaltea:a1"},
+                       {"macchina": "torre-due", "id": "torre-tre:b2"}, {"macchina": "amaltea", "id": "qui:a1"},
+                       {"macchina": "torre-due", "id": "a1b2"}]:
+        return f"Sposta su non porta la chiave, o comandi.js la legge storta: {d['sposta']}"
+    if d["cambio"] != "amaltea:a1":
+        return f"il cambio di nome o progetto non porta la chiave: {d['cambio']}"
+    if d["trova"] != ["qui", "amaltea", "amaltea", "qui"]:
+        return f"trovaId non trova la copia della chiave, o non preferisce quella mostrata: {d['trova']}"
+    if d["nudo"][0] is not None or not any("due macchine" in a for a in d["nudo"][1]):
+        return f"un id nudo su due macchine sceglie una copia a caso: {d['nudo']}"
+    if d["manca"][0] is not None or not any("Non trovo" in a for a in d["manca"][1]):
+        return f"una sessione che non c'è non dà l'avviso: {d['manca']}"
+    if d["vista"] != ["qui", "amaltea", "amaltea"]:
+        return f"vistaId non segue la chiave: {d['vista']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -8980,6 +9068,13 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ120', 'shared/volta/mods/arturo/comandi.js', '  if (sk) return { verbo: "volta-sposta", arg: { macchina: sk[2], id: sk[1] }, lungo: false };\n', ''),
+    ('HZ120', 'shared/volta/mods/arturo/comandi.js', '  const sp = /^volta-sposta-([^:]+)-([0-9A-Za-z]+)$/.exec(c);', '  const sp = null;'),
+    ('HZ120', 'shared/volta/mods/arturo/menusessione.js', '${v.verbo}-${chiaveSessione(s)}`;', '${v.verbo}-${s.id}`;'),
+    ('HZ120', 'shared/volta/mods/arturo/sposta.js', '`arturo.volta-sposta-${chiave(s)}-${macchina}`;', '`arturo.volta-sposta-${macchina}-${s.id}`;'),
+    ('HZ120', 'shared/volta/mods/arturo/volta.js', '    return copie.length === 1 ? l[0] : undefined;', '    return l[0];'),
+    ('HZ120', 'shared/volta/mods/arturo/volta.js', '(String(id).includes(":") ? chiave(x) === id : x.id === id', '(x.id === id'),
+    ('HZ120', 'shared/volta/mods/arturo/volta.js', '    const prese = l.filter((s) => this.spostaId(macchina, chiave(s), cx, true));', '    const prese = l.filter((s) => this.spostaId(macchina, s.id, cx, true));'),
     ('HZ119', 'shared/volta/mods/arturo/sessioni.js', ' || argv.some((a) => dentro(a, s.id))) && stessoPosto(argv, s);', ' || argv.some((a) => dentro(a, s.id)));'),
     ('HZ119', 'shared/volta/mods/arturo/sessioni.js', '  return ambiguo ? null : true;\n}', '  return true;\n}'),
     ('HZ119', 'shared/volta/mods/arturo/sessioni.js', ' || (Boolean(a.id) && a.id === b.id && (a.host ?? "qui") !== (b.host ?? "qui"));', ';'),
@@ -9141,7 +9236,7 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/volta_sposta.py', '    esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})', '    pass'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', '  const chiuse = chiudiSchede(s);', '  const chiuse = 0;'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', 'const x = await fineSposta(s, macchina, p.errore ? { errore: p.errore } : p.fatto, v.chiuse);', 'const x = p.errore ? { errore: p.errore } : await fineSposta(s, macchina, p.fatto, v.chiuse);'),
-    ('HZ89', 'shared/volta/mods/arturo/volta.js', '    const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);', '    const s = tra(this.dati?.sessioni);'),
+    ('HZ89', 'shared/volta/mods/arturo/volta.js', '    const l = [this.vis()?.sessioni, this.dati?.sessioni].map(tra).find((x) => x.length) ?? [];', '    const l = [this.dati?.sessioni].map(tra).find((x) => x.length) ?? [];'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', ' &&\n    !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));', ');'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    ferma = azione(nome, "stop", sid_lavoro)  # già ferma', '    ferma = {}  # già ferma'),
@@ -9513,7 +9608,7 @@ VELENI = [
      "const scorciatoie = `⌘K cerca"),
     ("HZ25", "shared/volta/mods/arturo/suggerimenti.js", "else run(comandoSuggerimento(sug.id)); dopo?.(); })",
      "else { dopo?.(); run(comandoSuggerimento(sug.id)); } })"),
-    ("HZ25", "shared/volta/mods/arturo/apri.js", '    if (r.tipo === "sessione") run(`arturo.volta-${r.s.id}`);', '    if (r.tipo === "sessione") { this.chiudi(); run(`arturo.volta-${r.s.id}`); }'),
+    ("HZ25", "shared/volta/mods/arturo/apri.js", '    if (r.tipo === "sessione") run(`arturo.volta-${chiaveSessione(r.s)}`);', '    if (r.tipo === "sessione") { this.chiudi(); run(`arturo.volta-${chiaveSessione(r.s)}`); }'),
     ("HZ26", "shared/volta/mods/arturo/nota.js", "const mainW = testata.larghezza - 2 * pad - (pannelloW ? pannelloW + gap : 0);",
      "const mainW = testata.larghezza - 2 * pad;"),
     ("HZ26", "shared/volta/mods/arturo/nota.js", "if (Math.abs(marchio.altezza + barra.altezza + piede.altezza - H) > 2) return null;", ""),
@@ -9728,7 +9823,7 @@ VELENI = [
     ('HZ54', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-menu") this.volta.menuId(arg);\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),
     ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '    run(comandoGesto(this.s, v));\n    this.chiudi();', '    this.chiudi();\n    run(comandoGesto(this.s, v));'),
-    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${s.id}`', '`arturo.volta-fai-${v.verbo}-${s.id}`'),
+    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${chiaveSessione(s)}`', '`arturo.volta-fai-${v.verbo}-${chiaveSessione(s)}`'),
     ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'props: { parte: "sessione", sessione: s }, kind: "popup", width: 230', 'props: { parte: "sessione", sessione: s }, kind: "dialog", width: 230'),
     ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'this.voci = menu(this.s);', 'this.voci = [];'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', 'argv += ["--resume", a["riprendi"]]'),
@@ -9780,7 +9875,8 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  if (m[1] === "progetto" && !valore) return null;\n', ''),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", 'const valore = m[1] === "nome" ? nomeNuovo(decodifica(m[2])) : progettoNuovo(decodifica(m[2]));', 'const valore = decodifica(m[2]);'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '/^volta-cambia-(nome|progetto)-((?:[0-9a-f]{4})*)-(.+)$/', '/^volta-cambia-(\\w+)-((?:[0-9a-f]{4})*)-(.+)$/'),
-    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`', '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.sessionId}`'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${chiave(s)}`', '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.sessionId}`'),
+    ("HZ120", "shared/volta/mods/arturo/sessioni.js", '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${chiave(s)}`', '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '    if (k) visti.add(k);', '    visti.add(k);'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '  return [...visti].sort((a, b) => a.localeCompare(b));', '  return [...visti];'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '[...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;', 'l.filter((p) => nomi(p).some((x) => x.includes(f))) : l;'),

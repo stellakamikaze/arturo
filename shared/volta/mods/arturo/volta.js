@@ -674,10 +674,15 @@ export class Volta {
   // Sposta la copia chiusa di partenza ha lo stesso id, e il clic (o ⌘K) la riaprirebbe lì (#5537). Vale
   // anche la chiave macchina:id (#5634), che dice da sola quale copia.
   trovaId(id) {
-    const tra = (l) => (l ?? []).find((x) => (String(id).includes(":") ? chiave(x) === id : x.id === id || String(x.sessionId).startsWith(id)));
-    const s = tra(this.vis()?.sessioni) ?? tra(this.dati?.sessioni);
-    if (!s) notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
-    return s;
+    const tra = (l) => (l ?? []).filter((x) => (String(id).includes(":") ? chiave(x) === id : x.id === id || String(x.sessionId).startsWith(id)));
+    // Prima la riga visibile: la copia chiusa di partenza ha lo stesso id (#5537).
+    const l = [this.vis()?.sessioni, this.dati?.sessioni].map(tra).find((x) => x.length) ?? [];
+    const copie = [...new Set(l.map(chiave))];
+    if (!l.length) notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
+    // Il solo id che sta su due macchine non dice quale copia (#5643): i comandi di Volta portano la chiave
+    // macchina:id, e un id nudo da herdr-app do non sceglie a caso la prima.
+    else if (copie.length > 1) notify({ title: `La sessione ${id} sta su due macchine`, body: `Scrivi anche la macchina: ${copie.join(" o ")}.`, level: "warning" });
+    return copie.length === 1 ? l[0] : undefined;
   }
 
   // ⌘↓ e ⌘↑ ("arturo.volta-giro-avanti" e "-indietro"): la sessione dopo o prima nell'elenco, di ogni
@@ -714,7 +719,8 @@ export class Volta {
   }
 
   // La sessione `id` come la vede l'elenco: dopo uno spostamento lo stesso id c'è su due macchine, e vale
-  // la copia che l'elenco mostra.
+  // la copia che l'elenco mostra. Una chiave macchina:id (i comandi di Volta dal 14/11, #5643) passa da trovaId, che
+  // la cerca per chiave.
   vistaId(id) {
     return (this.vis()?.sessioni ?? []).find((x) => x.id === id) ?? this.trovaId(id);
   }
@@ -724,7 +730,7 @@ export class Volta {
     return Object.keys(this.codaSposta ?? {}).length;
   }
 
-  // "arturo.volta-sposta-<macchina>-<id>": "Sposta su" della testata o del menu (sposta.js) o herdr-app
+  // "arturo.volta-sposta-<chiave>-<macchina>": "Sposta su" della testata o del menu (sposta.js) o herdr-app
   // do. La sessione entra nella coda: riparte sull'altra macchina con la stessa conversazione
   // (volta_sposta.py), a turno finito se sta lavorando. Intanto la riga dice dove va, e a fine lavoro un
   // avviso dice com'è andata. `zitto`: niente avvisi per la singola sessione (Sposta tutto ne dà uno).
@@ -756,7 +762,7 @@ export class Volta {
   // delle altre macchine entra nella coda (spostabili di sposta.js); un avviso solo dice quante.
   spostaTutto(macchina, cx) {
     const l = spostabili(this.vis()?.sessioni ?? [], macchina);
-    const prese = l.filter((s) => this.spostaId(macchina, s.id, cx, true));
+    const prese = l.filter((s) => this.spostaId(macchina, chiave(s), cx, true));
     if (!prese.length) return notify({ title: "Niente da spostare", body: `Nessuna sessione in background da portare su ${nomeMacchina(macchina)}.`, level: "info", timeout: 4000 });
     const dopo = prese.filter(aFineTurno).length;
     notify({ title: `Sposto ${prese.length === 1 ? "1 sessione" : `${prese.length} sessioni`} su ${nomeMacchina(macchina)}`,
@@ -852,7 +858,7 @@ export class Volta {
     if (s) this.premi(s, cx);
   }
 
-  // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": il clic su "Altro" e su un suo
+  // "arturo.volta-altro-<chiave>" e "arturo.volta-gesto-<verbo>-<chiave>": il clic su "Altro" e su un suo
   // bottone, da herdr-app do. Herdr non ha clic simulati: le prove dei gesti passano da qui (#5203).
   altroId(id, cx) {
     const s = this.trovaId(id);

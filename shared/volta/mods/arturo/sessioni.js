@@ -863,11 +863,12 @@ export const comandoNuova = (testo) => `arturo.nuova-${codifica(String(testo ?? 
 
 // Il dialogo è un'altra copia del mod: manda il cambio alla barra come comando, lo stesso di herdr-app
 // do. Il testo viaggia in esadecimale (quattro cifre per carattere), perché il nome di un comando non
-// porta spazi né accenti: "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<id>".
+// porta spazi né accenti: "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<chiave>", con la chiave
+// macchina:id (#5643): dopo uno spostamento il solo id sta su due macchine.
 export const codifica = (testo) => [...String(testo ?? "")].flatMap((c) => c.length === 2 ? [c.charCodeAt(0), c.charCodeAt(1)] : [c.charCodeAt(0)])
   .map((n) => n.toString(16).padStart(4, "0")).join("");
 export const decodifica = (hex) => (String(hex ?? "").match(/[0-9a-f]{4}/g) ?? []).map((h) => String.fromCharCode(parseInt(h, 16))).join("");
-export const comandoCambio = (s, cosa, valore) => `arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`;
+export const comandoCambio = (s, cosa, valore) => `arturo.volta-cambia-${cosa}-${codifica(valore)}-${chiave(s)}`;
 
 // Il comando di un cambio come lo riceve la barra (senza "arturo."): { cosa, valore, id } con il valore
 // già ripulito, oppure null. Un progetto vuoto non è un cambio; un nome vuoto toglie il nome scritto.

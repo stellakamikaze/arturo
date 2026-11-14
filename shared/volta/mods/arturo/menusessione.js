@@ -2,12 +2,13 @@
 // (#5292, apre il dialogo di cambio.js) e Sposta su… (il popup di sposta.js), poi Rinomina e Contesto del
 // progetto, poi Chiudi con /fine e i gesti di "Altro" (Anteprima, Riavvia, Elimina). Le voci le decide menu() di sessioni.js. Il menu è un popup,
 // cioè un'altra copia del mod: non ha l'elenco né i suoi stati, quindi manda il gesto alla barra come
-// comando ("arturo.volta-gesto-<verbo>-<id>", lo stesso di herdr-app do) e si chiude.
+// comando ("arturo.volta-gesto-<verbo>-<chiave>", lo stesso di herdr-app do) e si chiude. La chiave è
+// macchina:id (#5643): dopo uno spostamento il solo id sta su due macchine.
 
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, run } from "herdr";
-import { menu, titolo, GRUPPI_MENU } from "./sessioni.js";
+import { menu, titolo, GRUPPI_MENU, chiave as chiaveSessione } from "./sessioni.js";
 import { vociMacchina } from "./comuni.js";
 import { destinazioni } from "./sposta.js";
 
@@ -22,7 +23,7 @@ export function apriMenuSessione(s) {
 }
 
 // Il comando che esegue una voce: lo legge barra.js e lo passa a gestoId di volta.js.
-export const comandoGesto = (s, v) => `arturo.volta-gesto-${v.verbo}-${s.id}`;
+export const comandoGesto = (s, v) => `arturo.volta-gesto-${v.verbo}-${chiaveSessione(s)}`;
 
 export class MenuSessione {
   init(_p, cx) {

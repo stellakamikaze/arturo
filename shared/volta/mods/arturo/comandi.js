@@ -81,11 +81,15 @@ export function instrada(c) {
   if (c.startsWith("volta-cambia-")) return { verbo: "volta-cambia", arg: c, lungo: false };
   // "volta-spostatutto-<macchina>": tutte le sessioni spostabili su <macchina> (Sposta tutto su…, sposta.js).
   if (c.startsWith("volta-spostatutto-")) return { verbo: "volta-spostatutto", arg: dopo("volta-spostatutto-"), lungo: false };
-  // "volta-sposta-<macchina>-<id>": la sessione <id> su un'altra macchina (sposta.js). L'id non ha
-  // trattini, il nome di una macchina sì: l'id è l'ultimo pezzo.
-  const sp = /^volta-sposta-(.+)-([0-9A-Za-z]+)$/.exec(c);
+  // "volta-sposta-<chiave>-<macchina>": la sessione <chiave> (macchina:id, chiave di sessioni.js, #5643)
+  // su un'altra macchina (sposta.js). La chiave viene prima: il nome di una macchina può avere trattini, e
+  // l'id non ne ha, quindi il primo trattino dopo i due punti chiude la chiave. La forma di prima del
+  // 14/11, "volta-sposta-<macchina>-<id>" senza due punti, vale ancora per herdr-app do: lì l'id è l'ultimo pezzo.
+  const sk = /^volta-sposta-([^:]+:[0-9A-Za-z]+)-(.+)$/.exec(c);
+  if (sk) return { verbo: "volta-sposta", arg: { macchina: sk[2], id: sk[1] }, lungo: false };
+  const sp = /^volta-sposta-([^:]+)-([0-9A-Za-z]+)$/.exec(c);
   if (sp) return { verbo: "volta-sposta", arg: { macchina: sp[1], id: sp[2] }, lungo: false };
-  // "volta-gesto-<verbo>-<id>": un gesto di "Altro" o del menu.
+  // "volta-gesto-<verbo>-<chiave>": un gesto di "Altro" o del menu, per macchina:id (o il solo id, da herdr-app do).
   const g = /^volta-gesto-([a-z]+)-(.+)$/.exec(c);
   if (g) return { verbo: "volta-gesto", arg: { verbo: g[1], id: g[2] }, lungo: false };
   // "volta-<id>": lo stesso clic di una sessione di Volta, da tastiera o da herdr-app do.

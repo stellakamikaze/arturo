@@ -10,7 +10,7 @@ import { nomiProgetti, slug, spazio, frase, bello, sessioniVolta } from "./dati.
 import { comandoApri } from "./comandi.js";
 import { ICONA, punto, colore, nasceSu } from "./comuni.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
-import { cerca, comandoNuova, impostaProgetti, titolo, nomeProgetto, titoloNoto, fraseStato, chiusa, macchinaBreve } from "./sessioni.js";
+import { cerca, comandoNuova, impostaProgetti, titolo, nomeProgetto, titoloNoto, fraseStato, chiusa, macchinaBreve, chiave as chiaveSessione } from "./sessioni.js";
 
 export class Apri {
   init(_p, cx) {
@@ -44,7 +44,7 @@ export class Apri {
   // finestra si chiudeva prima della fine (11/11/2026).
   vai(r) {
     if (!r) return;
-    if (r.tipo === "sessione") run(`arturo.volta-${r.s.id}`);
+    if (r.tipo === "sessione") run(`arturo.volta-${chiaveSessione(r.s)}`);
     else if (r.tipo === "progetto") run(comandoApri(slug(r.nome)));
     else if (r.tipo === "nuova" && r.testo) run(comandoNuova(r.testo));
     else return;

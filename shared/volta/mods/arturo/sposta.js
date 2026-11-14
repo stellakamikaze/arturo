@@ -3,7 +3,7 @@
 // piano (shared arturo.volta.davanti di volta.js); "Sposta su…" nel menu del tasto destro di una sessione;
 // "Sposta tutto su…" sotto "Nasce su" nella barra, per tutte le sessioni in background delle altre
 // macchine. I popup sono altre copie del mod: elencano le macchine, chiedono conferma col secondo clic e
-// mandano alla barra "arturo.volta-sposta-<macchina>-<id>" o "arturo.volta-spostatutto-<macchina>"
+// mandano alla barra "arturo.volta-sposta-<chiave>-<macchina>" o "arturo.volta-spostatutto-<macchina>"
 // (spostaId e spostaTutto di volta.js). Lo spostamento non interrompe un turno: una sessione che lavora
 // aspetta in coda la fine del turno (Federico: "dando continuità al task in corso e senza interromperlo").
 // Lo spostamento vero sta in volta_sposta.py.
@@ -12,7 +12,7 @@ import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, run } from "herdr";
 import { vociMacchina } from "./comuni.js";
-import { titolo, nonSiSposta, aFineTurno, spostabili, perSposta, contoTutto } from "./sessioni.js";
+import { titolo, nonSiSposta, aFineTurno, spostabili, perSposta, contoTutto, chiave } from "./sessioni.js";
 
 // Le regole di Sposta stanno in sessioni.js (pure, provate con node): qui per chi le prende da sposta.js.
 export { nonSiSposta, aFineTurno, spostabili, perSposta, contoTutto };
@@ -20,7 +20,7 @@ export { nonSiSposta, aFineTurno, spostabili, perSposta, contoTutto };
 export const ICONA_SPOSTA = "mods/arturo/sposta.svg";
 
 // Il comando che sposta la sessione `id` su `macchina` ("qui" per questa).
-export const comandoSposta = (macchina, id) => `arturo.volta-sposta-${macchina}-${id}`;
+export const comandoSposta = (macchina, s) => `arturo.volta-sposta-${chiave(s)}-${macchina}`;
 
 // "Sposta tutto su <macchina>": ogni sessione spostabile delle altre macchine (spostabili di sessioni.js).
 // "spostatutto" senza trattino: "volta-sposta-tutto-x" si leggerebbe come la sessione "x" su "tutto".
@@ -69,7 +69,7 @@ export class SceltaSposta {
   // ferma il suo codice.
   scegli(m, cx) {
     if (this.scelta !== m.host) { this.scelta = m.host; return cx.notify(); }
-    run(comandoSposta(m.host, this.s.id));
+    run(comandoSposta(m.host, this.s));
     this.chiudi();
   }
 
