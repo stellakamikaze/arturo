@@ -200,7 +200,16 @@ export function archivio(db) {
       const versioni = await tutte(
         `SELECT versione, MIN(giorno) AS prima, COUNT(DISTINCT installazione) AS n FROM eventi
          WHERE giorno <= ? AND ${VISTE} GROUP BY versione`, al);
-      return calcolaIndietro(attive, versioni, al);
+      const fuori = calcolaIndietro(attive, versioni, al);
+      if (!fuori.length) return fuori;
+      // Perché è ferma (14/11/2026, #5610): l'ultimo esito di un aggiornamento e la forma dell'installazione, plugin
+      // o clone. Prima il riepilogo diceva chi era fermo e non il perché.
+      const ultimi = async (filtro) => new Map((await tutte(
+        `SELECT installazione, valore FROM eventi WHERE rowid IN (SELECT MAX(rowid) FROM eventi WHERE ${filtro}
+         AND giorno <= ? GROUP BY installazione)`, al)).map((x) => [x.installazione, x.valore]));
+      const esiti = await ultimi("evento = 'aggiorna'");
+      const forme = await ultimi("evento = 'sessione' AND valore <> ''");
+      return fuori.map((x) => ({ ...x, esito: esiti.get(x.installazione) || "", forma: forme.get(x.installazione) || "" }));
     },
     // Il giorno dell'ultimo avviso con questa chiave, per non ripeterlo ogni mattina.
     async ultimoAvviso(chiave) {

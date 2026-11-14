@@ -51,6 +51,9 @@ AA32 "concludi" con una skill non salvata omonima di una nuova del rilascio appl
 AA33 se personale/conflitti non si scrive, la versione della persona di un omonimo resta nella cartella di
      lavoro: prima si cancellava l'unica copia del file.
 Su c826a58 sono rossi AA32 e AA33.
+Dal 14/11/2026 (#5610), gli esiti che prima non lasciavano traccia:
+AA34 con settings.json non salvato la chiusura manda "bloccato-modifiche", una volta sola; con una copia di prova in
+     attesa dal sync manda "bloccato-attesa". Su ee75459 è rosso.
 
 Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. Su a442b38 sono rossi AA25,
 AA26, AA27, AA30 e AA31; AA28 e AA29 coprono codice già giusto, e li fa diventare rossi solo il loro mutante. AA12-AA17 sono rossi
@@ -443,6 +446,38 @@ def test_aa17(repo: Path) -> None:
     con_lab(repo, "AA17", prova)
 
 
+def _spia_telemetria(lab: Lab) -> Path:
+    """Una telemetria finta: _segnala_ostacolo la lancia da bin/ dell'Orsa, e qui annota gli eventi."""
+    annotati = lab.base / "eventi-annotati.txt"
+    (lab.utente / "bin" / "telemetria.py").write_text(
+        "import sys\n"
+        f"open({str(annotati)!r}, 'a', encoding='utf-8').write(' '.join(sys.argv[1:]) + '\\n')\n", encoding="utf-8")
+    return annotati
+
+
+def test_aa34(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        annotati = _spia_telemetria(lab)
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "mio"}}, indent=2) + "\n", encoding="utf-8")
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        lab.arturo_cli("applica")
+        eventi = annotati.read_text(encoding="utf-8").splitlines() if annotati.exists() else []
+        assert eventi == ["registra aggiorna bloccato-modifiche"], \
+            f"AA34 le modifiche non salvate non lasciano un evento, uno solo: {eventi}"
+    con_lab(repo, "AA34", prova)
+
+    def attesa(lab: Lab) -> None:
+        annotati = _spia_telemetria(lab)
+        copia_in_attesa(lab, "sync")
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        eventi = annotati.read_text(encoding="utf-8").splitlines() if annotati.exists() else []
+        assert eventi == ["registra aggiorna bloccato-attesa"], \
+            f"AA34 una copia di prova in attesa non lascia l'evento bloccato-attesa: {eventi}"
+    con_lab(repo, "AA34", attesa)
+
+
 def test_aa18(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         prima = lab.head()
@@ -769,7 +804,7 @@ TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_a
          "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
          "AA20": test_aa20, "AA21": test_aa21, "AA22": test_aa22, "AA23": test_aa23, "AA24": test_aa24,
          "AA25": test_aa25, "AA26": test_aa26, "AA27": test_aa27, "AA28": test_aa28, "AA29": test_aa29,
-         "AA30": test_aa30, "AA31": test_aa31, "AA32": test_aa32, "AA33": test_aa33}
+         "AA30": test_aa30, "AA31": test_aa31, "AA32": test_aa32, "AA33": test_aa33, "AA34": test_aa34}
 
 
 def main() -> int:

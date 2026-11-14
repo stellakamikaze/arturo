@@ -13,6 +13,30 @@ modo di lavorare.
 
 ---
 
+## 2026-11-14 — Perché un aggiornamento non arriva, detto a chi mantiene Arturo
+
+**Cosa cambia**: quando un rilascio nuovo non si installa da solo, adesso chi mantiene Arturo sa perché. Prima i
+casi più frequenti non lasciavano traccia, e un'installazione poteva restare indietro per settimane senza che
+nessuno lo sapesse.
+- Se l'aggiornamento si ferma per file non salvati, per esempio un `settings.json` riscritto da Claude Code, parte
+  l'evento `bloccato-modifiche`.
+- Se una copia di prova con un conflitto aspetta, parte `bloccato-attesa`.
+- Se la procedura non parte, parte `non-partito`.
+- Col plugin parte anche `automatico`, quando la chiusura della sessione installa il rilascio. Col clone partiva
+  già.
+- L'evento della sessione dice se Arturo è installato come plugin o come clone: le due forme si aggiornano per
+  strade diverse.
+
+Ogni esito parte una volta per versione. Il testo del motivo non esce mai, solo la sua categoria.
+
+**Il principio**: un aggiornamento che si ferma in silenzio lascia la persona con le guardie vecchie, e chi
+mantiene Arturo non può correggere quello che non vede.
+
+**Da sapere**: cosa esce è cambiato, quindi la prima sessione dopo l'aggiornamento te lo dice di nuovo. Lo vedi
+con `arturo telemetria mostra`, lo spegni con `arturo telemetria spegni`.
+
+---
+
 ## 2026-11-13 — Guardie su Windows: robocopy, registro, PowerShell, wsl, node e avvio automatico
 
 **Cosa cambia**: su Windows alcuni comandi che cancellano o eseguono codice passavano senza nessuna conferma.

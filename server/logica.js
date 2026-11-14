@@ -126,10 +126,11 @@ const GUARDIA_E_REGOLA = unoDi([...GUARDIE, ...Object.entries(REGOLE).flatMap(([
 // L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
 // il banco M09 controlla che coincidano, salvo gli eventi vecchi che il client non manda più.
 export const EVENTI = {
-  sessione: /^$/,
+  // Dal 14/11/2026 la forma dell'installazione: plugin o clone (vuoto da una versione di prima).
+  sessione: /^(|plugin|clone)$/,
   comando: unoDi([...COMANDI, "altro"]),
   guardia: GUARDIA_E_REGOLA,
-  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale)$/,
+  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale|bloccato-modifiche|bloccato-attesa|non-partito)$/,
   segnalazione: /^(problema|proposta|integrazione)$/,
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
@@ -641,7 +642,8 @@ export function testoMigliorare(m) {
     ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${installazioni(x.installazioni)}`, "  nessuna"),
     "",
     `Rimaste indietro (attive negli ultimi ${LIMITI.fermaGiorni} giorni, senza un rilascio uscito da almeno ${LIMITI.fermaGiorni}):`,
-    ...righe(m.indietro, (x) => `  ${corto(x.installazione)}  ferma alla ${x.rilascio}, manca dal ${x.dal}, c'è la ${x.nuovo}`, "  nessuna"),
+    ...righe(m.indietro, (x) => `  ${corto(x.installazione)}  ferma alla ${x.rilascio}, manca dal ${x.dal}, c'è la ${x.nuovo}`
+      + `${x.forma ? `, ${x.forma}` : ""}, ultimo esito ${x.esito || "nessuno"}`, "  nessuna"),
     "",
     "Aggiornamenti non applicati (versione, esito, volte):",
     ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),

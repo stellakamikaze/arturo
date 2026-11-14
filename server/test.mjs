@@ -561,7 +561,7 @@ const casi = {
     await programmato({ ...g, adesso: new Date("2026-10-23T06:00:00Z") });
     assert.equal(g.stato.avvisi.length, LIMITI.avvisiIndietroPerGiorno, "V30 gli avvisi superano il tetto del giorno");
     const testo = testoRiepilogo({ ...VUOTO, migliorare: { indietro: fuori, ritenzione: { nuove: 0, soglie: [] } } }, "prova");
-    assert.match(testo, /Rimaste indietro[^\n]*\n {2}9c0d1e2f {2}ferma alla v0\.1\.16, manca dal 2026-10-19, c'è la v0\.1\.17\n/,
+    assert.match(testo, /Rimaste indietro[^\n]*\n {2}9c0d1e2f {2}ferma alla v0\.1\.16, manca dal 2026-10-19, c'è la v0\.1\.17, ultimo esito nessuno\n/,
       "V30 il riepilogo non elenca chi è rimasto indietro");
   },
   async V31() {

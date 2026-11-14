@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
-import { settimanale, giornaliero, pulizia, gestisci, testoUso } from "./logica.js";
+import { settimanale, giornaliero, pulizia, gestisci, testoUso, testoMigliorare } from "./logica.js";
 
 function d1(sql = readFileSync(new URL("./schema.sql", import.meta.url), "utf8")) {
   const db = new DatabaseSync(":memory:");
@@ -191,6 +191,21 @@ const casi = {
     await a.incrementa("2026-10-23", "indietro:carl0000");
     assert.equal(await a.ultimoAvviso("indietro:carl0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");
     assert.deepEqual((await a.miglioramento("2026-10-23")).indietro, fuori, "Q13 il riepilogo non porta chi è indietro");
+  },
+  // Perché un'installazione è ferma (14/11/2026, #5610): l'ultimo esito dell'aggiornamento e la forma, plugin o clone.
+  async Q23() {
+    const a = await con([
+      ["2026-10-18", "anna0000", "sessione", "plugin", "v2026-10-19.3"], ["2026-10-22", "anna0000", "sessione", "plugin", "v2026-10-22.2"],
+      ["2026-10-19", "carl0000", "sessione", "clone", "v2026-10-19.2"], ["2026-10-20", "carl0000", "aggiorna", "rinviato", "v2026-10-19.2"],
+      ["2026-10-21", "carl0000", "aggiorna", "bloccato-modifiche", "v2026-10-19.2"],
+      ["2026-10-23", "carl0000", "sessione", "", "v2026-10-19.2"],
+      ["2026-10-19", "dora0000", "sessione", "", "v2026-10-19.2"], ["2026-10-23", "dora0000", "sessione", "", "v2026-10-19.2"],
+    ]);
+    const fuori = await a.indietro("2026-10-23");
+    assert.deepEqual(fuori.map((x) => [x.installazione, x.esito, x.forma]),
+      [["carl0000", "bloccato-modifiche", "clone"], ["dora0000", "", ""]], "Q23 l'installazione ferma non dice esito e forma");
+    const testo = [].concat(testoMigliorare(await a.miglioramento("2026-10-23"))).join("\n");
+    assert.ok(testo.includes("clone, ultimo esito bloccato-modifiche"), `Q23 il riepilogo non dice perché è ferma: ${testo}`);
   },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   async Q06() {

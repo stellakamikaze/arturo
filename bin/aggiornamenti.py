@@ -566,6 +566,7 @@ def _applica(r: Path, ammesse: int = 0) -> int:
         procedura = lavoro / "aggiorna-applica.sh"
         testo = git(r, "show", f"{tag}:bin/aggiorna-applica.sh")
         if testo.returncode != 0 or not testo.stdout.strip():
+            _segnala_ostacolo(r, stato, "non-partito")
             return _esito(r, tag, "APPLICAZIONE NON PARTITA", "il rilascio non ha la procedura di applicazione")
         with open(str(procedura), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
             uscita.write(testo.stdout)
@@ -575,6 +576,7 @@ def _applica(r: Path, ammesse: int = 0) -> int:
                            encoding="utf-8", errors="replace", timeout=600, cwd=str(r),
                            env=dict(os.environ, ARTURO_AGGIORNA_AUTOMATICO="1"))
     except (OSError, subprocess.SubprocessError) as errore:
+        _segnala_ostacolo(r, stato, "non-partito")
         return _esito(r, tag, "APPLICAZIONE NON PARTITA", str(errore)[:200])
     finally:
         shutil.rmtree(str(lavoro), ignore_errors=True)
@@ -595,6 +597,9 @@ def _applica(r: Path, ammesse: int = 0) -> int:
     commentate = [re.sub(r"^\s*SEPARATO:\s*", "", x).split(" -> ")[0].strip() for x in righe
                   if "SEPARATO:" in x and "righe commentate" in x]
     _esito(r, tag, parola, esito[:240], commentate=commentate[:10])
+    if parola == "APPLICAZIONE NON PARTITA":
+        attesa = "copia di prova con un conflitto aspetta" in esito
+        _segnala_ostacolo(r, stato, "bloccato-attesa" if attesa else "non-partito")
     scrivi(file_stato(r), calcola(r))
     return 0 if parola == "APPLICATO" else 1
 
@@ -1196,6 +1201,8 @@ def _applica_plugin(r: Path) -> int:
     if riga.startswith("GIÀ AGGIORNATO"):
         return 0
     if rc == 0 and riga.startswith("APPLICATO"):
+        # Col clone l'evento lo scrive aggiorna-applica.sh; col plugin mancava (14/11/2026, #5610).
+        _segnala_ostacolo(r, {"versione": versione}, "automatico")
         _esito(r, versione, "APPLICATO", riga[:240],
                impostazioni=next((x[:400] for x in righe if x.startswith("IMPOSTAZIONI NON APPLICATE")), ""))
         return 0
@@ -1214,6 +1221,8 @@ def _applica_plugin(r: Path) -> int:
         except OSError:
             pass
         _segnala_ostacolo(r, stato)
+    if rc not in (3, 4):
+        _segnala_ostacolo(r, {"versione": versione}, "non-partito")
     _esito(r, versione, riga.split(":")[0] if riga else "NON PARTITO", (riga or (righe[-1] if righe else ""))[:240])
     return 1
 
@@ -1294,6 +1303,10 @@ def _segnala_ostacolo(r: Path, stato: dict, valore: str = "") -> None:
             valore = "bloccato-storia"
         elif "non discende" in motivo:
             valore = "bloccato-versione"
+        elif stato.get("modifiche"):
+            # Il caso più frequente col clone (14/11/2026, #5610): settings.json riscritto da Claude Code basta a
+            # fermare ogni rilascio, e prima non lasciava traccia.
+            valore = "bloccato-modifiche"
         else:
             return
     versione = stato.get("versione", "")
