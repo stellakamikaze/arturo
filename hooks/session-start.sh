@@ -36,7 +36,7 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-zsh-come-bash' "$CLAUDE_E
     >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
 # Col plugin il codice sta in una cartella che cambia a ogni versione. La barra in basso la legge da
-# ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/strati.md).
+# ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/prove-plugin.md).
 # Il puntatore sta dove lo leggono la barra e il lanciatore di scrape: ${CLAUDE_CONFIG_DIR:-~/.claude} (lotto L10).
 ORSA_RADICE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$ORSA_RADICE" 2>/dev/null && pwd -P)" ]; then

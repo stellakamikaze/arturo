@@ -208,6 +208,14 @@ function daRiaprire(sessione) {
   return '';
 }
 
+// Lo stesso conto di fermo_da_un_giorno in bin/aggiornamenti.py (14/11/2026, S2): pronta da più di 24 ore, e nessuna
+// chiusura vera di Claude Code nelle ultime 24. Chi lavora solo con /clear e la rotazione non la installava mai.
+function fermoDaUnGiorno(stato, adesso) {
+  if (!stato || stato.stato !== 'pronto' || !stato.pronto_da) return false;
+  const ultima = Math.max(Number(stato.pronto_da) || 0, Number(stato.chiusura_vera) || 0);
+  return ((adesso === undefined ? Date.now() : adesso) / 1000) - ultima > 86400;
+}
+
 function aggiornamentoSegmento(sessione) {
   let stato = {};
   try { stato = JSON.parse(fs.readFileSync(AGG_FILE, 'utf8')) || {}; } catch (e) { stato = {}; }
@@ -233,6 +241,7 @@ function aggiornamentoSegmento(sessione) {
   if (riapri && stato.compromesso !== true) return ` │ \x1b[36m↑ Arturo ${riapri} installata · riapri Claude Code\x1b[0m`;
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
   if (!versione) return '';
+  if (fermoDaUnGiorno(stato)) return ` │ \x1b[33m↑ Arturo ${versione} · chiudi e riapri Claude Code: /clear non basta\x1b[0m`;
   if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
   // Una firma che manca o non torna non si scavalca con /aggiorna (17/10/2026, #3504).
   // La copia non verificata è rimasta installata e la chiusura ha disattivato il plugin (11/11/2026).
@@ -312,6 +321,13 @@ function quotaSegmento(rate) {
 
 
 // Lo slug di una cartella, come lo calcolano /inizio e /fine.
+// I tetti della riga: progetto, ramo e task lasciano posto a contesto e quota anche in un riquadro stretto.
+const PROGETTO_MAX = 24, RAMO_MAX = 16, TASK_MAX = 36;
+function accorcia(testo, max) {
+  const s = String(testo || '');
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
 function slug(nome) {
   return String(nome).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -425,13 +441,18 @@ process.stdin.on('end', () => {
     const scheda = progettoScheda(session);
     const progetto = scheda || daCartella;
     const slugRepo = git && path.resolve(git.principale) === path.resolve(CLAUDE_DIR) ? 'claude-config' : slug(daCartella);
-    const luogo = git && git.ramo && (!scheda || slugRepo === slug(scheda))
-      ? `${progetto}\x1b[0m\x1b[2m@${git.ramo}${git.sporco ? '*' : ''}`
-      : progetto;
+    // Tetti ai pezzi lunghi (14/11/2026, Federico: "il nome progetto in basso non mi fa vedere le percentuali
+    // di utilizzo"): progetto, ramo e task senza tetto superavano la larghezza del riquadro, e Claude Code
+    // tagliava la riga in fondo, proprio su contesto e quota. Il ramo di un worktree perde "worktree-".
+    const ramo = git && git.ramo ? accorcia(git.ramo.replace(/^worktree-/, ''), RAMO_MAX) : '';
+    const luogo = ramo && (!scheda || slugRepo === slug(scheda))
+      ? `${accorcia(progetto, PROGETTO_MAX)}\x1b[0m\x1b[2m@${ramo}${git.sporco ? '*' : ''}`
+      : accorcia(progetto, PROGETTO_MAX);
 
     // Output
     const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento(session);
     const sigla = abbreviaModello(model);
+    task = accorcia(task, TASK_MAX);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     } else {

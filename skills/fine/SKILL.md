@@ -47,6 +47,10 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
   `mcp__arturo__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
   azione del turno.
+- **Un rilascio pronto vuole una riapertura vera.** Prima di `ruota` lancia
+  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo aggiornamenti riapri`. Con uscita 0 non ruotare: il `/clear` non chiude Claude
+  Code, e il rilascio resta fermo. Chiudi con la riga che stampa e con "chiudi e riapri Claude Code, poi
+  scrivi **/inizio <slug>**".
 - **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
   la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la
   persona ha scritto durante il turno; il tool risponde "Rotazione spenta". Il fine leggero resta fatto:
@@ -239,6 +243,13 @@ personale; con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` pers
 non si chiede: le note aspettano nella sezione `## Note in attesa del sì` dell'handoff. Un `/fine` scritto
 dalla persona propone anche quelle ancora nella sezione degli handoff precedenti, di qualunque giorno, e al sì
 le toglie dalla sezione.
+
+**La Scoperta.** Lancia sempre `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo scoperta confronta`: salva le modifiche fatte a
+mano dall'impronta di `/inizio`. Fuori dal Modo rotazione lancia poi `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo scoperta
+proponi`. Con exit 3 taci. Con exit 0 il blocco `SCOPERTA` va nella Chiusura, dopo la Memoria: la frase,
+le prove e la bozza come le stampa, poi "scrivimi **scoperta sì** e la costruiamo con /creaskill, **scoperta
+no** e non torna più". Al sì lancia `arturo scoperta rispondi <ID> si` e segui `/creaskill` partendo dalla
+bozza; a skill creata, `arturo scoperta creata <ID> <cartella della skill>`. Al no, `rispondi <ID> no`.
 
 ## FASE 9 · Config Sync, in una chiamata
 

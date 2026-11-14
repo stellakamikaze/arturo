@@ -18,7 +18,9 @@ Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CO
 contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
 dopo "/inizio" (una fonte debole: un file scritto la sostituisce, lo slug no). Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
 (<PROJECTS_BASE>/<progetto>, di default ~/Documents/ClaudeCode; hook, comandi, skill e file di testa della
-config = "claude-config", non piani, memoria e cache), poi la radice git o il nome della cartella.
+config = "claude-config", non piani, memoria e cache; l'handoff in data/handoffs/<slug>/ = <slug>), poi la
+cartella di lavoro dopo un cd dentro un progetto, poi la radice git o il nome della cartella. Il progetto dato
+dalla persona nella finestra di Volta (fonte "persona") non lo cambia un file scritto, come lo slug di /inizio.
 Limite noto: dopo un permesso concesso Claude Code non manda eventi finché lo strumento non finisce, quindi
 "SBLOCCA" resta per tutta la durata del comando approvato. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
@@ -163,18 +165,27 @@ def progetto_da_strumento(dati: dict) -> tuple:
     percorso = Path(str(entrata.get("file_path") or entrata.get("notebook_path") or "")).expanduser()
     config = dentro(percorso, Path(os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude")))
     if config is not None:
+        # L'handoff di /fine (data/handoffs/<slug>/) dice il progetto anche a chi non ha scritto nella sua
+        # cartella: la sessione di Spoleto lavorava nel browser e nelle email (14/11/2026).
+        if len(config) >= 4 and config[:2] == ("data", "handoffs") and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,39}", config[2]):
+            return config[2], "file"
         return ("claude-config", "file") if len(config) == 1 or config[0] in CONFIG else ("", "")
     # La cartella dei progetti come la legge contesto.base_progetti() di Arturo.
     base = Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode"))
     parti = dentro(percorso, base)
     if not parti or len(parti) < 2:
         return "", ""
-    # Una cartella accanto ai progetti che è un worktree (.git è un file) vale il repo principale:
-    # "arturo-inizio-5465" è arturo, non un progetto nuovo (12/11/2026).
-    cartella = base / parti[0]
+    return progetto_in_base(base, parti[0]), "file"
+
+
+def progetto_in_base(base: Path, nome: str) -> str:
+    """Il progetto di una cartella di primo livello della base. Una cartella accanto ai progetti che è un
+    worktree (.git è un file) vale il repo principale: "arturo-inizio-5465" è arturo, non un progetto
+    nuovo (12/11/2026)."""
+    cartella = base / nome
     if (cartella / ".git").is_file():
-        return progetto_da_cartella(str(cartella))[:40], "file"
-    return parti[0][:40], "file"
+        return progetto_da_cartella(str(cartella))[:40]
+    return nome[:40]
 
 
 def istante(testo) -> float:
@@ -381,8 +392,17 @@ def main() -> int:
     progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "prompt"
     if not progetto and evento == "PostToolUse":
         progetto, fonte = progetto_da_strumento(dati)
-        if fonte == "file" and salvato.get("fonte") == "inizio":
+        # il progetto che la persona ha dato dalla finestra di Volta vale come /inizio (14/11/2026)
+        if fonte == "file" and salvato.get("fonte") in ("inizio", "persona"):
             progetto = ""
+        # Un cd di Bash dentro un progetto sposta una scheda che conosce solo la cartella: una richiesta
+        # libera aperta nella base dei progetti non resta "Senza progetto" mentre lavora in uno (14/11/2026).
+        if not progetto and salvato.get("fonte") in (None, "", "cartella"):
+            cwd = str(dati.get("cwd") or "")
+            base = Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode"))
+            parti = dentro(Path(cwd), base) if cwd else None
+            if parti:
+                progetto, fonte = progetto_in_base(base, parti[0]), "cartella"
     if not progetto:
         progetto, fonte = salvato.get("progetto") or "", salvato.get("fonte") or ""
     if not progetto:
@@ -401,8 +421,11 @@ def main() -> int:
             return 0
         f.parent.mkdir(parents=True, exist_ok=True)
         provvisorio = f.with_name(f"{f.stem}.{os.getpid()}.tmp")
-        provvisorio.write_text(json.dumps({"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}),
-                               encoding="utf-8")
+        nuovo = {"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}
+        # i segni di Volta (spostata, inizio) restano finché il progetto è quello che li ha scritti
+        if salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
+            nuovo.update({k: salvato[k] for k in ("spostata", "inizio", "sessionId") if k in salvato})
+        provvisorio.write_text(json.dumps(nuovo), encoding="utf-8")
         os.replace(str(provvisorio), str(f))
     scrivi(sequenze(stato, progetto, campanella=evento in FERMANO and stato != "lavoro"))
     return 0

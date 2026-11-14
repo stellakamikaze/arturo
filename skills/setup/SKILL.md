@@ -287,15 +287,15 @@ Proposta sempre nella bozza della FASE 5. Il ritratto non entra nelle note senza
 Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso,
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
 Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
-Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu: non copia
-e non sposta niente. Spiegalo così, in parole semplici:
+Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu (contratto
+in `${CLAUDE_PLUGIN_ROOT}/docs/memoria.md`). Spiegalo così, in parole semplici:
 
 - quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
   a Claude dove sono. Claude le apre solo se servono;
 - ogni nota e ogni handoff che Claude scrive passa da un controllo: se dentro c'è una password o
   un'istruzione nascosta, Claude riceve un avviso;
-- tutto resta su questo computer. Le note non vanno a nessun server e non entrano mai nella
-  telemetria;
+- le note stanno su questo computer e mai nella telemetria. Quelle che Claude apre vanno ad
+  Anthropic con la conversazione;
 - è spenta finché non dici sì, e si spegne con un comando.
 
 Mostra lo stato e chiedi: "Vuoi accendere la memoria?".
@@ -398,15 +398,6 @@ sito vetrina): Impeccable guida e rifinisce, Hallmark costruisce. Controlla se c
 
 ---
 
-## FASE 8d — Lancillotto, per trovare cosa delegare (opzionale, solo Mac)
-
-Fase da bozza.
-
-Su un Mac leggi `${CLAUDE_PLUGIN_ROOT}/shared/setup-lancillotto.md` e seguilo: chiede se la persona vuole che Arturo
-impari da come lavora, controlla e installa dopo il sì. Su un altro sistema salta questa fase.
-
----
-
 ## FASE 9 — Verifica finale
 
 In silenzio. Lancia l'audit dell'harness:
@@ -441,7 +432,7 @@ Se preferisce esplorare da solo, indicagli `${CLAUDE_PLUGIN_ROOT}/docs/principi/
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
 - Ritratto (2b, 2c): fatto o saltato. "Arturo non ne fa copie: resta nella cronologia della conversazione, che Claude Code cancella dopo 90 giorni, e nel CLAUDE.md approvato."
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable e Hallmark (8c), Lancillotto (8d), primo lavoro (10). Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable e Hallmark (8c), primo lavoro (10). Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: "Ogni giorno ti bastano `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi "ricordami di…": lo ritrovi a ogni `/inizio`."
 - **Quando servono**: `/guidami` propone i prossimi passi dal lavoro recente, `/diagnosi` controlla Arturo e il progetto, `/creaskill` fa di un lavoro ripetuto una skill tua. Gli altri strumenti non elencarli.
 - **Cosa vedi senza chiedere**: la barra in basso con il contesto usato e la quota, con l'orario in cui le 5 ore si azzerano. Quando Claude ti aspetta, il Mac suona e la scheda del terminale cambia colore. `/dafare` apre il pannello delle cose da fare, per progetto. Un termine non chiaro (contesto, memoria, branch, quota) lo spieghi con dove sta in Arturo.

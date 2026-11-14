@@ -1,4 +1,4 @@
-"""La catena di fiducia del plugin di Arturo (strati F3, #4533, docs/strati.md).
+"""La catena di fiducia del plugin di Arturo (strati F3, #4533, docs/fiducia.md).
 
 Col clone la fiducia la dà git: un rilascio è un tag firmato, e la storia dice cosa è cambiato. Col
 plugin la cartella del codice è una copia senza git (la cache dei plugin di Claude Code), quindi ogni

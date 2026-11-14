@@ -25,7 +25,8 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 - scrittura shell su un percorso di PERCORSI_PROTETTI, la tabella che li elenca tutti: la config
   e le guardie (auto-modifica, codice non firmato installato da solo), i git hook e i servizi di
   avvio automatico, i CLAUDE.md, incluso il caso `cd ~/.claude/hooks && > file` (target relativo
-  dopo un cd) e il codice passato a cmd e powershell
+  dopo un cd) e il codice passato a cmd e powershell; per la config anche il codice python e node che la
+  scrive (open, shutil.copy, os.replace, write_text, writeFileSync, extractall: _scrive_config_inline, HK-7)
 - creazione di un file di unlock (*-unlock-*) che sbloccherebbe l'auto-modifica
 - lettura di file segreti via shell (cat/head/xxd/base64/perl/ruby/nc/redirezione
   `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem, .env...),
@@ -91,8 +92,9 @@ _FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE +
 # `fetch` conta solo come comando in testa a un segmento (il fetch di BSD): `git fetch && git show
 # x:f.py | python3 -` legge un file del repo, e non scarica niente (2/11/2026, #4478). _DOWNLOAD
 # resta un solo gruppo che cattura: la regola python sotto conta i gruppi per il \3.
+# `curl u | powershell -` e `| pwsh -c -` eseguono lo script scaricato come `| bash` (HK-5, 10/11/2026).
 DANGEROUS_ISTRUZIONE = [
-    (_DOWNLOAD + _FINO_ALLO_STADIO + r"(bash|sh|zsh|fish|perl|ruby|node|php)\b",
+    (_DOWNLOAD + _FINO_ALLO_STADIO + r"(bash|sh|zsh|fish|perl|ruby|node|php|powershell|pwsh)\b",
      "pipe di script remoto in un interprete"),
     # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
     # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
@@ -140,7 +142,8 @@ _BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(
 #   nome-cartella  "cartella/nome": un nome, anche con *, in una cartella di ~/.claude;
 #   albero-home    la cartella sotto la home e tutto quello che contiene;
 #   pezzo          un pezzo di percorso in qualunque punto, e quello che sta sotto;
-#   nome-ovunque   il nome del file, in qualunque cartella.
+#   nome-ovunque   il nome del file, in qualunque cartella;
+#   nome-sotto     "cartella/nome": un nome, anche con *, a qualunque profondità sotto una cartella con quel nome.
 # `riserva` dice se la voce entra nelle regex sul testo dei comandi bash. plugins/cache, plugins/marketplaces,
 # firme, bin e arturo ne stanno fuori di proposito: nel testo sembrerebbero scritture anche come sorgente di
 # un cp (/inizio, /aggiorna).
@@ -185,6 +188,13 @@ PERCORSI_PROTETTI = (
     ("avvio-automatico", "albero-home", "Library/LaunchAgents", "~/Library/LaunchAgents/x.plist", True),
     ("avvio-automatico", "albero-home", ".config/systemd/user", "~/.config/systemd/user/x.service", True),
     ("avvio-automatico", "albero-home", ".config/autostart", "~/.config/autostart/x.desktop", True),
+    # Su Windows (revisione del 10/11/2026, HK-6): la cartella Esecuzione automatica, dell'utente e di
+    # %PROGRAMDATA%, e i profili di PowerShell, che girano a ogni shell aperta.
+    ("avvio-automatico", "pezzo", "Start Menu/Programs/Startup",
+     "~/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/x.bat", True),
+    ("avvio-automatico", "nome-sotto", "WindowsPowerShell/*profile.ps1",
+     "~/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1", True),
+    ("avvio-automatico", "nome-sotto", "PowerShell/*profile.ps1", "~/Documents/PowerShell/profile.ps1", True),
 )
 # Come ogni regola tratta le maiuscole, uguale a prima della tabella. Nel predicato "piega" confronta con
 # _piega (macOS e Windows ignorano le maiuscole, finding 11), "nome" mette in minuscolo solo il nome del
@@ -194,8 +204,10 @@ PERCORSI_PROTETTI = (
 # 10/11/2026, HK-1b). Stessa regola di forma_comando.RE_NOMI, che qui non è ancora caricato.
 _RE_NOMI = re.IGNORECASE if sys.platform in ("darwin", "win32") else 0
 _SED = r"(?i:\bsed\b)" if _RE_NOMI else r"\bsed\b"
+# Per l'avvio automatico la riserva ignora le maiuscole dove le ignora il disco: la cartella di
+# %PROGRAMDATA% si scrive `StartUp` (HK-6).
 _MAIUSCOLE = {"config": ("piega", True), "sblocco": ("nome", True), "claude-md": ("esatte", False),
-              "avvio-automatico": ("piega", False)}
+              "avvio-automatico": ("piega", bool(_RE_NOMI))}
 # Un pezzo di nome nelle regex, al posto di *.
 _DENTRO_NOME = r"[^/\s'\";|&]*"
 
@@ -214,7 +226,9 @@ def _frammento(forma, percorso, modo="bash"):
         parti = pezzi[-1].split("*")
         primo = next(i for i, x in enumerate(parti) if x)
         pezzi[-1] = "*".join(parti[:primo + 1])
-    testo = "/".join(_DENTRO_NOME.join(re.escape(x) for x in pezzo.split("*")) for pezzo in pezzi)
+    esc = [_DENTRO_NOME.join(re.escape(x) for x in pezzo.split("*")) for pezzo in pezzi]
+    # nome-sotto: fra la cartella e il nome possono stare altre cartelle (`PowerShell/7/profile.ps1`).
+    testo = esc[0] + "/(?:" + _DENTRO_NOME + "/)*" + esc[1] if forma == "nome-sotto" else "/".join(esc)
     if forma in ("albero-claude", "file-claude", "nome-radice", "nome-cartella"):
         testo = r"\.claude/" + testo
     if forma in ("albero-claude", "albero-home", "pezzo"):
@@ -792,6 +806,10 @@ def _protetto(regola, p):
             if nome == piega(percorso):
                 return True
             continue
+        if forma == "nome-sotto":
+            if piega(pezzi[0]) in cartella.split(os.sep) and fnmatch.fnmatchcase(nome, piega(pezzi[-1])):
+                return True
+            continue
         base = os.path.join(home, ".claude") if forma != "albero-home" else home
         if forma in ("nome-radice", "nome-cartella"):
             dove = piega(os.path.normpath(os.path.join(base, *pezzi[:-1])))
@@ -1172,6 +1190,214 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
                 return True
             if any(cartella_colpita(c, base_cwd) for c in cartelle if "$" not in c and "`" not in c):
                 return True
+    return False
+
+
+# --- Scritture della config dal codice di un interprete (revisione del 10/11/2026, HK-7) ---
+# CONFIG_WRITE_RE legge solo open() con il percorso scritto per intero fra virgolette. Passavano
+# `open(os.path.expanduser('~/.claude/settings.json'), 'w')`, le barre rovesciate, shutil.copy, os.replace,
+# Path.home() / '.claude', write_text e i writeFileSync di node. Qui si legge la sola destinazione di ogni
+# chiamata che scrive, e la si ricostruisce dai pezzi fra virgolette.
+_INTERPRETE_CODICE = re.compile(
+    r"(?:^|[\s;&|(/\\])(?:python[\d.]*|pythonw|py|node|bun|deno)(?:\.exe)?(?=[\s;&|)]|$)", _RE_NOMI)
+# Le espressioni che valgono la home: diventano il pezzo '~'.
+_CASA_CODICE = re.compile(
+    r"(?:os\.path\.)?expanduser\(\s*(['\"])~\1\s*\)|(?:pathlib\.)?Path\.home\(\s*\)"
+    r"|(?:require\(\s*['\"](?:node:)?os['\"]\s*\)|\bos)\.homedir\(\s*\)"
+    r"|os\.environ(?:\.get\(|\[)\s*['\"](?:HOME|USERPROFILE)['\"][^\])]*[\])]"
+    r"|os\.getenv\(\s*['\"](?:HOME|USERPROFILE)['\"][^)]*\)"
+    r"|process\.env(?:\.(?:HOME|USERPROFILE)\b|\[\s*['\"](?:HOME|USERPROFILE)['\"]\s*\])"
+    r"|Deno\.env\.get\(\s*['\"](?:HOME|USERPROFILE)['\"]\s*\)")
+_CASA_TESTO = re.compile(r"\$\{?(?:HOME|USERPROFILE)\}?|%USERPROFILE%", re.IGNORECASE)
+# `require('path')` e `import('fs')` non sono pezzi del percorso.
+_MODULO_JS = re.compile(r"\b(?:require|import)\(\s*(['\"])[^'\"]*\1\s*\)")
+_LETTERALE = re.compile(r"[rRbBuUfF]{0,2}('''|\"\"\"|'|\"|`)((?:\\.|(?!\1)[\s\S])*?)\1")
+_PAROLA_O_LETTERALE = re.compile(r"[rRbBuUfF]{0,2}('''|\"\"\"|'|\"|`)(?:\\.|(?!\1)[\s\S])*?\1|(?<![\w.])([A-Za-z_]\w*)\b")
+_ASSEGNAZIONE_CODICE = re.compile(r"^\s*(?:(?:const|let|var)\s+)?([A-Za-z_]\w*)\s*=(?!=)\s*(.+?)\s*$")
+_CONFIG_NEL_CODICE = re.compile(_frammenti("config", "win") + r"|(?:^|/)\.claude\.json$", re.IGNORECASE)
+_MODO_SCRIVE = re.compile(r"[wax+]")
+# Funzioni che scrivono: (regex del nome, posizione della destinazione, nomi a parola chiave, tipo).
+# Il tipo "open" guarda il modo, "flag" i flag di os.open, "cartella" vuole anche ~/.claude stessa.
+_CHIAMATE_SCRIVONO = tuple((re.compile("(?:" + r + r")\s*\("), pos, nomi, tipo) for r, pos, nomi, tipo in (
+    (r"(?<![\w.])(?:(?:io|codecs|builtins)\.)?open", 0, ("file", "filename"), "open"),
+    (r"\bos\.open", 0, ("path",), "flag"),
+    (r"\b(?:fs\.)?(?:openSync|fs\.open)", 0, ("path",), "open-js"),
+    (r"\bshutil\.(?:copy|copy2|copyfile|move)", 1, ("dst",), "copia"),
+    (r"\bos\.(?:replace|rename|renames|link|symlink)", 1, ("dst",), "copia"),
+    (r"\bshutil\.(?:unpack_archive|copytree)", 1, ("extract_dir", "dst"), "cartella"),
+    (r"\b(?:fs\.)?(?:writeFileSync|appendFileSync|createWriteStream)|\bfs(?:\.promises)?\.(?:writeFile|appendFile)"
+     r"|\bDeno\.(?:writeTextFile|writeFile)(?:Sync)?|\bBun\.write", 0, (), "file"),
+    (r"\b(?:fs\.)?(?:copyFileSync|renameSync|cpSync|symlinkSync|linkSync)"
+     r"|\bfs(?:\.promises)?\.(?:rename|cp|copyFile|symlink|link)", 1, (), "copia"),
+))
+# Metodi con la destinazione davanti al punto (`Path(...).write_text`) o nel primo argomento.
+_METODI_SCRIVONO = re.compile(r"\.(write_text|write_bytes|touch|open|symlink_to|hardlink_to|rename|replace|"
+                              r"extractall|extract)\s*\(")
+
+
+def _ricevente(codice, fine):
+    """Il pezzo di codice davanti al punto di un metodo, fino all'inizio dell'espressione."""
+    prof, j = 0, fine - 1
+    while j >= 0:
+        c = codice[j]
+        if c in "'\"`":
+            k = j - 1
+            while k >= 0 and not (codice[k] == c and (k == 0 or codice[k - 1] != "\\")):
+                k -= 1
+            j = k - 1
+            continue
+        if c in ")]}":
+            prof += 1
+        elif c in "([{":
+            if prof == 0:
+                break
+            prof -= 1
+        elif prof == 0 and c in ";\n=,:":
+            break
+        j -= 1
+    return codice[j + 1:fine]
+
+
+def _argomenti(codice, aperta):
+    """Gli argomenti della chiamata che si apre alla parentesi `aperta`, separati alle virgole di primo livello."""
+    args, prof, j, inizio = [], 0, aperta + 1, aperta + 1
+    while j < len(codice):
+        c = codice[j]
+        if c in "'\"`":
+            k = j + 1
+            while k < len(codice) and not (codice[k] == c and codice[k - 1] != "\\"):
+                k += 1
+            j = k + 1
+            continue
+        if c in "([{":
+            prof += 1
+        elif c in ")]}":
+            if prof == 0:
+                break
+            prof -= 1
+        elif c == "," and prof == 0:
+            args.append(codice[inizio:j])
+            inizio = j + 1
+        j += 1
+    args.append(codice[inizio:j])
+    return [a.strip() for a in args if a.strip()]
+
+
+def _argomento(args, pos, nomi=()):
+    """L'argomento in posizione `pos`, o quello passato per nome (`dst=...`, `mode='w'`)."""
+    posizionali = []
+    for a in args:
+        m = re.match(r"^([A-Za-z_]\w*)\s*=(?!=)\s*([\s\S]*)$", a)
+        if m:
+            if m.group(1) in nomi:
+                return m.group(2)
+        else:
+            posizionali.append(a)
+    return posizionali[pos] if pos < len(posizionali) else None
+
+
+def _scrive_config_inline(command, cwd):
+    """True se il codice python, node, bun o deno del comando (in `-c`, `-e`, in una pipe o in un heredoc)
+    scrive la config: open() in scrittura, shutil.copy e move, os.replace e rename, write_text e
+    write_bytes, writeFileSync e copyFileSync, un archivio estratto con extractall o unpack_archive.
+    Conta solo la destinazione, con le barre normalizzate, anche costruita con join, con `/` di pathlib, con
+    `+` o con una variabile assegnata nello stesso codice. Copiare la config altrove e leggerla tacciono.
+    Una destinazione che comincia con una variabile ignota (`os.path.join(d, '.claude', ...)`, la home
+    finta di un banco) tace: non si sa dove porta. Anche `python -m zipfile -e` e `7z x -o` verso la
+    config, che _writes_config non legge."""
+    # I corpi verso cat e gli altri lettori sono testo: restano quelli verso un interprete.
+    codice = _hd.togli(command, lambda h: h.inerte())
+    if not _INTERPRETE_CODICE.search(codice) and not re.search(r"\b7z[a-z]?(?:\.exe)?\s", codice, _RE_NOMI):
+        return False
+    codice = codice.replace('\\"', '"')
+    basi = [cwd] + [_resolve(m.group(1), cwd) for m in
+                    re.finditer(r"(?:^|[;&|(\n]\s*)(?:cd|pushd)\s+([^\s;&|)]+)", codice)]
+    variabili = {}
+    for riga in re.split(r"[;\n]", codice):
+        m = _ASSEGNAZIONE_CODICE.match(riga)
+        if m and m.group(1) not in ("mode", "flags"):
+            variabili[m.group(1)] = m.group(2)
+
+    def sostituisci(espr, giri=3):
+        for _ in range(giri):
+            nuovo = _PAROLA_O_LETTERALE.sub(
+                lambda m: "(" + variabili[m.group(2)] + ")" if m.group(2) in variabili else m.group(0), espr)
+            if nuovo == espr:
+                break
+            espr = nuovo
+        return espr
+
+    def pezzi(espr):
+        """Il percorso ricostruito dai pezzi fra virgolette, e se davanti c'è una parola ignota."""
+        espr = _MODULO_JS.sub("", _CASA_CODICE.sub("'~'", sostituisci(espr)))
+        # La testa dell'espressione, senza le chiamate davanti (`os.path.join(`, `Path(`): un letterale
+        # o una parola. Una parola che non è una chiamata è una variabile ignota.
+        testa = re.sub(r"^(?:\s|\(|new\s|[A-Za-z_][\w.]*\s*\()*", "", espr)
+        ignota = bool(re.match(r"[A-Za-z_]", testa)) and not re.match(r"[rRbBuUfF]{0,2}['\"`]", testa)
+        trovati = []
+        for m in _LETTERALE.finditer(espr):
+            pezzo = re.sub(r"\$\{([^}]*)\}", lambda g: "~" if "~" in g.group(1) else "", m.group(2))
+            trovati.append(_CASA_TESTO.sub("~", pezzo))
+        percorso = re.sub(r"/+", "/", re.sub(r"\\+", "/", "/".join(trovati)))
+        return re.sub(r"(?:^|(?<=/))\./", "", percorso), ignota
+
+    def colpisce(espr, cartella=False, sorgente=None):
+        if not espr:
+            return False
+        percorso, ignota = pezzi(espr)
+        if not percorso or ignota:
+            return False
+        assoluto = percorso.startswith(("~", "/")) or re.match(r"^[A-Za-z]:/", percorso)
+        candidati = [percorso]
+        # shutil.copy e move verso una cartella scrivono il file col nome della sorgente.
+        nome = pezzi(sorgente)[0].rstrip("/").rsplit("/", 1)[-1] if sorgente else ""
+        if nome:
+            candidati.append(percorso.rstrip("/") + "/" + nome)
+        for candidato in candidati:
+            for base in (basi[:1] if assoluto else basi):
+                p = _resolve(candidato, base)
+                if not p or _temporaneo(p):
+                    continue
+                if _under_claude_config(p) or _under_claude_config(os.path.realpath(p)) or \
+                        (cartella and _contiene_protetti(p, False)):
+                    return True
+                if _CONFIG_NEL_CODICE.search(candidato):
+                    return True
+        return False
+
+    for nome_re, pos, nomi, tipo in _CHIAMATE_SCRIVONO:
+        for m in nome_re.finditer(codice):
+            args = _argomenti(codice, m.end() - 1)
+            dest = _argomento(args, pos, nomi)
+            if tipo in ("open", "open-js"):
+                modo = _argomento(args, 1, ("mode", "flags"))
+                lettere = "".join(x.group(2) for x in _LETTERALE.finditer(sostituisci(modo or "")))
+                if not _MODO_SCRIVE.search(lettere):
+                    continue
+            if tipo == "flag" and not re.search(r"O_(?:WRONLY|RDWR|CREAT|APPEND|TRUNC)", " ".join(args[1:])):
+                continue
+            if colpisce(dest, cartella=tipo == "cartella", sorgente=args[0] if tipo == "copia" and args else None):
+                return True
+    for m in _METODI_SCRIVONO.finditer(codice):
+        metodo, args = m.group(1), _argomenti(codice, m.end() - 1)
+        if metodo in ("rename", "replace"):
+            bersaglio, cartella = _argomento(args, 0, ("target",)), False
+        elif metodo in ("extractall", "extract"):
+            bersaglio, cartella = _argomento(args, 0 if metodo == "extractall" else 1, ("path",)), True
+        else:
+            if metodo == "open" and not _MODO_SCRIVE.search(
+                    "".join(x.group(2) for x in _LETTERALE.finditer(_argomento(args, 0, ("mode",)) or ""))):
+                continue
+            bersaglio, cartella = _ricevente(codice, m.start()), False
+        if colpisce(bersaglio, cartella=cartella):
+            return True
+    # Gli archivi estratti dagli strumenti che _writes_config non conosce.
+    for m in re.finditer(r"-m\s+(?:zipfile|tarfile)\s+(?:-e|--extract)\s+\S+\s+(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)", codice):
+        if colpisce(repr(m.group(1).strip("'\"")), cartella=True):
+            return True
+    for m in re.finditer(r"\b7z[a-z]?(?:\.exe)?\s+[xe]\b[^;&|\n]*?\s-o(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)", codice, _RE_NOMI):
+        if colpisce(repr(m.group(1).strip("'\"")), cartella=True):
+            return True
     return False
 
 
@@ -1623,6 +1849,28 @@ def _rmtree_bersagli(command):
     return bersagli
 
 
+# rmSync, rmdirSync e fs.rm di node, bun e deno con `recursive: true` cancellano una cartella intera come
+# shutil.rmtree (revisione del 10/11/2026, HK-5). Senza recursive cancellano un file solo, o falliscono.
+_NODE_RE = re.compile(r"(?:^|[\s;&|(/])(?:node|bun|deno)(?=\s|$)", _RE_NOMI)
+_RMSYNC_RE = re.compile(r"(?:\brm(?:dir)?Sync|\.rm)\s*\(\s*(?:(['\"`])([^'\"`]*)\1(?=\s*[,)]))?")
+_RICORSIVO_RE = re.compile(r"\brecursive\s*:\s*(?:true|!0|1)\b")
+
+
+def _rmsync_bersagli(command):
+    """I bersagli di rmSync, rmdirSync e fs.rm ricorsivi nel codice di node, bun o deno: il percorso scritto,
+    o None se arriva da una variabile o da un'espressione. Il corpo di un heredoc che va a un lettore non conta."""
+    testo = _hd.togli(command, lambda h: h.quotato and h.inerte())
+    if "rm" not in testo or not _NODE_RE.search(testo):
+        return []
+    bersagli = []
+    for m in _RMSYNC_RE.finditer(testo):
+        fine = re.search(r"[;\n]", testo[m.end():])
+        istruzione = testo[m.end(): m.end() + fine.start()] if fine else testo[m.end():]
+        if _RICORSIVO_RE.search(istruzione):
+            bersagli.append(m.group(2) if m.group(1) else None)
+    return bersagli
+
+
 # Le opzioni di git prima del sottocomando che prendono un valore staccato.
 _GIT_OPZIONI_CON_VALORE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
                                      "--config-env", "--super-prefix"))
@@ -1993,6 +2241,19 @@ def _codici_windows(testo):
     return out
 
 
+# PowerShell che scarica uno script ed esegue il testo (revisione del 10/11/2026, HK-5): `irm u | iex`,
+# `iex (New-Object Net.WebClient).DownloadString(u)`, anche dentro -EncodedCommand, che _codice_powershell
+# decodifica. In PowerShell 5 `curl` e `wget` sono alias di Invoke-WebRequest.
+_PS_ESEGUE_TESTO = re.compile(r"(?<![\w-])(?:iex|invoke-expression)(?![\w-])", re.IGNORECASE)
+_PS_SCARICA = re.compile(r"(?<![\w-])(?:irm|iwr|invoke-restmethod|invoke-webrequest|curl|wget)(?![\w-])|"
+                         r"downloadstring|downloaddata|net\.webclient", re.IGNORECASE)
+
+
+def _powershell_scarica_ed_esegue(testo):
+    """True se il codice di un `powershell` o `pwsh` del comando scarica dalla rete ed esegue il testo con iex."""
+    return any(_PS_ESEGUE_TESTO.search(c) and _PS_SCARICA.search(c) for c in _codici_windows(testo))
+
+
 def _regole_windows(testo):
     """Le regole che il codice di cmd e powershell tocca: segreto se nomina un file segreto, e la regola del
     percorso (config, sblocco, claude-md, avvio-automatico) se scrive e nomina un percorso protetto."""
@@ -2005,6 +2266,42 @@ def _regole_windows(testo):
                 if pattern.search(codice):
                     regole.add(regola)
     return regole
+
+
+# Programmi che registrano altro codice da far partire da solo su Windows (revisione del 10/11/2026, HK-6):
+# un'operazione pianificata, una chiave di avvio del registro, un servizio. Le chiavi si cercano sul testo con
+# `\W*` fra i pezzi: in Git Bash una barra rovesciata fuori dalle virgolette sparisce, e
+# `HKCU\...\CurrentVersion\Run` arriva come `HKCU...CurrentVersionRun`.
+_AVVIO_CHIAVI = r"currentversion\W*(?:policies\W*explorer\W*)?run|winlogon|image\W*file\W*execution\W*options"
+_AVVIO_CHIAVI_RE = re.compile(_AVVIO_CHIAVI, re.IGNORECASE)
+# Lo stesso nel codice di cmd e powershell, più i cmdlet di PowerShell. In PowerShell `sc` è Set-Content, ma
+# `sc create` non scrive niente di utile: vale come sc.exe.
+_AVVIO_CODICE = re.compile(
+    r"(?:^|[\s;&|(])(?:schtasks(?:\.exe)?\s(?:[^;&|\n]*\s)?[/-]+create(?![\w-])"
+    r"|reg(?:\.exe)?\s+(?:import|restore|load)(?![\w-])"
+    r"|reg(?:\.exe)?\s+add\s[^;&|\n]*(?:" + _AVVIO_CHIAVI + r")"
+    r"|sc(?:\.exe)?\s+create(?![\w-])"
+    r"|(?:register-scheduledtask|new-service)(?![\w-])"
+    r"|(?:new|set)-itemproperty\s[^;|\n]*currentversion\W*(?:policies\W*explorer\W*)?run)",
+    re.IGNORECASE)
+
+
+def _avvio_windows(testo):
+    """Il motivo se il comando registra codice che parte da solo su Windows, None altrimenti."""
+    for nome, args in _fc.programmi(testo):
+        nome = nome.lower()
+        sotto = args[0].lower() if args else ""
+        if nome == "schtasks" and any(a[:1] in "/-" and a.lstrip("/-").lower() == "create" for a in args if a):
+            return "schtasks /create, un'operazione pianificata"
+        if nome == "reg" and sotto in ("import", "restore", "load"):
+            return f"reg {sotto}, che scrive chiavi intere del registro"
+        if nome == "reg" and sotto == "add" and _AVVIO_CHIAVI_RE.search(" ".join(args[1:])):
+            return "reg add su una chiave di avvio (Run, Winlogon, Image File Execution Options)"
+        if nome == "sc" and sotto == "create":
+            return "sc create, un servizio di Windows"
+    if any(_AVVIO_CODICE.search(c) for c in _codici_windows(testo)):
+        return "codice di cmd o PowerShell che registra un'operazione pianificata, un servizio o una chiave di avvio"
+    return None
 
 
 _PUSH_RISCRIVE = ("--force", "--force-with-lease", "--force-if-includes", "--mirror", "--delete", "--prune")
@@ -2200,6 +2497,11 @@ def main() -> int:
             pericoloso = None
         if pericoloso:
             regole.insert(0, (r"[\s\S]", pericoloso, [testo]))
+        try:
+            if _powershell_scarica_ed_esegue(testo):
+                regole.insert(0, (r"[\s\S]", "codice PowerShell che scarica uno script e lo esegue con iex", [testo]))
+        except Exception:
+            pass
         for pattern, why, testi in regole:
             if any(re.search(pattern, t, re.IGNORECASE) for t in testi):
                 sys.stderr.write(
@@ -2229,7 +2531,13 @@ def main() -> int:
         windows = set()
 
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
-    if CONFIG_WRITE_RE.search(dritto) or "config" in windows or _writes_config(testo, cwd, cancella=True):
+    # Il codice python e node si legge dal comando intero: _testo_shell toglie il corpo degli heredoc verso
+    # un interprete che non lancia programmi, e uno shutil.copy lì dentro scrive comunque (HK-7).
+    try:
+        inline = _scrive_config_inline(command, cwd)
+    except Exception:
+        inline = False
+    if CONFIG_WRITE_RE.search(dritto) or "config" in windows or _writes_config(testo, cwd, cancella=True) or inline:
         return _ask("config",
             "Scrittura via shell su settings/hook di Claude Code o sull'aggiornamento automatico "
             "di Arturo: modificherebbe le guardie stesse, o cosa si installa da solo. Conferma "
@@ -2266,8 +2574,19 @@ def main() -> int:
     if PERSIST_WRITE_RE.search(dritto) or "avvio-automatico" in windows or _writes_config(testo, cwd, _is_persistenza):
         return _ask("avvio-automatico",
             "Scrittura via shell su un git hook o su un servizio di avvio automatico "
-            "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
-            "commit o a ogni accesso. Conferma solo se l'hai chiesto tu."
+            "(LaunchAgents, systemd, autostart, la cartella Esecuzione automatica o un profilo "
+            "di PowerShell): il codice partirebbe da solo a ogni commit, a ogni accesso o a ogni "
+            "shell aperta. Conferma solo se l'hai chiesto tu."
+        )
+    # Su Windows anche i programmi che registrano l'avvio: schtasks, reg, sc, PowerShell (HK-6).
+    try:
+        avvio = _avvio_windows(testo)
+    except Exception:
+        avvio = None
+    if avvio:
+        return _ask("avvio-automatico",
+            f"Avvio automatico su Windows ({avvio}): il programma partirebbe da solo, a ogni "
+            "accesso o a un orario, anche fuori da Claude Code. Conferma solo se l'hai chiesto tu."
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
@@ -2370,26 +2689,29 @@ def main() -> int:
             "Conferma solo se hai controllato cosa trova."
         )
 
-    # 7) shutil.rmtree -> ask, come rm ricorsivo: tranne cartelle rigenerabili e file temporanei.
+    # 7) shutil.rmtree e rmSync di node -> ask, come rm ricorsivo: tranne cartelle rigenerabili e file
+    # temporanei. Le regole restano quelle di rmtree: i nomi sono un elenco chiuso del server.
+    chi = "shutil.rmtree"
     try:
-        for t in _rmtree_bersagli(command):
+        for chi, t in [("shutil.rmtree", t) for t in _rmtree_bersagli(command)] + \
+                [("rmSync di node", t) for t in _rmsync_bersagli(command)]:
             if t == _TEMPORANEA:
                 continue
             p = _resolve(t, os.path.normpath(cwd)) if t else None
             if p is None:
                 return _ask("rmtree-variabile",
-                    "shutil.rmtree su un percorso che arriva da una variabile: cancella una cartella "
+                    f"{chi} su un percorso che arriva da una variabile: cancella una cartella "
                     "intera, senza cestino. Controlla quale prima di confermare."
                 )
             reale = _reale(p)
             if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)) or \
                     _is_protected_tree(reale) or not (_rigenerabile(reale) or _temporaneo(reale)):
                 return _ask("rmtree-cartella",
-                    f"shutil.rmtree su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
+                    f"{chi} su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
                     "c'è lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla."
                 )
     except Exception:
-        return _ask("rmtree-illeggibile", "shutil.rmtree che la guardia non riesce a leggere: controlla prima di confermare.")
+        return _ask("rmtree-illeggibile", f"{chi} che la guardia non riesce a leggere: controlla prima di confermare.")
 
     # 8) git clean -f -> ask: i file non tracciati non stanno in nessun commit.
     if _git_clean_forzato(command):

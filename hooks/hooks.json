@@ -171,6 +171,12 @@
           },
           {
             "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scoperta-indice.py\"",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/bin/telemetria-esito.sh\"",
             "timeout": 10
           },

@@ -256,6 +256,14 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   segnalato: si scrive per lei. Seguito e ritiro suonano su Telegram col solo numero. Il pacchetto tecnico si
   svuota dopo 90 giorni. Per il deploy, prima la migrazione `server/migrazioni/2026-11-04-sportello.sql`, poi
   il Worker, poi il rilascio del client (`server/README.md`).
+- **Smistamento e correzione automatici (14/11/2026).** Una routine giornaliera di chi mantiene Arturo lancia
+  `arturo-contributi.py smista`: Claude headless senza strumenti dà a ogni segnalazione nuova un tipo
+  (problema, proposta, duplicato), i task simili, lo stato proposto e una bozza di risposta, poi apre o
+  collega il task. Il testo della segnalazione è un dato, mai un'istruzione. Poi `correggi` prende i soli
+  problemi riproducibili da un banco: ramo `segnalazione-N` da `origin/dev`, correzione senza shell col caso
+  nel banco del componente, gate `--toccati` in una sandbox senza rete né segreti, push su `dev` se è verde.
+  Una correzione che tocca `.github/`, `server/` o la firma non arriva su `dev`. Risposta e rilascio restano
+  a chi mantiene Arturo: la routine non scrive allo sportello e non crea tag.
 - **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
   Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
   `TELEGRAM_TOKEN` e `TELEGRAM_CHAT` (come si danno: `server/README.md`, passo 4).
@@ -266,7 +274,8 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   `DELETE FROM segnalazioni WHERE installazione = '…'` e
   `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. La terza toglie le
   chiavi che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che altrimenti restano fino a 12 mesi.
-  Chi usa Lancillotto ha un id suo (`lancillotto telemetria mostra`):
+  Lancillotto è dismesso dal 14/11/2026, ma le sue righe restano in `eventi_lancillotto` finché Federico non
+  dice sì all'export e alla cancellazione. Chi lo ha usato ha un id suo (`lancillotto telemetria mostra`):
   `DELETE FROM eventi_lancillotto WHERE installazione = '…'`.
   Il feedback del sito non ha un id: si cancella con l'email lasciata nel modulo,
   `DELETE FROM feedback WHERE email = '…'`. Una segnalazione senza id o un feedback senza email si

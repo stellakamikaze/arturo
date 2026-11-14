@@ -338,7 +338,9 @@ _DAVANTI = frozenset("! { } then do else elif if while until time fi done esac".
 _INTESTAZIONI = frozenset("for case select".split())
 # Wrapper che eseguono il comando che segue; le loro opzioni si saltano. timeout ha anche la durata
 # (`timeout 30 rm`, `timeout -s KILL 5s cat .env`: review del 7/11/2026, finding 2).
-_WRAPPER = frozenset("command builtin exec nohup nice env sudo doas caffeinate timeout".split())
+# Su Windows `wsl` lancia nel Linux il comando che segue, anche dopo -e, --exec o `--` (`wsl rm -rf ~/x`:
+# revisione del 10/11/2026, HK-5).
+_WRAPPER = frozenset("command builtin exec nohup nice env sudo doas caffeinate timeout wsl".split())
 _TIMEOUT_CON_VALORE = frozenset(("-s", "--signal", "-k", "--kill-after"))
 # Le opzioni dei wrapper che prendono un valore: lettere corte e forme lunghe col valore staccato. Senza,
 # `sudo -u root rm` dava il programma `root` e `env -u X gh` dava `X` (review del 9/11/2026, #5097).
@@ -350,6 +352,7 @@ _WRAPPER_CON_VALORE = {
     "exec": ("a", frozenset()),
     "nice": ("n", frozenset(("--adjustment",))),
     "timeout": ("sk", _TIMEOUT_CON_VALORE),
+    "wsl": ("du", frozenset(("--distribution", "--user", "--cd", "--shell-type"))),
 }
 # Programmi che lanciano il comando scritto nei loro argomenti: find con -exec e i lanciatori di pacchetti.
 # Il programma esterno resta nell'elenco, e quello dentro si aggiunge (#5097).

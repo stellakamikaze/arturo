@@ -61,15 +61,18 @@ from radici import comando_arturo, radice_arturo, radice_orsa  # noqa: E402
 URL = "https://arturo-dati.stellakamikaze.org"
 # L'elenco chiuso. Lo stesso elenco sta in server/logica.js e nel README (banco M09).
 EVENTI = {
-    "sessione": re.compile(r"^$"),
+    # Dal 14/11/2026 la sessione dice la forma dell'installazione: plugin o clone (vuoto da una versione di prima).
+    "sessione": re.compile(r"^(|plugin|clone)$"),
     "comando": re.compile(r"^[a-z0-9-]{1,40}$"),
     "guardia": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     # applicato, conflitto, fallito e scartato li scrive bin/aggiorna-applica.sh; rifiutato (un no al
     # Passo 3) e indietro li registra /aggiorna. automatico è un'installazione alla chiusura della
     # sessione (bin/aggiornamenti.py), dal 16/10/2026. Dal 20/10/2026 (#3637) anche perché un rilascio
     # non si installa da solo, una volta per versione: rinviato (un'altra sessione resta aperta),
-    # bloccato-firma, bloccato-verifica, bloccato-storia, bloccato-versione, manuale.
-    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale)$"),
+    # bloccato-firma, bloccato-verifica, bloccato-storia, bloccato-versione, manuale. Dal 14/11/2026 (#5610)
+    # anche bloccato-modifiche (file non salvati), bloccato-attesa (una copia di prova con un conflitto aspetta)
+    # e non-partito (la procedura non è partita): prima erano i casi più frequenti, e non lasciavano traccia.
+    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale|bloccato-modifiche|bloccato-attesa|non-partito)$"),
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
     # Da hooks/deriva.py: un `insieme:<n>` apre l'elenco corrente. Dei file solo la posizione
     # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
@@ -122,7 +125,7 @@ REGOLE = {
 # Arturo, mai un tag della persona. Il README non dice più "non legato a te".
 # 8: escono la durata della sessione e i messaggi della persona in fasce, e le skill di Arturo usate (3/11/2026, #4540).
 # 9: esce il nome di un banco delle guardie diventato rosso, che alla persona non si dice più (3/11/2026).
-PROMESSA = 9
+PROMESSA = 10
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -288,6 +291,12 @@ def versione() -> str:
         return v if RILASCIO.fullmatch(v) else "sconosciuta"
     except (OSError, subprocess.SubprocessError):
         return "sconosciuta"
+
+
+def forma() -> str:
+    """"plugin" se il codice gira dalla cache dei plugin, altrimenti "clone" (14/11/2026, #5610): le due forme si
+    aggiornano per strade diverse, e senza la forma il riepilogo non diceva quale strada si inceppa."""
+    return "plugin" if versione_plugin() is not None else "clone"
 
 
 def versione_plugin():
@@ -984,14 +993,14 @@ def avvio() -> int:
             if any(cartella_attesa().glob("*.attesa.json")):
                 _invio_in_background(solo_segnalazioni=True)
             return 0
-        registra("sessione")
+        registra("sessione", forma())
         if stato.get("avviso_promessa") != PROMESSA:
             nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
-            print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
+            print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo (plugin o clone) e di "
                   "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
                   "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
                   "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, banchi di prova delle guardie rossi, fase di /setup raggiunta, esiti di /aggiorna e degli "
-                  "aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di Arturo cambiati, spenti o in conflitto "
+                  "aggiornamenti automatici, perché un aggiornamento automatico non parte (anche modifiche non salvate o una copia di prova in attesa), file e hook di Arturo cambiati, spenti o in conflitto "
                   "(un file della persona conta come altro). Mai prompt, file, nomi o testi. L'id è casuale, ma chi mantiene Arturo può "
                   "sapere chi c'è dietro se conosce la persona: non sono dati anonimi (docs/privacy.md)."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "

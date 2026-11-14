@@ -22,6 +22,8 @@ Casi coperti:
   una cartella LOCALE (un disco di backup, i Documenti): cancella lì tutto quello
   che la sorgente non ha. Un dry-run (-n, --dry-run) non chiede.
 - redirezione/overwrite di un file DB (> *.db / *.sqlite / *.sql.gz)
+- su Windows (revisione del 10/11/2026, HK-5): `robocopy` con /MIR o /PURGE, che cancella nella
+  destinazione quello che la sorgente non ha (salvo /L, che elenca e basta), e `reg delete`.
 
 Fail-open su parsing. Zero dipendenze.
 """
@@ -127,6 +129,23 @@ DB_FILE_OVERWRITE_RE = re.compile(
 )
 
 
+# robocopy e reg su Windows (HK-5). Le opzioni di robocopy ignorano le maiuscole, e in Git Bash si scrivono
+# anche con due barre (`//MIR`), perché la shell prende `/MIR` per un percorso.
+ROBOCOPY_RE = re.compile(r"(?:^|[^\w.-])robocopy\b[^|&;\n]*", re.IGNORECASE)
+ROBOCOPY_CANCELLA_RE = re.compile(r"\s[\"']?/+(?:MIR|PURGE)(?![\w:])", re.IGNORECASE)
+ROBOCOPY_ELENCA_RE = re.compile(r"\s[\"']?/+L(?![\w:])", re.IGNORECASE)
+REG_DELETE_RE = re.compile(r"(?:^|[^\w.-])reg\s+delete\b", re.IGNORECASE)
+
+
+def _robocopy_cancella(cmd: str) -> bool:
+    """True se un robocopy del comando ha /MIR o /PURGE e non /L."""
+    for m in ROBOCOPY_RE.finditer(_senza_testo(cmd)):
+        segmento = m.group(0)
+        if ROBOCOPY_CANCELLA_RE.search(segmento) and not ROBOCOPY_ELENCA_RE.search(segmento):
+            return True
+    return False
+
+
 def _ask(reason: str) -> int:
     print(json.dumps({
         "hookSpecificOutput": {
@@ -188,6 +207,20 @@ def main() -> int:
             "rsync --delete verso una cartella di questo computer: cancella lì ogni file che la "
             "sorgente non ha, senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima "
             "con -n (dry-run) e controlla sorgente e destinazione."
+        )
+
+    if _robocopy_cancella(cmd):
+        return _ask(
+            "robocopy con /MIR o /PURGE: cancella nella destinazione ogni file che la sorgente non ha, "
+            "senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima con /L, che elenca "
+            "cosa farebbe, e controlla sorgente e destinazione."
+        )
+
+    if REG_DELETE_RE.search(_senza_testo(cmd)):
+        return _ask(
+            "reg delete cancella una chiave o un valore del registro di Windows, senza cestino. Prima "
+            "salva la chiave con `reg export <chiave> copia.reg`, così la rimetti con `reg import`. "
+            "Conferma solo se sai cosa cancella."
         )
 
     if DB_FILE_OVERWRITE_RE.search(cmd):

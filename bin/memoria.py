@@ -11,10 +11,11 @@ Sempre acceso, anche a memoria spenta: ogni scrittura in una nota o in un handof
 memory-write-scanner.py, e se il testo contiene un segreto o un'istruzione nascosta Claude riceve
 un avviso.
 
-Le note sono quelle che Claude Code scrive da solo (~/.claude/projects/*/memory/*.md, frontmatter
-con name, description e type), quelle di ~/.claude/data/memory/, più le cartelle che aggiungi tu.
-Nessuna nota viene copiata o spostata fuori dalla sua cartella. Nessun server: tutto resta su
-questo computer, e niente della memoria entra nella telemetria.
+Le note sono quelle che Claude Code scrive da solo (~/.claude/projects/*/memory/*.md), quelle di
+~/.claude/data/memory/, più le cartelle che aggiungi tu. Lo schema è uno, in docs/memoria.md:
+name, description e type. Le note stanno su questo computer. Il richiamo ne tiene una copia del
+testo in ~/.claude/cache/melchior-notes.json, per leggerle in fretta. Le note che Claude apre
+passano ad Anthropic come il resto della conversazione. Niente della memoria entra nella telemetria.
 
   stato                          accesa o spenta, dove cerca, quante note (anche senza comando)
   accendi | spegni               accende o spegne gli hook della memoria
@@ -44,10 +45,8 @@ import melchior_recall as mr  # noqa: E402
 
 AIUTO = __doc__.split("\n\n")[3] if __doc__ else ""
 
-TIPI = ("user", "feedback", "project", "reference")
+TIPI = mm.TIPI
 INDICE = "MEMORY.md"
-FM = mm.FRONTMATTER_RE
-CHIAVE = mm.CHIAVE_RE
 frontmatter = mm.frontmatter
 campo = mm.campo
 breve = mm.breve
@@ -163,22 +162,13 @@ def controlla(dirs=None) -> dict:
             if not campo(fm, k):
                 errori.append({"file": dove, "motivo": f'manca "{k}" nel frontmatter'})
         t = campo(fm, "type")
-        if t and str(t) not in TIPI:
+        if not t:
+            avvisi.append({"file": dove, "motivo": f"manca \"type\" ({', '.join(TIPI)}): il richiamo la trova, "
+                                                   "ma una nota nuova non sa in che cartella andare"})
+        elif str(t) not in TIPI:
             avvisi.append({"file": dove, "motivo": f"type \"{t}\" fuori dai quattro di Claude Code ({', '.join(TIPI)})"})
-        m = FM.match(testo)
-        for r in (m.group(1).splitlines() if m else []):
-            k = CHIAVE.match(r)
-            if not k or r[:1] in (" ", "\t"):
-                continue
-            valore = k.group(2).strip()
-            if not valore or valore[0] in "\"'[{>|":
-                continue
-            if ": " in valore:
-                errori.append({"file": dove, "motivo": f'il valore di "{k.group(1)}" contiene ": " senza virgolette: '
-                                                       "il frontmatter non si legge come YAML"})
-            elif " #" in valore:
-                avvisi.append({"file": dove, "motivo": f'il valore di "{k.group(1)}" contiene " #": in YAML il resto '
-                                                       "della riga diventa un commento e si perde"})
+        for grave, motivo in mm.problemi_frontmatter(testo):
+            (errori if grave else avvisi).append({"file": dove, "motivo": motivo})
         for n, r in righe_utili(testo):
             for w in WIKILINK.finditer(r):
                 b = bersaglio(w.group(1))
@@ -230,7 +220,8 @@ def stato() -> int:
         print("Cartelle tue:")
         for d in mie:
             print(f"  - {breve(d)} ({len(file_note([d]))} note)")
-    print("Tutto resta su questo computer. Niente della memoria entra nella telemetria.")
+    print("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione.")
+    print("Niente della memoria entra nella telemetria. Cosa ricorda e dove: docs/memoria.md.")
     print('Accendi con "arturo memoria accendi", spegni con "arturo memoria spegni".')
     return 0
 

@@ -13,6 +13,171 @@ modo di lavorare.
 
 ---
 
+## 2026-11-14 — Lancillotto esce da Arturo
+
+**Cosa cambia**: `/setup` non propone più Lancillotto, l'app per Mac che annotava come lavori. Il server di Arturo
+non accetta più i suoi eventi, e il riepilogo della settimana non ha più il blocco "Dove migliorare Lancillotto".
+`/sparring` parte dai candidati della Scoperta invece che dai numeri di Lancillotto. Se Lancillotto è già sul tuo
+Mac, resta lì finché non lo togli tu, e il server rifiuta quello che prova a mandare. Le righe arrivate al server fino a oggi restano al
+massimo 12 mesi, e chi lo ha usato può chiederne la cancellazione col suo id (`docs/privacy.md`).
+
+**Il principio**: per capire cosa ripeti basta guardare come cambiano i tuoi file, senza un'app che registra tutto quello che fai al Mac.
+
+**A chi serve**: a chi ha installato Lancillotto con `/setup`; per gli altri non cambia niente.
+
+---
+
+## 2026-11-14 — La Scoperta: Arturo ti propone cosa automatizzare
+
+**Cosa cambia**: Claude Code tiene una copia di ogni versione dei file che modifichi con lui. Adesso Arturo le legge
+e cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli
+stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Le modifiche
+che fai a mano le vede confrontando i file fra `/inizio` e `/fine`. Quando trova una ripetizione, alla chiusura con
+`/fine` ti propone una skill e ti mostra le date, le parti cambiate e una bozza da leggere.
+
+Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza passa a `/creaskill`; se dici
+no, quella proposta non torna più. `arturo scoperta annulla ID` toglie la skill creata e la tiene da parte, e `arturo
+scoperta escludi` toglie una cartella dalla ricerca delle ripetizioni. Le copie di Claude Code e quelle dell'impronta di `/inizio` restano sul
+tuo computer, e l'indice di Arturo tiene i nomi dei file e dei campi cambiati, mai il testo. Per ora alla
+telemetria non arriva niente, neanche i conteggi.
+
+**Il principio**: ogni proposta arriva con le date e le modifiche che la giustificano, così decidi tu guardando le prove; senza il tuo sì Arturo non crea niente.
+
+**A chi serve**: a chi aggiorna gli stessi documenti ogni settimana o ogni mese, come un report, una fattura o
+un calendario, e lo fa ogni volta da capo.
+
+---
+
+## 2026-11-14 — Il README parte da cosa fa Arturo, e gli strati hanno nomi nuovi
+
+**Cosa cambia**: il README parte dalle tre promesse di Arturo: si configura con te senza codice, ricorda i
+progetti fra una sessione e l'altra e ti propone cosa automatizzare. Poi spiega come installarlo, quali sono i sei
+strati e come funziona il ciclo dell'Orsa. Il riferimento tecnico viene dopo, per chi lo cerca. I guardiani, la rotta e l'equipaggio ora si chiamano guardie, comandi e subagent.
+
+Le parti di Arturo si ordinano in due modi. Per proprietà: la tua (l'Orsa), quella di Arturo e quella di
+Anthropic. Per funzione: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, più l'ingresso e la misura, che
+servono a tutti. L'Orsa sta su tutti e due i piani, perché è tua ed è anche quello che Arturo fa crescere. Il
+disegno è uno solo, in `docs/come-e-fatto.md`:
+
+```diagramma
+  tu
+   │  chiedi, correggi, scrivi come scrivi
+   ▼
+┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
+│  6 Orsa: CLAUDE.md · personale/<skill>.md · memoria · todo · handoff      │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
+│  cresce con le correzioni e con le proposte della Scoperta, col tuo sì    │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ Arturo la legge e la rispetta
+┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
+│  cosa fa per te, dalle fondamenta alla crescita:                          │
+│    1 Protezione .......... guardie che chiedono un sì, segreti fermati    │
+│    2 Metodo .............. brief, freni, fatto vuol dire verificato       │
+│    3 Memoria ............. /inizio, /fine, handoff, todo, Melchior        │
+│    4 Collegamenti ........ posta, agenda, documenti, pagine web           │
+│    5 Scoperta ............ ti propone cosa automatizzare, con le prove    │
+│    sempre: Ingresso (/setup, aggiornamenti) · Misura (banchi, /segnala)   │
+│                                                                           │
+│  adattati da progetti aperti, dentro Arturo:                              │
+│    humanizer ............. ◄── blader/humanizer (MIT)                     │
+│    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
+│    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
+│                                                                           │
+│  consigliati, li installi dalla loro fonte:                               │
+│    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
+│    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
+│    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │
+│    scrape ................ ◄── D4Vinci/Scrapling (BSD-3)                  │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ hook, skill, comandi, permessi
+┌─ Claude Code ───────────────────────────────── di Anthropic, a pagamento ─┐
+│  il programma nel terminale: legge e scrive i file, lancia i comandi      │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ la conversazione esce dal tuo computer
+                       il modello (Claude, sui server di Anthropic)
+```
+
+- `docs/strati.md` è il contratto dei due assi, per chi sviluppa Arturo. Le parti tecniche del plugin stanno in tre
+  pagine sue: `docs/prove-plugin.md`, `docs/fiducia.md` e `docs/migrazione.md`.
+- Ogni voce della roadmap dice il suo strato. È nata la voce "Arturo ti propone cosa automatizzare", la Scoperta:
+  la terza promessa. Il progetto è scritto, e il codice è in fila nella roadmap.
+
+**Il principio**: chi arriva su Arturo vuole sapere prima cosa fa per sé; come è fatto dentro serve a chi lo
+sviluppa, e sta più sotto.
+
+---
+
+## 2026-11-14 — Gli aggiornamenti che restavano fermi ora arrivano
+
+**Cosa cambia**: tre casi frequenti fermavano un rilascio nuovo per giorni. Adesso non lo fermano più, o te lo
+dicono con le parole giuste.
+- Claude Code riscrive `settings.json` da solo, per esempio quando dici "sempre" a un permesso. Se è l'unico file
+  non salvato, la chiusura della sessione lo salva con un commit suo e l'aggiornamento lo unisce alla versione
+  nuova. Con un segreto nelle righe nuove non lo salva, e resta l'avviso di prima.
+- Se lavori solo con `/clear` o con la rotazione automatica, Claude Code non si chiude mai, e il rilascio non si
+  installava. Dopo 24 ore l'avvio e la barra in basso ti dicono "chiudi e riapri Claude Code: /clear non basta".
+  Anche `/fine --rotazione`, con un rilascio pronto, ti chiede di riaprire invece di ripartire con `/clear`.
+- Il controllo che decide se un rilascio si installa ora è quello del rilascio nuovo, dopo la verifica della firma.
+  Prima un difetto del controllo installato fermava anche la versione che lo correggeva.
+
+Chi usa il clone e ha una versione ferma da prima di oggi deve lanciare `/aggiorna` una volta: le correzioni
+arrivano con la versione che le porta.
+
+---
+
+## 2026-11-14 — Perché un aggiornamento non arriva, detto a chi mantiene Arturo
+
+**Cosa cambia**: quando un rilascio nuovo non si installa da solo, adesso chi mantiene Arturo sa perché. Prima i
+casi più frequenti non lasciavano traccia, e un'installazione poteva restare indietro per settimane senza che
+nessuno lo sapesse.
+- Se l'aggiornamento si ferma per file non salvati, per esempio un `settings.json` riscritto da Claude Code, parte
+  l'evento `bloccato-modifiche`.
+- Se una copia di prova con un conflitto aspetta, parte `bloccato-attesa`.
+- Se la procedura non parte, parte `non-partito`.
+- Col plugin parte anche `automatico`, quando la chiusura della sessione installa il rilascio. Col clone partiva
+  già.
+- L'evento della sessione dice se Arturo è installato come plugin o come clone: le due forme si aggiornano per
+  strade diverse.
+
+Ogni esito parte una volta per versione. Il testo del motivo non esce mai, solo la sua categoria.
+
+**Il principio**: un aggiornamento che si ferma in silenzio lascia la persona con le guardie vecchie, e chi
+mantiene Arturo non può correggere quello che non vede.
+
+**Da sapere**: cosa esce è cambiato, quindi la prima sessione dopo l'aggiornamento te lo dice di nuovo. Lo vedi
+con `arturo telemetria mostra`, lo spegni con `arturo telemetria spegni`.
+
+---
+
+## 2026-11-13 — Guardie su Windows: robocopy, registro, PowerShell, wsl, node e avvio automatico
+
+**Cosa cambia**: su Windows alcuni comandi che cancellano o eseguono codice passavano senza nessuna conferma.
+Adesso le guardie li vedono.
+- `robocopy` con `/MIR` o `/PURGE` chiede conferma: cancella nella destinazione tutto quello che la sorgente non
+  ha. Con `/L`, che elenca e basta, tace.
+- `reg delete` chiede conferma, e il messaggio ricorda di salvare prima la chiave con `reg export`.
+- PowerShell che scarica uno script e lo esegue con `iex` (`irm ... | iex`, `DownloadString`) si blocca, anche
+  quando il codice è nascosto in `-EncodedCommand`. Si blocca anche `curl ... | powershell`, come `curl ... | bash`.
+- `wsl rm -rf` passa dalle stesse guardie di `rm -rf`.
+- `rmSync`, `rmdirSync` e `fs.rm` di node, bun e deno con `recursive: true` chiedono conferma come `shutil.rmtree`
+  di Python. Su `node_modules` tacciono.
+- L'avvio automatico di Windows è protetto come i LaunchAgents del Mac. Scrivere nella cartella Esecuzione
+  automatica (`Start Menu/Programs/Startup`) o in un profilo di PowerShell vuole lo sblocco di sistema. Chiedono
+  conferma `schtasks /create`, `reg add` sulle chiavi `Run`, `Winlogon` e `Image File Execution Options`,
+  `reg import`, `sc create`, `Register-ScheduledTask` e `New-Service`. `schtasks /query` e `reg query` tacciono.
+- Il codice Python e node che scrive la config chiede conferma come la shell: `open()` di `expanduser`,
+  `shutil.copy`, `os.replace`, `Path.home() / '.claude'`, `write_text`, `writeFileSync`, anche dentro un heredoc
+  e con le barre rovesciate. Chiedono anche `extractall`, `python -m zipfile -e` e `7z x -o` verso `~/.claude`.
+  Leggere la config e copiarla altrove tacciono.
+
+**Il principio**: una guardia vale quanto la forma più semplice che la aggira.
+
+**Da sapere**: riguarda solo Windows, salvo `rmSync`, `curl ... | powershell` e il codice che scrive la config,
+che valgono ovunque.
+
+---
+
 ## 2026-11-13 — Col plugin /aggiorna rimette una copia cambiata
 
 **Cosa cambia**: se un file nella copia del plugin viene modificato, all'avvio la riga `DERIVA` lo segnala e ti
@@ -1810,7 +1975,8 @@ nel repository c'è solo il codice.
 
 **Da sapere**: niente da fare. `arturo memoria stato` dice dove cerca e quante note trova, e
 `arturo memoria accendi` la accende. Se ci sono parole che il richiamo deve ignorare, scrivile una
-per riga in `hooks/melchior-stopword.local`.
+per riga in `~/.claude/arturo/melchior-stopword.local` (il file di prima, nella cartella `hooks/`,
+vale ancora se c'è).
 
 ---
 

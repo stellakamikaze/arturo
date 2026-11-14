@@ -1,4 +1,4 @@
-"""arturo migra: porta Arturo dal clone in ~/.claude al plugin (strati F4, #4534, docs/strati.md).
+"""arturo migra: porta Arturo dal clone in ~/.claude al plugin (strati F4, #4534, docs/migrazione.md).
 
 Col clone Arturo e i file della persona stanno nella stessa cartella, e ogni modifica personale a un file
 di Arturo va in conflitto con l'aggiornamento. Col plugin il codice sta nella cache dei plugin e ~/.claude
@@ -779,7 +779,7 @@ SISTEMI_PROVATI = ("posix",)
 def avviso() -> str:
     """La riga dell'avvio per chi ha ancora il clone: una volta al giorno, senza git (l'avvio deve essere
     svelto). Col plugin, o con un ~/.claude che non è il clone, è vuota. Anche su Windows, finché il passaggio
-    non è provato lì (#4873, docs/strati.md; review del 7/11/2026, finding 99)."""
+    non è provato lì (#4873, docs/prove-plugin.md; review del 7/11/2026, finding 99)."""
     if os.name not in SISTEMI_PROVATI:
         return ""
     orsa = radice_orsa()
