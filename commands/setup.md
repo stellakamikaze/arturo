@@ -286,7 +286,7 @@ Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, c
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
 Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
 Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu (contratto
-in `docs/memoria.md`). Spiegalo così, in parole semplici:
+in `~/.claude/docs/memoria.md`). Spiegalo così, in parole semplici:
 
 - quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
   a Claude dove sono. Claude le apre solo se servono;
