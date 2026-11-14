@@ -274,9 +274,6 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   `DELETE FROM segnalazioni WHERE installazione = '…'` e
   `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. La terza toglie le
   chiavi che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che altrimenti restano fino a 12 mesi.
-  Lancillotto è dismesso dal 14/11/2026, ma le sue righe restano in `eventi_lancillotto` finché Federico non
-  dice sì all'export e alla cancellazione. Chi lo ha usato ha un id suo (`lancillotto telemetria mostra`):
-  `DELETE FROM eventi_lancillotto WHERE installazione = '…'`.
   Il feedback del sito non ha un id: si cancella con l'email lasciata nel modulo,
   `DELETE FROM feedback WHERE email = '…'`. Una segnalazione senza id o un feedback senza email si
   cancella col suo numero (`WHERE id = N`), se la persona lo dice.

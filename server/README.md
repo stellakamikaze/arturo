@@ -239,16 +239,13 @@ npx wrangler@4 d1 execute arturo --remote --command "SELECT testo FROM segnalazi
 ```
 
 Per cancellare i dati di un'installazione che lo chiede, serve il suo id. La persona lo legge
-con `python3 ~/.claude/bin/arturo telemetria mostra`. Lancillotto è dismesso dal 14/11/2026, ma la tabella
-`eventi_lancillotto` resta nel database con le righe arrivate fino ad allora: chi lo ha usato ha un id diverso,
-che legge con `lancillotto telemetria mostra`. Il feedback del sito non ha un id: si
+con `python3 ~/.claude/bin/arturo telemetria mostra`. Il feedback del sito non ha un id: si
 cancella con l'email che la persona ha lasciato nel modulo:
 
 ```bash
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM segnalazioni WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '<id>'"
-npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi_lancillotto WHERE installazione = '<id di Lancillotto>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM feedback WHERE email = '<email>'"
 ```
 

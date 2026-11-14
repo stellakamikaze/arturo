@@ -56,5 +56,5 @@ CREATE TABLE IF NOT EXISTS feedback (
   email TEXT NOT NULL DEFAULT ''
 );
 
--- Lancillotto è dismesso dal 14/11/2026 (#5617): il Worker non crea né legge più eventi_lancillotto. La tabella
--- resta nel database remoto con le righe già arrivate, finché Federico non dice sì all'export e alla cancellazione.
+-- Lancillotto è dismesso dal 14/11/2026 (#5617): il Worker non crea né legge più eventi_lancillotto, e la tabella
+-- è stata cancellata dal database remoto lo stesso giorno.
