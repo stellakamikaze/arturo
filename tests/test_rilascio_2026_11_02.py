@@ -23,6 +23,8 @@ RL09 l'avviso di contesto propone /fine come salvataggio a ogni giro, e /clear e
      per sessione: chi usa Arturo spesso continua dopo /fine (#3883).
 RL10 (review del 7/11/2026, finding 106) il README conta guardie e strumenti di hooks/ come i file, e fra le skill
      elenca solo cartelle con SKILL.md.
+RL11 (14/11/2026) la barra lascia vedere contesto e quota: progetto, ramo e task hanno un tetto, e il ramo di un
+     worktree perde "worktree-". Senza tetti la riga superava il riquadro di Volta e perdeva le percentuali.
 
 Sulla base 60b7d8d ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -220,6 +222,42 @@ def test_rl08(repo: Path) -> None:
         assert "Due Mondi@wt" in con, f"RL08 da un worktree la barra non riconosce il progetto: {con!r}"
 
 
+def test_rl11(repo: Path) -> None:
+    """La barra lascia vedere contesto e quota: progetto, ramo e task hanno un tetto (14/11/2026)."""
+    node = shutil.which("node")
+    assert node, "RL11 serve node per provare statusline.js"
+    with cartella_prova() as d:
+        home = Path(d) / "home"
+        (home / ".claude" / "cache" / "scheda").mkdir(parents=True)
+        progetto = Path(d) / "volta-celeste"
+        subprocess.run(["git", "init", "-q", "-b", "main", str(progetto)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(progetto), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                        "--allow-empty", "-m", "x"], check=True, capture_output=True)
+        copia = Path(d) / "volta-celeste-wt"
+        subprocess.run(["git", "-C", str(progetto), "worktree", "add", "-q", "-b", "worktree-progetto-sessioni-della-finestra",
+                        str(copia)], check=True, capture_output=True)
+        lungo = "un progetto dal nome lunghissimo che non finisce mai"
+        (home / ".claude" / "cache" / "scheda" / "l.json").write_text(json.dumps({"progetto": lungo}), encoding="utf-8")
+        compito = home / ".claude" / "tasks" / "w"
+        compito.mkdir(parents=True)
+        (compito / "1.json").write_text(json.dumps({"status": "in_progress", "subject": "Verifica dal vivo, commit, push e diramazione su tutte le macchine"}),
+                                        encoding="utf-8")
+        env = ambiente(home)
+
+        def barra(sessione: str, cartella: Path) -> str:
+            dati = {"session_id": sessione, "workspace": {"current_dir": str(cartella)}, "model": {"display_name": "Opus"},
+                    "context_window": {"used_percentage": 25}}
+            r = subprocess.run([node, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
+                               encoding="utf-8", capture_output=True, env=env, timeout=30)
+            return re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+
+        con = barra("w", copia)
+        assert "volta-celeste@progetto-sessio…" in con, f"RL11 il ramo del worktree non si accorcia: {con!r}"
+        assert "Verifica dal vivo, commit, push e d…" in con, f"RL11 il task non si accorcia: {con!r}"
+        con = barra("l", progetto)
+        assert "un progetto dal nome lu…" in con and lungo not in con, f"RL11 il progetto non si accorcia: {con!r}"
+
+
 def test_rl09(repo: Path) -> None:
     node = shutil.which("node")
     assert node, "RL09 serve node per provare context-monitor.js"
@@ -268,7 +306,7 @@ def test_rl10(repo: Path) -> None:
 
 
 TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04, "RL05": test_rl05,
-         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09, "RL10": test_rl10}
+         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09, "RL10": test_rl10, "RL11": test_rl11}
 
 
 def main() -> int:

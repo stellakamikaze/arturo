@@ -321,6 +321,13 @@ function quotaSegmento(rate) {
 
 
 // Lo slug di una cartella, come lo calcolano /inizio e /fine.
+// I tetti della riga: progetto, ramo e task lasciano posto a contesto e quota anche in un riquadro stretto.
+const PROGETTO_MAX = 24, RAMO_MAX = 16, TASK_MAX = 36;
+function accorcia(testo, max) {
+  const s = String(testo || '');
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
 function slug(nome) {
   return String(nome).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -434,13 +441,18 @@ process.stdin.on('end', () => {
     const scheda = progettoScheda(session);
     const progetto = scheda || daCartella;
     const slugRepo = git && path.resolve(git.principale) === path.resolve(CLAUDE_DIR) ? 'claude-config' : slug(daCartella);
-    const luogo = git && git.ramo && (!scheda || slugRepo === slug(scheda))
-      ? `${progetto}\x1b[0m\x1b[2m@${git.ramo}${git.sporco ? '*' : ''}`
-      : progetto;
+    // Tetti ai pezzi lunghi (14/11/2026, Federico: "il nome progetto in basso non mi fa vedere le percentuali
+    // di utilizzo"): progetto, ramo e task senza tetto superavano la larghezza del riquadro, e Claude Code
+    // tagliava la riga in fondo, proprio su contesto e quota. Il ramo di un worktree perde "worktree-".
+    const ramo = git && git.ramo ? accorcia(git.ramo.replace(/^worktree-/, ''), RAMO_MAX) : '';
+    const luogo = ramo && (!scheda || slugRepo === slug(scheda))
+      ? `${accorcia(progetto, PROGETTO_MAX)}\x1b[0m\x1b[2m@${ramo}${git.sporco ? '*' : ''}`
+      : accorcia(progetto, PROGETTO_MAX);
 
     // Output
     const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento(session);
     const sigla = abbreviaModello(model);
+    task = accorcia(task, TASK_MAX);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     } else {
