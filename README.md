@@ -121,7 +121,7 @@ Ogni parte di Arturo ha un proprietario e una funzione. I todo, per esempio, son
 
 1. **Protezione**: le guardie chiedono un sì prima di un gesto che non si annulla, e fermano segreti e dati che escono. Viene per prima perché gli altri strati danno a Claude accesso a file, posta e pagine web, e senza le guardie quell'accesso non ha freni ([Le guardie](#le-guardie-hooks), [Sicurezza](#sicurezza)).
 2. **Metodo**: Claude riscrive la richiesta prima di partire, si ferma davanti a un passo costoso e dice "fatto" solo dopo aver controllato. Queste regole entrano all'avvio della sessione, insieme allo stile Conciso e alle skill ([Le skill](#le-skill-skills)).
-3. **Memoria**: `/inizio` e `/fine`, gli handoff, i todo e, se la accendi, la memoria Melchior fanno ripartire ogni sessione dallo stato vero ([I comandi](#i-comandi-commands), [La memoria](#la-memoria-facoltativa)).
+3. **Memoria**: `/inizio` e `/fine`, gli handoff, i todo e la memoria Melchior fanno ripartire ogni sessione dallo stato vero ([I comandi](#i-comandi-commands), [La memoria](#la-memoria)).
 4. **Collegamenti**: posta, agenda, documenti e pagine web entrano nel lavoro con i connettori di Google, con `/monitor`, che smista quello che ti arriva, e con `scrape`, che legge una pagina ([Collegare Gmail, Calendar e Drive](#collegare-gmail-calendar-e-drive-opzionale)).
 5. **Scoperta**: Arturo legge le versioni dei file che cambi e, quando un lavoro si ripete, ti propone di automatizzarlo mostrandoti le date e le modifiche; la skill nasce solo se dici sì ([La Scoperta](#la-scoperta-arturo-scoperta)). Questa è la prima versione, e quello che verrà dopo è nella [roadmap](ROADMAP.md).
 6. **Orsa**: la parte che è tua, cioè il `CLAUDE.md`, le aggiunte in `personale/`, le skill create con `/creaskill` e le regole sul tuo modo di scrivere (la sezione "Come scrivo" del `CLAUDE.md` e `personale/humanizer.md`). Nessun aggiornamento la tocca ([Personalizzazione](#personalizzazione)). L'Orsa è l'unica parte che sta su tutti e due i piani: è tua, ed è anche quello che Arturo fa crescere.
@@ -206,7 +206,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
   - [Aggiornare Arturo](#aggiornare-arturo)
   - [Prima accensione — checklist](#prima-accensione--checklist)
   - [Come funziona: il dispatcher](#come-funziona-il-dispatcher)
-  - [Cosa c'è dentro](#cosa-cè-dentro): [le guardie](#le-guardie-hooks), [i comandi](#i-comandi-commands), [i subagent](#i-subagent-agents), [le skill](#le-skill-skills), [la memoria](#la-memoria-facoltativa)
+  - [Cosa c'è dentro](#cosa-cè-dentro): [le guardie](#le-guardie-hooks), [i comandi](#i-comandi-commands), [i subagent](#i-subagent-agents), [le skill](#le-skill-skills), [la memoria](#la-memoria)
   - [Cosa NON c'è (di proposito)](#cosa-non-cè-di-proposito)
   - [Imparare con Arturo](#imparare-con-arturo)
   - [Personalizzazione](#personalizzazione)
@@ -440,7 +440,7 @@ Fuori dal dispatcher:
 - `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
-- `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria facoltativa, spenta di default: vedi "La memoria (facoltativa)".
+- `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria, accesa di default: vedi "La memoria".
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`; un rosso non ti interrompe: i banchi ripartono dopo 30 minuti e il nome del banco rosso arriva a chi mantiene Arturo con l'evento `banchi` della telemetria; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), riga `SPORTELLO` quando chi mantiene Arturo ha risposto a una tua segnalazione, invito a `/segnala` (si spegne con `arturo segnala basta`), riga `SETUP` una volta al giorno se la prima configurazione non è finita (solo per le installazioni nate dal 16/10), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
@@ -540,12 +540,12 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 Claude Code salva una copia di ogni versione dei file che modifica, per 30 giorni (`cleanupPeriodDays`). Arturo legge quelle copie e un suo indice, che l'hook `scoperta-indice.py` scrive dopo ogni modifica: ora, file, campi cambiati, mai il testo. `/inizio` prende anche un'impronta dei file di testo del progetto, e `/fine` la confronta per vedere le modifiche che hai fatto a mano. Da qui `/fine` cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Se ne trova una, a fine lavoro ti propone una skill con le date, i pezzi di modifica e una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Con un sì la bozza passa a `/creaskill`; con un no quella proposta non torna più; `arturo scoperta annulla ID` toglie la skill creata e la tiene da parte. `arturo scoperta stato` dice le proposte fatte e le risposte, `arturo scoperta escludi MODELLO` toglie una cartella o un file dalla ricerca (per esempio `~/Documents/Privato/*`). Tutto resta sul tuo computer, in `data/scoperta/`: per ora non esce niente, nemmeno i conteggi, che arriveranno alla telemetria solo dopo il testo nuovo della privacy.
 
-### La memoria (facoltativa)
+### La memoria
 
 Claude Code salva da solo alcune note sulle sessioni passate, in
 `~/.claude/projects/*/memory/`: cosa preferisci, cosa hai deciso, dove stanno le cose. Di solito le
 rilegge solo nel progetto in cui le ha scritte. La memoria di Arturo le rende utili ovunque, ed è
-spenta finché non la accendi (`/setup` te lo chiede, oppure `arturo memoria accendi`).
+accesa di default dal 14 novembre 2026: la prima sessione te lo dice, e `arturo memoria spegni` la spegne.
 È Melchior, la memoria della config di chi mantiene Arturo: lo stesso codice (`hooks/melchior_match.py`,
 gli hook `memory-*`, `scripts/melchior_recall.py`), copiato identico. Le note di chi mantiene Arturo
 non sono nel repository: Arturo legge solo le tue. Cosa ricorda, lo schema delle note e cosa esce
@@ -583,7 +583,7 @@ Arturo è stato estratto da una config che include anche una memoria su server, 
 | Al posto di... | Arturo usa |
 |---|---|
 | Task manager su server | l'archivio locale dei todo (`arturo todo`, in `data/todo/`) + `TaskList`/`TaskCreate` nativi per i passi della sessione |
-| Memoria su database/server | il tuo `CLAUDE.md`, gli handoff in `data/handoffs/` e, se la accendi, la memoria facoltativa: le note di Claude Code su questo computer (`arturo memoria`) |
+| Memoria su database/server | il tuo `CLAUDE.md`, gli handoff in `data/handoffs/` e la memoria: le note di Claude Code su questo computer (`arturo memoria`) |
 | Sync su server privato | il repo git stesso: `data/handoffs/` e `data/todo/` viaggiano con la config, solo se il suo remote è privato |
 
 A te non serve un server, un dominio o un account. L'unico server è quello della telemetria, lo tiene chi mantiene Arturo e il suo codice è in `server/`.

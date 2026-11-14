@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Y01-Y16: la memoria facoltativa, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y17: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
-Y01 spenta di default: memory-retrieve, memory-autoload, subagent-memory-context e melchior-postwrite
-    escono con 0 e senza output finché la persona non la accende; `arturo memoria accendi` e
-    `spegni` la cambiano, ARTURO_MEMORIA vince sul file. Lo scanner delle scritture gira sempre.
-    Il default non dipende da bin/arturo accanto agli hook (strati F1): senza impostazioni è spenta.
+Y01 spenta con `arturo memoria spegni`: memory-retrieve, memory-autoload, subagent-memory-context e
+    melchior-postwrite escono con 0 e senza output; `accendi` e `spegni` la cambiano, ARTURO_MEMORIA
+    vince sul file. Lo scanner delle scritture gira sempre. Il default non dipende da bin/arturo
+    accanto agli hook (strati F1): senza impostazioni è accesa, con "accesa": false tace.
 Y02 richiamo per contenuto sulle note di Claude Code (frontmatter con `metadata: type:`), silenzio
     sui messaggi di sistema e su un messaggio che non c'entra, niente ripetizioni nella sessione,
     cartella della persona aggiunta con `arturo memoria cartella aggiungi`.
@@ -17,7 +17,8 @@ Y05 `arturo memoria controlla`: frontmatter mancante, description mancante, YAML
     che punta a un file assente. Un [[link]] senza nota è "da scrivere", non un errore.
 Y06 la memoria resta locale: niente telemetria, data/memoria/ e data/memory/ fuori da git, nessun
     host fidato scritto nel codice oltre localhost, nessun percorso di una persona.
-Y07 /setup ha la fase della memoria e chiede prima di accenderla; `arturo` elenca il comando.
+Y07 /setup ha la fase della memoria, non chiede e non la riaccende: una riga sola, senza comandi;
+    `arturo` elenca il comando.
 Y08 radici multiple: data/memory, projects/*/memory e le cartelle aggiunte. Un link simbolico da
     projects/<p>/memory verso data/memory non fa contare due volte la stessa nota.
 Y09 due note con lo stesso nome in due progetti emergono entrambe, ognuna col suo percorso, e la
@@ -37,9 +38,13 @@ Y16 un contratto solo (M1 del piano della memoria, 14/11/2026): melchior-postwri
     nuova per `type` (il prefisso del nome vale prima), il controllo della forma YAML è uno solo
     (melchior_match.problemi_frontmatter) e regge le liste fra quadre su più righe, il codice morto
     è fuori, docs/memoria.md esiste e i testi rimandano lì senza contraddirlo.
+Y17 accesa di default (M2, 14/11/2026), coi tre stati di impostazioni.json: senza file è accesa e il
+    primo avvio lo dice una volta e scrive "accesa": true; con false resta spenta e muta; con true
+    niente avviso. Le altre impostazioni restano, un file illeggibile non si sovrascrive,
+    ARTURO_MEMORIA decide senza scrivere.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
-suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y16 una copia del
+suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y17 una copia del
 repository con una variante rotta deve far fallire il controllo con il suo codice e il motivo atteso.
 """
 from __future__ import annotations
@@ -151,6 +156,7 @@ def test_y01(repo: Path) -> None:
         (lab.mem.parent.parent / "-progetto-scheda" / "memory" / "progetto-cantiere.md").write_text(
             NOTA_MIA.replace("preventivi-studio", "progetto-cantiere"), encoding="utf-8")
         (lab.dir / "cantiere").mkdir()
+        assert lab.arturo("spegni").returncode == 0, "Y01 spegni fallisce"
 
         def zitti(env=None) -> bool:
             esiti = [lab.richiamo(DOMANDA, f"y01-{len(str(env))}-{os.urandom(3).hex()}", env),
@@ -182,7 +188,8 @@ def test_y01(repo: Path) -> None:
         assert lab.arturo("spegni").returncode == 0 and zitti(), "Y01 spegni non spegne gli hook"
         assert not zitti(dict(lab.env, ARTURO_MEMORIA="1")), "Y01 ARTURO_MEMORIA=1 non accende gli hook"
         # Gli stessi hook senza bin/arturo accanto (il codice del plugin, la config di chi mantiene Arturo):
-        # decide solo la persona. Senza impostazioni tace, con "accesa": true parla (strati F1, #4531).
+        # decide solo la persona. Senza impostazioni parla (default accesa dal 14/11/2026), con
+        # "accesa": false tace (strati F1, #4531).
         impostazioni = lab.claude / "data" / "memoria" / "impostazioni.json"
         impostazioni.unlink()
         sciolti = lab.dir / "config" / "hooks"
@@ -194,11 +201,11 @@ def test_y01(repo: Path) -> None:
                                   capture_output=True, text=True, encoding="utf-8", env=lab.env, cwd=str(lab.dir),
                                   timeout=60)
         r = sciolto()
-        assert r.returncode == 0 and not r.stdout.strip(), \
-            f"Y01 senza bin/arturo e senza impostazioni la memoria parla: conta ancora la cartella del codice {r.stdout!r}"
-        impostazioni.write_text('{"accesa": true}', encoding="utf-8")
+        assert "feedback_pytest.md" in r.stdout, \
+            f"Y01 senza bin/arturo e senza impostazioni la memoria tace: conta ancora la cartella del codice {r.stdout!r}"
+        impostazioni.write_text('{"accesa": false}', encoding="utf-8")
         r = sciolto()
-        assert "feedback_pytest.md" in r.stdout, f"Y01 con accesa nelle impostazioni la memoria tace: {r.stdout!r}"
+        assert r.returncode == 0 and not r.stdout.strip(), f"Y01 con accesa false la memoria parla: {r.stdout!r}"
     finally:
         lab.chiudi()
 
@@ -353,8 +360,11 @@ def test_y07(repo: Path) -> None:
     inizio = setup.find("## FASE 7d")
     assert inizio != -1, "Y07 /setup non ha la fase della memoria"
     fase = setup[inizio:setup.find("\n## ", inizio + 5)]
-    domanda = fase.find("Vuoi accendere la memoria?")
-    assert domanda != -1 and domanda < fase.find("memoria accendi"), "Y07 /setup accende la memoria prima di chiedere"
+    assert "Vuoi accendere" not in fase and "memoria accendi" not in fase, \
+        "Y07 /setup chiede ancora di accendere la memoria, che è accesa di default"
+    riga = fase.find("Arturo ricorda i tuoi progetti su")
+    assert riga != -1, "Y07 /setup non dice in una riga che Arturo ricorda i progetti"
+    assert "python3" not in fase[riga:fase.find('"', riga)], "Y07 la riga della memoria in /setup porta un comando"
     for parola in ("memoria spegni", "telemetria", "questo computer", "data/memory"):
         assert parola in fase, f"Y07 la fase della memoria non dice \"{parola}\""
     aiuto = subprocess.run([sys.executable, "-B", str(repo / "bin" / "arturo")], capture_output=True, text=True, timeout=30)
@@ -600,9 +610,66 @@ def test_y16(repo: Path) -> None:
         assert "memoria.md" in (repo / file).read_text(encoding="utf-8"), f"Y16 {file} non rimanda a docs/memoria.md"
 
 
+def test_y17(repo: Path) -> None:
+    presenti(repo, "Y17")
+    lab = Lab(repo)
+    try:
+        impostazioni = lab.claude / "data" / "memoria" / "impostazioni.json"
+        (lab.dir / "cantiere").mkdir()
+
+        def avvio(env=None) -> subprocess.CompletedProcess:
+            return lab.hook("memory-autoload.py", {}, env, cwd=lab.dir / "cantiere")
+
+        def parla() -> bool:
+            return "feedback_pytest.md" in lab.richiamo(DOMANDA, f"y17-{os.urandom(3).hex()}").stdout
+
+        # 1. Nessun file: accesa, e il primo avvio lo dice una volta sola.
+        assert parla(), "Y17 senza impostazioni la memoria è spenta: il default non è accesa"
+        assert not impostazioni.exists(), "Y17 il richiamo scrive le impostazioni"
+        primo = avvio()
+        assert primo.returncode == 0 and "MEMORIA:" in primo.stdout, \
+            f"Y17 il primo avvio senza impostazioni non dice che la memoria è accesa: {primo.stdout!r}"
+        assert "python3" not in primo.stdout, "Y17 l'avviso della memoria porta un comando python3"
+        assert json.loads(impostazioni.read_text(encoding="utf-8")).get("accesa") is True, \
+            "Y17 il primo avvio non scrive \"accesa\": true"
+        assert "MEMORIA:" not in avvio().stdout, "Y17 l'avviso della memoria accesa torna a ogni avvio"
+        assert "di default" not in lab.arturo().stdout and "accesa" in lab.arturo().stdout, \
+            "Y17 lo stato non dice accesa dopo il primo avvio"
+
+        # 2. Spenta da chi la usa: resta spenta, nessun avviso, file intatto.
+        impostazioni.write_text('{"accesa": false, "cartelle": ["~/note"]}', encoding="utf-8")
+        prima = impostazioni.read_text(encoding="utf-8")
+        r = avvio()
+        assert "MEMORIA:" not in r.stdout and not r.stdout.strip(), f"Y17 la memoria spenta parla all'avvio: {r.stdout!r}"
+        assert impostazioni.read_text(encoding="utf-8") == prima, "Y17 l'avvio riaccende una memoria spenta"
+        assert not parla(), "Y17 la memoria spenta da chi la usa si riaccende"
+
+        # 3. Accesa per scelta: nessun avviso, file intatto.
+        impostazioni.write_text('{"accesa": true}', encoding="utf-8")
+        assert "MEMORIA:" not in avvio().stdout, "Y17 l'avviso compare anche a chi l'ha già accesa"
+
+        # Senza "accesa" ma con le cartelle: si accende e le cartelle restano.
+        impostazioni.write_text('{"cartelle": ["~/note"]}', encoding="utf-8")
+        assert "MEMORIA:" in avvio().stdout, "Y17 senza la chiave accesa il primo avvio tace"
+        dati = json.loads(impostazioni.read_text(encoding="utf-8"))
+        assert dati == {"cartelle": ["~/note"], "accesa": True}, f"Y17 l'accensione perde le altre impostazioni: {dati}"
+
+        # Un file illeggibile non si sovrascrive; ARTURO_MEMORIA decide senza scrivere.
+        impostazioni.write_text("{rotto", encoding="utf-8")
+        r = avvio()
+        assert r.returncode == 0 and "MEMORIA:" not in r.stdout, "Y17 con le impostazioni illeggibili l'avvio parla"
+        assert impostazioni.read_text(encoding="utf-8") == "{rotto", "Y17 l'avvio sovrascrive impostazioni illeggibili"
+        impostazioni.unlink()
+        r = avvio(dict(lab.env, ARTURO_MEMORIA="0"))
+        assert not r.stdout.strip() and not impostazioni.exists(), "Y17 con ARTURO_MEMORIA=0 l'avvio scrive o parla"
+    finally:
+        lab.chiudi()
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
-         "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16}
+         "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
+         "Y17": test_y17}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -631,6 +698,13 @@ VELENI = (
      "non smista per type"),
     ("Y16", [("hooks/melchior_match.py", "            seguito = _FRA_VIRGOLETTE.sub('\"\"', seguito)", "            pass")],
      "sbaglia sulle liste fra quadre"),
+    ("Y17", [("hooks/melchior_match.py", "        return scelta\n    return True\n",
+              "        return scelta\n    return False\n")],
+     "il default non è accesa"),
+    ("Y17", [("hooks/melchior_match.py", "    if isinstance(dati.get(\"accesa\"), bool):\n        return None\n", "")],
+     "torna a ogni avvio"),
+    ("Y17", [("hooks/memory-autoload.py", "    if avviso:\n        print(avviso)\n", "")],
+     "non dice che la memoria è accesa"),
 )
 
 

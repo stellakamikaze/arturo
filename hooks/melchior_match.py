@@ -25,8 +25,9 @@ possono avere lo stesso feedback_x.md. Si saltano MEMORY.md, index.md, i file e 
 cominciano con _ o con un punto (_archive/, _reports/), le cartelle che sono link simbolici.
 
 Interruttore (memoria_accesa): ARTURO_MEMORIA=1 o 0 nell'ambiente, poi "accesa" in
-data/memoria/impostazioni.json, poi il default, che è spenta: la memoria si accende con "arturo memoria
-accendi". Il codice non conta: col plugin sta in un'altra cartella (strati F1, #4531).
+data/memoria/impostazioni.json, poi il default, che è accesa (dal 14/11/2026): "arturo memoria spegni"
+la spegne. Al primo avvio senza scelta accendi_al_primo_avvio() scrive "accesa": true e dà l'avviso
+una volta. Il codice non conta: col plugin sta in un'altra cartella (strati F1, #4531).
 
 Lo schema di una nota (docs/memoria.md, 14/11/2026) è quello di Claude Code: `name`, `description` e
 `type` (TIPI), in testa o dentro `metadata:`. Facoltativi: `alias`, `cartella`, `triggers`. Le
@@ -86,18 +87,59 @@ def leggi_impostazioni():
     return dati if isinstance(dati, dict) else {}
 
 
+def scrivi_impostazioni(dati):
+    """Riscrive data/memoria/impostazioni.json in modo atomico (file temporaneo e replace)."""
+    IMPOSTAZIONI.parent.mkdir(parents=True, exist_ok=True)
+    tmp = IMPOSTAZIONI.with_name(IMPOSTAZIONI.name + ".tmp")
+    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(IMPOSTAZIONI))
+
+
 def memoria_accesa():
-    """ARTURO_MEMORIA (1 o 0) vince, poi "accesa" nelle impostazioni, poi il default: spenta.
-    Fino al 4/11/2026 il default dipendeva da bin/arturo accanto agli hook (accesa senza): col plugin
-    il codice e l'Orsa stanno in cartelle diverse, quindi decidono solo l'ambiente e la persona
-    (strati F1, #4531). Chi mantiene Arturo la tiene accesa con "accesa": true nelle impostazioni."""
+    """ARTURO_MEMORIA (1 o 0) vince, poi "accesa" nelle impostazioni, poi il default: accesa.
+    Dal 14/11/2026 (M2 del piano della memoria) il default è accesa: chi l'ha spenta ha "accesa":
+    false nelle impostazioni e resta spenta. Il codice non conta: col plugin il codice e l'Orsa stanno
+    in cartelle diverse, quindi decidono solo l'ambiente e la persona (strati F1, #4531)."""
     valore = os.environ.get("ARTURO_MEMORIA", "").strip()
     if valore in ("1", "0"):
         return valore == "1"
     scelta = leggi_impostazioni().get("accesa")
     if isinstance(scelta, bool):
         return scelta
-    return False
+    return True
+
+
+AVVISO_ACCESA = ("MEMORIA: da questo avvio Arturo ricorda i progetti della persona su questo computer: decisioni, "
+                 "errori già visti, preferenze. Diglielo in una riga, con parole tue. Per spegnerla basta che lo "
+                 "chieda a te: lanci tu \"arturo memoria spegni\".")
+
+
+def accendi_al_primo_avvio():
+    """L'avviso della memoria accesa, una volta per installazione (M2, 14/11/2026).
+
+    Se l'ambiente non decide e le impostazioni non dicono "accesa", scrive "accesa": true e
+    restituisce AVVISO_ACCESA. Negli altri casi restituisce None e non scrive: chi ha scelto resta
+    com'è, un file illeggibile non si sovrascrive (perderebbe le cartelle), una scrittura che non
+    riesce non ripete l'avviso a ogni avvio."""
+    if os.environ.get("ARTURO_MEMORIA", "").strip() in ("1", "0"):
+        return None
+    if IMPOSTAZIONI.exists():
+        try:
+            dati = json.loads(IMPOSTAZIONI.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if not isinstance(dati, dict):
+            return None
+    else:
+        dati = {}
+    if isinstance(dati.get("accesa"), bool):
+        return None
+    dati["accesa"] = True
+    try:
+        scrivi_impostazioni(dati)
+    except OSError:
+        return None
+    return AVVISO_ACCESA
 
 
 def cartelle_progetti():

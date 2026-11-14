@@ -230,13 +230,13 @@ def prova(repo: Path, ref: str | None) -> list[str]:
         shutil.copytree(plugin / "hooks", sciolti / "hooks", ignore=shutil.ignore_patterns("__pycache__"))
         casa_vuota = tmp / "casa-memoria"
         (casa_vuota / ".claude").mkdir(parents=True)
-        spenti = [memoria(plugin, casa_vuota), memoria(sciolti, casa_vuota)]
+        accesi = [memoria(plugin, casa_vuota), memoria(sciolti, casa_vuota)]  # default accesa dal 14/11/2026
         impostazioni = casa_vuota / ".claude" / "data" / "memoria" / "impostazioni.json"
         impostazioni.parent.mkdir(parents=True)
-        impostazioni.write_text('{"accesa": true}', encoding="utf-8")
-        accesi = [memoria(plugin, casa_vuota), memoria(sciolti, casa_vuota)]
-        if spenti != ["False", "False"] or accesi != ["True", "True"]:
-            rossi.append(f"ST10 la memoria dipende da bin/arturo: senza impostazioni {spenti}, accesa {accesi}")
+        impostazioni.write_text('{"accesa": false}', encoding="utf-8")
+        spenti = [memoria(plugin, casa_vuota), memoria(sciolti, casa_vuota)]
+        if accesi != ["True", "True"] or spenti != ["False", "False"]:
+            rossi.append(f"ST10 la memoria dipende da bin/arturo: senza impostazioni {accesi}, spenta {spenti}")
 
         # --- ST11-ST13: le preferenze della persona in ~/.claude/arturo (#4531) ---
         def casa_pref(nome: str) -> Path:

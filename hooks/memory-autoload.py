@@ -7,7 +7,8 @@ solo la garanzia deterministica: se CWD = dir di progetto, la sua scheda
 `progetto-<nome>.md` viene proposta per match esatto sul filename, in qualunque
 radice della memoria (melchior_match.radici).
 
-Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output.
+Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output. Al primo avvio senza
+scelta nelle impostazioni la accende e lo dice una volta (melchior_match.accendi_al_primo_avvio).
 Zero-dipendenze. Non-blocking: errore → exit 0 silenzioso.
 """
 import sys
@@ -61,6 +62,9 @@ def find_scheda(name):
 
 
 def main():
+    avviso = mm.accendi_al_primo_avvio()
+    if avviso:
+        print(avviso)
     if not mm.memoria_accesa():
         return
     # argv opzionale come hint manuale (es. da /inizio <progetto>), altrimenti CWD.
