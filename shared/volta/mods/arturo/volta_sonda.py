@@ -85,6 +85,11 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 from concurrent.futures import ThreadPoolExecutor
 
+# Il registro degli eventi (#5549) sta accanto: anche quando un banco o volta_sposta.py carica questo file
+# da un'altra cartella.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import volta_registro as registro  # noqa: E402
+
 # Il terminale di Herdr che ospita un processo: Herdr mette HC_TERMINAL_ID nell'ambiente della shell di
 # ogni scheda, e claude lo eredita. Sul Mac e su Linux l'ambiente lo dà ps; su Windows si legge dalla
 # memoria del processo (PEB, ProcessParameters, Environment: scostamenti dei processi a 64 bit), perché
@@ -771,10 +776,40 @@ def resta(entro):
     return int(entro - time.monotonic()) if entro is not None else attesa_lettura() - MARGINE_LETTURA
 
 
+def evento_hc(argv):
+    """("hc exec python3", "amaltea") per un comando hc, o None per un comando che non passa da hc."""
+    base = hc()
+    if len(argv) <= len(base) or argv[:len(base)] != base:
+        return None
+    resto, macchina, prog = argv[len(base):], "", ""
+    verbo = resto[0]
+    i = 1
+    while i < len(resto) and resto[i].startswith("-"):
+        if resto[i] == "--on" and i + 1 < len(resto):
+            macchina = resto[i + 1]
+        i += 2 if resto[i] in ("--on", "--timeout", "--name") else 1
+    if verbo == "exec" and i < len(resto):
+        prog = " " + os.path.basename(resto[i])
+    return "hc %s%s" % (verbo, prog), macchina
+
+
 def lancia(argv, timeout=60):
     # stdin chiuso: senza, ssh.exe e hc su Windows restano appesi
-    r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       stdin=subprocess.DEVNULL, timeout=timeout, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+    ev = evento_hc(argv)
+    t = time.monotonic()
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, timeout=timeout, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+    except subprocess.TimeoutExpired:
+        if ev:  # il registro (#5549): le chiamate a hc che scadono
+            registro.registra(ev[0], macchina=ev[1], ms=(time.monotonic() - t) * 1000, esito="tetto",
+                              errore="oltre %s s" % timeout)
+        raise
+    if ev:
+        testo = (r.stderr or r.stdout or "").strip() if r.returncode else ""
+        registro.registra(ev[0], macchina=ev[1], ms=(time.monotonic() - t) * 1000,
+                          esito="ok" if r.returncode == 0 else "rc %d" % r.returncode,
+                          errore=testo.splitlines()[-1] if testo else None)
     return r.returncode, r.stdout, r.stderr
 
 
@@ -947,11 +982,13 @@ def raccogli(viste=None, prima=None, entro=None):
         if not v["questa"] and v.get("stato_hc") not in (None, "connected"):
             v["irraggiungibile"] = (v.get("perche") or "Herdr non la raggiunge")[:200]
             return v
-        try:
-            d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], entro)
-        except Exception as e:  # spenta, in stop, rete giù: lo si dice e si va avanti
-            v["irraggiungibile"] = str(e)[:200]
-            return v
+        with registro.Durata("lettura", macchina="qui" if v["questa"] else v["host"]) as dura:
+            try:
+                d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], entro)
+            except Exception as e:  # spenta, in stop, rete giù: lo si dice e si va avanti
+                v["irraggiungibile"] = str(e)[:200]
+                dura.esito, dura.errore = "irraggiungibile", v["irraggiungibile"]
+                return v
         v["claude"] = d.get("claude")
         v["sessioni"] = d.get("sessioni") or []
         if isinstance(d.get("nascita"), dict):
@@ -1594,7 +1631,11 @@ def main(argv):
     if not isinstance(precedente, dict):
         precedente = None
     entro = time.monotonic() + attesa_lettura() - MARGINE_LETTURA
-    dati = documento(raccogli(gia_viste(precedente), (precedente or {}).get("macchine"), entro), precedente)
+    with registro.Durata("giro") as dura:
+        dati = documento(raccogli(gia_viste(precedente), (precedente or {}).get("macchine"), entro), precedente)
+        giu = [m["macchina"] for m in dati["macchine"] if "irraggiungibile" in m]
+        if giu:
+            dura.esito, dura.errore = "parziale", "non rispondono: " + ", ".join(giu)
     if percorso:
         scrivi_atomico(percorso, dati)
         giu = [m["macchina"] for m in dati["macchine"] if "irraggiungibile" in m]

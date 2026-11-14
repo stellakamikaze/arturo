@@ -635,7 +635,8 @@ export async function nuda(indirizzo) {
     }
     const f = d.foreground;
     return d.state === "live" && Boolean(f) && f.pid === d.pid && JSON.stringify(f.argv) !== JSON.stringify(d.argv);
-  } catch {
+  } catch (e) {
+    registra("nuda", { esito: "eccezione", errore: String(e?.message ?? e) });
     return false;
   }
 }
@@ -645,12 +646,49 @@ async function etichetta(t, s) {
   try { await hc(["label", t.address, `${ETICHETTA}=${s.id}`]); } catch { /* resta l'argv */ }
 }
 
+// Il registro eventi (#5549): gli eventi della finestra si accodano qui e svuotaRegistro li scrive a lotti
+// con volta_registro.py, nel registro di questa macchina accanto a quelli della sonda. Un lotto resta sotto
+// REGISTRO_LOTTO caratteri: exec di Herdr non ha stdin e su Windows la riga di comando ha un tetto. La coda
+// tiene al più REGISTRO_CODA eventi: se il Python non parte, i più vecchi si perdono e Volta va avanti.
+const REGISTRO_LOTTO = 6000, REGISTRO_CODA = 300;
+const codaRegistro = [];
+let registroInCorso = false;
+export function registra(evento, campi = {}) {
+  codaRegistro.push({ t: Date.now(), fonte: "finestra", evento, ...campi });
+  if (codaRegistro.length > REGISTRO_CODA) codaRegistro.splice(0, codaRegistro.length - REGISTRO_CODA);
+}
+export const codaDelRegistro = () => codaRegistro.slice();
+export function lottiRegistro(coda, tetto = REGISTRO_LOTTO) {
+  const lotti = [];
+  let lotto = [], n = 2;
+  for (const e of coda) {
+    const l = JSON.stringify(e).length + 1;
+    if (l + 2 > tetto) continue; // un evento troppo lungo da solo non entra mai: si scarta
+    if (n + l > tetto) { lotti.push(lotto); lotto = []; n = 2; }
+    lotto.push(e);
+    n += l;
+  }
+  if (lotto.length) lotti.push(lotto);
+  return lotti;
+}
+export async function svuotaRegistro(py) {
+  if (registroInCorso || !codaRegistro.length) return;
+  registroInCorso = true;
+  const coda = codaRegistro.splice(0, codaRegistro.length);
+  try {
+    for (const lotto of lottiRegistro(coda))
+      await exec(py, [`${appHome()}/mods/arturo/volta_registro.py`, "scrivi", "--righe", JSON.stringify(lotto)], { timeout: 15000 });
+  } catch { /* il registro non ferma Volta */ } finally {
+    registroInCorso = false;
+  }
+}
+
 // Un'attesa: il mod non ha un orologio fuori da cx.timer, e qui cx non c'è.
 async function pausa(ms) {
   try {
     const c = await config();
     await exec(c.arturo[0], ["-c", "import sys,time;time.sleep(float(sys.argv[1]))", String(ms / 1000)], { timeout: ms + 10000 });
-  } catch { /* senza Python si va avanti senza attesa */ }
+  } catch (e) { registra("pausa", { esito: "eccezione", errore: String(e?.message ?? e) }); /* senza Python si va avanti senza attesa */ }
 }
 
 // volta_sonda.py apri: il servizio di Claude acceso sulla macchina della sessione, e con `riavvia` la
@@ -785,13 +823,16 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
       ...(progetto ? ["--progetto", progetto] : []), ...(copia?.cartella ? ["--cartella", copia.cartella] : []),
       ...(copia?.titolo ? ["--titolo", copia.titolo] : []), ...(prompt ? ["--", prompt] : [])];
     let nata = {};
+    const t0 = Date.now();
     try {
       // 6 minuti: le attese di volta_sonda.py (macchine 15 s, servizio 120 s, nascita 180 s) più un margine,
       // così Volta non dice "non risponde" mentre la sessione sta ancora nascendo (#5214)
       nata = esito(await exec(c.arturo[0], args, { timeout: 360000 }));
-    } catch {
+    } catch (e) {
+      registra("nascita", { macchina, ms: Date.now() - t0, esito: "eccezione", errore: String(e?.message ?? e) });
       nata = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
     }
+    registra("nascita", { macchina, sid: nata.id, ms: Date.now() - t0, esito: nata.errore ? "errore" : "ok", errore: nata.errore });
     if (nata.attach?.length) {
       const nome = nomeScheda ?? progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
       // La scheda parte dalla home anche qui: claude attach non ha bisogno della cartella della sessione.

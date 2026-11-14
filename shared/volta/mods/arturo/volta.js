@@ -24,7 +24,7 @@ import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } f
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo } from "./dati.js";
+import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro } from "./dati.js";
 import { voloSposta, VOLO_FRESCO_MS } from "./sessioni.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
@@ -342,7 +342,9 @@ export class Volta {
         } else if (r?.errore && p.fai === "fine") {
           // la ripresa con /fine non parte: la sessione si ferma comunque, e lo si dice
           notify({ title: `${c.titolo ?? "Sessione"}: chiusa senza /fine`, body: r.errore, level: "warning" });
-          await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop").catch(() => null);
+          registra("congedo", { macchina: s?.host, sid: s?.id ?? c.id, esito: "senza fine", errore: r.errore });
+          const ferma = await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop").catch((e) => ({ errore: String(e?.message ?? e) }));
+          if (ferma?.errore) registra("congedo stop", { macchina: s?.host, sid: s?.id ?? c.id, esito: "errore", errore: ferma.errore });
           scrivi({ fase: "ferma", dal: Date.now() });
         } else scrivi({ fase: p.fase ?? c.fase, dal: Date.now(), ...(p.salvata ? { salvata: true } : {}) });
         this.aggiorna(cx);
@@ -445,6 +447,7 @@ export class Volta {
       this.erroreLettura = null;
     } catch (e) {
       this.erroreLettura = String(e?.message ?? e).slice(0, 200);
+      registra("lettura elenco", { esito: "eccezione", errore: this.erroreLettura });
     }
   }
 
@@ -484,6 +487,7 @@ export class Volta {
     this.inCorso = true;
     cx.spawn(async (cx) => {
       // inCorso torna falso in ogni caso: un errore nella lettura dell'elenco fermava il giro per sempre (#5550)
+      const t0 = Date.now();
       try {
         try {
           const r = await exec(this.py, [this.script, "volta", "--scrivi", this.file], { timeout: 60000 });
@@ -495,6 +499,9 @@ export class Volta {
       } finally {
         this.inCorso = false;
       }
+      // il giro visto dalla finestra (#5549): la sonda registra il suo, qui anche l'attesa di exec
+      registra("giro", { ms: Date.now() - t0, esito: this.errore ? "errore" : "ok", errore: this.errore });
+      svuotaRegistro(this.py);
       this.passiCongedo(cx);
       this.giraCoda(cx);
       cx.notify();
@@ -586,7 +593,9 @@ export class Volta {
     cx.notify();
     cx.spawn(async (cx) => {
       let r;
+      const t0 = Date.now();
       try { r = await apriSessione(s, argv, pronta); } catch (e) { r = { errore: `Non la apro: ${String(e?.message ?? e).slice(0, 120)}.` }; }
+      registra("apri", { macchina: s.host, sid: s.id, ms: Date.now() - t0, esito: r.errore ? "errore" : "ok", errore: r.errore });
       delete this.apro[k];
       if (r.errore) this.nonApre(s, r.errore, cx);
       if (r.riavviata) this.aggiorna(cx);
@@ -594,6 +603,7 @@ export class Volta {
       cx.notify();
       let v = null;
       try { v = r.veglia ? await r.veglia : null; } catch { /* senza veglia la scheda resta com'è */ }
+      if (v?.errore) registra("scheda vuota", { macchina: s.host, sid: s.id, ms: Date.now() - t0, esito: "errore", errore: v.errore });
       delete this.veglio[k];
       if (v?.errore) this.nonApre(s, v.errore, cx);
       if (v?.riavviata) this.aggiorna(cx);

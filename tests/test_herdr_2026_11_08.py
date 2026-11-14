@@ -9639,6 +9639,8 @@ def main() -> int:
     parser.add_argument("--avvelena", action="store_true")
     argomenti = parser.parse_args()
     repo = spazio_volta(Path(argomenti.repo).resolve())
+    # il registro eventi del mod (#5549) va in una cartella del banco, mai in quello vero della persona
+    os.environ["VOLTA_REGISTRO"] = tempfile.mkdtemp(prefix="banco-registro-")
     if argomenti.avvelena:
         return avvelena(repo)
     if argomenti.baseline_ref:
