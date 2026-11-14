@@ -329,7 +329,7 @@ const casi = {
     assert.deepEqual((await a.riepilogo("2026-10-01", "2026-10-10")).banchi, [], "QB1 un banco fuori finestra entra nel riepilogo");
   },
   // Lancillotto è dismesso dal 14/11/2026 (#5617). Il Worker non crea più la sua tabella e il riepilogo non la
-  // legge. Le righe già in D1 restano: si cancellano solo con l'export letto e il sì di Federico, mai dalla pulizia.
+  // legge. La tabella è cancellata da D1: una copia rimasta in un database vecchio non rompe la pulizia.
   async QL1() {
     const db = d1();
     const a = archivio(db);
@@ -342,8 +342,6 @@ const casi = {
     await db.prepare("INSERT INTO eventi_lancillotto VALUES ('2025-01-01', '2025-01-01', 'aaaa1111-l', '0.2.0', 'macos-26', 'installa', 'nuova')").run();
     assert.equal("lancillotto" in await a.riepilogo("2026-10-11", "2026-10-12"), false, "QL1 il riepilogo porta ancora Lancillotto");
     await a.pulisci("2026-10-13");
-    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM eventi_lancillotto").first()).n, 1,
-      "QL1 la pulizia cancella i dati di Lancillotto senza il sì di Federico");
   },
   // Le segnalazioni per la pagina privata (27/10/2026): l'elenco dal più recente, senza testo, col tetto;
   // la segnalazione intera col testo; null per un numero che non c'è.

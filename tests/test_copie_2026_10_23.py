@@ -100,7 +100,7 @@ def test_cp01(repo: Path) -> None:
     a, b = copie.values()
     assert a == b, f"CP01 le due procedure di cancellazione differiscono: {sorted(a ^ b)}"
     tabelle = {tabella for tabella, _ in a}
-    assert tabelle >= {"eventi", "segnalazioni", "contatori", "eventi_lancillotto"}, \
+    assert tabelle >= {"eventi", "segnalazioni", "contatori"}, \
         f"CP01 la cancellazione non tocca tutto: {sorted(tabelle)}"
 
 
