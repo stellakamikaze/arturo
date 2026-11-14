@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
+import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -596,6 +596,29 @@ export function stacca(s) {
   return l.length;
 }
 
+// Gli handoff delle macchine che non rispondono (salvaHandoff di volta.js): ~/.cache/volta-handoff per la
+// finestra vera, <appHome>/cache/volta-handoff per una copia di prova. Fuori da cacheVolta(): un file
+// nuovo lì fa rileggere l'elenco. giu.json tiene l'ora della caduta di ogni macchina fra una ricarica
+// del mod e l'altra. writeTextFile vuole la cartella: la crea il Python di arturo.json.
+export const cartellaHandoff = () => cacheVolta("volta-handoff");
+export const nomeFile = (x) => String(x ?? "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "senza-nome";
+export async function creaCartella(cartella, py) {
+  try { await exec(py ?? (await config()).arturo[0], ["-c", "import os,sys; os.makedirs(sys.argv[1], exist_ok=True)", cartella], { timeout: 15000 }); }
+  catch (e) { registra("cartella", { esito: "errore", errore: String(e?.message ?? e).slice(0, 120) }); }
+}
+export async function leggiGiu() {
+  try { const d = JSON.parse((await readTextFile(`${cartellaHandoff()}/giu.json`)) ?? "{}"); return d && typeof d === "object" ? d : {}; }
+  catch { return {}; }
+}
+export async function scriviGiu(giu, py) {
+  const file = `${cartellaHandoff()}/giu.json`;
+  try {
+    await creaCartella(cartellaHandoff(), py);
+    const prima = await readTextFile(file).catch(() => null);
+    await writeTextFile(file, JSON.stringify(giu), prima ?? null);
+  } catch { /* un'altra finestra l'ha scritto nel frattempo: vale il giro dopo */ }
+}
+
 // Stacca l'aggancio di una scheda ferma e lascia la scheda (F3.2 di #5587, daStaccare di sessioni.js):
 // Ctrl+Z, che claude attach legge come "torna alla shell". La sessione continua, la bozza resta, e
 // all'uscita claude attach spegne mouse, schermo alternativo e tastiera kitty. Un segnale invece (TERM,
@@ -787,7 +810,8 @@ export function aggancia(s, argv) {
   // quello libero e rinominato "Senza progetto" (#5487)
   const nomeSpazio = s.progetto ? canonico(s.progetto) : SPAZIO_LIBERO;
   const sp = s.progetto ? spazio(nomeSpazio) : spaces().find((x) => !x.machine && libero(x.name));
-  const cartella = s.questa && s.cartella ? s.cartella : home();
+  // una cartella che non c'è più (un worktree tolto) non apre la scheda: la sonda dà la più vicina che c'è (#5669)
+  const cartella = s.questa && s.cartella ? (s.cartellaViva || s.cartella) : home();
   if (sp) {
     run("space.select", { id: sp.id });
     run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });
@@ -828,23 +852,36 @@ export async function apriSessione(s, argv, pronta = false) {
   }
   if (rilancia) {
     mostra(scheda.address);
-    const r = await hc(["send", scheda.address, comando(argvScheda(argv))]);
+    const r = await rilanciaAggancio(scheda.address, argv);
     if (r.code !== 0) return { errore: "Non riesco a rilanciare Claude nella sua scheda: chiudi la scheda e riprova." };
     await etichetta(scheda, s);
   } else {
     aggancia(s, argv);
     // run() non dice quale terminale ha creato: lo si cerca per argv appena Herdr lo elenca.
     for (let i = 0; i < 10 && !scheda; i++) { scheda = schedeDi(s)[0] ?? null; if (!scheda) await pausa(400); }
-    if (scheda) await etichetta(scheda, s);
+    // run() non dice gli errori di Herdr: senza scheda dopo l'attesa il clic lo dice, non finisce in silenzio (#5669)
+    if (!scheda) return { errore: "Herdr non ha aperto la scheda: riprova fra poco." };
+    await etichetta(scheda, s);
   }
   return { come: rilancia ? "rilanciata" : "nuova", riavviata, veglia: scheda ? veglia(s, argv, scheda.address, riavviata) : Promise.resolve({}) };
 }
 
-// Perché Claude è uscito dalla scheda: lo dice lo schermo della scheda (motivoUscita di sessioni.js).
-async function perche(s, indirizzo) {
+// Il rilancio dell'aggancio nella shell rimasta in una scheda (#5637): prima pulisce la riga (un mouse
+// rimasto acceso ci scrive "35;16;1M"), poi scrive l'aggancio col segno e il reset dei modi
+// (rigaRilancio di sessioni.js). Il codice d'uscita è quello di hc send.
+async function rilanciaAggancio(indirizzo, argv) {
+  const a = argvScheda(argv);
+  const powershell = percorsoWindows(a[0]);
+  await hc(["keys", indirizzo, ...tastiPulizia(powershell)]);
+  return hc(["send", indirizzo, rigaRilancio(comando(a), powershell)]);
+}
+
+// Perché Claude è uscito dalla scheda: lo dice lo schermo della scheda (motivoUscita di sessioni.js),
+// letto con l'argv dell'aggancio che la scheda ha lanciato.
+async function perche(s, indirizzo, argv) {
   try {
     const r = await hc(["read", indirizzo]);
-    return r.code === 0 ? motivoUscita(r.stdout, s) : null;
+    return r.code === 0 ? motivoUscita(r.stdout, s, argv) : null;
   } catch {
     return null;
   }
@@ -852,20 +889,20 @@ async function perche(s, indirizzo) {
 
 // Se Claude è uscito, la riga dice il motivo letto nella scheda. Una causa che sta nella macchina o
 // nella connessione (`fermo`) non si riprova: il riavvio non la toglie, e terrebbe la riga occupata.
+// La veglia non riavvia la sessione (#5636): da un elenco vecchio riavviava anche una sessione che
+// lavorava. Rilancia solo l'aggancio, una volta, col servizio acceso; Riavvia resta un gesto del menu.
 async function veglia(s, argv, indirizzo, riavviata) {
   await pausa(VEGLIA);
   if (!(await nuda(indirizzo))) return {};
   const fallita = (m) => ({ errore: m?.testo ?? "Claude non resta aperto in questa sessione: riprova, oppure eliminala da Altro." });
-  const m = await perche(s, indirizzo);
+  const m = await perche(s, indirizzo, argv);
   if (riavviata || m?.fermo) return fallita(m);
-  const rotta = riparteAlClic({ ...s, stato: "errore" }, await elencoVolta());
-  if (rotta.errore) return { errore: rotta.errore };
-  const a = await prepara(s, true);
+  const a = await prepara(s);
   if (a.errore) return { errore: `Claude non si riapre: ${a.errore}.` };
-  const r = await hc(["send", indirizzo, comando(argvScheda(argv))]);
+  const r = await rilanciaAggancio(indirizzo, argv);
   if (r.code !== 0) return fallita(m);
   await pausa(VEGLIA);
-  return (await nuda(indirizzo)) ? fallita((await perche(s, indirizzo)) ?? m) : { riavviata: true };
+  return (await nuda(indirizzo)) ? fallita((await perche(s, indirizzo, argv)) ?? m) : { rilanciata: true };
 }
 
 // Il nome di una macchina di "Nasce su" per le persone: "qui" è il nome vero di questa macchina, letto
@@ -880,6 +917,13 @@ export const nomeMacchina = (m) => nomeMacchinaDi(m, shared("arturo.volta.macchi
 // sessione (#5291): stessa strada e stesse attese, coi verbi duplica e fork della sonda. Torna { ok } o
 // { errore }; l'errore di una copia lo mostra la riga di Volta, ogni errore di una nascita un avviso
 // (chi chiama non guarda l'esito: il clic nella barra, Lavoraci, i comandi).
+// Riprendi su… (14/11/2026): una sessione nuova su `macchina` col prompt dell'handoff (promptRipresa di
+// sessioni.js), nella cartella del progetto se c'è. Torna { ok, id } o { errore }, come nasciSu.
+export const riprendiSu = (macchina, prompt, progetto, nome) => nasciSu(macchina, prompt, progetto, nome);
+// Arturo c'è se arturo.json nomina la sua CLI: allora la ripresa parte da /inizio del progetto (F5: senza
+// Arturo Volta funziona, e il prompt è il solo testo).
+export const conArturo = (c) => (c?.arturo ?? []).some((a) => /(^|[\\/])arturo(\.cmd|\.exe)?$/.test(String(a)));
+
 async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null) {
   const dico = (titolo, errore, level = "error") => {
     if (!copia) notify({ title: titolo, body: errore, level });
@@ -1274,10 +1318,12 @@ export async function cartelle() {
 // Torna { righe } per l'anteprima, { ok, testo } per gli altri, { errore } se non va.
 // Riavvia accende prima il servizio di Claude (#5215): aspetta ATTESA_SERVIZIO più ATTESA_AZIONE di
 // volta_sonda.py, più 30 s; gli altri gesti ATTESA_AZIONE più 30 s (il banco HZ42 tiene i conti).
-export async function azioneSessione(s, verbo) {
+// `congedo`: lo stop o l'rm li chiede il congedo, non la persona. Lo stop passa allora dal controllo fresco
+// di volta_sonda.py (#5636): con un'altra scheda che la aggancia torna { errore, rifiutata }.
+export async function azioneSessione(s, verbo, { congedo = false } = {}) {
   const c = await config();
   try {
-    const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id], { timeout: verbo === "respawn" ? 210000 : 90000 });
+    const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id, ...(congedo ? ["--congedo"] : [])], { timeout: verbo === "respawn" ? 210000 : 90000 });
     return esito(r);
   } catch (e) {
     return { errore: `${s.macchina} non risponde (${String(e?.message ?? e).slice(0, 120)})` };

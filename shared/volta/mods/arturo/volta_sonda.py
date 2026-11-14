@@ -19,10 +19,12 @@ distribuire (#5172, 10/11/2026).
       una copia della conversazione SESSIONID in una sessione nuova (claude --bg --resume SESSIONID
       --fork-session), nella cartella della sessione: l'originale resta com'è. Stesso contratto di nasci;
       se la cartella non c'è più risponde {errore}, perché claude cerca lì la conversazione (#5291).
-  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID
+  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID [--congedo]
       un gesto su una sessione in background. logs: le ultime righe dello schermo, per chi non ha
       trascrizione. respawn (Riavvia) accende prima il servizio di Claude su MACCHINA, come nasci: il
       processo nuovo nasce da lì (#5215). stop, rm e logs non fanno nascere processi e non lo toccano.
+      rm e respawn, e stop con --congedo, passano dal controllo fresco sulla macchina (PRIMA, #5636):
+      un rifiuto stampa {errore, rifiutata, viva}. congeda e inizia fermano col controllo del congedo.
   python3 volta_sonda.py congeda MACCHINA ID SESSIONID [--cartella DIR] [--auto]
       il primo tempo della chiusura di una sessione (12/11/2026): claude stop ID, poi la stessa
       conversazione ripresa in background col solo /fine (claude --bg --resume SESSIONID, senza
@@ -1047,6 +1049,21 @@ def nascita(s):
         return ""
 
 
+def cartella_viva(c):
+    """La cartella in cui aprire la scheda di una sessione di questa macchina: la sua, oppure, se non c'è più
+    (un worktree tolto), la madre più vicina che c'è. Herdr non apre una scheda in una cartella che manca,
+    e il clic restava su "La apro…" senza dire niente (#5669, 14/11/2026). Fino alla radice: la casa."""
+    if not isinstance(c, str) or not c:
+        return None
+    p = c
+    while not os.path.isdir(p):
+        q = os.path.dirname(p)
+        if q == p:
+            return os.path.expanduser("~")
+        p = q
+    return p
+
+
 def righe(voci):
     """Da raccogli() all'elenco piatto: una riga per sessione."""
     out = []
@@ -1073,6 +1090,8 @@ def righe(voci):
                 # la scheda di Herdr che la ospita, se è partita lì dentro: il clic la porta davanti
                 "terminale": ospite if isinstance(ospite, str) and re.fullmatch(r"t[0-9a-z]{1,12}", ospite) else None,
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or nascita(s),
+                # dove si apre la scheda (cartella_viva): solo qui, la cartella di un'altra macchina non si guarda
+                "cartellaViva": cartella_viva(s.get("cwd")) if v["questa"] else None,
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
                 # le fasi di Volta (#5366): ultimo messaggio vero, fine dell'ultimo testo, chi ha parlato
                 "interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],
@@ -1365,14 +1384,120 @@ raise SystemExit(subprocess.call([cl] + sys.argv[1:], stdin=subprocess.DEVNULL))
 '''
 CLAUDE_FUORI_PATH = CLAUDE_FUORI_PATH.replace("#CLAUDE#", CERCA_CLAUDE.strip())
 
+# Il controllo fresco prima dei gesti forti (#5636, 14/11/2026): Volta decide stop, rm e respawn da un
+# elenco vecchio fino a 90 secondi. Questo script gira sulla macchina della sessione, nella stessa chiamata
+# del gesto: rilegge claude agents --json --all e i processi `claude attach <id>`, poi lancia claude col
+# gesto oppure rifiuta. Argomenti: REGOLA VERBO ID. Le regole:
+#   rm       solo se la sessione non gira (stopped, done, failed, crashed, senza pid) e nessuno la aggancia;
+#   respawn  solo se è in errore (failed, crashed) o stopped: mai una sessione che lavora o è accesa;
+#   congedo  (lo stop del congedo) solo se nessuna scheda la aggancia ancora.
+# Un elenco che non si legge ferma rm e respawn; un elenco di processi che non si legge non ferma niente.
+# Il rifiuto esce con codice RIFIUTO e una riga "volta-prima {json}" su stderr: {"motivo", "viva"}.
+# Un ssh verso un'altra macchina non conta come aggancio: aggancia la copia di là (#5634).
+PRIMA = r'''
+import json, os, re, shutil, subprocess, sys, time
+fine = ".exe" if os.name == "nt" else ""
+#CLAUDE#
+#ELENCO#
+regola, verbo, sid = sys.argv[1:4]
+cl = trova_claude()
+if not os.path.exists(cl):
+    sys.stderr.write("Claude Code non c'è su questa macchina\n"); raise SystemExit(127)
+def no(motivo, viva=False):
+    sys.stderr.write("volta-prima " + json.dumps({"motivo": motivo, "viva": viva}) + "\n"); raise SystemExit(#RIFIUTO#)
+def riga():
+    try:
+        r = subprocess.run([cl, "agents", "--json", "--all"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    v = elenco(r.stdout) if r.returncode == 0 else None
+    if v is None:
+        return False
+    return next((s for s in v if s.get("id") == sid), None)
+def agganci():
+    forma = re.compile(r'^(?:"[^"]*[\\/]claude(?:\.exe)?"|(?:\S*[\\/])?claude(?:\.exe)?)\s+attach\s+' + re.escape(sid) + r'(?:\s|$)', re.I)
+    finti = os.environ.get("VOLTA_PROCESSI")
+    if finti:
+        try:
+            with open(finti, encoding="utf-8") as fh:
+                return sum(1 for x in fh.read().splitlines() if forma.match(x.strip()))
+        except OSError:
+            return None
+    try:
+        if os.name == "nt":
+            argv = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                    "Get-CimInstance Win32_Process -Filter \"Name like 'claude%'\" | ForEach-Object { $_.CommandLine }"]
+        else:
+            argv = ["ps", "ax", "-o", "command="]
+        r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    return sum(1 for x in (r.stdout or "").splitlines() if forma.match(x.strip()))
+s = riga()
+stato = (s.get("status") or s.get("state") or "") if s else ""
+ferme = ("stopped", "done", "failed", "crashed")
+detto = {"busy": "sta lavorando", "working": "sta lavorando", "running": "sta lavorando", "starting": "sta partendo",
+         "waiting": "aspetta una risposta", "blocked": "aspetta una risposta", "done": "è finita"}.get(stato, "è accesa")
+if regola == "rm":
+    if s is False:
+        no("non riesco a leggere lo stato della sessione")
+    if s and (s.get("pid") or stato not in ferme):
+        no(detto, True)
+    if s and agganci():
+        no("è aperta in una scheda", True)
+elif regola == "respawn":
+    if s is False:
+        no("non riesco a leggere lo stato della sessione")
+    if s and stato not in ("failed", "crashed", "stopped"):
+        no(detto, stato not in ferme)
+elif regola == "congedo":
+    if agganci():
+        no("è aperta in un'altra scheda", True)
+else:
+    no("regola sconosciuta: %s" % regola)
+raise SystemExit(subprocess.call([cl, verbo, sid], stdin=subprocess.DEVNULL))
+'''
+RIFIUTO = 75
+PRIMA = (PRIMA.replace("#CLAUDE#", CERCA_CLAUDE.strip()).replace("#ELENCO#", ELENCO.strip())
+         .replace("#RIFIUTO#", str(RIFIUTO)))
+# I gesti che passano sempre dal controllo; stop solo nel congedo (--congedo): Ferma dal menu è un gesto
+# esplicito della persona e resta com'è.
+CONTROLLATI = ("rm", "respawn")
 
-def claude_remoto(nome, args, entro):
+
+def rifiuto(rc, out, err):
+    """{"motivo", "viva"} se il controllo di PRIMA ha rifiutato il gesto, altrimenti None. La riga si
+    cerca anche in stdout: hc exec può unire i due flussi."""
+    if rc != RIFIUTO:
+        return None
+    for r in reversed(((err or "") + "\n" + (out or "")).splitlines()):
+        r = r.strip()
+        if r.startswith("volta-prima "):
+            try:
+                d = json.loads(r[len("volta-prima "):])
+            except ValueError:
+                return None
+            return d if isinstance(d, dict) and d.get("motivo") else None
+    return None
+
+
+def claude_remoto(nome, args, entro, prima=None):
     """claude con `args` su `nome` via hc exec, entro l'istante `entro`. Prima claude nudo, come lo trova
     il PATH di hc exec (Windows); se non parte, python3 e poi python con CLAUDE_FUORI_PATH (i Mac, #5555).
-    Se non parte niente, resta l'errore di claude nudo, che dice cosa manca."""
-    codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(CLAUDE_FUORI_PATH.encode()).decode()
+    Se non parte niente, resta l'errore di claude nudo, che dice cosa manca. Con `prima` (una regola di
+    PRIMA) il gesto passa dal controllo fresco: solo python3 e python, che lo portano."""
+    codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode((PRIMA if prima else CLAUDE_FUORI_PATH).encode()).decode()
+    progs = [["python3", "-c", codice], ["python", "-c", codice]]
+    if prima:
+        args = [prima] + list(args)
+    else:
+        progs.insert(0, ["claude"])
     primo = None
-    for prog in (["claude"], ["python3", "-c", codice], ["python", "-c", codice]):
+    for prog in progs:
         t = round(entro - time.monotonic())
         if t < 10:
             break
@@ -1384,30 +1509,41 @@ def claude_remoto(nome, args, entro):
     return primo or (1, "", "nessuna risposta in %d s" % ATTESA_AZIONE)
 
 
-def azione(nome, verbo, sid):
+def azione(nome, verbo, sid, congedo=False):
     """Un comando di claude su una sessione di `nome` ("qui" = questa macchina): logs (l'anteprima,
     come righe di schermo), stop, respawn, rm. Le altre macchine passano da herdr-core (hc exec --on).
 
     Riavvia (respawn) fa ripartire il processo della sessione, che nasce dal servizio di Claude: prima
     il servizio si accende dove sopravvive, come per nasci (#5215). Senza, claude respawn lo farebbe
     nascere a tempo dentro hc exec, e la sessione riavviata morirebbe con lui. Gli altri gesti non
-    fanno nascere processi: non lo toccano."""
+    fanno nascere processi: non lo toccano.
+
+    rm e respawn, e stop con `congedo`, passano dal controllo fresco di PRIMA sulla macchina della
+    sessione (#5636). Un rifiuto torna {errore, rifiutata: True, viva} e va nel registro."""
     if verbo not in VERBI:
         return {"errore": "azione sconosciuta: %s" % verbo}
     if not ID.fullmatch(sid or ""):  # mai un'opzione come --all
         return {"errore": "id di sessione non valido"}
     qui = nome in (None, "", "qui")
+    regola = verbo if verbo in CONTROLLATI else "congedo" if congedo and verbo == "stop" else None
     if verbo == "respawn":
         s = servizio(nome)
         if s.get("errore"):
             return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
     try:
-        if qui:
+        if qui and regola:
+            rc, out, err = lancia([sys.executable, "-c", PRIMA, regola, verbo, sid], timeout=ATTESA_AZIONE)
+        elif qui:
             rc, out, err = lancia([trova_claude(), verbo, sid], timeout=ATTESA_AZIONE)
         else:
-            rc, out, err = claude_remoto(nome, [verbo, sid], time.monotonic() + ATTESA_AZIONE)
+            rc, out, err = claude_remoto(nome, [verbo, sid], time.monotonic() + ATTESA_AZIONE, regola)
     except (OSError, subprocess.SubprocessError) as e:
         return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
+    no = rifiuto(rc, out, err) if regola else None
+    if no:
+        registro.registra("prima", macchina=nome or "qui", sid=sid, esito="rifiutata", errore="%s: %s" % (verbo, no["motivo"]))
+        return {"errore": "non la %s: %s" % ({"rm": "elimino", "respawn": "riavvio"}.get(verbo, "fermo"), no["motivo"]),
+                "rifiutata": True, "viva": bool(no.get("viva"))}
     if rc != 0:
         testo = (err or out).strip()
         return {"errore": testo.splitlines()[-1][:200] if testo else "rc %d" % rc}
@@ -1435,7 +1571,10 @@ PROMPT_CONGEDO_AUTO = os.environ.get("VOLTA_PROMPT_CONGEDO") or (
 def congeda(nome, sid_lavoro, session_id, cartella=None, auto=False):
     if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
         return {"errore": "id di sessione non valido"}
-    fermata = azione(nome, "stop", sid_lavoro)  # una sessione già ferma risponde con un errore: si va avanti
+    fermata = azione(nome, "stop", sid_lavoro, congedo=True)  # già ferma risponde con un errore: si va avanti
+    if fermata.get("rifiutata"):
+        # un'altra scheda la aggancia ancora (#5636): la sessione resta aperta, niente /fine
+        return {"errore": fermata["errore"], "rifiutata": True, "fermata": False}
     r = nasci(nome, PROMPT_CONGEDO_AUTO if auto else PROMPT_CONGEDO, None, cartella, riprendi=session_id, stessa=True)
     if r.get("errore") and not str(r["errore"]).startswith("è partita"):
         return {"errore": r["errore"], "fermata": bool(fermata.get("ok"))}
@@ -1451,7 +1590,9 @@ def inizia(nome, sid_lavoro, session_id, slug, cartella=None):
         return {"errore": "id di sessione non valido"}
     if not SLUG.fullmatch(slug or ""):
         return {"errore": "il progetto è uno slug: minuscole, numeri e trattini, al più 40 caratteri"}
-    ferma = azione(nome, "stop", sid_lavoro)  # già ferma risponde con un errore: si va avanti
+    ferma = azione(nome, "stop", sid_lavoro, congedo=True)  # già ferma risponde con un errore: si va avanti
+    if ferma.get("rifiutata"):
+        return {"errore": ferma["errore"], "rifiutata": True, "fermata": False}
     r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id, stessa=True)
     if r.get("errore") and not str(r["errore"]).startswith("è partita"):
         return {"errore": r["errore"], "fermata": bool(ferma.get("ok"))}
@@ -1537,6 +1678,12 @@ def apri(nome, sid, riavvia=False):
         return {"errore": "id di sessione non valido"}
     if riavvia:
         r = azione(nome, "respawn", sid)
+        if r.get("rifiutata") and r.get("viva"):
+            # l'elenco era vecchio: la sessione è già accesa, basta l'aggancio col servizio (#5636)
+            riavvia = False
+    if riavvia:
+        if r.get("rifiutata"):
+            return {"errore": r["errore"]}
         if not r.get("ok"):
             return {"errore": "non si riavvia: %s" % (r.get("errore") or "nessuna risposta")}
         return {"ok": True, "riavviata": True}
@@ -1640,10 +1787,12 @@ def main(argv):
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":
+        congedo = "--congedo" in argv[1:]
+        argv = [a for a in argv if a != "--congedo"]
         if len(argv) != 4:
-            print("uso: volta_sonda.py azione <macchina> <logs|stop|respawn|rm> <id>")
+            print("uso: volta_sonda.py azione <macchina> <logs|stop|respawn|rm> <id> [--congedo]")
             return 2
-        esito = azione(argv[1], argv[2], argv[3])
+        esito = azione(argv[1], argv[2], argv[3], congedo)
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if not argv or argv[0] != "volta":

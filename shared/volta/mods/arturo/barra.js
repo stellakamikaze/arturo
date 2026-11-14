@@ -114,6 +114,7 @@ export class Barra {
     else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);
     else if (c === "volta-gesto") this.volta.gestoId(arg.verbo, arg.id, cx);
     else if (c === "volta-sposta") this.volta.spostaId(arg.macchina, arg.id, cx);
+    else if (c === "volta-riprendi") this.volta.riprendiId(arg.macchina, arg.id, cx);
     else if (c === "volta-spostatutto") this.volta.spostaTutto(arg, cx);
     else if (c === "volta") this.volta.premiId(arg, cx);
   }

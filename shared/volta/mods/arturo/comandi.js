@@ -85,6 +85,9 @@ export function instrada(c) {
   // su un'altra macchina (sposta.js). La chiave viene prima: il nome di una macchina può avere trattini, e
   // l'id non ne ha, quindi il primo trattino dopo i due punti chiude la chiave. La forma di prima del
   // 14/11, "volta-sposta-<macchina>-<id>" senza due punti, vale ancora per herdr-app do: lì l'id è l'ultimo pezzo.
+  // "volta-riprendi-<chiave>-<macchina>": Riprendi su… di una sessione di una macchina che non risponde
+  const rk = /^volta-riprendi-([^:]+:[0-9A-Za-z]+)-(.+)$/.exec(c);
+  if (rk) return { verbo: "volta-riprendi", arg: { macchina: rk[2], id: rk[1] }, lungo: false };
   const sk = /^volta-sposta-([^:]+:[0-9A-Za-z]+)-(.+)$/.exec(c);
   if (sk) return { verbo: "volta-sposta", arg: { macchina: sk[2], id: sk[1] }, lungo: false };
   const sp = /^volta-sposta-([^:]+)-([0-9A-Za-z]+)$/.exec(c);

@@ -25,7 +25,8 @@ import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda } from "./dati.js";
-import { voloSposta, VOLO_FRESCO_MS } from "./sessioni.js";
+import { voloSposta, VOLO_FRESCO_MS, giuDa, dimenticata, testoHandoff, promptRipresa } from "./sessioni.js";
+import { cartellaHandoff, nomeFile, creaCartella, leggiGiu, scriviGiu, riprendiSu, conArturo } from "./dati.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
@@ -211,7 +212,8 @@ export class Volta {
     if (!p) return;
     this.orfaniLavora = true;
     try {
-      const r = await azioneSessione(p.s, p.fai).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 160) }));
+      // lo stesso controllo fresco del congedo (#5636): rm e stop si rifiutano se la sessione gira o è agganciata
+      const r = await azioneSessione(p.s, p.fai, { congedo: true }).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 160) }));
       if (r?.errore) {
         this.orfaniNo.add(chiave(p.s));
         notify({ title: `${titolo(p.s)}: non riesco a chiuderla`, body: r.errore, level: "warning" });
@@ -342,10 +344,16 @@ export class Volta {
       cx.spawn(async (cx) => {
         let r;
         try {
-          r = p.fai === "fine" ? await congedaSessione({ ...c, id: s?.id ?? c.id }) : await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, p.fai === "rm" ? "rm" : "stop");
+          r = p.fai === "fine" ? await congedaSessione({ ...c, id: s?.id ?? c.id }) : await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, p.fai === "rm" ? "rm" : "stop", { congedo: true });
         } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
         delete this.congedo[kc];
-        if (p.fai === "rm") {
+        if (r?.rifiutata && p.fai !== "rm") {
+          // il controllo fresco sulla macchina (#5636): un'altra scheda la aggancia ancora, o l'hai riaperta
+          // tu. La sessione resta aperta e il congedo finisce qui: niente stop dopo il rifiuto.
+          notify({ title: `${c.titolo ?? "Sessione"}: resta aperta`, body: r.errore, level: "info" });
+          registra("congedo", { macchina: s?.host, sid: s?.id ?? c.id, esito: "rifiutato", errore: r.errore });
+          scrivi(null);
+        } else if (p.fai === "rm") {
           // /fine ha salvato e la sessione è ferma: claude rm la toglie anche da claude agents (#5401).
           // Se rm non va, la sessione resta lì, già fuori dall'elenco di Volta, e lo si dice.
           if (r?.errore) notify({ title: `${c.titolo ?? "Sessione"}: chiusa`, body: `Salvata con /fine, ma non riesco a eliminarla: ${r.errore}`, level: "warning" });
@@ -507,12 +515,73 @@ export class Volta {
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.microfono") ?? null)) { setShared("arturo.microfono", m); cx.notify(); }
   }
 
+  // "arturo.volta-riprendi-<chiave>-<macchina>": Riprendi su… di una sessione di una macchina che non
+  // risponde (sposta.js in modo "riprendi"). Nasce su `macchina` una sessione nuova col prompt
+  // dell'ultima lettura; quella di partenza non si tocca, e la riga dice dove è ripresa.
+  riprendiId(macchina, id, cx) {
+    const s = this.trovaId(id);
+    if (!s) return;
+    const k = chiave(s);
+    if (this.apro[k]) return;
+    this.apro[k] = true;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      let r;
+      try {
+        const c = await config();
+        const prompt = promptRipresa(s, testoHandoff(s, this.dati?.giuDa?.[s.host]), conArturo(c));
+        r = await riprendiSu(macchina, prompt, s.progetto ?? null, `Ripresa: ${titolo(s)}`);
+      } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
+      delete this.apro[k];
+      registra("riprendi", { macchina, sid: s.id, esito: r?.errore ? "errore" : "ok", errore: r?.errore });
+      if (r?.errore) this.avvisa(s, `Non riprende: ${r.errore}`, cx);
+      else this.avvisa(s, `Ripresa su ${nomeMacchina(macchina)}: la conversazione di qui resta com'è.`, cx, 600000);
+      this.aggiorna(cx);
+      cx.notify();
+    });
+  }
+
+  // Gli handoff delle sessioni di una macchina giù da DIMENTICA_MS (testoHandoff di sessioni.js), uno per
+  // sessione e per caduta, in ~/.cache/volta-handoff/<macchina>/<id>.md: fuori da cacheVolta(), che a ogni
+  // file nuovo fa rileggere l'elenco. Un handoff della stessa caduta (riga "Giù da") non si riscrive.
+  async salvaHandoff() {
+    if (this.handoffLavora || !this.dati?.giuDa) return;
+    this.handoffLavora = true;
+    try {
+      const ora = Date.now();
+      for (const [host, da] of Object.entries(this.dati.giuDa)) {
+        if (!dimenticata(this.dati.giuDa, host, ora)) continue;
+        const l = (this.dati.sessioni ?? []).filter((s) => s.host === host && s.tipo === "background" && !chiusa(s) && s.id);
+        if (!l.length) continue;
+        const cartella = `${cartellaHandoff()}/${nomeFile(l[0].macchina ?? host)}`;
+        await creaCartella(cartella, this.py);
+        for (const s of l) {
+          const file = `${cartella}/${nomeFile(s.id)}.md`;
+          const prima = await readTextFile(file).catch(() => null);
+          const testo = testoHandoff(s, da);
+          if (prima && prima.includes(testo.split("\n").find((r) => r.startsWith("- Giù da:")))) continue;
+          try { await writeTextFile(file, testo, prima ?? null); registra("handoff", { macchina: host, sid: s.id, esito: "ok" }); }
+          catch (e) { registra("handoff", { macchina: host, sid: s.id, esito: "errore", errore: String(e?.message ?? e).slice(0, 120) }); }
+        }
+      }
+    } finally { this.handoffLavora = false; }
+  }
+
   async leggi(cx) {
     const prima = this.dati;
     try {
       const testo = await readTextFile(this.file);
       if (testo) this.dati = JSON.parse(testo);
     } catch { /* un file a metà: resta l'ultima lettura buona */ }
+    // le macchine che non rispondono, con l'ora della caduta (giuDa di sessioni.js): gruppi() piega le
+    // loro sessioni dopo DIMENTICA_MS, e salvaHandoff ne scrive l'handoff
+    if (this.dati && this.dati !== prima) {
+      if (this.giu === undefined) this.giu = await leggiGiu();
+      const giu = giuDa(this.giu, this.dati.macchine, Date.now());
+      if (JSON.stringify(giu) !== JSON.stringify(this.giu)) { this.giu = giu; scriviGiu(giu, this.py); }
+      this.dati.giuDa = giu;
+      this.salvaHandoff();
+    }
     if (this.dati !== prima) {
       this.entra(entrate(prima, this.dati), cx);
       for (const s of nuoveInAttesa(prima, this.dati))
@@ -698,7 +767,6 @@ export class Volta {
       if (v?.errore) registra("scheda vuota", { macchina: s.host, sid: s.id, ms: Date.now() - t0, esito: "errore", errore: v.errore });
       delete this.veglio[k];
       if (v?.errore) this.nonApre(s, v.errore, cx);
-      if (v?.riavviata) this.aggiorna(cx);
       cx.notify();
     });
   }
@@ -949,6 +1017,7 @@ export class Volta {
     if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);
     // Sposta su… del menu: il popup delle macchine (sposta.js), per la copia che l'elenco mostra.
     if (verbo === "sposta") return apriSposta(perSposta(this.vistaId(id) ?? s));
+    if (verbo === "riprendi") return apriSposta(perSposta(s), "riprendi");
     if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);
     this.menu = chiave(s);
     this.scopri(s);
@@ -1223,7 +1292,7 @@ export class Volta {
     const mostra = mostrate(g, this.aperti[g.chiave]);
     // Per progetto l'intestazione è il progetto: un clic lo apre (il suo spazio, con /inizio), come la
     // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
-    const progetto = modo === "progetto" && progettoApribile(g.chiave);
+    const progetto = modo === "progetto" && !g.raccolta && progettoApribile(g.chiave);
     const attivo = progetto && aperto === slug(g.chiave);
     // Il gruppo dove una sessione trascinata può finire, col puntatore sopra: bordo acceso e la frase.
     const arrivo = this.trascino?.sopra === g.chiave ? arrivoTrascino(this.trascino, g, modo) : null;
@@ -1252,7 +1321,7 @@ export class Volta {
         .child(`Lascia qui per spostarla in ${g.titolo}`)))
       .when(Boolean(g.nota), (el) => el.child(div().id(`vgo-${g.chiave || "senza"}`).px(MARGINE + SPAZIO.m).pb(SPAZIO.xs).text_size(TESTO.nota).text_color(t.dim).child(g.nota)))
       .children(mostra.map((s) => this.riga(t, s, modo, cx)))
-      .when(ferme.length > 0 && (vive.length > 0 || ferme.length > 2), (el) => el.child(h_flex().id(`vf-${g.chiave || "senza"}`).mx(MARGINE).px(SPAZIO.m).py(SPAZIO.s + 1).gap(SPAZIO.m).items_center().rounded(RAGGIO.riga).cursor_pointer()
+      .when((g.raccolta && g.sessioni.length > 0) || (!g.raccolta && ferme.length > 0 && (vive.length > 0 || ferme.length > 2)), (el) => el.child(h_flex().id(`vf-${g.chiave || "senza"}`).mx(MARGINE).px(SPAZIO.m).py(SPAZIO.s + 1).gap(SPAZIO.m).items_center().rounded(RAGGIO.riga).cursor_pointer()
         .hover((st) => st.bg(t.hover))
         .on_click((_e, cx) => {
           const prima = new Set(mostrate(g, this.aperti[g.chiave]).map(chiave));
@@ -1262,7 +1331,9 @@ export class Volta {
           cx.notify();
         })
         .child(svg(ICONA(this.aperti[g.chiave] ? "chevron-down" : "chevron-right")).size(12).text_color(t.dim))
-        .child(div().text_size(TESTO.etichetta).text_color(t.muted).child(this.aperti[g.chiave] ? "Nascondi quelle in attesa" : `${ferme.length} in attesa di comando`))));
+        .child(div().text_size(TESTO.etichetta).text_color(t.muted).child(g.raccolta
+          ? (this.aperti[g.chiave] ? "Nascondi le sessioni salvate" : "Mostra le sessioni salvate")
+          : (this.aperti[g.chiave] ? "Nascondi quelle in attesa" : `${ferme.length} in attesa di comando`)))));
   }
 
   // null quando la sezione non serve (manca lo script dell'elenco). La sezione prende tutta l'altezza

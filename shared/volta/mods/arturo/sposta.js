@@ -29,9 +29,12 @@ export const comandoSpostaTutto = (macchina) => `arturo.volta-spostatutto-${macc
 // Le macchine dove la sessione `s` può andare: tutte quelle di Volta, tranne la sua.
 export const destinazioni = (s, voci) => (voci ?? []).filter((m) => m.host !== (s?.host ?? "qui"));
 
-export function apriSposta(s) {
-  openOverlay({ mod: "arturo", props: { parte: "sposta", sessione: s }, kind: "popup", width: 260 });
+// `modo` "riprendi" (14/11/2026): Riprendi su… di una sessione di una macchina che non risponde. Stesso popup,
+// ma la sessione non si sposta: ne nasce una nuova dall'ultima lettura (riprendiId di volta.js).
+export function apriSposta(s, modo = "sposta") {
+  openOverlay({ mod: "arturo", props: { parte: "sposta", sessione: s, modo }, kind: "popup", width: 260 });
 }
+export const comandoRiprendi = (macchina, s) => `arturo.volta-riprendi-${chiave(s)}-${macchina}`;
 
 // "Sposta tutto su…": `sessioni` è l'elenco visibile della barra, già ridotto con perSposta.
 export function apriSpostaTutto(sessioni) {
@@ -58,6 +61,7 @@ export function pastigliaTutto(t, sessioni, coda = 0) {
 export class SceltaSposta {
   init(_p, cx) {
     this.s = props()?.sessione ?? null;
+    this.riprendi = props()?.modo === "riprendi";
     this.scelta = null;
     this.handle = cx.focus_handle();
     cx.timer.after(120, () => this.handle.focus());
@@ -69,14 +73,15 @@ export class SceltaSposta {
   // ferma il suo codice.
   scegli(m, cx) {
     if (this.scelta !== m.host) { this.scelta = m.host; return cx.notify(); }
-    run(comandoSposta(m.host, this.s));
+    run(this.riprendi ? comandoRiprendi(m.host, this.s) : comandoSposta(m.host, this.s));
     this.chiudi();
   }
 
   render() {
     const t = theme();
-    const no = nonSiSposta(this.s);
-    const voci = destinazioni(this.s, vociMacchina());
+    const no = this.riprendi ? null : nonSiSposta(this.s);
+    // per riprendere servono macchine che rispondono
+    const voci = destinazioni(this.s, vociMacchina()).filter((m) => !this.riprendi || !m.giu);
     const voce = (m) => {
       const scelta = this.scelta === m.host;
       return h_flex().id(`sposta-${m.host}`).h(30).px(10).gap(8).items_center().rounded(6)
@@ -84,17 +89,18 @@ export class SceltaSposta {
         .when(scelta, (el) => el.bg(t.selected))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .child(div().flex_1().truncate().text_size(13).text_color(no || m.giu ? t.dim : t.foreground).child(m.macchina))
-        .when(scelta, (el) => el.child(div().flex_none().text_size(12).text_color(t.accent).child("Clic per spostare")))
+        .when(scelta, (el) => el.child(div().flex_none().text_size(12).text_color(t.accent).child(this.riprendi ? "Clic per riprendere" : "Clic per spostare")))
         .when(!scelta && Boolean(m.giu), (el) => el.child(div().flex_none().text_size(11.5).text_color(t.dim).child("non risponde")));
     };
     return v_flex().id("scelta-sposta").track_focus(this.handle).w_full().p(8).gap(4).bg(t.popover)
       .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
       .child(h_flex().px(10).pt(4).gap(6).items_center()
         .child(svg(ICONA_SPOSTA).size(13).text_color(t.muted))
-        .child(div().text_size(12.5).text_color(t.muted).child("Sposta su")))
+        .child(div().text_size(12.5).text_color(t.muted).child(this.riprendi ? "Riprendi su" : "Sposta su")))
       .child(div().px(10).pb(2).truncate().text_size(12.5).text_color(t.foreground).child(this.s ? titolo(this.s) : ""))
       .when(Boolean(no), (el) => el.child(div().px(10).pb(2).whitespace_normal().text_size(12).text_color(t.blocked).child(no)))
-      .when(!no && aFineTurno(this.s), (el) => el.child(div().px(10).pb(2).whitespace_normal().text_size(12).text_color(t.dim).child("Sta lavorando: la sposto a turno finito.")))
+      .when(this.riprendi, (el) => el.child(div().px(10).pb(2).whitespace_normal().text_size(12).text_color(t.dim).child("Nasce una sessione nuova dall'ultima lettura. La conversazione resta sulla macchina spenta.")))
+      .when(!no && !this.riprendi && aFineTurno(this.s), (el) => el.child(div().px(10).pb(2).whitespace_normal().text_size(12).text_color(t.dim).child("Sta lavorando: la sposto a turno finito.")))
       .when(!voci.length, (el) => el.child(div().px(10).pb(2).text_size(12).text_color(t.dim).child("Volta non conosce altre macchine.")))
       .child(v_flex().gap(1).children(voci.map(voce)));
   }

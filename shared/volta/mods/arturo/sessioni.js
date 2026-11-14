@@ -226,13 +226,61 @@ export function dettaglio(s, modo, adesso = Date.now()) {
   return { testo: dove ? `${dove} · ${f.testo}` : f.testo, colore: f.colore };
 }
 
+// Le macchine che non rispondono (14/11/2026, Federico: le schede di una macchina spenta non si chiudono,
+// "deve dimenticarle automaticamente, salvando però un handoff di quelle sessioni"). Dopo DIMENTICA_MS il
+// core di Volta toglie le sue schede da questa finestra (mirror_sync.rs, stessa soglia), il mod salva un
+// handoff per ogni sua sessione dall'ultima lettura e piega il suo gruppo in una riga. Al ritorno tutto
+// riappare da solo. `giuDa`: { host: ms della prima lettura che l'ha vista giù }, tenuto fra un giro e
+// l'altro (prima) e ripartito a ogni caduta.
+export const DIMENTICA_MS = 10 * 60000;
+export function giuDa(prima, macchine, ora = Date.now()) {
+  const out = {};
+  for (const m of macchine ?? []) if (m?.irraggiungibile && m.host) out[m.host] = Number(prima?.[m.host]) || ora;
+  return out;
+}
+export const dimenticata = (giu, host, ora = Date.now()) => Boolean(giu?.[host]) && ora - giu[host] >= DIMENTICA_MS;
+
+// L'handoff di una sessione rimasta su una macchina che non risponde: quello che Volta ha letto per ultimo
+// (la conversazione vera resta sul disco di quella macchina). Markdown, in ~/.cache/volta-handoff/<macchina>/.
+// La riga "Giù da" dice la caduta: un handoff della stessa caduta non si riscrive.
+const ora8601 = (ms) => (ms ? new Date(ms).toISOString().replace(/\.\d+Z$/, "Z") : "");
+export function testoHandoff(s, giuDaMs) {
+  const righe = [`# ${titolo(s)}`, "",
+    `- Macchina: ${s.macchina ?? s.host ?? "?"} (non risponde)`,
+    `- Giù da: ${ora8601(giuDaMs)}`,
+    `- Progetto: ${s.progetto || "nessuno"}`,
+    `- Cartella: ${s.cartella || "?"}`,
+    `- Sessione: ${s.sessionId ?? ""} (${s.id ?? ""})`,
+    `- Ultimo messaggio: ${s.interazione || s.ultimo || "?"}`,
+    `- Stato all'ultima lettura: ${s.stato ?? "?"}${s.aspetta ? ", ti aspettava" : ""}`];
+  if (s.azione) righe.push(`- Ultima azione: ${s.azione}`);
+  righe.push("", "## Ultima risposta di Claude", "", String(s.risposta || s.coda || "(nessun testo letto)").trim());
+  righe.push("", "## Come riprenderla", "",
+    "La conversazione intera è sul disco di quella macchina: quando torna, la sessione riprende da sola.",
+    "Per andare avanti subito altrove: \"Riprendi su…\" nel menu della riga, che fa nascere su un'altra macchina una sessione nuova con questo handoff.");
+  return righe.join("\n") + "\n";
+}
+
+// Il prompt della sessione nuova di "Riprendi su…": con Arturo parte da /inizio del progetto, e il resto
+// della riga è il compito; senza, il solo testo. Sta sotto PROMPT_RIPRESA_MAX caratteri: il prompt viaggia
+// come argomento (base64 dentro hc exec), e su Windows la riga di comando ha un tetto.
+export const PROMPT_RIPRESA_MAX = 3500;
+export function promptRipresa(s, testo, conArturo) {
+  const dove = s.macchina ?? s.host ?? "un'altra macchina";
+  const testa = `Riprendi il lavoro della sessione "${titolo(s)}", rimasta su ${dove} che non risponde. Quello che Volta ha letto per ultimo:`;
+  const inizio = conArturo && s.progetto ? `/inizio ${s.progetto} -- ` : "";
+  const corpo = String(testo ?? "").replace(/\s+/g, " ").trim();
+  const resto = PROMPT_RIPRESA_MAX - inizio.length - testa.length - 2;
+  return `${inizio}${testa} ${corpo.length > resto ? `${corpo.slice(0, Math.max(0, resto - 1))}…` : corpo}`;
+}
+
 // I gruppi: [{ chiave, titolo, nota?, sessioni }]. L'ordine è quello dell'ultima interazione (campo
 // "ultimo"): dentro ogni gruppo la sessione toccata per ultima sta in cima, e viene per primo il gruppo
 // che contiene la più recente. Lo stato non sposta le righe: lo dicono pallino e frase. A pari tempo
 // l'ordine del file per le macchine (questa per prima) e l'alfabeto per i progetti; la macchina che
 // non risponde porta una nota.
 const recente = (g) => Math.max(0, ...g.sessioni.map(tempo));
-export function gruppi(dati, modo = "macchina") {
+export function gruppi(dati, modo = "macchina", ora = Date.now()) {
   const righe = [...(dati?.sessioni ?? [])].sort((a, b) => tempo(b) - tempo(a) || titolo(a).localeCompare(titolo(b)));
   const per = new Map();
   const metti = (chiave, tit, s) => {
@@ -240,22 +288,41 @@ export function gruppi(dati, modo = "macchina") {
     if (s) per.get(chiave).sessioni.push(s);
   };
   if (modo === "progetto") {
-    for (const s of righe) metti(chiaveProgetto(s.progetto), nomeProgetto(s.progetto), s);
+    // le sessioni di una macchina giù da DIMENTICA_MS escono dai progetti e vanno in fondo, in un gruppo
+    // piegato per macchina: il menu si pulisce anche per progetto (Federico, 14/11/2026, vista Per progetto)
+    const via = new Set((dati?.macchine ?? []).filter((m) => m.irraggiungibile && dimenticata(dati?.giuDa, m.host, ora)).map((m) => m.host));
+    const ferme = new Map();
+    for (const s of righe) {
+      if (via.has(s.host)) {
+        if (!ferme.has(s.host)) ferme.set(s.host, { chiave: `giu:${s.host}`, titolo: s.macchina ?? s.host, sessioni: [], raccolta: true });
+        ferme.get(s.host).sessioni.push(s);
+      } else metti(chiaveProgetto(s.progetto), nomeProgetto(s.progetto), s);
+    }
+    for (const g of ferme.values()) {
+      const q = daQuanto(new Date(dati.giuDa[g.sessioni[0].host]).toISOString(), ora);
+      g.nota = `Non risponde${q ? ` ${q}` : ""}: ${g.sessioni.length === 1 ? "una sessione salvata" : `${g.sessioni.length} sessioni salvate`}, da riprendere su un'altra macchina`;
+    }
     const out = [...per.values()];
     out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));
-    const giu = (dati?.macchine ?? []).filter((m) => m.irraggiungibile).map((m) => m.macchina);
+    // una macchina col suo gruppo piegato lo dice lì: la nota in fondo ai progetti nomina le altre
+    const giu = (dati?.macchine ?? []).filter((m) => m.irraggiungibile && !via.has(m.host)).map((m) => m.macchina);
     const rotte = (dati?.macchine ?? []).filter((m) => !m.irraggiungibile && m.nascita?.rotta === true).map((m) => m.macchina);
     const note = [giu.length ? `${giu.join(", ")} non ${giu.length > 1 ? "rispondono" : "risponde"}` : "",
       rotte.length ? `${rotte.join(", ")} non fa${rotte.length > 1 ? "nno" : ""} partire sessioni` : ""].filter(Boolean);
     if (note.length && out.length) out[out.length - 1].nota = note.join(" · ");
-    return out;
+    return out.concat([...ferme.values()]);
   }
   for (const m of dati?.macchine ?? []) metti(m.host, m.macchina, null);
   for (const s of righe) metti(s.host, s.macchina, s);
   const out = [];
   for (const m of dati?.macchine ?? []) {
     const g = per.get(m.host);
-    if (m.irraggiungibile) g.nota = g.sessioni.length ? "Non risponde: mostro l'ultima lettura" : "Non risponde";
+    // giù da DIMENTICA_MS: le schede le ha tolte Volta, gli handoff ci sono, il gruppo si piega in una riga
+    if (m.irraggiungibile && dimenticata(dati?.giuDa, m.host, ora)) {
+      g.raccolta = true;
+      const q = daQuanto(new Date(dati.giuDa[m.host]).toISOString(), ora);
+      g.nota = `Non risponde${q ? ` ${q}` : ""}: ${g.sessioni.length === 1 ? "una sessione salvata" : `${g.sessioni.length} sessioni salvate`}, da riprendere su un'altra macchina`;
+    } else if (m.irraggiungibile) g.nota = g.sessioni.length ? "Non risponde: mostro l'ultima lettura" : "Non risponde";
     else if (m.nascita?.rotta === true) g.nota = "Non fa partire sessioni nuove";
     if (g.sessioni.length || g.nota) out.push(g);
     per.delete(m.host);
@@ -290,6 +357,17 @@ export function cinqueParole(testo, n = 5) {
 export function sintesiTestata(davanti, nomeScheda = null) {
   const t = davanti?.sintesi || davanti?.titolo || nomeScheda;
   return t ? cinqueParole(t) || null : null;
+}
+
+// Il titolo della testata: il progetto della sessione in primo piano, se l'elenco gliene dà uno, altrimenti
+// lo spazio (14/11/2026, Federico: "a sinistra è correttamente sistemato, mentre in alto no"). La scheda in
+// primo piano non cambia spazio sotto le mani (daAllineare), quindi lo spazio può restare "Senza progetto"
+// mentre la colonna dice già il progetto. `noti` è la mappa di shared arturo.progetti.
+export function titoloTestata(nomeSpazio, davanti, noti) {
+  const p = typeof davanti?.progetto === "string" ? davanti.progetto.trim() : "";
+  const nome = p || nomeSpazio || "";
+  if (!nome) return "Volta";
+  return progettoDi(nome, noti).titolo ?? nome;
 }
 
 // Le sessioni che il giro ⌘↓/⌘↑ salta, nella forma dei congedi di visibili(): quelle in congedo, quelle
@@ -543,25 +621,28 @@ export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = 
 // ne sono altre e sono due o meno.
 export const inAttesa = (s) => fase(s) === "attesa";
 export function mostrate(g, aperto) {
+  // il gruppo di una macchina giù da DIMENTICA_MS si piega tutto (giuDa, più sotto)
+  if (g.raccolta) return aperto ? g.sessioni : [];
   const vive = g.sessioni.filter((s) => !inAttesa(s));
   const ferme = g.sessioni.length - vive.length;
   return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;
 }
 
-// Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows): le sessioni che hanno una scheda in
-// questa finestra (`conScheda`, le chiavi), nell'ordine dell'elenco, in ogni stato. Il tasto porta
-// davanti una scheda che c'è, e non ne apre mai una nuova (Federico, 14/11/2026: "quando faccio
-// cmd+freccia mi apre schede chiuse"). Fino al 14/11 entravano tutte le sessioni accese (12/11: "voglio
-// che cicli tra tutte le sessioni che sono accese"): una senza scheda riapriva una scheda chiusa, e una
-// interattiva in un terminale senza pannello (un hc run di un'altra macchina) dava un tasto a vuoto. Le
-// ferme nascoste dietro "N in attesa" vengono dopo le righe a vista del loro gruppo. Le schede delle
-// sessioni chiuse o di una macchina che non risponde le aggiunge schedeSpente().
+// Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows), nell'ordine dell'elenco: le sessioni
+// che hanno una scheda in questa finestra (`conScheda`, le chiavi), in ogni stato, e quelle in
+// background senza scheda che lavorano o ti aspettano (fase attiva o stasi), che il tasto apre. Una
+// ferma senza scheda resta fuori: l'hai chiusa, e il tasto la riaprirebbe (Federico, 14/11/2026: "mi apre
+// schede chiuse"). Alle 20:27 dello stesso giorno, con le sole schede, il tasto non arrivava a una
+// sessione che lavorava ("non mi apre Eseguire S4") e saltava quelle di un'altra macchina che ti
+// aspettavano. Un'interattiva entra solo con la scheda: in un terminale senza pannello (un hc run) il
+// tasto non la mostra. Le ferme nascoste dietro "N in attesa" vengono dopo le righe a vista del loro
+// gruppo. Le schede delle sessioni chiuse o di una macchina che non risponde le aggiunge schedeSpente().
 export function ordineGiro(lista, aperti = {}, conScheda = new Set()) {
   return (lista ?? []).flatMap((g) => {
     const vista = mostrate(g, aperti[g.chiave]);
     return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));
   })
-    .filter((s) => conScheda.has(chiave(s)))
+    .filter((s) => conScheda.has(chiave(s)) || (s.tipo === "background" && ["attiva", "stasi"].includes(fase(s))))
     .filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map(chiave);
 }
 
@@ -746,10 +827,32 @@ export function promptPowerShell(schermo) {
   return righe.length > 0 && /^PS [^>]*>\s*$/.test(righe[righe.length - 1]);
 }
 
+// Il rilancio dell'aggancio nella shell rimasta in una scheda (#5637). Prima si pulisce la riga
+// (tastiPulizia: fine riga e Ctrl-U, Esc in PowerShell): un mouse rimasto acceso o un testo a metà
+// finirebbero davanti al comando. Poi la riga scrive il segno, spegne i modi d'ingresso e lancia
+// l'aggancio; quando l'aggancio esce (ssh caduto) li rispegne, come il wrapper delle schede di Herdr.
+// motivoUscita legge solo il testo dopo l'ultimo segno.
+export const SEGNO_AGGANCIO = "[volta-aggancio]";
+// Copia di RESET_INPUT_MODES di src/window.rs (il banco le confronta): mouse, fuoco, incolla e tastiera kitty.
+export const RESET_MODI = "test -t 1 && printf '\\033[?1000l\\033[?1002l\\033[?1003l\\033[?1006l\\033[?1015l\\033[?1004l\\033[?2004l\\033[<u'";
+export const tastiPulizia = (powershell) => (powershell ? ["esc"] : ["ctrl+e", "ctrl+u"]);
+export function rigaRilancio(riga, powershell) {
+  if (powershell) return `Write-Host '${SEGNO_AGGANCIO}'; ${riga}`;
+  return `printf '%s\\n' '${SEGNO_AGGANCIO}'; ${RESET_MODI}; ${riga}; ${RESET_MODI}`;
+}
+// Il programma claude dell'argv di aggancio: la parola prima di "attach" ("claude" se l'argv non c'è).
+export function programmaClaude(argv) {
+  const a = Array.isArray(argv) ? argv.map(String) : [];
+  const i = a.indexOf("attach");
+  return i > 0 ? a[i - 1] : "claude";
+}
+
 // Perché Claude è uscito dalla scheda appena agganciata, dallo schermo della scheda (hc read): la
 // frase per la riga della sessione, e `fermo` quando riprovare o riavviare non cambia niente (la causa
 // sta nella macchina o nella connessione). null se lo schermo non dice niente di riconoscibile.
-// Conta solo l'ultimo tentativo: il testo dopo l'ultimo comando di aggancio scritto nella shell.
+// Conta solo l'ultimo tentativo: il testo dopo l'ultimo segno del rilancio, o senza segno dopo l'ultimo
+// comando di aggancio scritto nella shell. "Non trovo claude" vale solo se la riga dell'errore nomina il
+// programma claude dell'argv (#5629): un "No such file or directory" nel testo di Claude non è quello.
 const USCITE = [
   [/EINTR|Interrupted system call/, (m) => `Su ${m} Claude non riesce a leggere la cartella della sessione (Interrupted system call): finché ${m} non torna a posto le sessioni ferme non ripartono.`],
   [/Host key verification failed/, (m) => `ssh non riconosce ${m} (Host key verification failed): collegati una volta a mano da un terminale.`],
@@ -758,16 +861,23 @@ const USCITE = [
   [/No job matching/, (m) => `Su ${m} questa sessione non c'è più: eliminala da Altro.`],
   [/Not logged in/, (m) => `Su ${m} Claude non è collegato all'account (Not logged in): apri Claude su ${m} e fai /login.`],
   [/Workspace not trusted/, (m) => `Su ${m} la cartella della sessione non è fra quelle fidate di Claude (Workspace not trusted).`],
-  [/command not found|No such file or directory|is not recognized as/, (m) => `Su ${m} non trovo il programma claude dove lo cerca l'aggancio.`],
+  [/command not found|No such file or directory|is not recognized as/i, (m) => `Su ${m} non trovo il programma claude dove lo cerca l'aggancio.`, true],
 ];
-export function motivoUscita(schermo, s) {
+export function motivoUscita(schermo, s, argv = s?.attach) {
   const m = s?.questa ? "questa macchina" : (s?.macchina ?? s?.host ?? "quella macchina");
-  const righe = String(schermo ?? "").replace(/\u001b\[[0-9;?]*[A-Za-z]/g, "").split("\n");
-  let da = 0;
+  const righe = String(schermo ?? "").replace(/\u001b\[[0-9;?<>]*[A-Za-z]/g, "").split("\n");
+  let da = -1;
+  righe.forEach((r, i) => { if (r.trim() === SEGNO_AGGANCIO) da = i; });
   // anche la riga di PowerShell, dove ogni argomento sta fra apici: "& '…ssh.exe' … 'attach' 'a8ee6d5e'"
-  righe.forEach((r, i) => { if (/[%$#>]\s.*\battach['"]?\s+['"]?[\w-]{4,}/.test(r)) da = i; });
-  const coda = righe.slice(da).join("\n");
-  for (const [re, frase] of USCITE) if (re.test(coda)) return { testo: frase(m), fermo: true };
+  if (da < 0) { da = 0; righe.forEach((r, i) => { if (/[%$#>]\s.*\battach['"]?\s+['"]?[\w-]{4,}/.test(r)) da = i; }); }
+  const dopo = righe.slice(da);
+  const coda = dopo.join("\n");
+  const claude = programmaClaude(argv).toLowerCase();
+  for (const [re, frase, nomina] of USCITE) {
+    if (!re.test(coda)) continue;
+    if (nomina && !dopo.some((r) => re.test(r) && r.toLowerCase().includes(claude))) continue;
+    return { testo: frase(m), fermo: true };
+  }
   const u = [...coda.matchAll(/Session \S+ (?:has exited|can't start)\s*(?:\(|—|-)?\s*([^\n]*)/g)].pop();
   const perche = (u?.[1] ?? "").replace(/^[\s(—-]+|[\s).]+$/g, "").slice(0, 90);
   // "before init": il processo della sessione muore prima di caricare la conversazione; il resto del
@@ -798,7 +908,10 @@ export function azioni(s) {
 // ⌘W) e i gesti di "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un lavoro in
 // background da fermare: resta senza Chiudi. Una riga vecchia non ha menu.
 export function menu(s) {
-  if (!s || s.vecchia) return [];
+  // una sessione di una macchina che non risponde: solo Riprendi su… (14/11/2026), una sessione nuova su
+  // un'altra macchina dall'ultima lettura (promptRipresa); la conversazione vera resta là
+  if (s?.vecchia) return s.tipo === "background" && !chiusa(s) ? [{ verbo: "riprendi", testo: "Riprendi su…" }] : [];
+  if (!s) return [];
   const out = [{ verbo: "apri", testo: "Apri" }, { verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" },
     { verbo: "progetto", testo: "Sposta in un progetto…" }];
   // Sposta su… (12/11/2026): la stessa conversazione su un'altra macchina, col popup di sposta.js. Solo in
@@ -812,7 +925,7 @@ export function menu(s) {
 }
 
 // I primi due gruppi del menu (copiare e spostare, nome e contesto); il resto va nel terzo, chiudere.
-export const GRUPPI_MENU = [["apri", "duplica", "fork", "progetto", "sposta"], ["rinomina", "contesto"]];
+export const GRUPPI_MENU = [["apri", "duplica", "fork", "progetto", "sposta", "riprendi"], ["rinomina", "contesto"]];
 
 // La X della riga (Federico, 12/11/2026: "la X per chiudere e innescare il processo di fine"): su una
 // sessione in background viva è Chiudi con /fine, con la conferma; su una chiusa o in errore è Elimina.
@@ -825,7 +938,7 @@ export function xRiga(s) {
 }
 
 // I gesti che stanno solo nel menu: lavorano sulla riga, senza aprire il riquadro di "Altro".
-export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto", "sposta", "contesto"]);
+export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto", "sposta", "contesto", "riprendi"]);
 
 // Le voci del menu che aprono il dialogo, e che cosa cambiano.
 export const CAMBIA = { rinomina: "nome", progetto: "progetto" };

@@ -11,7 +11,7 @@ import { ICONA, punto, pulsante, pulsanteIcona, colore, apriElenco, tasti, nasce
 import { apriSposta, ICONA_SPOSTA } from "./sposta.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { leggiTutte } from "./notaui.js";
-import { macchinaBreve, sintesiTestata, progettoDi } from "./sessioni.js";
+import { macchinaBreve, sintesiTestata, titoloTestata } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
 
@@ -54,7 +54,7 @@ export class Testata {
     const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;
     const davanti = shared("arturo.volta.davanti");
     const sintesi = tab ? sintesiTestata(davanti, tab.named ? tab.name : null) : null;
-    const progetto = s ? (progettoDi(s.name, shared("arturo.progetti")).titolo ?? s.name) : "Volta";
+    const progetto = s ? titoloTestata(s.name, s.machine ? null : davanti, shared("arturo.progetti")) : "Volta";
     // le icone della testata sono quelle del piede della colonna (pulsanteIcona, 36 px): stessa misura,
     // stesso suggerimento e stessa lettura a voce
     const bottone = (id, icona, testo, azione) => pulsanteIcona(id, icona, testo, azione);
