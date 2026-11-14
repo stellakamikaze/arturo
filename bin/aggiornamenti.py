@@ -13,6 +13,7 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
   manuali      niente si installa da solo: resta l'avviso, e aggiorni tu con /aggiorna
   automatici   torna all'aggiornamento automatico (la scelta di partenza)
   firmato      l'ultimo rilascio, solo se la sua firma è valida: è l'unico che /aggiorna applica
+  riapri       esce con 0 e lo dice se un rilascio aspetta una chiusura vera di Claude Code (/fine --rotazione)
   plugin       col plugin: aggiorna il catalogo, verifica che il tag indicato sia firmato e porti lo sha
                del catalogo, poi claude plugin update e il controllo della copia installata col suo
                MANIFEST firmato; con --verifica si ferma prima di installare (strati F3). Una copia
@@ -24,7 +25,10 @@ installa la chiusura dopo, anche con altre sessioni aperte, dal 4/11/2026, oppur
 Code se è l'unica sessione, dal 3/11/2026, mai un /clear, dal 4/11/2026); l'aggiornamento va in conflitto su
 settings.json o su un CLAUDE.md (negli altri file vince il rilascio, e la tua versione resta in personale/conflitti,
 dal 3/11/2026). In tutti questi
-casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
+casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Dal 14/11/2026 (S2) un settings.json non salvato,
+se è l'unico file e non ha un segreto nelle righe nuove, si salva con un commit suo e non ferma niente; il controllo lo fa
+il bin/aggiornamenti.py del rilascio firmato in arrivo (avvia_dal_tag); un rilascio pronto da più di 24 ore senza una
+chiusura vera fa dire ad avvio e barra di chiudere e riaprire Claude Code. Una firma che manca o non torna non
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
 aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
 non sa verificare (git prima della 2.34, OpenSSH prima della 8.2) blocca allo stesso modo, ma senza
@@ -124,6 +128,41 @@ def scrivi(f: Path, dati: dict) -> None:
     os.replace(str(tmp), str(f))
 
 
+def scrivi_stato(r: Path, stato: dict, chiusura: bool = False) -> None:
+    """Lo stato in session-env/aggiornamento.json, con due date che sopravvivono alle riscritture (14/11/2026, S2):
+    `pronto_da`, da quando questa versione aspetta di installarsi, e `chiusura_vera`, l'ultima chiusura vera che l'ha vista
+    pronta. Le usa fermo_da_un_giorno. Valgono solo finché la stessa versione resta pronta."""
+    nuovo = dict(stato)
+    nuovo.pop("pronto_da", None)
+    nuovo.pop("chiusura_vera", None)
+    if nuovo.get("stato") == "pronto" and nuovo.get("versione"):
+        vecchio = leggi(file_stato(r))
+        stessa = vecchio.get("stato") == "pronto" and vecchio.get("versione") == nuovo["versione"]
+        nuovo["pronto_da"] = float(vecchio.get("pronto_da") or time.time()) if stessa else time.time()
+        if chiusura:
+            nuovo["chiusura_vera"] = time.time()
+        elif stessa and vecchio.get("chiusura_vera"):
+            nuovo["chiusura_vera"] = vecchio["chiusura_vera"]
+    scrivi(file_stato(r), nuovo)
+
+
+GIORNO = 86400
+
+
+def fermo_da_un_giorno(stato: dict, adesso: float = None) -> bool:
+    """Vero se la versione è pronta da più di 24 ore e nessuna chiusura vera l'ha vista nelle ultime 24 (S2): chi lavora
+    solo con /clear e la rotazione non chiude mai Claude Code, e il rilascio aspettava per sempre. La barra in basso
+    (hooks/statusline.js, fermoDaUnGiorno) fa lo stesso conto."""
+    if stato.get("stato") != "pronto" or not stato.get("pronto_da"):
+        return False
+    adesso = time.time() if adesso is None else adesso
+    ultima = max(float(stato.get("pronto_da") or 0), float(stato.get("chiusura_vera") or 0))
+    return adesso - ultima > GIORNO
+
+
+RIAPRI = "chiudi e riapri Claude Code: /clear non basta"
+
+
 def manuali(r: Path) -> bool:
     if os.environ.get("ARTURO_AGGIORNAMENTI", "").strip().lower() == "manuali":
         return True
@@ -217,6 +256,12 @@ def calcola(r: Path) -> dict:
     # Con modifiche non salvate la procedura non parte (APPLICAZIONE NON PARTITA): lo stato lo dice prima,
     # così l'avvio e la barra non promettono un'installazione che non succede (segnalazione n. 49, #4767).
     file = modificati(r)
+    # Il caso più frequente col clone (14/11/2026, S2): Claude Code riscrive settings.json da solo (un permesso
+    # "sempre", /config), e quel file bastava a fermare ogni rilascio. Se è l'unico, la chiusura lo salva con un commit
+    # suo (salva_settings) e l'aggiornamento lo unisce come JSON con unisci-settings.py. Con un segreto dentro resta
+    # fermo: un commit automatico non lo deve mai salvare.
+    if file == ["settings.json"] and not segreto_in_settings(r):
+        return dict(stato, stato="pronto", motivo="", salva_settings=True)
     if file:
         elenco = ", ".join(file[:5]) + (f" e altri {len(file) - 5}" if len(file) > 5 else "")
         return dict(stato, stato="bloccato", modifiche=file,
@@ -232,6 +277,41 @@ def modificati(r: Path) -> list:
     if p.returncode != 0:
         return []
     return [x[3:] for x in p.stdout.splitlines() if x.strip()]
+
+
+def segreto_in_settings(r: Path) -> bool:
+    """Vero se le righe nuove di settings.json hanno la forma di un segreto, con i pattern di
+    hooks/commit-secret-gate.py (HIGH_CONF). Senza la guardia, o se non si legge, vale vero: nel dubbio niente commit."""
+    diff = git(r, "diff", "--no-color", "-U0", "--", "settings.json")
+    if diff.returncode != 0:
+        return True
+    righe = "\n".join(x[1:] for x in diff.stdout.splitlines() if x.startswith("+") and not x.startswith("+++"))
+    try:
+        testo = (r / "hooks" / "commit-secret-gate.py").read_text(encoding="utf-8")
+        blocco = re.search(r"^HIGH_CONF = \[\n(.*?)^\]", testo, re.M | re.S)
+        schemi = re.findall(r'^\s*\(r"((?:[^"\\]|\\.)*)",', blocco.group(1), re.M) if blocco else []
+    except OSError:
+        return True
+    if not schemi:
+        return True
+    try:
+        return any(re.search(s, righe) for s in schemi)
+    except re.error:
+        return True
+
+
+def salva_settings(r: Path) -> str:
+    """Salva settings.json con un commit suo, prima dell'aggiornamento (S2). L'identità di git della persona se c'è,
+    altrimenti quella di Arturo; gli hook di commit della persona girano. Restituisce il motivo se non riesce."""
+    identita = []
+    if not git(r, "config", "user.email").stdout.strip():
+        identita = ["-c", "user.name=Arturo", "-c", "user.email=arturo@localhost"]
+    p = git(r, *identita, "commit", "-q", "-m", "settings.json salvato da Arturo prima dell'aggiornamento",
+            "--", "settings.json", timeout=60)
+    if p.returncode != 0:
+        return (p.stderr or p.stdout).strip().splitlines()[-1][:160] if (p.stderr or p.stdout).strip() \
+            else "commit non riuscito"
+    return ""
 
 
 def processi_claude() -> int:
@@ -328,7 +408,8 @@ def cmd_stato(r: Path) -> int:
     vecchio = leggi(file_stato(r))
     stato["controllato"] = vecchio.get("controllato", 0)  # calcola non scarica: l'ultimo controllo resta quello
     try:
-        scrivi(file_stato(r), stato)
+        scrivi_stato(r, stato)
+        stato = dict(stato, **{k: v for k, v in leggi(file_stato(r)).items() if k in ("pronto_da", "chiusura_vera")})
     except OSError:
         pass
     if stato["stato"] == "pronto" and rinviato == stato["versione"] and not a_freddo:
@@ -339,6 +420,9 @@ def cmd_stato(r: Path) -> int:
         # restata indietro al 23/10 perché alla chiusura c'era sempre un'altra sessione aperta, e l'attesa scadeva.
         righe.append(f"ARTURO: installo ora la versione {rinviato}, rinviata alla chiusura scorsa perché c'era un'altra "
                      "sessione aperta. Se un hook dà errore, riapri la sessione. Dillo alla persona in una frase.")
+    elif fermo_da_un_giorno(stato) and fallito != stato["versione"]:
+        righe.append(f"ARTURO: la versione {stato['versione']} aspetta da più di 24 ore una chiusura vera di Claude Code: "
+                     f"{RIAPRI}, né la rotazione. Dillo alla persona in una frase.")
     elif stato["stato"] == "pronto" and rinviato == stato["versione"]:
         righe.append(f"ARTURO: la versione {rinviato} non si è installata alla chiusura scorsa, perché un'altra "
                      "sessione di Claude Code era ancora aperta. Si installa alla prossima chiusura di una sessione, anche "
@@ -459,7 +543,7 @@ def cmd_controlla(r: Path, forza: bool = False) -> int:
         return 0
     scarica(r, sorgente(r))
     try:
-        scrivi(file_stato(r), calcola(r))
+        scrivi_stato(r, calcola(r))
     except OSError:
         pass
     return 0
@@ -468,7 +552,10 @@ def cmd_controlla(r: Path, forza: bool = False) -> int:
 def cmd_applica(r: Path, ammesse: int = 0, fare=None, occupato: int = 0) -> int:
     """Un'applicazione alla volta, col lucchetto session-env/aggiornamento.lock. `fare` è la procedura (di serie
     _applica, quella del clone); `occupato` è l'uscita se un'altra applicazione è in corso. Col plugin lo stesso
-    lucchetto vale per la chiusura e per /aggiorna: mai due `claude plugin update` insieme (10/11/2026)."""
+    lucchetto vale per la chiusura e per /aggiorna: mai due `claude plugin update` insieme (10/11/2026).
+    Lanciato da avvia_dal_tag il lucchetto è già del processo che l'ha lanciato, e aspetta che finisca."""
+    if os.environ.get("ARTURO_DA_TAG"):
+        return fare(r) if fare else _applica(r, ammesse)
     blocco = r / "session-env" / "aggiornamento.lock"
     try:
         blocco.parent.mkdir(parents=True, exist_ok=True)
@@ -530,16 +617,61 @@ def _rinnova_lucchetto() -> None:
         pass
 
 
+def avvia_dal_tag(r: Path, ammesse: int):
+    """Il controllo lo fa il codice del rilascio in arrivo, non quello installato (14/11/2026, S2). Prima decideva
+    calcola() della copia installata, e un suo difetto fermava anche il rilascio che lo correggeva. Qui resta solo la
+    verifica della firma, con la chiave già installata: se il tag è firmato e porta un bin/aggiornamenti.py diverso,
+    quello gira al posto di questo, con lo stesso lucchetto e la stessa chiave. Restituisce la sua uscita, oppure None
+    se decide questo codice (nessun rilascio nuovo, firma che non torna, stesso file, lancio non riuscito)."""
+    src = sorgente(r)
+    tag = ultimo_tag(r, src)
+    commit = git(r, "rev-list", "-n", "1", tag).stdout.strip() if tag else ""
+    if not commit or git(r, "merge-base", "--is-ancestor", commit, "HEAD").returncode == 0:
+        return None
+    motivo, _ = verifica_firma(r, tag)
+    # Il tag si rilegge dopo la verifica: il file si prende dal commit verificato, mai da un ref spostato intanto.
+    if motivo or git(r, "rev-list", "-n", "1", tag).stdout.strip() != commit:
+        return None
+    nuovo = git(r, "show", f"{commit}:bin/aggiornamenti.py")
+    try:
+        mio = Path(os.path.realpath(__file__)).read_text(encoding="utf-8")
+    except OSError:
+        mio = ""
+    if nuovo.returncode != 0 or not nuovo.stdout.strip() or nuovo.stdout == mio:
+        return None
+    lavoro = Path(tempfile.mkdtemp(prefix="arturo-dal-tag."))
+    try:
+        script = lavoro / "aggiornamenti.py"
+        with open(str(script), "w", encoding="utf-8", newline="\n") as uscita:
+            uscita.write(nuovo.stdout)
+        p = subprocess.run([sys.executable, str(script), "applica", *(["--avvio"] if ammesse else [])],
+                           stdin=subprocess.DEVNULL, cwd=str(r), timeout=1500,
+                           env=dict(os.environ, ARTURO_DA_TAG=tag, ARTURO_RADICE=str(r)))
+        return p.returncode
+    except subprocess.TimeoutExpired:
+        return 1  # il rilascio ha provato e non ha finito: questo codice non riparte sopra il suo lavoro
+    except (OSError, subprocess.SubprocessError):
+        return None
+    finally:
+        shutil.rmtree(str(lavoro), ignore_errors=True)
+
+
 def _applica(r: Path, ammesse: int = 0) -> int:
     """ammesse: le sessioni che possono restare aperte. 0 alla chiusura; 1 all'avvio (`applica --avvio`),
     dove la sessione che parte è una."""
     if manuali(r) or not git(r, "remote").stdout.strip():
         return 0
+    dal_tag = bool(os.environ.get("ARTURO_DA_TAG"))
     # Prima si guarda se c'è qualcosa da installare: aspettare le sessioni senza motivo terrebbe
-    # vivo un processo (e il suo log) per niente.
-    scarica(r, sorgente(r))
+    # vivo un processo (e il suo log) per niente. Il processo lanciato da avvia_dal_tag ha già scaricato.
+    if not dal_tag:
+        scarica(r, sorgente(r))
+        rc = avvia_dal_tag(r, ammesse)
+        if rc is not None:
+            return rc
     stato = calcola(r)
-    scrivi(file_stato(r), stato)
+    # Solo la chiusura vera conta per fermo_da_un_giorno: `applica --avvio` è un'apertura.
+    scrivi_stato(r, stato, chiusura=ammesse == 0)
     if stato["stato"] != "pronto":
         if stato["stato"] != "aggiornato":
             _segnala_ostacolo(r, stato)
@@ -560,6 +692,12 @@ def _applica(r: Path, ammesse: int = 0) -> int:
     stato = calcola(r)
     if stato["stato"] != "pronto":
         return 0
+    if stato.get("salva_settings"):
+        motivo = salva_settings(r)
+        if motivo:
+            _segnala_ostacolo(r, dict(stato, modifiche=["settings.json"]))
+            return _esito(r, stato["versione"], "APPLICAZIONE NON PARTITA",
+                          f"settings.json ha modifiche non salvate e il commit non è riuscito ({motivo})")
     tag, src = stato["versione"], stato["sorgente"]
     lavoro = Path(tempfile.mkdtemp(prefix="arturo-aggiorna."))
     try:
@@ -589,7 +727,7 @@ def _applica(r: Path, ammesse: int = 0) -> int:
         if sotto:
             esito += " " + ", ".join(sotto)
     if esito.startswith("GIÀ AGGIORNATO"):
-        scrivi(file_stato(r), calcola(r))
+        scrivi_stato(r, calcola(r))
         return 0
     parola = "APPLICATO" if esito.startswith("APPLICATO") else (esito.split(":")[0] or "FALLITO")
     # Le righe aggiunte a un hook di sessione che separa ha spostato, commentate, in personale/: non girano più, e
@@ -600,7 +738,7 @@ def _applica(r: Path, ammesse: int = 0) -> int:
     if parola == "APPLICAZIONE NON PARTITA":
         attesa = "copia di prova con un conflitto aspetta" in esito
         _segnala_ostacolo(r, stato, "bloccato-attesa" if attesa else "non-partito")
-    scrivi(file_stato(r), calcola(r))
+    scrivi_stato(r, calcola(r))
     return 0 if parola == "APPLICATO" else 1
 
 
@@ -746,7 +884,7 @@ def _indietro(orsa: Path, prima: dict, compromesso: bool, tag: str = "", motivo:
         stato["disattivato"] = True
         _barra_ferma(orsa, stato["versione"])
     try:
-        scrivi(file_stato(radice()), stato)
+        scrivi_stato(radice(), stato)
     except OSError:
         pass
     return esito
@@ -922,7 +1060,7 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
     else:
         stato["riuscito"] = float(vecchio.get("riuscito") or vecchio.get("controllato") or time.time())
     try:
-        scrivi(file_stato(r), dict(stato, controllato=time.time()))
+        scrivi_stato(r, dict(stato, controllato=time.time()))
     except OSError:
         pass
     return 0
@@ -932,7 +1070,7 @@ def segna_aggiornato(r: Path) -> None:
     """Dopo /aggiorna la barra non deve dire ancora "serve /aggiorna" fino al controllo dopo."""
     try:
         # Chi arriva qui ha appena scaricato e verificato il tag del catalogo: il controllo è riuscito.
-        scrivi(file_stato(r), {"stato": "aggiornato", "plugin": True, "controllato": time.time(),
+        scrivi_stato(r, {"stato": "aggiornato", "plugin": True, "controllato": time.time(),
                                "riuscito": time.time()})
     except OSError:
         pass
@@ -989,8 +1127,12 @@ def stato_plugin(r: Path) -> int:
               "una frase: non è un problema di sicurezza.")
     elif nuova and nuova == stato["versione"] and stato.get("stato") == "pronto" and fallito != nuova \
             and not manuali(r):
-        print(f"ARTURO: c'è la versione {nuova} di Arturo: si installa da sola alla chiusura della sessione, dopo la "
-              "verifica della firma. Subito: /aggiorna.")
+        if fermo_da_un_giorno(stato):
+            print(f"ARTURO: la versione {nuova} di Arturo aspetta da più di 24 ore una chiusura vera di Claude Code: "
+                  f"{RIAPRI}, né la rotazione. Subito: /aggiorna. Dillo alla persona in una frase.")
+        else:
+            print(f"ARTURO: c'è la versione {nuova} di Arturo: si installa da sola alla chiusura della sessione, dopo "
+                  "la verifica della firma. Subito: /aggiorna.")
     return 0
 
 
@@ -1184,6 +1326,12 @@ def _applica_plugin(r: Path) -> int:
     sha_prima = str(installato(radici.radice_orsa()).get("gitCommitSha") or "")
     if not versione:
         return 0
+    vecchio = leggi(file_stato(r))
+    if vecchio.get("stato") == "pronto" and vecchio.get("versione") == versione:
+        try:
+            scrivi_stato(r, vecchio, chiusura=True)  # la chiusura vera che l'ha vista pronta (fermo_da_un_giorno)
+        except OSError:
+            pass
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
     while prima > 0 and processi_claude() >= prima and time.time() < limite:
         time.sleep(2)
@@ -1217,7 +1365,7 @@ def _applica_plugin(r: Path) -> int:
         if not sha_prima or installato(radici.radice_orsa()).get("gitCommitSha") == sha_prima:
             stato.pop("sha_prima", None)  # la copia di prima è ancora lì: vale la regola della versione
         try:
-            scrivi(file_stato(r), stato)
+            scrivi_stato(r, stato)
         except OSError:
             pass
         _segnala_ostacolo(r, stato)
@@ -1324,6 +1472,17 @@ def _segnala_ostacolo(r: Path, stato: dict, valore: str = "") -> None:
         pass
 
 
+def cmd_riapri(r: Path) -> int:
+    """Per /fine --rotazione (S2): uscita 0 e una riga se un rilascio aspetta una chiusura vera, 1 se no. La rotazione
+    fa /clear, che non chiude Claude Code: con un rilascio pronto la sessione propone di chiudere e riaprire."""
+    stato = leggi(file_stato(r))
+    if stato.get("stato") != "pronto" or not stato.get("versione") or manuali(r):
+        return 1
+    print(f"RIAPRI: la versione {stato['versione']} di Arturo è pronta e si installa solo a una chiusura vera: "
+          f"{RIAPRI}.")
+    return 0
+
+
 def _esito(r: Path, tag: str, parola: str, riga: str, commentate: list = None, impostazioni: str = "") -> int:
     dati = {"quando": int(time.time()), "versione": tag, "esito": parola, "riga": riga, "mostrato": False}
     if commentate:
@@ -1340,6 +1499,8 @@ def main(argv: list) -> int:
         print(AIUTO)
         return 0
     try:
+        if argv == ["riapri"]:
+            return cmd_riapri(r)
         if argv and argv[0] == "plugin" and argv[1:] in ([], ["--verifica"]):
             if not modo_plugin():
                 print("COPIA IN ~/.claude: Arturo non è installato come plugin, vale la procedura con git.")

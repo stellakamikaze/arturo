@@ -13,6 +13,24 @@ modo di lavorare.
 
 ---
 
+## 2026-11-14 — Gli aggiornamenti che restavano fermi ora arrivano
+
+**Cosa cambia**: tre casi frequenti fermavano un rilascio nuovo per giorni. Adesso non lo fermano più, o te lo
+dicono con le parole giuste.
+- Claude Code riscrive `settings.json` da solo, per esempio quando dici "sempre" a un permesso. Se è l'unico file
+  non salvato, la chiusura della sessione lo salva con un commit suo e l'aggiornamento lo unisce alla versione
+  nuova. Con un segreto nelle righe nuove non lo salva, e resta l'avviso di prima.
+- Se lavori solo con `/clear` o con la rotazione automatica, Claude Code non si chiude mai, e il rilascio non si
+  installava. Dopo 24 ore l'avvio e la barra in basso ti dicono "chiudi e riapri Claude Code: /clear non basta".
+  Anche `/fine --rotazione`, con un rilascio pronto, ti chiede di riaprire invece di ripartire con `/clear`.
+- Il controllo che decide se un rilascio si installa ora è quello del rilascio nuovo, dopo la verifica della firma.
+  Prima un difetto del controllo installato fermava anche la versione che lo correggeva.
+
+Chi usa il clone e ha una versione ferma da prima di oggi deve lanciare `/aggiorna` una volta: le correzioni
+arrivano con la versione che le porta.
+
+---
+
 ## 2026-11-14 — Perché un aggiornamento non arriva, detto a chi mantiene Arturo
 
 **Cosa cambia**: quando un rilascio nuovo non si installa da solo, adesso chi mantiene Arturo sa perché. Prima i

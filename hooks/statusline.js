@@ -208,6 +208,14 @@ function daRiaprire(sessione) {
   return '';
 }
 
+// Lo stesso conto di fermo_da_un_giorno in bin/aggiornamenti.py (14/11/2026, S2): pronta da più di 24 ore, e nessuna
+// chiusura vera di Claude Code nelle ultime 24. Chi lavora solo con /clear e la rotazione non la installava mai.
+function fermoDaUnGiorno(stato, adesso) {
+  if (!stato || stato.stato !== 'pronto' || !stato.pronto_da) return false;
+  const ultima = Math.max(Number(stato.pronto_da) || 0, Number(stato.chiusura_vera) || 0);
+  return ((adesso === undefined ? Date.now() : adesso) / 1000) - ultima > 86400;
+}
+
 function aggiornamentoSegmento(sessione) {
   let stato = {};
   try { stato = JSON.parse(fs.readFileSync(AGG_FILE, 'utf8')) || {}; } catch (e) { stato = {}; }
@@ -233,6 +241,7 @@ function aggiornamentoSegmento(sessione) {
   if (riapri && stato.compromesso !== true) return ` │ \x1b[36m↑ Arturo ${riapri} installata · riapri Claude Code\x1b[0m`;
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
   if (!versione) return '';
+  if (fermoDaUnGiorno(stato)) return ` │ \x1b[33m↑ Arturo ${versione} · chiudi e riapri Claude Code: /clear non basta\x1b[0m`;
   if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
   // Una firma che manca o non torna non si scavalca con /aggiorna (17/10/2026, #3504).
   // La copia non verificata è rimasta installata e la chiusura ha disattivato il plugin (11/11/2026).

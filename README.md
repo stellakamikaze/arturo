@@ -215,7 +215,10 @@ di `/aggiorna` qui sotto. Se alla chiusura c'è un'altra sessione aperta, si ins
 anche con altre sessioni aperte, oppure alla prossima apertura di Claude Code se è l'unica sessione. Si installano da soli solo i rilasci con un tag firmato dalla chiave di chi
 mantiene Arturo, verificato con la chiave che hai già (`firme/rilasci.allowed_signers`). Se un
 aggiornamento non può installarsi da solo (modifiche non salvate, un conflitto su `settings.json` o
-su un `CLAUDE.md`), l'avviso resta col motivo, e `/aggiorna` lo applica con te. Se invece l'ultimo rilascio non
+su un `CLAUDE.md`), l'avviso resta col motivo, e `/aggiorna` lo applica con te. Un `settings.json` riscritto da
+Claude Code, se è l'unico file non salvato, non ferma più niente: la chiusura lo salva con un commit suo, senza
+segreti dentro, e l'aggiornamento lo unisce. Se un rilascio aspetta da più di 24 ore perché lavori solo con
+`/clear`, avvio e barra ti dicono di chiudere e riaprire Claude Code. Se invece l'ultimo rilascio non
 ha una firma valida, non si installa in nessun modo, e l'avviso lo dice. Se è il computer a non saper
 controllare la firma (git prima della 2.34, OpenSSH prima della 8.2), l'avviso lo dice senza allarme:
 non è una compromissione, e il rilascio arriva quando aggiorni git e OpenSSH.

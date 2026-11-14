@@ -52,8 +52,18 @@ AA33 se personale/conflitti non si scrive, la versione della persona di un omoni
      lavoro: prima si cancellava l'unica copia del file.
 Su c826a58 sono rossi AA32 e AA33.
 Dal 14/11/2026 (#5610), gli esiti che prima non lasciavano traccia:
-AA34 con settings.json non salvato la chiusura manda "bloccato-modifiche", una volta sola; con una copia di prova in
+AA34 con un file non salvato la chiusura manda "bloccato-modifiche", una volta sola; con una copia di prova in
      attesa dal sync manda "bloccato-attesa". Su ee75459 è rosso.
+Dal 14/11/2026 (S2 del piano cozy-tumbling-breeze, #5611), gli aggiornamenti che si fermavano:
+AA35 con il solo settings.json non salvato il rilascio si installa, dopo un commit dedicato; con un segreto nelle
+     righe nuove resta fermo, e niente finisce in un commit;
+AA36 un difetto del controllo installato non ferma il rilascio firmato che lo corregge: decide il codice del tag; il
+     codice di un tag senza firma non gira mai;
+AA37 un rilascio pronto da più di 24 ore senza una chiusura vera: avvio e barra dicono "chiudi e riapri Claude Code:
+     /clear non basta"; dopo una chiusura vera tacciono;
+AA38 `riapri` esce con 0 solo con un rilascio pronto e aggiornamenti automatici, e /fine --rotazione lo lancia.
+Su 5bef5f7 sono rossi AA35, AA36, AA37 e AA38. Le seconde metà di AA35 (segreto) e di AA36 (tag senza firma) coprono
+codice già fermo su 5bef5f7: sono rosse coi mutanti senza segreto_in_settings e senza la verifica in avvia_dal_tag.
 
 Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. Su a442b38 sono rossi AA25,
 AA26, AA27, AA30 e AA31; AA28 e AA29 coprono codice già giusto, e li fa diventare rossi solo il loro mutante. AA12-AA17 sono rossi
@@ -103,7 +113,8 @@ class Lab:
         seme = base / "seme"
         for parte in ("bin", "hooks", "firme"):
             (seme / parte).mkdir(parents=True)
-        for f in ("bin/aggiornamenti.py", "bin/aggiorna-applica.sh", "hooks/controlla-config.py", "hooks/session-end.sh"):
+        for f in ("bin/aggiornamenti.py", "bin/aggiorna-applica.sh", "hooks/controlla-config.py", "hooks/session-end.sh",
+                  "hooks/commit-secret-gate.py"):
             shutil.copy(str(repo / f), str(seme / f))
         pub = read(Path(str(self.chiave) + ".pub")).split()
         (seme / "firme" / "rilasci.allowed_signers").write_text(f'rilasci@arturo namespaces="git" {pub[0]} {pub[1]}\n',
@@ -212,13 +223,13 @@ def test_aa04(repo: Path) -> None:
 def test_aa05(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         prima = lab.head()
-        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "mio"}}, indent=2) + "\n", encoding="utf-8")
+        (lab.utente / "NOVITA.md").write_text("# Novita mie\n", encoding="utf-8")
         lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
         lab.arturo_cli("applica")
-        assert lab.head() == prima and '"mio"' in read(lab.utente / "settings.json"), \
+        assert lab.head() == prima and "mie" in read(lab.utente / "NOVITA.md"), \
             "AA05 con modifiche non salvate ~/.claude cambia"
         uscita = lab.arturo_cli("stato").stdout
-        assert "settings.json" in uscita and "/aggiorna" in uscita and "non si installa da sola" in uscita, \
+        assert "NOVITA.md" in uscita and "/aggiorna" in uscita and "non si installa da sola" in uscita, \
             f"AA05 l'avvio non dice perché: {uscita!r}"
         assert "si installa da sola alla chiusura" not in uscita and lab.stato().get("stato") == "bloccato", \
             f"AA05 l'avvio promette l'installazione che le modifiche fermano (n. 49): {uscita!r} {lab.stato()}"
@@ -458,7 +469,7 @@ def _spia_telemetria(lab: Lab) -> Path:
 def test_aa34(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         annotati = _spia_telemetria(lab)
-        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "mio"}}, indent=2) + "\n", encoding="utf-8")
+        (lab.utente / "NOVITA.md").write_text("# Novita mie\n", encoding="utf-8")
         lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
         lab.arturo_cli("applica")
         lab.arturo_cli("applica")
@@ -513,16 +524,16 @@ def test_aa19(repo: Path) -> None:
 
 def test_aa20(repo: Path) -> None:
     def prova(lab: Lab) -> None:
-        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "mio"}}, indent=2) + "\n", encoding="utf-8")
+        (lab.utente / "NOVITA.md").write_text("# Novita mie\n", encoding="utf-8")
         commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
         lab.arturo_cli("applica")
         assert lab.stato().get("stato") == "bloccato", f"AA20 la prova non parte: {lab.stato()}"
-        lab.git(lab.utente, "commit", "-qam", "le mie impostazioni")
+        lab.git(lab.utente, "commit", "-qam", "le mie novità")
         uscita = lab.arturo_cli("stato").stdout
         assert lab.stato().get("stato") == "pronto" and "si installa da sola" in uscita, \
             f"AA20 dopo il commit l'avvio non torna a dire che si installa: {uscita!r} {lab.stato()}"
         lab.arturo_cli("applica")
-        assert (lab.utente / "hooks" / "nuova.py").exists() and '"mio"' in read(lab.utente / "settings.json"), \
+        assert (lab.utente / "hooks" / "nuova.py").exists() and "mie" in read(lab.utente / "NOVITA.md"), \
             f"AA20 dopo il commit il rilascio {commit[:7]} non si installa: {lab.stato()}"
     con_lab(repo, "AA20", prova)
 
@@ -798,13 +809,106 @@ def test_aa33(repo: Path) -> None:
     con_lab(repo, "AA33", prova)
 
 
+def test_aa35(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "mio"}}, indent=2) + "\n", encoding="utf-8")
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        dentro = subprocess.run(["git", "-C", str(lab.utente), "merge-base", "--is-ancestor", commit, "HEAD"],
+                                env=lab.env, capture_output=True, timeout=60).returncode == 0
+        assert dentro and (lab.utente / "hooks" / "nuova.py").exists(), \
+            f"AA35 con il solo settings.json non salvato il rilascio non si installa: {lab.stato()}"
+        assert '"mio"' in read(lab.utente / "settings.json") and \
+            lab.git(lab.utente, "status", "--porcelain", "--untracked-files=no") == "", \
+            "AA35 settings.json della persona non è salvato o si perde"
+        assert "settings.json salvato da Arturo" in lab.git(lab.utente, "log", "--format=%s", "-3"), \
+            "AA35 manca il commit dedicato di settings.json"
+    con_lab(repo, "AA35", prova)
+
+    def segreto(lab: Lab) -> None:
+        prima = lab.head()
+        token = "ghp_" + "a1B2" * 10
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"GH": token}}, indent=2) + "\n", encoding="utf-8")
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == prima and lab.stato().get("stato") == "bloccato", \
+            f"AA35 un settings.json con un segreto finisce in un commit automatico: {lab.stato()}"
+    con_lab(repo, "AA35", segreto)
+
+
+def test_aa36(repo: Path) -> None:
+    pronto = 'return dict(stato, stato="pronto", motivo="")'
+
+    def prova(lab: Lab) -> None:
+        vero = read(lab.autore / "bin" / "aggiornamenti.py")
+        assert vero.count(pronto) == 1, "AA36 prova: la riga del pronto in calcola non è una sola"
+        # Una versione installata col difetto che ferma ogni rilascio; il rilascio firmato dopo lo corregge.
+        lab.rilascia("bin/aggiornamenti.py", vero.replace(pronto, 'return dict(stato, stato="bloccato", motivo="difetto")'), "")
+        lab.git(lab.utente, "pull", "-q", "--ff-only", "origin", "main")
+        commit = lab.rilascia("bin/aggiornamenti.py", vero, "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == commit, f"AA36 il difetto della copia installata ferma il rilascio che lo corregge: {lab.stato()}"
+    con_lab(repo, "AA36", prova)
+
+    def senza_firma(lab: Lab) -> None:
+        prima = lab.head()
+        spia = lab.base / "spia-dal-tag"
+        vero = read(lab.autore / "bin" / "aggiornamenti.py")
+        futuro = "from __future__ import annotations\n"
+        assert vero.count(futuro) == 1, "AA36 prova: manca l'import di __future__"
+        lab.rilascia("bin/aggiornamenti.py", vero.replace(futuro, futuro + f"open({str(spia)!r}, 'w').write('x')\n"),
+                     "v2026-02-01", firma=False)
+        lab.arturo_cli("applica")
+        assert not spia.exists() and lab.head() == prima, "AA36 il codice di un tag senza firma gira alla chiusura"
+    con_lab(repo, "AA36", senza_firma)
+
+
+def test_aa37(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("controlla", "--subito")
+        stato = lab.stato()
+        assert stato.get("stato") == "pronto" and stato.get("pronto_da"), f"AA37 lo stato non dice da quando è pronto: {stato}"
+        f = lab.utente / "session-env" / "aggiornamento.json"
+        f.write_text(json.dumps(dict(stato, pronto_da=time.time() - 2 * 86400)), encoding="utf-8")
+        fermo = lab.arturo_cli("stato", ARTURO_AVVIO="clear").stdout
+        assert "/clear non basta" in fermo, f"AA37 dopo 24 ore senza chiusura vera l'avvio non dice di riaprire: {fermo!r}"
+        assert lab.stato().get("pronto_da", time.time()) < time.time() - 86400, "AA37 l'avvio riscrive la data del pronto"
+        env = dict(lab.env, HOME=str(lab.home), USERPROFILE=str(lab.home))
+        entrata = json.dumps({"model": {"display_name": "Opus"}, "workspace": {"current_dir": str(lab.home)}})
+        barra = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=entrata, env=env,
+                               capture_output=True, text=True, encoding="utf-8", timeout=30).stdout
+        assert "/clear non basta" in barra, f"AA37 la barra non dice di chiudere e riaprire: {barra!r}"
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        assert lab.stato().get("chiusura_vera"), f"AA37 la chiusura vera non lascia la sua data: {lab.stato()}"
+        dopo = lab.arturo_cli("stato", ARTURO_AVVIO="clear").stdout
+        assert "/clear non basta" not in dopo, f"AA37 dopo una chiusura vera l'avvio dice ancora di riaprire: {dopo!r}"
+    con_lab(repo, "AA37", prova)
+
+
+def test_aa38(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        assert lab.arturo_cli("riapri").returncode == 1, "AA38 senza rilascio riapri esce con 0"
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("controlla", "--subito")
+        r = lab.arturo_cli("riapri")
+        assert r.returncode == 0 and "RIAPRI" in r.stdout and "v2026-02-01" in r.stdout, \
+            f"AA38 con un rilascio pronto riapri non lo dice: {r.returncode} {r.stdout!r} {r.stderr!r}"
+        assert lab.arturo_cli("riapri", ARTURO_AGGIORNAMENTI="manuali").returncode == 1, \
+            "AA38 con gli aggiornamenti a mano riapri ferma la rotazione"
+    con_lab(repo, "AA38", prova)
+    fine = read(repo / "commands" / "fine.md")
+    assert "aggiornamenti riapri" in fine, "AA38 /fine --rotazione non chiede riapri prima di ruotare"
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
          "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
          "AA20": test_aa20, "AA21": test_aa21, "AA22": test_aa22, "AA23": test_aa23, "AA24": test_aa24,
          "AA25": test_aa25, "AA26": test_aa26, "AA27": test_aa27, "AA28": test_aa28, "AA29": test_aa29,
-         "AA30": test_aa30, "AA31": test_aa31, "AA32": test_aa32, "AA33": test_aa33, "AA34": test_aa34}
+         "AA30": test_aa30, "AA31": test_aa31, "AA32": test_aa32, "AA33": test_aa33, "AA34": test_aa34,
+         "AA35": test_aa35, "AA36": test_aa36, "AA37": test_aa37, "AA38": test_aa38}
 
 
 def main() -> int:
