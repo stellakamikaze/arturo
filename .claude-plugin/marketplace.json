@@ -8,12 +8,12 @@
     {
       "name": "arturo",
       "description": "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude.",
-      "version": "0.2.12",
+      "version": "0.2.13",
       "source": {
         "source": "github",
         "repo": "stellakamikaze/arturo",
-        "ref": "plugin-v0.2.12",
-        "sha": "bd9bd2b6bd3b049fd5298d50f89455a0eb44536d"
+        "ref": "plugin-v0.2.13",
+        "sha": "434430bae3d93d6269b1b8c1d4356bca5ee3b070"
       }
     }
   ]
