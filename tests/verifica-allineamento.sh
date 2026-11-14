@@ -197,6 +197,8 @@ BANCHI=(
   test_guardie_cieche_2026_11_11.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
+  # La Scoperta v1 dalle versioni dei file (14/11/2026, passo S7, #5615).
+  test_scoperta_2026_11_14.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -511,6 +513,8 @@ VELENI=(
   test_segnala_auto_2026_11_11.py
   # n. 68: il heredoc rimesso dentro <(...) fa rossi BS01 e, sul Mac, BS02.
   test_bash32_2026_11_10.py
+  # La Scoperta (14/11/2026): ogni veleno di scoperta.py e dell'hook fa rosso il suo caso SC.
+  test_scoperta_2026_11_14.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
