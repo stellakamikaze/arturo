@@ -548,9 +548,10 @@ rilegge solo nel progetto in cui le ha scritte. La memoria di Arturo le rende ut
 spenta finché non la accendi (`/setup` te lo chiede, oppure `arturo memoria accendi`).
 È Melchior, la memoria della config di chi mantiene Arturo: lo stesso codice (`hooks/melchior_match.py`,
 gli hook `memory-*`, `scripts/melchior_recall.py`), copiato identico. Le note di chi mantiene Arturo
-non sono nel repository: Arturo legge solo le tue. Le note stanno in tre posti, e restano lì: le note
-di Claude Code in `~/.claude/projects/*/memory/`, la memoria curata in `~/.claude/data/memory/`
-(fuori da git, come i todo), e le cartelle che aggiungi tu. Una nota raggiunta da due posti conta
+non sono nel repository: Arturo legge solo le tue. Cosa ricorda, lo schema delle note e cosa esce
+dal computer stanno in [`docs/memoria.md`](docs/memoria.md), il contratto della memoria. Le note
+stanno in tre posti: le note di Claude Code in `~/.claude/projects/*/memory/`, la memoria curata in
+`~/.claude/data/memory/` (fuori dal repository di Arturo, come i todo), e le cartelle che aggiungi tu. Una nota raggiunta da due posti conta
 una volta, e due note con lo stesso nome in due progetti restano due note.
 Quando è accesa:
 
@@ -559,13 +560,14 @@ Quando è accesa:
 - all'avvio `memory-autoload.py` indica la scheda del progetto (`progetto-<cartella>.md`), se c'è;
 - `subagent-memory-context.py` dice ai subagenti che la memoria esiste e come cercarla (le correzioni della sessione le porta anche a memoria spenta);
 - `melchior-postwrite.py` tiene in ordine solo `~/.claude/data/memory/`: date nel frontmatter e
-  cartella giusta per una nota nuova. Le note di Claude Code e le tue cartelle non le tocca mai.
+  cartella del suo `type` per una nota nuova. Le note di Claude Code e le tue cartelle non le tocca mai.
 
 `arturo memoria cerca "parole"` cerca a mano, anche a memoria spenta (è `scripts/melchior_recall.py`). `arturo memoria controlla`
 trova note senza descrizione, frontmatter illeggibili e link rotti. `arturo memoria cartella aggiungi
-<cartella>` aggiunge una tua cartella di note markdown (con `name` e `description` in testa).
-`arturo memoria spegni` la spegne: le note restano dove sono. Tutto resta su questo computer:
-nessun server, nessun archivio nuovo, e niente della memoria entra nella telemetria.
+<cartella>` aggiunge una tua cartella di note markdown (con `name`, `description` e `type` in testa).
+`arturo memoria spegni` la spegne: le note restano dove sono. Le note stanno su questo computer, e
+niente della memoria entra nella telemetria. Quelle che Claude apre passano ad Anthropic con la
+conversazione; con un remote privato, `/fine` le salva anche lì.
 L'interruttore sta in `~/.claude/data/memoria/`, fuori da git; `ARTURO_MEMORIA=0` lo scavalca.
 
 Una parte resta sempre accesa, anche a memoria spenta: `memory-write-scanner.py` controlla ogni nota e

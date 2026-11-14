@@ -285,15 +285,15 @@ Proposta sempre nella bozza della FASE 5. Il ritratto non entra nelle note senza
 Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso,
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
 Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
-Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu: non copia
-e non sposta niente. Spiegalo così, in parole semplici:
+Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu (contratto
+in `docs/memoria.md`). Spiegalo così, in parole semplici:
 
 - quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
   a Claude dove sono. Claude le apre solo se servono;
 - ogni nota e ogni handoff che Claude scrive passa da un controllo: se dentro c'è una password o
   un'istruzione nascosta, Claude riceve un avviso;
-- tutto resta su questo computer. Le note non vanno a nessun server e non entrano mai nella
-  telemetria;
+- le note stanno su questo computer e mai nella telemetria. Quelle che Claude apre vanno ad
+  Anthropic con la conversazione;
 - è spenta finché non dici sì, e si spegne con un comando.
 
 Mostra lo stato e chiedi: "Vuoi accendere la memoria?".

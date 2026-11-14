@@ -49,6 +49,9 @@ il README e `strati.md` lo citano senza copiarlo.
                        il modello (Claude, sui server di Anthropic)
 ```
 
+La memoria (strato 3) ha un contratto suo: cosa ricorda, lo schema delle note e cosa esce dal
+computer stanno in [`memoria.md`](memoria.md).
+
 ## Chi aggiorna cosa
 
 | Progetto | Cosa fa per te | Licenza | Come arriva | Chi lo aggiorna |

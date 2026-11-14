@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y15: la memoria facoltativa, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y16: la memoria facoltativa, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta di default: memory-retrieve, memory-autoload, subagent-memory-context e melchior-postwrite
@@ -33,9 +33,13 @@ Y15 memory-retrieve con un incolla da 200.000 caratteri: guarda testa e coda (al
 Y14 melchior-postwrite parla a Claude in additionalContext, con exit 0 (l'hook è asincrono): il
     frontmatter rotto, il percorso nuovo della nota smistata, la nota omonima rimasta nella radice
     (finding 51 e 52).
+Y16 un contratto solo (M1 del piano della memoria, 14/11/2026): melchior-postwrite smista una nota
+    nuova per `type` (il prefisso del nome vale prima), il controllo della forma YAML è uno solo
+    (melchior_match.problemi_frontmatter) e regge le liste fra quadre su più righe, il codice morto
+    è fuori, docs/memoria.md esiste e i testi rimandano lì senza contraddirlo.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
-suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y14 una copia del
+suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y16 una copia del
 repository con una variante rotta deve far fallire il controllo con il suo codice e il motivo atteso.
 """
 from __future__ import annotations
@@ -539,9 +543,66 @@ def test_y15(repo: Path) -> None:
         lab.chiudi()
 
 
+def test_y16(repo: Path) -> None:
+    presenti(repo, "Y16")
+    lab = Lab(repo)
+    try:
+        lab.arturo("accendi")
+        mem = lab.claude / "data" / "memory"
+        for nome, testa, cartella in (
+                ("titoli-brevi.md", "type: feedback", "feedback"),
+                ("romanzo-tram.md", "metadata:\n  type: project", "progetti"),
+                ("chi-sono.md", "type: user", "profilo"),
+                ("errore-tram-deposito.md", "type: feedback", "errori")):
+            lab.postwrite(mem / nome, f"---\nname: {nome[:-3]}\ndescription: una nota di prova\n{testa}\n---\ncorpo\n")
+            assert (mem / cartella / nome).is_file() and not (mem / nome).exists(), \
+                f"Y16 melchior-postwrite non smista per type: {nome} doveva andare in {cartella}/"
+        lab.postwrite(mem / "senza-tipo.md", "---\nname: senza-tipo\ndescription: niente type\n---\ncorpo\n")
+        assert (mem / "senza-tipo.md").is_file(), "Y16 una nota senza type né prefisso viene spostata"
+        (lab.mem / "lista.md").write_text("---\nname: lista\ndescription: una lista che va a capo\ntype: reference\n"
+                                         "triggers: [uno, due,\n  tre]\n---\ncorpo\n", encoding="utf-8")
+        (lab.mem / "citata.md").write_text("---\nname: citata\ndescription: fonti fra virgolette\ntype: reference\n"
+                                          'sources: ["run del 7/8 #3, con [nota]", \'altra #4\']\n---\ncorpo\n',
+                                          encoding="utf-8")
+        (lab.mem / "aperta.md").write_text("---\nname: aperta\ndescription: lista aperta\ntype: reference\n"
+                                          "triggers: [uno, due\n---\ncorpo\n", encoding="utf-8")
+        esito = json.loads(lab.arturo("controlla", "--json").stdout)
+        motivi = " | ".join(f"{e['file']}: {e['motivo']}" for e in esito["errori"])
+        assert "lista.md" not in motivi and "citata.md" not in motivi and "aperta.md" in motivi, \
+            f"Y16 il controllo della forma YAML sbaglia sulle liste fra quadre: {motivi}"
+        r = lab.postwrite(mem / "feedback" / "feedback-aperta.md", (lab.mem / "aperta.md").read_text(encoding="utf-8"))
+        assert "non è YAML valido" in _contesto(r), "Y16 melchior-postwrite e controlla non usano lo stesso controllo"
+    finally:
+        lab.chiudi()
+    postwrite = (repo / "hooks" / "melchior-postwrite.py").read_text(encoding="utf-8")
+    memoria = (repo / "bin" / "memoria.py").read_text(encoding="utf-8")
+    assert "safe_load" not in postwrite and "SMISTAMENTO" not in postwrite and "CHIAVE.match" not in memoria, \
+        "Y16 restano controlli YAML o smistamenti propri fuori da melchior_match"
+    match = (repo / "hooks" / "melchior_match.py").read_text(encoding="utf-8")
+    for morto in ("LEGACY_ACCESS_LOG", "def path_tokens", "def score(", "\nQUI = "):
+        assert morto not in match, f"Y16 codice morto in melchior_match.py: {morto.strip()}"
+    for testo, file in (("/system-audit memoria", "hooks/melchior-postwrite.py"),
+                        ("config-sync-pull", "hooks/melchior_match.py"),
+                        ("Nessuna nota viene copiata", "bin/memoria.py"),
+                        ("nessun archivio nuovo", "README.md"),
+                        ("non copia\ne non sposta", "commands/setup.md"),
+                        ("hooks/melchior-stopword.local", "NOVITA.md")):
+        if (repo / file).is_file():
+            assert testo not in (repo / file).read_text(encoding="utf-8"), f"Y16 {file} dice ancora \"{testo}\""
+    contratto = repo / "docs" / "memoria.md"
+    assert contratto.is_file(), "Y16 manca docs/memoria.md, il contratto della memoria"
+    testo = contratto.read_text(encoding="utf-8")
+    for parola in ("name", "description", "type", "Anthropic", "telemetria", "melchior-notes.json", "remote privato"):
+        assert parola in testo, f"Y16 docs/memoria.md non dice \"{parola}\""
+    # docs/privacy.md riceve la sezione Memoria con la bozza nuova della privacy (#5267, S6): fino al
+    # sì di Federico la sezione sta nella bozza, e qui non si controlla.
+    for file in ("README.md", "docs/strati.md", "docs/come-e-fatto.md"):
+        assert "memoria.md" in (repo / file).read_text(encoding="utf-8"), f"Y16 {file} non rimanda a docs/memoria.md"
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
-         "Y13": test_y13, "Y14": test_y14, "Y15": test_y15}
+         "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -565,6 +626,11 @@ VELENI = (
      "la riga dopo un updated: vuoto sparisce"),
     ("Y14", [("hooks/melchior-postwrite.py", '"additionalContext": "\\n".join(avvisi)', '"additionalContext": ""')],
      "il frontmatter rotto non arriva a Claude"),
+    ("Y16", [("hooks/melchior_match.py", '    return CARTELLA_TIPO.get(str(campo(fm, "type") or "").strip())\n',
+              "    return None\n")],
+     "non smista per type"),
+    ("Y16", [("hooks/melchior_match.py", "            seguito = _FRA_VIRGOLETTE.sub('\"\"', seguito)", "            pass")],
+     "sbaglia sulle liste fra quadre"),
 )
 
 

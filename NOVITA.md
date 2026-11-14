@@ -1961,7 +1961,8 @@ nel repository c'è solo il codice.
 
 **Da sapere**: niente da fare. `arturo memoria stato` dice dove cerca e quante note trova, e
 `arturo memoria accendi` la accende. Se ci sono parole che il richiamo deve ignorare, scrivile una
-per riga in `hooks/melchior-stopword.local`.
+per riga in `~/.claude/arturo/melchior-stopword.local` (il file di prima, nella cartella `hooks/`,
+vale ancora se c'è).
 
 ---
 
