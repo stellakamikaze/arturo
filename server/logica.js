@@ -8,7 +8,6 @@
 //   POST /v1/feedback      il modulo di feedback del sito (/api/feedback): testo, tipo, email facoltativa.
 //                          Dal 24/10/2026 il vocale non si accetta più
 //   POST /v1/sito          un download dal sito (/api/sito): il comando copiato o il repository aperto
-//   POST /v1/lancillotto/eventi  gli eventi d'uso di Lancillotto (25/10/2026), in una tabella loro (lancillotto.js)
 // Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
 //   GET  /v1/segnalazioni  le ultime 50 segnalazioni, senza testo; /v1/segnalazioni/<n> una intera (27/10/2026)
@@ -24,7 +23,6 @@
 // Telegram ed email sono campanelli (24/10/2026): mai il testo né l'email di chi scrive. Una segnalazione porta
 // numero, tipo, da dove arriva e il link alla pagina privata (27/10/2026), un feedback numero, tipo e origine.
 
-import { validaLottoLancillotto, avvisoInstallazioneLancillotto, testoLancillotto } from "./lancillotto.js";
 import { DATA_A_NUMERO } from "./versioni.js";
 import { pagina, sezione, scheda, codice } from "./email.js";
 import { recapGiorno, recapSettimana, righeGiorno } from "./recap.js";
@@ -739,7 +737,6 @@ export function testoRiepilogo(r, titolo, testa = []) {
     "", `Eventi scartati perché fuori elenco: ${r.scartati || 0}`,
     `Avvisi non partiti: Telegram ${r.telegramKo || 0}, email ${r.emailKo || 0}`,
     "",
-    ...(testoLancillotto(r.lancillotto) ? [testoLancillotto(r.lancillotto), ""] : []),
     ...testoUso(r.uso),
   ].join("\n");
 }
@@ -1040,29 +1037,6 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     if (finito && await archivio.primaVolta("sempre", `setup-fine:${finito.installazione}`)
       && await archivio.incrementa(giorno, "avviso-setup") <= LIMITI.avvisiSetupPerGiorno) {
       await telegram(avvisoSetupFinito(finito));
-    }
-    return risposta(200, { accettati: righe.length, scartati });
-  }
-
-  // Lancillotto: stessi tetti per IP e per installazione di Arturo, tabella e avviso suoi.
-  if (url.pathname === "/v1/lancillotto/eventi") {
-    if (!await limite("eventi", request)) return risposta(429, { errore: "troppe richieste" });
-    const { dati, errore } = await leggiJson(request, LIMITI.corpoEventi);
-    if (errore) return errore;
-    const { righe, scartati, installazione, motivo } = validaLottoLancillotto(dati, giorno,
-      { eventiPerLotto: LIMITI.eventiPerLotto, giorniIndietro: LIMITI.giorniIndietro });
-    if (motivo) return risposta(400, { errore: motivo });
-    const gia = await archivio.contaEventiLancillotto(installazione, giorno);
-    if (gia + righe.length > LIMITI.eventiPerGiorno) return risposta(429, { errore: "troppi eventi oggi" });
-    if (righe.length && await archivio.incrementa(giorno, "eventi", righe.length) > LIMITI.eventiTotaliPerGiorno) {
-      return risposta(429, { errore: "server pieno per oggi" });
-    }
-    if (scartati) await archivio.incrementa(giorno, "scartati-lancillotto", scartati);
-    if (!righe.length) return risposta(200, { accettati: 0, scartati });
-    const nuova = await archivio.installazioneNuovaLancillotto(installazione);
-    await archivio.scriviEventiLancillotto(righe, adesso.toISOString());
-    if (nuova && await archivio.incrementa(giorno, "avviso-installazione") <= LIMITI.avvisiInstallazioniPerGiorno) {
-      await telegram(avvisoInstallazioneLancillotto(righe[0]));
     }
     return risposta(200, { accettati: righe.length, scartati });
   }

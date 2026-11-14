@@ -3,7 +3,6 @@
 // le righe a zero ("nessuna") più numerose di quelle piene. Qui una riga a zero sparisce, e il suo nome va nel piede.
 // Il testo semplice resta in logica.js (testoRiepilogo), con in testa le righe di righeGiorno.
 import { LIMITI, task, idCorto, derivaPubblica, derivaInBreve } from "./logica.js";
-import { testoLancillotto } from "./lancillotto.js";
 import { pagina, sezione, tabella, cifre, elenco, paragrafo, codice, crudo, esc } from "./email.js";
 
 const corto = (id) => (id || "").slice(0, 8);
@@ -117,11 +116,6 @@ function tabellaGuardie(g) {
 const sezioneDaFare = (righe) => sezione("Da fare", elenco(righe.map((r) => r.testo)),
   { evidenza: true, nota: "Ogni riga è già un task, tranne le config rotte, che lo hanno dalla loro email, e la riga della deriva senza task." });
 
-function lancillotto(r) {
-  const t = testoLancillotto(r);
-  return t ? sezione("Lancillotto", elenco(t.split("\n").slice(1).map((x) => x.replace(/^- /, "")))) : "";
-}
-
 // Le righe di testo che il recap del mattino mette in testa, sotto il titolo.
 export function righeGiorno(r, g, { giorno } = {}) {
   if (!g) return [];
@@ -187,7 +181,6 @@ export function recapGiorno(r, g, { giorno, leggi = "" } = {}) {
     se((r.banchi || []).length, "banchi rossi", () => sezione("Banchi delle guardie rossi", tabella(["Banco", "Dove", "Dal"],
       r.banchi.map((x) => [codice(x.valore), `${idCorto(x.installazione)} · ${x.versione}`, breve(x.dal)])))),
     se(versioni, "versioni", () => sezione("Versioni e sistemi", paragrafo(versioni))),
-    lancillotto(r.lancillotto),
   ];
   const conti = `Eventi scartati perché fuori elenco: ${r.scartati || 0} · avvisi non partiti: Telegram ${r.telegramKo || 0}, email ${r.emailKo || 0}.`;
   if (!(r.deriva || []).length) vuote.push("deriva");
@@ -261,7 +254,6 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
     se((r.banchi || []).length, "banchi rossi", () => sezione("Banchi delle guardie rossi", tabella(["Banco", "Dove", "Dal"],
       (r.banchi || []).map((x) => [codice(x.valore), `${idCorto(x.installazione)} · ${x.versione}`, breve(x.dal)])))),
     se(versioni, "versioni", () => sezione("Versioni e sistemi", paragrafo(versioni))),
-    lancillotto(r.lancillotto),
   ];
   if (!(r.deriva || []).length) vuote.push("deriva");
   if (!(r.config || []).length) vuote.push("config rotte");

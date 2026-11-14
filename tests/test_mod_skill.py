@@ -269,7 +269,7 @@ def test_q10(repo: Path) -> None:
     assert "install-hook.mjs" in testo, "Q10 la nota non avvisa dell'hook che scrive in settings.json"
     assert "docs/hallmark.md" in read(repo / "docs" / "impeccable.md"), "Q10 la nota di Impeccable non rimanda a Hallmark"
     setup = read(repo / "commands" / "setup.md")
-    fase = setup.split("## FASE 8c", 1)[-1].split("## FASE 8d", 1)[0]
+    fase = setup.split("## FASE 8c", 1)[-1].split("## FASE 9", 1)[0]
     assert "## La regola per il tuo CLAUDE.md" in testo and "impeccable guida, hallmark costruisce" in testo, \
         "Q10 la nota non porta la regola della catena per CLAUDE.md"
     assert "nutlope/hallmark" in fase and "La regola per il tuo CLAUDE.md" in fase, \

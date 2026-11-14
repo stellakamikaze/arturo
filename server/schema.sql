@@ -56,8 +56,5 @@ CREATE TABLE IF NOT EXISTS feedback (
   email TEXT NOT NULL DEFAULT ''
 );
 
--- Lancillotto (25/10/2026). Il Worker la crea da solo alla prima richiesta (archivio.js, TABELLA_LANCILLOTTO).
-CREATE TABLE IF NOT EXISTS eventi_lancillotto (
-  giorno TEXT NOT NULL, ricevuto_giorno TEXT NOT NULL, installazione TEXT NOT NULL, versione TEXT NOT NULL,
-  sistema TEXT NOT NULL, evento TEXT NOT NULL, valore TEXT NOT NULL DEFAULT ''
-);
+-- Lancillotto è dismesso dal 14/11/2026 (#5617): il Worker non crea né legge più eventi_lancillotto. La tabella
+-- resta nel database remoto con le righe già arrivate, finché Federico non dice sì all'export e alla cancellazione.

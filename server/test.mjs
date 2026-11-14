@@ -14,15 +14,7 @@ const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comand
 function finti(riepilogo = null) {
   const stato = { eventi: [], segnalazioni: [], email: [], avvisi: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [],
     feedback: [], conteggi: {} };
-  stato.lancillotto = [];
   const archivio = {
-    async installazioneNuovaLancillotto(inst) { return !stato.lancillotto.some((e) => e.installazione === inst); },
-    async contaEventiLancillotto(inst, giorno) {
-      return stato.lancillotto.filter((e) => e.ricevuto === giorno && e.installazione === inst).length;
-    },
-    async scriviEventiLancillotto(righe, ricevuto) {
-      for (const r of righe) stato.lancillotto.push({ ...r, ricevuto: ricevuto.slice(0, 10) });
-    },
     async installazioneNuova(inst) { return !stato.eventi.some((e) => e.installazione === inst); },
     async contaEventi(inst, giorno) {
       return stato.eventi.filter((e) => e.ricevuto === giorno && e.installazione === inst).length;
@@ -845,52 +837,15 @@ const casi = {
     await settimanale({ ...v, adesso: lunedi });
     assert.match(v.stato.email[0].testo, /Banchi delle guardie rossi[^\n]*\n[^\n]*\n  nessuno\n/, "V45 senza rossi il lunedì non dice nessuno");
   },
-  // Lancillotto (25/10/2026): un lotto valido va nella sua tabella, non tra gli eventi di Arturo.
+  // Lancillotto è dismesso dal 14/11/2026 (#5617): il suo indirizzo non esiste più e non salva niente.
   async L01() {
     const f = finti();
     const corpo = { installazione: "9f8e7d6c-1111-2222", versione: "0.2.0", sistema: "macos-26", eventi: [
-      { giorno: "2026-10-13", evento: "installa", valore: "nuova" }, { giorno: "2026-10-13", evento: "giorno", valore: "eventi:3" },
-      { giorno: "2026-10-13", evento: "url_assente", valore: "org.mozilla.firefox" }] };
+      { giorno: "2026-10-13", evento: "installa", valore: "nuova" }] };
     const r = await gestisci(post("/v1/lancillotto/eventi", corpo), { ...f, adesso });
-    assert.equal(r.status, 200, "L01 un lotto valido di Lancillotto non è accettato");
-    assert.deepEqual(await r.json(), { accettati: 3, scartati: 0 }, "L01 conteggio sbagliato");
-    assert.equal(f.stato.lancillotto.length, 3, "L01 eventi non salvati nella tabella di Lancillotto");
-    assert.equal(f.stato.eventi.length, 0, "L01 eventi di Lancillotto finiti tra quelli di Arturo");
-    assert.equal(f.stato.avvisi.length, 1, "L01 nessun avviso per la nuova installazione");
-    assert.match(f.stato.avvisi[0], /^Lancillotto: nuova installazione 9f8e7d6c/, "L01 avviso sbagliato");
-    await gestisci(post("/v1/lancillotto/eventi", corpo), { ...f, adesso });
-    assert.equal(f.stato.avvisi.length, 1, "L01 avviso ripetuto per la stessa installazione");
-  },
-  // Niente nomi di app, siti, titoli o testo: tutto fuori elenco si scarta.
-  async L02() {
-    const f = finti();
-    const base = { installazione: "9f8e7d6c-1111-2222", versione: "0.2.0", sistema: "macos-26" };
-    for (const [evento, valore] of [["url_assente", "com.esempio.GestionaleRossi"], ["comando", "cerca Mario Rossi"],
-      ["giorno", "eventi:1234"], ["sensore", "ax:ok"], ["finestra", "https://web.bbva.it"], ["titolo", "Fattura 2026"],
-      ["errore", "Traceback /Users/dora"], ["__proto__", "x"]]) {
-      const r = await gestisci(post("/v1/lancillotto/eventi", { ...base, eventi: [{ evento, valore }] }), { ...f, adesso });
-      assert.deepEqual(await r.json(), { accettati: 0, scartati: 1 }, `L02 ${evento}=${valore} accettato`);
-    }
-    assert.equal(f.stato.lancillotto.length, 0, "L02 un valore fuori elenco è stato salvato");
-    for (const extra of [{ versione: "v0.1.2" }, { sistema: "Darwin" }, { installazione: "corto" }]) {
-      const r = await gestisci(post("/v1/lancillotto/eventi", { ...base, ...extra, eventi: [{ evento: "installa", valore: "nuova" }] }),
-        { ...f, adesso });
-      assert.equal(r.status, 400, `L02 base non valida accettata: ${JSON.stringify(extra)}`);
-    }
-  },
-  // L'elenco del server e quello del client (lancillotto/telemetria.py) coincidono, se il client è accanto.
-  async L03() {
-    const { EVENTI_LANCILLOTTO } = await import("./lancillotto.js");
-    let client;
-    try {
-      client = readFileSync(new URL("../../lancillotto/lancillotto/telemetria.py", import.meta.url), "utf8");
-    } catch {
-      return;  // il repo di Lancillotto non è accanto: il confronto lo fa il suo banco
-    }
-    const blocco = /EVENTI = \{([\s\S]*?)\n\}/.exec(client);
-    assert.ok(blocco, "L03 EVENTI non trovato nel client");
-    const nomi = [...blocco[1].matchAll(/^\s+"([a-z_]+)":/gm)].map((m) => m[1]).sort();
-    assert.deepEqual(nomi, Object.keys(EVENTI_LANCILLOTTO).sort(), "L03 eventi diversi fra client e server");
+    assert.equal(r.status, 404, "L01 l'indirizzo di Lancillotto risponde ancora");
+    assert.equal(f.stato.eventi.length, 0, "L01 eventi di Lancillotto salvati tra quelli di Arturo");
+    assert.equal(f.stato.avvisi.length, 0, "L01 avviso partito per Lancillotto");
   },
   // Le segnalazioni per la pagina privata (27/10/2026): solo col token, l'elenco senza testo, il link negli avvisi.
   async S01() {

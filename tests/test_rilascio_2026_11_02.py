@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """RL01-RL09: i ritocchi prima del rilascio del 2/11/2026.
 
-RL01 /setup sta sotto il tetto di 30 KB dell'audit: la FASE 8d (Lancillotto, solo Mac) vive in
-     shared/setup-lancillotto.md, che /setup nomina e che ha ancora il comando d'installazione (#4104).
+RL01 /setup sta sotto il tetto di 30 KB dell'audit (#4104). Lancillotto è dismesso dal 14/11/2026 (#5617):
+     /setup non ha più la FASE 8d e non lo installa, e shared/setup-lancillotto.md non c'è più.
 RL02 i testi seguono i comandi nuovi del 28/10 (#4105): il README conta i comandi come i file di
      commands/ e la rotta come quelli in vetrina, dice l'avviso prima di un ultracode; il pannello
      /dafare non promette che ogni tasto si annulla; segnala.py racconta stato; sessione.py non rimanda
@@ -58,14 +58,8 @@ def test_rl01(repo: Path) -> None:
     peso = len(setup.read_bytes().replace(b"\r\n", b"\n"))
     assert peso <= 30000, f"RL01 /setup pesa {peso} byte, oltre il tetto di 30000 dell'audit"
     testo = read(setup)
-    fase = testo[testo.index("## FASE 8d"):testo.index("## FASE 9")]
-    assert "~/.claude/shared/setup-lancillotto.md" in fase, "RL01 la FASE 8d non dice dove leggere la sua procedura"
-    parte = read(repo / "shared" / "setup-lancillotto.md")
-    assert "git clone https://github.com/stellakamikaze/lancillotto.git" in parte and "installa.sh" in parte \
-        and "Accessibilità" in parte, "RL01 shared/setup-lancillotto.md non ha domanda, controlli e installazione"
-    # Il repository è pubblico: bastano git e la rete. /setup non installa gh (review del 7/11/2026, finding 83).
-    assert "gh repo" not in parte and "gh auth" not in parte, \
-        "RL01 shared/setup-lancillotto.md chiede gh, che /setup non installa"
+    assert "lancillotto" not in testo.lower(), "RL01 /setup propone ancora Lancillotto, dismesso il 14/11/2026"
+    assert not (repo / "shared" / "setup-lancillotto.md").exists(), "RL01 shared/setup-lancillotto.md è ancora nel repo"
 
 
 def test_rl02(repo: Path) -> None:
