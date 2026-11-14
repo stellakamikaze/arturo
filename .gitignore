@@ -145,5 +145,5 @@ node_modules
 /policy-limits.json
 
 # I file della persona accanto ad Arturo: ~/.claude/arturo/parti.json (le parti del mod spente) e la radice del
-# codice scritta dall'avvio quando Arturo è un plugin (docs/strati.md).
+# codice scritta dall'avvio quando Arturo è un plugin (docs/prove-plugin.md).
 /arturo/

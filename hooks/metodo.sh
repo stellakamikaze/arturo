@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart del plugin: mette nel contesto il metodo di Arturo (shared/metodo.md, strati F2, docs/strati.md).
+# SessionStart del plugin: mette nel contesto il metodo di Arturo (shared/metodo.md, strati F2, docs/prove-plugin.md).
 # Un plugin non può portare un CLAUDE.md: il metodo arriva da qui, sotto i 10.000 caratteri che Claude Code
 # passa al modello per ogni hook. È un hook a sé, non una riga di session-start.sh, perché il tetto vale per
 # l'uscita di ogni hook e quella dell'avvio cresce con handoff e memoria.

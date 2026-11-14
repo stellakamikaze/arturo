@@ -12,123 +12,35 @@ Claude Code è l'IA di Anthropic che lavora sui file del tuo computer: legge e s
 
 La guida passo per passo sta su [arturo.stellakamikaze.org](https://arturo.stellakamikaze.org): ci vuole circa un'ora, e ogni comando è già scritto: lo copi e lo incolli. Funziona su Mac e su Windows.
 
-Il nome viene da Arktouros, "il guardiano dell'orsa", la stella che i naviganti usavano per tenere la rotta. Arturo nasce dalla configurazione con cui lavoro in Claude Code, ripulita dai miei dati, dalle credenziali e dai riferimenti alle mie macchine. Lo sviluppo ogni giorno, e gli aggiornamenti arrivano a chi lo usa in automatico, con una firma che prova che vengono da me.
-
-Dentro ci sono:
-
-- **31 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
-- **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
-- **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
-- **7 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
-
-Ci sono anche una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), e un **curriculum di principi** (`docs/principi/`) scritto per chi usa già l'IA in chat ma non ha mai aperto un terminale. Il **server** che raccoglie telemetria e segnalazioni è open source (`server/`): mi dice dove Arturo si inceppa sui computer di chi lo usa. Riceve nomi di comandi e numeri, mai i tuoi testi o i tuoi file, e la telemetria si spegne con un comando ([Impegni](#impegni)). A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti serve `git`, e la guida ti fa installare anche Python e node, se mancano.
-
-I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lancia `arturo web` da un terminale, scritto come dice [Il comando arturo nel terminale](#il-comando-arturo-nel-terminale). La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola se per 30 minuti nessuno la tiene aperta.
+Arturo nasce dalla configurazione con cui lavoro in Claude Code, ripulita dai miei dati, dalle credenziali e dai riferimenti alle mie macchine. Lo sviluppo ogni giorno, e gli aggiornamenti arrivano a chi lo usa in automatico, con una firma che prova che vengono da me.
 
 ---
 
-## In breve
+## Tre promesse
 
-**Per chi è.** Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) per scrivere, cercare e tenere in ordine il lavoro, non ha mai aperto un terminale e vuole usarla in modo più strutturato: su materiale vero, con un lavoro che resta da un giorno all'altro. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo. Arturo ti porta lì senza doverti fare imparare il terminale: regole di sicurezza già pronte che chiedono conferma prima delle azioni che non si annullano, un modo ordinato di aprire e chiudere il lavoro, e comandi che ti dicono da dove partire quando non lo sai. Perché il passaggio conta anche se non scrivi codice lo racconto [qui sotto](#perché-usare-il-terminale-anche-se-non-scrivi-codice).
+Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta e documenti. Il secondo è costruire piccoli strumenti su misura per un tuo caso preciso, senza saper programmare. Perché il passaggio conta anche se non scrivi codice lo racconto [più sotto](#perché-usare-il-terminale-anche-se-non-scrivi-codice).
 
-**Cosa ci fai.** Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta, progetti e documenti. Il secondo è costruire piccoli strumenti su misura per un tuo caso preciso, senza saper programmare.
+A chi lo usa Arturo fa tre promesse:
 
-**Cominciare in tre passi.**
+1. **Si configura con te, senza codice**: lo installi incollando una frase in Claude Code, e `/setup` lo configura con te, una domanda per volta. Le regole di sicurezza ci sono dal primo minuto, quindi prima di un gesto che non si annulla, come cancellare una cartella o mandare un'email, Claude ti chiede un sì.
+2. **Ricorda i progetti fra una sessione e l'altra**: `/fine` chiude la sessione con un riepilogo e le cose da fare, e la mattina dopo `/inizio` riparte da lì, dallo stato vero dei file. Così un lavoro che dura settimane non si perde fra una conversazione e l'altra.
+3. **Ti propone cosa automatizzare**: oggi `/guidami` nota le richieste che tornano uguali da una sessione all'altra e te le propone come cose da delegare. Con la Scoperta, in arrivo ([roadmap](ROADMAP.md)), Arturo leggerà anche come cambiano i file su cui lavori, e ti porterà le prove: le date, le modifiche che ripeti, una bozza da leggere. Costruisce solo dopo il tuo sì, e ogni automazione si annulla.
+
+La parte della configurazione che cresce con le tue correzioni e con i tuoi sì si chiama Orsa: come cresce lo spiega [Il ciclo dell'Orsa](#il-ciclo-dellorsa).
+
+---
+
+## Installazione
+
+Per cominciare servono tre passi:
 
 1. Installa Claude Code (vedi [Requisiti](#requisiti)).
-2. Scrivi `claude` e incolla questa frase: `Installa Arturo: https://arturo.stellakamikaze.org/inizia/`. Claude installa Arturo e ti chiede un sì prima di ogni passo (vedi [Installazione](#installazione)).
-3. Scrivi `/exit`, poi `claude`, poi `/setup`. Il comando ti guida una cosa per volta.
+2. Scrivi `claude` e incolla questa frase: `Installa Arturo: https://arturo.stellakamikaze.org/inizia/`. Claude installa Arturo e ti chiede un sì prima di ogni passo (vedi [Con Claude Code](#con-claude-code-consigliata)).
+3. Scrivi `/exit` e riapri con `claude`, perché comandi e guardie si caricano all'avvio della sessione; poi scrivi `/setup`, che ti guida una cosa per volta.
 
 Arturo si aggiorna da solo, come Claude Code. Quando esce una versione nuova la barra in basso te lo dice, e alla chiusura della sessione si installa. Si installano solo i rilasci firmati da chi mantiene Arturo. Se preferisci guardare prima, `arturo aggiornamenti manuali` lo spegne e `/aggiorna` ti mostra cosa arriva.
 
-Il resto della pagina spiega come funziona Arturo dentro. Per cominciare non serve leggerlo.
-
-## Perché usare il terminale anche se non scrivi codice
-
-Faccio l'autore, non il programmatore, e Claude Code è diventato lo strumento con cui lavoro ogni giorno. In chat l'intelligenza artificiale risponde a quello che le incolli: il materiale lo raccogli tu, e alla fine copi la risposta in un file. In Claude Code lavora dentro le tue cartelle, quindi va a prendere da sola appunti, trascrizioni e fogli di calcolo, li mette accanto al resto del materiale e scrive il risultato in un file. Nel mio lavoro la raccolta del materiale è la parte che porta via più tempo, e in chat resta tutta a te.
-
-L'altra differenza sta nella durata: in chat il lavoro vive dentro la conversazione, e quando ne apri una nuova lo rimetti insieme tu; in Claude Code, quando chiudi la sessione con `/fine`, Arturo scrive un riepilogo e le cose da fare, e la mattina dopo `/inizio` riparte da lì. Così un lavoro che dura settimane, come riconciliare le fatture dello studio con i movimenti della banca o costruire un sito, non si perde fra una conversazione e l'altra.
-
-Anthropic ha visto lo stesso uso crescere nelle sessioni di Claude Code fra ottobre 2025 e aprile 2026: la scrittura e l'analisi dei dati sono passate da circa il 10 al 20% delle sessioni, e chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora. Secondo la ricerca conta più conoscere il proprio mestiere che saper programmare, e quello che succede su Claude Code può essere un'anteprima di dove va il lavoro della conoscenza ([Agentic coding and persistent returns to expertise](https://www.anthropic.com/research/claude-code-expertise), giugno 2026). Dentro Anthropic il gruppo di growth marketing usa Claude Code su file con centinaia di annunci, e con un plugin di Figma costruito così le varianti di un gruppo di annunci, che chiedevano ore di copia e incolla, escono in mezzo secondo ([How Anthropic teams use Claude Code](https://claude.com/blog/how-anthropic-teams-use-claude-code), luglio 2025). Ethan Mollick, che alla Wharton studia l'IA nel lavoro, indica la stessa ragione che ho trovato io: Claude Code è potente perché lavora sul tuo computer e sui tuoi file, e serve a chi fa lavoro della conoscenza di ogni tipo, anche se oggi è costruito per i programmatori ([Claude Code and What Comes Next](https://www.oneusefulthing.org/p/claude-code-and-what-comes-next), gennaio 2026). Simon Willison, programmatore indipendente che da anni scrive di questi strumenti, ha scritto che Claude Code ha un nome sbagliato, perché serve ad automatizzare il computer in generale e non solo a scrivere codice ([Claude Skills are awesome, maybe a bigger deal than MCP](https://simonwillison.net/2025/Oct/16/claude-skills/), ottobre 2025). Per questo ho costruito Arturo, che prepara Claude Code per chi non programma.
-
-Le prove indipendenti però mostrano anche dove l'IA sbaglia. In un esperimento del 2023 di Harvard e Boston Consulting Group su 758 consulenti, chi usava GPT-4 su compiti alla portata dell'IA ne finiva il 12,2% in più, il 25,1% più in fretta e con una qualità più alta del 40%; su un compito costruito per sfuggirle, invece, chi usava l'IA dava la risposta giusta fra il 60 e il 70% delle volte, contro l'84% di chi lavorava senza ([Centaurs and Cyborgs on the Jagged Frontier](https://www.oneusefulthing.org/p/centaurs-and-cyborgs-on-the-jagged), settembre 2023). Uno studio di Microsoft Research su 319 persone che fanno lavoro della conoscenza ha trovato che chi si fida di più dell'IA dichiara di esercitare meno il pensiero critico ([The Impact of Generative AI on Critical Thinking](https://www.microsoft.com/en-us/research/publication/the-impact-of-generative-ai-on-critical-thinking-self-reported-reductions-in-cognitive-effort-and-confidence-effects-from-a-survey-of-knowledge-workers/), CHI 2025). E Willison avverte che un agente che legge i tuoi dati, incontra testi scritti da altri e può comunicare all'esterno può essere usato per rubarli, perché quei testi possono contenere istruzioni che l'agente esegue come se venissero da te ([The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/), giugno 2025).
-
-A questi rischi Arturo risponde in due modi diversi. Contro il furto dei dati ha regole che chiedono un sì prima di ogni gesto che non si annulla, come cancellare una cartella o mandare un messaggio; la stessa conferma per le pagine web che portano fuori un dato è ancora in lavorazione. Contro una risposta sbagliata accettata per fiducia non basta una regola: il risultato lo controlla chi lavora, ed è per questo che conta conoscere il proprio mestiere, come dice anche la ricerca di Anthropic.
-
-Questi sono i lavori che delego più spesso, misurati sulle mie sessioni degli ultimi mesi:
-
-- **Fatture e movimenti** — prima cercavo a mano, uno alla volta, la fattura di ognuno dei trecento movimenti senza giustificativo, fra email, portali dei fornitori e gestionale contabile; ora Claude legge il foglio in cui il commercialista segna i movimenti scoperti, cerca nei tre posti, carica i PDF su Drive, e io guardo solo quelli che restano aperti;
-- **Le email** — la bozza arriva nel thread giusto, scritta con la voce che Claude ricava dalle email che ho già mandato, e la mando io; quando la correggo, la correzione entra nelle regole che usa la volta dopo;
-- **Riunioni e cose da fare** — dalla trascrizione di una call Claude ricava le decisioni, le cifre e le cose da fare, ognuna con un responsabile e una data, e le scrive nel gestionale dei task;
-- **Presentazioni e pagine web** — scrivo io il contenuto; Claude monta il Keynote con le slide del catalogo dello studio, oppure costruisce la pagina web che ho descritto, e io rifinisco il risultato.
-
-Il terminale spaventa perché sembra un posto dove un errore costa caro, ed è così: lì un comando cancella una cartella senza passare dal cestino. Per questo Arturo mette intorno a Claude Code regole che chiedono un sì prima di ogni azione che non si annulla, come cancellare una cartella o mandare un'email, e comandi come `/inizio` che ti dicono da dove partire: così passi dalla chat a Claude Code senza dover imparare il terminale.
-
-## Cosa non è neutro
-
-Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere cinque cose:
-
-- **Claude Code è un servizio a pagamento di Anthropic, un'azienda privata.** Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Arturo non cambia questa condizione.
-- **Quello che scrivi passa dai server di Anthropic.** Le guardie di Arturo fermano segreti e credenziali, ma la conversazione esce comunque dal tuo computer. Anche quello che `/setup` legge nelle tue cartelle passa da Anthropic, come ogni conversazione. Quello che legge resta nella cronologia della conversazione, che Claude Code tiene sul tuo computer e cancella da sola dopo 90 giorni: Arturo non ne fa altre copie, e scrive solo il `CLAUDE.md` che approvi.
-- **Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.** Arturo si aggiorna da solo alla chiusura della sessione, e installa solo i rilasci firmati con la chiave di chi lo mantiene: la firma si controlla con la chiave che hai già, quindi un repository manomesso non basta per farti girare codice. Se preferisci leggere ogni aggiornamento prima, spegni l'aggiornamento automatico e usa `/aggiorna`, che ti mostra cosa arriva.
-- **Anche Claude Code manda ad Anthropic la sua telemetria d'uso, e Arturo la lascia accesa.** Secondo Anthropic gli eventi non contengono codice, percorsi dei file o comandi. Spegnerla costa: con `DISABLE_TELEMETRY` Claude Code non scarica più le impostazioni delle sue funzioni, e perdi tra l'altro il segno sui testi incollati, che aiuta Claude a non scambiare per tue le istruzioni scritte da altri. Se la vuoi spenta lo stesso, aggiungi `export DISABLE_TELEMETRY=1` al profilo della shell (`~/.zshrc` sul Mac, `~/.bashrc` in Git Bash su Windows).
-- **Arturo manda a chi lo mantiene eventi d'uso, e la telemetria è accesa di default.** Escono nomi di comandi, skill e guardie, esiti e numeri, mai i tuoi testi o i tuoi file: l'elenco intero è nell'Impegno 3. Si spegne con un comando.
-
-Il primo capitolo del curriculum, [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md), spiega perché conviene usare Claude Code lo stesso e come tenere bassa la dipendenza.
-
-## Impegni
-
-Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
-
-1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
-2. **Gli aggiornamenti si installano da soli solo se sono firmati, e li puoi tenere a mano.** Dal 16 ottobre 2026 Arturo si aggiorna da solo alla chiusura della sessione, come Claude Code: prima l'impegno era "solo `/aggiorna`, dopo il tuo sì". Si installano solo i rilasci con un tag firmato dalla chiave di chi mantiene Arturo, verificato con la chiave che hai già installata (`firme/rilasci.allowed_signers`). Niente si installa da solo se la storia pubblicata è stata riscritta o se hai modifiche non salvate: resta l'avviso, e `/aggiorna` fa il resto con te. Con un'altra sessione aperta la chiusura rinvia una volta: il rilascio rinviato si installa alla chiusura dopo, anche con altre sessioni aperte, che leggono gli hook nuovi da subito, oppure all'apertura di Claude Code se è l'unica sessione. Se un tuo commit cambia un file di Arturo che cambia anche il rilascio, vince il file del rilascio: la tua versione resta in `personale/conflitti/`, e l'avvio te lo dice una volta. Restano da risolvere con te solo `settings.json` e i `CLAUDE.md`. Anche `/aggiorna` applica solo l'ultimo tag firmato, mai `main`: se la firma manca o non torna, l'avviso dice "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo", e niente si installa. Con `arturo aggiornamenti manuali` (o `ARTURO_AGGIORNAMENTI=manuali`) torni al sì per ogni aggiornamento. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
-3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione` (dal 14 novembre 2026 con la forma dell'installazione: plugin o clone), `comando` (il nome di un comando di Arturo, mai il testo; un comando tuo conta come `altro`), `guardia` (il nome della guardia di Arturo che ha bloccato, da un elenco chiuso), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato, oppure automatico per un'installazione alla chiusura della sessione, e una volta per versione il motivo per cui un rilascio non si installa da solo: rinviato perché un'altra sessione è aperta, bloccato per firma, verifica, storia o versione, oppure manuale, e dal 14 novembre 2026 bloccato da modifiche non salvate, da una copia di prova in attesa, oppure non partito), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento, e i file che bloccano un aggiornamento in conflitto: dei file solo la posizione dentro Arturo, che è pubblica, e solo per un file di Arturo; un file tuo conta come `file:altro`), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, per `block-dangerous` anche il nome della regola, come `rm-cartella`, per `commit-secret-gate` solo la famiglia del segreto, come `segreto-cloud`, mai il servizio, e se hai detto sì, anche quando il comando poi fallisce), `errore` (il nome di una guardia che si è rotta), `claude` (la versione di Claude Code), e dal 3 novembre 2026, alla chiusura di ogni sessione, `durata` (in fasce larghe: meno di 5 minuti, fino a 30, fino a 2 ore, oltre), `turni` (quanti messaggi hai scritto, in fasce: 1, da 2 a 5, da 6 a 20, oltre 20, mai il testo) e `skill` (il nome di una skill di Arturo usata nella sessione; una skill tua conta come `altro`), `banchi` (il nome di un banco di prova delle guardie di Arturo diventato rosso sul tuo computer, così chi mantiene Arturo lo ripara senza disturbarti). Con gli eventi partono un id casuale creato da Arturo, sempre lo stesso, il rilascio di Arturo installato (un tuo tag non esce) e il sistema operativo, con il solo giorno e mai l'ora. L'id non contiene niente di te, ma chi mantiene Arturo può sapere quale persona c'è dietro un id se la conosce: per questo non sono dati anonimi. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte, e niente del ritratto di `/setup`. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `arturo telemetria mostra`, la spegni con `arturo telemetria spegni` o con `DO_NOT_TRACK=1`, che però spegne anche la telemetria di Claude Code e le funzioni che ne dipendono. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Chi tiene i dati, per quanto, con quale base giuridica e i tuoi diritti: [`docs/privacy.md`](docs/privacy.md). Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` di main e dei tag al massimo ogni ora mentre lavori, e uno alla chiusura della sessione) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Con l'invio, anche a telemetria spenta quando una segnalazione aspetta di partire, Arturo chiede al server lo stato delle tue segnalazioni con la ricevuta, col solo numero e il codice. Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub. Prima dell'anteprima Arturo toglie email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti. Il pacchetto tecnico parte con le caselle che lasci accese; l'id parte solo con la casella "collega ai miei dati d'uso". Il contatto parte solo se l'hai dato tu: un nome e un'email che `/setup` ti chiede una volta, per gli sviluppatori di Arturo, che li usano per contattarti sulle tue segnalazioni. Si guarda e si toglie con `arturo contatto`. Il server cancella il pacchetto dopo 90 giorni e il resto dopo 12 mesi. Di una segnalazione Telegram e l'email di chi mantiene Arturo ricevono solo un campanello: il numero, il tipo, le prime 8 cifre dell'id, la versione e il sistema, e il link a una pagina privata di chi mantiene Arturo, mai il testo né la tua email. Di un'aggiunta o di un ritiro, Telegram riceve il solo numero. Ricevono anche gli avvisi e i recap con le prime 8 cifre dell'id, mai l'id completo: l'elenco sta in [`docs/privacy.md`](docs/privacy.md). Le segnalazioni sono un'altra cosa, e portano un testo: dall'11 novembre 2026 Claude le scrive e le manda da solo quando qualcosa di Arturo si inceppa, senza nomi né contenuti del tuo lavoro, e ti dice subito cosa è partito e come ritirarlo. Prima l'impegno era "solo dopo il tuo sì": lo ritrovi con `arturo segnalazioni manuali`, e vale da solo se spegni la telemetria.
-4. **Arturo resta in italiano.**
-5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
-
----
-
-## Indice
-
-- [In breve](#in-breve)
-- [Perché usare il terminale anche se non scrivi codice](#perché-usare-il-terminale-anche-se-non-scrivi-codice)
-- [Cosa non è neutro](#cosa-non-è-neutro)
-- [Impegni](#impegni)
-- [Filosofia](#filosofia)
-- [Requisiti](#requisiti)
-- [Installazione](#installazione)
-- [Aggiornare Arturo](#aggiornare-arturo)
-- [Prima accensione — checklist](#prima-accensione--checklist)
-- [Come è fatto](#come-è-fatto)
-- [Come funziona: il dispatcher](#come-funziona-il-dispatcher)
-- [Cosa c'è dentro](#cosa-cè-dentro)
-  - [I guardiani (`hooks/`)](#i-guardiani-hooks)
-  - [La rotta (`commands/`)](#la-rotta-commands)
-  - [L'equipaggio (`agents/`)](#lequipaggio-agents)
-  - [Le skill (`skills/`)](#le-skill-skills)
-- [Cosa NON c'è (di proposito)](#cosa-non-cè-di-proposito)
-- [Imparare con Arturo](#imparare-con-arturo)
-- [Personalizzazione](#personalizzazione)
-- [Sicurezza](#sicurezza)
-- [Multi-macchina](#multi-macchina)
-- [Collegare Gmail, Calendar e Drive (opzionale)](#collegare-gmail-calendar-e-drive-opzionale)
-- [Troubleshooting](#troubleshooting)
-- [Autore e manutenzione](#autore-e-manutenzione)
-- [Licenza](#licenza)
-
----
-
-## Filosofia
-
-Tre idee tengono insieme tutto:
-
-1. **La sicurezza sta nei rail, non nell'attrito.** `defaultMode: auto`: il classificatore di Claude Code giudica ogni comando, senza un popup per ogni passo. Sopra di lui i deny espliciti e i hook guard formano una seconda rete, deterministica, che intercetta le operazioni davvero pericolose: una cancellazione ricorsiva fuori dalle cartelle rigenerabili, un invio, un segreto in un commit. Meglio pochi blocchi affidabili che cento popup ignorati per abitudine.
-2. **Mai exit-0 muto.** Un check che non gira non è un check passato. Il validation gate distingue "verde" da "assente" — l'assenza di test non è un successo.
-3. **Ogni regola è un passivo.** L'harness compensa solo ciò che il modello non può garantirsi da solo: guardie deterministiche, integrazioni, preferenze genuine. Tutto il resto va potato, non accresciuto (la skill `system-audit` include un "Bitter Lesson pass" proprio per questo).
-
----
-
-## Requisiti
+### Requisiti
 
 Ti serve **Claude Code**, con un piano che lo include ([guida ufficiale](https://docs.anthropic.com/en/docs/claude-code)). Il resto lo controlla e lo installa Claude, col tuo sì.
 
@@ -142,10 +54,6 @@ Ti serve **Claude Code**, con un piano che lo include ([guida ufficiale](https:/
 **Sistemi.** macOS, Linux e Windows. Su Windows Arturo funziona solo dentro **Git Bash** (Git for Windows): senza, Claude Code esegue i comandi con PowerShell e le guardie di Arturo non li vedono. Il `python3` deve essere quello di python.org, non il rimando del Microsoft Store. Se manca un `python3` che funziona, le guardie non leggono i comandi: allora ogni comando della shell chiede conferma, e l'avvio lo dice con la riga `PYTHON:`. Claude e `/setup` controllano entrambe le cose.
 
 Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI, solo per più account Google, vedi [Collegare Gmail, Calendar e Drive](#collegare-gmail-calendar-e-drive-opzionale)).
-
----
-
-## Installazione
 
 ### Con Claude Code (consigliata)
 
@@ -195,8 +103,6 @@ Per innestare Arturo a copia, senza un clone dentro `~/.claude`, clona altrove e
 > # oppure, se il repo esiste già:  git -C ~/.claude remote add origin <URL-del-tuo-repo>
 > ```
 
----
-
 ### Il comando `arturo` nel terminale
 
 I comandi `arturo …` di questa pagina li lancia Claude, se glielo chiedi: "spegni la telemetria", "mostrami i todo". Nei comandi di Claude `arturo` si trova da solo. In un terminale tuo invece no, perché col plugin la cartella di Arturo cambia a ogni versione. Lì, al posto di `arturo`, scrivi:
@@ -206,6 +112,128 @@ python3 "$(cat ~/.claude/arturo/radice 2>/dev/null || echo ~/.claude)/bin/arturo
 ```
 
 seguito dal resto del comando, per esempio `telemetria spegni`. La stessa riga vale con Arturo dentro `~/.claude` e col plugin: col plugin l'avvio scrive in `~/.claude/arturo/radice` la cartella della versione installata. Se in `/setup` hai detto sì al comando breve (FASE 7c), la riga sta già in un alias, e nel terminale basta `arturo`.
+
+---
+
+## I sei strati
+
+Ogni parte di Arturo ha un proprietario e una funzione. I todo, per esempio, sono tuoi e stanno nella tua cartella, ma servono alla memoria del lavoro. Il disegno, con chi possiede e chi aggiorna ogni parte, sta in [`docs/come-e-fatto.md`](docs/come-e-fatto.md); il contratto per chi sviluppa Arturo sta in [`docs/strati.md`](docs/strati.md). Per funzione Arturo è fatto a strati, e ogni strato poggia su quelli prima:
+
+1. **Protezione**: le guardie chiedono un sì prima di un gesto che non si annulla, e fermano segreti e dati che escono. Viene per prima perché gli altri strati danno a Claude accesso a file, posta e pagine web, e senza le guardie quell'accesso non ha freni ([Le guardie](#le-guardie-hooks), [Sicurezza](#sicurezza)).
+2. **Metodo**: Claude riscrive la richiesta prima di partire, si ferma davanti a un passo costoso e dice "fatto" solo dopo aver controllato. Queste regole entrano all'avvio della sessione, insieme allo stile Conciso e alle skill ([Le skill](#le-skill-skills)).
+3. **Memoria**: `/inizio` e `/fine`, gli handoff, i todo e, se la accendi, la memoria Melchior fanno ripartire ogni sessione dallo stato vero ([I comandi](#i-comandi-commands), [La memoria](#la-memoria-facoltativa)).
+4. **Collegamenti**: posta, agenda, documenti e pagine web entrano nel lavoro con i connettori di Google, con `/monitor`, che smista quello che ti arriva, e con `scrape`, che legge una pagina ([Collegare Gmail, Calendar e Drive](#collegare-gmail-calendar-e-drive-opzionale)).
+5. **Scoperta**: Arturo ti propone cosa automatizzare, con le prove, e costruisce solo col tuo sì. È la terza promessa: il progetto è scritto, e il codice è in fila nella [roadmap](ROADMAP.md).
+6. **Orsa**: la parte che è tua, cioè il `CLAUDE.md`, le aggiunte in `personale/`, le skill create con `/creaskill` e le regole sul tuo modo di scrivere (la sezione "Come scrivo" del `CLAUDE.md` e `personale/humanizer.md`). Nessun aggiornamento la tocca ([Personalizzazione](#personalizzazione)). L'Orsa è l'unica parte che sta su tutti e due i piani: è tua, ed è anche quello che Arturo fa crescere.
+
+Due parti servono a tutti gli strati. L'**ingresso** è l'installazione, `/setup` e gli aggiornamenti. La **misura** sono i banchi di prova, `/diagnosi`, la telemetria e `/segnala`: dicono a chi mantiene Arturo dove si inceppa.
+
+---
+
+## Il ciclo dell'Orsa
+
+Il nome Arturo viene da Arktouros, "il guardiano dell'orsa", la stella che i naviganti usavano per tenere la rotta. L'Orsa è la parte della configurazione che è tua, e cresce in un ciclo:
+
+1. Lavori, e il lavoro lascia versioni dei file, handoff e memoria.
+2. Arturo legge queste tracce e ne ricava una proposta: una regola, una skill, un'automazione, con le prove.
+3. Se dici sì, la proposta entra nella tua Orsa, e ogni automazione si annulla; se dici no, la stessa proposta non torna.
+4. Dalla sessione dopo, Claude lavora con la regola, la skill o l'automazione che hai accettato.
+
+Oggi il ciclo gira in tre modi: quando correggi un testo riscritto, Claude ti propone di aggiungere la correzione a `personale/humanizer.md`; una correzione che vale sempre entra nel `CLAUDE.md` con `/fine`; e un lavoro che ripeti diventa una skill tua con `/creaskill`, oppure una proposta di `/guidami`. Quando sarà pronta, la Scoperta aggiungerà le proposte ricavate dalle versioni dei file.
+
+---
+
+## Perché usare il terminale anche se non scrivi codice
+
+Faccio l'autore, non il programmatore, e Claude Code è diventato lo strumento con cui lavoro ogni giorno. In chat l'intelligenza artificiale risponde a quello che le incolli: il materiale lo raccogli tu, e alla fine copi la risposta in un file. In Claude Code lavora dentro le tue cartelle, quindi va a prendere da sola appunti, trascrizioni e fogli di calcolo, li mette accanto al resto del materiale e scrive il risultato in un file. Nel mio lavoro la raccolta del materiale è la parte che porta via più tempo, e in chat resta tutta a te.
+
+L'altra differenza sta nella durata: in chat il lavoro vive dentro la conversazione, e quando ne apri una nuova lo rimetti insieme tu; in Claude Code, quando chiudi la sessione con `/fine`, Arturo scrive un riepilogo e le cose da fare, e la mattina dopo `/inizio` riparte da lì. Così un lavoro che dura settimane, come riconciliare le fatture dello studio con i movimenti della banca o costruire un sito, non si perde fra una conversazione e l'altra.
+
+Anthropic ha visto lo stesso uso crescere nelle sessioni di Claude Code fra ottobre 2025 e aprile 2026: la scrittura e l'analisi dei dati sono passate da circa il 10 al 20% delle sessioni, e chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora. Secondo la ricerca conta più conoscere il proprio mestiere che saper programmare, e quello che succede su Claude Code può essere un'anteprima di dove va il lavoro della conoscenza ([Agentic coding and persistent returns to expertise](https://www.anthropic.com/research/claude-code-expertise), giugno 2026). Dentro Anthropic il gruppo di growth marketing usa Claude Code su file con centinaia di annunci, e con un plugin di Figma costruito così le varianti di un gruppo di annunci, che chiedevano ore di copia e incolla, escono in mezzo secondo ([How Anthropic teams use Claude Code](https://claude.com/blog/how-anthropic-teams-use-claude-code), luglio 2025). Ethan Mollick, che alla Wharton studia l'IA nel lavoro, indica la stessa ragione che ho trovato io: Claude Code è potente perché lavora sul tuo computer e sui tuoi file, e serve a chi fa lavoro della conoscenza di ogni tipo, anche se oggi è costruito per i programmatori ([Claude Code and What Comes Next](https://www.oneusefulthing.org/p/claude-code-and-what-comes-next), gennaio 2026). Simon Willison, programmatore indipendente che da anni scrive di questi strumenti, ha scritto che Claude Code ha un nome sbagliato, perché serve ad automatizzare il computer in generale e non solo a scrivere codice ([Claude Skills are awesome, maybe a bigger deal than MCP](https://simonwillison.net/2025/Oct/16/claude-skills/), ottobre 2025). Per questo ho costruito Arturo, che prepara Claude Code per chi non programma.
+
+Le prove indipendenti però mostrano anche dove l'IA sbaglia. In un esperimento del 2023 di Harvard e Boston Consulting Group su 758 consulenti, chi usava GPT-4 su compiti alla portata dell'IA ne finiva il 12,2% in più, il 25,1% più in fretta e con una qualità più alta del 40%; su un compito costruito per sfuggirle, invece, chi usava l'IA dava la risposta giusta fra il 60 e il 70% delle volte, contro l'84% di chi lavorava senza ([Centaurs and Cyborgs on the Jagged Frontier](https://www.oneusefulthing.org/p/centaurs-and-cyborgs-on-the-jagged), settembre 2023). Uno studio di Microsoft Research su 319 persone che fanno lavoro della conoscenza ha trovato che chi si fida di più dell'IA dichiara di esercitare meno il pensiero critico ([The Impact of Generative AI on Critical Thinking](https://www.microsoft.com/en-us/research/publication/the-impact-of-generative-ai-on-critical-thinking-self-reported-reductions-in-cognitive-effort-and-confidence-effects-from-a-survey-of-knowledge-workers/), CHI 2025). E Willison avverte che un agente che legge i tuoi dati, incontra testi scritti da altri e può comunicare all'esterno può essere usato per rubarli, perché quei testi possono contenere istruzioni che l'agente esegue come se venissero da te ([The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/), giugno 2025).
+
+A questi rischi Arturo risponde in due modi diversi. Contro il furto dei dati ha regole che chiedono un sì prima di ogni gesto che non si annulla, come cancellare una cartella o mandare un messaggio; la stessa conferma per le pagine web che portano fuori un dato è ancora in lavorazione. Contro una risposta sbagliata accettata per fiducia non basta una regola: il risultato lo controlla chi lavora, ed è per questo che conta conoscere il proprio mestiere, come dice anche la ricerca di Anthropic.
+
+Questi sono i lavori che delego più spesso, misurati sulle mie sessioni degli ultimi mesi:
+
+- **Fatture e movimenti** — prima cercavo a mano, uno alla volta, la fattura di ognuno dei trecento movimenti senza giustificativo, fra email, portali dei fornitori e gestionale contabile; ora Claude legge il foglio in cui il commercialista segna i movimenti scoperti, cerca nei tre posti, carica i PDF su Drive, e io guardo solo quelli che restano aperti;
+- **Le email** — la bozza arriva nel thread giusto, scritta con la voce che Claude ricava dalle email che ho già mandato, e la mando io; quando la correggo, la correzione entra nelle regole che usa la volta dopo;
+- **Riunioni e cose da fare** — dalla trascrizione di una call Claude ricava le decisioni, le cifre e le cose da fare, ognuna con un responsabile e una data, e le scrive nel gestionale dei task;
+- **Presentazioni e pagine web** — scrivo io il contenuto; Claude monta il Keynote con le slide del catalogo dello studio, oppure costruisce la pagina web che ho descritto, e io rifinisco il risultato.
+
+Il terminale spaventa perché sembra un posto dove un errore costa caro, ed è così: lì un comando cancella una cartella senza passare dal cestino. Per questo Arturo mette intorno a Claude Code regole che chiedono un sì prima di ogni azione che non si annulla, come cancellare una cartella o mandare un'email, e comandi come `/inizio` che ti dicono da dove partire: così passi dalla chat a Claude Code senza dover imparare il terminale.
+
+---
+
+## Cosa non è neutro
+
+Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere cinque cose:
+
+- **Claude Code è un servizio a pagamento di Anthropic, un'azienda privata.** Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Arturo non cambia questa condizione.
+- **Quello che scrivi passa dai server di Anthropic.** Le guardie di Arturo fermano segreti e credenziali, ma la conversazione esce comunque dal tuo computer. Anche quello che `/setup` legge nelle tue cartelle passa da Anthropic, come ogni conversazione. Quello che legge resta nella cronologia della conversazione, che Claude Code tiene sul tuo computer e cancella da sola dopo 90 giorni: Arturo non ne fa altre copie, e scrive solo il `CLAUDE.md` che approvi.
+- **Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.** Arturo si aggiorna da solo alla chiusura della sessione, e installa solo i rilasci firmati con la chiave di chi lo mantiene: la firma si controlla con la chiave che hai già, quindi un repository manomesso non basta per farti girare codice. Se preferisci leggere ogni aggiornamento prima, spegni l'aggiornamento automatico e usa `/aggiorna`, che ti mostra cosa arriva.
+- **Anche Claude Code manda ad Anthropic la sua telemetria d'uso, e Arturo la lascia accesa.** Secondo Anthropic gli eventi non contengono codice, percorsi dei file o comandi. Spegnerla costa: con `DISABLE_TELEMETRY` Claude Code non scarica più le impostazioni delle sue funzioni, e perdi tra l'altro il segno sui testi incollati, che aiuta Claude a non scambiare per tue le istruzioni scritte da altri. Se la vuoi spenta lo stesso, aggiungi `export DISABLE_TELEMETRY=1` al profilo della shell (`~/.zshrc` sul Mac, `~/.bashrc` in Git Bash su Windows).
+- **Arturo manda a chi lo mantiene eventi d'uso, e la telemetria è accesa di default.** Escono nomi di comandi, skill e guardie, esiti e numeri, mai i tuoi testi o i tuoi file: l'elenco intero è nell'Impegno 3. Si spegne con un comando.
+
+Il primo capitolo del curriculum, [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md), spiega perché conviene usare Claude Code lo stesso e come tenere bassa la dipendenza.
+
+---
+
+## Impegni
+
+Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
+
+1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
+2. **Gli aggiornamenti si installano da soli solo se sono firmati, e li puoi tenere a mano.** Dal 16 ottobre 2026 Arturo si aggiorna da solo alla chiusura della sessione, come Claude Code: prima l'impegno era "solo `/aggiorna`, dopo il tuo sì". Si installano solo i rilasci con un tag firmato dalla chiave di chi mantiene Arturo, verificato con la chiave che hai già installata (`firme/rilasci.allowed_signers`). Niente si installa da solo se la storia pubblicata è stata riscritta o se hai modifiche non salvate: resta l'avviso, e `/aggiorna` fa il resto con te. Con un'altra sessione aperta la chiusura rinvia una volta: il rilascio rinviato si installa alla chiusura dopo, anche con altre sessioni aperte, che leggono gli hook nuovi da subito, oppure all'apertura di Claude Code se è l'unica sessione. Se un tuo commit cambia un file di Arturo che cambia anche il rilascio, vince il file del rilascio: la tua versione resta in `personale/conflitti/`, e l'avvio te lo dice una volta. Restano da risolvere con te solo `settings.json` e i `CLAUDE.md`. Anche `/aggiorna` applica solo l'ultimo tag firmato, mai `main`: se la firma manca o non torna, l'avviso dice "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo", e niente si installa. Con `arturo aggiornamenti manuali` (o `ARTURO_AGGIORNAMENTI=manuali`) torni al sì per ogni aggiornamento. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
+3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione` (dal 14 novembre 2026 con la forma dell'installazione: plugin o clone), `comando` (il nome di un comando di Arturo, mai il testo; un comando tuo conta come `altro`), `guardia` (il nome della guardia di Arturo che ha bloccato, da un elenco chiuso), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato, oppure automatico per un'installazione alla chiusura della sessione, e una volta per versione il motivo per cui un rilascio non si installa da solo: rinviato perché un'altra sessione è aperta, bloccato per firma, verifica, storia o versione, oppure manuale, e dal 14 novembre 2026 bloccato da modifiche non salvate, da una copia di prova in attesa, oppure non partito), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento, e i file che bloccano un aggiornamento in conflitto: dei file solo la posizione dentro Arturo, che è pubblica, e solo per un file di Arturo; un file tuo conta come `file:altro`), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, per `block-dangerous` anche il nome della regola, come `rm-cartella`, per `commit-secret-gate` solo la famiglia del segreto, come `segreto-cloud`, mai il servizio, e se hai detto sì, anche quando il comando poi fallisce), `errore` (il nome di una guardia che si è rotta), `claude` (la versione di Claude Code), e dal 3 novembre 2026, alla chiusura di ogni sessione, `durata` (in fasce larghe: meno di 5 minuti, fino a 30, fino a 2 ore, oltre), `turni` (quanti messaggi hai scritto, in fasce: 1, da 2 a 5, da 6 a 20, oltre 20, mai il testo) e `skill` (il nome di una skill di Arturo usata nella sessione; una skill tua conta come `altro`), `banchi` (il nome di un banco di prova delle guardie di Arturo diventato rosso sul tuo computer, così chi mantiene Arturo lo ripara senza disturbarti). Con gli eventi partono un id casuale creato da Arturo, sempre lo stesso, il rilascio di Arturo installato (un tuo tag non esce) e il sistema operativo, con il solo giorno e mai l'ora. L'id non contiene niente di te, ma chi mantiene Arturo può sapere quale persona c'è dietro un id se la conosce: per questo non sono dati anonimi. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte, e niente del ritratto di `/setup`. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `arturo telemetria mostra`, la spegni con `arturo telemetria spegni` o con `DO_NOT_TRACK=1`, che però spegne anche la telemetria di Claude Code e le funzioni che ne dipendono. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Chi tiene i dati, per quanto, con quale base giuridica e i tuoi diritti: [`docs/privacy.md`](docs/privacy.md). Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` di main e dei tag al massimo ogni ora mentre lavori, e uno alla chiusura della sessione) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Con l'invio, anche a telemetria spenta quando una segnalazione aspetta di partire, Arturo chiede al server lo stato delle tue segnalazioni con la ricevuta, col solo numero e il codice. Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub. Prima dell'anteprima Arturo toglie email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti. Il pacchetto tecnico parte con le caselle che lasci accese; l'id parte solo con la casella "collega ai miei dati d'uso". Il contatto parte solo se l'hai dato tu: un nome e un'email che `/setup` ti chiede una volta, per gli sviluppatori di Arturo, che li usano per contattarti sulle tue segnalazioni. Si guarda e si toglie con `arturo contatto`. Il server cancella il pacchetto dopo 90 giorni e il resto dopo 12 mesi. Di una segnalazione Telegram e l'email di chi mantiene Arturo ricevono solo un campanello: il numero, il tipo, le prime 8 cifre dell'id, la versione e il sistema, e il link a una pagina privata di chi mantiene Arturo, mai il testo né la tua email. Di un'aggiunta o di un ritiro, Telegram riceve il solo numero. Ricevono anche gli avvisi e i recap con le prime 8 cifre dell'id, mai l'id completo: l'elenco sta in [`docs/privacy.md`](docs/privacy.md). Le segnalazioni sono un'altra cosa, e portano un testo: dall'11 novembre 2026 Claude le scrive e le manda da solo quando qualcosa di Arturo si inceppa, senza nomi né contenuti del tuo lavoro, e ti dice subito cosa è partito e come ritirarlo. Prima l'impegno era "solo dopo il tuo sì": lo ritrovi con `arturo segnalazioni manuali`, e vale da solo se spegni la telemetria.
+4. **Arturo resta in italiano.**
+5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
+
+---
+
+## Indice
+
+- [Tre promesse](#tre-promesse)
+- [Installazione](#installazione)
+- [I sei strati](#i-sei-strati)
+- [Il ciclo dell'Orsa](#il-ciclo-dellorsa)
+- [Perché usare il terminale anche se non scrivi codice](#perché-usare-il-terminale-anche-se-non-scrivi-codice)
+- [Cosa non è neutro](#cosa-non-è-neutro)
+- [Impegni](#impegni)
+- [Riferimento tecnico](#riferimento-tecnico)
+  - [Filosofia](#filosofia)
+  - [Aggiornare Arturo](#aggiornare-arturo)
+  - [Prima accensione — checklist](#prima-accensione--checklist)
+  - [Come funziona: il dispatcher](#come-funziona-il-dispatcher)
+  - [Cosa c'è dentro](#cosa-cè-dentro): [le guardie](#le-guardie-hooks), [i comandi](#i-comandi-commands), [i subagent](#i-subagent-agents), [le skill](#le-skill-skills), [la memoria](#la-memoria-facoltativa)
+  - [Cosa NON c'è (di proposito)](#cosa-non-cè-di-proposito)
+  - [Imparare con Arturo](#imparare-con-arturo)
+  - [Personalizzazione](#personalizzazione)
+  - [Sicurezza](#sicurezza)
+  - [Multi-macchina](#multi-macchina)
+  - [Collegare Gmail, Calendar e Drive (opzionale)](#collegare-gmail-calendar-e-drive-opzionale)
+  - [Troubleshooting](#troubleshooting)
+  - [Autore e manutenzione](#autore-e-manutenzione)
+  - [Licenza](#licenza)
+
+---
+
+## Riferimento tecnico
+
+Da qui in giù la pagina spiega come funziona Arturo dentro: aggiornamenti, guardie, comandi, personalizzazione. Per cominciare non serve leggerla.
+
+---
+
+## Filosofia
+
+Tre idee tengono insieme tutto:
+
+1. **La sicurezza sta nei rail, non nell'attrito.** `defaultMode: auto`: il classificatore di Claude Code giudica ogni comando, senza un popup per ogni passo. Sopra di lui i deny espliciti e i hook guard formano una seconda rete, deterministica, che intercetta le operazioni davvero pericolose: una cancellazione ricorsiva fuori dalle cartelle rigenerabili, un invio, un segreto in un commit. Meglio pochi blocchi affidabili che cento popup ignorati per abitudine.
+2. **Mai exit-0 muto.** Un check che non gira non è un check passato. Il validation gate distingue "verde" da "assente" — l'assenza di test non è un successo.
+3. **Ogni regola è un passivo.** L'harness compensa solo ciò che il modello non può garantirsi da solo: guardie deterministiche, integrazioni, preferenze genuine. Tutto il resto va potato, non accresciuto (la skill `system-audit` include un "Bitter Lesson pass" proprio per questo).
+
+---
 
 ## Aggiornare Arturo
 
@@ -294,6 +322,8 @@ Le tue preferenze, i file `.local`, stanno in `~/.claude/arturo/`. Un file `.loc
 > Se `/aggiorna` o `/novita` rispondono "comando sconosciuto", la tua copia è precedente a quei
 > comandi: fai l'aggiornamento a mano con i comandi qui sopra e riapri Claude Code. Da lì in poi bastano gli slash.
 
+---
+
 ## Prima accensione — checklist
 
 > **La via rapida: `/setup`.** Apri Claude Code e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md` dal ritratto del tuo lavoro, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non hai mai usato un terminale. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
@@ -305,16 +335,6 @@ Le tue preferenze, i file `.local`, stanno in `~/.claude/arturo/`. Un file `.loc
 5. Apri Claude Code e lancia **`/system-audit`**: verifica che hook, skill e agent siano wirati correttamente sulla tua macchina. L'obiettivo è "tutto verde".
 
 ---
-
-## Come è fatto
-
-In cima ci sei tu con la tua Orsa, sotto c'è Arturo, più sotto Claude Code e il modello di Anthropic. Dentro Arturo alcune skill sono adattate da progetti aperti di altre persone (humanizer, l'italiano semplificato, prompt-master); altre skill Arturo te le consiglia, e le installi dalla loro fonte (Impeccable, Hallmark, diagram-design, scrape). Il disegno completo, con licenze e chi aggiorna cosa, sta in [`docs/come-e-fatto.md`](docs/come-e-fatto.md).
-
-```
-tu ─► Orsa (tua) ─► Arturo ─► Claude Code ─► il modello
-                     ▲
-                     └── progetti aperti: adattati dentro, o consigliati e installati dalla fonte
-```
 
 ## Come funziona: il dispatcher
 
@@ -356,13 +376,24 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 ## Cosa c'è dentro
 
+In tutto, Arturo porta:
+
+- **31 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
+- **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
+- **7 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
+
+Ci sono anche una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), e un **curriculum di principi** (`docs/principi/`) scritto per chi usa già l'IA in chat ma non ha mai aperto un terminale. Il **server** che raccoglie telemetria e segnalazioni è open source (`server/`): mi dice dove Arturo si inceppa sui computer di chi lo usa. Riceve nomi di comandi e numeri, mai i tuoi testi o i tuoi file, e la telemetria si spegne con un comando ([Impegni](#impegni)). A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti serve `git`, e la guida ti fa installare anche Python e node, se mancano.
+
+I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lancia `arturo web` da un terminale, scritto come dice [Il comando arturo nel terminale](#il-comando-arturo-nel-terminale). La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola se per 30 minuti nessuno la tiene aperta.
+
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 hooks/               31 guardie e automazioni, più 7 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
-commands/            11 slash command (i dieci della rotta, più lo sparring che Claude apre da solo)
+commands/            11 slash command (i dieci qui sotto, più lo sparring che Claude apre da solo)
 agents/              8 subagent specializzati
 skills/              7 skill (+ regole condivise in shared/)
 output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
@@ -379,7 +410,7 @@ firme/               La chiave pubblica dei rilasci: l'aggiornamento automatico 
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 ```
 
-### I guardiani (`hooks/`)
+### Le guardie (`hooks/`)
 
 Instradati dal dispatcher. Vale per tutte le guardie della tabella: su Windows un programma scritto con `.exe` (`git.exe`) e, su Windows e macOS, un programma scritto in maiuscolo (`Git`, `GH`, `CURL`, `SED`) sono letti come il nome corto in minuscolo, perché lì il disco non distingue. Le opzioni restano esatte: `-c` e `-C` di git, `-T` e `-t` di curl sono opzioni diverse. Su Linux `RM` è un altro file e non conta come `rm`.
 
@@ -442,7 +473,7 @@ L'invio in background registra `claude` quando cambia la versione di Claude Code
 cambiati o spenti, e `config` una volta al giorno se la config è rotta. Con la telemetria spenta nessuno di loro scrive. `arturo telemetria mostra`
 fa vedere la coda così come parte.
 
-### La rotta (`commands/`)
+### I comandi (`commands/`)
 
 Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
 
@@ -469,7 +500,7 @@ Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa
 
 Qualità: usa le capacità native di review e verifica dell'harness.
 
-### L'equipaggio (`agents/`)
+### I subagent (`agents/`)
 
 Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-finder`, `structural-completeness-reviewer`, `performance-profiler`, `ui-ux-consultant`, `test-runner`, `researcher`, `fact-checker`.
 
@@ -504,7 +535,9 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 ---
 
-**La memoria (facoltativa).** Claude Code salva da solo alcune note sulle sessioni passate, in
+### La memoria (facoltativa)
+
+Claude Code salva da solo alcune note sulle sessioni passate, in
 `~/.claude/projects/*/memory/`: cosa preferisci, cosa hai deciso, dove stanno le cose. Di solito le
 rilegge solo nel progetto in cui le ha scritte. La memoria di Arturo le rende utili ovunque, ed è
 spenta finché non la accendi (`/setup` te lo chiede, oppure `arturo memoria accendi`).
@@ -533,6 +566,8 @@ L'interruttore sta in `~/.claude/data/memoria/`, fuori da git; `ARTURO_MEMORIA=0
 Una parte resta sempre accesa, anche a memoria spenta: `memory-write-scanner.py` controlla ogni nota e
 ogni handoff che Claude scrive. Se dentro c'è una password, una chiave o un'istruzione nascosta,
 Claude riceve un avviso. Il valore trovato non viene mai stampato.
+
+---
 
 ## Cosa NON c'è (di proposito)
 
@@ -583,9 +618,9 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
 - **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (se modifichi il comando, il prossimo `/aggiorna` le sposta lì da solo, oppure lo fai subito con `/aggiorna personale`; con un tuo repository della config succede solo se è privato, altrimenti le modifiche restano dove sono). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).
+- **Pulizia mensile.** `bash ~/.claude/bin/monthly-cleanup.sh --prova` elenca cosa toglierebbe (tasks, shell-snapshots e paste-cache vecchi di Claude Code, cache dei package manager) senza toccare niente. Senza `--prova` pulisce. Facoltativi: `PULIZIA_CARTELLA_PROGETTI=<cartella>` archivia in `_archivio/` i file sciolti fermi da 60 giorni (li sposta, non li cancella), `PULIZIA_PREFISSI_LAUNCHAGENT="com.esempio."` segnala su macOS i tuoi LaunchAgent non caricati, `PULIZIA_CACHE=0` salta le cache.
 
 ---
-- **Pulizia mensile.** `bash ~/.claude/bin/monthly-cleanup.sh --prova` elenca cosa toglierebbe (tasks, shell-snapshots e paste-cache vecchi di Claude Code, cache dei package manager) senza toccare niente. Senza `--prova` pulisce. Facoltativi: `PULIZIA_CARTELLA_PROGETTI=<cartella>` archivia in `_archivio/` i file sciolti fermi da 60 giorni (li sposta, non li cancella), `PULIZIA_PREFISSI_LAUNCHAGENT="com.esempio."` segnala su macOS i tuoi LaunchAgent non caricati, `PULIZIA_CACHE=0` salta le cache.
 
 ## Sicurezza
 

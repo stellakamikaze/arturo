@@ -13,6 +13,66 @@ modo di lavorare.
 
 ---
 
+## 2026-11-14 — Il README parte da cosa fa Arturo, e gli strati hanno nomi nuovi
+
+**Cosa cambia**: il README parte dalle tre promesse di Arturo: si configura con te senza codice, ricorda i
+progetti fra una sessione e l'altra e ti propone cosa automatizzare. Poi spiega come installarlo, quali sono i sei
+strati e come funziona il ciclo dell'Orsa. Il riferimento tecnico viene dopo, per chi lo cerca. I guardiani, la rotta e l'equipaggio ora si chiamano guardie, comandi e subagent.
+
+Le parti di Arturo si ordinano in due modi. Per proprietà: la tua (l'Orsa), quella di Arturo e quella di
+Anthropic. Per funzione: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, più l'ingresso e la misura, che
+servono a tutti. L'Orsa sta su tutti e due i piani, perché è tua ed è anche quello che Arturo fa crescere. Il
+disegno è uno solo, in `docs/come-e-fatto.md`:
+
+```diagramma
+  tu
+   │  chiedi, correggi, scrivi come scrivi
+   ▼
+┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
+│  6 Orsa: CLAUDE.md · personale/<skill>.md · memoria · todo · handoff      │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
+│  cresce con le correzioni e con le proposte della Scoperta, col tuo sì    │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ Arturo la legge e la rispetta
+┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
+│  cosa fa per te, dalle fondamenta alla crescita:                          │
+│    1 Protezione .......... guardie che chiedono un sì, segreti fermati    │
+│    2 Metodo .............. brief, freni, fatto vuol dire verificato       │
+│    3 Memoria ............. /inizio, /fine, handoff, todo, Melchior        │
+│    4 Collegamenti ........ posta, agenda, documenti, pagine web           │
+│    5 Scoperta ............ ti propone cosa automatizzare, con le prove    │
+│    sempre: Ingresso (/setup, aggiornamenti) · Misura (banchi, /segnala)   │
+│                                                                           │
+│  adattati da progetti aperti, dentro Arturo:                              │
+│    humanizer ............. ◄── blader/humanizer (MIT)                     │
+│    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
+│    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
+│                                                                           │
+│  consigliati, li installi dalla loro fonte:                               │
+│    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
+│    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
+│    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │
+│    scrape ................ ◄── D4Vinci/Scrapling (BSD-3)                  │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ hook, skill, comandi, permessi
+┌─ Claude Code ───────────────────────────────── di Anthropic, a pagamento ─┐
+│  il programma nel terminale: legge e scrive i file, lancia i comandi      │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ la conversazione esce dal tuo computer
+                       il modello (Claude, sui server di Anthropic)
+```
+
+- `docs/strati.md` è il contratto dei due assi, per chi sviluppa Arturo. Le parti tecniche del plugin stanno in tre
+  pagine sue: `docs/prove-plugin.md`, `docs/fiducia.md` e `docs/migrazione.md`.
+- Ogni voce della roadmap dice il suo strato. È nata la voce "Arturo ti propone cosa automatizzare", la Scoperta:
+  la terza promessa. Il progetto è scritto, e il codice è in fila nella roadmap.
+
+**Il principio**: chi arriva su Arturo vuole sapere prima cosa fa per sé; come è fatto dentro serve a chi lo
+sviluppa, e sta più sotto.
+
+---
+
 ## 2026-11-14 — Gli aggiornamenti che restavano fermi ora arrivano
 
 **Cosa cambia**: tre casi frequenti fermavano un rilascio nuovo per giorni. Adesso non lo fermano più, o te lo

@@ -2,7 +2,7 @@
 """SO01-SO05: col plugin le skill omonime della persona si dichiarano in personale/sostituzioni.txt (strati F5).
 
 Col plugin una skill, un comando o uno stile della persona con lo stesso nome di uno di Arturo prende il
-nome nudo, e quello di Arturo resta come arturo:<nome> (docs/strati.md, prova del 2/11/2026). Federico
+nome nudo, e quello di Arturo resta come arturo:<nome> (docs/prove-plugin.md, prima prova del 2/11/2026). Federico
 tiene così la sua /inizio, /fine, monitor, system-audit, prompt-master e lo stile Conciso. Una skill
 nuova di Arturo con un nome che la persona usa già sparirebbe in silenzio: per questo ogni sostituzione
 si dichiara, e `arturo personale omonimi` nomina quelle non dichiarate.

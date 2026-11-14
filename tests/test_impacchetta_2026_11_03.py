@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IP01-IP08: il plugin di Arturo generato dal repository rispetta il contratto (strati F2, docs/strati.md).
+"""IP01-IP08: il plugin di Arturo generato dal repository rispetta il contratto (strati F2, docs/prove-plugin.md).
 
 IP01 bin/impacchetta.py genera il pacchetto e la sua verifica non trova errori;
 IP02 ogni commands/<nome>.md è skills/<nome>/SKILL.md con name: e disable-model-invocation, e nel

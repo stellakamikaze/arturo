@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FD01-FD09: la catena di fiducia del plugin di Arturo (strati F3, #4533, docs/strati.md).
+"""FD01-FD09: la catena di fiducia del plugin di Arturo (strati F3, #4533, docs/fiducia.md).
 
 Col plugin il codice sta nella cache di Claude Code, senza git. Prova del 5/11/2026 (Claude Code 2.1.318):
 Claude Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica. La fiducia la

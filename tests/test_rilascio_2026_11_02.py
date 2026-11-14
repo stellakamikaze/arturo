@@ -71,7 +71,7 @@ def test_rl02(repo: Path) -> None:
     comandi = len(list((repo / "commands").glob("*.md")))
     assert f"**{comandi} slash command**" in readme and f"{comandi} slash command (" in readme, \
         f"RL02 il README non conta {comandi} slash command"
-    rotta = readme[readme.index("### La rotta"):]
+    rotta = readme[readme.index("### I comandi"):]
     rotta = rotta[:rotta.index("\n## ")] if "\n## " in rotta else rotta
     vetrina = len(re.findall(r"^- \*\*`/", rotta, re.MULTILINE))
     assert f"{PAROLE.get(vetrina, vetrina)} comandi, e Arturo" in rotta, \
