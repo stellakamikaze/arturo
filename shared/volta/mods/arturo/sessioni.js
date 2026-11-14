@@ -18,6 +18,19 @@ export const GESTI_MAX = 160;
 
 const tempo = (s) => Date.parse(s.ultimo || "") || 0;
 
+// La chiave di una sessione (#5634, 14/11/2026): macchina e id insieme. Dopo Sposta su lo stesso id c'è su
+// due macchine, e un /clear cambia il sessionId: schede, congedi e mappe di volta.js passano da qui.
+export const chiave = (s) => `${s?.host ?? "qui"}:${s?.id ?? ""}`;
+// L'id `id` sta su più di una macchina dell'elenco `l`.
+export const doppio = (l, id) => new Set((l ?? []).filter((x) => x?.id === id).map((x) => x.host ?? "qui")).size > 1;
+// Le chiavi delle sessioni di una mappa ({ chiave: c }): le chiavi e quelle delle voci con id. Così vale
+// anche una voce scritta prima del 14/11, quando le mappe andavano per sessionId.
+export const chiaviDi = (m) => new Set([...Object.keys(m ?? {}), ...Object.values(m ?? {}).filter((c) => c?.id).map(chiave)]);
+// La riga di `l` che è la sessione `c`: per chiave se `c` ha l'id, altrimenti per sessionId (e macchina,
+// se `c` la dice).
+export const trova = (l, c) => (l ?? []).find((x) => (c?.id ? chiave(x) === chiave(c)
+  : Boolean(c?.sessionId) && x.sessionId === c.sessionId && (c.host == null || (x.host ?? "qui") === c.host))) ?? null;
+
 // I progetti noti, da shared arturo.progetti della barra: { slug o nome alternativo: { chiave, titolo } }.
 // Il titolo vero ("Volta", "Post Office") sta nella scheda del progetto (arturo progetti, campo titolo:) o
 // nella fonte dei task; un nome alternativo porta alla chiave del suo progetto. Ogni parte del mod gira
@@ -158,14 +171,14 @@ export function fraseStato(s, adesso = Date.now()) {
 // La chiusura automatica (#5366): le sessioni di questa macchina in background che aspettano un comando
 // da più di `dopoMin` minuti, senza un lavoro lasciato in corso, senza una scheda aperta in questa
 // finestra (chi la guarda la sta usando) e non già in congedo. Prima la più vecchia.
-// `opz`: { dopoMin, congedi: { sessionId: c }, conScheda: Set di sessionId }.
+// `opz`: { dopoMin, congedi: { chiave: c }, conScheda: Set di chiavi }.
 export function daCongedare(dati, adesso, opz = {}) {
   const soglia = adesso - (Number(opz.dopoMin) || 60) * 60000;
-  const via = new Set(Object.values(opz.congedi ?? {}).flatMap((c) => [c.sessionId, c.id].filter(Boolean)));
+  const via = chiaviDi(opz.congedi);
   const scheda = opz.conScheda ?? new Set();
   return (dati?.sessioni ?? [])
     .filter((s) => s.questa && s.tipo === "background" && !s.vecchia && fase(s) === "attesa" && !lavoroInCorso(s.coda))
-    .filter((s) => interazione(s) > 0 && interazione(s) < soglia && !via.has(s.sessionId) && !via.has(s.id) && !scheda.has(s.sessionId))
+    .filter((s) => interazione(s) > 0 && interazione(s) < soglia && !via.has(chiave(s)) && !scheda.has(chiave(s)))
     .sort((a, b) => interazione(a) - interazione(b));
 }
 
@@ -260,8 +273,8 @@ export const chiusa = (s) => Boolean(s) && s.tipo === "background" && s.chiusa =
 export const dorme = (s) => Boolean(s) && s.tipo === "background" && s.dorme === true && !chiusa(s);
 export function visibili(dati, congedi = {}) {
   if (!dati) return dati;
-  const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c.sessionId, c.id].filter(Boolean)));
-  const l = (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(s.sessionId) && !via.has(s.id));
+  const via = chiaviDi(congedi);
+  const l = (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(chiave(s)));
   return { ...dati, sessioni: unaPerConversazione(l) };
 }
 
@@ -280,20 +293,23 @@ export function sintesiTestata(davanti, nomeScheda = null) {
 }
 
 // Le sessioni che il giro ⌘↓/⌘↑ salta, nella forma dei congedi di visibili(): quelle in congedo, quelle
-// la cui riga si sta dissolvendo (`escono`: { sessionId: true }) e quelle con la scheda appena sparita
-// (`forse`: { sessionId: sessione }).
+// la cui riga si sta dissolvendo (`escono`: { chiave: true }) e quelle con la scheda appena sparita
+// (`forse`: { chiave: sessione }). Le chiavi bastano: visibili() le legge con chiaviDi.
 export function uscenti(congedi = {}, escono = {}, forse = {}) {
   const out = { ...(congedi ?? {}) };
-  for (const k of Object.keys(escono ?? {})) if (escono[k]) out[k] = { sessionId: k };
-  for (const [k, s] of Object.entries(forse ?? {})) out[k] = { sessionId: k, id: s?.id ?? null };
+  for (const k of Object.keys(escono ?? {})) if (escono[k]) out[k] = { esce: true };
+  for (const [k, s] of Object.entries(forse ?? {})) out[k] = s?.id ? { id: s.id, host: s.host ?? "qui" } : { esce: true };
   return out;
 }
 
-// Una conversazione spostata su un'altra macchina (Sposta su, 12/11/2026) ha lo stesso sessionId su due
-// macchine: resta quella che non è ferma, cioè la copia viva. Fra due ferme, o due vive, restano tutte e due.
+// Una conversazione spostata su un'altra macchina (Sposta su, 12/11/2026) c'è su due macchine: resta quella
+// che non è ferma, cioè la copia viva. La stessa conversazione ha lo stesso sessionId, oppure lo stesso id
+// su un'altra macchina: un /clear dopo lo spostamento cambia il sessionId e lascia l'id (#5634). Fra due
+// ferme, o due vive, restano tutte e due.
 export function unaPerConversazione(l) {
-  const vive = new Set(l.filter((s) => s.sessionId && s.stato !== "ferma").map((s) => s.sessionId));
-  return l.filter((s) => s.stato !== "ferma" || !vive.has(s.sessionId));
+  const vive = l.filter((s) => s.stato !== "ferma");
+  const stessa = (a, b) => (Boolean(a.sessionId) && a.sessionId === b.sessionId) || (Boolean(a.id) && a.id === b.id && (a.host ?? "qui") !== (b.host ?? "qui"));
+  return l.filter((s) => s.stato !== "ferma" || !vive.some((x) => stessa(s, x)));
 }
 
 // Le schede chiuse da chi usa la finestra: i terminali che agganciavano una sessione al giro di prima e
@@ -305,10 +321,10 @@ export function sparite(prima, adesso, tolti = {}, ora = Date.now()) {
   const viste = new Set();
   const out = [];
   for (const [ind, s] of Object.entries(prima)) {
-    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.sessionId || viste.has(s.sessionId)) continue;
+    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.id || viste.has(chiave(s))) continue;
     // un'altra scheda aggancia ancora la stessa sessione: chiusa una copia, la sessione resta aperta
-    if (Object.values(adesso ?? {}).some((x) => x?.sessionId === s.sessionId)) continue;
-    viste.add(s.sessionId);
+    if (Object.values(adesso ?? {}).some((x) => x?.id && chiave(x) === chiave(s))) continue;
+    viste.add(chiave(s));
     out.push(s);
   }
   return out;
@@ -469,17 +485,17 @@ export function tocca(percorsi, cartella, file) {
   return (percorsi ?? []).some((p) => { const x = n(p); return x === c || x === f; });
 }
 export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = new Set()) {
-  const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c?.sessionId, c?.id].filter(Boolean)));
+  const via = chiaviDi(congedi);
   const out = [];
   for (const s of dati?.sessioni ?? []) {
     if (!s?.questa || s.tipo !== "background" || s.vecchia || s.congedo !== true) continue;
-    if (via.has(s.sessionId) || via.has(s.id)) continue;
+    if (via.has(chiave(s))) continue;
     if (s.stato === "lavora") continue;
     if (!(tempo(s) > 0) || ora - tempo(s) < CONGEDO_ORFANO_MS) continue;
     const morta = chiusa(s) || dorme(s) || s.stato === "errore";
     // una scheda aperta protegge solo una sessione viva: su una ferma resta la shell, e la riga restava
     // in Volta per sempre (13/11/2026, un PC Windows: scheda t1z con PowerShell sul congedo 261279d3)
-    if (!morta && (conScheda.has(s.sessionId) || conScheda.has(s.id))) continue;
+    if (!morta && conScheda.has(chiave(s))) continue;
     // viva: si ferma solo se /fine è ancora l'ultimo messaggio; riaperta e usata dopo il congedo, resta
     if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }
     else if (s.fineFatta && s.stato !== "errore") out.push({ s, fai: "rm" });
@@ -502,7 +518,7 @@ export function mostrate(g, aperto) {
 // Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows): tutte le sessioni accese, nell'ordine
 // dell'elenco, anche quelle che aspettano un comando (Federico, 12/11 sera: "voglio che cicli tra tutte
 // le sessioni che sono accese in questo momento"). Resta fuori solo una ferma che ha già fatto /fine e
-// non ha una scheda in questa finestra (`conScheda`, gli id): è chiusa, e il tasto la riaggancerebbe
+// non ha una scheda in questa finestra (`conScheda`, le chiavi): è chiusa, e il tasto la riaggancerebbe
 // (Federico, 12/11: "ha aperto piano gare bergamo che avevo chiuso"). Le chiuse davvero (claude stop)
 // le toglie già visibili(). Le ferme nascoste dietro "N in attesa" vengono dopo le righe a vista del
 // loro gruppo. Restano fuori anche le sessioni che stanno in un Terminale: il clic lì le sposta con
@@ -512,8 +528,8 @@ export function ordineGiro(lista, aperti = {}, conScheda = new Set()) {
     const vista = mostrate(g, aperti[g.chiave]);
     return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));
   })
-    .filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(s.sessionId))
-    .filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);
+    .filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(chiave(s)))
+    .filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map(chiave);
 }
 
 // L'ordine vale per tutta una raffica di tasti: l'elenco è per attività, e una sessione che lavora
@@ -528,7 +544,8 @@ export function statoGiro(prima, adesso, ora) {
 
 // La sessione che l'elenco accende a sinistra (Federico, 12/11/2026: "evidenziarmi su quale sto
 // lavorando"). Dentro una raffica di ⌘↓ e ⌘↑ è l'ultima chiesta col giro, perché la scheda ci mette
-// qualche secondo ad aprirsi; fuori dalla raffica è quella della scheda in primo piano. null se nessuna.
+// qualche secondo ad aprirsi; fuori dalla raffica è quella della scheda in primo piano. Chiavi (chiave()):
+// null se nessuna.
 export function corrente(giroSt, idScheda, ora) {
   if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;
   return idScheda ?? null;
@@ -569,10 +586,30 @@ export function occupanti(sessioni) {
 export function sessioneDi(terminale, sessioni) {
   if (!terminale) return null;
   const l = sessioni ?? [];
+  const e = terminale.labels?.[ETICHETTA];
   return occupanti(l)[terminale.address]
-    ?? l.find((s) => s.id && terminale.labels?.["arturo.sessione"] === s.id)
-    ?? l.find((s) => agganciata(terminale.argv, s)) ?? null;
+    ?? l.find((s) => etichettaDice(e, s, doppio(l, s.id)) === true)
+    ?? l.find((s) => etichettaDice(e, s, doppio(l, s.id)) === null && agganciata(terminale.argv, s)) ?? null;
 }
+
+// L'etichetta di Herdr sul terminale che aggancia una sessione (hc label): dal 14/11/2026 la chiave
+// macchina:id (#5634). Cosa dice su `s`: true è sua, false è di un'altra sessione, null non lo dice. Non lo
+// dice una scheda senza etichetta, e un'etichetta di prima col solo id quando l'id sta su due macchine
+// (`ambiguo`): lì decide l'argv. Un'etichetta vecchia con un id che una macchina sola ha vale ancora: le
+// schede aperte prima restano riconosciute.
+const ETICHETTA = "arturo.sessione";
+export function etichettaDice(valore, s, ambiguo = false) {
+  if (!valore || !s?.id) return null;
+  const v = String(valore);
+  if (v.includes(":")) return v === chiave(s);
+  if (v !== s.id) return false;
+  return ambiguo ? null : true;
+}
+// Il terminale `t` mostra la sessione `s`: per etichetta, poi per argv.
+export const suaScheda = (t, s, ambiguo = false) => {
+  const e = etichettaDice(t?.labels?.[ETICHETTA], s, ambiguo);
+  return e ?? agganciata(t?.argv, s);
+};
 
 // Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }
 // per un'interattiva ferma (prima /bg con porta-volta), { azione: "mostra", terminale } per
@@ -596,10 +633,33 @@ export function clic(s) {
 // delle schede aperte da altre strade, "pwsh -Command & '…claude.exe' 'attach' '<id>'" su Windows.
 // Senza, il clic apre un secondo aggancio della stessa sessione e le due schede si contendono la
 // larghezza del terminale.
+// Dal 14/11/2026 (#5634) conta anche la macchina: l'argv aggancia `s` solo se raggiunge con ssh la stessa
+// macchina del suo aggancio (campo attach), o se nessuno dei due passa da ssh. Dopo Sposta su lo stesso id
+// c'è su due macchine: "claude attach a1" è la copia di qui, "ssh -t amaltea … attach a1" quella di amaltea.
 const dentro = (a, id) => typeof a === "string" &&
   new RegExp(`\\battach['"]?\\s+['"]?${id.replace(/[^\w-]/g, "")}\\b`).test(a);
 export const agganciata = (argv, s) => Array.isArray(argv) && !!s?.id &&
-  ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id)));
+  ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id))) && stessoPosto(argv, s);
+
+// La macchina che un argv raggiunge con ssh: il primo argomento di ssh che non è un'opzione, senza
+// "utente@", in minuscolo. null se l'argv non passa da ssh. Vale anche dentro la riga di una shell
+// (sh -c "while :; do ssh … attach <id>; …", pwsh -Command "& '…ssh.exe' '-t' 'amaltea' …").
+const OPZIONI_CON_VALORE = new Set("bBcDEeFIiJLlmOoPpQRSWw");
+export function sshDi(argv) {
+  if (!Array.isArray(argv)) return null;
+  const p = argv.flatMap((a) => (/\s/.test(String(a ?? "")) ? String(a).split(/[\s;&|()]+/) : [String(a ?? "")]))
+    .map((x) => x.replace(/^['"]+|['"]+$/g, "")).filter(Boolean);
+  const i = p.findIndex((x) => /(^|[\\/])ssh(\.exe)?$/i.test(x));
+  if (i < 0) return null;
+  for (let j = i + 1; j < p.length; j++) {
+    const x = p[j];
+    if (x.startsWith("-")) { if (x.length === 2 && OPZIONI_CON_VALORE.has(x[1])) j++; continue; }
+    return x.replace(/^[^@]*@/, "").toLowerCase();
+  }
+  return null;
+}
+// L'argv raggiunge la macchina di `s`. Una riga senza argv d'aggancio (un'interattiva) non lo dice: vale.
+export const stessoPosto = (argv, s) => !Array.isArray(s?.attach) || !s.attach.length || sshDi(argv) === sshDi(s.attach);
 
 // L'id della sessione che l'argv di una scheda aggancia, nelle stesse due forme: "attach" come parola a
 // sé (Mac, Linux) o dentro la riga di una shell, come pwsh -Command "& '…' 'attach' '<id>'" su Windows.
@@ -875,27 +935,30 @@ export function anteprima(s) {
   return out.length ? out : null;
 }
 
-const chiave = (s) => `${s.host}/${s.sessionId}`;
+const conversazione = (s) => `${s.host}/${s.sessionId}`;
 
 // Le sessioni che da una lettura all'altra sono passate a "ti aspetta", di qualunque macchina.
 // Alla prima lettura nessuna: l'avviso è per un cambio, non per chi aspettava già all'apertura.
 export function nuoveInAttesa(prima, dopo) {
   if (!prima) return [];
-  const era = new Map((prima.sessioni ?? []).map((s) => [chiave(s), s.stato]));
-  return (dopo?.sessioni ?? []).filter((s) => !s.vecchia && s.stato === "aspetta" && era.get(chiave(s)) !== "aspetta");
+  const era = new Map((prima.sessioni ?? []).map((s) => [conversazione(s), s.stato]));
+  return (dopo?.sessioni ?? []).filter((s) => !s.vecchia && s.stato === "aspetta" && era.get(conversazione(s)) !== "aspetta");
 }
 
 // Lo stato di ogni sessione per id corto, per le parti che agganciano una sessione in background in
 // una scheda: lì Herdr non ha lo stato del terminale, e lo prendono da qui (shared arturo.volta.stati).
 // Lo stesso id su due macchine (una sessione spostata, #5577): resta la copia che non è ferma, come in
 // unaPerConversazione; prima vinceva l'ultima dell'elenco, e la scheda mostrava ferma la copia viva.
+// Un id su più macchine porta `doppio`: le parti senza elenco (schedeDi di dati.js) sanno così che
+// un'etichetta vecchia col solo id non dice quale copia è (#5634).
 export function statiCorti(dati) {
-  /** @type {Record<string, { stato: string, host: string }>} */
+  /** @type {Record<string, { stato: string, host: string, doppio?: true }>} */
   const out = {};
-  for (const s of dati?.sessioni ?? []) {
+  const l = dati?.sessioni ?? [];
+  for (const s of l) {
     if (!s.id || s.vecchia) continue;
     if (out[s.id] && out[s.id].stato !== "ferma" && s.stato === "ferma") continue;
-    out[s.id] = { stato: s.stato, host: s.host };
+    out[s.id] = { stato: s.stato, host: s.host, ...(doppio(l, s.id) ? { doppio: true } : {}) };
   }
   return out;
 }
@@ -924,8 +987,8 @@ export function rigaMod(m, adesso = Date.now()) {
 // lettura niente, altrimenti tutto l'elenco entrerebbe insieme all'apertura della finestra.
 export function entrate(prima, dopo) {
   if (!prima?.sessioni) return [];
-  const viste = new Set(prima.sessioni.map((s) => s.sessionId));
-  return (dopo?.sessioni ?? []).map((s) => s.sessionId).filter((k) => k && !viste.has(k));
+  const viste = new Set(prima.sessioni.filter((s) => s?.id).map(chiave));
+  return (dopo?.sessioni ?? []).filter((s) => s?.id).map(chiave).filter((k) => !viste.has(k));
 }
 
 // I tempi: una riga entra in 180 ms e se ne va in 140 (uscire costa meno che entrare). Le righe di un

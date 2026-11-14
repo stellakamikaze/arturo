@@ -24,9 +24,13 @@ export function bersaglio(terminale, sessioni) {
   if (!terminale || typeof terminale.address !== "string" || terminale.address.includes("/")) return null;
   const argv = Array.isArray(terminale.argv) ? terminale.argv : [];
   const i = argv.indexOf("attach");
-  const id = terminale.labels?.[ETICHETTA] ?? (i >= 0 ? argv[i + 1] : null);
+  // l'etichetta è la chiave macchina:id dal 14/11/2026 (#5634), prima il solo id
+  const e = terminale.labels?.[ETICHETTA] ? String(terminale.labels[ETICHETTA]) : null;
+  const [host, id] = e?.includes(":") ? [e.slice(0, e.indexOf(":")), e.slice(e.indexOf(":") + 1)] : [null, e ?? (i >= 0 ? argv[i + 1] : null)];
   if (!id) return null;
-  const s = (sessioni ?? []).find((x) => x && x.id === id && !x.questa && Array.isArray(x.attach));
+  const l = (sessioni ?? []).filter((x) => x && x.id === id && !x.questa && Array.isArray(x.attach) && (host === null || (x.host ?? "qui") === host));
+  // lo stesso id su due altre macchine senza la chiave: decide la macchina che l'argv raggiunge con ssh
+  const s = l.length > 1 ? l.find((x) => argv.includes(String(x.attach[2] ?? ""))) : l[0];
   if (!s) return null;
   const a = s.attach;
   if (a.length !== 6 || !/(^|[\\/])ssh(\.exe)?$/.test(String(a[0])) || a[1] !== "-t" || a[4] !== "attach") return null;

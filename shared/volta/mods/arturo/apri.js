@@ -66,7 +66,7 @@ export class Apri {
         const s = r.s;
         const st = chiusa(s) ? { testo: "Chiusa: Invio la riapre", colore: "dim" } : fraseStato(s);
         const dove = [s.progetto ? nomeProgetto(s.progetto) : null, macchinaBreve(s.macchina)].filter(Boolean).join(" · ");
-        return base(`c-s-${s.sessionId}`, i, r)
+        return base(`c-s-${s.host}-${s.id}`, i, r)
           .child(punto(colore(t, st.colore)))
           .child(v_flex().flex_1().min_w(0)
             .child(testo(titolo(s)))

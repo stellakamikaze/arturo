@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
+import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -374,10 +374,17 @@ export async function elencoVolta() {
 }
 
 // La sessione agganciata nella scheda `g` come la elenca Volta (sessioni.json in cacheVolta()), o null.
+// Lo stesso id su due macchine (#5634): decide la scheda (etichetta e argv), poi la copia che non è ferma.
 async function sessioneDi(g) {
   try {
     const d = JSON.parse((await readTextFile(`${cacheVolta()}/sessioni.json`)) ?? "{}");
-    return (d.sessioni ?? []).find((x) => x?.id === g.id && Array.isArray(x.attach)) ?? null;
+    const l = (d.sessioni ?? []).filter((x) => x?.id === g.id && Array.isArray(x.attach));
+    if (l.length < 2) return l[0] ?? null;
+    const t = terminals().find((x) => x.address === g.terminal);
+    const sua = t ? l.find((x) => suaScheda(t, x, true)) : null;
+    if (sua) return sua;
+    const vive = unaPerConversazione(l);
+    return vive.length === 1 ? vive[0] : null;
   } catch {
     return null;
   }
@@ -518,10 +525,15 @@ export function mostra(indirizzo) {
   return true;
 }
 
-// L'etichetta di Herdr sul terminale che aggancia una sessione (hc label): il suo id, quello di claude
-// attach. Con l'argv dice di chi è una scheda; il nome della scheda no, perché due schede possono
-// chiamarsi uguale e una rinominata cambia nome (#5290).
+// L'etichetta di Herdr sul terminale che aggancia una sessione (hc label): la sua chiave macchina:id
+// (chiave() di sessioni.js, qui chiaveSessione, dal 14/11/2026: #5634), prima il solo id di claude attach. Con l'argv dice di chi
+// è una scheda; il nome della scheda no, perché due schede possono chiamarsi uguale e una rinominata cambia
+// nome (#5290).
 export const ETICHETTA = "arturo.sessione";
+
+// L'id sta su due macchine nell'ultima lettura di Volta (statiCorti, shared arturo.volta.stati): allora
+// un'etichetta vecchia col solo id non dice quale copia aggancia la scheda (etichettaDice di sessioni.js).
+const ambiguo = (id) => Boolean(shared("arturo.volta.stati")?.[id]?.doppio);
 
 // Un argv come riga di comando per la shell di una scheda: fra apici ciò che non è una parola semplice.
 // Su Windows la shell della scheda è PowerShell (il programma ha un percorso come C:\...): lì una riga
@@ -546,8 +558,9 @@ export function schedeDi(s) {
   const tolti = shared("arturo.volta.tolti") ?? {};
   const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s) &&
     !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));
-  const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);
-  return etichetta.concat(l.filter((x) => !etichetta.includes(x) && agganciata(x.argv, s)));
+  const dice = (x) => etichettaDice(x.labels?.[ETICHETTA], s, ambiguo(s.id));
+  const etichetta = l.filter((x) => dice(x) === true);
+  return etichetta.concat(l.filter((x) => !etichetta.includes(x) && dice(x) === null && agganciata(x.argv, s)));
 }
 
 // I terminali di questa macchina che agganciano la sessione fuori dalla finestra: il core li tiene e
@@ -558,7 +571,7 @@ export function schedeDi(s) {
 export function altrove(s) {
   if (!s?.id || schedeDi(s).length) return [];
   return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&
-    !occupataDaAltra(x, s) && (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));
+    !occupataDaAltra(x, s) && suaScheda(x, s, ambiguo(s.id)));
 }
 
 // Nel terminale gira adesso un'altra sessione interattiva (occupanti di sessioni.js, che volta.js mette
@@ -620,7 +633,8 @@ export function segnaTolto(indirizzo) {
 
 // Le schede di questa macchina che agganciano una sessione in background dell'elenco, con la sessione:
 // { indirizzo: { sessionId, id, host, macchina, cartella, titolo } }. Conta il terminale vivo nel core,
-// non il pannello: cambiare spazio non chiude niente. Per etichetta, poi per argv (come schedeDi).
+// non il pannello: cambiare spazio non chiude niente. Per etichetta, poi per argv (come schedeDi), con la
+// macchina: lo stesso id su due macchine è di due sessioni (#5634).
 export function schedeAgganciate(sessioni) {
   const out = {};
   // anche le righe vecchie (macchina che non risponde): la scheda resta aperta, e senza la sua riga
@@ -629,7 +643,8 @@ export function schedeAgganciate(sessioni) {
   const dentro = occupanti(sessioni);
   for (const x of terminals()) {
     if (String(x.address).includes("/") || (x.state ?? "live") !== "live" || dentro[x.address]) continue;
-    const s = fondo.find((y) => x.labels?.[ETICHETTA] === y.id) ?? fondo.find((y) => agganciata(x.argv, y));
+    const dice = (y) => etichettaDice(x.labels?.[ETICHETTA], y, doppio(sessioni, y.id));
+    const s = fondo.find((y) => dice(y) === true) ?? fondo.find((y) => dice(y) === null && agganciata(x.argv, y));
     if (s) out[x.address] = { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina, questa: Boolean(s.questa), cartella: s.cartella ?? null, titolo: titolo(s) };
   }
   return out;
@@ -674,8 +689,8 @@ export async function nuda(indirizzo) {
 }
 
 async function etichetta(t, s) {
-  if (!t || t.labels?.[ETICHETTA] === s.id) return;
-  try { await hc(["label", t.address, `${ETICHETTA}=${s.id}`]); } catch { /* resta l'argv */ }
+  if (!t || t.labels?.[ETICHETTA] === chiaveSessione(s)) return;
+  try { await hc(["label", t.address, `${ETICHETTA}=${chiaveSessione(s)}`]); } catch { /* resta l'argv */ }
 }
 
 // Il registro eventi (#5549): gli eventi della finestra si accodano qui e svuotaRegistro li scrive a lotti
