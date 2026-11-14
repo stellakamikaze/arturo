@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""HZ01-HZ68: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ116: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+
+La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
+lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
+modifica a mano. Lanciato dal repository di Volta, il banco copia arturo/ in una cartella temporanea come
+shared/volta/ e salta, dichiarandoli, i casi che chiedono file di Arturo (bin/arturo, hooks/, commands/...).
 
 /setup installa Herdr (herdr.dev) con `shared/volta/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -8617,10 +8622,36 @@ def hz116(repo: Path, casa: Path) -> str | None:
 PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116}
 
 
+# I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
+# nel repository di Volta non ci sono, e il caso si salta col motivo. Li trova la lettura del corpo del caso
+# (repo / "<fuori da shared/volta>") più i casi con un veleno fuori da shared/volta, più quelli di ALTRI_ARTURO,
+# che arrivano ad Arturo da una funzione d'aiuto.
+ALTRI_ARTURO: set = {"HZ56"}  # HZ56: il file ORIGINE c'è solo nella copia dentro Arturo
+
+
+def serve_arturo() -> set:
+    import inspect  # noqa: PLC0415
+    fuori = re.compile(r"""repo\s*/\s*["'](?!shared/volta)[^"']+["']""")
+    casi = {k for k, f in PROVE.items() if fuori.search(inspect.getsource(f))}
+    return casi | {v[0] for v in VELENI if not v[1].startswith("shared/volta")} | ALTRI_ARTURO
+
+
+def senza_arturo(repo: Path) -> bool:
+    """Vero se il banco gira senza il repository di Arturo (dal repository di Volta)."""
+    return not (repo / "bin" / "arturo").exists()
+
+
+SALTATI: list = []
+
+
 def prova(repo: Path, solo: str | None = None) -> list[str]:
     rossi = []
+    salta = serve_arturo() if senza_arturo(repo) else set()
     for codice, f in PROVE.items():
         if solo and codice != solo:
+            continue
+        if codice in salta:
+            SALTATI.append(codice)
             continue
         with tempfile.TemporaryDirectory() as tmp:
             try:
@@ -9509,7 +9540,13 @@ def avvelena(repo: Path) -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from salti_windows import dichiara  # noqa: PLC0415
     esiti, saltati = [], 0
+    fuori = serve_arturo() if senza_arturo(repo) else set()
     for caso, rel, giusto, rotto, *solo in VELENI:
+        if caso in fuori:
+            dichiara(f"veleno {caso} ({rel})", "il caso chiede file di Arturo, che qui non ci sono")
+            esiti.append(caso)
+            saltati += 1
+            continue
         motivo = non_gira_qui(caso)
         if not motivo and solo == ["windows"] and os.name != "nt":
             motivo = "il difetto che rompe c'è solo su Windows"
@@ -9570,12 +9607,29 @@ def veleni_senza_testo(repo: Path) -> list:
     minuti di --avvelena del gate li vedevano (#5468). Il banco di ogni giro, e così pubblica-mod.py, li
     vede subito."""
     rossi = []
+    fuori = serve_arturo() if senza_arturo(repo) else set()
     for caso, rel, giusto, *_ in VELENI:
+        if caso in fuori:
+            continue
         f = repo / rel
         n = f.read_text(encoding="utf-8").count(giusto) if f.is_file() else 0
         if n != 1:
             rossi.append(f"{caso} veleno senza testo da rompere: {giusto[:60]!r} c'è {n} volte in {rel}")
     return rossi
+
+
+def spazio_volta(repo: Path) -> Path:
+    """Dal repository di Volta (c'è arturo/mods/arturo, non shared/volta) il banco gira su una copia di arturo/
+    messa come shared/volta/ in una cartella temporanea, tolta all'uscita. Una copia e non un link: i veleni
+    e i casi scrivono dentro il mod. Dal repository di Arturo resta il repository com'è."""
+    if not (repo / "arturo" / "mods" / "arturo").is_dir() or (repo / "shared" / "volta").is_dir():
+        return repo
+    import atexit  # noqa: PLC0415
+    tmp = Path(tempfile.mkdtemp(prefix="banco-volta-"))
+    atexit.register(shutil.rmtree, tmp, True)
+    shutil.copytree(repo / "arturo", tmp / "shared" / "volta",
+                    ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules", "cache"))
+    return tmp
 
 
 def main() -> int:
@@ -9584,7 +9638,7 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     parser.add_argument("--avvelena", action="store_true")
     argomenti = parser.parse_args()
-    repo = Path(argomenti.repo).resolve()
+    repo = spazio_volta(Path(argomenti.repo).resolve())
     if argomenti.avvelena:
         return avvelena(repo)
     if argomenti.baseline_ref:
@@ -9593,7 +9647,9 @@ def main() -> int:
     rossi = prova(repo) + veleni_senza_testo(repo)
     for r in rossi:
         print("ROSSO", r)
-    print(f"herdr: {len(CASI) - len({r.split()[0] for r in rossi})}/{len(CASI)} casi verdi")
+    girati = len(CASI) - len(SALTATI)
+    print(f"herdr: {girati - len({r.split()[0] for r in rossi})}/{girati} casi verdi"
+          + (f", {len(SALTATI)} saltati perché chiedono file di Arturo" if SALTATI else ""))
     return 1 if rossi else 0
 
 
