@@ -27,6 +27,10 @@ TS13 a fine turno e su idle_prompt un job in background senza la sua notifica di
      fermato, un server (vite, http.server) e un permesso tornano a SBLOCCA.
 TS14 dopo /inizio il titolo porta il nome come lo separa arturo contesto: il compito scritto dopo il nome
      resta fuori, e una frase senza progetto lascia la cartella (2/11/2026, #4480).
+TS15 il progetto segue il lavoro anche senza file nel progetto (14/11/2026, Volta "Senza progetto"):
+     l'handoff scritto in data/handoffs/<slug>/ dà lo slug; un cd di Bash dentro un progetto sposta una
+     scheda che sa solo la cartella, mai una con un progetto forte; il progetto dato dalla persona in Volta
+     non lo cambia un file scritto; i segni di Volta (inizio) restano mentre lo stato cambia.
 TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
      tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.
 
@@ -424,9 +428,50 @@ def test_ts14(repo: Path) -> None:
         c.chiudi()
 
 
+def test_ts15(repo: Path) -> None:
+    c = Casa(repo, "TS15", {"TERM_PROGRAM": "Apple_Terminal"})
+    c.env.pop("PROJECTS_BASE", None)
+    try:
+        progetti = c.home / "Documents" / "ClaudeCode"
+        (progetti / "romanzo" / "cap").mkdir(parents=True)
+        c.evento("UserPromptSubmit", cwd=progetti, sessione="h", prompt="pubblica il post di Spoleto")
+        handoff = c.evento("PostToolUse", cwd=progetti, sessione="h", tool_name="Write",
+                           tool_input={"file_path": str(c.home / ".claude" / "data" / "handoffs" / "due-mondi-myway" / "HANDOFF.md")},
+                           tool_response={})
+        assert "]0;LAVORANDO · due-mondi-myway\x07" in handoff, f"TS15 l'handoff scritto non dà il progetto: {handoff!r}"
+        indice = c.evento("PostToolUse", cwd=progetti, sessione="i", tool_name="Write",
+                          tool_input={"file_path": str(c.home / ".claude" / "data" / "handoffs" / "INDEX.md")}, tool_response={})
+        assert "INDEX" not in indice and "claude-config" not in indice, f"TS15 l'indice degli handoff diventa un progetto: {indice!r}"
+        c.evento("UserPromptSubmit", cwd=progetti, sessione="d", prompt="ci sono errori in Volta")
+        cd = c.evento("PostToolUse", cwd=progetti / "romanzo" / "cap", sessione="d", tool_name="Bash",
+                      tool_input={"command": "cd romanzo/cap && ls"}, tool_response={"stdout": ""})
+        assert "]0;LAVORANDO · romanzo\x07" in cd, f"TS15 un cd dentro un progetto non dà il progetto: {cd!r}"
+        base = c.evento("PostToolUse", cwd=progetti, sessione="d", tool_name="Bash",
+                        tool_input={"command": "ls"}, tool_response={"stdout": ""})
+        assert "ClaudeCode" not in base, f"TS15 il ritorno alla base dei progetti toglie il progetto: {base!r}"
+        c.evento("UserPromptSubmit", cwd=progetti, sessione="k", prompt="/inizio saggio")
+        c.evento("PostToolUse", cwd=progetti, sessione="k", tool_name="Bash",
+                 tool_input={"command": "python3 bin/contesto-progetto.py saggio"}, tool_response={"stdout": "# CONTESTO saggio\n"})
+        forte = c.evento("PostToolUse", cwd=progetti / "romanzo", sessione="k", tool_name="Bash",
+                         tool_input={"command": "cd romanzo"}, tool_response={"stdout": ""})
+        assert "romanzo" not in forte, f"TS15 un cd cambia il progetto di /inizio: {forte!r}"
+        scheda = c.home / ".claude" / "cache" / "scheda" / "p.json"
+        scheda.parent.mkdir(parents=True, exist_ok=True)
+        scheda.write_text(json.dumps({"stato": "nuova", "progetto": "saggio", "fonte": "persona", "inizio": False,
+                                      "quando": time.time() - 5}), encoding="utf-8")
+        c.evento("UserPromptSubmit", cwd=progetti, sessione="p", prompt="continua")
+        dopo = json.loads(scheda.read_text(encoding="utf-8"))
+        assert dopo.get("inizio") is False and dopo.get("fonte") == "persona", f"TS15 un cambio di stato perde i segni di Volta: {dopo!r}"
+        persona = c.evento("PostToolUse", cwd=progetti, sessione="p", tool_name="Edit",
+                           tool_input={"file_path": str(progetti / "romanzo" / "a.md")}, tool_response={})
+        assert "romanzo" not in persona, f"TS15 un file scritto cambia il progetto dato dalla persona: {persona!r}"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
          "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10,
-         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14}
+         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14, "TS15": test_ts15}
 
 
 def main() -> int:
