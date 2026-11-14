@@ -394,11 +394,18 @@ async function sessioneDi(g) {
 // shell, e il testo di un todo ci finirebbe come comando. true: la scheda ha la shell, il testo non
 // parte. La sessione si riapre nella sua scheda (apriSessione) e la persona riprova: il testo non si
 // manda dopo il rilancio, perché nessuno dice quando Claude è pronto a riceverlo.
-async function tornataShell(g) {
+export async function tornataShell(g) {
   if (!(await nuda(g.terminal))) return false;
   const s = await sessioneDi(g);
   if (!s) {
     notify({ title: "La sessione di questa scheda è chiusa", body: "Chiudi la scheda e riapri la sessione dall'elenco di Volta.", level: "warning" });
+    return true;
+  }
+  // Una sessione che si sposta o aspetta di spostarsi (shared arturo.volta.sposto di volta.js): riaprirla
+  // qui riaccenderebbe la copia di partenza, viva su due macchine (#5635).
+  const verso = shared("arturo.volta.sposto")?.[chiaveSessione(s)];
+  if (verso) {
+    notify({ title: `La sposto su ${nomeMacchina(verso)}`, body: "Riprova a spostamento finito, nella scheda d'arrivo.", level: "warning" });
     return true;
   }
   const r = await apriSessione(s, s.attach);
@@ -596,7 +603,7 @@ export function stacca(s) {
 // Il tasto parte solo se in primo piano gira davvero l'aggancio di `s` (anche dentro ssh): mai dentro
 // un altro programma, a cui Ctrl+Z sospenderebbe il lavoro. Su Windows il primo piano resta pwsh:
 // lì decide lo schermo, come in nuda(). Torna { ok }, { gia } se la scheda ha già la shell, o { errore }.
-const STACCO_ATTESA = 1500;
+const STACCO_ATTESA = 500, STACCO_MAX_MS = 8000;
 export async function staccaAggancio(indirizzo, s) {
   let d;
   try {
@@ -617,8 +624,13 @@ export async function staccaAggancio(indirizzo, s) {
   }
   const k = await hc(["keys", indirizzo, "ctrl+z"]);
   if (k.code !== 0) return { errore: "il tasto non arriva alla scheda" };
-  await pausa(STACCO_ATTESA);
-  return (await nuda(indirizzo)) ? { ok: true } : { errore: "claude attach non si è staccato" };
+  // la shell torna in circa un secondo con un aggancio fresco, ma alla prova vera del 14/11 (sessione
+  // ferma da 45 minuti) non era tornata dopo 1,5 s: si guarda più volte, fino a STACCO_MAX_MS
+  for (let t = 0; t < STACCO_MAX_MS; t += STACCO_ATTESA) {
+    await pausa(STACCO_ATTESA);
+    if (await nuda(indirizzo)) return { ok: true };
+  }
+  return { errore: "claude attach non si è staccato" };
 }
 
 // I terminali che chiude Volta stessa (Stacca, Sposta, Cambia progetto, Chiudi del menu): la guardia del
@@ -944,19 +956,32 @@ export async function spostaSessione(s, macchina, dormi = null) {
   const c = await config();
   const file = `${cacheVolta()}/sposta/${nomeSposta(s)}.json`;
   const traccia = (passo, dati) => tracciaSposta(s, passo, dati);
+  const argv = [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId, "--cartella", s.cartella || ""];
+  // Prima di chiudere le schede, la macchina della sessione dice se ha appena cominciato un turno (#5635):
+  // lo spostamento aspetta il turno finito, e la scheda resta aperta. Una macchina che non risponde non
+  // ferma niente: volta_sposta.py lo ricontrolla prima di claude stop.
+  let prima = null;
+  try { prima = esito(await exec(c.arturo[0], [...argv, "--controlla"], { timeout: 60000 })); } catch { prima = null; }
+  if (prima?.lavora) {
+    await traccia("lavora", { da: s.host ?? "qui", a: macchina, id: s.id });
+    return { errore: prima.errore || "sta lavorando: la sposto a turno finito", lavora: true };
+  }
   // Le schede che la agganciano si chiudono prima: un claude attach rimasto aperto riaccende la sessione
   // dopo claude stop, e la conversazione resta viva su tutte e due le macchine (#5537, 13/11/2026). Se lo
-  // spostamento non va, la scheda si riapre sulla sessione rimasta qui.
+  // spostamento non va, la scheda si riapre sulla sessione rimasta qui. Si staccano anche gli agganci di
+  // questa macchina fuori dalle schede (hc run, una finestra del Terminale): stacca() dopo chiudiSchede,
+  // perché altrove() vede quei terminali solo quando la sessione non ha più schede.
   const schede = schedeDi(s).map((t) => t.address);
   const chiuse = chiudiSchede(s);
-  await traccia("inizio", { da: s.host ?? "qui", a: macchina, id: s.id, attach: s.attach ?? null, schede, chiuse });
+  const staccati = stacca(s);
+  await traccia("inizio", { da: s.host ?? "qui", a: macchina, id: s.id, attach: s.attach ?? null, schede, chiuse, staccati });
   let r;
   try {
-    r = esito(await exec(c.arturo[0], [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId,
-      "--cartella", s.cartella || "", ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
+    r = esito(await exec(c.arturo[0], [...argv, ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
       "--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: 60000 }));
   } catch (e) {
-    return fineSposta(s, macchina, { errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})` }, chiuse);
+    // exec è caduto dopo aver forse lanciato lo spostamento: non si sa dove sia la sessione (nonSiSa)
+    return fineSposta(s, macchina, { errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})`, nonSiSa: true }, chiuse);
   }
   await traccia("avvio", { risposta: r });
   if (!r.avviato) return fineSposta(s, macchina, r, chiuse);
@@ -1016,20 +1041,23 @@ async function attendiSposta(v, dormi) {
     // l'attesa una volta al minuto: 25 minuti di giri ogni 5 secondi riempirebbero la traccia
     if (p.attendi) { if (giri === 1 || giri % 12 === 0) await tracciaSposta(s, "attesa", { giri }); continue; }
     await tracciaSposta(s, "esito", { giri, esito: p.fatto ?? p });
-    const x = await fineSposta(s, macchina, p.errore ? { errore: p.errore } : p.fatto, v.chiuse);
+    const x = await fineSposta(s, macchina, p.errore ? { errore: p.errore, nonSiSa: p.nonSiSa === true } : p.fatto, v.chiuse);
     await togliVolo(k);
     return x;
   }
 }
 
 // La fine di uno spostamento con la risposta `r` di volta_sposta.py: con l'aggancio apre la scheda
-// d'arrivo; senza, riapre la scheda chiusa all'inizio (`chiuse`) sulla sessione rimasta qui.
+// d'arrivo; senza, riapre la scheda chiusa all'inizio (`chiuse`) sulla sessione rimasta qui. Con `nonSiSa`
+// (exec caduto, nessun esito in 25 minuti) la sessione può già vivere di là: riaprire la scheda di partenza
+// la riaccenderebbe anche qui (#5635), e la scheda resta chiusa. `avviso`: spostata, con un segno non scritto.
 async function fineSposta(s, macchina, r, chiuse) {
   // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
   if (!r?.attach?.length) {
-    const x = { errore: r?.errore ?? "nessuna risposta", lavora: r?.lavora === true };
+    const nonSiSa = r?.nonSiSa === true;
+    const x = { errore: (r?.errore ?? "nessuna risposta") + (nonSiSa && chiuse ? "; non riapro la scheda di partenza" : ""), lavora: r?.lavora === true };
     let riaperta = null;
-    if (chiuse && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach).catch((e) => ({ errore: String(e?.message ?? e) }));
+    if (chiuse && !nonSiSa && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach).catch((e) => ({ errore: String(e?.message ?? e) }));
     await tracciaSposta(s, "male", { esito: x, riaperta: riaperta && { come: riaperta.come, errore: riaperta.errore } });
     return x;
   }
@@ -1039,7 +1067,8 @@ async function fineSposta(s, macchina, r, chiuse) {
   await traccia("apro", { nuova, attach: r.attach, chiuseDopo: dopo, schedeNuova: schedeDi(nuova).map((t) => t.address) });
   const v = await apriSessione(nuova, r.attach, true);
   await traccia("aperta", { come: v.come ?? null, errore: v.errore ?? null, schedeNuova: schedeDi(nuova).map((t) => t.address) });
-  return v.errore ? { errore: `è su ${nomeMacchina(macchina)}, ma non si apre: ${v.errore}` } : { ok: true };
+  if (v.errore) return { errore: `è su ${nomeMacchina(macchina)}, ma non si apre: ${v.errore}` };
+  return r.avviso ? { ok: true, avviso: String(r.avviso) } : { ok: true };
 }
 
 // Il nome dei file di uno spostamento in cacheVolta()/sposta: il sessionId senza caratteri strani.

@@ -24,14 +24,14 @@ import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } f
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda } from "./dati.js";
+import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda } from "./dati.js";
 import { voloSposta, VOLO_FRESCO_MS } from "./sessioni.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 import { run, panes } from "herdr";
-import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare } from "./sessioni.js";
+import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare, schedeSpente, SCHEDA, daAllineare } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
 
@@ -187,6 +187,7 @@ export class Volta {
     });
     cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));
     cx.timer.every(OGNI_AUTO, (cx) => this.staccaFerme(cx));
+    cx.timer.every(OGNI_AUTO, (cx) => this.allineaSpazi(cx));
     cx.timer.every(OGNI_AUTO, (cx) => { this.avvisaNascite(); this.chiudiOrfani(cx); });
   }
 
@@ -431,6 +432,35 @@ export class Volta {
     } finally { this.staccoLavora = false; }
   }
 
+  // Lo spazio della scheda segue il progetto della sessione (daAllineare di sessioni.js, 14/11/2026): ogni
+  // minuto, una scheda in "Senza progetto" o nello spazio di un altro progetto passa a quello del progetto
+  // che l'elenco le dà da due letture. Lo spostamento è quello di "Cambia progetto" (spostaScheda): chiude
+  // l'aggancio senza congedo e lo riapre nello spazio giusto. Uno spostamento fatto non si ripete finché il
+  // mod non si ricarica, anche se non riesce: lo dice il registro.
+  async allineaSpazi(cx) {
+    if (this.allineaLavora || !this.dati || !this.schede) return;
+    this.allineaLavora = true;
+    try {
+      const sp = spaces();
+      const voci = [];
+      for (const [indirizzo, c] of Object.entries(this.schede)) {
+        const s = c && this.dati.sessioni.find((x) => x.id === c.id && x.host === c.host);
+        const p = panes().find((x) => x.terminal === indirizzo);
+        const dove = p ? sp.find((x) => !x.machine && x.tabs.some((tb) => tb.id === p.tab)) : null;
+        if (s) voci.push({ indirizzo, s, spazio: dove ? { nome: dove.name, libero: libero(dove.name) } : null });
+      }
+      this.allineati = this.allineati ?? new Set();
+      const r = daAllineare(voci, { prima: this.visteProgetti, letto: this.dati.letto, davanti: focused()?.terminal ?? null, fatti: this.allineati });
+      this.visteProgetti = r.visti;
+      for (const { indirizzo, s, progetto } of r.sposta) {
+        this.allineati.add(`${chiave(s)}|${progettoDi(progetto).chiave}`);
+        const esito = await spostaScheda(s, progetto).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 120) }));
+        registra("allinea", { macchina: s.host, sid: s.id, terminale: indirizzo, progetto, esito: esito.errore ? "errore" : esito.spostata ? "ok" : "niente", errore: esito.errore });
+      }
+      if (r.sposta.length) cx.notify();
+    } finally { this.allineaLavora = false; }
+  }
+
   // Una scheda staccata da staccaFerme torna in primo piano (un clic sulla scheda, ⌘⇧↓): l'aggancio
   // riparte da solo, con la strada del clic sulla riga (apri), che accende il servizio e risveglia una
   // sessione già ritirata.
@@ -443,7 +473,7 @@ export class Volta {
     setShared("arturo.volta.staccate", resto);
     const s = (this.dati?.sessioni ?? []).find((x) => x.id === v.id && x.host === v.host);
     if (!s || chiusa(s) || !Array.isArray(s.attach) || !s.attach.length) return;
-    if (this.sposto[chiave(s)] || this.apro[chiave(s)] || this.veglio[chiave(s)]) return;
+    if (this.sposto[chiave(s)] || this.apro[chiave(s)] || this.veglio[chiave(s)] || this.faccio[chiave(s)] === "sposta") return;
     registra("riaggancio", { macchina: s.host, sid: s.id, terminale: indirizzo });
     this.apri(s, s.attach, false, cx);
   }
@@ -606,6 +636,9 @@ export class Volta {
   premi(s, cx) {
     // un secondo clic mentre il primo lavora non lancia un secondo aggancio nella stessa scheda
     if (this.sposto[chiave(s)] || this.apro[chiave(s)] || this.veglio[chiave(s)]) return;
+    // Durante uno Sposta l'aggancio riaccenderebbe la copia di partenza dopo claude stop: la stessa
+    // conversazione resterebbe viva su due macchine (#5635). La scheda d'arrivo la apre la fine di Sposta.
+    if (this.faccio[chiave(s)] === "sposta") return this.avvisa(s, `La sposto su ${nomeMacchina(this.spostoSu?.[chiave(s)] ?? "qui")}…`, cx);
     const secondo = this.avvisi[chiave(s)] === ALTROVE;
     delete this.avvisi[chiave(s)];
     let d = clic(s);
@@ -692,18 +725,27 @@ export class Volta {
   giro(verso, cx) {
     impostaProgetti(shared("arturo.progetti"));
     const sessioni = this.dati?.sessioni ?? [];
-    // Una ferma entra nel giro solo se ha una scheda qui: aggancio (schedeDi) o shell della scheda stessa.
-    const conScheda = new Set(sessioni.filter((s) => (s.questa && s.terminale) || schedeDi(s).length).map(chiave));
-    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.visGiro(), this.modo()), this.aperti, conScheda), Date.now());
+    // Nel giro solo le sessioni con una scheda in un pannello di questa finestra (ordineGiro): l'aggancio
+    // (schedeDi) o il terminale dove gira l'interattiva, qui o su un'altra macchina ("amaltea/t2s"). Un
+    // terminale senza pannello (hc run) non è una scheda: il tasto lì non mostrava niente (14/11/2026).
+    const pannelli = [...new Set(panes().map((p) => p.terminal))];
+    const visti = new Set(pannelli);
+    const conScheda = new Set(sessioni.filter((s) => (s.terminale && s.tipo !== "background" && visti.has(s.questa ? s.terminale : `${s.host}/${s.terminale}`))
+      || schedeDi(s).length).map(chiave));
+    const spente = schedeSpente(pannelli.map((a) => terminals().find((x) => x.address === a) ?? { address: a }), sessioni);
+    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.visGiro(), this.modo()), this.aperti, conScheda).concat(spente), Date.now());
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
     const qui = sessioneDi(scheda, sessioni);
-    const id = passoGiro(st.ids, st.ultimo ?? (qui ? chiave(qui) : null), verso);
+    const daQui = f?.terminal && st.ids.includes(SCHEDA + f.terminal) ? SCHEDA + f.terminal : qui ? chiave(qui) : null;
+    const id = passoGiro(st.ids, st.ultimo ?? daQui, verso);
     this.giroSt = { ...st, ultimo: id };
-    const s = id ? sessioni.find((x) => chiave(x) === id) : null;
     // la riga accesa (corrente) segue il tasto subito, e a raffica finita torna alla scheda in primo piano
     cx.notify();
     cx.timer.after(GIRO_MS + 50, (cx) => cx.notify());
+    // la scheda di una sessione chiusa o di una macchina giù: davanti e basta, niente da riagganciare
+    if (id?.startsWith(SCHEDA)) { mostra(id.slice(SCHEDA.length)); return; }
+    const s = id ? sessioni.find((x) => chiave(x) === id) : null;
     if (s) { this.scopri(s); this.premi(s, cx); }
     else notify({ title: "Nessuna sessione da aprire", body: "L'elenco non ha sessioni che un tasto può mostrare.", level: "info", timeout: 3000 });
   }
@@ -777,15 +819,19 @@ export class Volta {
   // Una sessione sparita dall'elenco, chiusa o già altrove esce dalla coda. La coda vive in questa
   // finestra: chiudere Volta la svuota, e le sessioni restano dove sono.
   giraCoda(cx) {
+    this.pubblicaSposto();
     if (this.spostando) return;
     const vive = this.vis()?.sessioni ?? [];
     const ora = Date.now();
     for (const [k, v] of Object.entries(this.codaSposta)) {
       const s = vive.find((x) => chiave(x) === k);
       if (!s || nonSiSposta(s)) { delete this.codaSposta[k]; continue; }
-      if (aFineTurno(s) || v.dopo > ora) continue;
+      // un aggancio che si sta aprendo (clic in coda, veglia) non ha ancora la scheda che Sposta chiude:
+      // partirebbe dopo claude stop e riaccenderebbe la copia di partenza (#5635). Si aspetta il giro dopo.
+      if (aFineTurno(s) || v.dopo > ora || this.apro[k] || this.veglio[k] || this.sposto[k]) continue;
       this.spostando = true;
       this.faccio[k] = "sposta";
+      this.pubblicaSposto();
       cx.notify();
       cx.spawn(async (cx) => {
         let r;
@@ -798,6 +844,15 @@ export class Volta {
       });
       return;
     }
+    this.pubblicaSposto();
+  }
+
+  // Le sessioni che si spostano o aspettano in coda, in shared arturo.volta.sposto ({ chiave: macchina }):
+  // tornataShell di dati.js gira anche nelle altre copie del mod, e non riapre la copia di partenza (#5635).
+  pubblicaSposto() {
+    const m = Object.fromEntries(Object.entries(this.codaSposta ?? {}).map(([k, v]) => [k, v.macchina]));
+    for (const [k, v] of Object.entries(this.faccio ?? {})) if (v === "sposta") m[k] = this.spostoSu?.[k] ?? m[k] ?? "?";
+    if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.sposto") ?? {})) setShared("arturo.volta.sposto", m);
   }
 
   // Dopo uno spostamento (dalla coda o ripreso): libera la coda, dice com'è andata e passa al prossimo.
@@ -812,7 +867,8 @@ export class Volta {
       if (r.errore) {
         notify({ title: `Non la sposto su ${nomeMacchina(v.macchina)}`, body: r.errore, level: "error" });
         this.avvisa(s, `Non la sposto: ${r.errore}`, cx);
-      } else notify({ title: `Spostata su ${nomeMacchina(v.macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
+      } else if (r.avviso) notify({ title: `Spostata su ${nomeMacchina(v.macchina)}, con un problema`, body: r.avviso, level: "warning" });
+      else notify({ title: `Spostata su ${nomeMacchina(v.macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
     }
     this.aggiorna(cx);
     cx.notify();
@@ -838,6 +894,7 @@ export class Volta {
             this.spostando = true;
             this.faccio[k2] = "sposta";
             this.spostoSu = { ...(this.spostoSu ?? {}), [k2]: v.macchina };
+            this.pubblicaSposto();
             cx.notify();
             let r;
             try { r = await riprendiSposta(v, (ms) => cx.sleep(ms)); } catch (e) {
@@ -958,7 +1015,10 @@ export class Volta {
     const indirizzo = scheda ? panes().find((p) => p.tab === scheda)?.terminal : f?.terminal;
     const t = indirizzo ? terminals().find((x) => x.address === indirizzo) ?? null : null;
     const s = t ? sessioneDi(t, this.dati?.sessioni ?? []) : null;
-    if (s && s.tipo === "background" && !s.vecchia && !chiusa(s)) return this.fare(s, { verbo: "chiudi", testo: "Chiudi" }, cx);
+    // anche la sessione di una macchina che non risponde: il congedo aspetta che torni (passoCongedo, fino a
+    // CONGEDO_VECCHIO_MS). Prima ⌘W chiudeva solo la scheda, e la sessione restava accesa su quella macchina
+    // e tornava nell'elenco (Federico, 14/11/2026: "con CMD + W non chiude davvero alcune schede").
+    if (s && s.tipo === "background" && !chiusa(s)) return this.fare(s, { verbo: "chiudi", testo: "Chiudi" }, cx);
     run("tab.close", tab ? { id: tab } : {});
   }
 
@@ -1001,7 +1061,8 @@ export class Volta {
       else {
         this.avvisa(s, FATTO[a.verbo], cx);
         // la riga di una sessione chiusa sparisce subito: l'esito va in un avviso
-        if (a.verbo === "chiudi") notify({ title: titolo(s), body: FATTO.chiudi, level: "info", timeout: 5000 });
+        if (a.verbo === "chiudi") notify({ title: titolo(s), level: "info", timeout: 5000,
+          body: s.vecchia ? `Chiusa: ${s.macchina ?? "la sua macchina"} non risponde, Claude salva con /fine e si ferma quando torna.` : FATTO.chiudi });
         if (a.verbo === "rm") this.menu = null;
         this.aggiorna(cx);
       }

@@ -357,6 +357,35 @@ export function daStaccare(schede, sessioni, adesso, opz = {}) {
   return out.sort((a, b) => a.t - b.t).map(({ indirizzo, s }) => ({ indirizzo, s }));
 }
 
+// La scheda che va nello spazio del suo progetto (14/11/2026, Federico: "il progetto associato alle sessioni
+// non viene aggiornato in tempo reale"). aggancia() di dati.js sceglie lo spazio solo quando apre la scheda:
+// se il progetto arriva dopo (un file scritto, il progetto dedotto dal contenuto), la scheda restava in
+// "Senza progetto" o nello spazio di prima. `voci`: [{ indirizzo, s, spazio: { nome, libero } }], una per
+// scheda che aggancia una sessione. `prima`: { chiave: { progetto, letto } } del giro di prima, `letto`
+// quello dell'elenco di adesso. Una scheda si sposta solo se il progetto è lo stesso in due letture
+// diverse dell'elenco, è un progetto noto, la scheda non è quella in primo piano (dove la persona
+// scrive) e quello spostamento non è già stato fatto (`fatti`: "chiave|progetto"). Un progetto vuoto
+// non sposta mai: una lettura che lo perde per un attimo non deve svuotare lo spazio. Al più una
+// scheda per giro. Torna { sposta: [{ indirizzo, s, progetto }], visti } con `visti` da ridare come `prima`.
+export function daAllineare(voci, opz = {}) {
+  const prima = opz.prima ?? {}, letto = opz.letto ?? "", fatti = opz.fatti ?? new Set();
+  const sposta = [], visti = {};
+  for (const { indirizzo, s, spazio } of voci ?? []) {
+    if (!s?.id || s.vecchia || s.tipo !== "background" || !Array.isArray(s.attach)) continue;
+    const p = String(s.progetto ?? "").trim();
+    if (!p) continue;
+    const k = chiave(s), v = prima[k];
+    const uguale = Boolean(v) && v.progetto === p;
+    visti[k] = uguale ? v : { progetto: p, letto };
+    if (!uguale || v.letto === letto || indirizzo === opz.davanti || !spazio || !progettoApribile(p)) continue;
+    const kp = chiaveProgetto(p);
+    if (!spazio.libero && chiaveProgetto(spazio.nome) === kp) continue;
+    if (fatti.has(`${k}|${kp}`)) continue;
+    sposta.push({ indirizzo, s, progetto: p });
+  }
+  return { sposta: sposta.slice(0, 1), visti };
+}
+
 // Un passo del congedo, deciso dallo stato di adesso. `c`: { sessionId, id, host, fase, da, dal } con fase
 // "attende" (lavorava quando l'hai chiusa: finisce il turno), "fine" (ripresa con /fine), "ferma" (claude
 // stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, salvata?, avviso? } con fai:
@@ -450,7 +479,8 @@ export function esitoSposta(testo, dal, ora, macchina = "l'altra macchina") {
   let d = null;
   try { d = testo ? JSON.parse(testo) : null; } catch { d = null; }
   if (d && typeof d === "object" && d.finito === true) { const { finito: _, ...resto } = d; return { fatto: resto }; }
-  if (ora - dal > SPOSTA_MAX_MS) return { errore: `${macchina} non ha finito in 25 minuti: guarda fra le sessioni dove è rimasta` };
+  // senza esito non si sa dove sia la sessione: fineSposta non riapre la scheda di partenza (#5635)
+  if (ora - dal > SPOSTA_MAX_MS) return { errore: `${macchina} non ha finito in 25 minuti: guarda fra le sessioni dove è rimasta`, nonSiSa: true };
   return { attendi: true };
 }
 
@@ -518,21 +548,35 @@ export function mostrate(g, aperto) {
   return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;
 }
 
-// Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows): tutte le sessioni accese, nell'ordine
-// dell'elenco, anche quelle che aspettano un comando (Federico, 12/11 sera: "voglio che cicli tra tutte
-// le sessioni che sono accese in questo momento"). Resta fuori solo una ferma che ha già fatto /fine e
-// non ha una scheda in questa finestra (`conScheda`, le chiavi): è chiusa, e il tasto la riaggancerebbe
-// (Federico, 12/11: "ha aperto piano gare bergamo che avevo chiuso"). Le chiuse davvero (claude stop)
-// le toglie già visibili(). Le ferme nascoste dietro "N in attesa" vengono dopo le righe a vista del
-// loro gruppo. Restano fuori anche le sessioni che stanno in un Terminale: il clic lì le sposta con
-// /bg, e un giro di tasti non deve spostare niente.
+// Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows): le sessioni che hanno una scheda in
+// questa finestra (`conScheda`, le chiavi), nell'ordine dell'elenco, in ogni stato. Il tasto porta
+// davanti una scheda che c'è, e non ne apre mai una nuova (Federico, 14/11/2026: "quando faccio
+// cmd+freccia mi apre schede chiuse"). Fino al 14/11 entravano tutte le sessioni accese (12/11: "voglio
+// che cicli tra tutte le sessioni che sono accese"): una senza scheda riapriva una scheda chiusa, e una
+// interattiva in un terminale senza pannello (un hc run di un'altra macchina) dava un tasto a vuoto. Le
+// ferme nascoste dietro "N in attesa" vengono dopo le righe a vista del loro gruppo. Le schede delle
+// sessioni chiuse o di una macchina che non risponde le aggiunge schedeSpente().
 export function ordineGiro(lista, aperti = {}, conScheda = new Set()) {
   return (lista ?? []).flatMap((g) => {
     const vista = mostrate(g, aperti[g.chiave]);
     return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));
   })
-    .filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(chiave(s)))
+    .filter((s) => conScheda.has(chiave(s)))
     .filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map(chiave);
+}
+
+// Le schede di questa finestra che mostrano una sessione chiusa o di una macchina che non risponde: nel
+// giro vengono dopo le sessioni, nell'ordine dei pannelli, come "scheda:<indirizzo>", e il tasto le porta
+// davanti senza riagganciare niente (Federico, 14/11/2026: "non va su determinate schede"). Prima il giro
+// le saltava: restavano aperte e non si raggiungevano coi tasti. `terminali`: quelli dei pannelli, in ordine.
+export const SCHEDA = "scheda:";
+export function schedeSpente(terminali, sessioni) {
+  const out = [];
+  for (const t of terminali ?? []) {
+    const s = sessioneDi(t, sessioni);
+    if (s && (s.vecchia || chiusa(s)) && !out.includes(SCHEDA + t.address)) out.push(SCHEDA + t.address);
+  }
+  return out;
 }
 
 // L'ordine vale per tutta una raffica di tasti: l'elenco è per attività, e una sessione che lavora

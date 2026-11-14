@@ -250,7 +250,8 @@ def testo(c):
 # è l'id della sessione in background, che resta quello della nascita, o il pid di un'interattiva.
 # Una fonte forte vale e aggiorna il registro; la fonte debole ("cartella", o nessuna scheda) cede al
 # registro; senza registro il nome della cartella base o della casa non è un progetto: resta vuoto.
-FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")
+FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "modello")
+DECISE = ("persona", "inizio", "volta", "teletrasporto")
 LAVORI_GIORNI = 14
 lavori = os.path.join(radice, "cache", "volta-lavori")
 casa = os.path.expanduser("~")
@@ -306,6 +307,17 @@ for s in sessioni:
                 s["daIniziare"] = s["progetto"]
     except (OSError, ValueError, AttributeError):
         pass
+    # Il progetto dedotto dal contenuto (hooks/titolo-sessione.py, 14/11/2026): vale più di un file scritto
+    # e della cartella, meno di una scelta (persona, /inizio, Volta, teletrasporto). La sessione di Spoleto
+    # scriveva il codice di post-studio, e una richiesta libera nella base non aveva progetto.
+    if fonte not in DECISE:
+        try:
+            with open(os.path.join(radice, "cache", "titolo", sid + ".json"), encoding="utf-8") as fh:
+                pm = json.load(fh).get("progetto")
+            if isinstance(pm, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,59}", pm.strip()):
+                s["progetto"], fonte = pm.strip(), "modello"
+        except (OSError, ValueError, AttributeError):
+            pass
     if s["progetto"] and fonte in FORTI:
         nuovo.update(progetto=s["progetto"], fonte=fonte)
     elif fonte in (None, "", "cartella"):

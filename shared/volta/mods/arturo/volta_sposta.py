@@ -571,11 +571,29 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     # Su A col progetto di prima: fonte "teletrasporto", forte per la sonda (FORTI) e senza il segno di
     # /inizio che Cambia progetto lascia e che farebbe scrivere /inizio nella sessione appena spostata; e
     # via il segno di una partenza vecchia, se la conversazione torna dove era già stata.
-    esegui(a, SEGNA, {"sid": sid, "progetto": progetto})
+    avvisi = []
+    perche = segna(a, {"sid": sid, "progetto": progetto})
+    if perche:
+        avvisi.append("su %s la sessione non ha il segno del progetto (%s)" % (vs.chi(a), perche))
     # Su DA la copia ferma resta "done" anche dopo claude stop, e la sonda la darebbe addormentata: il
     # clic la riprenderebbe lì, con due copie vive della stessa conversazione (#5537, 13/11/2026).
-    esegui(da, SEGNA, {"sid": sid, "spostata": a or "qui"})
-    return {"id": nata["id"], "sessionId": sid, "attach": nata["attach"], "macchina": a or "qui", "cartella": pronto["cartella"]}
+    perche = segna(da, {"sid": sid, "spostata": a or "qui"})
+    if perche:
+        avvisi.append("su %s la copia ferma non è segnata come spostata (%s): non riaprirla da lì" % (vs.chi(da), perche))
+    fatto = {"id": nata["id"], "sessionId": sid, "attach": nata["attach"], "macchina": a or "qui", "cartella": pronto["cartella"]}
+    # La sessione vive già su A: un errore farebbe riaprire a Volta la scheda di partenza, e la
+    # conversazione tornerebbe viva su due macchine. Il segno mancato arriva come avviso (#5635).
+    return dict(fatto, avviso="; ".join(avvisi)) if avvisi else fatto
+
+
+def segna(nome, dati):
+    """SEGNA su `nome`, con un secondo tentativo (#5635): None se il segno è scritto, altrimenti il motivo."""
+    r = {}
+    for _ in range(2):
+        r = esegui(nome, SEGNA, dati)
+        if r.get("ok"):
+            return None
+    return r.get("errore") or "nessuna risposta"
 
 
 def scrivi_esito(f, d):
@@ -616,12 +634,22 @@ def main(argv):
         if argv[i] in ("--cartella", "--progetto", "--titolo", "--esito") and i + 1 < len(argv):
             opz[argv[i][2:]] = argv[i + 1]
             i += 2
+        elif argv[i] == "--controlla":
+            opz["controlla"] = True
+            i += 1
         else:
             resto.append(argv[i])
             i += 1
     if len(resto) != 4 or any(x.startswith("--") for x in resto):
-        print("uso: volta_sonda.py sposta <da> <a> <id> <sessionId> --cartella <dir> [--progetto <slug>] [--titolo <nome>] [--esito <file>]")
+        print("uso: volta_sonda.py sposta <da> <a> <id> <sessionId> --cartella <dir> [--progetto <slug>] [--titolo <nome>] [--esito <file>] [--controlla]")
         return 2
+    if opz.get("controlla"):
+        # Solo il controllo del turno, prima che Volta chiuda le schede (#5635): {"lavora"} o {"ok"}.
+        if not vs.ID.fullmatch(resto[3] or ""):
+            print(json.dumps({"errore": "id di sessione non valido"}))
+            return 1
+        print(json.dumps(lavora(resto[0], resto[3]) or {"ok": True}, ensure_ascii=True))
+        return 0
     f = opz.get("esito")
     if f and not os.environ.get("VOLTA_SPOSTA_FIGLIO"):
         scrivi_esito(f, {"finito": False, "da": time.time()})
