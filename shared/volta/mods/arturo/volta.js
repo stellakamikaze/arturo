@@ -160,7 +160,7 @@ export class Volta {
       this.script = sc.elenco;
       this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
-      await this.leggi(cx);
+      await this.leggiSenzaFermarsi(cx);
       cx.notify();
       this.aggiorna(cx);
       // uno spostamento lasciato a metà dalla ricarica che ha appena caricato questo mod (#5559)
@@ -169,7 +169,7 @@ export class Volta {
       // intera, che per l'API vuol dire "rileggi tutto"): la cartella tiene anche il clone del mod e i file
       // del microfono, riscritti ogni 2 s, e ogni lotto rileggeva e ridisegnava l'elenco (13/11/2026).
       try {
-        for (;;) { if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggi(cx); cx.notify(); } }
+        for (;;) { if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggiSenzaFermarsi(cx); cx.notify(); } }
       } catch { /* senza cartella resta il timer */ }
     });
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
@@ -436,6 +436,18 @@ export class Volta {
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.macchine") ?? [])) setShared("arturo.volta.macchine", m);
   }
 
+  // leggi con l'errore tenuto da parte: un'eccezione dopo il parse (entra, portaNomi, ...) usciva dal giro
+  // della sonda, dal primo caricamento e dall'attesa sulla cartella, e li fermava per sempre (#5550).
+  // L'errore resta in erroreLettura finché una lettura riesce.
+  async leggiSenzaFermarsi(cx) {
+    try {
+      await this.leggi(cx);
+      this.erroreLettura = null;
+    } catch (e) {
+      this.erroreLettura = String(e?.message ?? e).slice(0, 200);
+    }
+  }
+
   // I nomi scritti dalla persona che Claude Code non ha ancora (campo daPortare): a ogni lettura si
   // prova a portarli con /rename, una sessione alla volta. Riesce quando la sessione è ferma e ha una
   // scheda in questa finestra; altrimenti si riprova alla lettura dopo.
@@ -471,14 +483,18 @@ export class Volta {
     if (!this.script || this.inCorso) return;
     this.inCorso = true;
     cx.spawn(async (cx) => {
+      // inCorso torna falso in ogni caso: un errore nella lettura dell'elenco fermava il giro per sempre (#5550)
       try {
-        const r = await exec(this.py, [this.script, "volta", "--scrivi", this.file], { timeout: 60000 });
-        this.errore = r.code === 0 ? null : (r.stderr || r.stdout || "").trim().split("\n").pop();
-      } catch (e) {
-        this.errore = String(e?.message ?? e);
+        try {
+          const r = await exec(this.py, [this.script, "volta", "--scrivi", this.file], { timeout: 60000 });
+          this.errore = r.code === 0 ? null : (r.stderr || r.stdout || "").trim().split("\n").pop();
+        } catch (e) {
+          this.errore = String(e?.message ?? e);
+        }
+        await this.leggiSenzaFermarsi(cx);
+      } finally {
+        this.inCorso = false;
       }
-      await this.leggi(cx);
-      this.inCorso = false;
       this.passiCongedo(cx);
       this.giraCoda(cx);
       cx.notify();

@@ -156,7 +156,9 @@ HZ41 il servizio di Claude prima della nascita (#5208, volta_sonda.py servizio c
      terminale di herdr-core, e uno che dopo non risponde dà errore; nasci accende il servizio prima della
      sessione e senza servizio non fa nascere niente; su questa macchina il servizio spento nasce
      staccato (una sessione sua) nella home. Riavvia passa dal servizio come nasci, Ferma no (#5215).
-     Sul Mac, dove hc exec non trova claude, Riavvia riprova con python3 (#5555).
+     Sul Mac, dove hc exec non trova claude, Riavvia riprova con python3 (#5555). Un Mac senza
+     LaunchAgent risponde "hc-run" col percorso intero di claude, e hc run lancia quello (#5560);
+     un percorso strano dà claude nudo. SERVIZIO vero su un Mac, chiesto da remoto, dà il percorso.
 HZ42 le attese della nascita (#5214): Volta (dati.js nasciSu) aspetta più della somma dei tetti di
      volta_sonda.py, con 30 s di margine; il servizio che non risponde si ferma al suo tetto, anche
      dopo hc run. Riavvia aspetta servizio più azione più il margine, gli altri gesti azione più il
@@ -2821,13 +2823,15 @@ def hz41(repo: Path, casa: Path) -> str | None:
     sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
     nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
     conf = {
-        "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto", "Mac")],
+        "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto", "Mac", "Mela", "Storto")],
         "exec": {"Torre": {"python": nata}, "Win": {"python": nata, "claude": "respawned ffff1111"},
                  "Mac": {"python3": "respawned ffff1111"},
-                 "Rotto": {"python3": nata, "claude": "respawned ffff1111"}, "Muto": {"python3": nata}},
+                 "Rotto": {"python3": nata, "claude": "respawned ffff1111"}, "Muto": {"python3": nata},
+                 "Mela": {"python3": nata}, "Storto": {"python3": nata}},
         "servizio": {"Win": {"serve": "hc-run"}, "Rotto": {"errore": "Claude Code non c'è su questa macchina"},
-                     "Muto": {"serve": "hc-run"}},
-        "dopo_run": {"Win": {"acceso": True, "come": "già acceso"}},
+                     "Muto": {"serve": "hc-run"}, "Mela": {"serve": "hc-run", "claude": "/Users/u/.local/bin/claude"},
+                     "Storto": {"serve": "hc-run", "claude": "/bin/sh"}},
+        "dopo_run": {n: {"acceso": True, "come": "già acceso"} for n in ("Win", "Mela", "Storto")},
     }
     finto = casa / "hc_finto.py"
     finto.write_text(HC_FINTO, encoding="utf-8")
@@ -2855,6 +2859,12 @@ def hz41(repo: Path, casa: Path) -> str | None:
         return f"Windows senza attività: il servizio non nasce con hc run: rc {rc}, {d}"
     if corsa != [["run", "--on", "Win", "--name", "servizio-claude", "--no-parent", "--rm", "--bg", "claude", "daemon", "run"]]:
         return f"hc run del servizio: {corsa}"
+    # un Mac senza LaunchAgent (#5560): il terminale di herdr-core non ha ~/.local/bin nel PATH
+    for nome, atteso in (("Mela", "/Users/u/.local/bin/claude"), ("Storto", "claude")):
+        rc, d, ch = lancia("servizio", nome)
+        corsa = [c[c.index("--bg") + 1] for c in ch if c[:1] == ["run"]]
+        if rc != 0 or d.get("come") != "terminale di Herdr" or corsa != [atteso]:
+            return f"servizio su {nome} con hc run: rc {rc}, {d}, lancia {corsa}, atteso {atteso}"
     rc, d, ch = lancia("servizio", "Muto")
     if rc == 0 or "non risponde ancora" not in d.get("errore", ""):
         return f"un servizio acceso con hc run che non risponde deve dare errore: rc {rc}, {d}"
@@ -2926,6 +2936,11 @@ def hz41(repo: Path, casa: Path) -> str | None:
     d, righe = qui(HZ_ACCESO="1")
     if d.get("come") != "già acceso" or any(x["argv"][:2] == ["daemon", "run"] for x in righe):
         return f"servizio qui già acceso: {d}, {righe}"
+    if sys.platform == "darwin":  # chiesto da un'altra macchina, senza LaunchAgent: il percorso intero (#5560)
+        r = subprocess.run([sys.executable, "-c", importlib_spec("volta_sonda_hz41", sonda).SERVIZIO, "remoto"], capture_output=True, text=True, timeout=60, env=e)
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        if d != {"serve": "hc-run", "claude": str(fc)}:
+            return f"SERVIZIO remoto su un Mac senza LaunchAgent: {d}, atteso il percorso {fc}"
     return None
 
 
@@ -8213,7 +8228,7 @@ def hz110(repo: Path, casa: Path) -> str | None:
     """Volta rilegge l'elenco solo per sessioni.json, e non accumula comandi di Arturo appesi."""
     mod = repo / "shared/volta/mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    if "if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggi(cx); cx.notify(); }" not in vj:
+    if "if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggiSenzaFermarsi(cx); cx.notify(); }" not in vj:
         return "volta.js rilegge l'elenco a ogni file della cartella di Volta (clone del mod, microfono)"
     if 'setShared("arturo.volta.errore"' in vj:
         return "volta.js scrive ancora arturo.volta.errore a ogni giro, e nessuno lo legge"
@@ -9075,6 +9090,9 @@ VELENI = [
     ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '"--name", "servizio-claude", "--no-parent", "--rm",', '"--name", "servizio-claude", "--rm",'),
     ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)\n        come = "staccato"\nelif', 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, **nulla)\n        come = "staccato"\nelif'),
     ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}', '        return {"come": "terminale di Herdr"}'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '"--bg", claude_per_hc_run(d), "daemon", "run"],', '"--bg", "claude", "daemon", "run"],'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '        esci(serve="hc-run", claude=cl)\n    else:\n        subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True', '        esci(serve="hc-run")\n    else:\n        subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True'),
+    ("HZ41", "shared/volta/mods/arturo/volta_sonda.py", '            and re.search(r"[\\\\/]claude(\\.exe)?$", cl) and', '            and'),
     ("HZ01", "shared/volta/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
     ("HZ02", "shared/volta/installa-herdr.sh", "if k in mia and mia[k] != v and mia[k] not in PRENDE.get(v, ()):", "if False:"),
     ("HZ03", "shared/volta/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),

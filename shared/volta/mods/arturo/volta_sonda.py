@@ -660,6 +660,7 @@ esci(ok=True, progetto=valore, iniziato=nuovo.get("inizio") is not False)
 # non sente il microfono, #5427), e chiesto da qui nasce staccato in una sessione nuova. Su Windows con l'attività di
 # servizio-claude.ps1 se c'è; da hc exec un figlio non si stacca dal job, quindi senza attività risponde
 # {"serve": "hc-run"} e il terminale lo apre chi chiama. L'argomento è "remoto" o "qui".
+# Con "serve" c'è anche "claude", il percorso intero: hc run sul Mac non ha ~/.local/bin nel PATH (#5560).
 # L'etichetta del LaunchAgent e il nome dell'attività stanno anche in servizi-gui.sh, servizio-claude.ps1
 # e installa-herdr.sh: il banco HZ43 li tiene uguali.
 # Stampa {"acceso": true, "come"} oppure {"serve"} oppure {"errore"}.
@@ -693,7 +694,7 @@ if sys.platform == "darwin":
         # Da hc exec il servizio sarebbe figlio di ssh: macOS gli nega il microfono in silenzio, e così a
         # ogni sessione in background che ne nasce (12/11/2026, #5427). Lo apre chi chiama, in un
         # terminale di Herdr Core, che vive nella sessione grafica e ha il microfono.
-        esci(serve="hc-run")
+        esci(serve="hc-run", claude=cl)
     else:
         subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)
         come = "staccato"
@@ -704,7 +705,7 @@ elif os.name == "nt":
         subprocess.run(["schtasks", "/run", "/tn", attivita], timeout=30, **nulla)
         come = "attività"
     elif remoto:
-        esci(serve="hc-run")
+        esci(serve="hc-run", claude=cl)
     else:
         subprocess.Popen([cl, "daemon", "run"], cwd=casa, creationflags=0x00000008 | 0x00000200, **nulla)
         come = "staccato"
@@ -1055,6 +1056,17 @@ def scrivi_atomico(percorso, dati):
     os.replace(tmp, percorso)
 
 
+def claude_per_hc_run(d):
+    """Il claude da lanciare con hc run: il percorso intero che SERVIZIO ha trovato sulla macchina (#5560),
+    perché sul Mac il terminale di herdr-core non ha ~/.local/bin nel PATH. Solo un percorso assoluto che
+    finisce in claude o claude.exe; altrimenti "claude" nudo, come lo trova il PATH di Windows."""
+    cl = d.get("claude")
+    if isinstance(cl, str) and (cl.startswith("/") or re.match(r"[A-Za-z]:[\\/]", cl)) \
+            and re.search(r"[\\/]claude(\.exe)?$", cl) and not re.search(r"[\x00-\x1f]", cl):
+        return cl
+    return "claude"
+
+
 def servizio(nome):
     """Il servizio di Claude acceso su `nome` ("qui" o vuoto = questa macchina), con SERVIZIO (#5208).
 
@@ -1093,7 +1105,7 @@ def servizio(nome):
     if d.get("serve") == "hc-run":
         try:
             rc, out, err = lancia(hc() + ["run", "--on", nome, "--name", "servizio-claude", "--no-parent", "--rm",
-                                          "--bg", "claude", "daemon", "run"],
+                                          "--bg", claude_per_hc_run(d), "daemon", "run"],
                                   timeout=max(5, min(60, int(entro - time.monotonic()))))
         except (OSError, subprocess.SubprocessError) as e:
             return {"errore": "hc run non risponde: %s" % str(e)[:160]}
