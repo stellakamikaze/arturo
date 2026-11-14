@@ -84,11 +84,11 @@ Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli 
 
 ### Arturo ti propone cosa automatizzare {#scoperta}
 
-Stato: da fare. Il progetto è scritto. Prima esce il testo sul consenso dei dati d'uso, perché la Scoperta manda alla telemetria dei conteggi nuovi e la pagina della privacy deve dirlo prima.
+Stato: in corso. La prima versione è pronta sul ramo di sviluppo `dev` ed esce col prossimo rilascio. Comprende il comando `arturo scoperta`, l'indice che si aggiorna dopo ogni modifica, l'impronta dei file presa da `/inizio` e la proposta che arriva con `/fine`. Per ora non manda niente alla telemetria: i conteggi partiranno solo quando sarà pubblicato il testo nuovo sulla privacy.
 
 Strato: Scoperta.
 
-Claude Code tiene già una copia di ogni versione dei file che modifichi con lui. Arturo le legge e cerca le ripetizioni: lo stesso file cambiato a intervalli regolari, gli stessi campi riscritti, gruppi di file toccati insieme. A fine lavoro, in `/fine`, ti propone un'automazione con le prove: le date, le modifiche, una bozza da leggere. Al massimo una proposta per sessione e due a settimana. Se dici sì, la bozza diventa una skill o una routine, e ogni automazione si annulla; se dici no, la stessa proposta non torna. Le versioni dei file e le bozze restano sul tuo computer: alla telemetria arrivano solo i conteggi delle proposte fatte, accettate e annullate.
+Claude Code tiene già una copia di ogni versione dei file che modifichi con lui. Arturo le legge e cerca le ripetizioni: lo stesso file cambiato a intervalli regolari, gli stessi campi riscritti, gruppi di file toccati insieme. A fine lavoro, in `/fine`, ti propone un'automazione con le prove: le date, le modifiche, una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza diventa una skill o una routine, che puoi sempre annullare; se dici no, la stessa proposta non torna. Le versioni dei file e le bozze restano sul tuo computer: alla telemetria arriveranno solo i conteggi delle proposte fatte, accettate e annullate, dopo il testo nuovo della privacy.
 
 <!-- task: #5615 -->
 

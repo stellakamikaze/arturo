@@ -378,6 +378,12 @@
           },
           {
             "type": "command",
+            "command": "python3 ~/.claude/hooks/scoperta-indice.py",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/bin/telemetria-esito.sh",
             "timeout": 10
           },

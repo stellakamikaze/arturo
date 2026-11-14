@@ -24,7 +24,7 @@ A chi lo usa Arturo fa tre promesse:
 
 1. **Si configura con te, senza codice**: lo installi incollando una frase in Claude Code, e `/setup` lo configura con te, una domanda per volta. Le regole di sicurezza ci sono dal primo minuto, quindi prima di un gesto che non si annulla, come cancellare una cartella o mandare un'email, Claude ti chiede un sì.
 2. **Ricorda i progetti fra una sessione e l'altra**: `/fine` chiude la sessione con un riepilogo e le cose da fare, e la mattina dopo `/inizio` riparte da lì, dallo stato vero dei file. Così un lavoro che dura settimane non si perde fra una conversazione e l'altra.
-3. **Ti propone cosa automatizzare**: oggi `/guidami` nota le richieste che tornano uguali da una sessione all'altra e te le propone come cose da delegare. Con la Scoperta, in arrivo ([roadmap](ROADMAP.md)), Arturo leggerà anche come cambiano i file su cui lavori, e ti porterà le prove: le date, le modifiche che ripeti, una bozza da leggere. Costruisce solo dopo il tuo sì, e ogni automazione si annulla.
+3. **Ti propone cosa automatizzare**: oggi `/guidami` nota le richieste che tornano uguali da una sessione all'altra e te le propone come cose da delegare. Con la Scoperta Arturo legge anche come cambiano i file su cui lavori, e quando trova un lavoro che ripeti, a fine sessione ti mostra le date e le modifiche, insieme a una bozza da leggere ([La Scoperta](#la-scoperta-arturo-scoperta)). La skill nasce solo dopo il tuo sì, e puoi sempre annullarla.
 
 La parte della configurazione che cresce con le tue correzioni e con i tuoi sì si chiama Orsa: come cresce lo spiega [Il ciclo dell'Orsa](#il-ciclo-dellorsa).
 
@@ -123,7 +123,7 @@ Ogni parte di Arturo ha un proprietario e una funzione. I todo, per esempio, son
 2. **Metodo**: Claude riscrive la richiesta prima di partire, si ferma davanti a un passo costoso e dice "fatto" solo dopo aver controllato. Queste regole entrano all'avvio della sessione, insieme allo stile Conciso e alle skill ([Le skill](#le-skill-skills)).
 3. **Memoria**: `/inizio` e `/fine`, gli handoff, i todo e, se la accendi, la memoria Melchior fanno ripartire ogni sessione dallo stato vero ([I comandi](#i-comandi-commands), [La memoria](#la-memoria-facoltativa)).
 4. **Collegamenti**: posta, agenda, documenti e pagine web entrano nel lavoro con i connettori di Google, con `/monitor`, che smista quello che ti arriva, e con `scrape`, che legge una pagina ([Collegare Gmail, Calendar e Drive](#collegare-gmail-calendar-e-drive-opzionale)).
-5. **Scoperta**: Arturo ti propone cosa automatizzare, con le prove, e costruisce solo col tuo sì. È la terza promessa: il progetto è scritto, e il codice è in fila nella [roadmap](ROADMAP.md).
+5. **Scoperta**: Arturo legge le versioni dei file che cambi e, quando un lavoro si ripete, ti propone di automatizzarlo mostrandoti le date e le modifiche; la skill nasce solo se dici sì ([La Scoperta](#la-scoperta-arturo-scoperta)). Questa è la prima versione, e quello che verrà dopo è nella [roadmap](ROADMAP.md).
 6. **Orsa**: la parte che è tua, cioè il `CLAUDE.md`, le aggiunte in `personale/`, le skill create con `/creaskill` e le regole sul tuo modo di scrivere (la sezione "Come scrivo" del `CLAUDE.md` e `personale/humanizer.md`). Nessun aggiornamento la tocca ([Personalizzazione](#personalizzazione)). L'Orsa è l'unica parte che sta su tutti e due i piani: è tua, ed è anche quello che Arturo fa crescere.
 
 Due parti servono a tutti gli strati. L'**ingresso** è l'installazione, `/setup` e gli aggiornamenti. La **misura** sono i banchi di prova, `/diagnosi`, la telemetria e `/segnala`: dicono a chi mantiene Arturo dove si inceppa.
@@ -139,7 +139,7 @@ Il nome Arturo viene da Arktouros, "il guardiano dell'orsa", la stella che i nav
 3. Se dici sì, la proposta entra nella tua Orsa, e ogni automazione si annulla; se dici no, la stessa proposta non torna.
 4. Dalla sessione dopo, Claude lavora con la regola, la skill o l'automazione che hai accettato.
 
-Oggi il ciclo gira in tre modi: quando correggi un testo riscritto, Claude ti propone di aggiungere la correzione a `personale/humanizer.md`; una correzione che vale sempre entra nel `CLAUDE.md` con `/fine`; e un lavoro che ripeti diventa una skill tua con `/creaskill`, oppure una proposta di `/guidami`. Quando sarà pronta, la Scoperta aggiungerà le proposte ricavate dalle versioni dei file.
+Oggi il ciclo gira in tre modi: quando correggi un testo riscritto, Claude ti propone di aggiungere la correzione a `personale/humanizer.md`; una correzione che vale sempre entra nel `CLAUDE.md` con `/fine`; e un lavoro che ripeti diventa una skill tua con `/creaskill`, oppure una proposta di `/guidami`. La Scoperta aggiunge un quarto modo: a ogni `/fine` può arrivare al massimo una proposta ricavata dalle versioni dei file.
 
 ---
 
@@ -378,7 +378,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 In tutto, Arturo porta:
 
-- **31 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **32 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **7 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
@@ -389,7 +389,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               31 guardie e automazioni, più 7 strumenti che usano
+hooks/               32 guardie e automazioni, più 7 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -452,6 +452,7 @@ Fuori dal dispatcher:
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `scheda-terminale.py` — il nome del progetto nel titolo della scheda, e il colore della scheda per lo stato: verde se Claude aspetta te, giallo mentre lavora, rosso se il turno si è fermato per un errore (API giù, limite raggiunto). Il colore c'è in Windows Terminal e in iTerm2, e lì il titolo è il solo progetto. Il titolo è il progetto: "LAVORANDO · arturo" mentre Claude lavora, anche a turno finito se aspetta un comando o un agente lanciato in background (l'hook lo legge dal transcript; un server lasciato acceso come vite non conta), e "SBLOCCA · arturo" quando Claude aspetta te: una richiesta di permesso, una domanda, un errore, o un minuto fermo. Dopo un permesso che hai concesso, "SBLOCCA" resta finché quel comando non finisce: Claude Code non avvisa gli hook quando la richiesta si chiude. Nel Terminale di macOS una scheda in secondo piano che aspetta te suona anche la campanella, e la prima sessione toglie dal titolo processo, cartella e indicatore di attività (`arturo schede`): crea il profilo "Arturo", copia del tuo, e lo mette su tutte le schede; `arturo schede ripristina` rimette quello di prima. Il progetto è quello che `/inizio` ha trovato (non le parole che hai scritto), oppure la cartella di progetto in cui Claude scrive i file. Su macOS l'hook scrive sul terminale della sessione di Claude Code, trovato risalendo i processi. Senza `/inizio` e senza file scritti vale il repository git, poi la cartella. Perché il titolo resti, `settings.json` spegne quello automatico di Claude Code (`CLAUDE_CODE_DISABLE_TERMINAL_TITLE`). In Windows Terminal non colora una scheda aperta con `--tabColor`.
 - `statusline.js` — statusline con modello abbreviato, task in corso, progetto@ramo (`*` se ci sono modifiche; il progetto è quello che ha trovato la scheda del terminale, e il ramo compare solo se il repository è quel progetto), uso del contesto, quota delle finestre di 5 ore e della settimana (con l'orario in cui le 5 ore si azzerano; quella settimanale da 75%) e la versione di Arturo in arrivo (controlla al massimo ogni ora). L'ultima quota letta resta in `cache/statusline/quota.json`, per `/guidami`.
+- `scoperta-indice.py` — PostToolUse su `Edit`, `MultiEdit`, `Write` e `NotebookEdit`: una riga nell'indice della Scoperta (`data/scoperta/indice.jsonl`) con ora, file, righe cambiate e nomi dei campi, mai il testo. Gira in background e non blocca mai ([La Scoperta](#la-scoperta-arturo-scoperta)).
 - `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
 - `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
 - `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria).
@@ -534,6 +535,10 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 **Il pannello dei todo (`/dafare`).** Scrivi `/dafare` e si apre un pannello con le tue cose da fare, per progetto. Con tanti progetti parte da **Adesso**: i progetti che chiedono te o sono a rischio, ognuno col todo da cui partire, poi le scadute. `v` passa a **Progetti**, un progetto per riga con la parola di stato (a rischio, chiede te, fermo, va), la frase e quante cose ha; `p` apre la stessa lista da ogni schermata. Con al massimo tre progetti il pannello parte dalla lista, con uno solo dal progetto. Il numero (o `j`, `k` ed `e`) apre un progetto: prima la catena dei todo legati da "dopo", nell'ordine dei passi, poi gli altri divisi come in `arturo todo`. Lì scegli una riga con il numero (o con `j` e `k`) e premi una lettera: `o` apre una finestra nuova del terminale con Claude già partito su quel todo (`arturo sessione`), `f` fatto, `s` ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla, Esc chiude. Una frase di stato calcolata dai todo, o scritta più di una settimana fa, lo dice. `/dafare libro` apre subito il progetto `libro`. Quando hai cose aperte, sopra il prompt compare una riga ("3 cose da fare · /dafare per vederle"): `/dafare nascondi` la spegne, `/dafare mostra` la riaccende. Il pannello scrive solo con la CLI `arturo todo`, chiede Claude Code 2.1.287 o successivo e si spegne con `dafare` in `~/.claude/arturo/parti.json`. La cartella `skills/arturo/` ha `.claude-plugin/plugin.json` al posto di `SKILL.md`: è un mod di Claude Code, non una skill, e non entra nel conteggio delle skill.
 
 ---
+
+### La Scoperta (`arturo scoperta`)
+
+Claude Code salva una copia di ogni versione dei file che modifica, per 30 giorni (`cleanupPeriodDays`). Arturo legge quelle copie e un suo indice, che l'hook `scoperta-indice.py` scrive dopo ogni modifica: ora, file, campi cambiati, mai il testo. `/inizio` prende anche un'impronta dei file di testo del progetto, e `/fine` la confronta per vedere le modifiche che hai fatto a mano. Da qui `/fine` cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Se ne trova una, a fine lavoro ti propone una skill con le date, i pezzi di modifica e una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Con un sì la bozza passa a `/creaskill`; con un no quella proposta non torna più; `arturo scoperta annulla ID` toglie la skill creata e la tiene da parte. `arturo scoperta stato` dice le proposte fatte e le risposte, `arturo scoperta escludi MODELLO` toglie una cartella o un file dalla ricerca (per esempio `~/Documents/Privato/*`). Tutto resta sul tuo computer, in `data/scoperta/`: per ora non esce niente, nemmeno i conteggi, che arriveranno alla telemetria solo dopo il testo nuovo della privacy.
 
 ### La memoria (facoltativa)
 

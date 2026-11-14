@@ -529,6 +529,7 @@ COMANDI = {
     "segnalazioni": (segnalazioni, "le segnalazioni partono da sole o solo dopo il tuo sì: automatiche, manuali; senza parole dice il modo"),
     "contatto": ("contatto", "il nome e l'email che dai agli sviluppatori di Arturo per ricontattarti sulle segnalazioni: imposta, togli, no"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
+    "scoperta": ("scoperta", "le automazioni che Arturo ti propone dalle versioni dei file che cambi: stato, analizza, rispondi, annulla, escludi"),
     "correzione": ("correzioni", "le correzioni della persona, scritte una volta e valide per tutta la sessione: aggiungi, elenco, togli"),
     "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano; col plugin anche omonimi e regole-doppie"),
     "memoria": ("memoria", "la memoria facoltativa (Melchior), spenta di default: stato, accendi, spegni, cerca, controlla"),

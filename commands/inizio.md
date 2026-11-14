@@ -169,6 +169,10 @@ Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
 resta dove sei.
 
+Dopo il `cd` lancia `python3 ~/.claude/bin/arturo scoperta impronta`: prende l'impronta dei file di testo
+del progetto, e `/fine` la confronta per vedere le modifiche fatte a mano (la Scoperta). La sua riga non
+va nella ripartenza.
+
 Se dopo il `cd` Claude Code risponde "Shell cwd was reset", la cartella sta fuori dalle cartelle
 della sessione e ogni comando torna alla cartella di partenza. Di' alla persona in una riga di
 scrivere `/add-dir <cartella>`, o di riaprire Claude Code da lì. Fino ad allora ogni comando, anche

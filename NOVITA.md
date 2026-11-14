@@ -13,6 +13,27 @@ modo di lavorare.
 
 ---
 
+## 2026-11-14 — La Scoperta: Arturo ti propone cosa automatizzare
+
+**Cosa cambia**: Claude Code tiene una copia di ogni versione dei file che modifichi con lui. Adesso Arturo le legge
+e cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli
+stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Le modifiche
+che fai a mano le vede confrontando i file fra `/inizio` e `/fine`. Quando trova una ripetizione, alla chiusura con
+`/fine` ti propone una skill e ti mostra le date, le parti cambiate e una bozza da leggere.
+
+Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza passa a `/creaskill`; se dici
+no, quella proposta non torna più. `arturo scoperta annulla ID` toglie la skill creata e la tiene da parte, e `arturo
+scoperta escludi` toglie una cartella dalla ricerca delle ripetizioni. Le copie di Claude Code e quelle dell'impronta di `/inizio` restano sul
+tuo computer, e l'indice di Arturo tiene i nomi dei file e dei campi cambiati, mai il testo. Per ora alla
+telemetria non arriva niente, neanche i conteggi.
+
+**Il principio**: ogni proposta arriva con le date e le modifiche che la giustificano, così decidi tu guardando le prove; senza il tuo sì Arturo non crea niente.
+
+**A chi serve**: a chi aggiorna gli stessi documenti ogni settimana o ogni mese, come un report, una fattura o
+un calendario, e lo fa ogni volta da capo.
+
+---
+
 ## 2026-11-14 — Il README parte da cosa fa Arturo, e gli strati hanno nomi nuovi
 
 **Cosa cambia**: il README parte dalle tre promesse di Arturo: si configura con te senza codice, ricorda i

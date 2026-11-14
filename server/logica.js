@@ -80,13 +80,13 @@ export const DERIVA_NOMI = {
     "comms-prefilter.py", "context-monitor.js", "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "emoji_remover.py",
     "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py", "heredoc.py", "inject-now.sh",
     "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py", "memory-autoload.py", "memory-retrieve.py", "memory-write-scanner.py",
-    "metodo.sh", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py", "session-end.sh", "session-start.sh",
+    "metodo.sh", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py", "scoperta-indice.py", "session-end.sh", "session-start.sh",
     "statusline.js", "subagent-memory-context.py", "typecheck-after-edit.py", "web-egress-guard.py"],
 };
 // Gli hook che il settings.json di Arturo dichiara (hook_dichiarati in hooks/deriva.py), più "tutti" per disableAllHooks.
 export const DERIVA_HOOK = ["agente-worktree.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "context-monitor.js", "credential-leak-scanner.py",
   "emoji_remover.py", "gws-esito.py", "gws-token-health.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "memory-retrieve.py",
-  "memory-write-scanner.py", "prompt-injection-scanner.py", "protect_claude_md.py", "scheda-terminale.py", "session-end.sh",
+  "memory-write-scanner.py", "prompt-injection-scanner.py", "protect_claude_md.py", "scheda-terminale.py", "scoperta-indice.py", "session-end.sh",
   "session-start.sh", "subagent-memory-context.py", "typecheck-after-edit.py", "web-egress-guard.py"];
 
 // Il valore della deriva che si salva: un nome fuori elenco diventa `file:altro` o `hook:altro`, come nel client. Non si

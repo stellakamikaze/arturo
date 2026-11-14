@@ -243,6 +243,13 @@ non si chiede: le note aspettano nella sezione `## Note in attesa del sì` dell'
 dalla persona propone anche quelle ancora nella sezione degli handoff precedenti, di qualunque giorno, e al sì
 le toglie dalla sezione.
 
+**La Scoperta.** Lancia sempre `python3 ~/.claude/bin/arturo scoperta confronta`: salva le modifiche fatte a
+mano dall'impronta di `/inizio`. Fuori dal Modo rotazione lancia poi `python3 ~/.claude/bin/arturo scoperta
+proponi`. Con exit 3 taci. Con exit 0 il blocco `SCOPERTA` va nella Chiusura, dopo la Memoria: la frase,
+le prove e la bozza come le stampa, poi "scrivimi **scoperta sì** e la costruiamo con /creaskill, **scoperta
+no** e non torna più". Al sì lancia `arturo scoperta rispondi <ID> si` e segui `/creaskill` partendo dalla
+bozza; a skill creata, `arturo scoperta creata <ID> <cartella della skill>`. Al no, `rispondi <ID> no`.
+
 ## FASE 9 · Config Sync, in una chiamata
 
 Dopo le fasi 4-8, o subito con l'uscita breve. Se `ListAgents` mostra un'altra sessione viva su questa
