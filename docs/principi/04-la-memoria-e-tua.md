@@ -34,8 +34,8 @@ Arturo sceglie il secondo posto, per le ragioni del capitolo 00.
 - **Le cose da fare** stanno nell'archivio dei todo (`arturo todo`), con scritto chi agisce.
 - **Le tue aggiunte ai comandi** stanno in `personale/`. Gli aggiornamenti di Arturo non le
   toccano.
-- **Le note che Claude Code prende da solo** diventano utili ovunque se accendi la memoria
-  facoltativa (`arturo memoria accendi`). È spenta finché non la accendi tu. Legge le note dove
+- **Le note che Claude Code prende da solo** diventano utili ovunque con la memoria di
+  Arturo, accesa di default: `arturo memoria spegni` la spegne. Legge le note dove
   sono, in `~/.claude/projects/*/memory/`, in `~/.claude/data/memory/` e nelle cartelle che
   aggiungi: non le copia e non le sposta.
 

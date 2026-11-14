@@ -26,8 +26,9 @@ Ogni cosa ricordata è una nota: un file di testo con poche righe in testa e il 
 - Ogni nota che Claude scrive passa da un controllo. Se dentro c'è una password, o un testo che
   prova a dare ordini a Claude di nascosto, Claude riceve un avviso. La nota resta scritta, e Claude la può correggere.
 
-Per ora la memoria parte spenta e la accendi tu: `arturo memoria accendi`. `arturo memoria spegni`
-la spegne, e le note restano dove sono.
+La memoria è accesa di default dal 14 novembre 2026, e la prima sessione te lo dice. `arturo memoria
+spegni` la spegne, e le note restano dove sono. Se l'hai spenta, resta spenta anche dopo un
+aggiornamento: `arturo memoria accendi` la riaccende.
 
 ## Dove stanno le note
 

@@ -1,4 +1,4 @@
-"""arturo memoria: la memoria facoltativa di Arturo. È spenta finché non la accendi.
+"""arturo memoria: la memoria di Arturo. È accesa di default, e "arturo memoria spegni" la spegne.
 
 Arturo usa Melchior, la stessa memoria della config di chi lo mantiene: lo stesso codice, in
 hooks/melchior_match.py e negli hook qui sotto. Cosa fa quando è accesa:
@@ -67,12 +67,7 @@ def leggi_impostazioni() -> dict:
     return mm.leggi_impostazioni()
 
 
-def scrivi_impostazioni(dati: dict) -> None:
-    f = file_impostazioni()
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f.name + ".tmp")
-    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    os.replace(str(tmp), str(f))
+scrivi_impostazioni = mm.scrivi_impostazioni
 
 
 def da_ambiente():
@@ -209,7 +204,12 @@ def controlla(dirs=None) -> dict:
 def stato() -> int:
     env = da_ambiente()
     acc = accesa()
-    perche = " (lo decide ARTURO_MEMORIA nell'ambiente)" if env is not None else ""
+    if env is not None:
+        perche = " (lo decide ARTURO_MEMORIA nell'ambiente)"
+    elif not isinstance(leggi_impostazioni().get("accesa"), bool):
+        perche = " (di default)"
+    else:
+        perche = ""
     print(f"Memoria: {'accesa' if acc else 'spenta'}{perche}.")
     native = cartelle_native()
     mie = cartelle_mie()

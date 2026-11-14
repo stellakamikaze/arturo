@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-14 — La memoria è accesa di default
+
+**Cosa cambia**: la memoria di Arturo adesso parte accesa. Arturo ricorda i tuoi progetti su questo computer: le
+decisioni, gli errori già visti, le tue preferenze. La prima sessione dopo l'aggiornamento te lo dice una volta,
+in una riga. `/setup` non te lo chiede più. Se l'avevi spenta con `arturo memoria spegni`, resta spenta. Se invece
+non l'avevi mai accesa, ora si accende: per spegnerla basta chiederlo a Claude, e le note restano dove sono.
+Cosa ricorda e cosa esce dal computer sta in [`docs/memoria.md`](docs/memoria.md).
+
+**Il principio**: la promessa "ricorda i tuoi progetti" vale solo se la memoria lavora senza che tu la accenda.
+
+**A chi serve**: a chi apre una sessione nuova e vuole ritrovare decisioni e cose già viste senza rispiegarle.
+
+---
+
 ## 2026-11-14 — Lancillotto esce da Arturo
 
 **Cosa cambia**: `/setup` non propone più Lancillotto, l'app per Mac che annotava come lavori. Il server di Arturo

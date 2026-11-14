@@ -56,7 +56,7 @@ Un plugin di Claude Code vive in `~/.claude/plugins/`, fuori dai file della pers
 - Un testo di Arturo indica il codice con `${CLAUDE_SKILL_DIR}/../../bin/...`. Vale nel plugin e nel clone, e Claude Code lo risolve prima della lettura, anche per il tool Read.
 - Negli script e negli hook vale `ARTURO_CODICE`: l'hook di avvio lo calcola dalla sua cartella e lo scrive in `$CLAUDE_ENV_FILE` insieme al PATH di `bin/`.
 - Negli script Python le due radici vengono da `hooks/radici.py`: `radice_arturo()` è la cartella del codice, `radice_orsa()` è `CLAUDE_CONFIG_DIR` o `~/.claude`. Un messaggio con un comando per la persona usa `comando_arturo()`. Da `bin/` si importa con `sys.path.append(<bin>/../hooks)`. Il banco ST08 vieta `Path.home() / ".claude"` e `$HOME/.claude/hooks|bin` scritti a mano, salvo le eccezioni che elenca col motivo.
-- La memoria (`memoria_accesa()` in `hooks/melchior_match.py`) la decidono `ARTURO_MEMORIA` e `"accesa"` in `data/memoria/impostazioni.json`, altrimenti è spenta. Cosa ricorda, lo schema delle note e cosa esce dal computer: [`memoria.md`](memoria.md).
+- La memoria (`memoria_accesa()` in `hooks/melchior_match.py`) la decidono `ARTURO_MEMORIA` e `"accesa"` in `data/memoria/impostazioni.json`, altrimenti è accesa. Cosa ricorda, lo schema delle note e cosa esce dal computer: [`memoria.md`](memoria.md).
 
 ## Gli altri documenti
 

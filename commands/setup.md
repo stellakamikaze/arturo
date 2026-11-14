@@ -278,39 +278,33 @@ I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo 
 
 ---
 
-## FASE 7d — La memoria (opzionale)
+## FASE 7d — La memoria (accesa di default)
 
-Proposta sempre nella bozza della FASE 5. Il ritratto non entra nelle note senza un sì a parte.
+Niente domanda: la memoria è accesa di default dal 14 novembre 2026. Il ritratto non entra nelle
+note senza un sì a parte.
 
 Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso,
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
 Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
 Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu (contratto
-in `docs/memoria.md`). Spiegalo così, in parole semplici:
+in `docs/memoria.md`). Le note stanno su questo computer e mai nella telemetria; quelle che Claude
+apre vanno ad Anthropic con la conversazione.
 
-- quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
-  a Claude dove sono. Claude le apre solo se servono;
-- ogni nota e ogni handoff che Claude scrive passa da un controllo: se dentro c'è una password o
-  un'istruzione nascosta, Claude riceve un avviso;
-- le note stanno su questo computer e mai nella telemetria. Quelle che Claude apre vanno ad
-  Anthropic con la conversazione;
-- è spenta finché non dici sì, e si spegne con un comando.
-
-Mostra lo stato e chiedi: "Vuoi accendere la memoria?".
+Leggi lo stato senza mostrarlo:
 
 ```bash
 python3 ~/.claude/bin/arturo memoria stato
 ```
 
-- Se sì, accendila e mostra l'esito:
-  ```bash
-  python3 ~/.claude/bin/arturo memoria accendi
-  ```
-  Se l'utente tiene già note sue in una cartella (markdown con `name` e `description` in testa),
-  chiedi il percorso e aggiungila con `python3 ~/.claude/bin/arturo memoria cartella aggiungi <percorso>`.
-  Digli che `arturo memoria cerca "parole"` cerca a mano, `arturo memoria controlla` trova note
-  senza descrizione e link rotti, e `arturo memoria spegni` la spegne.
-- Se no, salta senza insistere: non cambia niente.
+- Se è accesa, di' alla persona una riga sola, senza comandi: "Arturo ricorda i tuoi progetti su
+  questo computer: decisioni, errori già visti, preferenze. Se vuoi spegnerla, dimmelo." Se l'avvio
+  della sessione l'ha già detto (la riga `MEMORIA:`), non ripeterla.
+- Se è spenta, la persona l'ha spenta lei: non riaccenderla e non chiedere.
+- Se la persona chiede di spegnerla, lancia tu `python3 ~/.claude/bin/arturo memoria spegni` e
+  mostra l'esito: le note restano dove sono.
+- Se la persona dice che tiene già note sue in una cartella (markdown con `name` e `description`
+  in testa), chiedi il percorso e aggiungila con
+  `python3 ~/.claude/bin/arturo memoria cartella aggiungi <percorso>`.
 
 ---
 
