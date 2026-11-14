@@ -377,9 +377,8 @@ esci(ok=True)
 
 # Su una macchina: il lavoro di claude agents che tiene la conversazione `sid`, e il percorso di claude.
 # {"id", "pid", "claude"} oppure {"nessuno": true}. Con "vivo" aspetta fino a 30 s che abbia un processo.
-TROVA = COMUNE + "\n" + vs.ELENCO.strip() + r'''
-fine = ".exe" if os.name == "nt" else ""
-cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+TROVA = COMUNE + "\n" + vs.ELENCO.strip() + "\n" + vs.CERCA_CLAUDE.strip() + r'''
+cl = trova_claude()
 visto = None
 for giro in range(15 if a.get("vivo") else 1):
     try:
@@ -539,7 +538,13 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     if occupata:
         return occupata
     # Da qui la sessione si ferma: ogni errore la riprende su DA.
-    vs.azione(da, "stop", id_lavoro)  # una sessione già ferma risponde con un errore: si va avanti
+    fermata = vs.azione(da, "stop", id_lavoro)
+    if fermata.get("errore"):
+        # Una sessione già ferma risponde con un errore, e si va avanti. Se ha ancora un processo, lo stop
+        # non l'ha fermata: portarla avanti la lascerebbe viva su due macchine (#5574, 14/11/2026).
+        ora = esegui(da, TROVA, {"sid": sid})
+        if ora.get("errore") or ora.get("pid"):
+            return {"errore": "claude stop non ferma la sessione su %s: %s; resta lì" % (vs.chi(da), fermata["errore"])}
     def torna(perche):
         r = riprendi_su(da, sid, cartella, titolo)
         dove = "riaperta su %s" % vs.chi(da) if not r.get("errore") else "e non si riapre su %s: %s" % (vs.chi(da), r["errore"])

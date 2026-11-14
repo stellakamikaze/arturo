@@ -169,6 +169,17 @@ def elenco(testo):
 '''
 exec(ELENCO)
 
+# La ricerca di claude, una sola per il mod (#5576, 14/11/2026): qui con exec, come ELENCO, e negli
+# script che girano sulle macchine al posto di #CLAUDE#. Prima i gesti su questa macchina cercavano solo
+# nel PATH, che sul Mac non ha ~/.local/bin quando Herdr parte dal Dock.
+CERCA_CLAUDE = r'''
+def trova_claude():
+    """claude come lo trova il PATH, altrimenti dove lo mette l'installatore (~/.local/bin)."""
+    fine = ".exe" if os.name == "nt" else ""
+    return shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+'''
+exec(CERCA_CLAUDE)
+
 # Gira sulla macchina da leggere (anche con hc exec, passata in base64). Stampa un JSON:
 # {"claude": percorso o null, "sessioni": [...]} con progetto e ultime parole letti dai file di Claude,
 # oppure {"errore"} se claude agents non dà l'elenco: la macchina è irraggiungibile, non vuota.
@@ -177,7 +188,8 @@ SONDA = r'''
 import glob, json, os, re, shutil, subprocess, sys, time
 scade =time.time() + (T if "T" in globals() else 40)
 fine = ".exe" if os.name == "nt" else ""
-cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+#CLAUDE#
+cl = trova_claude()
 if not os.path.exists(cl):
     print(json.dumps({"claude": None, "sessioni": []})); raise SystemExit
 radice = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
@@ -466,7 +478,7 @@ if rotta:
 print(json.dumps(uscita))
 '''
 SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())
-SONDA = SONDA.replace("#ELENCO#", ELENCO.strip())
+SONDA = SONDA.replace("#ELENCO#", ELENCO.strip()).replace("#CLAUDE#", CERCA_CLAUDE.strip())
 
 
 def senza_commenti(codice):
@@ -488,7 +500,8 @@ a = json.loads(base64.b64decode(sys.argv[1]).decode("utf-8"))
 def esci(**d):
     print(json.dumps(d)); raise SystemExit
 fine = ".exe" if os.name == "nt" else ""
-cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+#CLAUDE#
+cl = trova_claude()
 if not os.path.exists(cl):
     esci(errore="Claude Code non c'è su questa macchina")
 casa = os.path.expanduser("~")
@@ -596,7 +609,7 @@ if a.get("progetto"):
                {"stato": "nuova", "progetto": a["progetto"], "fonte": "volta", "quando": time.time()})
 esci(id=corto, sessionId=sid, claude=cl, cartella=base)
 '''
-NASCI = NASCI.replace("#ELENCO#", ELENCO.strip())
+NASCI = NASCI.replace("#ELENCO#", ELENCO.strip()).replace("#CLAUDE#", CERCA_CLAUDE.strip())
 
 # Gira sulla macchina della sessione (anche con hc exec): scrive il nome o il progetto che la persona le
 # ha dato dalla finestra (#5292). L'argomento è un JSON in base64: {"cosa": "titolo" | "scheda",
@@ -674,7 +687,8 @@ import json, os, re, shutil, subprocess, sys, time
 def esci(**d):
     print(json.dumps(d)); raise SystemExit
 fine = ".exe" if os.name == "nt" else ""
-cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+#CLAUDE#
+cl = trova_claude()
 if not os.path.exists(cl):
     esci(errore="Claude Code non c'è su questa macchina")
 casa = os.path.expanduser("~")
@@ -723,6 +737,7 @@ for _ in range(40):
         esci(acceso=True, come=come)
 esci(errore="il servizio di Claude non si accende (%s)" % come)
 '''
+SERVIZIO = SERVIZIO.replace("#CLAUDE#", CERCA_CLAUDE.strip())
 
 # Le attese di una nascita (#5214): ogni fase ha il suo tetto, e dati.js (nasciSu) aspetta la somma più
 # un margine. Il servizio si ferma al suo tetto prima di far nascere la sessione, così una nascita già
@@ -1330,11 +1345,13 @@ ID = re.compile(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}")
 CLAUDE_FUORI_PATH = r'''
 import os, shutil, subprocess, sys
 fine = ".exe" if os.name == "nt" else ""
-cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+#CLAUDE#
+cl = trova_claude()
 if not os.path.exists(cl):
     sys.stderr.write("Claude Code non c'è su questa macchina\n"); raise SystemExit(127)
 raise SystemExit(subprocess.call([cl] + sys.argv[1:], stdin=subprocess.DEVNULL))
 '''
+CLAUDE_FUORI_PATH = CLAUDE_FUORI_PATH.replace("#CLAUDE#", CERCA_CLAUDE.strip())
 
 
 def claude_remoto(nome, args, entro):
@@ -1374,7 +1391,7 @@ def azione(nome, verbo, sid):
             return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
     try:
         if qui:
-            rc, out, err = lancia([shutil.which("claude") or "claude", verbo, sid], timeout=ATTESA_AZIONE)
+            rc, out, err = lancia([trova_claude(), verbo, sid], timeout=ATTESA_AZIONE)
         else:
             rc, out, err = claude_remoto(nome, [verbo, sid], time.monotonic() + ATTESA_AZIONE)
     except (OSError, subprocess.SubprocessError) as e:

@@ -576,6 +576,38 @@ export function stacca(s) {
   return l.length;
 }
 
+// Stacca l'aggancio di una scheda ferma e lascia la scheda (F3.2 di #5587, daStaccare di sessioni.js):
+// Ctrl+Z, che claude attach legge come "torna alla shell". La sessione continua, la bozza resta, e
+// all'uscita claude attach spegne mouse, schermo alternativo e tastiera kitty. Un segnale invece (TERM,
+// HUP, INT) lo chiude senza spegnerli, e la shell riceverebbe il mouse come testo (prova del 14/11/2026).
+// Il tasto parte solo se in primo piano gira davvero l'aggancio di `s` (anche dentro ssh): mai dentro
+// un altro programma, a cui Ctrl+Z sospenderebbe il lavoro. Su Windows il primo piano resta pwsh:
+// lì decide lo schermo, come in nuda(). Torna { ok }, { gia } se la scheda ha già la shell, o { errore }.
+const STACCO_ATTESA = 1500;
+export async function staccaAggancio(indirizzo, s) {
+  let d;
+  try {
+    const r = await hc(["get", indirizzo, "--json"]);
+    if (r.code !== 0) return { errore: "la scheda non risponde" };
+    d = JSON.parse(r.stdout);
+  } catch (e) {
+    return { errore: String(e?.message ?? e).slice(0, 120) };
+  }
+  if (d.state !== "live") return { errore: "la scheda non è viva" };
+  if (shellPowerShell(d.argv?.[0])) {
+    if (await nuda(indirizzo)) return { gia: true };
+    if (!agganciata(d.argv, s)) return { errore: "la scheda non è nata per agganciare questa sessione" };
+  } else {
+    const f = d.foreground;
+    if (!f || f.pid === d.pid) return { gia: true };
+    if (!agganciata(f.argv, s)) return { errore: "in primo piano non c'è l'aggancio di questa sessione" };
+  }
+  const k = await hc(["keys", indirizzo, "ctrl+z"]);
+  if (k.code !== 0) return { errore: "il tasto non arriva alla scheda" };
+  await pausa(STACCO_ATTESA);
+  return (await nuda(indirizzo)) ? { ok: true } : { errore: "claude attach non si è staccato" };
+}
+
 // I terminali che chiude Volta stessa (Stacca, Sposta, Cambia progetto, Chiudi del menu): la guardia del
 // congedo (volta.js, sparite() di sessioni.js) non li prende per una scheda chiusa da chi usa la finestra.
 // In shared: le schede le chiude la barra, ma un comando può arrivare da un'altra copia del mod.
@@ -683,8 +715,19 @@ export async function svuotaRegistro(py) {
   }
 }
 
-// Un'attesa: il mod non ha un orologio fuori da cx.timer, e qui cx non c'è.
-async function pausa(ms) {
+// L'orologio del mod: cx.sleep del contesto che main.js riceve in init e che vale anche dopo un await
+// (#5579, 14/11/2026). Prima ogni attesa lanciava un processo Python, fino a dieci per apertura, e senza
+// Python la ricerca della scheda finiva subito. Senza orologio, o con il contesto di una copia ricaricata
+// che non vale più, resta l'attesa con Python.
+/** @type {((ms: number) => Promise<void>) | null} */
+let orologio = null;
+/** @param {((ms: number) => Promise<void>) | null} f */
+export function impostaDormi(f) { orologio = typeof f === "function" ? f : null; }
+
+export async function pausa(ms) {
+  if (orologio) {
+    try { return await orologio(ms); } catch (e) { orologio = null; registra("pausa", { esito: "orologio", errore: String(e instanceof Error ? e.message : e) }); }
+  }
   try {
     const c = await config();
     await exec(c.arturo[0], ["-c", "import sys,time;time.sleep(float(sys.argv[1]))", String(ms / 1000)], { timeout: ms + 10000 });

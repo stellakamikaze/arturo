@@ -25,6 +25,7 @@ import { Note } from "./noteui.js";
 import { Casa } from "./casa.js";
 import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
 import { Contesto } from "./contestoui.js";
+import { impostaDormi } from "./dati.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
@@ -34,6 +35,8 @@ const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, pied
 
 export default class Arturo extends View {
   init(p, cx) {
+    // le attese di dati.js (pausa) con cx.sleep invece di un processo Python (#5579)
+    impostaDormi((/** @type {number} */ ms) => cx.sleep(ms));
     const Parte = PARTI[props()?.parte] ?? (props()?.overlay ? Apri : Barra);
     this.nome = props()?.parte;
     this.parte = new Parte();

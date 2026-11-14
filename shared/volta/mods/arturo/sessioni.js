@@ -314,6 +314,30 @@ export function sparite(prima, adesso, tolti = {}, ora = Date.now()) {
   return out;
 }
 
+// Lo stacco delle schede ferme (F3.2 di #5587, deciso da Federico il 14/11/2026): un claude attach aperto
+// impedisce al servizio di Claude di ritirare la sessione dopo un'ora ferma, e la sessione tiene 350-600 MB.
+// Una scheda che aggancia una sessione ferma da STACCA_DOPO_MS si stacca con Ctrl+Z di claude attach: esce
+// pulito, spegne i modi del terminale e la bozza resta nella sessione. La scheda resta con la shell, e il
+// clic sulla riga o sulla scheda rilancia l'aggancio. `schede`: { indirizzo: sessione } di schedeAgganciate.
+// `opz`: { davanti: l'indirizzo in primo piano, che chi guarda sta usando; visti: Set dei terminali in un
+// pannello, perché un terminale fuori dalle schede (un Terminale col lanciatore) non è una scheda;
+// no: Set di indirizzi da non riprovare }. Torna [{ indirizzo, s }], prima la più vecchia.
+export const STACCA_DOPO_MS = 45 * 60000;
+export function daStaccare(schede, sessioni, adesso, opz = {}) {
+  const soglia = adesso - STACCA_DOPO_MS;
+  const l = sessioni ?? [];
+  const out = [];
+  for (const [indirizzo, c] of Object.entries(schede ?? {})) {
+    if (!c || indirizzo === opz.davanti || opz.no?.has(indirizzo) || (opz.visti && !opz.visti.has(indirizzo))) continue;
+    // macchina e id insieme: dopo uno spostamento lo stesso id c'è su due macchine (#5634)
+    const s = l.find((x) => x.id === c.id && x.host === c.host);
+    if (!s || s.tipo !== "background" || s.vecchia || chiusa(s) || s.stato !== "ferma" || s.aspetta || lavoroInCorso(s.coda)) continue;
+    const t = interazione(s);
+    if (t > 0 && t <= soglia) out.push({ indirizzo, s, t });
+  }
+  return out.sort((a, b) => a.t - b.t).map(({ indirizzo, s }) => ({ indirizzo, s }));
+}
+
 // Un passo del congedo, deciso dallo stato di adesso. `c`: { sessionId, id, host, fase, da, dal } con fase
 // "attende" (lavorava quando l'hai chiusa: finisce il turno), "fine" (ripresa con /fine), "ferma" (claude
 // stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, salvata?, avviso? } con fai:
@@ -863,9 +887,16 @@ export function nuoveInAttesa(prima, dopo) {
 
 // Lo stato di ogni sessione per id corto, per le parti che agganciano una sessione in background in
 // una scheda: lì Herdr non ha lo stato del terminale, e lo prendono da qui (shared arturo.volta.stati).
+// Lo stesso id su due macchine (una sessione spostata, #5577): resta la copia che non è ferma, come in
+// unaPerConversazione; prima vinceva l'ultima dell'elenco, e la scheda mostrava ferma la copia viva.
 export function statiCorti(dati) {
+  /** @type {Record<string, { stato: string, host: string }>} */
   const out = {};
-  for (const s of dati?.sessioni ?? []) if (s.id && !s.vecchia) out[s.id] = { stato: s.stato, host: s.host };
+  for (const s of dati?.sessioni ?? []) {
+    if (!s.id || s.vecchia) continue;
+    if (out[s.id] && out[s.id].stato !== "ferma" && s.stato === "ferma") continue;
+    out[s.id] = { stato: s.stato, host: s.host };
+  }
   return out;
 }
 

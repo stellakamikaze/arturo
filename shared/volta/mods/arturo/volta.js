@@ -24,14 +24,14 @@ import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } f
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro } from "./dati.js";
+import { schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda } from "./dati.js";
 import { voloSposta, VOLO_FRESCO_MS } from "./sessioni.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 import { run, panes } from "herdr";
-import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca } from "./sessioni.js";
+import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
 
@@ -71,7 +71,8 @@ export async function controllaMod(py) {
   } catch { /* l'esito sta in mod-stato.json */ }
   try {
     const r = await exec(py, [script, "stato"], { timeout: 20000 });
-    const d = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+    // l'ultima riga JSON, come dati.js (#5578): un avviso stampato dopo il JSON non perde lo stato
+    const d = esito(r);
     if (d.sorgente) setShared("arturo.mod", { corta: d.installato?.corta ?? null, installato: d.installato?.installato ?? null,
       esito: d.esito ?? null, giu_da: d.giu_da ?? null, motivo: d.motivo ?? null, modo: d.modo ?? null,
       programmi: d.programmi ?? null });
@@ -179,10 +180,11 @@ export class Volta {
     // la scheda in primo piano cambiata (un clic in testata, ⌘⇧↓): la riga accesa la segue
     cx.timer.every(OGNI_FUOCO, (cx) => {
       const k = focused()?.terminal ?? null;
-      if (k !== this.fuoco) { this.fuoco = k; cx.notify(); }
+      if (k !== this.fuoco) { this.fuoco = k; cx.notify(); this.riaggancia(k, cx); }
       this.davanti(k);
     });
     cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));
+    cx.timer.every(OGNI_AUTO, (cx) => this.staccaFerme(cx));
     cx.timer.every(OGNI_AUTO, (cx) => { this.avvisaNascite(); this.chiudiOrfani(cx); });
   }
 
@@ -391,6 +393,53 @@ export class Volta {
     finally { this.autoLavora = false; }
   }
 
+  // Lo stacco delle schede ferme (F3.2 di #5587, daStaccare di sessioni.js): ogni minuto, le schede che
+  // agganciano una sessione ferma da 45 minuti lasciano andare claude attach, così il servizio di Claude
+  // la ritira dopo un'ora. La scheda resta con la shell. Le schede staccate da Volta stanno in shared
+  // arturo.volta.staccate ({ indirizzo: { id, host, da } }, così restano anche se il mod si ricarica):
+  // quando una torna in primo piano, riaggancia() rilancia l'aggancio. Una scheda che non si stacca non
+  // si riprova finché il mod non si ricarica, e lo dice il registro.
+  async staccaFerme(cx) {
+    if (this.staccoLavora || !this.dati || !this.schede) return;
+    this.staccoLavora = true;
+    try {
+      const prima = shared("arturo.volta.staccate") ?? {};
+      // via le schede chiuse e quelle riagganciate da un'altra strada (il clic sulla riga)
+      const tieni = {};
+      for (const [a, v] of Object.entries(prima)) if (a in this.schede && (await nuda(a))) tieni[a] = v;
+      this.noStacco = this.noStacco ?? new Set();
+      const visti = new Set(panes().map((p) => p.terminal));
+      const no = new Set([...this.noStacco, ...Object.keys(tieni)]);
+      const l = daStaccare(this.schede, this.dati.sessioni, Date.now(), { davanti: focused()?.terminal ?? null, visti, no });
+      for (const { indirizzo, s } of l) {
+        const r = await staccaAggancio(indirizzo, s).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 120) }));
+        // una scheda che ha già la shell (aggancio caduto da solo) non si segna: il clic sulla riga la riapre
+        if (r.gia) continue;
+        registra("stacco", { macchina: s.host, sid: s.id, terminale: indirizzo, esito: r.errore ? "errore" : "ok", errore: r.errore });
+        if (r.errore) this.noStacco.add(indirizzo);
+        else if (r.ok) tieni[indirizzo] = { id: s.id, host: s.host, da: Date.now() };
+      }
+      if (JSON.stringify(tieni) !== JSON.stringify(prima)) setShared("arturo.volta.staccate", tieni);
+    } finally { this.staccoLavora = false; }
+  }
+
+  // Una scheda staccata da staccaFerme torna in primo piano (un clic sulla scheda, ⌘⇧↓): l'aggancio
+  // riparte da solo, con la strada del clic sulla riga (apri), che accende il servizio e risveglia una
+  // sessione già ritirata.
+  riaggancia(indirizzo, cx) {
+    const st = shared("arturo.volta.staccate") ?? {};
+    const v = indirizzo ? st[indirizzo] : null;
+    if (!v) return;
+    const resto = { ...st };
+    delete resto[indirizzo];
+    setShared("arturo.volta.staccate", resto);
+    const s = (this.dati?.sessioni ?? []).find((x) => x.id === v.id && x.host === v.host);
+    if (!s || chiusa(s) || !Array.isArray(s.attach) || !s.attach.length) return;
+    if (this.sposto[s.sessionId] || this.apro[s.sessionId] || this.veglio[s.sessionId]) return;
+    registra("riaggancio", { macchina: s.host, sid: s.id, terminale: indirizzo });
+    this.apri(s, s.attach, false, cx);
+  }
+
   // Il ponte del microfono: acceso finché la scheda in primo piano aggancia una sessione di un'altra
   // macchina, spento un minuto dopo. Lo stato va in shared arturo.microfono, per la riga dell'elenco.
   async microfono(cx) {
@@ -402,13 +451,15 @@ export class Volta {
     this.mic = st;
     if (!azione) return this.dicoMicrofono(spento, cx);
     this.micLavora = true;
-    let esito = null;
+    let risposta = null;
     try {
       const r = await exec(this.py, [this.micScript, azione.verbo, ...(azione.target ? [azione.target] : [])], { timeout: 20000 });
-      esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
-    } catch { esito = { stato: "errore", motivo: "non riesco a lanciare il ponte" }; }
+      // l'ultima riga JSON, come dati.js (#5578): prima un avviso dopo il JSON dava "non riesco a lanciare il ponte"
+      const d = esito(r);
+      risposta = d.errore && !d.stato ? { stato: "errore", motivo: d.errore } : d;
+    } catch { risposta = { stato: "errore", motivo: "non riesco a lanciare il ponte" }; }
     this.micLavora = false;
-    if (this.mic && azione.verbo === "accendi") this.mic = { ...this.mic, stato: esito.stato ?? "avvio", motivo: esito.motivo ?? null };
+    if (this.mic && azione.verbo === "accendi") this.mic = { ...this.mic, stato: risposta.stato ?? "avvio", motivo: risposta.motivo ?? null };
     this.dicoMicrofono(spento, cx);
   }
 
@@ -1153,8 +1204,11 @@ export class Volta {
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) ?? { address: f.terminal } : null;
     this.acceso = corrente(this.giroSt, sessioneDavanti(scheda, this.dati?.sessioni ?? [])?.sessionId ?? null, Date.now());
+    // il guasto del giro della sonda, o quello della lettura dell'elenco dopo il giro (#5575): prima il
+    // secondo restava nel registro, e la colonna mostrava un elenco vecchio come se fosse fresco
+    const guasto = this.errore || this.erroreLettura;
     let corpo;
-    if (!this.dati) corpo = div().id("volta-vuoto").px(MARGINE + SPAZIO.m).py(SPAZIO.s).text_size(TESTO.corpo).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
+    if (!this.dati) corpo = div().id("volta-vuoto").px(MARGINE + SPAZIO.m).py(SPAZIO.s).text_size(TESTO.corpo).text_color(t.muted).child(guasto ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
     else if (!lista.length) corpo = div().id("volta-vuoto").px(MARGINE + SPAZIO.m).py(SPAZIO.s).text_size(TESTO.corpo).text_color(t.muted).whitespace_normal().child(`Nessuna sessione aperta. Nuova richiesta ne apre una; un progetto si apre da Cerca (${tasti().apri}) o dalle tessere (${tasti().tessere}).`);
     // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui l'altezza
     // non arriva: lì non scorreva.
@@ -1167,7 +1221,7 @@ export class Volta {
       .on_mouse_up("left", (_e, cx) => { if (this.trascino) this.finisciTrascino(null, modo, cx); })
       .on_hover((h, cx) => { if (!h && this.trascino) this.finisciTrascino(null, modo, cx); })
       .children(lista.map((g) => this.gruppo(t, g, modo, cx, aperto)));
-    const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
+    const vecchio = this.dati && guasto && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
     const gesti = this.pannello(t);
     return v_flex().id("volta").flex_1().min_h(0).gap(6)
       .child(this.interruttore(t))
