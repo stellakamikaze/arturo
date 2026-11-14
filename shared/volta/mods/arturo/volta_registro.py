@@ -2,7 +2,8 @@
 
   python3 volta_registro.py scrivi [--righe JSON]   righe JSON da stdin, una per evento, o una lista JSON
                                                    come argomento (la manda volta.js a lotti)
-  python3 volta_registro.py riassunto [--ore N] [--json]   cosa è successo nelle ultime N ore (24 di serie)
+  python3 volta_registro.py riassunto [--ore N] [--json] [--tutte]   cosa è successo nelle ultime N ore (24 di
+                                                   serie); --tutte anche sulle macchine di hc machine ls
 
 Un file per giorno, eventi-AAAA-MM-GG.jsonl, in <cartella di Volta>-registro (come cacheVolta("volta-registro")
 di dati.js): ~/.cache/volta-registro per la finestra vera, <HERDR_APP_HOME>/cache/volta-registro per una
@@ -20,6 +21,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -178,9 +180,9 @@ def riassunto(righe: list) -> dict:
     return {"righe": len(righe), "voci": voci}
 
 
-def stampa(r: dict, ore: float) -> str:
+def stampa(r: dict, ore: float, qui: bool = True) -> str:
     if not r["righe"]:
-        return "registro: nessun evento nelle ultime %g ore (%s)" % (ore, cartella())
+        return "registro: nessun evento nelle ultime %g ore%s" % (ore, " (%s)" % cartella() if qui else "")
     out = ["registro: %d eventi nelle ultime %g ore" % (r["righe"], ore),
            "%-10s %-24s %-22s %6s %6s %8s %8s %8s" % ("fonte", "evento", "macchina", "volte", "errori", "mediana", "p95", "max")]
     for v in r["voci"]:
@@ -190,6 +192,38 @@ def stampa(r: dict, ore: float) -> str:
         for m, n in v["messaggi"]:
             out.append("    %dx %s" % (n, m))
     return "\n".join(out)
+
+
+def altre_macchine(ore: float) -> list:
+    """[(nome, riassunto o {"errore"})] delle macchine collegate di Herdr: questo file gira là con hc exec
+    (python3, poi python), così non serve che il mod di là sia aggiornato."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import base64  # noqa: PLC0415
+    import volta_sonda as vs  # noqa: PLC0415
+    codice = ("import base64,sys;sys.argv=['r','riassunto','--json','--ore',%r];"
+              "exec(compile(base64.b64decode(%r),'volta_registro','exec'))"
+              % (str(ore), base64.b64encode(Path(__file__).read_bytes()).decode()))
+    out = []
+    for m in vs.macchine() or []:
+        if m.get("stato") != "connected":
+            out.append((m["nome"], {"errore": m.get("perche") or "Herdr non la raggiunge"}))
+            continue
+        d = {"errore": "nessun Python"}
+        for py in ("python3", "python"):
+            try:
+                rc, so, se = vs.lancia(vs.hc() + ["exec", "--on", m["nome"], "--timeout", "40", py, "-c", codice], timeout=45)
+            except (OSError, subprocess.SubprocessError) as e:
+                d = {"errore": str(e)[:160]}
+                break
+            if rc != 0 and vs.non_parte(so, se):
+                continue
+            try:
+                d = json.loads(so.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                d = {"errore": ((se or so).strip().splitlines() or ["rc %d" % rc])[-1][:160]}
+            break
+        out.append((m["nome"], d))
+    return out
 
 
 def main(argv: list) -> int:
@@ -218,7 +252,15 @@ def main(argv: list) -> int:
                 print("--ore vuole un numero", file=sys.stderr)
                 return 2
         r = riassunto(leggi(ore))
-        print(json.dumps(r, ensure_ascii=False) if "--json" in argv else stampa(r, ore))
+        if "--tutte" not in argv:
+            print(json.dumps(r, ensure_ascii=False) if "--json" in argv else stampa(r, ore))
+            return 0
+        tutte = [("questa macchina", r)] + altre_macchine(ore)
+        if "--json" in argv:
+            print(json.dumps(dict(tutte), ensure_ascii=False))
+        else:
+            print("\n\n".join("== %s\n%s" % (n, d["errore"] if "errore" in d else stampa(d, ore, n == "questa macchina"))
+                               for n, d in tutte))
         return 0
     print(__doc__.strip().splitlines()[2], file=sys.stderr)
     return 2
