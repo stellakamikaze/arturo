@@ -59,13 +59,13 @@ export function radiceDa(bin) {
 export const richiesta = (prompt, radice) => (prompt ?? "").split("{radice}").join(radice);
 
 // arturo <comando> <args>: { ok, json, errore }. Mai un'eccezione verso l'interfaccia.
-// Tempo massimo esplicito (13/11/2026): sul Mac mini `arturo todo --json` è rimasto appeso cinque ore su
+// Tempo massimo esplicito (13/11/2026): su un Mac `arturo todo --json` è rimasto appeso cinque ore su
 // una richiesta di permesso di macOS mai vista. exec rifiuta allo scadere ma non ferma il processo:
 // la risposta dice almeno perché, invece del solo "non riesco a leggere".
 export const ARTURO_MAX_MS = 45000;
 export const ARTURO_APPESO = "Arturo non risponde su questa macchina: forse macOS aspetta un permesso sullo schermo.";
 // Un solo comando per argomenti in volo, e niente processi nuovi dopo uno appeso (13/11/2026): la barra
-// ne lanciava fino a quattro ogni 30 s e i todo uno a ogni cambio di spazio, e sul Mac mini se ne erano
+// ne lanciava fino a quattro ogni 30 s e i todo uno a ogni cambio di spazio, e su un Mac se ne erano
 // accumulati decine. La regola sta in voloArturo() di sessioni.js.
 const voli = {};
 async function arturo(comando, args, errore) {

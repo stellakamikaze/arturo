@@ -353,7 +353,7 @@ export function passoCongedo(c, s, ora = Date.now()) {
 }
 
 // Le nascite che cadono su una macchina (13/11/2026): la sonda scrive `nascita` nella voce della macchina
-// quando le sessioni nuove escono prima di iniziare ("exit 1 before init"), come sul Mac mini con
+// quando le sessioni nuove escono prima di iniziare ("exit 1 before init"), come su un Mac con
 // Documenti bloccato da macOS. Volta lo dice una volta per episodio e non fa ripartire al clic una
 // sessione in errore di quella macchina: ogni ripartenza cadeva di nuovo, due volte per clic.
 export function nascitaDi(dati, host) {
@@ -454,7 +454,7 @@ export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = 
     if (!(tempo(s) > 0) || ora - tempo(s) < CONGEDO_ORFANO_MS) continue;
     const morta = chiusa(s) || dorme(s) || s.stato === "errore";
     // una scheda aperta protegge solo una sessione viva: su una ferma resta la shell, e la riga restava
-    // in Volta per sempre (13/11/2026, Balthasar: scheda t1z con PowerShell sul congedo 261279d3)
+    // in Volta per sempre (13/11/2026, un PC Windows: scheda t1z con PowerShell sul congedo 261279d3)
     if (!morta && (conScheda.has(s.sessionId) || conScheda.has(s.id))) continue;
     // viva: si ferma solo se /fine è ancora l'ultimo messaggio; riaperta e usata dopo il congedo, resta
     if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }
@@ -946,7 +946,7 @@ export function contoTutto(sessioni, dest) {
 }
 
 // La macchina dove nasce un progetto aperto da Volta. La scheda del progetto nella memoria dice in
-// `macchina:` dove sta la sua cartella, con etichette corte scelte dalla persona ("macmini", "portatile").
+// `macchina:` dove sta la sua cartella, con etichette corte scelte dalla persona ("ufficio", "portatile").
 // Volta conosce le macchine coi nomi di Herdr (host e nome leggibile). Un'etichetta vale per una macchina
 // quando, tolti spazi e segni, sta dentro il suo host o il suo nome. Torna l'host della prima macchina della
 // scheda che risponde, oppure null: la cartella c'è anche qui, la scheda non lo dice, o nessuna risponde.

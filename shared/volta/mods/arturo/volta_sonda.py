@@ -410,7 +410,7 @@ if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):
         subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
     except (OSError, subprocess.SubprocessError):
         pass
-# Le nascite che cadono (13/11/2026): con Documenti bloccato da macOS ogni sessione nuova del Mac mini
+# Le nascite che cadono (13/11/2026): con Documenti bloccato da macOS ogni sessione nuova di un Mac
 # usciva in 10 s con "exit 1 before init", e Volta la faceva ripartire a ogni clic senza dire niente
 # della macchina. I job stanno in <config>/jobs/<id>/state.json, fuori da Documenti: si leggono anche
 # quando Documenti non risponde. Rotta = almeno NASCITE_CRASH crash "before init" su almeno due lavori
