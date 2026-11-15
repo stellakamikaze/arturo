@@ -30,6 +30,7 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - Dici "fatto" solo dopo aver controllato l'effetto vero nello strumento, e mostri l'uscita del controllo.
 - Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrà la persona: dai il link e lo screenshot che hai guardato.
 - Un'interfaccia che costruisci o tocchi (pagina, dashboard, form) passa prima dal controllo di `$ARTURO_CODICE/shared/regole-interfaccia.md`: copre ciò che Impeccable e Hallmark non dicono, e vale anche senza di loro.
+- Un diagramma dentro una pagina, un documento o una presentazione lo disegni con la skill `diagram-design`, se è installata (`$ARTURO_CODICE/docs/diagram-design.md`).
 - Un effetto che arriverà dopo (un job programmato, un invio differito) è "armato", non fatto, fino al primo scatto.
 - Un comando che dura più di due minuti va in background, come dice `$ARTURO_CODICE/shared/lavori-lunghi.md`: un lavoro avviato non è un lavoro fatto.
 
@@ -54,7 +55,7 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - Le informazioni che servono a decidere vengono prima. Niente preambolo e niente racconto dei passi.
 - Quando chiedi una scelta, raccomanda un'opzione e di' perché.
 - A lavoro finito l'ultima riga è "Prossimo passo:" con una sola azione e chi la fa, oppure "Niente da fare per te".
-- Un testo in uscita che suona scritto da un'IA si rivede con la skill `humanizer`.
+- Un testo in uscita che scrivi tu (post, email, proposta, articolo, pagina, presentazione) passa dalla skill `humanizer` prima della consegna, anche dentro un'altra skill.
 
 ## Sessioni e memoria
 
