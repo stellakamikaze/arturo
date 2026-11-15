@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NA01-NA02: Arturo senza node (19/10/2026).
+"""NA01-NA03: Arturo senza node (19/10/2026).
 
 Claude Code si installa anche senza node. La barra in basso (hooks/statusline.js) e l'avviso sul
 contesto (hooks/context-monitor.js) girano con node: su un Mac appena installato restavano spenti
@@ -8,8 +8,12 @@ in silenzio, e la persona non vedeva né contesto né quota.
 NA01 senza node il comando della barra in settings.json esce con 0 e scrive una riga che nomina
      node. Con node la riga è quella di statusline.js.
 NA02 senza node l'avvio (hooks/session-start.sh) scrive la riga NODE.
+NA03 node fuori dal PATH ma in una cartella nota (Homebrew, ~/.local/node/bin): è il PATH minimo di una
+     sessione aperta dal demone di `claude --bg` (15/11/2026). L'avvio non scrive la riga NODE e mette
+     la cartella in coda al PATH dei comandi una volta sola (marcatore arturo-path-completo), senza
+     ripetere le cartelle che il PATH ha già.
 
-Sulla base dbaefa1 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
+Sulla base dbaefa1 ogni controllo deve fallire (NA03 sulla base fcda2d1) con un AssertionError che comincia con il suo codice.
 """
 from __future__ import annotations
 
@@ -80,14 +84,39 @@ def test_na02(repo: Path) -> None:
         radice = Path(t)
         home = casa_finta(repo, radice)
         env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice), "ARTURO_BANCHI_AVVIO": "0",
-               "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice)}
+               "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "ARTURO_PATH_CANDIDATE": ""}
         p = subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
                            cwd=radice, capture_output=True, text=True, timeout=60)
         assert any(r.startswith("NODE: manca node") for r in p.stdout.splitlines()), \
             f"NA02 senza node l'avvio non lo dice: rc={p.returncode} out={p.stdout[-400:]!r}"
 
 
-TESTS = {"NA01": test_na01, "NA02": test_na02}
+def test_na03(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        radice = Path(t)
+        home = casa_finta(repo, radice)
+        brew = radice / "brew-bin"
+        brew.mkdir()
+        finto = brew / "node"
+        finto.write_text("#!/bin/sh\necho v0-finto\n", encoding="utf-8")
+        finto.chmod(0o755)
+        base = senza_node(radice)
+        ambiente = radice / "env-sessione"
+        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": base, "ARTURO_BANCHI_AVVIO": "0",
+               "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "CLAUDE_ENV_FILE": str(ambiente),
+               "ARTURO_PATH_CANDIDATE": f"{brew}:{base}:{radice / 'non-esiste'}"}
+        for giro in (1, 2):
+            p = subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
+                               cwd=radice, capture_output=True, text=True, timeout=60)
+            assert not any(r.startswith("NODE:") for r in p.stdout.splitlines()), \
+                f"NA03 giro {giro}: node c'è in {brew} ma l'avvio dice che manca: {p.stdout[-400:]!r}"
+        testo = ambiente.read_text(encoding="utf-8") if ambiente.exists() else ""
+        righe = [r for r in testo.splitlines() if "arturo-path-completo" in r]
+        assert len(righe) == 1, f"NA03 il PATH completo va scritto una volta sola: {righe!r}"
+        assert f'export PATH="$PATH:{brew}"' in righe[0], f"NA03 la riga non mette in coda solo {brew}: {righe[0]!r}"
+
+
+TESTS = {"NA01": test_na01, "NA02": test_na02, "NA03": test_na03}
 
 
 def main() -> int:

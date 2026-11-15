@@ -42,6 +42,21 @@ con un glob, una variabile o il nome del file scritto chiede come prima.
 
 ---
 
+## 2026-11-15 — Meno "scrivimi vai" a fine turno
+
+**Cosa cambia**: Claude chiude il turno senza chiederti il via per un lavoro suo e reversibile. Se dice
+"lo faccio io", lo fa prima di chiudere. Non ti passa più quattro passi che può fare da solo: scrivere a
+un'altra sessione, lanciare `/clear` e `/inizio` per ruotare, aprire il risultato finito, controllare più
+tardi un lavoro ancora in corso. Per quest'ultimo arma una sveglia, invece di promettere "fra mezz'ora
+verifico". La chiusura ti chiede solo i freni (inviare, pubblicare, pagare, cancellare), le decisioni di
+direzione e i gesti che può fare solo una persona.
+
+**Il principio**: un via che ha una sola risposta possibile è un passo in più, non un controllo.
+
+**A chi serve**: a chi risponde spesso "procedi su tutto" o "fai tu".
+
+---
+
 ## 2026-11-15 — Humanizer segue la versione 4.0.0
 
 **Cosa cambia**: la skill `humanizer` segue la versione 4.0.0 dell'origine (blader/humanizer). Un testo da

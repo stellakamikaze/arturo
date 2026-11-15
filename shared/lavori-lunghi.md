@@ -35,6 +35,8 @@ bash ~/.claude/bin/bgjob.sh stop <nome>
 ## Regole
 
 - Un job in corso non è "fatto". Dì "avviato" e controlla `status` prima di riportare l'esito.
+- Se chiudi il turno con un lavoro ancora in corso, anche su un'altra macchina, arma prima un
+  `run_in_background` o un Monitor che ti richiami. Senza sveglia armata non promettere "fra X verifico".
 - Mai `pgrep -f` per sapere se il job gira: trova anche il comando che cerca. Usa `status`.
 - Su macOS il job tiene sveglio il computer finché gira (`caffeinate`). Con il coperchio chiuso
   un portatile va comunque in stop: un lavoro di ore va su una macchina che resta accesa.
