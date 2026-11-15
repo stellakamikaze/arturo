@@ -6,7 +6,9 @@
 // { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato: aspetta|lavora|ferma|errore,
 //   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, azione, vecchia?,
 //   daPortare?: il nome scritto dalla persona che Claude Code non ha ancora (rinomina, #5292),
-//   daIniziare?: il progetto dato dalla persona da cui la sessione non è ancora ripartita (/inizio, #5465) }
+//   daIniziare?: il progetto dato dalla persona da cui la sessione non è ancora ripartita (/inizio, #5465),
+//   carta?: la carta della Coda (#5719) { tipo, fonte, quando, esito, domanda, opzioni, raccomandazione,
+//   prove, link, menu }, scritta da hooks/carta-sessione.py quando la sessione chiede qualcosa }
 
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
@@ -145,6 +147,8 @@ export function fase(s) {
   if (s.stato === "errore") return "errore";
   if (s.stato === "lavora") return "attiva";
   if (s.stato === "aspetta" || s.aspetta) return "stasi";
+  // la carta della Coda (#5719) è il segno forte: la sessione ha chiesto qualcosa e nessuno ha risposto
+  if (s.carta) return "stasi";
   // l'ultima parola non è un testo di Claude (un messaggio senza risposta, un comando interrotto,
   // nessuna trascrizione): nel dubbio, ti aspetta
   if (s.chi !== "claude" || chiede(s.coda)) return "stasi";
@@ -166,6 +170,56 @@ export function fraseStato(s, adesso = Date.now()) {
   if (f === "stasi") return { testo: (q ? `Ti aspetta ${q}` : "Ti aspetta") + zz, colore: "blocked" };
   if (zz) return { testo: q ? `Addormentata ${q}` : "Addormentata", colore: "dim" };
   return { testo: q ? `Aspetta un comando ${q}` : "Aspetta un comando", colore: "muted" };
+}
+
+// La Coda (#5719, piano della Coda di Volta, 15/11/2026): una carta per ogni cosa che aspetta la persona.
+// Le carte vengono dalle sessioni in stasi di una macchina che risponde: con la carta di
+// hooks/carta-sessione.py, oppure con la carta minima letta da risposta e coda, così entrano anche le
+// sessioni di una macchina senza l'hook. Una sessione che lavora o è in errore non ha carta.
+// Le categorie umane di A20 (CHI_TU di pm/progetti/indice.py) come le scrive hooks/carta-sessione.py.
+export const UMANI = ["invio", "pagamento", "segreto", "otp", "oauth", "gesto"];
+const pulita = (r, n) => {
+  const t = String(r ?? "").replace(/[*_`#>]+/g, "").replace(/\s+/g, " ").replace(/^[\s\-·:]+|[\s\-·:]+$/g, "");
+  return t.length <= n ? t : `${t.slice(0, n - 1).trimEnd()}…`;
+};
+const righeDi = (t) => String(t ?? "").split("\n").filter((r) => r.trim());
+// La carta minima: esito dalla prima riga dell'ultimo testo, domanda dall'ultima riga con "?" fra le
+// ultime otto (altrimenti l'ultima), opzioni dal grassetto dell'ultima riga, come carta-sessione.py.
+// Una sessione ferma su un permesso ha per domanda il permesso: il testo di prima non c'entra.
+export function cartaMinima(s) {
+  const rr = righeDi(s?.coda);
+  const ultima = rr[rr.length - 1] ?? "";
+  const domanda = pulita([...rr.slice(-8)].reverse().find((r) => r.includes("?")) ?? ultima, 600);
+  const opzioni = [...new Set([...ultima.matchAll(/\*\*(.+?)\*\*/g)].map((m) => pulita(m[1], 80)).filter(Boolean))].slice(0, 6);
+  const permesso = s?.aspetta ? `Aspetta: ${pulita(s.aspetta, 80)}` : "";
+  return { tipo: "scelta", fonte: "minima", quando: 0, esito: pulita(righeDi(s?.risposta)[0], 200),
+    domanda: permesso || domanda || "Ti aspetta", opzioni, raccomandazione: "", prove: [], link: [], menu: false };
+}
+export function carte(lista) {
+  return (lista ?? []).filter((s) => s && !s.vecchia && fase(s) === "stasi").map((s) => {
+    const c = s.carta && typeof s.carta === "object" ? s.carta : cartaMinima(s);
+    const quando = (Number(c.quando) > 0 ? Number(c.quando) * 1000 : 0) || interazione(s);
+    return { ...c, opzioni: Array.isArray(c.opzioni) ? c.opzioni : [], origine: "sessione",
+      chiave: chiave(s), id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina,
+      progetto: s.progetto ?? null, titolo: titolo(s), quando,
+      minima: !s.carta, blocco: s.stato === "aspetta" || Boolean(s.aspetta) };
+  });
+}
+// L'ordine della Coda: prima ciò che solo la persona fa (invio, pagamento, segreto...), poi le sessioni
+// bloccate (un permesso, una domanda aperta), le scelte con la carta, quelle con la carta minima, le
+// review, i task UF "tocca a te" e "decidi tu" (origine "uf", gruppo "tu"|"decidi", step 5 del piano).
+// A parità vince la più vecchia: aspetta da più tempo.
+export const RANGHI = ["umano", "blocco", "scelta", "minima", "review", "tu", "decidi"];
+export function rangoCarta(c) {
+  if (c?.origine === "uf") return RANGHI.indexOf(c.gruppo === "tu" ? "tu" : "decidi");
+  if (UMANI.includes(c?.tipo)) return RANGHI.indexOf("umano");
+  if (c?.blocco) return RANGHI.indexOf("blocco");
+  if (c?.tipo === "review") return RANGHI.indexOf("review");
+  return RANGHI.indexOf(c?.minima ? "minima" : "scelta");
+}
+export function ordineCoda(lista) {
+  return (lista ?? []).filter(Boolean).map((c, i) => ({ c, i, r: rangoCarta(c), q: Number(c.quando) || Infinity }))
+    .sort((a, b) => a.r - b.r || a.q - b.q || a.i - b.i).map((x) => x.c);
 }
 
 // La chiusura automatica (#5366): le sessioni di questa macchina in background che aspettano un comando

@@ -60,7 +60,8 @@ distribuire (#5172, 10/11/2026).
       risponde non si tocca. Stampa {come} oppure {errore} (#5208).
 
 Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato, aspetta, tipo,
-attach, cartella, ultimo, risposta, azione, daPortare }. `host` è il nome della macchina in Herdr ("qui" per
+attach, cartella, ultimo, risposta, azione, daPortare, carta }. `carta` è la carta della Coda (#5719):
+{ tipo, fonte, quando, esito, domanda, opzioni, raccomandazione, prove, link, menu } oppure null. `host` è il nome della macchina in Herdr ("qui" per
 questa). Una macchina senza Claude Code resta fuori; una che non risponde tiene le righe dell'ultima
 lettura buona, segnate `vecchia`; così anche tutte le macchine di prima, se è Herdr a non rispondere.
 Progetto e nome restano col lavoro: la sonda tiene su ogni macchina un registro per lavoro
@@ -175,6 +176,24 @@ exec(ELENCO)
 # script che girano sulle macchine al posto di #CLAUDE#. Prima i gesti su questa macchina cercavano solo
 # nel PATH, che sul Mac non ha ~/.local/bin quando Herdr parte dal Dock.
 CERCA_CLAUDE = r'''
+def completa_path():
+    """Sui Mac herdr-core passa sé stesso a launchd e perde il PATH del suo LaunchAgent: i terminali e hc exec
+    partono con /usr/bin:/bin:/usr/sbin:/sbin, e una sessione nata lì non trova node né claude (barra in basso
+    spenta, hook in node fermi, 15/11/2026, #5728). Le cartelle di Homebrew e di ~/.local che esistono e mancano
+    si aggiungono in coda: claude e ogni programma lanciato da qui le ereditano. Su Windows niente."""
+    if os.name == "nt":
+        return
+    voci = [v for v in os.environ.get("PATH", "").split(os.pathsep) if v]
+    nuove = [d for d in (os.path.expanduser("~/.local/bin"), os.path.expanduser("~/.local/node/bin"),
+                         "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin")
+             if d not in voci and os.path.isdir(d)]
+    if nuove:
+        os.environ["PATH"] = os.pathsep.join(voci + nuove)
+
+
+completa_path()
+
+
 def trova_claude():
     """claude come lo trova il PATH, altrimenti dove lo mette l'installatore (~/.local/bin)."""
     fine = ".exe" if os.name == "nt" else ""
@@ -366,6 +385,10 @@ for s in sessioni:
         nuovo["sessionId"] = sid
         if nuovo != {x: v for x, v in reg.items() if x != "quando"} and (len(nuovo) > 1 or reg):
             scrivi(os.path.join(lavori, k + ".json"), dict(nuovo, quando=time.time()))
+    # La carta della Coda (#5719, 15/11/2026): la scrive hooks/carta-sessione.py della config quando
+    # Claude chiude il turno chiedendo qualcosa alla persona, e la toglie al messaggio dopo. I tetti li
+    # mette carta_di() di qua, sulla macchina che legge: nella SONDA resta una riga sola.
+    s["carta"] = leggi(os.path.join(radice, "cache", "carte", sid + ".json")) or None
     f = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl"))
     if not f:
         continue
@@ -1064,6 +1087,31 @@ def cartella_viva(c):
     return p
 
 
+# I tipi della carta: le categorie umane di A20 che scrive hooks/carta-sessione.py, più scelta e review.
+TIPI_CARTA = ("invio", "pagamento", "segreto", "otp", "oauth", "gesto", "scelta", "review")
+
+
+def carta_di(c):
+    """La carta della Coda (#5719) coi tetti di Volta: domanda 600, opzioni 6 da 80, prove e link 4.
+    Una carta che non è un oggetto, o senza domanda né opzioni, non c'è: la Coda fa la carta minima."""
+    if not isinstance(c, dict):
+        return None
+
+    def corto(x, n):
+        return x.strip()[:n] if isinstance(x, str) else ""
+
+    def alpiu(x, quanti, n):
+        return [t for t in (corto(v, n) for v in (x if isinstance(x, list) else [])[:quanti]) if t]
+    q = c.get("quando")
+    out = {"tipo": c.get("tipo") if c.get("tipo") in TIPI_CARTA else "scelta",
+           "fonte": "menu" if c.get("fonte") == "menu" else "testo",
+           "quando": q if isinstance(q, (int, float)) and not isinstance(q, bool) and q > 0 else 0,
+           "esito": corto(c.get("esito"), 200), "domanda": corto(c.get("domanda"), 600),
+           "opzioni": alpiu(c.get("opzioni"), 6, 80), "raccomandazione": corto(c.get("raccomandazione"), 300),
+           "prove": alpiu(c.get("prove"), 4, 400), "link": alpiu(c.get("link"), 4, 400), "menu": c.get("menu") is True}
+    return out if out["domanda"] or out["opzioni"] else None
+
+
 def righe(voci):
     """Da raccogli() all'elenco piatto: una riga per sessione."""
     out = []
@@ -1100,6 +1148,8 @@ def righe(voci):
                 "congedo": s.get("congedo") is True,
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
                 "daIniziare": s.get("daIniziare") if isinstance(s.get("daIniziare"), str) else None,
+                # la carta della Coda (#5719): cosa chiede la sessione, con opzioni e raccomandazione
+                "carta": carta_di(s.get("carta")),
                 # In background senza processo e senza status ci sono due casi (#5495, 13/11/2026).
                 # chiusa: fermata con claude stop ("stopped") o dopo /fine come ultimo messaggio, cioè
                 # il congedo di ⌘W. Volta non la mostra più; una in errore resta, per Riavvia.

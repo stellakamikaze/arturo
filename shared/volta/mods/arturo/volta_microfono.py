@@ -441,6 +441,18 @@ def perche(testo: str) -> str:
     return righe[-1][:160] if righe else "il ponte si è chiuso"
 
 
+def comando_cattura(ff: str, nome: str | None) -> list:
+    """ffmpeg che cattura il microfono in PCM 16 kHz mono, a ritmo di tempo reale.
+
+    avfoundation lascia buchi nei campioni: 6 s di microfono del MacBook davano 5,3 s di audio (15/11/2026).
+    Il PCM grezzo non porta i tempi, quindi il flusso arriva all'altra macchina più lento del reale, e
+    audiotoolbox là suona in BlackHole solo silenzio (-91 dB), senza errori. `aresample=async` riempie i
+    buchi seguendo i tempi della cattura: 6 s tornano 192000 byte esatti."""
+    return [ff, "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0",
+            "-f", "avfoundation", "-i", ":" + (nome or "default"), "-af", "aresample=async=1000",
+            "-ac", "1", "-ar", str(FREQUENZA), "-flush_packets", "1", "-f", "s16le", "-"]
+
+
 def cmd_ponte(target: str) -> int:
     """Il processo che tiene il ponte: cattura | ssh. Lo lancia `accendi`, staccato da Volta."""
     stato = {"pid": os.getpid(), "target": target, "stato": "avvio", "da": time.time()}
@@ -453,9 +465,7 @@ def cmd_ponte(target: str) -> int:
             return 5
         nome = sorgente(audio())
         stato["ingresso"] = nome or "predefinito"
-        cattura = [ff, "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0",
-                   "-f", "avfoundation", "-i", ":" + (nome or "default"), "-ac", "1", "-ar", str(FREQUENZA),
-                   "-flush_packets", "1", "-f", "s16le", "-"]
+        cattura = comando_cattura(ff, nome)
     ssh = finto("VOLTA_MIC_SSH") or ["ssh", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
                                      "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2", target, REMOTO]
     errori = cache() / "microfono.err"

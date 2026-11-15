@@ -13,6 +13,7 @@ il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
   python3 volta_mod.py stato                l'ultimo esito, in JSON (anche immagini, core, plugin e app)
   python3 volta_mod.py immagini             copia le immagini dei progetti nella cartella dell'app
   python3 volta_mod.py programmi [--subito] il giro di core, plugin e app, come lo fa il sistema
+  python3 volta_mod.py prove [--chiudi]     i core di prova rimasti accesi (HC_SESSION diversa da default); --chiudi li chiude
   python3 volta_mod.py --prova              esce 0: lo usa la copia vecchia prima di sostituirsi
 
 Perché sta fuori dalla cartella del mod (in ~/.config/herdr-app/volta_mod.py): lo lanciano il mod,
@@ -45,11 +46,16 @@ Regole:
   - nello stesso giro orario la copia di Arturo che il mod legge (`radice` di arturo.json, come
     arturo-herdr) va avanti con un fast-forward, solo se è pulita: un file tracciato modificato, un commit
     suo, un HEAD staccato o un ramo senza remoto la lasciano com'è (esito "ferma"). ~/.claude e una
-    cartella dentro un altro repository non si toccano.
+    cartella dentro un altro repository non si toccano;
+  - nello stesso giro del sistema si chiudono i core di prova rimasti (prove(), 14/11/2026): un core
+    `--hc-launchd` con un socket di sessione diverso da default.sock (le istanze hzp delle prove), acceso da
+    più di PROVA_VECCHIA ore e senza un claude fra i suoi discendenti. SIGTERM ai suoi `hold`, poi al core.
+    Il core vero (default) non si tocca mai; un core di cui non si legge il socket nemmeno. Solo macOS e Linux.
 
 Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
 VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_PLUGINS
 (installed_plugins.json), VOLTA_APP_PACCHETTO, VOLTA_ORA, VOLTA_FERMO, VOLTA_FIRMA_FINTA, VOLTA_NO_APRI,
+VOLTA_PS (file con l'uscita di ps al posto di ps), VOLTA_SOCKET (JSON pid -> socket al posto di lsof),
 VOLTA_RELEASES_URL e HERDR_RELEASES_URL (i canali; quello dell'app di solito da arturo.json, app_canale), VOLTA_RINOMINA_NEGATA=1 (finge il rifiuto della
 rinomina), VOLTA_COPIA_ROTTA=<file> (la copia file per file si rompe su quel file), VOLTA_AGENTE_PROVA=<cartella>
 (scrive lì il plist, senza launchctl). Solo libreria standard, Python 3.8+.
@@ -1073,6 +1079,94 @@ def app_volta(prima: dict) -> dict:
     return {"esito": "riavviata", "versione": pronta}
 
 
+PROVA_VECCHIA = 6   # ore: oltre, un core di prova senza claude dentro si chiude
+
+
+def eta_secondi(etime: str) -> int:
+    """L'etime di ps ([[gg-]hh:]mm:ss) in secondi; -1 se non si legge."""
+    try:
+        giorni, _, resto = etime.strip().rpartition("-")
+        parti = [int(x) for x in resto.split(":")]
+        while len(parti) < 3:
+            parti.insert(0, 0)
+        return int(giorni or 0) * 86400 + parti[0] * 3600 + parti[1] * 60 + parti[2]
+    except ValueError:
+        return -1
+
+
+def processi() -> list:
+    """[(pid, ppid, secondi, comando)] da ps, o dal file di VOLTA_PS nei banchi."""
+    finto = os.environ.get("VOLTA_PS")
+    if finto:
+        testo = Path(finto).read_text(encoding="utf-8")
+    else:
+        rc, testo = corri(["ps", "-axo", "pid=,ppid=,etime=,command="], 30)
+        if rc != 0:
+            return []
+    righe = []
+    for r in testo.splitlines():
+        c = r.split(None, 3)
+        if len(c) == 4 and c[0].isdigit() and c[1].isdigit():
+            righe.append((int(c[0]), int(c[1]), eta_secondi(c[2]), c[3]))
+    return righe
+
+
+def socket_di(pid: int) -> list:
+    """I socket unix che il processo tiene aperti (lsof), o quelli di VOLTA_SOCKET nei banchi."""
+    finto = os.environ.get("VOLTA_SOCKET")
+    if finto:
+        return list(json.loads(finto).get(str(pid)) or [])
+    rc, testo = corri(["lsof", "-a", "-p", str(pid), "-U", "-F", "n"], 30)
+    return [r[1:] for r in testo.splitlines() if r.startswith("n") and r.endswith(".sock")] if rc == 0 else []
+
+
+def prove(chiudi: bool = False) -> dict:
+    """I core di prova rimasti accesi: le istanze con HC_SESSION=hzp (o un'altra diversa da default) che le prove
+    avviano e non chiudono. Il 14/11/2026 sul MacBook ce n'erano tre, dall'8 e dal 12/11, con nove shell vuote."""
+    if os.name == "nt":
+        return {"esito": "saltato", "motivo": "solo macOS e Linux"}
+    tutti = processi()
+    figli: dict = {}
+    for pid, ppid, _, _ in tutti:
+        figli.setdefault(ppid, []).append(pid)
+    comando = {pid: cmd for pid, _, _, cmd in tutti}
+
+    def discendenti(pid: int) -> list:
+        fuori, coda = [], list(figli.get(pid, []))
+        while coda:
+            p = coda.pop()
+            fuori.append(p)
+            coda.extend(figli.get(p, []))
+        return fuori
+
+    trovati = []
+    for pid, _, eta, cmd in tutti:
+        # il core è l'eseguibile herdr-core (o hc) lanciato con --hc-launchd, non una riga che lo nomina;
+        # il percorso può avere spazi ("Herdr Core.app"), quindi si taglia sull'opzione, non sugli spazi
+        eseguibile, opzione, _ = cmd.partition(" --hc-launchd")
+        if not opzione or Path(eseguibile).name not in ("herdr-core", "hc"):
+            continue
+        sessioni = [Path(s).name for s in socket_di(pid) if ".holder." not in Path(s).name]
+        if not sessioni or "default.sock" in sessioni:
+            continue
+        sotto = discendenti(pid)
+        con_claude = any("claude" in comando.get(p, "") for p in sotto)
+        if eta < PROVA_VECCHIA * 3600 or con_claude:
+            continue
+        trovati.append({"pid": pid, "sessione": sessioni[0][:-5], "ore": eta // 3600,
+                        "hold": [p for p in figli.get(pid, []) if " hold " in comando.get(p, "")]})
+    chiusi = []
+    if chiudi:
+        for t in trovati:
+            for p in t["hold"] + [t["pid"]]:
+                try:
+                    os.kill(p, signal.SIGTERM)
+                except OSError:
+                    continue
+            chiusi.append(t["pid"])
+    return {"esito": "chiusi" if chiusi else ("trovati" if trovati else "nessuno"), "prove": trovati, "chiusi": chiusi}
+
+
 def programmi(forza: bool = False) -> dict:
     """Un giro su core, plugin, copia di Arturo e app. I primi tre al più ogni OGNI_PROGRAMMI secondi, l'app a ogni giro
     del sistema (fa da sé i controlli di fascia e di riposo). L'esito va in programmi-stato.json."""
@@ -1099,6 +1193,10 @@ def programmi(forza: bool = False) -> dict:
             stato["app"] = dict(app_volta(stato.get("app") or {}), il=time.time())
         except Exception as e:  # noqa: BLE001
             stato["app"] = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160]), "il": time.time()}
+        try:
+            stato["prove"] = dict(prove(chiudi=True), il=time.time())
+        except Exception as e:  # noqa: BLE001
+            stato["prove"] = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160]), "il": time.time()}
         scrivi(programmi_file(), stato)
         return stato
     finally:
@@ -1237,6 +1335,9 @@ def main(argv: list) -> int:
         # A mano, per le prove: lo stesso giro del sistema, subito (--subito salta l'attesa di OGNI_PROGRAMMI).
         print(json.dumps(programmi(forza="--subito" in argv), ensure_ascii=False))
         return 0
+    if argv[:1] == ["prove"]:
+        print(json.dumps(prove(chiudi="--chiudi" in argv), ensure_ascii=False))
+        return 0
     if argv[:1] == ["installa"]:
         return cmd_installa(argv[1:])
     if argv[:1] == ["immagini"]:
@@ -1252,7 +1353,7 @@ def main(argv: list) -> int:
         d["modo"] = config().get("mod_modo") or "automatico"
         d["immagini"] = leggi(cache() / "immagini-stato.json")
         d["genera"] = leggi(cache() / "immagini-genera.json")
-        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "copia", "app")}
+        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "copia", "app", "prove")}
         print(json.dumps(d, ensure_ascii=False))
         return 0
     print(__doc__.strip())
