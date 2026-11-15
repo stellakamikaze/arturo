@@ -51,6 +51,7 @@ MAX_COMMIT = 15
 MAX_RIPARTENZA = 700
 MAX_CARATTERI = 28000
 PAROLE_COMPITO = 4  # da quante parole un testo senza progetto è un compito e non un nome
+SALVATO_AUTO = "- Salvato: in automatico"  # la marca di bin/salva-automatico.py
 ETICHETTE = {"tu": "TOCCA A TE", "decidi": "DECIDI TU, POI FACCIO IO", "io": "FACCIO IO", "fermo": "FERMO"}
 
 
@@ -285,12 +286,21 @@ def sezione_handoff(elenco: list, giorni: int, ir) -> list:
     if recenti[0][1] < limite:
         titolo = f"RIPARTENZA (nessun handoff negli ultimi {giorni} giorni: il più recente)"
     righe = [titolo]
-    for nome, data, ora, percorso in recenti[:5]:
+    for n, (nome, data, ora, percorso) in enumerate(recenti[:5]):
         testo = percorso.read_text(encoding="utf-8", errors="replace")
         filone = ir.filone_esplicito(testo)
         stato = ir.stato_handoff(testo)
         testa = f"  {data} {ora}" + (f" · filone {filone}" if filone else "") + (f" · {stato}" if stato else "")
         righe.append(f"{testa} · {nome}")
+        if n == 0 and SALVATO_AUTO in testo.splitlines():
+            # M4 della memoria (15/11/2026): l'ultima sessione si è chiusa senza /fine e bin/salva-automatico.py
+            # ha scritto questo handoff dal transcript. /inizio lo dice, e il primo /fine lo completa.
+            righe.append("    SALVATO IN AUTOMATICO: L'ultima volta non hai chiuso con /fine: ecco cosa stavi facendo. "
+                         "Il primo /fine di questa sessione completa questo handoff, senza farne un altro.")
+            for sez in ("Ultime richieste", "Lavoro aperto nella sessione"):
+                voci = [r.strip() for r in ir.sezione(testo, sez).splitlines() if r.strip()]
+                if voci:
+                    righe.append(f"    {sez}: " + " · ".join(corto(v, 200) for v in voci[-5:]))
         corpo = ir.sezione(testo, "Ripartenza") or ir.sezione(testo, "Cosa stavamo facendo")
         corpo = "\n".join(r for r in corpo.splitlines() if not re.match(r"^\s*\**Prossimo passo", r))
         if corpo.strip():

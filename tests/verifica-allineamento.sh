@@ -201,6 +201,8 @@ BANCHI=(
   test_scoperta_2026_11_14.py
   # arturo progetti, portato da herdr: l'elenco dei progetti dalla memoria, per Volta (M3, #5672).
   test_progetti_memoria_2026_11_11.py
+  # Il salvataggio automatico di una sessione chiusa senza /fine (M4, #5672).
+  test_salva_automatico.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -519,6 +521,8 @@ VELENI=(
   test_scoperta_2026_11_14.py
   # arturo progetti (M3, #5672): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
+  # Il salvataggio automatico (M4, #5672): ogni rottura di salva-automatico.py, dell'hook o di contesto.py fa rosso il suo caso SV.
+  test_salva_automatico.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

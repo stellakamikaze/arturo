@@ -162,7 +162,9 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
   commit già arrivati con un cherry-pick o un rebase non compare);
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
-  quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
+  quando c'è, e il percorso dell'ultimo handoff da leggere per intero. La riga `SALVATO IN AUTOMATICO`
+  dice che l'ultima sessione si è chiusa senza `/fine`: l'handoff l'ha scritto Arturo dal transcript,
+  con le ultime richieste e il lavoro aperto;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
   IO, FERMO), i FACCIO IO FERMI DA PIÙ DI 3 GIORNI (nessun passo vero: una nota non conta), i todo
   chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori dal progetto, il todo DA
@@ -341,6 +343,9 @@ Perché è fatta così:
 - **Da allora** (2-4 frasi) unisce la Ripartenza degli handoff e cosa è cambiato dopo: i commit
   arrivati, i todo chiusi (anche quelli chiusi ora dal confronto col git log), le scadenze arrivate,
   un handoff di un'altra macchina. Chiude con la considerazione che ne segue.
+- **Salvato in automatico.** Con la riga `SALVATO IN AUTOMATICO` il "Da allora" comincia così: "L'ultima
+  volta non hai chiuso con /fine: ecco cosa stavi facendo", con l'ultima richiesta e il lavoro aperto
+  in parole semplici. Poi una riga: "Il primo /fine di oggi lo completa".
 - **I todo stanno per filone**, numerati, con l'ID. I filoni vengono dalle righe «filone» della
   RIPARTENZA, coi nomi che la persona riconosce. Senza filoni, un gruppo solo col nome del progetto.
   Entrano tutti i todo aperti del progetto. I todo di «generale» chiudono la lista, nel gruppo «Fuori

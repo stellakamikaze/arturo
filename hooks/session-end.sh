@@ -47,6 +47,13 @@ if [ -n "$HOOK_INPUT" ] && [ -f "$ARTURO_CODICE/bin/telemetria.py" ]; then
   printf '%s' "$HOOK_INPUT" | nohup python3 "$ARTURO_CODICE/bin/telemetria.py" fine >/dev/null 2>&1 &
 fi
 
+# Il salvataggio automatico (M4 della memoria, 15/11/2026): una sessione chiusa senza /fine lascia un handoff
+# minimo, scritto senza modello dal transcript. Prima dell'uscita qui sotto: dalla home vale l'ultimo
+# /inizio <nome> della sessione. In background, come la telemetria: la chiusura non aspetta.
+if [ -n "$HOOK_INPUT" ] && [ -f "$ARTURO_CODICE/bin/salva-automatico.py" ]; then
+  printf '%s' "$HOOK_INPUT" | nohup python3 "$ARTURO_CODICE/bin/salva-automatico.py" >/dev/null 2>&1 &
+fi
+
 # Il resto solo in una directory di progetto
 if [ ! -d "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
     exit 0

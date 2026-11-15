@@ -26,6 +26,11 @@ Ogni cosa ricordata è una nota: un file di testo con poche righe in testa e il 
   ripetere. La scrive `/fine` da solo, la prima volta e poi solo coi fatti nuovi, e tiene le righe
   che scrivi tu. `/inizio` la rilegge anche se apri Claude dalla home, e all'avvio Arturo la indica a
   Claude. `arturo memoria scheda <progetto>` te la mostra.
+- Se chiudi una sessione senza `/fine`, Arturo salva da solo cosa stavi facendo: le ultime richieste,
+  i file scritti e il lavoro rimasto aperto. Non usa Claude e non decide niente: legge solo la
+  conversazione. Una richiesta con dentro una password non viene copiata. Al prossimo `/inizio` lo
+  vedi in cima, e il primo `/fine` lo completa senza farne un doppione. Una sessione senza richieste
+  né file non lascia niente, e a memoria spenta il salvataggio non parte.
 - Ogni nota che Claude scrive passa da un controllo. Se dentro c'è una password, o un testo che
   prova a dare ordini a Claude di nascosto, Claude riceve un avviso. La nota resta scritta, e Claude la può correggere.
 

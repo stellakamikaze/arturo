@@ -173,12 +173,23 @@ SLUG=$(printf '%s' "$PROGETTO" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9
 HDIR=~/.claude/data/handoffs/"$SLUG"
 mkdir -p "$HDIR"
 HANDOFF_FILE="$HDIR/HANDOFF_$(date +%Y-%m-%d_%H-%M).md"
+GIA=""
 if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then   # /fine rilanciato riscrive l'handoff della sessione
   GIA=$(grep -l -- "^- Sessione: $CLAUDE_CODE_SESSION_ID\$" "$HDIR"/HANDOFF_*.md 2>/dev/null | sort -r | head -1)
   [ -n "$GIA" ] && HANDOFF_FILE="$GIA"
 fi
+ULTIMO=$(ls "$HDIR"/HANDOFF_*.md 2>/dev/null | sort -r | head -1)   # una sessione chiusa senza /fine
+if [ -z "$GIA" ] && [ -n "$ULTIMO" ] && grep -qx -- "- Salvato: in automatico" "$ULTIMO"; then
+  echo "Salvato in automatico, da completare: $ULTIMO"
+fi
 echo "Handoff: $HANDOFF_FILE"
 ```
+
+**Salvato in automatico.** La riga `Salvato in automatico, da completare:` nomina l'handoff che
+`bin/salva-automatico.py` ha scritto quando l'ultima sessione si è chiusa senza `/fine`. Leggilo e porta
+nel nuovo handoff ciò che vale ancora: richieste, file, lavoro aperto. Poi lancia
+`mv "<quel file>" "<file stampato dopo Handoff:>"` e scrivi lì il modello: il salvataggio diventa
+l'handoff di questa sessione, senza doppione. La retention lo contava già come un handoff normale.
 
 **Sessione senza progetto** (`cartella: nessuna` o NON TROVATO; proposta n. 23, #4071). Se il lavoro
 riprende nei giorni dopo, lascia un handoff breve: senza, la persona non ritrova più dove stava. Lo slug
