@@ -13,10 +13,10 @@ stare.
 le prove prima di arrivare alla decisione; numeri o passaggi messi per dimostrare che un piano
 funziona; un contesto che l'altra persona ha scritto o già approvato; la risposta nell'ultima riga.
 **Il problema:** in una risposta il lettore ha già il contesto, quindi ricostruirlo non aggiunge
-niente e seppellisce il punto. Ogni frase può stare in piedi da sola, quindi questo tic sopravvive
-alla pulizia frase per frase. Comincia dalla decisione e tieni solo il ragionamento che può cambiare
+niente e seppellisce il punto. Comincia dalla decisione e tieni solo il ragionamento che può cambiare
 il parere del lettore: di solito un fatto che non ha e il link che gli serve per agire. Diagnosi e
-dimostrazione vanno nel documento che segue.
+dimostrazione vanno nel documento che segue. Ogni frase può stare in piedi da sola, quindi questo tic
+sopravvive alla pulizia frase per frase.
 **Prima:**
 > Sì, hai ragione, la data del 12 non va: la sala è occupata dal corso di yoga, l'ho controllato sul
 > calendario del comune, e anche il 13 c'è il mercato in piazza, quindi il parcheggio è pieno.
