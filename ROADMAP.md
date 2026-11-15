@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-14
+Aggiornata il 2026-11-15
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (`docs/strati.md`).
 
@@ -90,7 +90,29 @@ Strato: Scoperta.
 
 Claude Code tiene già una copia di ogni versione dei file che modifichi con lui. Arturo le legge e cerca le ripetizioni: lo stesso file cambiato a intervalli regolari, gli stessi campi riscritti, gruppi di file toccati insieme. A fine lavoro, in `/fine`, ti propone un'automazione con le prove: le date, le modifiche, una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza diventa una skill o una routine, che puoi sempre annullare; se dici no, la stessa proposta non torna. Le versioni dei file e le bozze restano sul tuo computer: alla telemetria arriveranno solo i conteggi delle proposte fatte, accettate e annullate, dopo il testo nuovo della privacy.
 
-<!-- task: #5615 -->
+Dopo la prima versione, se arriva la voce "Arturo parte da quello che hai già fatto con l'IA", la Scoperta potrà leggere anche l'indice delle tue chat: così un lavoro che ripeti in chat da mesi può diventare una proposta senza aspettare che tu lo ripeta in Claude Code. L'idea è che le proposte prendano, oltre all'automazione della prima versione, altre due forme: una sintesi, oppure una pagina web da condividere, come una lezione interattiva per chi insegna o un simulatore di spesa per chi produce eventi ([I mestieri della conoscenza](docs/mestieri.md)). Se arrivano, e per quali mestieri, è da decidere.
+
+<!-- task: #5615 #5702 -->
+
+### Arturo parte da quello che hai già fatto con l'IA {#storico}
+
+Stato: da fare. Aspetta la scelta su dove resta l'indice e il testo nuovo della privacy.
+
+Strato: Ingresso, con la Memoria.
+
+Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Gemini. Scarichi l'esportazione delle tue conversazioni e Arturo la legge: divide le conversazioni e le raggruppa per lavoro, insieme ai file che ci avevi caricato, quando l'esportazione li contiene. Il lavoro pesante lo fa uno script sul tuo computer, senza modello: a Claude arriva l'indice dei lavori, non le chat intere. La proposta è che l'indice resti salvato sul tuo computer, e che `/inizio` e la memoria lo usino da lì in poi. Oggi `/setup` legge solo le sessioni di Claude Code, e il ritratto non resta su disco: se l'indice resta, quella promessa cambia.
+
+<!-- task: #5700 -->
+
+### L'intervista che continua {#intervista}
+
+Stato: da fare, dopo la voce sullo storico delle chat.
+
+Strato: Metodo, con la Memoria.
+
+`/setup` ti intervista una volta. Dopo, `/inizio` ti fa al massimo una domanda per sessione su quello che Arturo non sa ancora del tuo lavoro, per esempio per chi lo fai. Le domande cambiano col mestiere ([I mestieri della conoscenza](docs/mestieri.md)). Per quanto tempo continua è da decidere. La risposta entra nella memoria solo col tuo sì, e l'intervista si spegne con un comando.
+
+<!-- task: #5709 -->
 
 ### Il passaggio al plugin per chi usa già Arturo {#passaggio}
 
@@ -142,7 +164,29 @@ Strato: Ingresso.
 
 Il README parte da cosa fa Arturo, e `docs/strati.md` spiega come estendere una skill senza copiarla. Resta il sito, che deve raccontare il plugin. Il lavoro è finito quando una persona nuova installa Arturo su una macchina pulita seguendo solo la documentazione.
 
-<!-- task: #4537 #3373 #4439 -->
+I mestieri della conoscenza (`docs/mestieri.md`) danno al racconto gli esempi, famiglia per famiglia, e il README racconta la strada dalla chat al terminale.
+
+<!-- task: #4537 #3373 #4439 #5699 -->
+
+### Esportare un progetto e limitare cosa Claude legge {#contesto}
+
+Stato: da fare. Come limitare cosa Claude legge aspetta una decisione.
+
+Strato: Memoria, con la Protezione.
+
+Il modello resta dell'azienda che lo vende; la memoria sta già sul tuo computer, in file di testo accanto ai tuoi materiali. Questa voce aggiunge un comando, `arturo contesto esporta`, che stacca un progetto in una cartella di file di testo: un collega con Arturo la importa così com'è, e la stessa cartella si carica in un progetto di ChatGPT o di Claude.ai. L'ultima parte è un limite a cosa Claude legge: cartelle escluse dalla lettura, e un avviso prima di aprire un file che hai segnato come riservato.
+
+<!-- task: #5710 -->
+
+### Arturo ti propone uno spazio quando ti serve {#spazi}
+
+Stato: da fare. Volta oggi sta su un ramo di prova.
+
+Strato: Orsa, con l'Ingresso.
+
+Arturo ti propone uno spazio quando vede un segnale nel tuo lavoro, una volta sola e dicendoti quale segnale ha visto. Quali segnali è da decidere. Se il terminale ti pesa, ti propone Volta, una finestra simile alla chat che lavora col terminale del tuo computer ([la finestra](https://arturo.stellakamikaze.org/finestra/)). Melchior e l'Orsa ci sono già: Arturo ti suggerisce Melchior quando la memoria cresce, perché la ordina e la ritrova in fretta, e ti propone di spostare nell'Orsa un comportamento che correggi spesso, perché lì gli aggiornamenti non lo toccano. Nell'Orsa entra anche un nome tuo per Arturo, che oggi non si può cambiare.
+
+<!-- task: #5711 #5703 -->
 
 ### Le viste dei tuoi compiti {#viste}
 
@@ -172,6 +216,12 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
+- Se l'indice dello storico delle chat resta salvato su disco, come propone la voce "Arturo parte da quello che hai già fatto con l'IA", oppure si butta a fine `/setup` come il ritratto di oggi. Se resta, cambia la promessa sul ritratto, e il testo della privacy va riscritto prima del codice. <!-- task: #5700 -->
+- Se la Scoperta, dopo le automazioni, propone anche sintesi e pagine web, e per quali mestieri. <!-- task: #5702 -->
+- Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
+- Per quanto tempo continua l'intervista dopo `/setup`, in sessioni o in settimane (voce "L'intervista che continua"). <!-- task: #5709 -->
+- Quali segnali fanno proporre Volta, Melchior o l'Orsa (voce "Arturo ti propone uno spazio quando ti serve"). <!-- task: #5711 -->
+- Quando Volta entra in Arturo per tutti: prima o dopo la prova con una persona esterna. <!-- task: #5703 -->
 
 ## Uscito di recente
 

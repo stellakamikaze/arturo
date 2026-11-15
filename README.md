@@ -30,6 +30,33 @@ La parte della configurazione che cresce con le tue correzioni e con i tuoi sì 
 
 ---
 
+## Per chi è
+
+Arturo è per chi lavora con la conoscenza: raccoglie materiali e ne ricava un lavoro da consegnare a qualcun altro. Di solito questa persona usa già l'IA in una chat web, e la chat resta: Arturo le dà un secondo posto dove lavorare, dentro le sue cartelle. In chat il materiale lo raccogli tu, e l'IA vede solo il pezzo che le incolli.
+
+Le famiglie di mestieri sono sei. Per ognuna, un esempio di quello che Claude fa già oggi, se glielo chiedi:
+
+- **La parola** (giornalismo, pubblicità, editoria, comunicazione): Claude scrive la bozza leggendo le fonti nella cartella del pezzo, anche quelle che in chat non avresti fatto in tempo a incollare.
+- **L'immagine** (art direction, fotografia, grafica, video): mette in ordine la cartella dei riferimenti e ne ricava una pagina sola per il cliente, con le immagini scelte e le note.
+- **L'insegnamento e la ricerca**: oltre alle slide, costruisce una pagina web in cui gli studenti provano da soli il concetto della lezione.
+- **La produzione e l'organizzazione** (eventi, cultura, audiovisivo): confronta il foglio delle spese con le fatture e segna le voci che non tornano; se glielo chiedi, ne fa una pagina in cui il cliente cambia le voci e vede cosa succede al totale.
+- **La consulenza e l'analisi**: legge la trascrizione di una riunione e ne ricava le decisioni e le cose da fare, ognuna con chi e quando, se la trascrizione lo dice.
+- **L'archivio e la cura** (curatela, archivi, biblioteche): apre le schede una per una, anche centinaia, le riporta allo stesso formato in un foglio solo e segna i campi che mancano.
+
+Per ogni famiglia, [I mestieri della conoscenza](docs/mestieri.md) elenca anche i materiali e i lavori che tornano.
+
+### Di chi è il lavoro
+
+In chat il modello e il contesto del tuo lavoro stanno nello stesso posto, sui server del servizio che usi. In Claude Code il modello resta dell'azienda che lo vende, ma la memoria, i riepiloghi delle sessioni e i todo che Arturo scrive stanno sul tuo computer, accanto ai documenti, in file di testo che puoi aprire. Li correggi a mano quando sbagliano, e restano tuoi se un giorno cambi strumento. Quello che Claude legge passa comunque dai server di Anthropic, come spiega [Cosa non è neutro](#cosa-non-è-neutro).
+
+### Dove sta andando
+
+Per chi arriva dalla chat, la prossima voce della [roadmap](ROADMAP.md) è "Arturo parte da quello che hai già fatto con l'IA": Arturo leggerà l'esportazione delle tue chat e ne ricaverà un indice dei tuoi lavori. Se l'indice resterà salvato sul tuo computer è ancora da decidere, perché cambierebbe la promessa di oggi sul ritratto di `/setup`. Dopo viene la voce "L'intervista che continua": `/inizio` ti farà al massimo una domanda per sessione sul tuo lavoro. Nella voce "Arturo ti propone cosa automatizzare" è ancora da decidere se la Scoperta, oltre alle automazioni, proporrà anche sintesi e pagine web da condividere.
+
+Più avanti, la voce "Esportare un progetto e limitare cosa Claude legge" porta un comando per passare a un collega il contesto di un progetto, e la voce "Arturo ti propone uno spazio quando ti serve" porta Volta, una finestra simile alla chat per chi non vuole il terminale, che oggi sta su un ramo di prova. Melchior e l'Orsa ci sono già: la novità di questa seconda voce è che Arturo te li propone quando la memoria cresce o quando correggi spesso la stessa cosa. Lo stato di ognuna sta nella roadmap.
+
+---
+
 ## Installazione
 
 Per cominciare servono tre passi:
@@ -195,6 +222,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 ## Indice
 
 - [Tre promesse](#tre-promesse)
+- [Per chi è](#per-chi-è)
 - [Installazione](#installazione)
 - [I sei strati](#i-sei-strati)
 - [Il ciclo dell'Orsa](#il-ciclo-dellorsa)
