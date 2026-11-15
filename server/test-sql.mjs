@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
+import { recapSettimana } from "./recap.js";
 import { settimanale, giornaliero, pulizia, gestisci, testoUso, testoMigliorare } from "./logica.js";
 
 function d1(sql = readFileSync(new URL("./schema.sql", import.meta.url), "utf8")) {
@@ -480,6 +481,34 @@ const casi = {
     assert.ok(!d.some((x) => x.installazione === "ferma-0001"), "Q22 un'installazione ferma da oltre 30 giorni resta nella settimana");
     assert.ok(!JSON.stringify(d).includes("preventivo"), "Q22 la deriva rilegge un valore con la radice aperta");
     assert.equal(d[0].installazione, "vera-0001", "Q22 le installazioni viste non vengono prima");
+  },
+  // M7 della memoria (15/11/2026): le due misure del piano e lo stato della memoria, nella finestra di 30 giorni.
+  // aaaa: nata il 1/10, primo /fine il 4/10, due /inizio suoi e una rotazione. bbbb: nata il 10/10, mai /fine,
+  // memoria spenta. cccc: nata ad agosto, fuori dalle nate della finestra. Tutte viste in due giorni (VISTE).
+  async Q24() {
+    const a = await con([
+      ["2026-10-01", "aaaaaaaa", "sessione"], ["2026-10-01", "aaaaaaaa", "inizio", "persona"],
+      ["2026-10-04", "aaaaaaaa", "comando", "fine"], ["2026-10-04", "aaaaaaaa", "sessione"],
+      ["2026-10-05", "aaaaaaaa", "sessione"], ["2026-10-05", "aaaaaaaa", "inizio", "rotazione"],
+      ["2026-10-06", "aaaaaaaa", "sessione"], ["2026-10-06", "aaaaaaaa", "inizio", "persona"],
+      ["2026-10-04", "aaaaaaaa", "memoria", "accesa:1-10"], ["2026-10-06", "aaaaaaaa", "memoria", "accesa:11-50"],
+      ["2026-10-04", "aaaaaaaa", "richiamo", "2-5/1"], ["2026-10-06", "aaaaaaaa", "richiamo", "1/0"],
+      ["2026-10-06", "aaaaaaaa", "richiamo", "0/0"], ["2026-10-05", "aaaaaaaa", "salvataggio", "automatico"],
+      ["2026-10-10", "bbbbbbbb", "sessione"], ["2026-10-11", "bbbbbbbb", "sessione"], ["2026-10-11", "bbbbbbbb", "memoria", "spenta"],
+      ["2026-08-01", "cccccccc", "sessione"], ["2026-10-02", "cccccccc", "comando", "fine"],
+    ]);
+    const mem = (await a.miglioramento(AL)).memoria;
+    assert.deepEqual(mem.inizio, [{ valore: "persona", n: 2 }, { valore: "rotazione", n: 1 }], "Q24 /inizio per origine");
+    assert.equal(mem.sessioni, 6, "Q24 sessioni nella finestra");
+    assert.deepEqual(mem.primoFine, { nate: 2, conFine: 1, mediana: 3 }, "Q24 tempo al primo /fine");
+    assert.deepEqual(mem.stato, [{ valore: "accesa:11-50", n: 1 }, { valore: "spenta", n: 1 }], "Q24 l'ultimo stato della memoria");
+    assert.deepEqual(mem.salvataggi, { n: 1, installazioni: 1 }, "Q24 salvataggi automatici");
+    const testo = testoMigliorare(await a.miglioramento(AL)).join("\n");
+    assert.match(testo, /\/inizio scritto dalla persona: 2 su 5 sessioni non aperte dalla rotazione \(40%\)/, "Q24 la quota di /inizio nel riepilogo");
+    assert.match(testo, /Primo \/fine: 1 su 2 installazioni nate negli ultimi 30 giorni, dopo 3 giorni \(mediana\)/, "Q24 il primo /fine nel riepilogo");
+    assert.match(testo, /Richiamo: 2 sessioni su 3 con note proposte \(67%\), 1 con almeno una nota aperta \(50%/, "Q24 il richiamo nel riepilogo");
+    const r = await a.riepilogo("2026-10-06", AL, { settimana: true });
+    assert.match(recapSettimana(r, { lunedi: "2026-10-07", domenica: AL }).html, />Memoria</, "Q24 il riepilogo HTML non ha la sezione Memoria");
   },
   // La migrazione dello sportello porta la tabella di prima alle stesse colonne, coi default, di schema.sql.
   async QM1() {

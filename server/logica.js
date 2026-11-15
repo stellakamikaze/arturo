@@ -147,6 +147,12 @@ export const EVENTI = {
   skill: unoDi([...SKILL, ...SKILL_USCITE, "altro"]),
   // Dal 3/11/2026: un banco delle guardie diventato rosso su un computer (tests/banchi-avvio.sh).
   banchi: /^test[a-z0-9_-]{1,56}\.py$/,
+  // Dal 15/11/2026 (M7 della memoria, #5672): se la memoria serve. Accesa o spenta con le note in fasce, una volta al
+  // giorno; per sessione le note proposte e quelle aperte, in fasce; un handoff scritto da solo; chi apre /inizio.
+  memoria: /^(spenta|accesa:(0|1-10|11-50|51-200|>200))$/,
+  richiamo: /^(0|1|2-5|6-20|>20)\/(0|1|2-5|6-20|>20)$/,
+  salvataggio: /^automatico$/,
+  inizio: /^(persona|rotazione)$/,
   // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati per
   // non perdere i dati dei client fermi (prima del 24/10/2026 un evento fuori elenco faceva rifiutare il
   // lotto intero). Da togliere dopo qualche settimana, insieme al loro posto in M09 (tests/test_telemetria.py).
@@ -609,6 +615,34 @@ export function ritenzione(righe, al) {
   return fuori;
 }
 
+// Il tempo al primo /fine (M7 della memoria, 15/11/2026): delle installazioni nate nella finestra, quante hanno lanciato
+// /fine e dopo quanti giorni, come mediana. Una riga per installazione: { prima, fine } (fine null se non c'è ancora).
+export function tempoPrimoFine(righe) {
+  const dopo = righe.filter((x) => x.fine).map((x) => giorni(x.prima, x.fine)).sort((a, b) => a - b);
+  const meta = Math.floor(dopo.length / 2);
+  const mediana = !dopo.length ? null : dopo.length % 2 ? dopo[meta] : (dopo[meta - 1] + dopo[meta]) / 2;
+  return { nate: righe.length, conFine: dopo.length, mediana };
+}
+
+// Le misure della memoria in numeri pronti per il testo e per l'HTML del riepilogo. La quota di /inizio si calcola sulle
+// sessioni che la rotazione non ha aperto: ogni rotazione apre una sessione nuova, e la gonfierebbe.
+export function misureMemoria(mem) {
+  const m = mem || {};
+  const inizio = Object.fromEntries((m.inizio || []).map((x) => [x.valore, Number(x.n) || 0]));
+  const persona = inizio.persona || 0;
+  const rotazione = inizio.rotazione || 0;
+  const richiamo = m.richiamo || [];
+  const somma = (filtro) => richiamo.filter(filtro).reduce((s, x) => s + (Number(x.n) || 0), 0);
+  return {
+    persona, rotazione, sessioni: Math.max((m.sessioni || 0) - rotazione, 0),
+    primoFine: m.primoFine || { nate: 0, conFine: 0, mediana: null },
+    stato: m.stato || [],
+    richiamo: { sessioni: somma(() => true), conProposte: somma((x) => !x.valore.startsWith("0/")),
+      conAperte: somma((x) => !x.valore.endsWith("/0")) },
+    salvataggi: m.salvataggi || { n: 0, installazioni: 0 },
+  };
+}
+
 // Viaggia col riepilogo in JSON: la routine che propone correzioni la legge insieme ai numeri (#3507).
 export const REGOLA_GUARDIE = "Una guardia non si allenta sulla sola base della telemetria: gli id sono casuali e " +
   "chiunque può crearne. Le statistiche delle guardie contano solo installazioni viste in almeno " +
@@ -652,7 +686,27 @@ export function testoMigliorare(m) {
     "Versioni di Claude Code (installazioni):",
     ...righe(m.claude, (x) => `  ${x.n}  ${x.valore}`, "  nessun dato"),
     "",
+    ...testoMemoria(m.memoria),
     "---",
+    "",
+  ];
+}
+
+// Se la memoria serve (M7 della memoria, 15/11/2026): le righe di "Dove migliorare Arturo".
+export function testoMemoria(mem) {
+  if (!mem) return [];
+  const x = misureMemoria(mem);
+  const per = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
+  const f = x.primoFine;
+  return [
+    "Memoria:",
+    `  /inizio scritto dalla persona: ${x.persona} su ${x.sessioni} sessioni non aperte dalla rotazione (${per(x.persona, x.sessioni)}); dalla rotazione: ${x.rotazione}.`,
+    `  Primo /fine: ${f.conFine} su ${installazioni(f.nate)} nate negli ultimi 30 giorni` +
+      (f.mediana === null ? "." : `, dopo ${f.mediana} ${f.mediana === 1 ? "giorno" : "giorni"} (mediana).`),
+    `  Stato (l'ultimo per installazione): ${x.stato.length ? x.stato.map((s) => `${s.valore} ${s.n}`).join(", ") : "nessun dato"}.`,
+    `  Richiamo: ${x.richiamo.conProposte} sessioni su ${x.richiamo.sessioni} con note proposte (${per(x.richiamo.conProposte, x.richiamo.sessioni)}), ` +
+      `${x.richiamo.conAperte} con almeno una nota aperta (${per(x.richiamo.conAperte, x.richiamo.conProposte)} di quelle con note proposte).`,
+    `  Salvataggi automatici di sessioni chiuse senza /fine: ${x.salvataggi.n}, ${installazioni(x.salvataggi.installazioni)}.`,
     "",
   ];
 }
