@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — Humanizer su ogni testo in uscita, diagram-design per i diagrammi
+
+**Cosa cambia**: un testo in uscita che scrive Claude (post, email, proposta, articolo, pagina, presentazione)
+passa sempre dalla skill `humanizer` prima della consegna, anche quando lo scrive dentro un'altra skill. Prima
+ci passava solo se suonava da IA. Se hai installato `diagram-design`, Claude la usa per ogni diagramma dentro
+una pagina, un documento o una presentazione. La skill `prompt-master` segue l'origine fino al 22/10/2026: nomi
+dei modelli OpenAI e Gemini aggiornati e un modello di brief nuovo per ChatGPT e Codex.
+
+**Il principio**: le skill che migliorano un testo o un'immagine lavorano da sole, senza aspettare che tu le chiami.
+
+**A chi serve**: a chi fa scrivere a Claude testi per altre persone, o gli chiede schemi per documenti e slide.
+
+---
+
 ## 2026-11-15 — Due conferme in meno dalle guardie
 
 **Cosa cambia**: un `rsync` verso un altro computer (`rsync ./ server:/cartella/`) lanciato da una cartella con
