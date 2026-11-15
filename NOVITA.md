@@ -43,6 +43,93 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — La memoria lavora da sola
+
+**Cosa cambia**: ogni progetto ha una scheda con cos'è, dove sta la cartella, le decisioni prese e gli errori
+da non ripetere. La scrive `/fine` e la rilegge `/inizio`, anche quando apri Claude dalla tua cartella personale
+invece che da quella del progetto. Se chiudi una sessione senza `/fine`, Arturo salva da solo cosa stavi facendo:
+le ultime richieste, i file scritti e il lavoro rimasto aperto. Lo ritrovi in cima al prossimo `/inizio`, e il
+`/fine` di quella sessione aggiunge quello che manca.
+
+`/fine` salva anche le note nuove senza chiederti conferma, e poi te le elenca numerate: se una non ti serve,
+scrivi "togli" seguito dal suo numero e la nota passa nell'archivio. Una volta a settimana Arturo segna le note che
+non propone a Claude da 90 giorni, così vedi quali non servono più. Non ne cancella nessuna, e una nota segnata
+torna normale appena serve di nuovo. Per sapere cosa Arturo ricorda, progetto per progetto, chiedi a Claude "cosa
+ricordi di me?" oppure scrivi nel terminale `arturo memoria`. Il dettaglio sta in [`docs/memoria.md`](docs/memoria.md).
+
+**Il principio**: Arturo salva e ripropone le note senza chiederti niente, perché una memoria da aggiornare a mano
+resta indietro rispetto al lavoro appena salti qualche `/fine`.
+
+**A chi serve**: a chi lavora su più progetti e il giorno dopo vuole ripartire senza rispiegare a Claude dove era
+arrivato.
+
+---
+
+## 2026-11-15 — I dati d'uso dicono se la memoria serve
+
+**Cosa cambia**: se hai la telemetria accesa, cioè l'invio dei dati d'uso a chi mantiene Arturo, partono quattro
+dati nuovi. Sono solo conteggi, e non arriva il numero esatto ma la fascia in cui cade (nessuna, fino a 10, fino a
+50 e così via). Il nome e il testo delle note non escono mai.
+- **Stato della memoria**: se è accesa e quante note contiene, una volta al giorno;
+- **Note usate**: per ogni sessione, quante note Arturo propone e quante Claude ne apre;
+- **Salvataggi automatici**: quante sessioni chiuse senza `/fine` Arturo ha salvato al posto tuo;
+- **Chi lancia `/inizio`**: se l'hai scritto tu oppure l'ha lanciato Arturo per passare al passo dopo di un lavoro lungo.
+
+Siccome l'elenco dei dati è cambiato, alla prima sessione dopo l'aggiornamento Arturo ti avvisa di nuovo di cosa
+manda. La spegni come prima, con `arturo telemetria spegni`.
+
+**Il principio**: senza questi conteggi chi mantiene Arturo non sa se le note proposte vengono aperte, e quindi non
+può decidere se la memoria va migliorata o tolta.
+
+**A chi serve**: a chi vuole sapere cosa parte dal suo computer, e a chi mantiene Arturo, che da questi numeri vede
+se le note proposte vengono usate.
+
+---
+
+## 2026-11-15 — Humanizer su ogni testo in uscita, diagram-design per i diagrammi
+
+**Cosa cambia**: un testo in uscita che scrive Claude (post, email, proposta, articolo, pagina, presentazione)
+passa sempre dalla skill `humanizer` prima della consegna, anche quando lo scrive dentro un'altra skill. Prima
+ci passava solo se suonava da IA. Se hai installato `diagram-design`, Claude la usa per ogni diagramma dentro
+una pagina, un documento o una presentazione. La skill `prompt-master` segue l'origine fino al 22/10/2026: nomi
+dei modelli OpenAI e Gemini aggiornati e un modello di brief nuovo per ChatGPT e Codex.
+
+**Il principio**: le skill che migliorano un testo o un'immagine lavorano da sole, senza aspettare che tu le chiami.
+
+**A chi serve**: a chi fa scrivere a Claude testi per altre persone, o gli chiede schemi per documenti e slide.
+
+---
+
+## 2026-11-15 — Due conferme in meno dalle guardie
+
+**Cosa cambia**: un `rsync` verso un altro computer (`rsync ./ server:/cartella/`) lanciato da una cartella con
+un CLAUDE.md non chiede più conferma: le guardie leggevano la destinazione remota come una cartella di questo
+computer, e credevano che rsync ci scrivesse un CLAUDE.md nuovo. Verso una cartella locale, anche un disco di
+Windows come `C:/`, la conferma resta. E un ciclo `for f in a.sh b.sh; do bash "$f"; done` dopo un file scritto
+nello stesso comando non fa più leggere quel file come eseguito, se il ciclo nomina solo altri file. Un ciclo
+con un glob, una variabile o il nome del file scritto chiede come prima.
+
+**Il principio**: una conferma che non protegge niente insegna a dire sì senza leggere.
+
+**A chi serve**: a chi copia cartelle su un server con rsync e a chi rilancia script in un ciclo.
+
+---
+
+## 2026-11-15 — Meno "scrivimi vai" a fine turno
+
+**Cosa cambia**: Claude chiude il turno senza chiederti il via per un lavoro suo e reversibile. Se dice
+"lo faccio io", lo fa prima di chiudere. Non ti passa più quattro passi che può fare da solo: scrivere a
+un'altra sessione, lanciare `/clear` e `/inizio` per ruotare, aprire il risultato finito, controllare più
+tardi un lavoro ancora in corso. Per quest'ultimo arma una sveglia, invece di promettere "fra mezz'ora
+verifico". La chiusura ti chiede solo i freni (inviare, pubblicare, pagare, cancellare), le decisioni di
+direzione e i gesti che può fare solo una persona.
+
+**Il principio**: un via che ha una sola risposta possibile è un passo in più, non un controllo.
+
+**A chi serve**: a chi risponde spesso "procedi su tutto" o "fai tu".
+
+---
+
 ## 2026-11-15 — Humanizer segue la versione 4.0.0
 
 **Cosa cambia**: la skill `humanizer` segue la versione 4.0.0 dell'origine (blader/humanizer). Un testo da

@@ -1,6 +1,6 @@
 // L'archivio del server di Arturo: le query su D1. Separato da worker.js, che importa cloudflare:email,
 // così test-sql.mjs prova le query vere su SQLite con node, senza Cloudflare.
-import { LIMITI, ritenzione, calcolaIndietro, derivaPubblica } from "./logica.js";
+import { LIMITI, ritenzione, calcolaIndietro, derivaPubblica, tempoPrimoFine } from "./logica.js";
 
 // v2026-10-15: da qui /setup manda i suoi eventi alla telemetria.
 const SETUP_DAL = "2026-10-15";
@@ -218,6 +218,36 @@ export function archivio(db) {
         claude: await tutte(
           `SELECT valore, COUNT(DISTINCT installazione) AS n FROM eventi
            WHERE evento = 'claude' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
+        memoria: await this.memoria(al),
+      };
+    },
+    // Se la memoria serve (15/11/2026, M7 della memoria, #5672): le due misure del piano, il tempo dalla prima sessione
+    // al primo /fine e la quota di sessioni aperte con un /inizio scritto dalla persona, più lo stato della memoria, le
+    // note proposte e aperte e i salvataggi automatici. Stessa finestra di 30 giorni e stesso filtro VISTE del resto;
+    // il primo /fine conta tutte le nate, come la ritenzione: una persona nuova al primo giorno è il caso che interessa.
+    async memoria(al) {
+      const tutte = async (sql, ...valori) => (await db.prepare(sql).bind(...valori).all()).results;
+      const uno = async (sql, ...valori) => ((await db.prepare(sql).bind(...valori).first()) || { n: 0 }).n || 0;
+      const trenta = "giorno > date(?, '-30 day') AND giorno <= ?";
+      const salvati = (await db.prepare(
+        `SELECT COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
+         WHERE evento = 'salvataggio' AND ${trenta} AND ${VISTE}`).bind(al, al).first()) || {};
+      return {
+        sessioni: await uno(`SELECT COUNT(*) AS n FROM eventi WHERE evento = 'sessione' AND ${trenta} AND ${VISTE}`, al, al),
+        inizio: await tutte(
+          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'inizio' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY valore`, al, al),
+        primoFine: tempoPrimoFine(await tutte(
+          `SELECT installazione, MIN(giorno) AS prima, MIN(CASE WHEN evento = 'comando' AND valore = 'fine' THEN giorno END) AS fine
+           FROM eventi WHERE giorno <= ? GROUP BY installazione HAVING MIN(giorno) > date(?, '-30 day')`, al, al)),
+        // L'ultimo stato visto per installazione: accesa con le note in fasce, o spenta.
+        stato: await tutte(
+          `SELECT e.valore AS valore, COUNT(*) AS n FROM eventi e
+           JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'memoria' AND ${trenta} AND ${VISTE}
+                 GROUP BY installazione) m ON e.rowid = m.r
+           GROUP BY e.valore ORDER BY n DESC, e.valore`, al, al),
+        richiamo: await tutte(
+          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'richiamo' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC, valore`, al, al),
+        salvataggi: { n: Number(salvati.n) || 0, installazioni: Number(salvati.installazioni) || 0 },
       };
     },
     // Chi usa Arturo, quanto e come (2/11/2026, #4539): una riga per installazione vista fino ad `al`, con

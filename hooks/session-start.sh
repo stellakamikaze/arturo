@@ -25,6 +25,23 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'artur
   printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
     "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
+# Una sessione aperta dal demone di `claude --bg` eredita il PATH minimo di launchd
+# (/usr/bin:/bin:/usr/sbin:/sbin), senza Homebrew: node, npm e gh sembrano mancare anche se ci sono
+# (15/11/2026). Le cartelle che esistono e mancano dal PATH entrano in coda, dopo quelle di sistema,
+# per l'avviso su node qui sotto e per i comandi di Claude. ARTURO_PATH_CANDIDATE vuota le spegne (banchi).
+AGGIUNTE_PATH=""
+_vecchio_ifs="$IFS"; IFS=:
+for _d in ${ARTURO_PATH_CANDIDATE-/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.local/node/bin}; do
+  [ -n "$_d" ] && [ -d "$_d" ] || continue
+  case ":$PATH:" in *":$_d:"*) ;; *) AGGIUNTE_PATH="${AGGIUNTE_PATH:+$AGGIUNTE_PATH:}$_d" ;; esac
+done
+IFS="$_vecchio_ifs"
+if [ -n "$AGGIUNTE_PATH" ]; then
+  PATH="$PATH:$AGGIUNTE_PATH"
+  if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-path-completo' "$CLAUDE_ENV_FILE"; then
+    printf 'export PATH="$PATH:%s"  # arturo-path-completo\n' "$AGGIUNTE_PATH" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
+  fi
+fi
 # zsh come bash nei comandi di Claude (segnalazione n. 46, 3/11/2026): un glob senza file, una parola
 # che inizia con = e una variabile non quotata fanno come in bash. Prima lo faceva il mod riscrivi-bash
 # mettendo `setopt` davanti al comando, e in modalità auto Claude Code respinge un comando cambiato dopo

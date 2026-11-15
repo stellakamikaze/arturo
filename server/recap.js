@@ -2,7 +2,7 @@
 // Federico: il recap "deve far capire quanto e come Arturo è usato". Prima era il muro di testo di testoRiepilogo, con
 // le righe a zero ("nessuna") più numerose di quelle piene. Qui una riga a zero sparisce, e il suo nome va nel piede.
 // Il testo semplice resta in logica.js (testoRiepilogo), con in testa le righe di righeGiorno.
-import { LIMITI, task, idCorto, derivaPubblica, derivaInBreve } from "./logica.js";
+import { LIMITI, task, idCorto, derivaPubblica, derivaInBreve, misureMemoria } from "./logica.js";
 import { pagina, sezione, tabella, cifre, elenco, paragrafo, codice, crudo, esc } from "./email.js";
 
 const corto = (id) => (id || "").slice(0, 8);
@@ -242,6 +242,22 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
     se(rit.soglie.length, "ritenzione", () => sezione("Ritenzione", tabella(["Viva dopo", "Vive", "Su", "Quota"],
       rit.soglie.map((s) => [`${s.giorni} giorni`, s.vive, s.idonee, per(s.vive, s.idonee)]), { numeriche: [1, 2, 3] }),
     { nota: `${uno(rit.nuove, "installazione nuova", "installazioni nuove")} negli ultimi 7 giorni.` })),
+    se(m.memoria, "memoria", () => {
+      // M7 della memoria (15/11/2026): le due misure del piano in cima, poi stato, richiamo e salvataggi.
+      const x = misureMemoria(m.memoria);
+      const f = x.primoFine;
+      return sezione("Memoria", tabella(["Misura", "Quante", "Su", "Quota"], [
+        ["/inizio scritto dalla persona", x.persona, x.sessioni, per(x.persona, x.sessioni)],
+        ["Nate che hanno lanciato /fine", f.conFine, f.nate, per(f.conFine, f.nate)],
+        ["Sessioni con note proposte", x.richiamo.conProposte, x.richiamo.sessioni, per(x.richiamo.conProposte, x.richiamo.sessioni)],
+        ["Sessioni con una nota aperta", x.richiamo.conAperte, x.richiamo.conProposte, per(x.richiamo.conAperte, x.richiamo.conProposte)],
+        ["Salvataggi automatici", x.salvataggi.n, x.salvataggi.installazioni, "-"],
+      ], { numeriche: [1, 2, 3] }), {
+        nota: `${f.mediana === null ? "Nessun primo /fine ancora." : `Primo /fine dopo ${f.mediana} giorni (mediana).`} ` +
+          `Dalla rotazione: ${x.rotazione} /inizio, fuori dal conto. "Su" dei salvataggi conta le installazioni. ` +
+          `Stato: ${x.stato.length ? x.stato.map((s) => `${s.valore} ${s.n}`).join(", ") : "nessun dato"}.`,
+      });
+    }),
     se((m.claude || []).length, "versioni di Claude Code", () => sezione("Versioni di Claude Code", paragrafo((m.claude || []).map((x) => `${x.valore} (${x.n})`).join(", ")))),
     se((r.comandi || []).length, "comandi", () => sezione("Comandi della settimana", tabella(["Comando", "Volte"],
       r.comandi.slice(0, DIECI).map((x) => [codice(`/${x.valore}`), x.n]), { numeriche: [1] }))),

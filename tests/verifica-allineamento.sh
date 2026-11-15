@@ -207,6 +207,8 @@ BANCHI=(
   test_progetti_memoria_2026_11_11.py
   # Il salvataggio automatico di una sessione chiusa senza /fine (M4, #5672).
   test_salva_automatico.py
+  # Gli eventi della memoria nella telemetria: memoria, richiamo, salvataggio, inizio (M7, #5672).
+  test_telemetria_memoria_2026_11_15.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -531,6 +533,8 @@ VELENI=(
   test_progetti_memoria_2026_11_11.py
   # Il salvataggio automatico (M4, #5672): ogni rottura di salva-automatico.py, dell'hook o di contesto.py fa rosso il suo caso SV.
   test_salva_automatico.py
+  # La telemetria della memoria (M7, #5672): ogni rottura di telemetria.py, inject-now.sh o salva-automatico.py fa rosso il suo caso TM.
+  test_telemetria_memoria_2026_11_15.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

@@ -355,6 +355,10 @@ def main(argv: list) -> int:
     cartella_h = radice_orsa() / "data" / "handoffs" / s
     percorso = gia if gia is not None else nome_libero(cartella_h, adesso)
     scrivi(percorso, componi(s, cartella, sid, adesso, richieste, file, letto["aperti"]))
+    if gia is None:  # M7 della memoria: un evento per sessione salvata, non uno per giro della stessa
+        telemetria = carica("telemetria", QUI / "telemetria.py")
+        if telemetria is not None and hasattr(telemetria, "registra"):
+            telemetria.registra("salvataggio", "automatico")
     print(f"SALVATO: {percorso}")
     return 0
 

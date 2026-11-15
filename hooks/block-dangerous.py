@@ -899,6 +899,16 @@ def _bersagli_redirezione(seg):
 # `cp /tmp/x/settings.json ~/.claude/` riscriveva la config (review del 10/11/2026, #5261).
 _COPIANO = frozenset("cp mv install ln rsync".split())
 
+# rsync scrive su un altro computer quando la destinazione è `host:percorso`, `utente@host:percorso`,
+# `host::modulo` o `rsync://…`: un due punti prima della prima barra. La lettera di un disco di Windows
+# (`C:/x`, `C:\x`) resta locale. Prima `rsync ./ host:/tmp/x/` da una cartella con un CLAUDE.md chiedeva
+# conferma come se lo riscrivesse (15/11/2026, #5713).
+_RSYNC_REMOTO = re.compile(r"^(?:rsync://|[^/\\:]{2,}:)", re.IGNORECASE)
+
+
+def _rsync_remoto(cmd0, t):
+    return cmd0 == "rsync" and bool(_RSYNC_REMOTO.match(t))
+
 
 def _dentro_la_cartella(cmd0, toks, base_cwd):
     """I percorsi `destinazione/nome-sorgente` che cp, mv, install, ln e rsync scrivono quando la
@@ -922,6 +932,8 @@ def _dentro_la_cartella(cmd0, toks, base_cwd):
         cartella, sorgenti = ".", liberi
     elif len(liberi) >= 2:
         cartella, sorgenti = liberi[-1], liberi[:-1]
+        if _rsync_remoto(cmd0, cartella):
+            return []
         risolta = _resolve(cartella, base_cwd)
         if not (len(sorgenti) > 1 or cartella.endswith(("/", "\\", "/.")) or cartella in (".", "..")
                 or (risolta and os.path.isdir(risolta))):
@@ -1145,7 +1157,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
             # salvo -t/--target-directory, che sposta la destinazione: allora contano tutti.
             if cmd0 in ("cp", "install", "rsync", "ln") and argomenti and not any(
                     t == "-t" or t.startswith("--target-directory") for t in toks[1:]):
-                argomenti = argomenti[-1:]
+                argomenti = [t for t in argomenti[-1:] if not _rsync_remoto(cmd0, t)]
             if cmd0 == "dd":
                 # dd scrive solo `of=FILE`: prima `of=settings.json` si risolveva come un file di nome
                 # "of=settings.json", e dopo un cd in ~/.claude passava.

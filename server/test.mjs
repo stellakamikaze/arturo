@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 // caso con il suo messaggio, non il caricamento del banco.
 import * as logica from "./logica.js";
 const { gestisci, settimanale, giornaliero, programmato, pulizia, giornoRoma, settimanaPrima, mime, testoDeriva, testoRiepilogo, ritenzione,
-  LIMITI, EVENTI, calcolaIndietro, rilascio, confronta } = logica;
+  LIMITI, EVENTI, calcolaIndietro, rilascio, confronta, validaLotto } = logica;
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0, scartati: 0, telegramKo: 0, emailKo: 0 };
@@ -167,7 +167,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
+      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "memoria", "richiamo", "salvataggio", "inizio", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
   },
   async V10() {
     const f = finti();
@@ -1163,6 +1163,17 @@ const casi = {
     assert.ok(f.stato.segnalazioni.every((x) => x.contatto_nome === "" && x.contatto_email === ""), "V63 un contatto rotto resta sul server");
     const solaEmail = await gestisci(post("/v1/segnalazioni", { ...s, contatto: { email: "a@b.it" } }), { ...f, adesso });
     assert.equal((await solaEmail.json()).contatto, "salvato", "V63 l'email senza nome non si salva");
+  },
+  // M7 della memoria (15/11/2026): i quattro eventi nuovi passano coi soli valori a fasce, e un nome di nota non passa.
+  async V64() {
+    const base = { installazione: "abcdefgh-1234", versione: "v0.2.13", sistema: "Darwin" };
+    const buoni = [["memoria", "spenta"], ["memoria", "accesa:0"], ["memoria", "accesa:>200"], ["richiamo", "0/0"],
+      ["richiamo", "2-5/1"], ["richiamo", ">20/6-20"], ["salvataggio", "automatico"], ["inizio", "persona"], ["inizio", "rotazione"]];
+    const cattivi = [["memoria", "accesa"], ["memoria", "accesa:12"], ["memoria", "spenta:0"], ["richiamo", "3/1"],
+      ["richiamo", "1"], ["richiamo", "progetto-rossi.md/1"], ["salvataggio", "auto"], ["inizio", "volta"], ["inizio", ""]];
+    const r = validaLotto({ ...base, eventi: [...buoni, ...cattivi].map(([evento, valore]) => ({ giorno: "2026-11-15", evento, valore })) }, "2026-11-15");
+    assert.deepEqual(r.righe.map((x) => [x.evento, x.valore]), buoni, "V64 i valori buoni della memoria non passano tutti");
+    assert.equal(r.scartati, cattivi.length, "V64 un valore fuori fascia della memoria passa");
   },
 };
 

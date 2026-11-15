@@ -28,8 +28,10 @@ Due tempi, perché un hook non deve mai aspettare la rete:
   ogni 6 ore, e lì registra anche la versione di Claude Code quando cambia. Manda anche le
   segnalazioni di /segnala rimaste in attesa.
 - `fine` (hooks/session-end.sh, in background) legge il transcript della sessione che chiude e registra
-  durata e messaggi della persona in fasce larghe, e le skill usate (dal 3/11/2026, #4540). Del transcript
-  non esce niente altro.
+  durata e messaggi della persona in fasce larghe, e le skill usate (dal 3/11/2026, #4540). Dal 15/11/2026
+  (M7 della memoria) anche la memoria accesa o spenta con le note in fasce, una volta al giorno, e quante
+  note gli hook della memoria hanno proposto e quante Claude ha aperto, in fasce. Del transcript non esce
+  niente altro: mai il nome di una nota.
 
 Lo stato (id, ultimo tentativo, spenta, avviso_promessa, claude, deriva e config
 già inviate, gli id delle ultime sessioni contate da `fine`) sta in ~/.claude/session-env/telemetria.json.
@@ -93,6 +95,14 @@ EVENTI = {
     # Dal 3/11/2026: il nome di un banco delle guardie diventato rosso su questo computer
     # (tests/banchi-avvio.sh), solo quando l'elenco dei rossi cambia. Alla persona non si dice più.
     "banchi": re.compile(r"^test[a-z0-9_-]{1,56}\.py$"),
+    # Dal 15/11/2026 (M7 della memoria, #5672): se la memoria serve. Una volta al giorno, alla chiusura, accesa o spenta
+    # e quante note in fasce; per ogni sessione con la memoria accesa, quante note Arturo ha proposto e quante Claude
+    # ha poi aperto, in fasce (proposte/aperte); un handoff scritto da solo per una sessione chiusa senza /fine; e se
+    # /inizio l'ha scritto la persona o la rotazione. Mai il nome di una nota, di un progetto o un testo.
+    "memoria": re.compile(r"^(spenta|accesa:(0|1-10|11-50|51-200|>200))$"),
+    "richiamo": re.compile(r"^(0|1|2-5|6-20|>20)/(0|1|2-5|6-20|>20)$"),
+    "salvataggio": re.compile(r"^automatico$"),
+    "inizio": re.compile(r"^(persona|rotazione)$"),
 }
 # Le guardie di Arturo che parlano alla telemetria: quelle che bash-dispatcher.sh lancia con run_guard,
 # più web-egress-guard.py e protect_claude_md.py, che chiamano chiede da sole. Un nome fuori elenco non
@@ -125,7 +135,9 @@ REGOLE = {
 # Arturo, mai un tag della persona. Il README non dice più "non legato a te".
 # 8: escono la durata della sessione e i messaggi della persona in fasce, e le skill di Arturo usate (3/11/2026, #4540).
 # 9: esce il nome di un banco delle guardie diventato rosso, che alla persona non si dice più (3/11/2026).
-PROMESSA = 10
+# 11: escono la memoria accesa o spenta con le note in fasce, le note proposte e aperte in fasce, i salvataggi
+# automatici e se /inizio parte dalla persona o dalla rotazione (15/11/2026, M7 della memoria, #5672).
+PROMESSA = 11
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -165,6 +177,9 @@ di Arturo: un comando o una skill tua esce come "altro", di un segreto fermato i
 famiglia, mai il servizio. Come versione esce solo il rilascio di Arturo installato, mai un tuo tag.
 Di ogni sessione, alla chiusura, solo la durata e quanti messaggi hai scritto, in fasce larghe:
 meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da 6 a 20, oltre 20 messaggi.
+Della memoria, una volta al giorno, se è accesa e quante note ricorda, in fasce; per ogni sessione
+quante note propone e quante Claude ne apre, in fasce; e se una sessione chiusa senza /fine è stata
+salvata da sola. Di /inizio, se l'hai scritto tu o l'ha lanciato la rotazione. Mai i nomi delle note.
 Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
 L'id è casuale, ma chi mantiene Arturo può sapere chi c'è dietro se ti conosce: non sono dati
 anonimi. Cosa si tiene, per quanto e i tuoi diritti: docs/privacy.md.
@@ -899,20 +914,51 @@ def _secondi(testo) -> float | None:
         return None
 
 
+# Le intestazioni con cui hooks/memory-retrieve.py e hooks/memory-autoload.py propongono le note, e la riga di ogni
+# nota proposta: "  - <percorso>.md ...". Servono a contare il richiamo (M7 della memoria, 15/11/2026).
+INTESTAZIONI_MEMORIA = ("MEMORY (rilevante", "MEMORY-AUTOLOAD:")
+NOTA_PROPOSTA = re.compile(r"^[ \t]+- (\S+\.md)(?=\s|$)", re.M)
+
+
+def _chiave_nota(percorso: str) -> str:
+    """Lo stesso file scritto come lo propone l'hook (~/..., barre dritte) o come lo apre Read (assoluto)."""
+    return os.path.normcase(os.path.normpath(os.path.expanduser(percorso.replace("\\", "/"))))
+
+
+def _note_proposte(testo) -> list:
+    """I percorsi delle note proposte in un'uscita degli hook della memoria: solo dopo una delle intestazioni."""
+    if not isinstance(testo, str):
+        return []
+    inizi = [testo.find(i) for i in INTESTAZIONI_MEMORIA if i in testo]
+    return NOTA_PROPOSTA.findall(testo[min(inizi):]) if inizi else []
+
+
 def leggi_sessione(percorso: Path) -> tuple:
     """Da un transcript di Claude Code: (secondi fra il primo e l'ultimo messaggio, o None; messaggi scritti
-    dalla persona; skill usate, in ordine e senza doppi). Del transcript non esce niente altro: i testi servono
-    solo a riconoscere un messaggio della persona e il nome di una skill, e restano qui."""
+    dalla persona; skill usate, in ordine e senza doppi; note proposte dagli hook della memoria; note proposte e
+    poi aperte con Read). Del transcript non esce niente altro: i testi servono solo a riconoscere un messaggio
+    della persona, il nome di una skill e i percorsi delle note, e restano qui. Delle note escono solo i conteggi."""
     primo = ultimo = None
     turni = 0
     skill: list = []
+    proposte: set = set()
+    aperte: set = set()
     with percorso.open(encoding="utf-8", errors="replace") as f:
         for riga in f:
             try:
                 d = json.loads(riga)
             except ValueError:
                 continue
-            if not isinstance(d, dict) or d.get("isSidechain") or d.get("type") not in ("user", "assistant"):
+            if not isinstance(d, dict) or d.get("isSidechain"):
+                continue
+            # L'uscita di un hook (dal 2026 in una riga "attachment"): una stringa o un elenco di stringhe.
+            allegato = d.get("attachment") if d.get("type") == "attachment" else None
+            if isinstance(allegato, dict) and allegato.get("type") in ("hook_success", "hook_additional_context"):
+                contenuto = allegato.get("content")
+                for testo in (contenuto if isinstance(contenuto, list) else [contenuto]):
+                    proposte.update(_chiave_nota(p) for p in _note_proposte(testo))
+                continue
+            if d.get("type") not in ("user", "assistant"):
                 continue
             t = _secondi(d.get("timestamp"))
             if t is not None:
@@ -921,9 +967,13 @@ def leggi_sessione(percorso: Path) -> tuple:
             messaggio = d.get("message")
             contenuto = messaggio.get("content") if isinstance(messaggio, dict) else None
             blocchi = contenuto if isinstance(contenuto, list) else []
-            if d["type"] == "user" and not d.get("isMeta"):
+            if d["type"] == "user":
                 testi = [contenuto] if isinstance(contenuto, str) else \
                     [b.get("text") for b in blocchi if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)]
+                # Le versioni di Claude Code di prima mettevano l'uscita degli hook in un <system-reminder> del messaggio.
+                for x in testi:
+                    proposte.update(_chiave_nota(p) for p in _note_proposte(x))
+            if d["type"] == "user" and not d.get("isMeta"):
                 scritti = [x for x in testi if x.strip() and not x.lstrip().startswith(NON_SCRITTI)]
                 immagine = any(isinstance(b, dict) and b.get("type") == "image" for b in blocchi)
                 if scritti or immagine:
@@ -934,6 +984,11 @@ def leggi_sessione(percorso: Path) -> tuple:
                             skill.append(nome)
             elif d["type"] == "assistant":
                 for b in blocchi:
+                    if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "Read" \
+                            and isinstance(b.get("input"), dict) and isinstance(b["input"].get("file_path"), str):
+                        chiave = _chiave_nota(b["input"]["file_path"])
+                        if chiave in proposte:  # aperta dopo che un hook l'ha proposta
+                            aperte.add(chiave)
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "Skill" \
                             and isinstance(b.get("input"), dict) and isinstance(b["input"].get("skill"), str):
                         nome = b["input"]["skill"].lstrip("/")
@@ -941,12 +996,13 @@ def leggi_sessione(percorso: Path) -> tuple:
                         if nome not in skill:
                             skill.append(nome)
     secondi = ultimo - primo if primo is not None and ultimo is not None else None
-    return secondi, turni, skill
+    return secondi, turni, skill, len(proposte), len(aperte)
 
 
 def fine_sessione(dati: dict) -> None:
     """Lo chiama session-end.sh in background, col JSON dell'hook: registra durata, turni e skill della sessione
-    che chiude. Una sessione senza messaggi della persona non registra niente. Non usa la rete e non solleva."""
+    che chiude, e dal 15/11/2026 (M7 della memoria) la memoria una volta al giorno e il richiamo della sessione.
+    Una sessione senza messaggi della persona non registra niente. Non usa la rete e non solleva."""
     try:
         if perche_spenta() or not isinstance(dati, dict):
             return
@@ -958,7 +1014,7 @@ def fine_sessione(dati: dict) -> None:
         transcript = Path(percorso)
         if not transcript.is_file() or transcript.stat().st_size > TRANSCRIPT_MASSIMO:
             return
-        secondi, turni, skill = leggi_sessione(transcript)
+        secondi, turni, skill, proposte, aperte = leggi_sessione(transcript)
         cambia_stato(lambda s: s.__setitem__("sessioni_chiuse", (
             [x for x in (s.get("sessioni_chiuse") or []) if isinstance(x, str) and x != sessione] + [sessione])[-SESSIONI_RICORDATE:]))
         if not turni:
@@ -968,8 +1024,48 @@ def fine_sessione(dati: dict) -> None:
         registra("turni", _fascia_turni(turni))
         for nome in skill:
             registra("skill", nome)
+        memoria = stato_memoria()
+        if memoria is not None:
+            accesa, note = memoria
+            giorno = ts.oggi().isoformat()
+            if leggi_stato().get("memoria_giorno") != giorno \
+                    and registra("memoria", f"accesa:{_fascia_note(note)}" if accesa else "spenta"):
+                cambia_stato(lambda s: s.__setitem__("memoria_giorno", giorno))
+            if accesa:
+                registra("richiamo", f"{_fascia_conta(proposte)}/{_fascia_conta(aperte)}")
     except Exception:  # noqa: BLE001 - la chiusura di una sessione non si ferma mai per la telemetria
         pass
+
+
+def _fascia_note(n: int) -> str:
+    return "0" if n <= 0 else "1-10" if n <= 10 else "11-50" if n <= 50 else "51-200" if n <= 200 else ">200"
+
+
+def _fascia_conta(n: int) -> str:
+    return "0" if n <= 0 else "1" if n == 1 else "2-5" if n <= 5 else "6-20" if n <= 20 else ">20"
+
+
+def conta_note(cartella: Path, oltre: int = 200) -> int:
+    """Le note di data/memory, come le conta `arturo memoria`: fuori dalle cartelle e dai file che cominciano con
+    _ o col punto (_archive, il log degli accessi), senza MEMORY.md e index.md. Si ferma oltre la fascia più alta."""
+    n = 0
+    for _radice, cartelle, file in os.walk(cartella):
+        cartelle[:] = [c for c in cartelle if not c.startswith(("_", "."))]
+        n += sum(1 for f in file if f.endswith(".md") and not f.startswith(("_", ".")) and f not in ("MEMORY.md", "index.md"))
+        if n > oltre:
+            break
+    return n
+
+
+def stato_memoria():
+    """(accesa, note) dalla memoria di Arturo, o None se il suo modulo manca (una config senza la memoria)."""
+    try:
+        import melchior_match as mm
+        if not mm.memoria_accesa():
+            return False, 0
+        return True, conta_note(mm.MEMORY_DIR) if mm.MEMORY_DIR.is_dir() else 0
+    except Exception:  # noqa: BLE001 - un modulo della memoria rotto non ferma la telemetria
+        return None
 
 
 def avvio() -> int:
@@ -999,7 +1095,9 @@ def avvio() -> int:
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo (plugin o clone) e di "
                   "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
                   "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
-                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, banchi di prova delle guardie rossi, fase di /setup raggiunta, esiti di /aggiorna e degli "
+                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, banchi di prova delle guardie rossi, memoria accesa o spenta e "
+                  "quante note ricorda, quante note propone e quante Claude apre (in fasce, mai i nomi), sessioni salvate da sole senza /fine, "
+                  "se /inizio parte dalla persona o dalla rotazione, fase di /setup raggiunta, esiti di /aggiorna e degli "
                   "aggiornamenti automatici, perché un aggiornamento automatico non parte (anche modifiche non salvate o una copia di prova in attesa), file e hook di Arturo cambiati, spenti o in conflitto "
                   "(un file della persona conta come altro). Mai prompt, file, nomi o testi. L'id è casuale, ma chi mantiene Arturo può "
                   "sapere chi c'è dietro se conosce la persona: non sono dati anonimi (docs/privacy.md)."

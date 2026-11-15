@@ -92,8 +92,13 @@ collegamenti rotti.
 
 - **Ad Anthropic**: le note che Claude apre entrano nella conversazione, e passano ad Anthropic
   come il resto della conversazione. Le note che Claude non apre non escono.
-- **A chi mantiene Arturo**: niente. Nessuna nota, nessun nome di nota e nessun conteggio entra
-  nella telemetria.
+- **A chi mantiene Arturo**: solo se la telemetria è accesa, e solo conteggi in fasce e risposte
+  sì o no. Una volta al giorno parte un dato che dice se la memoria è accesa o spenta e quante note
+  contiene, in fasce (nessuna, fino a 10, fino a 50 e così via). Per ogni sessione parte quante note
+  Arturo propone e quante Claude ne apre, sempre in fasce. Parte anche un dato quando Arturo salva al
+  posto tuo una sessione chiusa senza `/fine`, e uno che dice se `/inizio` l'hai scritto tu
+  o l'ha lanciato Arturo da solo per passare al passo dopo di un lavoro lungo (la rotazione). Il nome e il testo delle note non escono mai.
+  La telemetria si spegne con `arturo telemetria spegni`.
 - **Su GitHub, solo se la copia è privata**: se la tua `~/.claude` è collegata a un repository
   privato su GitHub (in gergo, un remote privato), `/fine` salva lì anche le note di
   `data/memory/`, così le ritrovi sugli altri computer. Se il repository è pubblico, o se non c'è,

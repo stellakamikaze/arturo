@@ -77,6 +77,15 @@ if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
      && [ -f "$_A/bin/telemetria.py" ]; then
     python3 "$_A/bin/telemetria.py" registra comando "$COMANDO" >/dev/null 2>&1 || true
   fi
+  # Chi apre /inizio (M7 della memoria, 15/11/2026): la persona, o il mod rotazione con "-- --rotazione". Senza,
+  # la quota di sessioni aperte con /inizio si gonfia a ogni rotazione. Anche nella forma del plugin, /arturo:inizio.
+  RE_INIZIO='"prompt"[[:space:]]*:[[:space:]]*"/(arturo:)?inizio([^a-z0-9:-])'
+  RE_ROTAZIONE='"prompt"[[:space:]]*:[[:space:]]*"/(arturo:)?inizio[^"]*--rotazione'
+  if [[ "$INPUT" =~ $RE_INIZIO ]] && [ -f "$_A/bin/telemetria.py" ]; then
+    ORIGINE=persona
+    [[ "$INPUT" =~ $RE_ROTAZIONE ]] && ORIGINE=rotazione
+    python3 "$_A/bin/telemetria.py" registra inizio "$ORIGINE" >/dev/null 2>&1 || true
+  fi
   # --- Aggiunte personali al comando ------------------------------------------------
   # Le aggiunte della persona a un comando di Arturo stanno in ~/.claude/personale/<comando>.md,
   # fuori da git: gli aggiornamenti non le toccano e non vanno in conflitto (arturo personale).

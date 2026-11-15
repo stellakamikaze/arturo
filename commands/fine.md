@@ -47,7 +47,7 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
 - **Poi la rotazione.** Con la coda a `rc=0` scegli il passo dopo. Se è un passo di Claude (Chi `io`), la
   chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
   `mcp__arturo__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
-  azione del turno.
+  azione del turno. Mai chiudere con "scrivi /clear e poi /inizio": quel passo lo fa `ruota`.
 - **Un rilascio pronto vuole una riapertura vera.** Prima di `ruota` lancia
   `python3 ~/.claude/bin/arturo aggiornamenti riapri`. Con uscita 0 non ruotare: il `/clear` non chiude Claude
   Code, e il rilascio resta fermo. Chiudi con la riga che stampa e con "chiudi e riapri Claude Code, poi
