@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — Due conferme in meno dalle guardie
+
+**Cosa cambia**: un `rsync` verso un altro computer (`rsync ./ server:/cartella/`) lanciato da una cartella con
+un CLAUDE.md non chiede più conferma: le guardie leggevano la destinazione remota come una cartella di questo
+computer, e credevano che rsync ci scrivesse un CLAUDE.md nuovo. Verso una cartella locale, anche un disco di
+Windows come `C:/`, la conferma resta. E un ciclo `for f in a.sh b.sh; do bash "$f"; done` dopo un file scritto
+nello stesso comando non fa più leggere quel file come eseguito, se il ciclo nomina solo altri file. Un ciclo
+con un glob, una variabile o il nome del file scritto chiede come prima.
+
+**Il principio**: una conferma che non protegge niente insegna a dire sì senza leggere.
+
+**A chi serve**: a chi copia cartelle su un server con rsync e a chi rilancia script in un ciclo.
+
+---
+
 ## 2026-11-15 — Humanizer segue la versione 4.0.0
 
 **Cosa cambia**: la skill `humanizer` segue la versione 4.0.0 dell'origine (blader/humanizer). Un testo da
