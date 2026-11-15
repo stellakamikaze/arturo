@@ -205,6 +205,8 @@ BANCHI=(
   test_salva_automatico.py
   # Gli eventi della memoria nella telemetria: memoria, richiamo, salvataggio, inizio (M7, #5672).
   test_telemetria_memoria_2026_11_15.py
+  # La barra trova node col PATH minimo di ssh, come nelle sessioni che Volta apre su un'altra macchina (15/11/2026).
+  test_statusline_path_2026_11_15.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -448,6 +450,8 @@ BASELINE=(
   "test_migra_2026_11_05.py 53450c6"
   # Strati F5 (5/11/2026, #4535): il comando omonimi non c'è. e87ce62, il dev prima.
   "test_sostituzioni_2026_11_05.py e87ce62"
+  # La barra col PATH di ssh (15/11/2026): il comando non allarga il PATH. 8f62532, il dev prima.
+  "test_statusline_path_2026_11_15.py 8f62532"
   # #4874 (6/11/2026): il comando regole-doppie non c'è. 3b5e6c3, il dev prima.
   "test_regole_doppie_2026_11_06.py 3b5e6c3"
   # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
