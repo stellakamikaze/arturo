@@ -61,6 +61,10 @@ F27 un compito col trattino dopo il nome (review del 7/11/2026, finding 33): "li
 F28 la scheda del progetto (M3 del piano della memoria, 14/11/2026, #5672): /fine la scrive con arturo
 memoria scheda, arturo contesto la rilegge dalla home anche per un progetto fuori dalla base, senza
 voci ripetute e con le righe scritte a mano; a memoria spenta niente scheda; un segreto non entra.
+F29 note salvate e annunciate (M5, 15/11/2026, #5672): la FASE 8 salva con arturo memoria nota senza
+chiedere, la chiusura annuncia con ricordate --annuncia e "togli N" archivia; una nota salvata in un giro
+di rotazione si annuncia nella chiusura dopo; il gate accetta l'idea "→ memoria" con la nota salvata e
+la rifiuta dopo "togli"; l'igiene settimanale sta nel fine completo.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1333,12 +1337,71 @@ def test_f28(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f29(repo: Path) -> None:
+    """Note salvate e annunciate (M5 del piano della memoria, 15/11/2026, #5672)."""
+    fine = read(repo / "commands" / "fine.md")
+    for titolo in ("## Modo rotazione", "## FASE 1", "## FASE 8", "## FASE 9", "## Chiusura"):
+        assert titolo in fine, f"F29 /fine non ha la sezione {titolo!r}"
+    fase8 = fine[fine.index("## FASE 8"):fine.index("## FASE 9")]
+    for pezzo in ("arturo memoria nota --tipo", "Una nota nuova la salva senza chiedere", "Exit 6",
+                  "arturo memoria igiene", "--se-dovuta", "solo nel fine completo"):
+        assert pezzo in fase8, f"F29 la FASE 8 di /fine non dice {pezzo!r}"
+    assert "Chiede il sì** per una nota nuova" not in fine, "F29 /fine chiede ancora il sì per una nota nuova"
+    chiusura = fine[fine.index("## Chiusura"):]
+    for pezzo in ("arturo memoria ricordate --annuncia", "togli N", "arturo memoria togli N", "non nel giro che ruota"):
+        assert pezzo in chiusura, f"F29 la Chiusura di /fine non dice {pezzo!r}"
+    rotazione = fine[fine.index("## Modo rotazione"):fine.index("## FASE 1")]
+    assert "non lancia `ricordate --annuncia`" in rotazione, "F29 il fine leggero annuncia le note a nessuno"
+    serve(repo, "bin/memoria.py", "F29")
+
+    def prova(lab: Lab) -> None:
+        def arturo(*argomenti: str) -> subprocess.CompletedProcess:
+            e = lab.env()
+            e.pop("ARTURO_MEMORIA", None)
+            return subprocess.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), *argomenti],
+                                  cwd=str(lab.home), env=e, capture_output=True, text=True, encoding="utf-8",
+                                  timeout=120)
+
+        def gate_idee(slug: str) -> list:
+            codice = ("import sys; sys.path.insert(0, sys.argv[1]); import handoff_profilo as h; "
+                      "print('\\n'.join(h.idee_senza_nota(sys.argv[2], h.cartelle_memoria())))")
+            testo = f"# Handoff\n## Idee\n- le tariffe vanno lette dal listino → memoria [[{slug}]]\n"
+            e = lab.env()
+            e.pop("ARTURO_MEMORIA", None)
+            r = subprocess.run([sys.executable, "-B", "-c", codice, str(lab.repo / "bin"), testo], env=e,
+                               capture_output=True, text=True, encoding="utf-8", timeout=60)
+            assert r.returncode == 0, f"F29 il gate delle idee non gira: {r.stderr[-300:]}"
+            return [x for x in r.stdout.splitlines() if x.strip()]
+
+        mem = lab.home / ".claude" / "data" / "memory"
+        # Giro di rotazione: la nota si salva, l'annuncio non parte.
+        r = arturo("memoria", "nota", "--tipo", "feedback", "--nome", "tariffe-dal-listino", "--descrizione",
+                   "le tariffe si leggono dal listino", "--testo", "Le tariffe vengono dal listino dell'anno.")
+        assert r.returncode == 0 and (mem / "feedback" / "tariffe-dal-listino.md").is_file(), \
+            f"F29 la FASE 8 non salva la nota senza chiedere: {r.stdout} {r.stderr}"
+        assert not gate_idee("tariffe-dal-listino"), "F29 il gate non accetta un'idea con la nota salvata in sessione"
+        # La chiusura che la persona legge: annuncia anche la nota del giro prima.
+        arturo("memoria", "nota", "--tipo", "reference", "--nome", "cartella-del-libro", "--descrizione",
+               "dove sta la cartella del libro", "--testo", "La cartella è ~/lavori/libro.")
+        r = arturo("memoria", "ricordate", "--annuncia")
+        assert r.returncode == 0 and "1. le tariffe si leggono dal listino" in r.stdout \
+            and "2. dove sta la cartella del libro" in r.stdout, f"F29 la chiusura non annuncia le note: {r.stdout}"
+        r = arturo("memoria", "togli", "1")
+        assert r.returncode == 0 and (mem / "_archive" / "feedback" / "tariffe-dal-listino.md").is_file() \
+            and not (mem / "feedback" / "tariffe-dal-listino.md").exists(), f"F29 togli 1 non archivia: {r.stdout}"
+        assert gate_idee("tariffe-dal-listino"), "F29 il gate accetta un'idea la cui nota è stata tolta"
+        r = arturo("memoria", "ricordate", "--annuncia")
+        assert r.returncode == 3, f"F29 la chiusura dopo ripete l'annuncio: {r.stdout}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
-         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28}
+         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
+         "F29": test_f29}
 
 
 def main() -> int:

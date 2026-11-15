@@ -26,6 +26,14 @@ passano ad Anthropic come il resto della conversazione. Niente della memoria ent
   scheda SLUG                    la scheda del progetto: cos'è, dove sta, decisioni chiuse, errori
   scheda SLUG --cosa T [--titolo T] [--cartella DIR] [--alias a,b] [--decisione T]... [--errore T]...
                                  la scrive o la aggiorna (/fine); le righe scritte a mano restano
+  nota --tipo T --nome N --descrizione D [--testo T]
+                                 salva una nota nuova in data/memory/<cartella del tipo>/ (testo
+                                 anche da stdin) e la mette fra quelle da annunciare (/fine)
+  ricordate [--annuncia] [--json] le note salvate e non ancora annunciate; --annuncia le numera
+  togli N | NOME                 archivia la nota N dell'ultimo annuncio (o per nome), senza cancellarla
+  igiene [--prova] [--se-dovuta] [--json]
+                                 note dormienti (mai proposte da 90 giorni), coppie quasi uguali,
+                                 link rotti; --se-dovuta gira una volta a settimana (/fine completo)
 
 L'interruttore sta in ~/.claude/data/memoria/impostazioni.json, fuori da git. La variabile
 ARTURO_MEMORIA=1 o ARTURO_MEMORIA=0 (nell'ambiente o in "env" di settings.json) vince sul file.
@@ -536,6 +544,357 @@ def comando_scheda(argv: list) -> int:
     return 0
 
 
+# --- Note salvate e annunciate (M5 del piano della memoria, 15/11/2026) -----------------------
+# /fine salva una nota nuova senza chiedere e la annuncia nella chiusura che la persona legge:
+# "Ho ricordato: 1. … 2. …". "togli N" la sposta in data/memory/_archive/, non la cancella.
+# Il registro sta in data/memoria/ricordate.json, fuori da git come l'interruttore.
+
+NOME_NOTA = re.compile(r"^[a-z0-9][a-z0-9-]{1,79}$")
+MAX_TESTO = 20000
+
+
+def file_registro() -> Path:
+    return mm.IMPOSTAZIONI.parent / "ricordate.json"
+
+
+def leggi_registro() -> dict:
+    try:
+        dati = json.loads(file_registro().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"voci": [], "annuncio": 0}
+    if not isinstance(dati, dict) or not isinstance(dati.get("voci"), list):
+        return {"voci": [], "annuncio": 0}
+    dati["voci"] = [v for v in dati["voci"] if isinstance(v, dict) and isinstance(v.get("file"), str)]
+    if not isinstance(dati.get("annuncio"), int):
+        dati["annuncio"] = 0
+    return dati
+
+
+def scrivi_registro(dati: dict) -> None:
+    f = file_registro()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f".{f.name}.tmp")
+    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(f))
+
+
+def oggi() -> str:
+    from datetime import date
+    return date.today().isoformat()
+
+
+def note_curate() -> list:
+    """Le note di data/memory, fuori da _archive e dai file che iniziano con _ o punto."""
+    return [p for _d, p in file_note([mm.MEMORY_DIR])] if mm.MEMORY_DIR.is_dir() else []
+
+
+def comando_nota(argv: list) -> int:
+    p = argparse.ArgumentParser(prog="arturo memoria nota", add_help=False)
+    p.add_argument("--tipo", required=True)
+    p.add_argument("--nome", required=True)
+    p.add_argument("--descrizione", required=True)
+    p.add_argument("--testo", default=None)
+    try:
+        a = p.parse_args(argv)
+    except SystemExit:
+        print('uso: arturo memoria nota --tipo user|feedback|project|reference --nome nome-della-nota '
+              '--descrizione "una riga" [--testo "..."] (senza --testo lo legge da stdin)', file=sys.stderr)
+        return 3
+    if a.tipo not in TIPI:
+        print(f'tipo "{a.tipo}" sconosciuto: usa uno di {", ".join(TIPI)}', file=sys.stderr)
+        return 3
+    nome = a.nome.strip()
+    if not NOME_NOTA.match(nome):
+        print(f'nome "{nome}" non valido: lettere minuscole, cifre e trattini, da 2 a 80', file=sys.stderr)
+        return 3
+    testo = a.testo if a.testo is not None else ("" if sys.stdin is None or sys.stdin.isatty() else sys.stdin.read())
+    testo = (testo or "").strip()
+    descrizione = una_riga(a.descrizione, MAX_DESCRIZIONE)
+    if not descrizione or not testo:
+        print("servono una descrizione e un testo: una nota vuota non si salva", file=sys.stderr)
+        return 3
+    if len(testo) > MAX_TESTO:
+        print(f"testo di {len(testo)} caratteri: una nota sta sotto i {MAX_TESTO}. Tieni il fatto, non il documento.",
+              file=sys.stderr)
+        return 3
+    if not mm.memoria_accesa():
+        print("memoria spenta: la nota non si salva. Per accenderla: arturo memoria accendi")
+        return 4
+    motivi = motivi_scanner("\n".join([nome, descrizione, testo]))
+    if motivi:
+        print(f"nota {nome} non salvata: " + "; ".join(motivi), file=sys.stderr)
+        return 5
+    gia = [q for q in note_curate() if q.stem == nome]
+    if gia:
+        print(f"la nota {nome} c'è già: {breve(gia[0])}. Aggiorna quella invece di farne una nuova.", file=sys.stderr)
+        return 6
+    f = mm.MEMORY_DIR / mm.CARTELLA_TIPO[a.tipo] / f"{nome}.md"
+    corpo = "\n".join(["---", f"name: {nome}", f"description: {_valore_fm(descrizione)}", f"type: {a.tipo}",
+                       f"created: {oggi()}", "---", testo]) + "\n"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f".{f.name}.tmp")
+    tmp.write_text(corpo, encoding="utf-8")
+    os.replace(str(tmp), str(f))
+    dati = leggi_registro()
+    dati["voci"].append({"nome": nome, "file": f.relative_to(mm.MEMORY_DIR).as_posix(), "descrizione": descrizione,
+                         "giorno": oggi(), "annuncio": None, "tolta": False})
+    scrivi_registro(dati)
+    print(f"nota salvata: {breve(f)} · la annuncia la chiusura di /fine")
+    return 0
+
+
+def _ultimo_annuncio(dati: dict) -> list:
+    return [v for v in dati["voci"] if dati["annuncio"] and v.get("annuncio") == dati["annuncio"]]
+
+
+def comando_ricordate(argv: list) -> int:
+    dati = leggi_registro()
+    attesa = [v for v in dati["voci"] if v.get("annuncio") is None and not v.get("tolta")
+              and (mm.MEMORY_DIR / v["file"]).is_file()]
+    if "--json" in argv:
+        print(json.dumps({"da_annunciare": attesa, "ultimo_annuncio": _ultimo_annuncio(dati)},
+                         ensure_ascii=False, indent=1))
+        return 0 if attesa else 3
+    if not attesa:
+        return 3
+    if "--annuncia" in argv:
+        dati["annuncio"] += 1
+        for v in attesa:
+            v["annuncio"] = dati["annuncio"]
+        scrivi_registro(dati)
+    print("Ho ricordato:")
+    for n, v in enumerate(attesa, 1):
+        print(f"{n}. {v.get('descrizione') or v['nome']} ({breve(mm.MEMORY_DIR / v['file'])})")
+    if "--annuncia" in argv:
+        print("Se una non ti serve, scrivimi togli e il numero: la sposto nell'archivio, non la cancello.")
+    return 0
+
+
+def comando_togli(argv: list) -> int:
+    if len(argv) != 1:
+        print("uso: arturo memoria togli N | nome-della-nota", file=sys.stderr)
+        return 3
+    chiave = argv[0].strip()
+    dati = leggi_registro()
+    voce, f = None, None
+    if chiave.isdigit():
+        ultime = _ultimo_annuncio(dati)
+        n = int(chiave)
+        if not 1 <= n <= len(ultime):
+            print(f"nell'ultimo annuncio non c'è la nota {n}: le note annunciate sono {len(ultime)}", file=sys.stderr)
+            return 2
+        voce = ultime[n - 1]
+        f = mm.MEMORY_DIR / voce["file"]
+    else:
+        trovate = [q for q in note_curate() if q.stem == chiave]
+        if not trovate:
+            print(f"nessuna nota {chiave} in {breve(mm.MEMORY_DIR)}", file=sys.stderr)
+            return 2
+        f = trovate[0]
+        rel = f.relative_to(mm.MEMORY_DIR).as_posix()
+        voce = next((v for v in reversed(dati["voci"]) if v["file"] == rel), None)
+    if voce is not None and voce.get("tolta"):
+        print(f"la nota {voce['nome']} è già nell'archivio")
+        return 0
+    if not f.is_file():
+        print(f"la nota {breve(f)} non c'è più", file=sys.stderr)
+        return 2
+    dest = mm.MEMORY_DIR / "_archive" / f.relative_to(mm.MEMORY_DIR)
+    if dest.exists():
+        dest = dest.with_name(f"{dest.stem}-{oggi()}{dest.suffix}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(str(f), str(dest))
+    if voce is not None:
+        voce["tolta"] = True
+        scrivi_registro(dati)
+    print(f"tolta: {f.stem}, spostata in {breve(dest)}. Non è cancellata: per riaverla rimettila in {breve(f.parent)}.")
+    return 0
+
+
+# --- Igiene (M5): il primo lettore del log degli accessi in Arturo ---------------------------
+# Senza modello e senza cancellare: segna le note dormienti nel frontmatter, segnala le coppie
+# quasi uguali e i link rotti. Una nota dormiente torna sveglia appena il richiamo la propone.
+
+GIORNI_DORMIENTE = 90
+GIORNI_IGIENE = 7
+SOGLIA_COPPIA = 0.7
+MAX_COPPIE = 20
+
+
+def file_ultima_igiene() -> Path:
+    return mm.IMPOSTAZIONI.parent / "ultima-igiene"
+
+
+def accessi(log_dir: Path) -> tuple:
+    """({nome della nota: ultima proposta}, prima riga del log): i datetime sono ingenui, ora locale."""
+    from datetime import datetime
+    ultime, prima = {}, None
+    try:
+        logs = sorted(log_dir.glob("*.log")) if log_dir.is_dir() else []
+    except OSError:
+        logs = []
+    for log in logs:
+        try:
+            righe = log.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for r in righe:
+            parti = r.split("\t")
+            if len(parti) < 2:
+                continue
+            try:
+                ts = datetime.fromisoformat(parti[0].strip()[:19])
+            except ValueError:
+                continue
+            nome = parti[1].strip()
+            if nome not in ultime or ts > ultime[nome]:
+                ultime[nome] = ts
+            if prima is None or ts < prima:
+                prima = ts
+    return ultime, prima
+
+
+def _chiave_fm(testo: str, chiave: str):
+    """Il valore di `chiave:` al primo livello del frontmatter, None se manca."""
+    righe = testo.splitlines()
+    if not righe or righe[0].strip() != "---":
+        return None
+    for r in righe[1:]:
+        if r.strip() == "---":
+            return None
+        if not r.startswith((" ", "\t")) and r.split(":", 1)[0].strip() == chiave and ":" in r:
+            return r.split(":", 1)[1].strip()
+    return None
+
+
+def _cambia_fm(testo: str, chiave: str, valore) -> str:
+    """Scrive (valore stringa) o toglie (None) `chiave:` nel frontmatter; il resto resta com'è."""
+    righe = testo.split("\n")
+    fine = next((i for i, r in enumerate(righe[1:], 1) if r.strip() == "---"), None)
+    if not righe or righe[0].strip() != "---" or fine is None:
+        return testo
+    righe_fm = [i for i in range(1, fine) if not righe[i].startswith((" ", "\t"))
+                and righe[i].split(":", 1)[0].strip() == chiave]
+    if valore is None:
+        for i in reversed(righe_fm):
+            del righe[i]
+    elif righe_fm:
+        righe[righe_fm[0]] = f"{chiave}: {valore}"
+    else:
+        righe.insert(fine, f"{chiave}: {valore}")
+    return "\n".join(righe)
+
+
+def _parole_titolo(p: Path, fm) -> set:
+    nome = str(campo(fm, "name") or p.stem).replace("-", " ").replace("_", " ")
+    return set(mr.tokenize(nome + " " + str(campo(fm, "description") or "")))
+
+
+def igiene(prova: bool = False) -> dict:
+    from datetime import datetime, timedelta
+    ora = datetime.now()
+    soglia = ora - timedelta(days=GIORNI_DORMIENTE)
+    ultime, prima = accessi(mm.ACCESS_LOG_DIR)
+    copertura = (ora - prima).days if prima else 0
+    dormienti, sveglie = [], []
+    if copertura >= GIORNI_DORMIENTE:
+        for p in note_curate():
+            testo = leggi(p)
+            segno = _chiave_fm(testo, "dormiente")
+            proposta = ultime.get(p.name)
+            recente = proposta is not None and proposta >= soglia
+            if segno is not None and recente:
+                sveglie.append(breve(p))
+                nuovo = _cambia_fm(testo, "dormiente", None)
+            elif segno is None and not recente:
+                try:
+                    vecchia = datetime.fromtimestamp(p.stat().st_mtime) < soglia
+                except OSError:
+                    continue
+                if not vecchia:
+                    continue
+                dormienti.append(breve(p))
+                nuovo = _cambia_fm(testo, "dormiente", ora.date().isoformat())
+            else:
+                continue
+            if not prova and nuovo != testo:
+                tmp = p.with_name(f".{p.name}.tmp")
+                tmp.write_text(nuovo, encoding="utf-8")
+                os.replace(str(tmp), str(p))
+
+    voci = []
+    for _d, p in file_note(cartelle()):
+        fm, _ = frontmatter(leggi(p))
+        parole = _parole_titolo(p, fm if isinstance(fm, dict) else {})
+        if len(parole) >= 3:
+            voci.append((p, parole))
+    coppie = []
+    for i in range(len(voci)):
+        a, pa = voci[i]
+        for b, pb in voci[i + 1:]:
+            if a.parent == b.parent and a.stem == b.stem:
+                continue
+            sim = len(pa & pb) / len(pa | pb)
+            if sim >= SOGLIA_COPPIA:
+                coppie.append((round(sim, 2), breve(a), breve(b)))
+    coppie.sort(key=lambda c: (-c[0], c[1], c[2]))
+
+    esito = controlla()
+    rotti = [v for v in esito["errori"] if "riga" in v]
+    if not prova:
+        f = file_ultima_igiene()
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(ora.date().isoformat() + "\n", encoding="utf-8")
+    return {"copertura_giorni": copertura, "dormienti": dormienti, "sveglie": sveglie,
+            "coppie": coppie[:MAX_COPPIE], "coppie_totali": len(coppie), "link_rotti": rotti, "prova": prova}
+
+
+def igiene_dovuta() -> bool:
+    from datetime import date
+    try:
+        ultima = date.fromisoformat(file_ultima_igiene().read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return True
+    return (date.today() - ultima).days >= GIORNI_IGIENE
+
+
+def comando_igiene(argv: list) -> int:
+    noti = {"--prova", "--se-dovuta", "--json"}
+    if any(a not in noti for a in argv):
+        print("uso: arturo memoria igiene [--prova] [--se-dovuta] [--json]", file=sys.stderr)
+        return 3
+    if not mm.memoria_accesa():
+        print("memoria spenta: niente igiene. Per accenderla: arturo memoria accendi")
+        return 4
+    if "--se-dovuta" in argv and not igiene_dovuta():
+        return 3
+    e = igiene(prova="--prova" in argv)
+    if "--json" in argv:
+        print(json.dumps(e, ensure_ascii=False, indent=1))
+        return 0
+    verbo = "da segnare" if e["prova"] else "segnate"
+    print("IGIENE DELLA MEMORIA" + (" (prova: non scrive niente)" if e["prova"] else ""))
+    if e["copertura_giorni"] < GIORNI_DORMIENTE:
+        print(f"- Note dormienti: il registro delle proposte copre {e['copertura_giorni']} giorni, ne servono "
+              f"{GIORNI_DORMIENTE}. Per ora nessuna.")
+    else:
+        print(f"- Note dormienti {verbo}: {len(e['dormienti'])}. Restano nel richiamo, e tornano sveglie "
+              f"appena servono.")
+        for d in e["dormienti"][:10]:
+            print(f"    {d}")
+        if len(e["dormienti"]) > 10:
+            print(f"    e altre {len(e['dormienti']) - 10}")
+        if e["sveglie"]:
+            print(f"- Tornate sveglie: {len(e['sveglie'])}.")
+    print(f"- Coppie quasi uguali: {e['coppie_totali']}." + (" Valuta se unirle:" if e["coppie"] else ""))
+    for sim, a, b in e["coppie"]:
+        print(f"    {a} ~ {b}")
+    print(f"- Link rotti: {len(e['link_rotti'])}.")
+    for v in e["link_rotti"][:10]:
+        print(f"    {v['file']}:{v['riga']}: {v['motivo']}")
+    return 0
+
+
 def main(argv: list) -> int:
     if not argv or argv[0] == "stato":
         return stato()
@@ -552,6 +911,14 @@ def main(argv: list) -> int:
         return comando_controlla(argv[1:])
     if argv[0] == "scheda" and len(argv) > 1:
         return comando_scheda(argv[1:])
+    if argv[0] == "nota":
+        return comando_nota(argv[1:])
+    if argv[0] == "ricordate":
+        return comando_ricordate(argv[1:])
+    if argv[0] == "togli":
+        return comando_togli(argv[1:])
+    if argv[0] == "igiene":
+        return comando_igiene(argv[1:])
     if len(argv) == 3 and argv[0] == "cartella" and argv[1] in ("aggiungi", "togli"):
         return cartella(argv[1], argv[2])
     print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)

@@ -31,6 +31,16 @@ Ogni cosa ricordata è una nota: un file di testo con poche righe in testa e il 
   conversazione. Una richiesta con dentro una password non viene copiata. Al prossimo `/inizio` lo
   vedi in cima, e il primo `/fine` lo completa senza farne un doppione. Una sessione senza richieste
   né file non lascia niente, e a memoria spenta il salvataggio non parte.
+- A fine sessione `/fine` salva da solo le note nuove, senza chiederti niente, e nella chiusura te
+  le elenca: "Ho ricordato: 1. … 2. …". Se una non ti serve, scrivi "togli" e il numero: la nota va
+  nell'archivio (`data/memory/_archive/`), non viene cancellata. Se una nota nuova parla di una cosa
+  già ricordata, `/fine` aggiorna quella che c'è invece di scriverne un'altra. Una nota delle sessioni
+  precedenti la togli con `arturo memoria togli <nome>`.
+- Una volta a settimana `/fine` fa l'igiene della memoria (`arturo memoria igiene`). Una nota che
+  Arturo non propone a Claude da 90 giorni diventa dormiente: lo segna una riga in testa, il file non
+  si sposta, e Arturo continua a proporla quando c'entra. La prima volta che torna proposta, l'igiene
+  dopo toglie il segno. L'igiene segnala anche i collegamenti rotti e le note quasi uguali, che
+  conviene unire, e lo fa senza Claude e senza cancellare niente.
 - Ogni nota che Claude scrive passa da un controllo. Se dentro c'è una password, o un testo che
   prova a dare ordini a Claude di nascosto, Claude riceve un avviso. La nota resta scritta, e Claude la può correggere.
 
@@ -92,6 +102,9 @@ collegamenti rotti.
 - `~/.claude/data/memory/.melchior-access.log.d/`: il registro delle volte in cui Arturo ha
   proposto una nota a Claude, con una riga per proposta e un file per computer.
 - `~/.claude/data/memoria/impostazioni.json`: l'interruttore e le tue cartelle.
+- `~/.claude/data/memoria/ricordate.json`: le note salvate da `/fine`, ognuna col numero con cui te
+  l'ha elencata, così "togli" e il numero sa quale togliere.
+- `~/.claude/data/memoria/ultima-igiene`: il giorno dell'ultima igiene, da cui `/fine` conta la settimana.
 
 Nessuno di questi file entra nel repository di Arturo, e `/fine` non li salva nemmeno sul tuo
 GitHub privato.

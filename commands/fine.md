@@ -11,7 +11,8 @@ argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
 # Fine sessione
 
 Argomenti e note della persona: **$ARGUMENTS**. Con `--full`, o quando la loro condizione è vera, applica
-anche gli opzionali in fondo. `salva` dà in anticipo il sì alle note della FASE 8, tranne il `CLAUDE.md` personale.
+anche gli opzionali in fondo. `salva` dà il sì alle note rimaste in `## Note in attesa del sì` di handoff
+vecchi, tranne il `CLAUDE.md` personale: le note nuove si salvano già da sole (FASE 8).
 
 Tre regole per tutte le fasi:
 - **Dentro /fine non si sviluppa.** Un gap, un fix o un test rosso diventa un todo con un numero.
@@ -39,9 +40,10 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   nuovo handoff porta `- Rotazione: <AAAA-MM-GG>` sotto `- Sessione:`.
 - **Il piano sopravvive al /clear.** Se la sessione lavora su un piano, l'handoff porta
   `- Piano: <percorso in ~/.claude/plans/> · step <N> di <M> fatto`, e la Ripartenza nomina lo step dopo.
-- **Le note che chiedono il sì non si perdono.** Nel fine leggero non si chiede niente: le note nuove, i
-  dati su persone e le righe del `CLAUDE.md` personale vanno nella sezione `## Note in attesa del sì`
-  dell'handoff, una per riga col percorso e il testo. Il prossimo `/fine` scritto dalla persona le propone.
+- **Le note si salvano anche qui, e si annunciano dopo.** Nel fine leggero la FASE 8 salva le note nuove
+  con `arturo memoria nota` come sempre, ma non lancia `ricordate --annuncia`: le annuncia la prima chiusura
+  che la persona legge. Solo le righe del `CLAUDE.md` personale vanno nella sezione `## Note in attesa del
+  sì` dell'handoff, col testo. Il prossimo `/fine` scritto dalla persona le propone.
 - **Poi la rotazione.** Con la coda a `rc=0` scegli il passo dopo. Se è un passo di Claude (Chi `io`), la
   chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
   `mcp__arturo__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
@@ -263,12 +265,28 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
   Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
-stabile, password e chiavi. Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto aggiornato
-in una nota che esiste. **Chiede il sì** per una nota nuova, per dati su persone e per il `CLAUDE.md`
-personale; con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` personale. Nel Modo rotazione
-non si chiede: le note aspettano nella sezione `## Note in attesa del sì` dell'handoff. Un `/fine` scritto
-dalla persona propone anche quelle ancora nella sezione degli handoff precedenti, di qualunque giorno, e al sì
-le toglie dalla sezione.
+stabile, password e chiavi, dati sensibili (salute, opinioni politiche, religione, dati di terzi che la
+persona non ha dato per lavoro). Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto
+aggiornato in una nota che esiste. **Una nota nuova la salva senza chiedere**, e la chiusura la annuncia:
+
+```bash
+python3 ~/.claude/bin/arturo memoria nota --tipo feedback --nome <nome-della-nota> --descrizione "<una riga>" <<'NOTA'
+<il fatto, con **Why:** e **How to apply:** se è un feedback>
+NOTA
+```
+
+- `--tipo` è uno dei quattro di Claude Code (`user`, `feedback`, `project`, `reference`): la nota va in
+  `data/memory/<cartella del tipo>/<nome>.md`. Il nome è corto, in minuscolo coi trattini.
+- Exit 6 vuol dire che la nota c'è già: aggiorna quella. Exit 5 vuol dire un segreto o un'istruzione
+  nascosta: riscrivi senza. Exit 4 vuol dire memoria spenta: niente nota, e non lo chiedi.
+- **Chiede il sì** solo per il `CLAUDE.md` personale. Un `/fine` scritto dalla persona propone anche le
+  righe rimaste in `## Note in attesa del sì` degli handoff precedenti, di qualunque giorno, e al sì le
+  toglie dalla sezione.
+
+**L'igiene della memoria**, solo nel fine completo: `python3 ~/.claude/bin/arturo memoria igiene
+--se-dovuta`. Gira una volta a settimana: con exit 3 o 4 taci. Con exit 0 segna dormienti le note mai
+proposte da 90 giorni, senza cancellarle, e stampa il blocco `IGIENE DELLA MEMORIA`. Il blocco va nella
+Chiusura solo se ha coppie da unire o link rotti: le coppie le unisci tu solo se la persona dice sì.
 
 **La Scoperta.** Lancia sempre `python3 ~/.claude/bin/arturo scoperta confronta`: salva le modifiche fatte a
 mano dall'impronta di `/inizio`. Fuori dal Modo rotazione lancia poi `python3 ~/.claude/bin/arturo scoperta
@@ -330,7 +348,10 @@ La chiusura non ristampa la ripartenza di `/inizio`. Il messaggio ha, in quest'o
    locale". Segnalazione: "inviata n. N", "in coda", "proposta, non inviata", "domanda fatta" o "nessuna". Un passo
    saltato o fallito lo dice al suo posto.
 
-Se la FASE 8 ha scritto memoria, segue il blocco **Memoria applicata** (un percorso per riga e cosa è
-cambiato). Nessun menu. Senza `salva`, elenca le note che aspettano il sì (percorso e perché) e chiudi con
-"scrivimi **salva** per tutte, **togli N** per escluderne una". Al sì le scrivi e, se toccano
-`~/.claude`, ripeti la FASE 9.
+Se la FASE 7 o la FASE 8 hanno scritto memoria, segue il blocco **Memoria applicata** (un percorso per riga
+e cosa è cambiato). Poi, in una chiusura che la persona legge (non nel giro che ruota), lancia
+`python3 ~/.claude/bin/arturo memoria ricordate --annuncia`: con exit 0 il blocco "Ho ricordato: 1. … 2. …"
+va nella chiusura com'è, anche con le note salvate dai giri in rotazione. Con exit 3 taci. Nessun menu: la
+riga finale dice "scrivimi **togli N** per toglierne una". Al "togli N" lanci `arturo memoria togli N`,
+che la sposta in `data/memory/_archive/` senza cancellarla, e se tocca `~/.claude` ripeti la FASE 9.
+Le righe del `CLAUDE.md` personale in attesa del sì chiudono con "scrivimi **salva** per scriverle".

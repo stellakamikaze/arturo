@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y17: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y19: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta con `arturo memoria spegni`: memory-retrieve, memory-autoload, subagent-memory-context e
@@ -42,9 +42,14 @@ Y17 accesa di default (M2, 14/11/2026), coi tre stati di impostazioni.json: senz
     primo avvio lo dice una volta e scrive "accesa": true; con false resta spenta e muta; con true
     niente avviso. Le altre impostazioni restano, un file illeggibile non si sovrascrive,
     ARTURO_MEMORIA decide senza scrivere.
+Y18 igiene (M5, 15/11/2026): `arturo memoria igiene` segna dormiente una nota mai proposta da 90 giorni
+    solo se il registro delle proposte copre 90 giorni, la risveglia quando torna proposta, non cancella,
+    segnala coppie quasi uguali e link rotti, e con --se-dovuta gira una volta a settimana.
+Y19 note salvate e annunciate (M5): `arturo memoria nota` salva nella cartella del tipo, ferma segreti,
+    doppioni e memoria spenta; `ricordate --annuncia` le numera una volta; `togli N` le archivia.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
-suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y17 una copia del
+suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y19 una copia del
 repository con una variante rotta deve far fallire il controllo con il suo codice e il motivo atteso.
 """
 from __future__ import annotations
@@ -666,10 +671,146 @@ def test_y17(repo: Path) -> None:
         lab.chiudi()
 
 
+def _log_accessi(lab: Lab, righe: list) -> None:
+    d = lab.claude / "data" / "memory" / ".melchior-access.log.d"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "banco.log").write_text("".join(f"{ts}\t{nome}\tprompt\tbanco\n" for ts, nome in righe), encoding="utf-8")
+
+
+def _nota_curata(lab: Lab, rel: str, name: str, descrizione: str, giorni: int = 0) -> Path:
+    import time
+    p = lab.claude / "data" / "memory" / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(f"---\nname: {name}\ndescription: {descrizione}\ntype: reference\n---\nTesto di {name}.\n",
+                 encoding="utf-8")
+    if giorni:
+        quando = time.time() - giorni * 86400
+        os.utime(p, (quando, quando))
+    return p
+
+
+def test_y18(repo: Path) -> None:
+    """Igiene (M5, 15/11/2026): dormiente solo con un registro di 90 giorni, una nota proposta di recente
+    torna sveglia, nessuna nota cancellata, coppie quasi uguali e link rotti segnalati, una volta a settimana."""
+    presenti(repo, "Y18")
+    from datetime import datetime, timedelta
+    lab = Lab(repo)
+    try:
+        vecchia = _nota_curata(lab, "reference/tariffe-vecchie.md", "tariffe-vecchie",
+                               "le tariffe giornaliere del 2024", giorni=200)
+        usata = _nota_curata(lab, "reference/listino-usato.md", "listino-usato",
+                             "il listino che Claude propone spesso", giorni=200)
+        giovane = _nota_curata(lab, "reference/nota-giovane.md", "nota-giovane", "una nota scritta ieri")
+        _nota_curata(lab, "reference/preventivi-studio-grafico.md", "preventivi-studio-grafico",
+                     "come impaginare i preventivi dello studio grafico")
+        _nota_curata(lab, "feedback/preventivi-studio-grafico-bis.md", "preventivi-studio-grafico-bis",
+                     "come impaginare i preventivi dello studio grafico")
+        rotta = _nota_curata(lab, "reference/con-link.md", "con-link", "una nota con un link rotto")
+        rotta.write_text(rotta.read_text(encoding="utf-8") + "Vedi [qui](manca-del-tutto.md).\n", encoding="utf-8")
+        ora = datetime.now()
+        vecchio = (ora - timedelta(days=150)).isoformat(timespec="seconds")
+        recente = (ora - timedelta(days=3)).isoformat(timespec="seconds")
+
+        # Un registro di 10 giorni non basta: nessuna nota diventa dormiente.
+        _log_accessi(lab, [((ora - timedelta(days=10)).isoformat(timespec="seconds"), "listino-usato.md")])
+        r = lab.arturo("igiene", "--json")
+        e = json.loads(r.stdout)
+        assert r.returncode == 0 and not e["dormienti"], \
+            f"Y18 un registro di 10 giorni basta a segnare note dormienti: {r.stdout[:300]}"
+
+        _log_accessi(lab, [(vecchio, "tariffe-vecchie.md"), (recente, "listino-usato.md")])
+        r = lab.arturo("igiene", "--prova", "--json")
+        e = json.loads(r.stdout)
+        assert any("tariffe-vecchie" in d for d in e["dormienti"]), f"Y18 la nota mai proposta da 90 giorni non è dormiente: {e}"
+        assert "dormiente:" not in vecchia.read_text(encoding="utf-8"), "Y18 --prova scrive nelle note"
+        r = lab.arturo("igiene", "--json")
+        e = json.loads(r.stdout)
+        assert "dormiente:" in vecchia.read_text(encoding="utf-8"), "Y18 l'igiene non segna la nota dormiente"
+        assert "dormiente:" not in usata.read_text(encoding="utf-8"), "Y18 una nota proposta 3 giorni fa è dormiente"
+        assert "dormiente:" not in giovane.read_text(encoding="utf-8"), "Y18 una nota di ieri è dormiente"
+        assert vecchia.is_file() and "Testo di tariffe-vecchie." in vecchia.read_text(encoding="utf-8"), \
+            "Y18 l'igiene cancella o rovina la nota dormiente"
+        assert any("preventivi-studio-grafico" in a and "preventivi-studio-grafico-bis" in b for _s, a, b in e["coppie"]), \
+            f"Y18 la coppia quasi uguale non è segnalata: {e['coppie']}"
+        assert any("manca-del-tutto.md" in v["motivo"] for v in e["link_rotti"]), \
+            f"Y18 il link rotto non è segnalato: {e['link_rotti']}"
+
+        # Proposta di nuovo: torna sveglia.
+        _log_accessi(lab, [(vecchio, "listino-usato.md"), (recente, "tariffe-vecchie.md")])
+        lab.arturo("igiene")
+        assert "dormiente:" not in vecchia.read_text(encoding="utf-8"), "Y18 una nota proposta di nuovo resta dormiente"
+
+        # Una volta a settimana: subito dopo, --se-dovuta tace con exit 3.
+        r = lab.arturo("igiene", "--se-dovuta")
+        assert r.returncode == 3 and not r.stdout.strip(), f"Y18 --se-dovuta gira due volte in un giorno: {r.returncode}"
+        (lab.claude / "data" / "memoria" / "ultima-igiene").write_text(
+            (ora - timedelta(days=8)).date().isoformat(), encoding="utf-8")
+        r = lab.arturo("igiene", "--se-dovuta")
+        assert r.returncode == 0 and "IGIENE DELLA MEMORIA" in r.stdout, f"Y18 dopo 8 giorni l'igiene non parte: {r.stdout}"
+        r = lab.arturo("igiene", env=dict(lab.env, ARTURO_MEMORIA="0"))
+        assert r.returncode == 4, f"Y18 a memoria spenta l'igiene gira: {r.returncode}"
+    finally:
+        lab.chiudi()
+
+
+def test_y19(repo: Path) -> None:
+    """Note salvate e annunciate (M5, 15/11/2026): arturo memoria nota salva senza chiedere nella cartella
+    del tipo, ricordate --annuncia le numera, togli N le sposta in _archive senza cancellarle. Un segreto,
+    un doppione e la memoria spenta fermano la nota."""
+    presenti(repo, "Y19")
+    lab = Lab(repo)
+    try:
+        mem = lab.claude / "data" / "memory"
+        r = subprocess.run([sys.executable, "-B", str(lab.claude / "bin" / "arturo"), "memoria", "nota", "--tipo",
+                            "reference", "--nome", "preventivi-studio", "--descrizione", "come impaginare i preventivi"],
+                           input="I preventivi partono dal modello dell'anno scorso.\n", capture_output=True, text=True,
+                           encoding="utf-8", env=lab.env, cwd=str(lab.dir), timeout=60)
+        nota = mem / "reference" / "preventivi-studio.md"
+        assert r.returncode == 0 and nota.is_file(), f"Y19 la nota col testo da stdin non si salva: {r.stdout} {r.stderr}"
+        testo = nota.read_text(encoding="utf-8")
+        for pezzo in ("name: preventivi-studio", "type: reference", "modello dell'anno scorso"):
+            assert pezzo in testo, f"Y19 la nota salvata non ha {pezzo!r}: {testo}"
+        r = lab.arturo("nota", "--tipo", "feedback", "--nome", "risposte-corte", "--descrizione",
+                       "risposte corte nel terminale", "--testo", "Vuole risposte corte.")
+        assert r.returncode == 0 and (mem / "feedback" / "risposte-corte.md").is_file(), \
+            f"Y19 la nota feedback non va in feedback/: {r.stdout} {r.stderr}"
+        r = lab.arturo("nota", "--tipo", "feedback", "--nome", "risposte-corte", "--descrizione", "x", "--testo", "y")
+        assert r.returncode == 6, f"Y19 un doppione si salva: {r.returncode} {r.stdout}"
+        r = lab.arturo("nota", "--tipo", "reference", "--nome", "chiave-api", "--descrizione", "la chiave",
+                       "--testo", "token: ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8")
+        assert r.returncode == 5 and not (mem / "reference" / "chiave-api.md").exists(), \
+            f"Y19 una nota con un segreto si salva: {r.returncode} {r.stderr}"
+        r = lab.arturo("nota", "--tipo", "reference", "--nome", "spenta", "--descrizione", "d", "--testo", "t",
+                       env=dict(lab.env, ARTURO_MEMORIA="0"))
+        assert r.returncode == 4 and not (mem / "reference" / "spenta.md").exists(), "Y19 a memoria spenta la nota si salva"
+
+        r = lab.arturo("ricordate", "--annuncia")
+        righe = r.stdout.splitlines()
+        assert r.returncode == 0 and righe[0] == "Ho ricordato:" and righe[1].startswith("1. come impaginare") \
+            and righe[2].startswith("2. risposte corte"), f"Y19 l'annuncio non elenca le note numerate: {r.stdout}"
+        assert "togli" in r.stdout, "Y19 l'annuncio non dice come togliere una nota"
+        r = lab.arturo("ricordate")
+        assert r.returncode == 3 and not r.stdout.strip(), f"Y19 le note annunciate si annunciano di nuovo: {r.stdout}"
+
+        r = lab.arturo("togli", "2")
+        archiviata = mem / "_archive" / "feedback" / "risposte-corte.md"
+        assert r.returncode == 0 and not (mem / "feedback" / "risposte-corte.md").exists() and archiviata.is_file(), \
+            f"Y19 togli 2 non sposta la nota nell'archivio: {r.stdout} {r.stderr}"
+        assert "Vuole risposte corte." in archiviata.read_text(encoding="utf-8"), "Y19 togli rovina la nota"
+        assert nota.is_file(), "Y19 togli 2 tocca anche la nota 1"
+        r = lab.arturo("togli", "7")
+        assert r.returncode == 2, f"Y19 togli di un numero che non c'è non è exit 2: {r.returncode}"
+        r = lab.arturo("togli", "preventivi-studio")
+        assert r.returncode == 0 and (mem / "_archive" / "reference" / "preventivi-studio.md").is_file(), \
+            f"Y19 togli per nome non archivia: {r.stdout} {r.stderr}"
+    finally:
+        lab.chiudi()
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
          "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
-         "Y17": test_y17}
+         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -705,6 +846,18 @@ VELENI = (
      "torna a ogni avvio"),
     ("Y17", [("hooks/memory-autoload.py", "    if avviso:\n        print(avviso)\n", "")],
      "non dice che la memoria è accesa"),
+    ("Y18", [("bin/memoria.py", "    if copertura >= GIORNI_DORMIENTE:\n", "    if True:\n")],
+     "un registro di 10 giorni basta"),
+    ("Y18", [("bin/memoria.py", "            if segno is not None and recente:\n", "            if False:\n")],
+     "resta dormiente"),
+    ("Y18", [("bin/memoria.py", "            if sim >= SOGLIA_COPPIA:\n", "            if sim > 1:\n")],
+     "coppia quasi uguale non è segnalata"),
+    ("Y19", [("bin/memoria.py", "    os.replace(str(f), str(dest))\n", "    f.unlink()\n")],
+     "non sposta la nota nell'archivio"),
+    ("Y19", [("bin/memoria.py", "    if motivi:\n        print(f\"nota {nome} non salvata", "    if False:\n        print(f\"nota {nome} non salvata")],
+     "con un segreto si salva"),
+    ("Y19", [("bin/memoria.py", "        for v in attesa:\n            v[\"annuncio\"] = dati[\"annuncio\"]\n", "")],
+     "si annunciano di nuovo"),
 )
 
 
