@@ -157,11 +157,16 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
 - la riga `quota:` con la finestra di 5 ore e quella della settimana, come le ha viste la barra in
   basso; manca se la barra non ha ancora un dato valido;
+- `SCHEDA DEL PROGETTO`: la scheda che `/fine` scrive nella memoria, con cos'è, decisioni chiuse ed
+  errori da non ripetere. Manca a memoria spenta o senza scheda. La cartella scritta nella scheda vale
+  anche fuori dalla base dei progetti, e la scheda da sola basta a trovare il progetto;
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
   e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
   commit già arrivati con un cherry-pick o un rebase non compare);
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
-  quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
+  quando c'è, e il percorso dell'ultimo handoff da leggere per intero. La riga `SALVATO IN AUTOMATICO`
+  dice che l'ultima sessione si è chiusa senza `/fine`: l'handoff l'ha scritto Arturo dal transcript,
+  con le ultime richieste e il lavoro aperto;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
   IO, FERMO), i FACCIO IO FERMI DA PIÙ DI 3 GIORNI (nessun passo vero: una nota non conta), i todo
   chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori dal progetto, il todo DA
@@ -255,7 +260,8 @@ mai nel repo del progetto.
 ## FASE 3: Carica il contesto
 
 Leggi in ordine, se esistono:
-1. il `CLAUDE.md` del progetto;
+1. il `CLAUDE.md` del progetto. Le decisioni chiuse e gli errori della `SCHEDA DEL PROGETTO` della FASE 1
+   valgono come vincoli: non si rimettono in discussione;
 2. l'ultimo handoff per intero: il percorso è nella riga "da leggere per intero" della FASE 1.
    Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
    da una versione vecchia di `/fine`), leggi quello.
@@ -339,6 +345,9 @@ Perché è fatta così:
 - **Da allora** (2-4 frasi) unisce la Ripartenza degli handoff e cosa è cambiato dopo: i commit
   arrivati, i todo chiusi (anche quelli chiusi ora dal confronto col git log), le scadenze arrivate,
   un handoff di un'altra macchina. Chiude con la considerazione che ne segue.
+- **Salvato in automatico.** Con la riga `SALVATO IN AUTOMATICO` il "Da allora" comincia così: "L'ultima
+  volta non hai chiuso con /fine: ecco cosa stavi facendo", con l'ultima richiesta e il lavoro aperto
+  in parole semplici. Poi una riga: "Il primo /fine di oggi lo completa".
 - **I todo stanno per filone**, numerati, con l'ID. I filoni vengono dalle righe «filone» della
   RIPARTENZA, coi nomi che la persona riconosce. Senza filoni, un gruppo solo col nome del progetto.
   Entrano tutti i todo aperti del progetto. I todo di «generale» chiudono la lista, nel gruppo «Fuori

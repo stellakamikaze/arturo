@@ -1,4 +1,4 @@
-"""arturo memoria: la memoria facoltativa di Arturo. È spenta finché non la accendi.
+"""arturo memoria: la memoria di Arturo. È accesa di default, e "arturo memoria spegni" la spegne.
 
 Arturo usa Melchior, la stessa memoria della config di chi lo mantiene: lo stesso codice, in
 hooks/melchior_match.py e negli hook qui sotto. Cosa fa quando è accesa:
@@ -17,12 +17,26 @@ name, description e type. Le note stanno su questo computer. Il richiamo ne tien
 testo in ~/.claude/cache/melchior-notes.json, per leggerle in fretta. Le note che Claude apre
 passano ad Anthropic come il resto della conversazione. Niente della memoria entra nella telemetria.
 
-  stato                          accesa o spenta, dove cerca, quante note (anche senza comando)
+  (senza comando) [--tutti] [--json]
+                                 cosa ricorda: per progetto quante note e le ultime decisioni, le
+                                 note dormienti, dove stanno i file; --tutti mostra tutti i progetti
+  stato                          accesa o spenta, dove cerca, quante note
   accendi | spegni               accende o spegne gli hook della memoria
   cerca "testo" [-n N] [--json]  le note più vicine al testo, anche a memoria spenta
   controlla [--json]             frontmatter mancanti o illeggibili, link rotti
   cartella aggiungi DIR          aggiunge una tua cartella di note
   cartella togli DIR             la toglie (i file restano dove sono)
+  scheda SLUG                    la scheda del progetto: cos'è, dove sta, decisioni chiuse, errori
+  scheda SLUG --cosa T [--titolo T] [--cartella DIR] [--alias a,b] [--decisione T]... [--errore T]...
+                                 la scrive o la aggiorna (/fine); le righe scritte a mano restano
+  nota --tipo T --nome N --descrizione D [--testo T]
+                                 salva una nota nuova in data/memory/<cartella del tipo>/ (testo
+                                 anche da stdin) e la mette fra quelle da annunciare (/fine)
+  ricordate [--annuncia] [--json] le note salvate e non ancora annunciate; --annuncia le numera
+  togli N | NOME                 archivia la nota N dell'ultimo annuncio (o per nome), senza cancellarla
+  igiene [--prova] [--se-dovuta] [--json]
+                                 note dormienti (mai proposte da 90 giorni), coppie quasi uguali,
+                                 link rotti; --se-dovuta gira una volta a settimana (/fine completo)
 
 L'interruttore sta in ~/.claude/data/memoria/impostazioni.json, fuori da git. La variabile
 ARTURO_MEMORIA=1 o ARTURO_MEMORIA=0 (nell'ambiente o in "env" di settings.json) vince sul file.
@@ -67,12 +81,7 @@ def leggi_impostazioni() -> dict:
     return mm.leggi_impostazioni()
 
 
-def scrivi_impostazioni(dati: dict) -> None:
-    f = file_impostazioni()
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f.name + ".tmp")
-    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    os.replace(str(tmp), str(f))
+scrivi_impostazioni = mm.scrivi_impostazioni
 
 
 def da_ambiente():
@@ -209,7 +218,12 @@ def controlla(dirs=None) -> dict:
 def stato() -> int:
     env = da_ambiente()
     acc = accesa()
-    perche = " (lo decide ARTURO_MEMORIA nell'ambiente)" if env is not None else ""
+    if env is not None:
+        perche = " (lo decide ARTURO_MEMORIA nell'ambiente)"
+    elif not isinstance(leggi_impostazioni().get("accesa"), bool):
+        perche = " (di default)"
+    else:
+        perche = ""
     print(f"Memoria: {'accesa' if acc else 'spenta'}{perche}.")
     native = cartelle_native()
     mie = cartelle_mie()
@@ -322,12 +336,818 @@ def comando_controlla(argv: list) -> int:
     return 1 if n else 0
 
 
+# --- La scheda del progetto (M3 del piano della memoria, 14/11/2026) -----------------------
+# /fine la scrive, arturo contesto (/inizio) la rilegge. Ha cos'è, dove sta, decisioni chiuse ed errori
+# da non ripetere: stato e todo restano negli handoff e in arturo todo.
+
+COSA = "## Cos'è"
+SEZIONI = {"decisione": "## Decisioni chiuse", "errore": "## Errori da non ripetere"}
+MAX_VOCE = 300
+MAX_DESCRIZIONE = 200
+_SCANNER = []
+
+
+def slug_progetto(nome: str) -> str:
+    """Lo slug di /inizio, /fine e arturo todo (come bin/contesto.py)."""
+    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", str(nome).lower()))
+
+
+def una_riga(testo, n: int = MAX_VOCE) -> str:
+    testo = " ".join(str(testo or "").split())
+    return testo if len(testo) <= n else testo[:n - 1].rstrip() + "…"
+
+
+def motivi_scanner(testo: str) -> list:
+    """I motivi di sospetto di hooks/memory-write-scanner.py: una scrittura da script non passa dall'hook
+    di Write, quindi il controllo lo chiama qui. Senza scanner, nessun motivo."""
+    if not _SCANNER:
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("memory_write_scanner",
+                                                          str(QUI.parent / "hooks" / "memory-write-scanner.py"))
+            modulo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(modulo)
+            _SCANNER.append(modulo)
+        except Exception:
+            _SCANNER.append(None)
+    try:
+        return list(_SCANNER[0].trova(testo)) if _SCANNER[0] is not None else []
+    except Exception:
+        return []
+
+
+def cartella_con_tilde(cartella: str) -> str:
+    """La cartella sotto la home diventa ~/...: la scheda vale anche su un computer con un'altra home."""
+    if not cartella:
+        return ""
+    try:
+        vera, casa = Path(os.path.expanduser(cartella)).resolve(), Path.home().resolve()
+        return "~/" + vera.relative_to(casa).as_posix() if vera != casa else "~"
+    except (OSError, ValueError, RuntimeError):
+        return cartella
+
+
+def _valore_fm(v: str) -> str:
+    return '"' + v.replace('"', "'") + '"'
+
+
+def _imposta_fm(righe: list, fine: int, chiave: str, valore: str) -> int:
+    """Scrive `chiave: valore` nel frontmatter righe[1:fine]; ritorna il nuovo indice della riga ---."""
+    for i in range(1, fine):
+        if not righe[i].startswith((" ", "\t")) and righe[i].split(":", 1)[0].strip() == chiave:
+            righe[i] = f"{chiave}: {valore}"
+            return fine
+    righe.insert(fine, f"{chiave}: {valore}")
+    return fine + 1
+
+
+def _alias_di(righe: list, fine: int) -> list:
+    for i in range(1, fine):
+        if righe[i].startswith("alias:"):
+            return [a for a in (x.strip().strip("\"'") for x in righe[i][6:].strip().strip("[]").split(",")) if a]
+    return []
+
+
+def _sezione(righe: list, titolo: str, inizio: int) -> tuple:
+    """(indice del titolo, indice dopo l'ultima riga piena della sezione), o (None, None)."""
+    for i in range(inizio, len(righe)):
+        if righe[i].strip().lower() == titolo.lower():
+            j = i + 1
+            while j < len(righe) and not righe[j].startswith("## "):
+                j += 1
+            while j > i + 1 and not righe[j - 1].strip():
+                j -= 1
+            return i, j
+    return None, None
+
+
+def _norma(voce: str) -> str:
+    return " ".join(voce.lstrip("-* ").split()).casefold()
+
+
+def testo_nuova_scheda(s: str, cosa: str, titolo: str, cartella: str, alias: list) -> str:
+    righe = ["---", f"name: progetto-{s}", f"description: {_valore_fm(una_riga(cosa, MAX_DESCRIZIONE))}",
+             "type: project"]
+    if titolo:
+        righe.append(f"titolo: {_valore_fm(titolo)}")
+    if alias:
+        righe.append(f"alias: [{', '.join(alias)}]")
+    if cartella:
+        righe.append(f"cartella: {cartella}")
+    righe += ["---", f"# {titolo or s}", "", COSA, una_riga(cosa, 1000)]
+    return "\n".join(righe) + "\n"
+
+
+def aggiorna_scheda(testo: str, cosa: str, titolo: str, cartella: str, alias: list, voci: dict) -> tuple:
+    """(testo nuovo, {decisione: n, errore: n} voci aggiunte). Tocca solo i campi dati e aggiunge in coda
+    alle sezioni le voci che non ci sono già: le righe scritte a mano restano."""
+    righe = testo.splitlines()
+    fine = None
+    if righe and righe[0].strip() == "---":
+        fine = next((i for i, r in enumerate(righe[1:], 1) if r.strip() == "---"), None)
+    if fine is None:
+        raise ValueError("la scheda non ha il frontmatter fra due righe ---")
+    if cosa:
+        fine = _imposta_fm(righe, fine, "description", _valore_fm(una_riga(cosa, MAX_DESCRIZIONE)))
+    if titolo:
+        fine = _imposta_fm(righe, fine, "titolo", _valore_fm(titolo))
+    if alias:
+        uniti = list(dict.fromkeys(_alias_di(righe, fine) + alias))
+        fine = _imposta_fm(righe, fine, "alias", f"[{', '.join(uniti)}]")
+    if cartella:
+        fine = _imposta_fm(righe, fine, "cartella", cartella)
+    if cosa:
+        i, j = _sezione(righe, COSA, fine + 1)
+        if i is None:
+            dove = next((k + 1 for k in range(fine + 1, len(righe)) if righe[k].startswith("# ")), fine + 1)
+            righe[dove:dove] = ["", COSA, una_riga(cosa, 1000)]
+        else:
+            righe[i + 1:j] = [una_riga(cosa, 1000)]
+    aggiunte = {}
+    for chiave, titolo_sez in SEZIONI.items():
+        nuove = [una_riga(v) for v in voci.get(chiave, []) if una_riga(v)]
+        i, j = _sezione(righe, titolo_sez, fine + 1)
+        gia = {_norma(r) for r in righe[i + 1:j]} if i is not None else set()
+        nuove = [v for v in dict.fromkeys(nuove) if _norma(v) not in gia]
+        aggiunte[chiave] = len(nuove)
+        if not nuove:
+            continue
+        if i is None:
+            while righe and not righe[-1].strip():
+                righe.pop()
+            righe += ["", titolo_sez] + [f"- {v}" for v in nuove]
+        else:
+            righe[j:j] = [f"- {v}" for v in nuove]
+    return "\n".join(righe).rstrip("\n") + "\n", aggiunte
+
+
+def comando_scheda(argv: list) -> int:
+    """arturo memoria scheda <slug> [--cosa T] [--titolo T] [--cartella DIR] [--alias a,b]
+    [--decisione T]... [--errore T]...: senza opzioni stampa la scheda."""
+    p = argparse.ArgumentParser(prog="arturo memoria scheda", add_help=False)
+    p.add_argument("slug")
+    p.add_argument("--cosa", default="")
+    p.add_argument("--titolo", default="")
+    p.add_argument("--cartella", default="")
+    p.add_argument("--alias", default="")
+    p.add_argument("--decisione", action="append", default=[])
+    p.add_argument("--errore", action="append", default=[])
+    try:
+        a = p.parse_args(argv)
+    except SystemExit:
+        print('uso: arturo memoria scheda <slug> [--cosa "..."] [--titolo "..."] [--cartella DIR] '
+              '[--alias a,b] [--decisione "..."]... [--errore "..."]...', file=sys.stderr)
+        return 3
+    s = slug_progetto(a.slug)
+    if not s:
+        print(f'nome di progetto non valido: "{a.slug}"', file=sys.stderr)
+        return 3
+    esistente = mm.trova_scheda(s)
+    cosa, titolo, cartella = una_riga(a.cosa, 1000), una_riga(a.titolo, 60), una_riga(a.cartella, 400)
+    cartella = cartella_con_tilde(cartella)
+    alias = [x for x in (slug_progetto(v) for v in a.alias.split(",")) if x and x != s]
+    voci = {"decisione": a.decisione, "errore": a.errore}
+    if not (cosa or titolo or cartella or alias or a.decisione or a.errore):
+        if not esistente:
+            print(f"nessuna scheda per {s}")
+            return 2
+        print(f"scheda: {breve(esistente)}")
+        print(leggi(esistente).rstrip())
+        return 0
+    if not mm.memoria_accesa():
+        print("memoria spenta: la scheda non si scrive. Per accenderla: arturo memoria accendi")
+        return 4
+    motivi = motivi_scanner("\n".join([cosa, titolo, cartella] + a.decisione + a.errore))
+    if motivi:
+        print(f"scheda di {s} non scritta: " + "; ".join(motivi), file=sys.stderr)
+        return 5
+    if esistente:
+        f = esistente
+        prima = leggi(f)
+        try:
+            testo, aggiunte = aggiorna_scheda(prima, cosa, titolo, cartella, alias, voci)
+        except ValueError as e:
+            print(f"{breve(f)}: {e}", file=sys.stderr)
+            return 2
+        esito = "aggiornata" if testo != prima else "invariata"
+    else:
+        if not cosa:
+            print(f"la scheda di {s} non c'è ancora: la prima volta serve --cosa \"di cosa si tratta, in una riga\"",
+                  file=sys.stderr)
+            return 3
+        f = mm.MEMORY_DIR / "progetti" / f"progetto-{s}.md"
+        testo, aggiunte = aggiorna_scheda(testo_nuova_scheda(s, cosa, titolo, cartella, alias), "", "", "", [], voci)
+        esito = "creata"
+    if esito != "invariata":
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_name(f".{f.name}.tmp")
+        tmp.write_text(testo, encoding="utf-8")
+        os.replace(str(tmp), str(f))
+    print(f"scheda {esito}: {breve(f)} · decisioni nuove {aggiunte['decisione']} · errori nuovi {aggiunte['errore']}")
+    return 0
+
+
+# --- Note salvate e annunciate (M5 del piano della memoria, 15/11/2026) -----------------------
+# /fine salva una nota nuova senza chiedere e la annuncia nella chiusura che la persona legge:
+# "Ho ricordato: 1. … 2. …". "togli N" la sposta in data/memory/_archive/, non la cancella.
+# Il registro sta in data/memoria/ricordate.json, fuori da git come l'interruttore.
+
+NOME_NOTA = re.compile(r"^[a-z0-9][a-z0-9-]{1,79}$")
+MAX_TESTO = 20000
+
+
+def file_registro() -> Path:
+    return mm.IMPOSTAZIONI.parent / "ricordate.json"
+
+
+def leggi_registro() -> dict:
+    try:
+        dati = json.loads(file_registro().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"voci": [], "annuncio": 0}
+    if not isinstance(dati, dict) or not isinstance(dati.get("voci"), list):
+        return {"voci": [], "annuncio": 0}
+    dati["voci"] = [v for v in dati["voci"] if isinstance(v, dict) and isinstance(v.get("file"), str)]
+    if not isinstance(dati.get("annuncio"), int):
+        dati["annuncio"] = 0
+    return dati
+
+
+def scrivi_registro(dati: dict) -> None:
+    f = file_registro()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f".{f.name}.tmp")
+    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(f))
+
+
+def oggi() -> str:
+    from datetime import date
+    return date.today().isoformat()
+
+
+def note_curate() -> list:
+    """Le note di data/memory, fuori da _archive e dai file che iniziano con _ o punto."""
+    return [p for _d, p in file_note([mm.MEMORY_DIR])] if mm.MEMORY_DIR.is_dir() else []
+
+
+def comando_nota(argv: list) -> int:
+    p = argparse.ArgumentParser(prog="arturo memoria nota", add_help=False)
+    p.add_argument("--tipo", required=True)
+    p.add_argument("--nome", required=True)
+    p.add_argument("--descrizione", required=True)
+    p.add_argument("--testo", default=None)
+    try:
+        a = p.parse_args(argv)
+    except SystemExit:
+        print('uso: arturo memoria nota --tipo user|feedback|project|reference --nome nome-della-nota '
+              '--descrizione "una riga" [--testo "..."] (senza --testo lo legge da stdin)', file=sys.stderr)
+        return 3
+    if a.tipo not in TIPI:
+        print(f'tipo "{a.tipo}" sconosciuto: usa uno di {", ".join(TIPI)}', file=sys.stderr)
+        return 3
+    nome = a.nome.strip()
+    if not NOME_NOTA.match(nome):
+        print(f'nome "{nome}" non valido: lettere minuscole, cifre e trattini, da 2 a 80', file=sys.stderr)
+        return 3
+    testo = a.testo if a.testo is not None else ("" if sys.stdin is None or sys.stdin.isatty() else sys.stdin.read())
+    testo = (testo or "").strip()
+    descrizione = una_riga(a.descrizione, MAX_DESCRIZIONE)
+    if not descrizione or not testo:
+        print("servono una descrizione e un testo: una nota vuota non si salva", file=sys.stderr)
+        return 3
+    if len(testo) > MAX_TESTO:
+        print(f"testo di {len(testo)} caratteri: una nota sta sotto i {MAX_TESTO}. Tieni il fatto, non il documento.",
+              file=sys.stderr)
+        return 3
+    if not mm.memoria_accesa():
+        print("memoria spenta: la nota non si salva. Per accenderla: arturo memoria accendi")
+        return 4
+    motivi = motivi_scanner("\n".join([nome, descrizione, testo]))
+    if motivi:
+        print(f"nota {nome} non salvata: " + "; ".join(motivi), file=sys.stderr)
+        return 5
+    gia = [q for q in note_curate() if q.stem == nome]
+    if gia:
+        print(f"la nota {nome} c'è già: {breve(gia[0])}. Aggiorna quella invece di farne una nuova.", file=sys.stderr)
+        return 6
+    f = mm.MEMORY_DIR / mm.CARTELLA_TIPO[a.tipo] / f"{nome}.md"
+    corpo = "\n".join(["---", f"name: {nome}", f"description: {_valore_fm(descrizione)}", f"type: {a.tipo}",
+                       f"created: {oggi()}", "---", testo]) + "\n"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f".{f.name}.tmp")
+    tmp.write_text(corpo, encoding="utf-8")
+    os.replace(str(tmp), str(f))
+    dati = leggi_registro()
+    dati["voci"].append({"nome": nome, "file": f.relative_to(mm.MEMORY_DIR).as_posix(), "descrizione": descrizione,
+                         "giorno": oggi(), "annuncio": None, "tolta": False})
+    scrivi_registro(dati)
+    print(f"nota salvata: {breve(f)} · la annuncia la chiusura di /fine")
+    return 0
+
+
+def _ultimo_annuncio(dati: dict) -> list:
+    return [v for v in dati["voci"] if dati["annuncio"] and v.get("annuncio") == dati["annuncio"]]
+
+
+def comando_ricordate(argv: list) -> int:
+    dati = leggi_registro()
+    attesa = [v for v in dati["voci"] if v.get("annuncio") is None and not v.get("tolta")
+              and (mm.MEMORY_DIR / v["file"]).is_file()]
+    if "--json" in argv:
+        print(json.dumps({"da_annunciare": attesa, "ultimo_annuncio": _ultimo_annuncio(dati)},
+                         ensure_ascii=False, indent=1))
+        return 0 if attesa else 3
+    if not attesa:
+        return 3
+    if "--annuncia" in argv:
+        dati["annuncio"] += 1
+        for v in attesa:
+            v["annuncio"] = dati["annuncio"]
+        scrivi_registro(dati)
+    print("Ho ricordato:")
+    for n, v in enumerate(attesa, 1):
+        print(f"{n}. {v.get('descrizione') or v['nome']} ({breve(mm.MEMORY_DIR / v['file'])})")
+    if "--annuncia" in argv:
+        print("Se una non ti serve, scrivimi togli e il numero: la sposto nell'archivio, non la cancello.")
+    return 0
+
+
+def comando_togli(argv: list) -> int:
+    if len(argv) != 1:
+        print("uso: arturo memoria togli N | nome-della-nota", file=sys.stderr)
+        return 3
+    chiave = argv[0].strip()
+    dati = leggi_registro()
+    voce, f = None, None
+    if chiave.isdigit():
+        ultime = _ultimo_annuncio(dati)
+        n = int(chiave)
+        if not 1 <= n <= len(ultime):
+            print(f"nell'ultimo annuncio non c'è la nota {n}: le note annunciate sono {len(ultime)}", file=sys.stderr)
+            return 2
+        voce = ultime[n - 1]
+        f = mm.MEMORY_DIR / voce["file"]
+    else:
+        trovate = [q for q in note_curate() if q.stem == chiave]
+        if not trovate:
+            print(f"nessuna nota {chiave} in {breve(mm.MEMORY_DIR)}", file=sys.stderr)
+            return 2
+        f = trovate[0]
+        rel = f.relative_to(mm.MEMORY_DIR).as_posix()
+        voce = next((v for v in reversed(dati["voci"]) if v["file"] == rel), None)
+    if voce is not None and voce.get("tolta"):
+        print(f"la nota {voce['nome']} è già nell'archivio")
+        return 0
+    if not f.is_file():
+        print(f"la nota {breve(f)} non c'è più", file=sys.stderr)
+        return 2
+    dest = mm.MEMORY_DIR / "_archive" / f.relative_to(mm.MEMORY_DIR)
+    if dest.exists():
+        dest = dest.with_name(f"{dest.stem}-{oggi()}{dest.suffix}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(str(f), str(dest))
+    if voce is not None:
+        voce["tolta"] = True
+        scrivi_registro(dati)
+    print(f"tolta: {f.stem}, spostata in {breve(dest)}. Non è cancellata: per riaverla rimettila in {breve(f.parent)}.")
+    return 0
+
+
+# --- Igiene (M5): il primo lettore del log degli accessi in Arturo ---------------------------
+# Senza modello e senza cancellare: segna le note dormienti nel frontmatter, segnala le coppie
+# quasi uguali e i link rotti. Una nota dormiente torna sveglia appena il richiamo la propone.
+
+GIORNI_DORMIENTE = 90
+GIORNI_IGIENE = 7
+SOGLIA_COPPIA = 0.7
+MAX_COPPIE = 20
+
+
+def file_ultima_igiene() -> Path:
+    return mm.IMPOSTAZIONI.parent / "ultima-igiene"
+
+
+def accessi(log_dir: Path) -> tuple:
+    """({nome della nota: ultima proposta}, prima riga del log): i datetime sono ingenui, ora locale."""
+    from datetime import datetime
+    ultime, prima = {}, None
+    try:
+        logs = sorted(log_dir.glob("*.log")) if log_dir.is_dir() else []
+    except OSError:
+        logs = []
+    for log in logs:
+        try:
+            righe = log.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for r in righe:
+            parti = r.split("\t")
+            if len(parti) < 2:
+                continue
+            try:
+                ts = datetime.fromisoformat(parti[0].strip()[:19])
+            except ValueError:
+                continue
+            nome = parti[1].strip()
+            if nome not in ultime or ts > ultime[nome]:
+                ultime[nome] = ts
+            if prima is None or ts < prima:
+                prima = ts
+    return ultime, prima
+
+
+def _chiave_fm(testo: str, chiave: str):
+    """Il valore di `chiave:` al primo livello del frontmatter, None se manca."""
+    righe = testo.splitlines()
+    if not righe or righe[0].strip() != "---":
+        return None
+    for r in righe[1:]:
+        if r.strip() == "---":
+            return None
+        if not r.startswith((" ", "\t")) and r.split(":", 1)[0].strip() == chiave and ":" in r:
+            return r.split(":", 1)[1].strip()
+    return None
+
+
+def _cambia_fm(testo: str, chiave: str, valore) -> str:
+    """Scrive (valore stringa) o toglie (None) `chiave:` nel frontmatter; il resto resta com'è."""
+    righe = testo.split("\n")
+    fine = next((i for i, r in enumerate(righe[1:], 1) if r.strip() == "---"), None)
+    if not righe or righe[0].strip() != "---" or fine is None:
+        return testo
+    righe_fm = [i for i in range(1, fine) if not righe[i].startswith((" ", "\t"))
+                and righe[i].split(":", 1)[0].strip() == chiave]
+    if valore is None:
+        for i in reversed(righe_fm):
+            del righe[i]
+    elif righe_fm:
+        righe[righe_fm[0]] = f"{chiave}: {valore}"
+    else:
+        righe.insert(fine, f"{chiave}: {valore}")
+    return "\n".join(righe)
+
+
+def _parole_titolo(p: Path, fm) -> set:
+    nome = str(campo(fm, "name") or p.stem).replace("-", " ").replace("_", " ")
+    return set(mr.tokenize(nome + " " + str(campo(fm, "description") or "")))
+
+
+def igiene(prova: bool = False) -> dict:
+    from datetime import datetime, timedelta
+    ora = datetime.now()
+    soglia = ora - timedelta(days=GIORNI_DORMIENTE)
+    ultime, prima = accessi(mm.ACCESS_LOG_DIR)
+    copertura = (ora - prima).days if prima else 0
+    dormienti, sveglie = [], []
+    if copertura >= GIORNI_DORMIENTE:
+        for p in note_curate():
+            testo = leggi(p)
+            segno = _chiave_fm(testo, "dormiente")
+            proposta = ultime.get(p.name)
+            recente = proposta is not None and proposta >= soglia
+            if segno is not None and recente:
+                sveglie.append(breve(p))
+                nuovo = _cambia_fm(testo, "dormiente", None)
+            elif segno is None and not recente:
+                try:
+                    vecchia = datetime.fromtimestamp(p.stat().st_mtime) < soglia
+                except OSError:
+                    continue
+                if not vecchia:
+                    continue
+                dormienti.append(breve(p))
+                nuovo = _cambia_fm(testo, "dormiente", ora.date().isoformat())
+            else:
+                continue
+            if not prova and nuovo != testo:
+                tmp = p.with_name(f".{p.name}.tmp")
+                tmp.write_text(nuovo, encoding="utf-8")
+                os.replace(str(tmp), str(p))
+
+    voci = []
+    for _d, p in file_note(cartelle()):
+        fm, _ = frontmatter(leggi(p))
+        parole = _parole_titolo(p, fm if isinstance(fm, dict) else {})
+        if len(parole) >= 3:
+            voci.append((p, parole))
+    coppie = []
+    for i in range(len(voci)):
+        a, pa = voci[i]
+        for b, pb in voci[i + 1:]:
+            if a.parent == b.parent and a.stem == b.stem:
+                continue
+            sim = len(pa & pb) / len(pa | pb)
+            if sim >= SOGLIA_COPPIA:
+                coppie.append((round(sim, 2), breve(a), breve(b)))
+    coppie.sort(key=lambda c: (-c[0], c[1], c[2]))
+
+    esito = controlla()
+    rotti = [v for v in esito["errori"] if "riga" in v]
+    if not prova:
+        f = file_ultima_igiene()
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(ora.date().isoformat() + "\n", encoding="utf-8")
+    return {"copertura_giorni": copertura, "dormienti": dormienti, "sveglie": sveglie,
+            "coppie": coppie[:MAX_COPPIE], "coppie_totali": len(coppie), "link_rotti": rotti, "prova": prova}
+
+
+def igiene_dovuta() -> bool:
+    from datetime import date
+    try:
+        ultima = date.fromisoformat(file_ultima_igiene().read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return True
+    return (date.today() - ultima).days >= GIORNI_IGIENE
+
+
+def comando_igiene(argv: list) -> int:
+    noti = {"--prova", "--se-dovuta", "--json"}
+    if any(a not in noti for a in argv):
+        print("uso: arturo memoria igiene [--prova] [--se-dovuta] [--json]", file=sys.stderr)
+        return 3
+    if not mm.memoria_accesa():
+        print("memoria spenta: niente igiene. Per accenderla: arturo memoria accendi")
+        return 4
+    if "--se-dovuta" in argv and not igiene_dovuta():
+        return 3
+    e = igiene(prova="--prova" in argv)
+    if "--json" in argv:
+        print(json.dumps(e, ensure_ascii=False, indent=1))
+        return 0
+    verbo = "da segnare" if e["prova"] else "segnate"
+    print("IGIENE DELLA MEMORIA" + (" (prova: non scrive niente)" if e["prova"] else ""))
+    if e["copertura_giorni"] < GIORNI_DORMIENTE:
+        print(f"- Note dormienti: il registro delle proposte copre {e['copertura_giorni']} giorni, ne servono "
+              f"{GIORNI_DORMIENTE}. Per ora nessuna.")
+    else:
+        print(f"- Note dormienti {verbo}: {len(e['dormienti'])}. Restano nel richiamo, e tornano sveglie "
+              f"appena servono.")
+        for d in e["dormienti"][:10]:
+            print(f"    {d}")
+        if len(e["dormienti"]) > 10:
+            print(f"    e altre {len(e['dormienti']) - 10}")
+        if e["sveglie"]:
+            print(f"- Tornate sveglie: {len(e['sveglie'])}.")
+    print(f"- Coppie quasi uguali: {e['coppie_totali']}." + (" Valuta se unirle:" if e["coppie"] else ""))
+    for sim, a, b in e["coppie"]:
+        print(f"    {a} ~ {b}")
+    print(f"- Link rotti: {len(e['link_rotti'])}.")
+    for v in e["link_rotti"][:10]:
+        print(f"    {v['file']}:{v['riga']}: {v['motivo']}")
+    return 0
+
+
+# --- Cosa ricorda (M6 del piano della memoria, 15/11/2026) -----------------------------------
+# "arturo memoria" senza argomenti: per progetto quante note e le ultime decisioni, le note dormienti,
+# dove stanno i file. Risponde anche a "cosa ricordi di me?" (skill concetti). riepilogo() dà i dati,
+# testo_riepilogo() le parole: arturo orsa (S10 C) riusa il primo. Niente nomi interni nel testo.
+
+MAX_PROGETTI = 8
+ULTIME_DECISIONI = 3
+CWD_JSONL = re.compile(r'"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"')
+PAROLE_TIPO = (("user", "su di te"), ("feedback", "su come vuoi che Claude lavori"),
+               ("project", "su lavori senza una scheda"), ("reference", "di riferimento: link, documenti, contatti"),
+               ("?", "di altro tipo"))
+
+
+def cartella_codificata(cartella: str) -> str:
+    """Il nome che Claude Code dà a projects/<nome> per una cartella: ogni carattere che non è una
+    lettera, una cifra o un trattino diventa un trattino."""
+    return re.sub(r"[^A-Za-z0-9-]", "-", str(cartella))
+
+
+def cwd_del_progetto(d: Path):
+    """La cartella di lavoro di projects/<nome>/memory, letta in testa al transcript più recente."""
+    try:
+        trascritti = sorted(d.parent.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        return None
+    for t in trascritti[:3]:
+        try:
+            with open(t, "r", encoding="utf-8", errors="replace") as f:
+                testa = f.read(65536)
+        except OSError:
+            continue
+        m = CWD_JSONL.search(testa)
+        if m:
+            try:
+                return json.loads('"' + m.group(1) + '"')
+            except ValueError:
+                continue
+    return None
+
+
+def _quando(p: Path) -> float:
+    try:
+        return p.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _giorno(ts: float) -> str:
+    from datetime import datetime
+    return datetime.fromtimestamp(ts).strftime("%d/%m/%Y") if ts else ""
+
+
+def _decisioni(testo: str) -> list:
+    righe = testo.splitlines()
+    i, j = _sezione(righe, SEZIONI["decisione"], 0)
+    if i is None:
+        return []
+    return [una_riga(r.strip()[2:].replace("**", "").replace("`", ""), 120)
+            for r in righe[i + 1:j] if r.strip().startswith(("- ", "* "))]
+
+
+def riepilogo() -> dict:
+    """I dati di "arturo memoria": progetti (scheda, note, ultime decisioni), altre note per tipo,
+    dormienti, cartelle. Legge e basta."""
+    memdir_vera = os.path.realpath(str(mm.MEMORY_DIR))
+    tutte = file_note(cartelle())
+    testi = {p: leggi(p) for _d, p in tutte}
+    progetti, per_scheda, per_cartella = [], {}, {}
+
+    for p in mm._schede("progetto-*.md"):
+        if p in per_scheda.values():
+            continue
+        fm, _ = frontmatter(testi.get(p) or leggi(p))
+        fm = fm if isinstance(fm, dict) else {}
+        nome = p.stem[len("progetto-"):]
+        dec = _decisioni(testi.get(p) or leggi(p))
+        cart = str(campo(fm, "cartella") or "")
+        voce = {"nome": nome, "titolo": str(campo(fm, "titolo") or nome), "scheda": breve(p),
+                "cosa": una_riga(campo(fm, "description") or "", 120), "cartella": cart,
+                "decisioni_totali": len(dec), "ultime_decisioni": dec[-ULTIME_DECISIONI:][::-1],
+                "note": set(), "ultima": _quando(p)}
+        progetti.append(voce)
+        per_scheda[nome] = p
+        if cart:
+            per_cartella[cartella_codificata(os.path.expanduser(cart).replace("\\", "/").rstrip("/"))] = voce
+
+    per_nome = {v["nome"]: v for v in progetti}
+    schede = set(per_scheda.values())
+    nomi_scheda = {f"progetto-{n}": v for n, v in per_nome.items()}
+
+    for d in cartelle_native():
+        try:
+            vera = os.path.realpath(str(d))
+        except OSError:
+            continue
+        if vera == memdir_vera or vera.startswith(memdir_vera + os.sep):
+            continue
+        note = [p for dd, p in tutte if dd == d and p not in schede]
+        if not note:
+            continue
+        voce = per_cartella.get(d.parent.name)
+        if voce is None:
+            cwd = cwd_del_progetto(d)
+            nome = slug_progetto(Path(cwd).name) if cwd else ""
+            if not nome:
+                casa = cartella_codificata(str(Path.home()))
+                nome = d.parent.name[len(casa):] if d.parent.name.startswith(casa) else d.parent.name
+                nome = slug_progetto(nome) or d.parent.name
+            voce = per_nome.get(nome)
+            if voce is None:
+                voce = {"nome": nome, "titolo": Path(cwd).name if cwd else nome, "scheda": "", "cosa": "",
+                        "cartella": cartella_con_tilde(cwd) if cwd else "", "decisioni_totali": 0,
+                        "ultime_decisioni": [], "note": set(), "ultima": 0.0}
+                progetti.append(voce)
+                per_nome[nome] = voce
+        voce["note"].update(note)
+
+    legate = set()
+    for v in progetti:
+        legate |= v["note"]
+    altre = {}
+    for _d, p in tutte:
+        if p in schede or p in legate:
+            continue
+        citati = {bersaglio(w.group(1)) for _n, r in righe_utili(testi[p]) for w in WIKILINK.finditer(r)}
+        collegati = [nomi_scheda[c] for c in sorted(c for c in citati if c) if c in nomi_scheda]
+        for progetto in collegati:  # una nota che cita due schede conta in tutti e due i progetti
+            progetto["note"].add(p)
+        if collegati:
+            continue
+        fm, _ = frontmatter(testi[p])
+        t = tipo(fm if isinstance(fm, dict) else {})
+        t = t if t in TIPI else "?"
+        altre[t] = altre.get(t, 0) + 1
+
+    dormienti = []
+    for _d, p in tutte:
+        if _chiave_fm(testi[p], "dormiente") is not None:
+            fm, _ = frontmatter(testi[p])
+            dormienti.append({"nome": str(campo(fm, "name") or p.stem) if isinstance(fm, dict) else p.stem,
+                              "file": breve(p), "da": str(_chiave_fm(testi[p], "dormiente")).strip("\"'")})
+
+    for v in progetti:
+        v["ultima"] = max([v["ultima"]] + [_quando(p) for p in v["note"]])
+    progetti.sort(key=lambda v: (-v["ultima"], v["nome"]))
+    native = [d for d in cartelle_native() if os.path.realpath(str(d)) != memdir_vera]
+    curate = [p for dd, p in tutte if dd == mm.MEMORY_DIR]
+    return {
+        "accesa": accesa(),
+        "note_totali": len(tutte),
+        "progetti": [{**{k: v[k] for k in ("nome", "titolo", "scheda", "cosa", "cartella", "decisioni_totali",
+                                            "ultime_decisioni")},
+                      "note": len(v["note"]), "aggiornato": _giorno(v["ultima"])} for v in progetti],
+        "altre_note": altre,
+        "dormienti": dormienti,
+        "dove": {"curate": {"cartella": breve(mm.MEMORY_DIR), "note": len(curate)},
+                 "claude_code": {"cartella": breve(radice() / "projects") + "/*/memory",
+                                 "note": sum(1 for dd, _p in tutte if dd in native),
+                                 "cartelle": sum(1 for d in native if any(dd == d for dd, _p in tutte))},
+                 "tue": [{"cartella": breve(d), "note": sum(1 for dd, _p in tutte if dd == d)}
+                         for d in cartelle_mie()],
+                 "copia": breve(mm.NOTES_CACHE.parent)},
+    }
+
+
+def _note(n: int) -> str:
+    return "1 nota" if n == 1 else f"{n} note"
+
+
+def testo_riepilogo(r: dict, tutti: bool = False) -> str:
+    out = []
+    if not r["accesa"]:
+        out += ["La memoria è spenta: Arturo non propone le note a Claude e non ne salva di nuove.",
+                "Le note di prima restano dove sono. Per accenderla: arturo memoria accendi", ""]
+    progetti = r["progetti"]
+    if not r["note_totali"]:
+        out += ["Arturo non ricorda ancora niente su questo computer.",
+                "Le prime note arrivano a fine lavoro, quando chiudi con /fine.", ""]
+    else:
+        out.append(f"Arturo ricorda {len(progetti)} progett{'o' if len(progetti) == 1 else 'i'} e "
+                   f"{_note(r['note_totali'])} in tutto.")
+        out.append("")
+    if progetti:
+        out.append("Progetti, dal più recente:")
+        mostrati = progetti if tutti else progetti[:MAX_PROGETTI]
+        for v in mostrati:
+            pezzi = [_note(v["note"]) if v["note"] else "solo la scheda"]
+            pezzi.append(f"scheda aggiornata il {v['aggiornato']}" if v["scheda"] else "senza scheda")
+            titolo = v["titolo"] if v["titolo"] == v["nome"] else f"{v['titolo']} ({v['nome']})"
+            out.append(f"- {titolo}: {', '.join(pezzi)}")
+            if v["cosa"]:
+                out.append(f"  {v['cosa']}")
+            if v["ultime_decisioni"]:
+                altre = v["decisioni_totali"] - len(v["ultime_decisioni"])
+                out.append("  Ultime decisioni" + (f" (su {v['decisioni_totali']})" if altre > 0 else "") + ":")
+                out += [f"    · {d}" for d in v["ultime_decisioni"]]
+        if len(progetti) > len(mostrati):
+            out.append(f"E altri {len(progetti) - len(mostrati)}: arturo memoria --tutti")
+        out.append("Per una scheda intera: arturo memoria scheda <nome del progetto>")
+        out.append("")
+    altre = r["altre_note"]
+    if altre:
+        out.append("Note fuori dai progetti:")
+        for chiave, parole in PAROLE_TIPO:
+            if altre.get(chiave):
+                out.append(f"- {_note(altre[chiave])} {parole}")
+        out.append("")
+    dorm = r["dormienti"]
+    if dorm:
+        out.append(f"Note dormienti: {len(dorm)}. Claude non le usa da più di {GIORNI_DORMIENTE} giorni.")
+        out.append("Restano dove sono, e tornano attive appena servono di nuovo:")
+        out += [f"- {d['nome']}" for d in dorm[:5]]
+        if len(dorm) > 5:
+            out.append(f"- e altre {len(dorm) - 5}")
+        out.append("")
+    dove = r["dove"]
+    out.append("Dove stanno i file:")
+    out.append(f"- {dove['curate']['cartella']}: le schede dei progetti e le note salvate a fine lavoro "
+               f"({_note(dove['curate']['note'])})")
+    out.append(f"- {dove['claude_code']['cartella']}: le note che Claude Code scrive da solo, una cartella "
+               f"per progetto ({_note(dove['claude_code']['note'])})")
+    for c in dove["tue"]:
+        out.append(f"- {c['cartella']}: una cartella tua ({_note(c['note'])})")
+    out.append(f"- {dove['copia']}: una copia del testo per la ricerca veloce")
+    out.append("Tutto resta su questo computer. Le note che Claude apre passano ad Anthropic con la conversazione.")
+    out.append('Per cercare: arturo memoria cerca "due parole". Per toglierne una: arturo memoria togli <nome>.')
+    return "\n".join(out)
+
+
+def comando_riepilogo(argv: list) -> int:
+    noti = {"--json", "--tutti"}
+    if any(a not in noti for a in argv):
+        print("uso: arturo memoria [--tutti] [--json]", file=sys.stderr)
+        return 3
+    r = riepilogo()
+    if "--json" in argv:
+        print(json.dumps(r, ensure_ascii=False, indent=1))
+        return 0
+    print(testo_riepilogo(r, tutti="--tutti" in argv))
+    return 0
+
+
 def main(argv: list) -> int:
-    if not argv or argv[0] == "stato":
-        return stato()
-    if argv[0] in ("-h", "--help", "aiuto", "help"):
+    if argv and argv[0] in ("-h", "--help", "aiuto", "help"):
         print(AIUTO)
         return 0
+    if not argv or all(a.startswith("--") for a in argv):
+        return comando_riepilogo(argv)
+    if argv[0] == "stato":
+        return stato()
     if argv == ["accendi"]:
         return interruttore(True)
     if argv == ["spegni"]:
@@ -336,6 +1156,16 @@ def main(argv: list) -> int:
         return comando_cerca(argv[1:])
     if argv[0] == "controlla":
         return comando_controlla(argv[1:])
+    if argv[0] == "scheda" and len(argv) > 1:
+        return comando_scheda(argv[1:])
+    if argv[0] == "nota":
+        return comando_nota(argv[1:])
+    if argv[0] == "ricordate":
+        return comando_ricordate(argv[1:])
+    if argv[0] == "togli":
+        return comando_togli(argv[1:])
+    if argv[0] == "igiene":
+        return comando_igiene(argv[1:])
     if len(argv) == 3 and argv[0] == "cartella" and argv[1] in ("aggiungi", "togli"):
         return cartella(argv[1], argv[2])
     print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)

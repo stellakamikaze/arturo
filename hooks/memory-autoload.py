@@ -7,7 +7,8 @@ solo la garanzia deterministica: se CWD = dir di progetto, la sua scheda
 `progetto-<nome>.md` viene proposta per match esatto sul filename, in qualunque
 radice della memoria (melchior_match.radici).
 
-Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output.
+Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output. Al primo avvio senza
+scelta nelle impostazioni la accende e lo dice una volta (melchior_match.accendi_al_primo_avvio).
 Zero-dipendenze. Non-blocking: errore → exit 0 silenzioso.
 """
 import sys
@@ -23,44 +24,13 @@ def log_access(paths, context):
     mm.registra_accessi(paths, context, log_path=ACCESS_LOG)
 
 
-def schede(pattern):
-    """Le schede di tutte le radici, fuori dalle cartelle che iniziano con _ o con un punto."""
-    for radice in mm.radici():
-        for p in sorted(radice.rglob(pattern)):
-            try:
-                rel = p.relative_to(radice).parts
-            except ValueError:
-                continue
-            if not any(x.startswith(("_", ".")) for x in rel):
-                yield p
-
-
-def lista(v):
-    if isinstance(v, (list, tuple)):
-        return [str(x).strip().lower() for x in v]
-    return [x.strip().strip("\"'").lower() for x in str(v or "").strip("[]").split(",") if x.strip()]
-
-
-def find_scheda(name):
-    """Scheda progetto per nome: prima il filename esatto, poi il catalogo del frontmatter.
-
-    Il catalogo (revisione Melchior, 13/11/2026): una scheda vale per una cartella anche se si
-    chiama in un altro modo, quando la cartella è fra i suoi `alias:` o è il nome della sua
-    `cartella:`. Così volta-celeste trova progetto-herdr-arturo."""
-    if not name:
-        return None
-    name = name.lower()
-    for p in schede(f"progetto-{name}.md"):
-        return p
-    for p in schede("progetto-*.md"):
-        fm = mm.parse_frontmatter_simple(mm.leggi(p)) or {}
-        cartella = str(mm.campo(fm, "cartella") or "").replace("\\", "/").rstrip("/")
-        if name in lista(mm.campo(fm, "alias")) or (cartella and cartella.rsplit("/", 1)[-1].lower() == name):
-            return p
-    return None
+find_scheda = mm.trova_scheda  # la ricerca sta in melchior_match: la usano anche arturo contesto e arturo memoria scheda
 
 
 def main():
+    avviso = mm.accendi_al_primo_avvio()
+    if avviso:
+        print(avviso)
     if not mm.memoria_accesa():
         return
     # argv opzionale come hint manuale (es. da /inizio <progetto>), altrimenti CWD.

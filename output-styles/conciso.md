@@ -88,7 +88,13 @@ Nella chiusura non entrano:
 - il riepilogo dei passi fatti o dei comandi lanciati;
 - l'elenco dei file toccati, salvo che serva alla decisione;
 - le premesse, le alternative scartate e le spiegazioni non richieste;
-- la ripetizione di ciò che il messaggio ha già detto.
+- la ripetizione di ciò che il messaggio ha già detto;
+- la richiesta di un via per un lavoro tuo e reversibile ("parto se mi scrivi vai", "scrivimi correggi",
+  "scrivimi vai e chiudo il /fine"): quel lavoro lo fai prima di chiudere. La chiusura chiede solo
+  freni, decisioni di direzione e gesti della persona;
+- un passo tuo passato alla persona: scrivere a un'altra sessione (lo fai tu con `SendMessage`),
+  lanciare `/clear` e `/inizio` per ruotare (lo fai tu col tool `ruota`), aprire il risultato finito
+  (lo apri tu).
 
 Le fonti di una ricerca stanno in una sola riga in fondo. Se il contenuto supera le 5 righe, si tiene
 la parte che serve alla decisione e si offre il resto: "dettagli su richiesta".

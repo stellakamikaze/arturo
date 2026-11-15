@@ -10,7 +10,9 @@ Uso: arturo contesto [nome] [--giorni N]
   e il contesto stampa la riga "rotazione: sì". Con " --in-attesa <domanda>" in fondo, la domanda alla persona
   rimasta aperta dopo la rotazione esce dal compito e il contesto stampa "in attesa: <domanda>".
 
-Stampa, in quest'ordine: progetto e cartella, la quota di 5 ore e settimana vista dalla barra, git (branch, modifiche, conflitti, commit dopo
+Stampa, in quest'ordine: progetto e cartella, la quota di 5 ore e settimana vista dalla barra, la scheda del
+progetto dalla memoria (se è accesa: cos'è, decisioni chiuse, errori da non ripetere; la sua cartella vale
+anche fuori dalla base dei progetti), git (branch, modifiche, conflitti, commit dopo
 l'ultimo handoff, rami locali non riportati), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
 progetto divisi per chi agisce, i todo chiusi dopo l'ultimo handoff, le scadenze dei prossimi
 7 giorni (anche fuori dal progetto), il todo da cui ripartire e gli avvisi.
@@ -20,7 +22,7 @@ Con ~/.claude/arturo/fonte-task.local i todo vengono dalla fonte esterna (arturo
 Se non risponde, la sezione dei todo mostra la tabella Task Pendenti dell'ultimo handoff con l'avviso
 NON VERIFICATO: mai "nessuno" quando la fonte è giù.
 
-Exit: 0 contesto stampato · 2 NON TROVATO (né cartella, né handoff, né todo; stampa i nomi
+Exit: 0 contesto stampato · 2 NON TROVATO (né cartella, né handoff, né todo, né scheda; stampa i nomi
 simili) · 3 uso sbagliato. Non scrive niente: niente pull, niente mkdir, niente todo.
 """
 from __future__ import annotations
@@ -49,6 +51,7 @@ MAX_COMMIT = 15
 MAX_RIPARTENZA = 700
 MAX_CARATTERI = 28000
 PAROLE_COMPITO = 4  # da quante parole un testo senza progetto è un compito e non un nome
+SALVATO_AUTO = "- Salvato: in automatico"  # la marca di bin/salva-automatico.py
 ETICHETTE = {"tu": "TOCCA A TE", "decidi": "DECIDI TU, POI FACCIO IO", "io": "FACCIO IO", "fermo": "FERMO"}
 
 
@@ -283,12 +286,21 @@ def sezione_handoff(elenco: list, giorni: int, ir) -> list:
     if recenti[0][1] < limite:
         titolo = f"RIPARTENZA (nessun handoff negli ultimi {giorni} giorni: il più recente)"
     righe = [titolo]
-    for nome, data, ora, percorso in recenti[:5]:
+    for n, (nome, data, ora, percorso) in enumerate(recenti[:5]):
         testo = percorso.read_text(encoding="utf-8", errors="replace")
         filone = ir.filone_esplicito(testo)
         stato = ir.stato_handoff(testo)
         testa = f"  {data} {ora}" + (f" · filone {filone}" if filone else "") + (f" · {stato}" if stato else "")
         righe.append(f"{testa} · {nome}")
+        if n == 0 and SALVATO_AUTO in testo.splitlines():
+            # M4 della memoria (15/11/2026): l'ultima sessione si è chiusa senza /fine e bin/salva-automatico.py
+            # ha scritto questo handoff dal transcript. /inizio lo dice, e il primo /fine lo completa.
+            righe.append("    SALVATO IN AUTOMATICO: L'ultima volta non hai chiuso con /fine: ecco cosa stavi facendo. "
+                         "Il primo /fine di questa sessione completa questo handoff, senza farne un altro.")
+            for sez in ("Ultime richieste", "Lavoro aperto nella sessione"):
+                voci = [r.strip() for r in ir.sezione(testo, sez).splitlines() if r.strip()]
+                if voci:
+                    righe.append(f"    {sez}: " + " · ".join(corto(v, 200) for v in voci[-5:]))
         corpo = ir.sezione(testo, "Ripartenza") or ir.sezione(testo, "Cosa stavamo facendo")
         corpo = "\n".join(r for r in corpo.splitlines() if not re.match(r"^\s*\**Prossimo passo", r))
         if corpo.strip():
@@ -479,6 +491,72 @@ def sezione_filoni(progetto: str, ir) -> list:
     return righe
 
 
+MAX_SCHEDA = 3000  # caratteri: la scheda di un progetto grande non deve mangiare todo e avvisi
+RIGHE_SCHEDA = 40
+
+
+def memoria():
+    """Il modulo melchior_match se la memoria è accesa, altrimenti None. Una sua rottura non ferma /inizio."""
+    try:
+        import melchior_match as mm
+        return mm if mm.memoria_accesa() else None
+    except Exception:
+        return None
+
+
+def scheda_progetto(*nomi: str):
+    """(percorso, frontmatter, corpo) della scheda progetto-<slug>.md per il primo nome che la trova, o None.
+    La scrive /fine con arturo memoria scheda (M3 del piano della memoria, 14/11/2026)."""
+    mm = memoria()
+    if mm is None:
+        return None
+    for nome in nomi:
+        try:
+            p = mm.trova_scheda(slug(nome)) if nome and slug(nome) else None
+            if p:
+                fm, corpo = mm.frontmatter(mm.leggi(p))
+                return p, fm or {}, corpo or ""
+        except Exception:
+            continue
+    return None
+
+
+def cartella_da_scheda(scheda) -> Path | None:
+    """La cartella scritta nella scheda, se c'è su questo computer: /inizio la trova anche fuori da
+    Documents e Projects, aperto dalla home."""
+    if not scheda:
+        return None
+    valore = str(scheda[1].get("cartella") or "").strip().strip("\"'")
+    if not valore:
+        return None
+    c = Path(os.path.expanduser(valore))
+    try:
+        return c.resolve() if e_cartella(c) and c.resolve() != Path.home().resolve() else None
+    except OSError:
+        return None
+
+
+def sezione_scheda(scheda) -> list:
+    if not scheda:
+        return []
+    p, _, corpo = scheda
+    try:
+        breve = "~/" + p.resolve().relative_to(Path.home().resolve()).as_posix()
+    except (OSError, ValueError):
+        breve = str(p)
+    righe = [r.rstrip() for r in corpo.strip("\n").splitlines()]
+    tenute, n = [], 0
+    for r in righe:
+        if len(tenute) >= RIGHE_SCHEDA or n + len(r) > MAX_SCHEDA:
+            break
+        tenute.append(r)
+        n += len(r) + 1
+    fuori = [f"SCHEDA DEL PROGETTO (memoria, {breve})"] + [f"  {r}" if r else "" for r in tenute]
+    if len(tenute) < len(righe):
+        fuori.append(f"  … altre {len(righe) - len(tenute)} righe: leggi il file")
+    return fuori
+
+
 def compito_da(argv: list) -> tuple:
     """(compito, rotazione). Il compito sono le parole dopo " -- ". Se la prima è --rotazione, è la marca
     della rotazione automatica (3/11/2026: "/inizio <slug> -- --rotazione <compito>") e non fa parte del
@@ -521,7 +599,14 @@ def main(argv: list) -> int:
         compito = " ".join(x for x in (resto, compito) if x)
 
     cartella, contenitore = trova_cartella(nome)
+    scheda = None
+    if not contenitore:
+        if nome and not cartella:  # la cartella scritta nella scheda vale anche fuori dalla base dei progetti
+            scheda = scheda_progetto(nome)
+            cartella = cartella_da_scheda(scheda)
     s = slug(cartella.name) if cartella else slug(nome)
+    if not contenitore and not scheda:
+        scheda = scheda_progetto(s, nome)
     elenco = handoff_di(s)
     esterna = ts.comando_fonte()
     vista, errore = (leggi_esterna(s) if esterna else (None, None))
@@ -532,7 +617,7 @@ def main(argv: list) -> int:
         todo, avvisi = ts.carica()
         ha_todo = any(t["progetto"] == s for t in todo.values())
 
-    if contenitore or not (cartella or elenco or ha_todo):
+    if contenitore or not (cartella or elenco or ha_todo or scheda):
         motivo = ("la cartella in cui sei contiene i progetti, non è un progetto" if contenitore
                   else f'nessuna cartella, nessun handoff e nessun todo per "{nome}"')
         print(f"NON TROVATO: {motivo}")
@@ -567,6 +652,8 @@ def main(argv: list) -> int:
         if vecchi and (not elenco or vecchi[0].name > elenco[0][0]):
             righe.append(f"handoff nella cartella del progetto, più recente dello store: {vecchi[0]}")
     righe.append("")
+    if scheda:
+        righe += sezione_scheda(scheda) + [""]
     righe += sezione_git(cartella, dal) if cartella else ["GIT", "  nessuna cartella"]
     righe.append("")
     righe += sezione_handoff(elenco, giorni, ir)

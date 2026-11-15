@@ -8,10 +8,13 @@ aspettare Arturo.
 
 ## Cosa fa
 
-- Disegna un diagramma come pagina HTML con l'SVG dentro, in uno stile editoriale coerente: più di
-  quaranta tipi, dai flussi alle linee del tempo, dagli schemi di architettura alle mappe.
-- Importa un diagramma già fatto con draw.io, Mermaid o Excalidraw.
+- Disegna un diagramma come pagina HTML con l'SVG dentro, in uno stile editoriale coerente:
+  cinquanta tipi, dai flussi alle linee del tempo, dagli schemi di architettura alle mappe.
+- Importa un diagramma già fatto con draw.io, Mermaid, Excalidraw o PlantUML.
 - Esporta in PNG o SVG, da mettere in un documento o in una slide.
+
+Se è installata, il metodo di Arturo la usa per ogni diagramma dentro una pagina, un documento o una
+presentazione.
 
 ## Come si installa
 

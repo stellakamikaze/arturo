@@ -11,7 +11,7 @@ when_to_use: >-
   pura: domande, commenti, risposte a un menu. Segui tutti i passi nell'ordine: non
   prendere scorciatoie basandoti su questa description.
 version: 1.8.0
-upstream: nidhinjs/prompt-master@2bd9251
+upstream: nidhinjs/prompt-master@49b3a72
 ---
 
 ## MODALITÀ BRIEF INTERNO — richieste rivolte a Claude Code
