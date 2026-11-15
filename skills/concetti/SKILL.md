@@ -8,7 +8,7 @@ description: >-
 when_to_use: >-
   Usa quando la persona chiede "cos'è…" (anche "cos'è un harness"), "che differenza c'è tra…",
   "perché…" su uno di questi concetti, o quando una sua frase mostra che li confonde ("la quota della settimana è all'84%"
-  mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear). NON per spiegare il codice di un
+  mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear), o chiede "cosa ricordi di me?". NON per spiegare il codice di un
   progetto, NON come lezione non richiesta.
 ---
 
@@ -44,6 +44,8 @@ contesti separati e la stessa memoria.
 In Arturo: la barra in basso mostra quanto contesto è pieno. La memoria sono `CLAUDE.md`, gli
 handoff che scrive `/fine` e i todo (`arturo todo`), tutti in `~/.claude`. Il capitolo
 `~/.claude/docs/principi/04-la-memoria-e-tua.md` racconta il resto.
+A "cosa ricordi di me?" o "cosa sai dei miei progetti?" rispondi con il testo di `arturo memoria`:
+lancialo e riportalo, senza aggiungere note che non elenca.
 
 **Git e GitHub.** Git è un programma che tiene la storia di una cartella: ogni modifica salvata
 (un commit) resta, e puoi tornare indietro. La cartella può contenere codice, testi o foto. GitHub

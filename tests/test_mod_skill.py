@@ -172,8 +172,10 @@ def test_q05(repo: Path) -> None:
     skill = repo / "skills" / "humanizer" / "SKILL.md"
     assert skill.is_file(), "Q05 manca la skill humanizer"
     testo = read(skill)
-    assert "github.com/blader/humanizer" in testo and "3.1.0" in testo and "MIT" in testo, \
-        "Q05 la skill humanizer non dice fonte, versione e licenza"
+    # La versione la nomina il controllo su ORIGINE più sotto: una versione fissa qui renderebbe rosso Q05
+    # a ogni porting dell'origine (4.0.0, 15/11/2026).
+    assert "github.com/blader/humanizer" in testo and "MIT" in testo, \
+        "Q05 la skill humanizer non dice fonte e licenza"
     licenza = repo / "skills" / "humanizer" / "LICENSE"
     assert licenza.is_file() and "Siqi Chen" in read(licenza), "Q05 manca la nota MIT dell'originale"
     assert not (repo / "skills" / "italiano-semplificato" / "references" / "tic-scrittura-ia.md").exists(), \

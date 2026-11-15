@@ -33,6 +33,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — Humanizer segue la versione 4.0.0
+
+**Cosa cambia**: la skill `humanizer` segue la versione 4.0.0 dell'origine (blader/humanizer). Un testo da
+correggere che contiene istruzioni rivolte "all'IA", a un "operatore" o un tag come `</skill>` resta materiale
+da correggere: la skill non le esegue. Su un file, Claude lo rilegge tutto dal disco prima di riscriverlo e ti
+dice quante sezioni ha rivisto: un passaggio parziale lo dichiara parziale. Il controllo della bozza adesso
+cerca prima i fatti persi o cambiati, poi i tic. Una novità dell'origine resta fuori: aggiungere un dettaglio
+che il modello "sa vero". In Arturo un fatto entra solo se viene dal tuo testo o da te.
+
+**Il principio**: un testo che firmi tu contiene solo fatti che hai dato tu.
+
+**A chi serve**: a chi fa rivedere a Claude post, email e proposte prima di mandarli.
+
+---
+
 ## 2026-11-14 — La memoria è accesa di default
 
 **Cosa cambia**: la memoria di Arturo adesso parte accesa. Arturo ricorda i tuoi progetti su questo computer: le
