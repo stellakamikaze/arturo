@@ -22,7 +22,10 @@ Ogni cosa ricordata è una nota: un file di testo con poche righe in testa e il 
 
 - A ogni tuo messaggio Arturo cerca le note che parlano della stessa cosa e dice a Claude dove
   sono. Claude apre una nota solo se gli serve. Se nessuna nota c'entra, Arturo non dice niente.
-- All'avvio Arturo indica a Claude la scheda del progetto in cui lavori, se c'è.
+- Ogni progetto ha una scheda: cos'è, dove sta la cartella, le decisioni chiuse e gli errori da non
+  ripetere. La scrive `/fine` da solo, la prima volta e poi solo coi fatti nuovi, e tiene le righe
+  che scrivi tu. `/inizio` la rilegge anche se apri Claude dalla home, e all'avvio Arturo la indica a
+  Claude. `arturo memoria scheda <progetto>` te la mostra.
 - Ogni nota che Claude scrive passa da un controllo. Se dentro c'è una password, o un testo che
   prova a dare ordini a Claude di nascosto, Claude riceve un avviso. La nota resta scritta, e Claude la può correggere.
 

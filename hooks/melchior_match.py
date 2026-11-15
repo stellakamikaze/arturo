@@ -182,6 +182,47 @@ def radici():
     return out
 
 
+def _schede(pattern):
+    """Le schede di tutte le radici, fuori dalle cartelle che iniziano con _ o con un punto."""
+    for radice in radici():
+        try:
+            trovate = sorted(radice.rglob(pattern))
+        except OSError:
+            continue
+        for p in trovate:
+            try:
+                rel = p.relative_to(radice).parts
+            except ValueError:
+                continue
+            if not any(x.startswith(("_", ".")) for x in rel):
+                yield p
+
+
+def _nomi(v):
+    if isinstance(v, (list, tuple)):
+        return [str(x).strip().lower() for x in v]
+    return [x.strip().strip("\"'").lower() for x in str(v or "").strip("[]").split(",") if x.strip()]
+
+
+def trova_scheda(name):
+    """La scheda progetto-<nome>.md di un progetto, o None: prima il filename esatto, poi il catalogo del
+    frontmatter. Il catalogo (revisione Melchior, 13/11/2026): una scheda vale per una cartella anche se si
+    chiama in un altro modo, quando la cartella è fra i suoi `alias:` o è il nome della sua `cartella:`.
+    Così volta-celeste trova progetto-herdr-arturo. La usano memory-autoload.py, arturo contesto (/inizio)
+    e arturo memoria scheda (/fine), dal 14/11/2026 (M3 del piano della memoria)."""
+    if not name:
+        return None
+    name = str(name).lower()
+    for p in _schede(f"progetto-{name}.md"):
+        return p
+    for p in _schede("progetto-*.md"):
+        fm = parse_frontmatter_simple(leggi(p)) or {}
+        cartella = str(campo(fm, "cartella") or "").replace("\\", "/").rstrip("/")
+        if name in _nomi(campo(fm, "alias")) or (cartella and cartella.rsplit("/", 1)[-1].lower() == name):
+            return p
+    return None
+
+
 def breve(p):
     """Il percorso con ~ al posto della home, a barre dritte: su Windows Claude lo usa in Git Bash."""
     s = str(p)

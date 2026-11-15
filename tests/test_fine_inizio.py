@@ -58,6 +58,9 @@ non fa stash e lascia il file risolto a mano com'è; lo dice con ERRORE e rc 1.
 F27 un compito col trattino dopo il nome (review del 7/11/2026, finding 33): "libro - capitolo tre" e
 "libro togli il flag --force" caricano il progetto col compito; un'opzione in testa o subito dopo il nome
 ("--boh libro", "libro --boh") resta sconosciuta, exit 3.
+F28 la scheda del progetto (M3 del piano della memoria, 14/11/2026, #5672): /fine la scrive con arturo
+memoria scheda, arturo contesto la rilegge dalla home anche per un progetto fuori dalla base, senza
+voci ripetute e con le righe scritte a mano; a memoria spenta niente scheda; un segreto non entra.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1265,12 +1268,77 @@ def test_f27(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+
+def test_f28(repo: Path) -> None:
+    """La scheda del progetto (M3 del piano della memoria, 14/11/2026, #5672): /fine la scrive con arturo
+    memoria scheda, /inizio la rilegge con arturo contesto anche aperto dalla home, per un progetto fuori
+    dalla base dei progetti. Una seconda scrittura non ripete le voci e tiene le righe scritte a mano.
+    Memoria spenta: niente scheda, né scritta né stampata. Un segreto non entra."""
+    fine = read(repo / "commands" / "fine.md")
+    assert "## FASE 7 · CLAUDE.md e scheda del progetto" in fine and "## FASE 8" in fine, \
+        "F28 /fine non ha la scheda del progetto nella FASE 7"
+    fase7 = fine[fine.index("## FASE 7"):fine.index("## FASE 8")]
+    for pezzo in ("arturo memoria scheda <slug>", "--cosa", "--decisione", "--errore", "Exit 4", "Memoria applicata"):
+        assert pezzo in fase7, f"F28 la FASE 7 di /fine non nomina {pezzo!r}"
+    assert "non ha ancora la scheda" in fine[:fine.index("## FASE 1")], \
+        "F28 il fine leggero salta la FASE 7 anche quando il progetto non ha la scheda"
+    inizio = read(repo / "commands" / "inizio.md")
+    assert "SCHEDA DEL PROGETTO" in inizio, "F28 /inizio non dice di leggere la scheda del progetto"
+    serve(repo, "bin/memoria.py", "F28")
+
+    def prova(lab: Lab) -> None:
+        cartella = lab.home / "lavori" / "libro"
+        cartella.mkdir(parents=True)
+        scheda = lab.home / ".claude" / "data" / "memory" / "progetti" / "progetto-libro.md"
+
+        def arturo(*argomenti: str, cwd: Path, **altro) -> subprocess.CompletedProcess:
+            e = lab.env(**altro)
+            if "ARTURO_MEMORIA" not in altro:
+                e.pop("ARTURO_MEMORIA", None)  # vale il default: accesa
+            return subprocess.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), *argomenti], cwd=str(cwd),
+                                  env=e, capture_output=True, text=True, encoding="utf-8", timeout=120)
+
+        r = arturo("memoria", "scheda", "libro", "--decisione", "Il titolo resta Il Libro", cwd=cartella)
+        assert r.returncode == 3 and not scheda.exists(), \
+            f"F28 la prima scheda senza --cosa: exit {r.returncode} {r.stdout} {r.stderr}"
+        r = arturo("memoria", "scheda", "libro", "--cosa", "Il romanzo sul tram 9", "--cartella", str(cartella),
+                   "--decisione", "Il titolo resta Il Libro", "--errore", "NON mandare bozze senza note: causa rifiuto",
+                   cwd=cartella)
+        assert r.returncode == 0 and "scheda creata" in r.stdout and scheda.is_file(), \
+            f"F28 /fine non crea la scheda: exit {r.returncode} {r.stdout} {r.stderr}"
+        testo = read(scheda)
+        for pezzo in ("name: progetto-libro", "type: project", "cartella: ~/lavori/libro", "## Decisioni chiuse",
+                      "- Il titolo resta Il Libro", "## Errori da non ripetere"):
+            assert pezzo in testo, f"F28 la scheda nuova non ha {pezzo!r}: {testo}"
+        scheda.write_text(testo.replace("- Il titolo resta Il Libro", "- Il titolo resta Il Libro\n- SCRITTA-A-MANO"),
+                          encoding="utf-8")
+        r = arturo("memoria", "scheda", "libro", "--decisione", "il titolo resta il libro",
+                   "--decisione", "Tre parti, non quattro", cwd=cartella)
+        testo = read(scheda)
+        assert r.returncode == 0 and testo.count("itolo resta") == 1 and "- Tre parti, non quattro" in testo \
+            and "- SCRITTA-A-MANO" in testo, f"F28 la seconda scrittura ripete voci o perde righe: {r.stdout} {testo}"
+        r = arturo("contesto", "libro", cwd=lab.home)
+        out = r.stdout
+        assert r.returncode == 0 and f"cartella: {cartella.resolve()}" in out, \
+            f"F28 /inizio dalla home non trova la cartella scritta nella scheda: exit {r.returncode} {out[:400]}"
+        assert "SCHEDA DEL PROGETTO" in out and "Tre parti, non quattro" in out and "NON mandare bozze" in out, \
+            f"F28 /inizio non rilegge la scheda: {out[:600]}"
+        r = arturo("contesto", "libro", cwd=lab.home, ARTURO_MEMORIA="0")
+        assert "SCHEDA DEL PROGETTO" not in r.stdout, f"F28 a memoria spenta /inizio stampa la scheda: {r.stdout[:300]}"
+        prima = read(scheda)
+        r = arturo("memoria", "scheda", "libro", "--errore", "altro", cwd=cartella, ARTURO_MEMORIA="0")
+        assert r.returncode == 4 and read(scheda) == prima, f"F28 a memoria spenta la scheda si scrive: {r.returncode}"
+        r = arturo("memoria", "scheda", "libro", "--errore", "token ghp_" + "a" * 36, cwd=cartella)
+        assert r.returncode == 5 and read(scheda) == prima, f"F28 un segreto entra nella scheda: {r.returncode}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
-         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27}
+         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28}
 
 
 def main() -> int:

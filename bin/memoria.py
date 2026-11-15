@@ -23,6 +23,9 @@ passano ad Anthropic come il resto della conversazione. Niente della memoria ent
   controlla [--json]             frontmatter mancanti o illeggibili, link rotti
   cartella aggiungi DIR          aggiunge una tua cartella di note
   cartella togli DIR             la toglie (i file restano dove sono)
+  scheda SLUG                    la scheda del progetto: cos'è, dove sta, decisioni chiuse, errori
+  scheda SLUG --cosa T [--titolo T] [--cartella DIR] [--alias a,b] [--decisione T]... [--errore T]...
+                                 la scrive o la aggiorna (/fine); le righe scritte a mano restano
 
 L'interruttore sta in ~/.claude/data/memoria/impostazioni.json, fuori da git. La variabile
 ARTURO_MEMORIA=1 o ARTURO_MEMORIA=0 (nell'ambiente o in "env" di settings.json) vince sul file.
@@ -322,6 +325,217 @@ def comando_controlla(argv: list) -> int:
     return 1 if n else 0
 
 
+# --- La scheda del progetto (M3 del piano della memoria, 14/11/2026) -----------------------
+# /fine la scrive, arturo contesto (/inizio) la rilegge. Ha cos'è, dove sta, decisioni chiuse ed errori
+# da non ripetere: stato e todo restano negli handoff e in arturo todo.
+
+COSA = "## Cos'è"
+SEZIONI = {"decisione": "## Decisioni chiuse", "errore": "## Errori da non ripetere"}
+MAX_VOCE = 300
+MAX_DESCRIZIONE = 200
+_SCANNER = []
+
+
+def slug_progetto(nome: str) -> str:
+    """Lo slug di /inizio, /fine e arturo todo (come bin/contesto.py)."""
+    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", str(nome).lower()))
+
+
+def una_riga(testo, n: int = MAX_VOCE) -> str:
+    testo = " ".join(str(testo or "").split())
+    return testo if len(testo) <= n else testo[:n - 1].rstrip() + "…"
+
+
+def motivi_scanner(testo: str) -> list:
+    """I motivi di sospetto di hooks/memory-write-scanner.py: una scrittura da script non passa dall'hook
+    di Write, quindi il controllo lo chiama qui. Senza scanner, nessun motivo."""
+    if not _SCANNER:
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("memory_write_scanner",
+                                                          str(QUI.parent / "hooks" / "memory-write-scanner.py"))
+            modulo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(modulo)
+            _SCANNER.append(modulo)
+        except Exception:
+            _SCANNER.append(None)
+    try:
+        return list(_SCANNER[0].trova(testo)) if _SCANNER[0] is not None else []
+    except Exception:
+        return []
+
+
+def cartella_con_tilde(cartella: str) -> str:
+    """La cartella sotto la home diventa ~/...: la scheda vale anche su un computer con un'altra home."""
+    if not cartella:
+        return ""
+    try:
+        vera, casa = Path(os.path.expanduser(cartella)).resolve(), Path.home().resolve()
+        return "~/" + vera.relative_to(casa).as_posix() if vera != casa else "~"
+    except (OSError, ValueError, RuntimeError):
+        return cartella
+
+
+def _valore_fm(v: str) -> str:
+    return '"' + v.replace('"', "'") + '"'
+
+
+def _imposta_fm(righe: list, fine: int, chiave: str, valore: str) -> int:
+    """Scrive `chiave: valore` nel frontmatter righe[1:fine]; ritorna il nuovo indice della riga ---."""
+    for i in range(1, fine):
+        if not righe[i].startswith((" ", "\t")) and righe[i].split(":", 1)[0].strip() == chiave:
+            righe[i] = f"{chiave}: {valore}"
+            return fine
+    righe.insert(fine, f"{chiave}: {valore}")
+    return fine + 1
+
+
+def _alias_di(righe: list, fine: int) -> list:
+    for i in range(1, fine):
+        if righe[i].startswith("alias:"):
+            return [a for a in (x.strip().strip("\"'") for x in righe[i][6:].strip().strip("[]").split(",")) if a]
+    return []
+
+
+def _sezione(righe: list, titolo: str, inizio: int) -> tuple:
+    """(indice del titolo, indice dopo l'ultima riga piena della sezione), o (None, None)."""
+    for i in range(inizio, len(righe)):
+        if righe[i].strip().lower() == titolo.lower():
+            j = i + 1
+            while j < len(righe) and not righe[j].startswith("## "):
+                j += 1
+            while j > i + 1 and not righe[j - 1].strip():
+                j -= 1
+            return i, j
+    return None, None
+
+
+def _norma(voce: str) -> str:
+    return " ".join(voce.lstrip("-* ").split()).casefold()
+
+
+def testo_nuova_scheda(s: str, cosa: str, titolo: str, cartella: str, alias: list) -> str:
+    righe = ["---", f"name: progetto-{s}", f"description: {_valore_fm(una_riga(cosa, MAX_DESCRIZIONE))}",
+             "type: project"]
+    if titolo:
+        righe.append(f"titolo: {_valore_fm(titolo)}")
+    if alias:
+        righe.append(f"alias: [{', '.join(alias)}]")
+    if cartella:
+        righe.append(f"cartella: {cartella}")
+    righe += ["---", f"# {titolo or s}", "", COSA, una_riga(cosa, 1000)]
+    return "\n".join(righe) + "\n"
+
+
+def aggiorna_scheda(testo: str, cosa: str, titolo: str, cartella: str, alias: list, voci: dict) -> tuple:
+    """(testo nuovo, {decisione: n, errore: n} voci aggiunte). Tocca solo i campi dati e aggiunge in coda
+    alle sezioni le voci che non ci sono già: le righe scritte a mano restano."""
+    righe = testo.splitlines()
+    fine = None
+    if righe and righe[0].strip() == "---":
+        fine = next((i for i, r in enumerate(righe[1:], 1) if r.strip() == "---"), None)
+    if fine is None:
+        raise ValueError("la scheda non ha il frontmatter fra due righe ---")
+    if cosa:
+        fine = _imposta_fm(righe, fine, "description", _valore_fm(una_riga(cosa, MAX_DESCRIZIONE)))
+    if titolo:
+        fine = _imposta_fm(righe, fine, "titolo", _valore_fm(titolo))
+    if alias:
+        uniti = list(dict.fromkeys(_alias_di(righe, fine) + alias))
+        fine = _imposta_fm(righe, fine, "alias", f"[{', '.join(uniti)}]")
+    if cartella:
+        fine = _imposta_fm(righe, fine, "cartella", cartella)
+    if cosa:
+        i, j = _sezione(righe, COSA, fine + 1)
+        if i is None:
+            dove = next((k + 1 for k in range(fine + 1, len(righe)) if righe[k].startswith("# ")), fine + 1)
+            righe[dove:dove] = ["", COSA, una_riga(cosa, 1000)]
+        else:
+            righe[i + 1:j] = [una_riga(cosa, 1000)]
+    aggiunte = {}
+    for chiave, titolo_sez in SEZIONI.items():
+        nuove = [una_riga(v) for v in voci.get(chiave, []) if una_riga(v)]
+        i, j = _sezione(righe, titolo_sez, fine + 1)
+        gia = {_norma(r) for r in righe[i + 1:j]} if i is not None else set()
+        nuove = [v for v in dict.fromkeys(nuove) if _norma(v) not in gia]
+        aggiunte[chiave] = len(nuove)
+        if not nuove:
+            continue
+        if i is None:
+            while righe and not righe[-1].strip():
+                righe.pop()
+            righe += ["", titolo_sez] + [f"- {v}" for v in nuove]
+        else:
+            righe[j:j] = [f"- {v}" for v in nuove]
+    return "\n".join(righe).rstrip("\n") + "\n", aggiunte
+
+
+def comando_scheda(argv: list) -> int:
+    """arturo memoria scheda <slug> [--cosa T] [--titolo T] [--cartella DIR] [--alias a,b]
+    [--decisione T]... [--errore T]...: senza opzioni stampa la scheda."""
+    p = argparse.ArgumentParser(prog="arturo memoria scheda", add_help=False)
+    p.add_argument("slug")
+    p.add_argument("--cosa", default="")
+    p.add_argument("--titolo", default="")
+    p.add_argument("--cartella", default="")
+    p.add_argument("--alias", default="")
+    p.add_argument("--decisione", action="append", default=[])
+    p.add_argument("--errore", action="append", default=[])
+    try:
+        a = p.parse_args(argv)
+    except SystemExit:
+        print('uso: arturo memoria scheda <slug> [--cosa "..."] [--titolo "..."] [--cartella DIR] '
+              '[--alias a,b] [--decisione "..."]... [--errore "..."]...', file=sys.stderr)
+        return 3
+    s = slug_progetto(a.slug)
+    if not s:
+        print(f'nome di progetto non valido: "{a.slug}"', file=sys.stderr)
+        return 3
+    esistente = mm.trova_scheda(s)
+    cosa, titolo, cartella = una_riga(a.cosa, 1000), una_riga(a.titolo, 60), una_riga(a.cartella, 400)
+    cartella = cartella_con_tilde(cartella)
+    alias = [x for x in (slug_progetto(v) for v in a.alias.split(",")) if x and x != s]
+    voci = {"decisione": a.decisione, "errore": a.errore}
+    if not (cosa or titolo or cartella or alias or a.decisione or a.errore):
+        if not esistente:
+            print(f"nessuna scheda per {s}")
+            return 2
+        print(f"scheda: {breve(esistente)}")
+        print(leggi(esistente).rstrip())
+        return 0
+    if not mm.memoria_accesa():
+        print("memoria spenta: la scheda non si scrive. Per accenderla: arturo memoria accendi")
+        return 4
+    motivi = motivi_scanner("\n".join([cosa, titolo, cartella] + a.decisione + a.errore))
+    if motivi:
+        print(f"scheda di {s} non scritta: " + "; ".join(motivi), file=sys.stderr)
+        return 5
+    if esistente:
+        f = esistente
+        prima = leggi(f)
+        try:
+            testo, aggiunte = aggiorna_scheda(prima, cosa, titolo, cartella, alias, voci)
+        except ValueError as e:
+            print(f"{breve(f)}: {e}", file=sys.stderr)
+            return 2
+        esito = "aggiornata" if testo != prima else "invariata"
+    else:
+        if not cosa:
+            print(f"la scheda di {s} non c'è ancora: la prima volta serve --cosa \"di cosa si tratta, in una riga\"",
+                  file=sys.stderr)
+            return 3
+        f = mm.MEMORY_DIR / "progetti" / f"progetto-{s}.md"
+        testo, aggiunte = aggiorna_scheda(testo_nuova_scheda(s, cosa, titolo, cartella, alias), "", "", "", [], voci)
+        esito = "creata"
+    if esito != "invariata":
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_name(f".{f.name}.tmp")
+        tmp.write_text(testo, encoding="utf-8")
+        os.replace(str(tmp), str(f))
+    print(f"scheda {esito}: {breve(f)} · decisioni nuove {aggiunte['decisione']} · errori nuovi {aggiunte['errore']}")
+    return 0
+
+
 def main(argv: list) -> int:
     if not argv or argv[0] == "stato":
         return stato()
@@ -336,6 +550,8 @@ def main(argv: list) -> int:
         return comando_cerca(argv[1:])
     if argv[0] == "controlla":
         return comando_controlla(argv[1:])
+    if argv[0] == "scheda" and len(argv) > 1:
+        return comando_scheda(argv[1:])
     if len(argv) == 3 and argv[0] == "cartella" and argv[1] in ("aggiungi", "togli"):
         return cartella(argv[1], argv[2])
     print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)

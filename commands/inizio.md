@@ -155,6 +155,9 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
 - la riga `quota:` con la finestra di 5 ore e quella della settimana, come le ha viste la barra in
   basso; manca se la barra non ha ancora un dato valido;
+- `SCHEDA DEL PROGETTO`: la scheda che `/fine` scrive nella memoria, con cos'è, decisioni chiuse ed
+  errori da non ripetere. Manca a memoria spenta o senza scheda. La cartella scritta nella scheda vale
+  anche fuori dalla base dei progetti, e la scheda da sola basta a trovare il progetto;
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
   e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
   commit già arrivati con un cherry-pick o un rebase non compare);
@@ -253,7 +256,8 @@ mai nel repo del progetto.
 ## FASE 3: Carica il contesto
 
 Leggi in ordine, se esistono:
-1. il `CLAUDE.md` del progetto;
+1. il `CLAUDE.md` del progetto. Le decisioni chiuse e gli errori della `SCHEDA DEL PROGETTO` della FASE 1
+   valgono come vincoli: non si rimettono in discussione;
 2. l'ultimo handoff per intero: il percorso è nella riga "da leggere per intero" della FASE 1.
    Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
    da una versione vecchia di `/fine`), leggi quello.

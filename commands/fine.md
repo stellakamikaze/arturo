@@ -32,7 +32,7 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   data di oggi e sono passate le 18, questo giro segue tutte le fasi, poi ruota. Il `/fine` scritto dalla
   persona è sempre completo e non ruota.
 - **Fasi del fine leggero:** FASE 1 senza `structural-completeness-reviewer`, poi 2, 3, 4, 5, 7 solo se è
-  cambiato un fatto durevole del progetto, 8, e la 9 con `python3 ~/.claude/bin/fine-coda.py --leggero`.
+  cambiato un fatto durevole del progetto o se il progetto non ha ancora la scheda, 8, e la 9 con `python3 ~/.claude/bin/fine-coda.py --leggero`.
   Saltano la FASE 6 (la retention aspetta il fine completo) e la FASE 10.
 - **Un handoff per giornata.** Prima del blocco della FASE 4 cerca nel mirror l'ultimo handoff con
   `- Rotazione: <oggi>`: se c'è, riscrivi quello e aggiorna la sua riga `- Sessione:`. Se non c'è, il
@@ -219,12 +219,28 @@ python3 ~/.claude/bin/handoff-retention.py "$SLUG"; echo "rc=$?"
 Se stampa un blocco `=== IN USCITA`, leggi `~/.claude/shared/fine-retention.md` e scegli per ogni voce.
 Cestino e indice li fa la coda della FASE 9, solo per ciò che questo dry-run ha mostrato.
 
-## FASE 7 · CLAUDE.md del progetto
+## FASE 7 · CLAUDE.md e scheda del progetto
 
 Il `CLAUDE.md` del progetto è la sua memoria durevole: cosa è, decisioni chiuse, trappole già viste ("NON
 fare X: causa Y"), percorsi dei materiali fuori dal repo. Non è un diario: la riga che invecchia si
 riscrive, e stato e prossimo passo stanno nei todo e nell'handoff. Le righe nuove entrano nel commit del
 progetto. Senza `CLAUDE.md`, se il progetto ha sostanza, proponilo.
+
+**La scheda del progetto** è la memoria che `/inizio` rilegge anche aperto dalla home, e vale anche per
+un progetto senza cartella. La scrivi senza chiedere, con lo slug della FASE 4:
+
+```bash
+python3 ~/.claude/bin/arturo memoria scheda <slug> --cosa "<cos'è, in una riga>" --cartella "<cartella del progetto>" \
+  --decisione "<scelta chiusa>" --errore "NON fare X: causa Y"
+```
+
+- La prima volta `--cosa` serve: la scheda nasce in `~/.claude/data/memory/progetti/progetto-<slug>.md`.
+- Le volte dopo passi solo i fatti nuovi di questa sessione. Una decisione o un errore che la scheda ha
+  già non si ripete, e le righe scritte a mano restano. `--titolo` e `--alias a,b` quando il nome cambia.
+- Stato, todo e prossimo passo non vanno nella scheda: stanno nell'handoff e in `arturo todo`.
+- Exit 4 vuol dire memoria spenta: niente scheda, e non lo chiedi. Exit 5 vuol dire che il testo ha un
+  segreto: riscrivi la voce senza.
+- La riga `scheda creata` o `scheda aggiornata` va nel blocco **Memoria applicata** della chiusura.
 
 ## FASE 8 · Memoria
 
