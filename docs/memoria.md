@@ -50,6 +50,10 @@ aggiornamento: `arturo memoria accendi` la riaccende.
 
 ## Dove stanno le note
 
+`arturo memoria`, senza altre parole, dice cosa Arturo ricorda: per ogni progetto quante note ha e
+le ultime decisioni, poi le note dormienti e le cartelle dei file. La stessa risposta arriva se chiedi
+a Claude "cosa ricordi di me?".
+
 - `~/.claude/projects/*/memory/`: le note che Claude Code scrive da solo, una cartella per progetto.
 - `~/.claude/data/memory/`: le note curate, divise in cartelle per tipo.
 - Le cartelle che aggiungi tu con `arturo memoria cartella aggiungi <cartella>`.

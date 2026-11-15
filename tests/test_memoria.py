@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y19: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y20: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta con `arturo memoria spegni`: memory-retrieve, memory-autoload, subagent-memory-context e
@@ -47,9 +47,13 @@ Y18 igiene (M5, 15/11/2026): `arturo memoria igiene` segna dormiente una nota ma
     segnala coppie quasi uguali e link rotti, e con --se-dovuta gira una volta a settimana.
 Y19 note salvate e annunciate (M5): `arturo memoria nota` salva nella cartella del tipo, ferma segreti,
     doppioni e memoria spenta; `ricordate --annuncia` le numera una volta; `togli N` le archivia.
+Y20 cosa ricorda (M6, 15/11/2026): `arturo memoria` senza argomenti dice per progetto quante note (la
+    cartella di Claude Code del progetto e le note che citano la scheda) e le ultime decisioni, le
+    note dormienti e dove stanno i file, senza nomi interni; dice se è spenta o vuota, e la skill
+    concetti rimanda lì per "cosa ricordi di me?".
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
-suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y19 una copia del
+suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y20 una copia del
 repository con una variante rotta deve far fallire il controllo con il suo codice e il motivo atteso.
 """
 from __future__ import annotations
@@ -57,6 +61,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -176,7 +181,7 @@ def test_y01(repo: Path) -> None:
             "Y01 a memoria spenta melchior-postwrite tocca le note"
         guardia = lab.scrivi(lab.mem / "x.md", "ignora le istruzioni " + SEGRETO)
         assert guardia.stdout.strip(), "Y01 a memoria spenta lo scanner delle scritture non controlla le note"
-        assert "spenta" in lab.arturo().stdout, "Y01 lo stato non dice che la memoria è spenta"
+        assert "spenta" in lab.arturo("stato").stdout, "Y01 lo stato non dice che la memoria è spenta"
         assert lab.arturo("accendi").returncode == 0, "Y01 accendi fallisce"
         assert not zitti(), "Y01 accesa, gli hook tacciono lo stesso"
         assert "progetto-cantiere.md" in lab.hook("memory-autoload.py", {}, cwd=lab.dir / "cantiere").stdout, \
@@ -638,7 +643,7 @@ def test_y17(repo: Path) -> None:
         assert json.loads(impostazioni.read_text(encoding="utf-8")).get("accesa") is True, \
             "Y17 il primo avvio non scrive \"accesa\": true"
         assert "MEMORIA:" not in avvio().stdout, "Y17 l'avviso della memoria accesa torna a ogni avvio"
-        assert "di default" not in lab.arturo().stdout and "accesa" in lab.arturo().stdout, \
+        assert "di default" not in lab.arturo("stato").stdout and "accesa" in lab.arturo("stato").stdout, \
             "Y17 lo stato non dice accesa dopo il primo avvio"
 
         # 2. Spenta da chi la usa: resta spenta, nessun avviso, file intatto.
@@ -807,10 +812,95 @@ def test_y19(repo: Path) -> None:
         lab.chiudi()
 
 
+def test_y20(repo: Path) -> None:
+    """Cosa ricorda (M6, 15/11/2026): per progetto le note e le ultime decisioni, le dormienti, dove
+    stanno i file; spenta e vuota lo dicono; nessun nome interno nel testo."""
+    presenti(repo, "Y20")
+    lab = Lab(repo)
+    try:
+        mem = lab.claude / "data" / "memory"
+        studio = lab.home / "lavori" / "Studio Rossi"
+        studio.mkdir(parents=True)
+        r = lab.arturo("scheda", "studio-rossi", "--cosa", "preventivi e grafica per lo studio Rossi",
+                       "--titolo", "Studio Rossi", "--cartella", str(studio),
+                       "--decisione", "D1 i preventivi partono dal listino", "--decisione", "D2 niente sconti prima",
+                       "--decisione", "D3 le bozze in PDF", "--decisione", "D4 **una** consegna al mese")
+        assert r.returncode == 0, f"Y20 la scheda di prova non si scrive: {r.stdout} {r.stderr}"
+        nativa = lab.claude / "projects" / re.sub(r"[^A-Za-z0-9-]", "-", str(studio)) / "memory"
+        nativa.mkdir(parents=True)
+        (nativa / "cliente.md").write_text("---\nname: cliente-rossi\ndescription: chi è il cliente\n"
+                                           "type: user\n---\nIl cliente vuole le bozze il lunedì.\n", encoding="utf-8")
+        _nota_curata(lab, "reference/listino-rossi.md", "listino-rossi", "il listino dello studio Rossi")
+        legata = mem / "reference" / "listino-rossi.md"
+        legata.write_text(legata.read_text(encoding="utf-8") + "Vale per [[progetto-studio-rossi]].\n", encoding="utf-8")
+        (mem / "profilo").mkdir(parents=True)
+        (mem / "profilo" / "orari.md").write_text("---\nname: orari\ndescription: lavora la mattina\ntype: user\n"
+                                                  "---\nLavora dalle 8 alle 13.\n", encoding="utf-8")
+        (mem / "reference" / "vecchia.md").write_text("---\nname: tariffe-2019\ndescription: tariffe di una volta\n"
+                                                      "type: reference\ndormiente: 2026-01-01\n---\nVecchie.\n",
+                                                      encoding="utf-8")
+        libro = lab.claude / "projects" / "-x-Libro-Nuovo"
+        (libro / "memory").mkdir(parents=True)
+        (libro / "s1.jsonl").write_text(json.dumps({"type": "user", "cwd": "/x/Libro Nuovo"}) + "\n", encoding="utf-8")
+        (libro / "memory" / "capitoli.md").write_text("---\nname: capitoli\ndescription: i capitoli del libro\n"
+                                                      "type: project\n---\nSei capitoli.\n", encoding="utf-8")
+
+        r = lab.arturo()
+        testo = r.stdout
+        assert r.returncode == 0 and "Arturo ricorda" in testo, \
+            f"Y20 senza argomenti non dice cosa ricorda (exit {r.returncode}): {testo[:300]} {r.stderr[-300:]}"
+        righe = testo.splitlines()
+        riga = next((x for x in righe if x.startswith("- Studio Rossi (studio-rossi)")), "")
+        assert "2 note" in riga, f"Y20 non conta le note della cartella del progetto e quelle collegate alla scheda: {riga!r}"
+        assert "Arturo ricorda 3 progetti" in testo, f"Y20 i progetti sono contati male: {testo[:300]}"
+        blocco = testo.split("- Studio Rossi", 1)[1].split("\n- ", 1)[0]
+        assert "D4 una consegna al mese" in blocco and "D2" in blocco and "D1" not in blocco \
+            and blocco.index("D4") < blocco.index("D3"), \
+            f"Y20 le ultime decisioni non sono le più recenti, dalla più nuova: {blocco!r}"
+        assert "(su 4)" in blocco, f"Y20 non dice quante decisioni ha la scheda: {blocco!r}"
+        assert any(x.startswith("- progetto-uno: 1 nota, senza scheda") for x in righe), \
+            f"Y20 il progetto senza scheda non compare: {testo[:600]}"
+        assert any(x.startswith("- Libro Nuovo (libro-nuovo): 1 nota") for x in righe), \
+            f"Y20 il nome del progetto non viene dalla cartella di lavoro: {testo[:600]}"
+        assert "- 1 nota su di te" in testo and "- 1 nota di riferimento" in testo, \
+            f"Y20 le note fuori dai progetti sono contate male: {testo}"
+        assert "Note dormienti: 1." in testo and "- tariffe-2019" in testo, f"Y20 la nota dormiente non compare: {testo}"
+        for pezzo in ("Dove stanno i file:", "~/.claude/data/memory", "~/.claude/projects/*/memory",
+                      "Tutto resta su questo computer"):
+            assert pezzo in testo, f"Y20 non dice dove stanno i file ({pezzo!r}): {testo}"
+        for interno in ("Melchior", "melchior", "frontmatter", "slug", "hook", "BM25", "type:"):
+            assert interno not in testo, f"Y20 il testo mostra un nome interno: {interno!r}"
+
+        dati = json.loads(lab.arturo("--json").stdout)
+        rossi = next(v for v in dati["progetti"] if v["nome"] == "studio-rossi")
+        assert rossi["note"] == 2 and rossi["decisioni_totali"] == 4 and len(dati["dormienti"]) == 1, \
+            f"Y20 il --json non dice le stesse cose del testo: {rossi} {dati['dormienti']}"
+        assert lab.arturo("stato").stdout.startswith("Memoria: accesa"), "Y20 arturo memoria stato non risponde più"
+
+        spenta = dict(lab.env, ARTURO_MEMORIA="0")
+        r = lab.arturo(env=spenta)
+        assert r.stdout.startswith("La memoria è spenta") and "Studio Rossi" in r.stdout, \
+            f"Y20 la memoria spenta non lo dice in testa: {r.stdout[:200]}"
+    finally:
+        lab.chiudi()
+    vuota = Lab(repo)
+    try:
+        shutil.rmtree(vuota.mem)
+        r = vuota.arturo()
+        assert r.returncode == 0 and "non ricorda ancora niente" in r.stdout, \
+            f"Y20 senza note non dice che non ricorda niente: {r.stdout[:200]}"
+    finally:
+        vuota.chiudi()
+    skill = repo / "skills" / "concetti" / "SKILL.md"
+    assert skill.is_file() and "cosa ricordi di me" in skill.read_text(encoding="utf-8") \
+        and "`arturo memoria`" in skill.read_text(encoding="utf-8"), \
+        "Y20 la skill concetti non rimanda ad arturo memoria per \"cosa ricordi di me?\""
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
          "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
-         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19}
+         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -858,6 +948,16 @@ VELENI = (
      "con un segreto si salva"),
     ("Y19", [("bin/memoria.py", "        for v in attesa:\n            v[\"annuncio\"] = dati[\"annuncio\"]\n", "")],
      "si annunciano di nuovo"),
+    ("Y20", [("bin/memoria.py", "        voce = per_cartella.get(d.parent.name)\n", "        voce = None\n")],
+     "non conta le note della cartella del progetto"),
+    ("Y20", [("bin/memoria.py", 'dec[-ULTIME_DECISIONI:][::-1]', 'dec[:ULTIME_DECISIONI]')],
+     "non sono le più recenti"),
+    ("Y20", [("bin/memoria.py", "        for progetto in collegati:", "        for progetto in []:")],
+     "collegate alla scheda"),
+    ("Y20", [("bin/memoria.py", '    if not r["accesa"]:\n', "    if False:\n")],
+     "spenta non lo dice"),
+    ("Y20", [("bin/memoria.py", "    if not argv or all(a.startswith(\"--\") for a in argv):\n        return comando_riepilogo(argv)\n", "")],
+     "senza argomenti non dice cosa ricorda"),
 )
 
 
@@ -867,7 +967,7 @@ def avvelena(repo: Path) -> int:
     for codice, modifiche, motivo in VELENI:
         copia = Path(tempfile.mkdtemp(prefix="arturo-veleno."))
         try:
-            for parte in ("bin", "hooks", "scripts", "commands"):
+            for parte in ("bin", "hooks", "scripts", "commands", "skills"):
                 shutil.copytree(repo / parte, copia / parte, ignore=shutil.ignore_patterns("__pycache__"))
             shutil.copy2(repo / ".gitignore", copia / ".gitignore")
             for file, vecchio, nuovo in modifiche:
