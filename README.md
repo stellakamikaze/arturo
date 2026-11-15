@@ -30,6 +30,21 @@ La parte della configurazione che cresce con le tue correzioni e con i tuoi sì 
 
 ---
 
+## Per chi è
+
+Arturo è per chi lavora con la conoscenza: raccoglie materiali e ne ricava un lavoro da consegnare a qualcun altro. In tutti i mestieri qui sotto il materiale sta in tanti posti, e in chat l'IA ne vede solo il pezzo che le incolli.
+
+- **Chi scrive**, dal giornalismo alla pubblicità: fonti e bozze stanno in cartelle diverse, e Claude le legge dove sono, quindi la bozza parte da tutte le fonti e non solo da quelle che hai fatto in tempo a incollare. Le regole sul tuo modo di scrivere stanno nella sezione "Come scrivo" del `CLAUDE.md`, e crescono a ogni correzione che accetti.
+- **Chi fa l'art director o fotografa**: i riferimenti per un moodboard o per uno shooting si accumulano in una cartella, e il cliente deve sceglierli prima di cominciare. Claude mette in ordine la cartella e ne ricava una pagina sola, con le immagini scelte e le note, da mandare al cliente.
+- **Chi insegna**: i materiali di ogni lezione sono sparsi fra appunti e cartelle. Claude li ritrova e, se glielo chiedi, oltre alle slide costruisce una pagina web in cui gli studenti provano da soli il concetto della lezione.
+- **Chi produce eventi**: il budget sta in un foglio di calcolo e le fatture dei fornitori altrove. Claude confronta il foglio delle spese con le fatture e, se glielo chiedi, ne fa una pagina in cui il cliente cambia le voci e vede subito cosa succede al totale.
+
+Con Arturo la memoria e i riepiloghi delle sessioni stanno sul tuo computer, accanto ai documenti, in file di testo che puoi aprire e leggere. Quindi li correggi a mano quando sbagliano, e li porti con te se un giorno cambi strumento; in chat invece la memoria resta dentro il servizio che usi. Quello che Claude legge passa comunque dai server di Anthropic: lo spiega [Cosa non è neutro](#cosa-non-è-neutro).
+
+Oggi Arturo non porta dentro lo storico delle chat che hai già, non ti propone da solo una visualizzazione (la pagina per la lezione o per il budget gliela chiedi tu) e non ha una finestra simile alla chat per chi non vuole usare il terminale. Sono nella [roadmap](ROADMAP.md#da-decidere) fra le voci da decidere, quindi non è detto che arrivino.
+
+---
+
 ## Installazione
 
 Per cominciare servono tre passi:
@@ -195,6 +210,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 ## Indice
 
 - [Tre promesse](#tre-promesse)
+- [Per chi è](#per-chi-è)
 - [Installazione](#installazione)
 - [I sei strati](#i-sei-strati)
 - [Il ciclo dell'Orsa](#il-ciclo-dellorsa)

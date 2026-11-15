@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-14
+Aggiornata il 2026-11-15
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (`docs/strati.md`).
 
@@ -140,9 +140,9 @@ Stato: in corso. Il README è riordinato, e `docs/strati.md` descrive i due assi
 
 Strato: Ingresso.
 
-Il README parte da cosa fa Arturo, e `docs/strati.md` spiega come estendere una skill senza copiarla. Resta il sito, che deve raccontare il plugin. Il lavoro è finito quando una persona nuova installa Arturo su una macchina pulita seguendo solo la documentazione.
+Il README parte da cosa fa Arturo, dice per chi è, mestiere per mestiere (sezione "Per chi è"), e `docs/strati.md` spiega come estendere una skill senza copiarla. Resta il sito, che deve raccontare il plugin e gli stessi mestieri. Il lavoro è finito quando una persona nuova installa Arturo su una macchina pulita seguendo solo la documentazione.
 
-<!-- task: #4537 #3373 #4439 -->
+<!-- task: #4537 #3373 #4439 #5699 -->
 
 ### Le viste dei tuoi compiti {#viste}
 
@@ -172,6 +172,9 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
+- Se Arturo porta dentro lo storico delle chat che hai già, cioè l'esportazione di ChatGPT o di Claude, e ne fa un indice tuo. Oggi `/setup` legge le sessioni di Claude Code e ti chiede di incollare il resto. <!-- task: #5700 -->
+- Se la Scoperta, oltre alle automazioni, ti propone anche una visualizzazione: una pagina interattiva per una lezione, un simulatore di spesa al posto del foglio di calcolo. <!-- task: #5702 -->
+- Se e quando Volta, una finestra simile alla chat che lavora col terminale del tuo computer, entra in Arturo per chi non vuole usare il terminale. <!-- task: #5703 -->
 
 ## Uscito di recente
 
