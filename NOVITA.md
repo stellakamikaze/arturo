@@ -13,6 +13,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — La barra torna nelle sessioni aperte su un'altra macchina
+
+**Cosa cambia**: quando Volta apre una sessione di un altro computer, il comando nasce dalla connessione ssh, che
+non conosce le cartelle dove hai installato node. La barra con contesto e quota spariva, o diceva "manca node"
+anche con node installato. Adesso la barra cerca node anche nelle cartelle di Homebrew e in `~/.local/bin`.
+
+**Il principio**: un avviso che dice "manca" deve essere vero anche quando la sessione arriva da un'altra macchina.
+
+**A chi serve**: a chi apre da Volta le sessioni di un secondo computer.
+
+---
+
 ## 2026-11-15 — La memoria lavora da sola
 
 **Cosa cambia**: ogni progetto ha una scheda con cos'è, dove sta la cartella, le decisioni prese e gli errori
