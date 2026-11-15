@@ -534,6 +534,7 @@ COMANDI = {
     "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano; col plugin anche omonimi e regole-doppie"),
     "storico": ("storico", "lo storico delle chat che avevi prima di Arturo, come indice dei lavori: leggi, approva, copia, mostra, togli, cancella, sincronizza"),
     "memoria": ("memoria", "la memoria dei progetti, accesa di default: senza parole dice cosa ricorda; stato, accendi, spegni, cerca, controlla, scheda, nota, togli, igiene"),
+    "intervista": ("intervista", "l'intervista che continua dopo /setup, una domanda al giorno da /inizio: stato, proponi, risposta, salta, famiglia, spegni, accendi"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
     "progetti": ("progetti", "tutti i progetti che segui, letti dalla memoria che c'è già: cartelle, handoff, stato, fonte dei task (Volta)"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),

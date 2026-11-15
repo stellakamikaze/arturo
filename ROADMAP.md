@@ -106,11 +106,11 @@ Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Ge
 
 ### L'intervista che continua {#intervista}
 
-Stato: da fare, dopo la voce sullo storico delle chat.
+Stato: in corso. Su un ramo di sviluppo ci sono `arturo intervista`, la domanda in `/inizio` e le domande per famiglia in [I mestieri della conoscenza](docs/mestieri.md). Per ora dura sei settimane dopo `/setup`, ma la durata è ancora fra le voci da decidere.
 
 Strato: Metodo, con la Memoria.
 
-`/setup` ti intervista una volta. Dopo, `/inizio` ti fa al massimo una domanda per sessione su quello che Arturo non sa ancora del tuo lavoro, per esempio per chi lo fai. Le domande cambiano col mestiere ([I mestieri della conoscenza](docs/mestieri.md)). Per quanto tempo continua è da decidere. La risposta entra nella memoria solo col tuo sì, e l'intervista si spegne con un comando.
+`/setup` ti intervista una volta. Dopo, `/inizio` ti fa al massimo una domanda al giorno su quello che Arturo non sa ancora del tuo lavoro, per esempio per chi lo fai. Le domande cambiano col mestiere ([I mestieri della conoscenza](docs/mestieri.md)). La risposta entra nella memoria solo col tuo sì, e `arturo intervista spegni` ferma le domande.
 
 <!-- task: #5709 -->
 
@@ -218,7 +218,7 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
 - Se la Scoperta, dopo le automazioni, propone anche sintesi e pagine web, e per quali mestieri. <!-- task: #5702 -->
 - Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
-- Per quanto tempo continua l'intervista dopo `/setup`, in sessioni o in settimane (voce "L'intervista che continua"). <!-- task: #5709 -->
+- Per quanto tempo continua l'intervista dopo `/setup`: oggi sei settimane, una domanda al giorno al massimo (voce "L'intervista che continua"). <!-- task: #5709 -->
 - Quali segnali fanno proporre Volta, Melchior o l'Orsa (voce "Arturo ti propone uno spazio quando ti serve"). <!-- task: #5711 -->
 - Quando Volta entra in Arturo per tutti: prima o dopo la prova con una persona esterna. <!-- task: #5703 -->
 

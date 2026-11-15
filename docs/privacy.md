@@ -65,6 +65,14 @@ Se prima di Arturo usavi Claude, ChatGPT o Gemini nel browser o nell'app, `/setu
 - **Come lo usi e come lo togli.** `/inizio` e la memoria lo usano per ritrovare i tuoi lavori. `arturo storico mostra` ti fa vedere cosa contiene, `arturo storico togli <lavoro>` toglie un lavoro solo, `arturo storico cancella` lo cancella tutto. La cancellazione non tocca gli allegati copiati nei progetti, l'esportazione, la cronologia di `/setup`, che se ne va da sola dopo 90 giorni, e le note che la memoria ha preso su quei lavori, che togli dalla memoria. Come si lanciano i comandi: [I tuoi diritti](#i-tuoi-diritti).
 - **Cosa esce in telemetria.** Solo il passaggio per la fase, `setup fase:2a`. I comandi `arturo storico` non mandano eventi. Mai conteggi, titoli, temi o nomi di file.
 
+## L'intervista che continua
+
+Nelle prime sei settimane dopo `/setup`, `/inizio` ti fa al massimo una domanda al giorno sul tuo lavoro, per esempio per chi lavori o quale lavoro rifai ogni mese.
+
+- **Cosa legge.** Per scegliere la domanda uno script sul tuo computer legge la sezione "Chi sono" del tuo CLAUDE.md e i temi dell'indice dello storico, se c'è. Non usa un modello e non va in rete.
+- **Cosa resta.** La risposta entra nella memoria solo se dici sì al testo che Claude ti mostra, come nota `persona-<domanda>`. Lo stato dell'intervista, in `~/.claude/data/intervista/`, tiene solo quali domande hai già visto, con le date, e mai il testo delle risposte. Né lo stato né le note vanno a chi mantiene Arturo, e non entrano nella telemetria.
+- **Come la fermi.** `arturo intervista salta <domanda>` toglie una domanda, `arturo intervista spegni` le ferma tutte. Una nota salvata si toglie dalla memoria come le altre.
+
 ## Chi li riceve
 
 - **Cloudflare** ospita il server e il database (Workers e D1). È il solo posto dove stanno gli eventi e i testi.

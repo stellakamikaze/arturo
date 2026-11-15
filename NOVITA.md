@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — L'intervista che continua
+
+**Cosa cambia**: dopo `/setup` Arturo continua a farti domande sul tuo lavoro. Nelle prime sei settimane `/inizio` te ne fa al massimo una al giorno, su quello che non sa ancora: per esempio per chi lavori o quale lavoro rifai ogni mese. Le domande cambiano col mestiere e stanno in [`docs/mestieri.md`](docs/mestieri.md). Claude riscrive la tua risposta in una o due frasi e la salva nella memoria solo col tuo sì. `arturo intervista salta` toglie una domanda, `arturo intervista spegni` le ferma tutte.
+
+**Il principio**: una domanda al giorno pesa meno di venti domande il primo giorno, e in memoria entra solo una frase che hai letto e approvato.
+
+**A chi serve**: a chi ha appena fatto `/setup` e non vuole rispondere a tutto il primo giorno.
+
+---
+
 ## 2026-11-15 — Arturo parte dalle chat che hai già fatto
 
 **Cosa cambia**: se prima di Arturo usavi Claude, ChatGPT o Gemini in chat, `/setup` ti propone una fase nuova, la 2a. Scarichi l'esportazione delle tue conversazioni, e uno script sul tuo computer la legge senza estrarla e la divide per lavoro. Claude ti mostra i lavori uno per uno, e resta solo quello a cui dici sì: titolo, periodo, temi e nomi dei file allegati, mai il testo delle chat. L'indice sta in `~/.claude/data/storico/`, fuori dalla copia Git di `~/.claude`, e si guarda e si cancella con `arturo storico`. Cosa legge, dove va e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Lo storico delle chat".

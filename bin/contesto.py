@@ -23,7 +23,8 @@ Se non risponde, la sezione dei todo mostra la tabella Task Pendenti dell'ultimo
 NON VERIFICATO: mai "nessuno" quando la fonte è giù.
 
 Exit: 0 contesto stampato · 2 NON TROVATO (né cartella, né handoff, né todo, né scheda; stampa i nomi
-simili) · 3 uso sbagliato. Non scrive niente: niente pull, niente mkdir, niente todo.
+simili) · 3 uso sbagliato. Non scrive niente: niente pull, niente mkdir, niente todo. L'unica eccezione è
+il segno della domanda dell'intervista (INTERVISTA, bin/intervista.py), fuori dalla rotazione.
 """
 from __future__ import annotations
 
@@ -557,6 +558,18 @@ def sezione_scheda(scheda) -> list:
     return fuori
 
 
+def sezione_intervista() -> list:
+    """La domanda dell'intervista che continua (bin/intervista.py, #5709): al massimo una al giorno, mai in
+    rotazione, dove nessuno risponde. È l'unica scrittura di contesto: il segno della domanda fatta oggi in
+    data/intervista/stato.json. Una sua rottura non ferma /inizio."""
+    try:
+        import intervista
+        d = intervista.proponi()
+        return ["", *intervista.righe_contesto(d)] if d else []
+    except Exception:
+        return []
+
+
 def compito_da(argv: list) -> tuple:
     """(compito, rotazione). Il compito sono le parole dopo " -- ". Se la prima è --rotazione, è la marca
     della rotazione automatica (3/11/2026: "/inizio <slug> -- --rotazione <compito>") e non fa parte del
@@ -664,6 +677,8 @@ def main(argv: list) -> int:
         righe += sezione_esterna(vista, s, dal)
     else:
         righe += sezione_non_verificata(elenco, ir, errore)
+    if not rotazione:
+        righe += sezione_intervista()
     if avvisi:
         righe += ["", "AVVISI"] + [f"  Attenzione: {a}" for a in avvisi]
     righe += sezione_filoni(s, ir)
