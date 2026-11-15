@@ -96,7 +96,7 @@ Dopo la prima versione, se arriva la voce "Arturo parte da quello che hai già f
 
 ### Arturo parte da quello che hai già fatto con l'IA {#storico}
 
-Stato: da fare. La scelta è fatta (15/11): resta solo l'indice che approvi. Il codice parte dopo il sì sul testo nuovo della privacy.
+Stato: in corso. Su un ramo di sviluppo ci sono `arturo storico`, la fase 2a di `/setup` e il testo nuovo della privacy, approvato il 15/11. Restano la prova su un'esportazione vera e la verifica dei percorsi delle impostazioni nei tre servizi.
 
 Strato: Ingresso, con la Memoria.
 

@@ -93,11 +93,14 @@ def test_sr01(repo: Path) -> None:
 
 def test_sr02(repo: Path) -> None:
     testo = read(repo / "shared" / "setup-ritratto.md")
-    for parte, domanda, comando in (("2b. Le conversazioni passate", "Va bene?", "ritratto.py sessioni"),
-                                    ("2c. Le cartelle", "Rispondi sì", "ritratto.py scan")):
-        assert parte in testo, f"SR02 shared/setup-ritratto.md non ha la parte {parte}"
-        d, c = testo.find(domanda), testo.find(comando)
-        assert d != -1 and c != -1 and d < c, f"SR02 {comando} viene prima di chiedere il sì ({parte})"
+    for titolo, domanda, comando in (("2a. Lo storico delle chat", "Va bene?", "storico.py leggi"),
+                                     ("2b. Le conversazioni passate", "Va bene?", "ritratto.py sessioni"),
+                                     ("2c. Le cartelle", "Rispondi sì", "ritratto.py scan")):
+        assert titolo in testo, f"SR02 shared/setup-ritratto.md non ha la parte {titolo}"
+        # Dentro la sua parte: dal 15/11/2026 la 2a ha una domanda sua prima della 2b.
+        pezzo = parte(testo, titolo)
+        d, c = pezzo.find(domanda), pezzo.find(comando)
+        assert d != -1 and c != -1 and d < c, f"SR02 {comando} viene prima di chiedere il sì ({titolo})"
 
 
 def test_sr03(repo: Path) -> None:
@@ -112,7 +115,7 @@ def test_sr03(repo: Path) -> None:
 def test_sr04(repo: Path) -> None:
     setup = read(repo / "commands" / "setup.md")
     regola = next((r for r in setup.splitlines() if r.startswith("- **Prima configurazione o verifica.**")), "")
-    assert "non rilanci 2b e 2c" in regola and "non leggi cartelle personali" in regola, \
+    assert "non rilanci 2a, 2b e 2c" in regola and "non leggi cartelle personali" in regola, \
         "SR04 il modo verifica rilancia il ritratto o legge cartelle personali"
     for nome in ("2b", "2c"):
         assert "mai nel modo verifica" in fase(setup, nome), f"SR04 la FASE {nome} non si ferma nel modo verifica"
@@ -241,7 +244,7 @@ VELENI = (
      "prima di chiedere"),
     ("SR03", [("shared/setup-ritratto.md", "cartelle nascoste, .ssh, chiavi", "cartelle nascoste, chiavi")],
      "non nomina .ssh"),
-    ("SR04", [("commands/setup.md", "non rilanci 2b e 2c", "rilanci 2b e 2c")], "modo verifica"),
+    ("SR04", [("commands/setup.md", "non rilanci 2a, 2b e 2c", "rilanci 2a, 2b e 2c")], "modo verifica"),
     ("SR05", [("shared/setup-claude-md.md", '"Prossimo passo:"', '"Ultima riga:"')], "Prossimo passo"),
     ("SR06", [("commands/setup.md", "`~/.claude/commands/sparring.md`", "`~/.claude/commands/altro.md`")],
      "sparring.md"),

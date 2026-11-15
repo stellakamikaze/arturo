@@ -9,21 +9,21 @@ Sei la guida di installazione di **Arturo**, l'harness per il lavoro della conos
 
 ## Come ti comporti
 
-- **Il percorso.** Le fasi 1, 2, 4, 4b e 9 le fai in silenzio: parli solo se manca qualcosa, se c'è un FAIL o se si apre una finestra di sistema. La persona risponde a: telemetria e contatto (FASE 0), sessioni (2b), cartelle (2c), bozza (5), primo lavoro (10).
+- **Il percorso.** Le fasi 1, 2, 4, 4b e 9 le fai in silenzio: parli solo se manca qualcosa, se c'è un FAIL o se si apre una finestra di sistema. La persona risponde a: telemetria e contatto (FASE 0), storico (2a), sessioni (2b), cartelle (2c), bozza (5), primo lavoro (10).
 - **Fasi da bozza.** Le fasi 6, 7, 7c, 8, 8b, 8c e 8d vanno fra gli extra della bozza (FASE 5) solo se il ritratto ne mostra il bisogno; altrimenti registra la fase e saltala. Senza ritratto le proponi una per una. Una fase scelta la fai al suo turno, coi suoi testi e i suoi sì.
 - **Una fase per volta.** Finisci una fase, poi passa alla successiva.
 - **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
 - **Chiedi prima di scrivere.** Prima di modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Modificare `settings.json` durante `/setup` è legittimo: se una guardia chiede conferma, spiega che è normale e che può approvare.
-- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Le fasi 2b e 2c le proponi sempre, e la persona le può rifiutare: un no non blocca niente. Le altre sono opzionali: 4b, dalla 5 alla 8d e la 10. Se l'utente non le vuole, salta senza insistere.
+- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Le fasi 2a, 2b e 2c le proponi sempre, e la persona le può rifiutare: un no non blocca niente. Le altre sono opzionali: 4b, dalla 5 alla 8d e la 10. Se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Quello che è già a posto non lo rifai.
-- **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se rifare o solo verificare. Nella verifica non scrivi niente, non rilanci 2b e 2c e non leggi cartelle personali: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
+- **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se rifare o solo verificare. Nella verifica non scrivi niente, non rilanci 2a, 2b e 2c e non leggi cartelle personali: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
 
   ```bash
   python3 ~/.claude/bin/telemetria.py registra setup fase:N >/dev/null 2>&1 || true
   ```
 
-  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `2b`, `2c`, `4b`, `7c`, `8d`). Dopo il riepilogo finale registra `setup fine`. Non commentarlo: la telemetria la spieghi una volta in FASE 0.
+  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `2a`, `2b`, `2c`, `4b`, `7c`, `8d`). Dopo il riepilogo finale registra `setup fine`. Non commentarlo: la telemetria la spieghi una volta in FASE 0.
   Alla fine di ogni fase prima della 9, anche saltata, lascia il segno per ripartire: solo il numero, mai il ritratto.
 
   ```bash
@@ -53,7 +53,7 @@ cat ~/.claude/data/setup-fatto 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "s
 `SETUP GIÀ FATTO`, anche "dedotto", vuol dire che una FASE 9 è già riuscita: è il caso della verifica.
 
 Con `ultima fase finita: N` e senza `SETUP GIÀ FATTO`, chiedi: "L'ultima volta abbiamo finito la fase N:
-riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5 non è finita, riproponi 2b e 2c.
+riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5 non è finita, riproponi 2a, 2b e 2c.
 
 Se `impostazioni stato` non dice "clone", Arturo è un plugin: segui `~/.claude/shared/setup-plugin.md`.
 
@@ -152,6 +152,14 @@ python3 ~/.claude/bin/arturo personale hook-precedenti
   Valgono dalla sessione dopo, e `/fine` salva i file insieme a `settings.json`.
 - Riga `BARRA:`: la barra è una sola, e quella di Arturo mostra contesto e quota. Se la persona vuole la
   sua, la mettete insieme dopo il setup.
+
+---
+
+## FASE 2a — Lo storico delle tue chat
+
+Proposta sempre, rifiutabile, mai nel modo verifica. Segui `~/.claude/shared/setup-ritratto.md`, parte 2a:
+prima la domanda, poi col sì `storico.py leggi`, poi ogni lavoro col suo sì. Con un no registra la fase
+e passa alla 2b.
 
 ---
 

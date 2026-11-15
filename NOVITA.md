@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — Arturo parte dalle chat che hai già fatto
+
+**Cosa cambia**: se prima di Arturo usavi Claude, ChatGPT o Gemini in chat, `/setup` ti propone una fase nuova, la 2a. Scarichi l'esportazione delle tue conversazioni, e uno script sul tuo computer la legge senza estrarla e la divide per lavoro. Claude ti mostra i lavori uno per uno, e resta solo quello a cui dici sì: titolo, periodo, temi e nomi dei file allegati, mai il testo delle chat. L'indice sta in `~/.claude/data/storico/`, fuori dalla copia Git di `~/.claude`, e si guarda e si cancella con `arturo storico`. Cosa legge, dove va e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Lo storico delle chat".
+
+**Il principio**: chi arriva dalla chat ha già mesi di lavoro alle spalle, e Arturo parte da lì invece che da zero.
+
+**A chi serve**: a chi passa dalla chat a Claude Code e non vuole rispiegare da capo i lavori che ha già fatto.
+
+---
+
 ## 2026-11-15 — Per chi è Arturo, mestiere per mestiere
 
 **Cosa cambia**: il README ha una sezione nuova, "Per chi è", e c'è una pagina nuova, [`docs/mestieri.md`](docs/mestieri.md). Dividono il lavoro della conoscenza in sei famiglie di mestieri: la parola, l'immagine, l'insegnamento e la ricerca, la produzione, la consulenza, l'archivio e la cura. Per ognuna dicono cosa Claude fa già oggi, se glielo chiedi. La roadmap ha cinque voci nuove sulla strada che parte dalla chat: lo storico delle tue chat come punto di partenza, l'intervista che continua, l'esportazione di un progetto, gli spazi che Arturo ti propone (Volta, Melchior, l'Orsa) e le forme nuove della Scoperta. Le scelte ancora aperte stanno fra le voci da decidere.
