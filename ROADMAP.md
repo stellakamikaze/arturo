@@ -96,11 +96,11 @@ Dopo la prima versione, se arriva la voce "Arturo parte da quello che hai già f
 
 ### Arturo parte da quello che hai già fatto con l'IA {#storico}
 
-Stato: da fare. Aspetta la scelta su dove resta l'indice e il testo nuovo della privacy.
+Stato: da fare. La scelta è fatta (15/11): resta solo l'indice che approvi. Il codice parte dopo il sì sul testo nuovo della privacy.
 
 Strato: Ingresso, con la Memoria.
 
-Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Gemini. Scarichi l'esportazione delle tue conversazioni e Arturo la legge: divide le conversazioni e le raggruppa per lavoro, insieme ai file che ci avevi caricato, quando l'esportazione li contiene. Il lavoro pesante lo fa uno script sul tuo computer, senza modello: a Claude arriva l'indice dei lavori, non le chat intere. La proposta è che l'indice resti salvato sul tuo computer, e che `/inizio` e la memoria lo usino da lì in poi. Oggi `/setup` legge solo le sessioni di Claude Code, e il ritratto non resta su disco: se l'indice resta, quella promessa cambia.
+Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Gemini. Scarichi l'esportazione delle tue conversazioni e Arturo la legge: divide le conversazioni e le raggruppa per lavoro, insieme ai file che ci avevi caricato, quando l'esportazione li contiene. Il lavoro pesante lo fa uno script sul tuo computer, senza modello: a Claude arriva l'indice dei lavori, non le chat intere. Sul tuo computer resta solo l'indice che approvi, lavoro per lavoro: titolo, periodo, temi e materiali collegati. Il testo delle chat non resta, e l'indice si cancella con un comando. `/inizio` e la memoria lo usano da lì in poi.
 
 <!-- task: #5700 -->
 
@@ -216,7 +216,6 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
-- Se l'indice dello storico delle chat resta salvato su disco, come propone la voce "Arturo parte da quello che hai già fatto con l'IA", oppure si butta a fine `/setup` come il ritratto di oggi. Se resta, cambia la promessa sul ritratto, e il testo della privacy va riscritto prima del codice. <!-- task: #5700 -->
 - Se la Scoperta, dopo le automazioni, propone anche sintesi e pagine web, e per quali mestieri. <!-- task: #5702 -->
 - Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
 - Per quanto tempo continua l'intervista dopo `/setup`, in sessioni o in settimane (voce "L'intervista che continua"). <!-- task: #5709 -->
