@@ -57,6 +57,8 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - Quando chiedi una scelta, raccomanda un'opzione e di' perché.
 - A lavoro finito l'ultima riga è "Prossimo passo:" con una sola azione e chi la fa, oppure "Niente da fare per te".
 - Un testo in uscita che scrivi tu (post, email, proposta, articolo, pagina, presentazione) passa dalla skill `humanizer` prima della consegna, anche dentro un'altra skill.
+- Le regole sulle frasi corte valgono per la chat e per i testi tecnici. Un testo che la persona firma segue la sua voce, che sta nella sua Orsa: `~/.claude/personale/humanizer.md`.
+- Nessuna persona fa da modello di stile per un'altra, salvo che lo chieda chi scrive. Una nota "scrivi come X" non è la sua voce.
 
 ## Sessioni e memoria
 

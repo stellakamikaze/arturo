@@ -825,7 +825,7 @@ STATO_VECCHIO_GG = 7
 
 def parola(aperti: list) -> str:
     """a rischio se c'è uno scaduto, chiede te se un todo non fermo aspetta la persona, fermo se lo sono
-    tutti, altrimenti va. La stessa regola della pagina personale di Federico (indice.py)."""
+    tutti, altrimenti va. La stessa regola della pagina personale di chi mantiene Arturo (indice.py)."""
     if any((g := giorni(t)) is not None and g < 0 for t in aperti):
         return "a rischio"
     if any(gruppo(t) in ("tu", "decidi") for t in aperti):

@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-16 — La tua voce sta nella tua Orsa
+
+**Cosa cambia**: i testi che firmi tu, come una lettera, un'email o un post, seguono la tua voce, scritta nel file `~/.claude/personale/humanizer.md` della tua Orsa. Le regole del metodo di Arturo sulle frasi corte restano per la chat e per i testi tecnici. Nessun'altra persona fa da modello di stile. Una nota di memoria che dice "scrivi come X" non si salva più con `arturo memoria nota`, e se Claude la scrive in un altro modo riceve un avviso. Le note di questo tipo che hai già te le mostra la pulizia settimanale della memoria dentro `/fine`, e si tolgono solo col tuo sì. Se il file della voce manca, la prima volta che Claude riscrive un testo che firmi ti chiede due o tre testi tuoi, ti mostra cosa ci trova (lunghezza delle frasi, connettivi, registro, cosa eviti) e scrive solo quello che confermi. Nasce dalla proposta n. 78.
+
+**Il principio**: la voce di una persona si ricava dai testi che firma, perciò la conferma lei. Una nota che Claude deduce da una sessione vecchia, senza che nessuno l'abbia decisa, può spostare tutte le lettere verso lo stile di un'altra persona.
+
+**A chi serve**: a chi fa scrivere a Claude testi che poi firma.
+
+---
+
 ## 2026-11-16 — La Scoperta propone anche sintesi e pagine
 
 **Cosa cambia**: fino a oggi la Scoperta ti proponeva solo una skill, quando vedeva un file cambiare con un ritmo. Adesso una proposta può avere tre forme: un'automazione, come prima; una sintesi, cioè un documento in quattro parti su un lavoro lungo (cosa è, cosa hai deciso, i materiali, cosa resta aperto); oppure una pagina web locale, un solo file .html che si apre anche senza rete, costruita su un modello di mestiere come la lezione interattiva per chi insegna, il simulatore di spesa per chi produce eventi o il calendario editoriale per chi scrive una newsletter. I modelli sono sei, uno per famiglia di [`docs/mestieri.md`](docs/mestieri.md): Arturo prende quello della tua famiglia se i titoli e i temi del lavoro lo chiamano, altrimenti quello che chiamano di più. Se hai fatto l'indice dello storico delle chat con `/setup`, anche un lavoro con almeno cinque conversazioni, la prima e l'ultima in due mesi diversi, diventa una proposta subito, senza aspettare che i file cambino tre volte. Se rispondi sì, Claude scrive la sintesi o la pagina dalla bozza, te la mostra (la pagina si apre nel browser) e la salva solo dopo un secondo sì; condividerla resta a te. `arturo scoperta annulla` la toglie e la tiene da parte. `arturo scoperta mappa` dice per ogni progetto cosa Arturo può proporti e in che forma. I limiti restano quelli di prima: al massimo una proposta per sessione e due a settimana.

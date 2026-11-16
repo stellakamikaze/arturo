@@ -14,7 +14,7 @@ della catena di prodotto, #5711). Gli spazi sono due, e ognuno ha il suo segnale
 - orsa: la persona corregge spesso lo stesso comportamento: la stessa correzione (arturo correzione) in
   almeno SOGLIA_ORSA sessioni diverse degli ultimi 14 giorni. Spostata nel CLAUDE.md, la regola sta
   nell'Orsa, dove gli aggiornamenti non la toccano, e vale in ogni sessione.
-Volta non è uno spazio di Arturo: resta una prova di chi mantiene Arturo (Federico, 16/11/2026, #5703).
+Volta non è uno spazio di Arturo: resta una prova di chi mantiene Arturo (16/11/2026, #5703).
 
 Una volta sola: uno spazio proposto non torna, qualunque sia la risposta. Per l'Orsa vale per ogni
 correzione: una correzione diversa che si ripete è una proposta nuova.

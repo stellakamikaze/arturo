@@ -149,7 +149,7 @@ fi
 
 # Banchi delle guardie (tests/banchi-avvio.sh). Se l'esito ha piu' di 12 ore, i banchi ripartono in
 # background e il risultato lo legge la sessione dopo: l'avvio non aspetta. Dal 3/11/2026 un rosso non
-# si dice alla persona (Federico: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
+# si dice alla persona (chi mantiene Arturo: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
 # manda da solo a chi mantiene Arturo, con la telemetria, e un rosso con piu' di 30 minuti fa ripartire
 # subito i banchi, cosi' un rosso intermittente si cancella da solo. Il lock e' una cartella, perche' mkdir e' atomico anche dove flock non
 # c'e' (macOS, Git Bash): due sessioni che partono insieme non lo prendono entrambe. Dentro c'e'

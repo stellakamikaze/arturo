@@ -51,6 +51,9 @@ Y20 cosa ricorda (M6, 15/11/2026): `arturo memoria` senza argomenti dice per pro
     cartella di Claude Code del progetto e le note che citano la scheda) e le ultime decisioni, le
     note dormienti e dove stanno i file, senza nomi interni; dice se è spenta o vuota, e la skill
     concetti rimanda lì per "cosa ricordi di me?".
+Y21 la voce di ognuno sta nella sua Orsa (proposta n. 78, 16/11/2026): lo scanner, `memoria nota` (exit 7) e
+    l'igiene fermano o segnalano una nota che fa di un'altra persona il modello di stile; il metodo, /fine e
+    humanizer lo dicono; il nome di chi mantiene Arturo resta solo nei crediti e nel contatto.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
 suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y20 una copia del
@@ -59,6 +62,7 @@ repository con una variante rotta deve far fallire il controllo con il suo codic
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -897,10 +901,83 @@ def test_y20(repo: Path) -> None:
         "Y20 la skill concetti non rimanda ad arturo memoria per \"cosa ricordi di me?\""
 
 
+NOTA_ALTRUI = "Per le lettere usa una voce asciutta come quella di Federico, senza slogan."
+# Dove il nome di chi mantiene Arturo resta nei file che arrivano alle installazioni: crediti e contatto.
+CREDITI = {"bin/impacchetta.py", "bin/segnala.py", "commands/segnala.md", "docs/privacy.md",
+           "skills/arturo/.claude-plugin/plugin.json", "skills/arturo/hooks/testata/testata.ts"}
+
+
+def test_y21(repo: Path) -> None:
+    """La voce di ognuno sta nella sua Orsa (proposta n. 78, 16/11/2026): niente note che fanno di
+    un'altra persona il modello di stile, e il nome di chi mantiene Arturo solo nei crediti."""
+    presenti(repo, "Y21")
+    lab = Lab(repo)
+    try:
+        gitconfig = lab.dir / "gitconfig"
+        gitconfig.write_text("[user]\n\tname = Marta Rossi\n", encoding="utf-8")
+        lab.env["GIT_CONFIG_GLOBAL"] = str(gitconfig)
+        spec = importlib.util.spec_from_file_location("scanner_y21", str(lab.claude / "hooks" / "memory-write-scanner.py"))
+        scanner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(scanner)
+        assert hasattr(scanner, "voce_altrui"), "Y21 lo scanner della memoria non conosce le note di voce altrui"
+        propri = {"marta", "rossi"}
+        for frase in (NOTA_ALTRUI, "Scrivi come Federico, frasi corte.", "Il tono di Federico: niente slogan.",
+                      "write like Federico", "in the style of Federico"):
+            assert scanner.voce_altrui(frase, propri) == ["Federico"], f"Y21 non trova il modello in: {frase}"
+        for frase in ("La voce di Arturo resta neutra.", "Come Federico ha deciso il 3/11, il deploy va sul server.",
+                      "Scrivi come la persona preferisce.", "Una voce asciutta come quella di Marta."):
+            assert scanner.voce_altrui(frase, propri) == [], f"Y21 trova un modello che non c'è in: {frase}"
+
+        uscita = lab.scrivi(lab.mem / "feedback_stile.md", NOTA_ALTRUI).stdout
+        assert "MEMORY-VOCE" in uscita and "personale/humanizer.md" in uscita, \
+            f"Y21 l'hook non avvisa su una nota di voce altrui: {uscita[:300]}"
+        handoff = lab.claude / "data" / "handoffs" / "p" / "HANDOFF_2026-11-16_10-00.md"
+        handoff.parent.mkdir(parents=True, exist_ok=True)
+        assert "MEMORY-VOCE" not in lab.scrivi(handoff, NOTA_ALTRUI).stdout, "Y21 l'hook avvisa su un handoff"
+        assert "MEMORY-VOCE" not in lab.scrivi(lab.mem / "feedback_stile.md", "Una voce come quella di Marta.").stdout, \
+            "Y21 l'hook avvisa sul nome di chi usa l'installazione"
+
+        r = subprocess.run([sys.executable, "-B", str(lab.claude / "bin" / "arturo"), "memoria", "nota", "--tipo",
+                            "feedback", "--nome", "voce-lettere", "--descrizione", "come scrivere le lettere"],
+                           input=NOTA_ALTRUI, capture_output=True, text=True, encoding="utf-8", env=lab.env,
+                           cwd=str(lab.dir), timeout=60)
+        assert r.returncode == 7, f"Y21 una nota di voce altrui si salva (exit {r.returncode}): {r.stdout}{r.stderr}"
+        assert not list((lab.claude / "data" / "memory").rglob("voce-lettere.md")), "Y21 la nota di voce altrui c'è"
+
+        (lab.mem / "feedback_lettere.md").write_text(
+            "---\nname: feedback-lettere\ndescription: come scrivere le lettere di candidatura\ntype: feedback\n---\n"
+            + NOTA_ALTRUI + "\n", encoding="utf-8")
+        r = lab.arturo("igiene", "--prova", "--json")
+        voci = json.loads(r.stdout or "{}").get("voce_altrui") or [] if r.returncode == 0 else []
+        assert any("feedback_lettere" in v["nota"] and v["nomi"] == ["Federico"] for v in voci), \
+            f"Y21 l'igiene non segnala la nota di voce altrui: {voci} {r.stderr[-200:]}"
+    finally:
+        lab.chiudi()
+
+    def testo(rel: str) -> str:
+        f = repo / rel
+        return f.read_text(encoding="utf-8") if f.is_file() else ""
+    assert "~/.claude/personale/humanizer.md" in testo("shared/metodo.md") \
+        and "Nessuna persona fa da modello di stile" in testo("shared/metodo.md"), \
+        "Y21 il metodo non dice che i testi firmati seguono la voce nell'Orsa"
+    assert "Exit 7" in testo("commands/fine.md"), "Y21 /fine non conosce l'exit 7 della nota di voce altrui"
+    assert "un'altra persona" in testo("skills/humanizer/SKILL.md") \
+        and "Mai un'altra persona come modello" in testo("skills/humanizer/references/voce-cresce.md"), \
+        "Y21 humanizer non esclude un'altra persona come modello"
+    trovati = []
+    for parte in ("bin", "hooks", "scripts", "shared", "commands", "skills", "agents", "output-styles", "docs"):
+        for f in sorted((repo / parte).rglob("*")) if (repo / parte).is_dir() else []:
+            rel = f.relative_to(repo).as_posix()
+            if f.is_file() and rel not in CREDITI and f.suffix in (".md", ".py", ".sh", ".js", ".ts", ".json") \
+                    and "federico" in f.read_text(encoding="utf-8", errors="replace").lower():
+                trovati.append(rel)
+    assert not trovati, f"Y21 il nome di chi mantiene Arturo fuori dai crediti: {', '.join(trovati)}"
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
          "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
-         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20}
+         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20, "Y21": test_y21}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -958,6 +1035,15 @@ VELENI = (
      "spenta non lo dice"),
     ("Y20", [("bin/memoria.py", "    if not argv or all(a.startswith(\"--\") for a in argv):\n        return comando_riepilogo(argv)\n", "")],
      "senza argomenti non dice cosa ricorda"),
+    ("Y21", [("hooks/memory-write-scanner.py", '"openai", "google"', '"openai", "google", "federico"')],
+     "non trova il modello"),
+    ("Y21", [("hooks/memory-write-scanner.py", "    if altrui:\n        avvisi.append", "    if False:\n        avvisi.append")],
+     "l'hook non avvisa"),
+    ("Y21", [("bin/memoria.py", "        return 7\n", "        pass\n")], "si salva"),
+    ("Y21", [("bin/memoria.py", "        if nomi:\n            altrui.append", "        if False:\n            altrui.append")],
+     "l'igiene non segnala"),
+    ("Y21", [("shared/metodo.md", "~/.claude/personale/humanizer.md", "il CLAUDE.md")], "il metodo non dice"),
+    ("Y21", [("bin/riporta-tuoi.sh", "deciso il 2/11/2026", "deciso da Federico il 2/11/2026")], "fuori dai crediti"),
 )
 
 
@@ -967,7 +1053,7 @@ def avvelena(repo: Path) -> int:
     for codice, modifiche, motivo in VELENI:
         copia = Path(tempfile.mkdtemp(prefix="arturo-veleno."))
         try:
-            for parte in ("bin", "hooks", "scripts", "commands", "skills"):
+            for parte in ("bin", "hooks", "scripts", "commands", "skills", "shared"):
                 shutil.copytree(repo / parte, copia / parte, ignore=shutil.ignore_patterns("__pycache__"))
             shutil.copy2(repo / ".gitignore", copia / ".gitignore")
             for file, vecchio, nuovo in modifiche:

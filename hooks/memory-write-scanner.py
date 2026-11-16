@@ -62,6 +62,56 @@ SUSPICIOUS = [
 ]
 NON_SEGRETI = {"Stripe Publishable Key"}
 
+# Voce altrui (16/11/2026, proposta n. 78): una nota che fa di un'altra persona il modello di stile
+# ("voce asciutta come quella di X", "scrivi come X") guida ogni testo firmato da chi usa Arturo. La voce
+# della persona sta nella sua Orsa (personale/humanizer.md) e si scrive col suo sì. Il nome di chi usa
+# questa installazione (git user.name, data/contatto.json) non conta: la sua voce è la sua.
+_NOME = r"(?P<nome>[A-ZÀ-Ý][a-zà-ÿ'’]{2,})"
+VOCE_ALTRUI = [
+    re.compile(r"(?i:\b(?:voce|stile|tono|registro|prosa)\b)[^.\n]{0,40}?"
+               r"(?i:\b(?:come\s+quell[ao]\s+d[iel]{1,3}|alla\s+maniera\s+d[iel]{1,3}|nello\s+stile\s+d[iel]{1,3}|"
+               r"sul\s+modello\s+d[iel]{1,3}|come))\s+" + _NOME),
+    re.compile(r"(?i:\b(?:voce|stile|tono)\s+d[iel]{1,3})\s+" + _NOME),
+    re.compile(r"(?i:\bscriv\w*\s+(?:\w+\s+){0,2}come)\s+" + _NOME),
+    re.compile(r"(?i:\b(?:write|writes|writing)\s+(?:\w+\s+){0,2}like|\bin\s+the\s+(?:style|voice)\s+of)\s+" + _NOME),
+]
+NON_PERSONE = {"arturo", "claude", "anthropic", "melchior", "orsa", "volta", "codex", "chatgpt", "gemini",
+               "openai", "google", "markdown", "italiano", "inglese"}
+
+
+def _nomi_propri():
+    """Le parole del nome di chi usa l'installazione, in minuscolo: git user.name e data/contatto.json."""
+    nomi = set()
+    try:
+        import subprocess
+        r = subprocess.run(["git", "config", "--global", "user.name"], capture_output=True, text=True, timeout=2)
+        nomi.update(r.stdout.lower().split())
+    except Exception:
+        pass
+    try:
+        with open(os.path.expanduser("~/.claude/data/contatto.json"), encoding="utf-8") as f:
+            nomi.update(str(json.load(f).get("nome") or "").lower().split())
+    except Exception:
+        pass
+    return nomi
+
+
+def voce_altrui(testo, propri=None):
+    """I nomi presi come modello di stile nel testo, senza doppioni. Vuoto se la nota parla d'altro."""
+    propri = _nomi_propri() if propri is None else propri
+    nomi = []
+    for rx in VOCE_ALTRUI:
+        for m in rx.finditer(testo or ""):
+            n = m.group("nome")
+            if n.lower() not in NON_PERSONE and n.lower() not in propri:
+                nomi.append(n)
+    return list(dict.fromkeys(nomi))
+
+
+VOCE_AVVISO = ("La voce di chi usa Arturo sta nella sua Orsa, ~/.claude/personale/humanizer.md, e si scrive "
+               "solo col suo sì (skill humanizer, references/voce-cresce.md). Un'altra persona non fa da "
+               "modello di stile, salvo che lo chieda chi scrive: togli la nota, o chiedi alla persona.")
+
 
 def _carica(nome):
     """Un altro hook di questa cartella come modulo, None se non si carica."""
@@ -176,6 +226,10 @@ def main():
                 "(una pagina, un file, un messaggio). Un segreto va tolto dalla nota: scrivi dove "
                 "trovarlo, non il valore.")
         avvisi.append(out)
+    altrui = voce_altrui(text) if not rp.startswith(HANDOFF_DIR) else []
+    if altrui:
+        avvisi.append(f"[WARNING] MEMORY-VOCE: la nota {os.path.basename(rp)} prende come modello di stile "
+                      f"{', '.join(altrui)}. " + VOCE_AVVISO)
 
     reach = check_reachability(rp)
     if reach:

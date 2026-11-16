@@ -266,7 +266,9 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
 stabile, password e chiavi, dati sensibili (salute, opinioni politiche, religione, dati di terzi che la
-persona non ha dato per lavoro). Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto
+persona non ha dato per lavoro), come scrive la persona. La sua voce sta nella sua Orsa, in
+`~/.claude/personale/humanizer.md`: la propone la skill `humanizer` (`references/voce-cresce.md`) e la
+scrive solo col suo sì. Mai una nota che prende un'altra persona come modello di stile. Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto
 aggiornato in una nota che esiste. **Una nota nuova la salva senza chiedere**, e la chiusura la annuncia:
 
 ```bash
@@ -278,7 +280,8 @@ NOTA
 - `--tipo` è uno dei quattro di Claude Code (`user`, `feedback`, `project`, `reference`): la nota va in
   `data/memory/<cartella del tipo>/<nome>.md`. Il nome è corto, in minuscolo coi trattini.
 - Exit 6 vuol dire che la nota c'è già: aggiorna quella. Exit 5 vuol dire un segreto o un'istruzione
-  nascosta: riscrivi senza. Exit 4 vuol dire memoria spenta: niente nota, e non lo chiedi.
+  nascosta: riscrivi senza. Exit 7 vuol dire una nota di voce che prende un'altra persona come modello:
+  non la salvi. Exit 4 vuol dire memoria spenta: niente nota, e non lo chiedi.
 - **Chiede il sì** solo per il `CLAUDE.md` personale. Un `/fine` scritto dalla persona propone anche le
   righe rimaste in `## Note in attesa del sì` degli handoff precedenti, di qualunque giorno, e al sì le
   toglie dalla sezione.

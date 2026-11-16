@@ -1,7 +1,7 @@
 """Le forme della Scoperta: automazione, sintesi e pagina (Fase D del piano della catena di prodotto, #5702).
 
 La Scoperta v1 (bin/scoperta.py) propone una skill quando un file cambia con un ritmo. Il 16/11/2026
-Federico ha detto sì alle forme nuove: una sintesi o una pagina web locale, per famiglia di mestiere.
+Chi mantiene Arturo ha detto sì alle forme nuove: una sintesi o una pagina web locale, per famiglia di mestiere.
 Questo modulo aggiunge tre cose, e scoperta.py le usa:
 
 - D1, i lavori dello storico. Un lavoro dell'indice dello storico (data/storico/indice.json, bin/storico.py)
