@@ -169,7 +169,7 @@ python3_ok() {
     && python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1
 }
 
-# Su Windows python3 deve eseguire davvero. Sonda su Balthasar (Windows 11, 1/11/2026):
+# Su Windows python3 deve eseguire davvero. Sonda su un PC con Windows 11 (1/11/2026):
 # - WindowsApps\python3.exe e python.exe sono il rimando di App Installer: stampano "Python non è
 #   stato trovato" ed escono con 49, senza eseguire niente.
 # - L'installatore di python.org mette python.exe e pythonw.exe, mai python3.exe (C:\Python312 e
