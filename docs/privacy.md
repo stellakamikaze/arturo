@@ -53,6 +53,37 @@ Nelle fasi 2b e 2c `/setup` ti chiede due volte un sì, per conoscerti prima di 
 - **Cosa esce in telemetria.** Solo il passaggio per le due fasi, `setup fase:2b` e `setup fase:2c`. Mai conteggi, esiti, nomi di file o testi.
 - **Cosa resta sul computer.** Arturo non salva il ritratto in nessun file. Quello che legge resta nella cronologia della conversazione di `/setup`, che Claude Code tiene sul tuo computer e cancella da sola dopo 90 giorni. Arturo non ne fa altre copie. La cronologia sta in `~/.claude/projects`, e i 90 giorni li fissa `cleanupPeriodDays` nel `settings.json` di Arturo. Oltre a quella resta il `CLAUDE.md` che approvi prima che venga scritto.
 
+## Lo storico delle chat
+
+Se prima di Arturo usavi Claude, ChatGPT o Gemini nel browser o nell'app, `/setup` ti propone di leggere quelle conversazioni per ritrovare i lavori che hai già fatto e tenerne un indice. Ti chiede un sì, poi un sì per ogni lavoro, e un no non blocca niente.
+
+- **Cosa legge.** L'esportazione delle tue conversazioni, cioè la copia di tutte le chat che il servizio ti prepara quando la chiedi dalle impostazioni. Di solito arriva per email come file .zip, da pochi minuti a qualche ora dopo; con Google Takeout, per Gemini, anche di più. La scarichi tu e la metti in una cartella. Arturo non entra nel tuo account e non scarica niente da solo.
+- **Chi la legge.** Uno script sul tuo computer, `bin/storico.py`, che lavora da solo, senza mandare niente a Claude o ad altre IA. Apre il file .zip senza estrarlo, legge le conversazioni intere, le tue frasi e le risposte, e le raggruppa per lavoro dai titoli, dalle parole in comune e dalle date. Toglie password scritte in chiaro, chiavi, IBAN, numeri di carta, codici fiscali, telefoni e le email che non sono la tua. Salta le conversazioni e gli allegati che dal titolo o dal testo sembrano d'identità, di salute o di banca. È un controllo su parole e formati, quindi qualcosa può passare: per questo vedi ogni lavoro prima che resti. Le esclusioni stanno nel codice di `bin/storico.py`, non in un'istruzione a Claude.
+- **Dove va.** A Claude arriva la proposta di indice: per ogni lavoro i titoli che il servizio ha dato alle conversazioni, le date, le parole che tornano e i nomi dei file allegati. Passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude, e ci ripassa ogni volta che `/inizio` o la memoria usano un lavoro dell'indice. Non va a chi mantiene Arturo.
+- **Cosa resta sul computer.** L'indice dei lavori che approvi, uno per uno: per ognuno il titolo, il periodo, i temi e i nomi dei file allegati. Resta finché lo togli tu, mentre il ritratto se ne va dopo 90 giorni. Restano anche gli allegati che scegli di copiare nelle cartelle dei tuoi progetti. La proposta di indice che Claude ti mostra resta nella cronologia della conversazione di `/setup`, che Claude Code tiene sul tuo computer e cancella da sola dopo 90 giorni. Il testo delle chat Arturo non lo salva in nessun file suo. L'esportazione resta dove l'hai scaricata, con tutte le conversazioni per intero: quando l'indice è pronto puoi cancellarla.
+- **Dove sta.** In `~/.claude/data/storico/`, nella parte di Arturo che tiene i tuoi dati e che gli aggiornamenti non toccano. Se salvi `~/.claude` in un repository Git, cioè una copia su GitHub o su un servizio simile, questa cartella resta fuori. La aggiungi tu con `arturo storico sincronizza`, e conviene farlo solo se il repository è privato. Un backup con Time Machine, iCloud o Dropbox la copia come ogni altro file.
+- **Come lo usi e come lo togli.** `/inizio` e la memoria lo usano per ritrovare i tuoi lavori. La Scoperta lo usa per proporti una sintesi o una pagina su un lavoro che torna da mesi: legge titoli, temi, date e numero di conversazioni dell'indice, sul tuo computer e senza rete. `arturo storico mostra` ti fa vedere cosa contiene, `arturo storico togli <lavoro>` toglie un lavoro solo, `arturo storico cancella` lo cancella tutto. La cancellazione non tocca gli allegati copiati nei progetti, l'esportazione, la cronologia di `/setup`, che se ne va da sola dopo 90 giorni, e le note che la memoria ha preso su quei lavori, che togli dalla memoria. Come si lanciano i comandi: [I tuoi diritti](#i-tuoi-diritti).
+- **Cosa esce in telemetria.** Solo il passaggio per la fase, `setup fase:2a`. I comandi `arturo storico` non mandano eventi. Mai conteggi, titoli, temi o nomi di file.
+
+## L'intervista che continua
+
+Nelle prime sei settimane dopo `/setup`, `/inizio` ti fa al massimo una domanda al giorno sul tuo lavoro, per esempio per chi lavori o quale lavoro rifai ogni mese.
+
+- **Cosa legge.** Per scegliere la domanda uno script sul tuo computer legge la sezione "Chi sono" del tuo CLAUDE.md e i temi dell'indice dello storico, se c'è. Non usa un modello e non va in rete.
+- **Cosa resta.** La risposta entra nella memoria solo se dici sì al testo che Claude ti mostra, come nota `persona-<domanda>`. Lo stato dell'intervista, in `~/.claude/data/intervista/`, tiene solo quali domande hai già visto, con le date, e mai il testo delle risposte. Né lo stato né le note vanno a chi mantiene Arturo, e non entrano nella telemetria.
+- **Come la fermi.** `arturo intervista salta <domanda>` toglie una domanda, `arturo intervista spegni` le ferma tutte. Una nota salvata si toglie dalla memoria come le altre.
+
+## Gli spazi che Arturo ti propone
+
+Quando vede un segnale nel tuo lavoro, `/inizio` ti propone uno spazio: Melchior se la memoria è spenta e hai almeno 15 handoff o un CLAUDE.md di almeno 250 righe, l'Orsa se correggi la stessa cosa in più sessioni. Ogni spazio te lo propone una volta sola, al massimo uno a settimana, e mai lo stesso giorno di una domanda dell'intervista.
+
+- **Cosa legge.** Uno script sul tuo computer, `bin/spazi.py`, senza un modello e senza rete. Non legge la cronologia delle tue conversazioni con Claude. Per Melchior conta i tuoi handoff e le righe del tuo CLAUDE.md. Per l'Orsa legge le correzioni che Claude ha scritto con `arturo correzione` negli ultimi 14 giorni.
+- **Dove va.** A Claude arriva solo la proposta, col segnale che l'ha fatta nascere: quanti handoff o quante righe, oppure il testo della correzione e in quante sessioni l'hai fatta. Passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude. Non va a chi mantiene Arturo e non entra nella telemetria.
+- **Cosa resta.** Lo stato in `~/.claude/data/spazi/`, fuori dalla copia Git di `~/.claude`: quali spazi ti ha già proposto, con le date e la tua risposta, e per l'Orsa le parole chiave della correzione già proposta. Mai le tue frasi.
+- **Come fermi le proposte.** Rispondi **no** e quello spazio non torna. `arturo spazi spegni` ferma tutte le proposte.
+
+Il nome che scegli con `arturo nome` sta in `~/.claude/personale/nome.txt` e resta sul tuo computer. All'avvio di ogni sessione Arturo lo passa a Claude, quindi il nome passa dalla conversazione con Anthropic, come il tuo CLAUDE.md.
+
 ## Chi li riceve
 
 - **Cloudflare** ospita il server e il database (Workers e D1). È il solo posto dove stanno gli eventi e i testi.

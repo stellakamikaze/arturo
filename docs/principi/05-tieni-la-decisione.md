@@ -1,4 +1,4 @@
-Bozza: la rilegge e la corregge Federico prima del rilascio su main.
+Bozza: la rilegge e la corregge chi mantiene Arturo prima del rilascio su main.
 
 # 05 — Tieni la decisione
 

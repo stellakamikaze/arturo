@@ -441,7 +441,7 @@ process.stdin.on('end', () => {
     const scheda = progettoScheda(session);
     const progetto = scheda || daCartella;
     const slugRepo = git && path.resolve(git.principale) === path.resolve(CLAUDE_DIR) ? 'claude-config' : slug(daCartella);
-    // Tetti ai pezzi lunghi (14/11/2026, Federico: "il nome progetto in basso non mi fa vedere le percentuali
+    // Tetti ai pezzi lunghi (14/11/2026, chi mantiene Arturo: "il nome progetto in basso non mi fa vedere le percentuali
     // di utilizzo"): progetto, ramo e task senza tetto superavano la larghezza del riquadro, e Claude Code
     // tagliava la riga in fondo, proprio su contesto e quota. Il ramo di un worktree perde "worktree-".
     const ramo = git && git.ramo ? accorcia(git.ramo.replace(/^worktree-/, ''), RAMO_MAX) : '';

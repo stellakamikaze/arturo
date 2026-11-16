@@ -376,6 +376,15 @@ def motivi_scanner(testo: str) -> list:
         return []
 
 
+def voce_altrui(testo: str) -> list:
+    """I nomi presi come modello di stile (proposta n. 78): lo stesso controllo dell'hook della memoria."""
+    motivi_scanner("")
+    try:
+        return list(_SCANNER[0].voce_altrui(testo)) if _SCANNER[0] is not None else []
+    except Exception:
+        return []
+
+
 def cartella_con_tilde(cartella: str) -> str:
     """La cartella sotto la home diventa ~/...: la scheda vale anche su un computer con un'altra home."""
     if not cartella:
@@ -627,6 +636,12 @@ def comando_nota(argv: list) -> int:
     if motivi:
         print(f"nota {nome} non salvata: " + "; ".join(motivi), file=sys.stderr)
         return 5
+    altrui = voce_altrui("\n".join([descrizione, testo]))
+    if altrui:
+        print(f"nota {nome} non salvata: prende come modello di stile {', '.join(altrui)}. La voce della persona "
+              "sta nella sua Orsa, ~/.claude/personale/humanizer.md, e la scrive la skill humanizer col suo sì.",
+              file=sys.stderr)
+        return 7
     gia = [q for q in note_curate() if q.stem == nome]
     if gia:
         print(f"la nota {nome} c'è già: {breve(gia[0])}. Aggiorna quella invece di farne una nuova.", file=sys.stderr)
@@ -825,9 +840,13 @@ def igiene(prova: bool = False) -> dict:
                 tmp.write_text(nuovo, encoding="utf-8")
                 os.replace(str(tmp), str(p))
 
-    voci = []
+    voci, altrui = [], []
     for _d, p in file_note(cartelle()):
-        fm, _ = frontmatter(leggi(p))
+        testo_nota = leggi(p)
+        nomi = voce_altrui(testo_nota)
+        if nomi:
+            altrui.append((breve(p), nomi))
+        fm, _ = frontmatter(testo_nota)
         parole = _parole_titolo(p, fm if isinstance(fm, dict) else {})
         if len(parole) >= 3:
             voci.append((p, parole))
@@ -849,7 +868,8 @@ def igiene(prova: bool = False) -> dict:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(ora.date().isoformat() + "\n", encoding="utf-8")
     return {"copertura_giorni": copertura, "dormienti": dormienti, "sveglie": sveglie,
-            "coppie": coppie[:MAX_COPPIE], "coppie_totali": len(coppie), "link_rotti": rotti, "prova": prova}
+            "coppie": coppie[:MAX_COPPIE], "coppie_totali": len(coppie), "link_rotti": rotti,
+            "voce_altrui": [{"nota": n, "nomi": v} for n, v in altrui], "prova": prova}
 
 
 def igiene_dovuta() -> bool:
@@ -895,6 +915,11 @@ def comando_igiene(argv: list) -> int:
     print(f"- Link rotti: {len(e['link_rotti'])}.")
     for v in e["link_rotti"][:10]:
         print(f"    {v['file']}:{v['riga']}: {v['motivo']}")
+    if e["voce_altrui"]:
+        print(f"- Note che prendono un'altra persona come modello di stile: {len(e['voce_altrui'])}. Mostrale "
+              "alla persona: col suo sì togli la riga o la nota. La sua voce va in ~/.claude/personale/humanizer.md.")
+        for v in e["voce_altrui"][:10]:
+            print(f"    {v['nota']} ({', '.join(v['nomi'])})")
     return 0
 
 
@@ -959,9 +984,9 @@ def _decisioni(testo: str) -> list:
             for r in righe[i + 1:j] if r.strip().startswith(("- ", "* "))]
 
 
-def riepilogo() -> dict:
-    """I dati di "arturo memoria": progetti (scheda, note, ultime decisioni), altre note per tipo,
-    dormienti, cartelle. Legge e basta."""
+def _progetti_e_note() -> tuple:
+    """I progetti con le loro note (insiemi di Path), tutte le note, i loro testi e le altre note per
+    tipo. Una nota sta in un progetto se vive nella sua memory/ di Claude Code o se cita la sua scheda."""
     memdir_vera = os.path.realpath(str(mm.MEMORY_DIR))
     tutte = file_note(cartelle())
     testi = {p: leggi(p) for _d, p in tutte}
@@ -1032,6 +1057,25 @@ def riepilogo() -> dict:
         t = tipo(fm if isinstance(fm, dict) else {})
         t = t if t in TIPI else "?"
         altre[t] = altre.get(t, 0) + 1
+    return progetti, tutte, testi, altre
+
+
+def note_del_progetto(slug: str) -> tuple:
+    """(scheda o None, note del progetto in ordine di nome, senza la scheda): la usa arturo fascicolo."""
+    s = slug_progetto(slug)
+    scheda = mm.trova_scheda(s) if s else None
+    progetti, _tutte, _testi, _altre = _progetti_e_note()
+    for v in progetti:
+        if v["nome"] == s or (scheda is not None and v["nome"] == scheda.stem[len("progetto-"):]):
+            return scheda, sorted((p for p in v["note"] if p != scheda), key=lambda p: (p.name, str(p)))
+    return scheda, []
+
+
+def riepilogo() -> dict:
+    """I dati di "arturo memoria": progetti (scheda, note, ultime decisioni), altre note per tipo,
+    dormienti, cartelle. Legge e basta."""
+    memdir_vera = os.path.realpath(str(mm.MEMORY_DIR))
+    progetti, tutte, testi, altre = _progetti_e_note()
 
     dormienti = []
     for _d, p in tutte:

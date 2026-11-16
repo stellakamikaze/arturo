@@ -30,6 +30,33 @@ La parte della configurazione che cresce con le tue correzioni e con i tuoi sì 
 
 ---
 
+## Per chi è
+
+Arturo è per chi lavora con la conoscenza: raccoglie materiali e ne ricava un lavoro da consegnare a qualcun altro. Di solito questa persona usa già l'IA in una chat web, e la chat resta: Arturo le dà un secondo posto dove lavorare, dentro le sue cartelle. In chat il materiale lo raccogli tu, e l'IA vede solo il pezzo che le incolli.
+
+Le famiglie di mestieri sono sei. Per ognuna, un esempio di quello che Claude fa già oggi, se glielo chiedi:
+
+- **La parola** (giornalismo, pubblicità, editoria, comunicazione): Claude scrive la bozza leggendo le fonti nella cartella del pezzo, anche quelle che in chat non avresti fatto in tempo a incollare.
+- **L'immagine** (art direction, fotografia, grafica, video): mette in ordine la cartella dei riferimenti e ne ricava una pagina sola per il cliente, con le immagini scelte e le note.
+- **L'insegnamento e la ricerca**: oltre alle slide, costruisce una pagina web in cui gli studenti provano da soli il concetto della lezione.
+- **La produzione e l'organizzazione** (eventi, cultura, audiovisivo): confronta il foglio delle spese con le fatture e segna le voci che non tornano; se glielo chiedi, ne fa una pagina in cui il cliente cambia le voci e vede cosa succede al totale.
+- **La consulenza e l'analisi**: legge la trascrizione di una riunione e ne ricava le decisioni e le cose da fare, ognuna con chi e quando, se la trascrizione lo dice.
+- **L'archivio e la cura** (curatela, archivi, biblioteche): apre le schede una per una, anche centinaia, le riporta allo stesso formato in un foglio solo e segna i campi che mancano.
+
+Per ogni famiglia, [I mestieri della conoscenza](docs/mestieri.md) elenca anche i materiali e i lavori che tornano.
+
+### Di chi è il lavoro
+
+In chat il modello e il contesto del tuo lavoro stanno nello stesso posto, sui server del servizio che usi. In Claude Code il modello resta dell'azienda che lo vende, ma la memoria, i riepiloghi delle sessioni e i todo che Arturo scrive stanno sul tuo computer, accanto ai documenti, in file di testo che puoi aprire. Li correggi a mano quando sbagliano, e restano tuoi se un giorno cambi strumento. Quello che Claude legge passa comunque dai server di Anthropic, come spiega [Cosa non è neutro](#cosa-non-è-neutro).
+
+### Dove sta andando
+
+Per chi arriva dalla chat c'è la voce "Arturo parte da quello che hai già fatto con l'IA" della [roadmap](ROADMAP.md): Arturo legge l'esportazione delle tue chat e ne ricava un indice dei tuoi lavori. Sul computer resta solo l'indice che approvi, lavoro per lavoro, e non il testo delle chat. Poi viene la voce "L'intervista che continua": `/inizio` ti fa al massimo una domanda al giorno sul tuo lavoro. Nella voce "Arturo ti propone cosa automatizzare" la Scoperta propone, oltre alle automazioni, anche sintesi e pagine web locali ([La Scoperta](#la-scoperta-arturo-scoperta)).
+
+Più avanti, la voce "Esportare un progetto e limitare cosa Claude legge" porta un comando per passare a un collega il contesto di un progetto, e la voce "Arturo ti propone uno spazio quando ti serve" porta le proposte di Melchior e dell'Orsa: Arturo te le fa quando la memoria è spenta e il lavoro cresce, o quando correggi spesso la stessa cosa. Lo stato di ognuna sta nella roadmap.
+
+---
+
 ## Installazione
 
 Per cominciare servono tre passi:
@@ -195,6 +222,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 ## Indice
 
 - [Tre promesse](#tre-promesse)
+- [Per chi è](#per-chi-è)
 - [Installazione](#installazione)
 - [I sei strati](#i-sei-strati)
 - [Il ciclo dell'Orsa](#il-ciclo-dellorsa)
@@ -538,7 +566,11 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 ### La Scoperta (`arturo scoperta`)
 
-Claude Code salva una copia di ogni versione dei file che modifica, per 30 giorni (`cleanupPeriodDays`). Arturo legge quelle copie e un suo indice, che l'hook `scoperta-indice.py` scrive dopo ogni modifica: ora, file, campi cambiati, mai il testo. `/inizio` prende anche un'impronta dei file di testo del progetto, e `/fine` la confronta per vedere le modifiche che hai fatto a mano. Da qui `/fine` cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Se ne trova una, a fine lavoro ti propone una skill con le date, i pezzi di modifica e una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Con un sì la bozza passa a `/creaskill`; con un no quella proposta non torna più; `arturo scoperta annulla ID` toglie la skill creata e la tiene da parte. `arturo scoperta stato` dice le proposte fatte e le risposte, `arturo scoperta escludi MODELLO` toglie una cartella o un file dalla ricerca (per esempio `~/Documents/Privato/*`). Tutto resta sul tuo computer, in `data/scoperta/`: per ora non esce niente, nemmeno i conteggi, che arriveranno alla telemetria solo dopo il testo nuovo della privacy.
+Claude Code salva una copia di ogni versione dei file che modifica, per 30 giorni (`cleanupPeriodDays`). Arturo legge quelle copie e un suo indice, che l'hook `scoperta-indice.py` scrive dopo ogni modifica: ora, file, campi cambiati, mai il testo. `/inizio` prende anche un'impronta dei file di testo del progetto, e `/fine` la confronta per vedere le modifiche che hai fatto a mano. Da qui `/fine` cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Se ne trova una, a fine lavoro ti fa una proposta con le date, i pezzi di modifica e una bozza da leggere. Se hai fatto l'indice dello storico delle chat, anche un lavoro con almeno cinque conversazioni, la prima e l'ultima in due mesi diversi, diventa una proposta. Una proposta ha una di tre forme: un'automazione (una skill), una sintesi (un documento che raccoglie un lavoro lungo) o una pagina web locale da un modello di mestiere ([`bin/scoperta_forme.py`](bin/scoperta_forme.py), [I mestieri della conoscenza](docs/mestieri.md)). Un lavoro dello storico diventa una pagina se i titoli e i temi chiamano uno dei modelli, altrimenti una sintesi. Un file .csv o .tsv che cambia con un ritmo diventa una pagina se il nome o i campi chiamano un modello, come un foglio delle spese; il resto resta un'automazione. Le proposte sono al massimo una per sessione e due a settimana. Con un sì la bozza di un'automazione passa a `/creaskill`; una sintesi o una pagina invece la scrive Claude dalla bozza, te la mostra e la salva solo dopo un secondo sì. Con un no quella proposta non torna più; `arturo scoperta annulla ID` toglie quello che è nato dalla proposta e lo tiene da parte. `arturo scoperta mappa` dice per ogni progetto cosa Arturo può proporre e in che forma. `arturo scoperta stato` dice le proposte fatte e le risposte, `arturo scoperta escludi MODELLO` toglie una cartella o un file dalla ricerca (per esempio `~/Documents/Privato/*`). Tutto resta sul tuo computer, in `data/scoperta/`: per ora non esce niente, nemmeno i conteggi, che arriveranno alla telemetria solo dopo il testo nuovo della privacy.
+
+### Lo storico delle chat (`arturo storico`)
+
+`bin/storico.py` legge l'esportazione di ChatGPT, di Claude.ai o di Google Takeout per Gemini, senza estrarre lo zip e senza modello. Usa i filtri di `bin/ritratto.py`, conta e basta le conversazioni d'identità, salute o banca, e raggruppa le altre per lavoro. `leggi` stampa la proposta e non scrive niente; `approva` salva un lavoro alla volta in `~/.claude/data/storico/indice.json` (titolo, periodo, temi, nomi dei file), con un `.gitignore` che lo tiene fuori dalla copia Git; `copia` porta gli allegati di un lavoro in una cartella di progetto; `mostra`, `togli`, `cancella` e `sincronizza` fanno il resto. Lo propone `/setup` nella fase 2a, e le promesse stanno in [`docs/privacy.md`](docs/privacy.md).
 
 ### La memoria
 

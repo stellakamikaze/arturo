@@ -13,6 +13,96 @@ modo di lavorare.
 
 ---
 
+## 2026-11-16 — /fine salva todo e handoff anche col sandbox dei comandi acceso
+
+**Cosa cambia**: se hai acceso il sandbox dei comandi di Claude Code, `/fine` non si inceppa più quando salva un todo o scrive l'handoff. Il sandbox adesso lascia scrivere la cartella `~/.claude/data`, dove Arturo tiene todo, handoff e memoria. Il resto della config resta protetto. La coda di `/fine`, che fa commit e push della config, gira fuori dal sandbox, e `/fine` lo dice a Claude. Se il sandbox è spento non cambia niente. Nasce dalla segnalazione n. 81.
+
+**Il principio**: una protezione accesa dalla persona non deve rompere la chiusura della sessione. La scrittura si apre solo dove stanno i dati di lavoro, non dove sta il codice che gira.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
+
+---
+
+## 2026-11-16 — Da /dafare la sessione si apre in iTerm2, se lavori in iTerm2
+
+**Cosa cambia**: sul Mac il tasto **o** di `/dafare`, cioè `arturo sessione`, apriva la sessione nuova sempre in Terminale. Adesso la apre in iTerm2 se il comando parte da iTerm2, e in Terminale negli altri casi. Per scegliere a mano scrivi `ARTURO_TERMINALE=iterm` oppure `ARTURO_TERMINALE=terminal` nell'ambiente. Nasce dalla segnalazione n. 80.
+
+**Il principio**: la sessione nuova nasce nel terminale che usi già, non in un'app che non apri mai.
+
+**A chi serve**: a chi lavora in iTerm2 sul Mac.
+
+---
+
+## 2026-11-16 — La tua voce sta nella tua Orsa
+
+**Cosa cambia**: i testi che firmi tu, come una lettera, un'email o un post, seguono la tua voce, scritta nel file `~/.claude/personale/humanizer.md` della tua Orsa. Le regole del metodo di Arturo sulle frasi corte restano per la chat e per i testi tecnici. Nessun'altra persona fa da modello di stile. Una nota di memoria che dice "scrivi come X" non si salva più con `arturo memoria nota`, e se Claude la scrive in un altro modo riceve un avviso. Le note di questo tipo che hai già te le mostra la pulizia settimanale della memoria dentro `/fine`, e si tolgono solo col tuo sì. Se il file della voce manca, la prima volta che Claude riscrive un testo che firmi ti chiede due o tre testi tuoi, ti mostra cosa ci trova (lunghezza delle frasi, connettivi, registro, cosa eviti) e scrive solo quello che confermi. Nasce dalla proposta n. 78.
+
+**Il principio**: la voce di una persona si ricava dai testi che firma, perciò la conferma lei. Una nota che Claude deduce da una sessione vecchia, senza che nessuno l'abbia decisa, può spostare tutte le lettere verso lo stile di un'altra persona.
+
+**A chi serve**: a chi fa scrivere a Claude testi che poi firma.
+
+---
+
+## 2026-11-16 — La Scoperta propone anche sintesi e pagine
+
+**Cosa cambia**: fino a oggi la Scoperta ti proponeva solo una skill, quando vedeva un file cambiare con un ritmo. Adesso una proposta può avere tre forme: un'automazione, come prima; una sintesi, cioè un documento in quattro parti su un lavoro lungo (cosa è, cosa hai deciso, i materiali, cosa resta aperto); oppure una pagina web locale, un solo file .html che si apre anche senza rete, costruita su un modello di mestiere come la lezione interattiva per chi insegna, il simulatore di spesa per chi produce eventi o il calendario editoriale per chi scrive una newsletter. I modelli sono sei, uno per famiglia di [`docs/mestieri.md`](docs/mestieri.md): Arturo prende quello della tua famiglia se i titoli e i temi del lavoro lo chiamano, altrimenti quello che chiamano di più. Se hai fatto l'indice dello storico delle chat con `/setup`, anche un lavoro con almeno cinque conversazioni, la prima e l'ultima in due mesi diversi, diventa una proposta subito, senza aspettare che i file cambino tre volte. Se rispondi sì, Claude scrive la sintesi o la pagina dalla bozza, te la mostra (la pagina si apre nel browser) e la salva solo dopo un secondo sì; condividerla resta a te. `arturo scoperta annulla` la toglie e la tiene da parte. `arturo scoperta mappa` dice per ogni progetto cosa Arturo può proporti e in che forma. I limiti restano quelli di prima: al massimo una proposta per sessione e due a settimana.
+
+**Il principio**: un lavoro che torna non sempre si risolve con una skill. Un lavoro lungo seguito in chat ha bisogno di un posto dove ritrovare le decisioni e i materiali, e un foglio di spese che cambia ogni settimana si legge meglio in una pagina che mostra il totale che riga per riga.
+
+**A chi serve**: a chi segue lo stesso lavoro in chat per più mesi, o aggiorna lo stesso foglio di dati con un ritmo, in qualunque delle sei famiglie di mestieri.
+
+---
+
+## 2026-11-16 — Arturo ti propone uno spazio, e Claude può presentarsi col nome che scegli
+
+**Cosa cambia**: Arturo ha due spazi, cioè parti che si accendono o si riempiono a parte: l'Orsa, il tuo CLAUDE.md, e Melchior, la memoria. Quando nel tuo lavoro vede un segnale, `/inizio` ti propone lo spazio che ti manca e ti dice quale segnale ha visto. Se hai corretto la stessa cosa in tre sessioni diverse, ti propone di scrivere la regola nel tuo CLAUDE.md, cioè nell'Orsa, dove vale sempre e gli aggiornamenti non la toccano. Se la memoria è spenta e hai almeno 15 handoff, o un CLAUDE.md di almeno 250 righe, ti propone di accendere Melchior. Ogni spazio te lo propone una volta sola, al massimo uno a settimana. Se rispondi **no** quello spazio non torna, e `arturo spazi spegni` ferma tutte le proposte. Poi c'è `arturo nome`: con `arturo nome Bruno` Claude si presenta come Bruno in ogni sessione. Comandi e file restano quelli di Arturo. Cosa legge e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Gli spazi che Arturo ti propone".
+
+**Il principio**: una parte di Arturo che non usi ancora te la propone Arturo, quando nel tuo lavoro c'è un segnale che si può contare, e ti mostra il segnale così puoi verificarlo. Se dici no, la proposta non torna.
+
+**A chi serve**: a chi corregge Claude sempre sulla stessa cosa, a chi ha spento la memoria e ha accumulato molti handoff, a chi vuole che Claude si presenti con un altro nome.
+
+---
+
+## 2026-11-15 — Passare un progetto a un collega
+
+**Cosa cambia**: `arturo fascicolo esporta <progetto>` mette il contesto di un progetto in una cartella di file di testo: la scheda, le note della memoria, lo stato coi todo aperti, i lavori dello storico che scegli e i materiali di testo che indichi. Un file con un possibile segreto, come una password, resta fuori, e le note che parlano di te non escono. Il collega lo importa con `arturo fascicolo importa <cartella>`. Entra solo quello che l'elenco del fascicolo prevede, e Arturo rifiuta un file con un segreto o con un'istruzione nascosta. Niente sovrascrive i file del collega, e ogni nota porta in testa chi l'ha scritta. I file `.md` della cartella si caricano anche in un progetto di Claude.ai o di ChatGPT. Come funziona: [`docs/memoria.md`](docs/memoria.md), sezione "Passare un progetto a un collega".
+
+**Il principio**: il contesto di un progetto sta sul tuo computer, quindi decidi tu quanto passarne e a chi. Un testo che arriva da un'altra persona può contenere ordini nascosti per Claude, perciò Arturo lo tratta come un testo da leggere e non come un'istruzione.
+
+**A chi serve**: a chi passa un lavoro a un collega, o vuole continuarlo in un altro strumento di IA.
+
+---
+
+## 2026-11-15 — L'intervista che continua
+
+**Cosa cambia**: dopo `/setup` Arturo continua a farti domande sul tuo lavoro. Nelle prime sei settimane `/inizio` te ne fa al massimo una al giorno, su quello che non sa ancora: per esempio per chi lavori o quale lavoro rifai ogni mese. Le domande cambiano col mestiere e stanno in [`docs/mestieri.md`](docs/mestieri.md). Claude riscrive la tua risposta in una o due frasi e la salva nella memoria solo col tuo sì. `arturo intervista salta` toglie una domanda, `arturo intervista spegni` le ferma tutte.
+
+**Il principio**: una domanda al giorno pesa meno di venti domande il primo giorno, e in memoria entra solo una frase che hai letto e approvato.
+
+**A chi serve**: a chi ha appena fatto `/setup` e non vuole rispondere a tutto il primo giorno.
+
+---
+
+## 2026-11-15 — Arturo parte dalle chat che hai già fatto
+
+**Cosa cambia**: se prima di Arturo usavi Claude, ChatGPT o Gemini in chat, `/setup` ti propone una fase nuova, la 2a. Scarichi l'esportazione delle tue conversazioni, e uno script sul tuo computer la legge senza estrarla e la divide per lavoro. Claude ti mostra i lavori uno per uno, e resta solo quello a cui dici sì: titolo, periodo, temi e nomi dei file allegati, mai il testo delle chat. L'indice sta in `~/.claude/data/storico/`, fuori dalla copia Git di `~/.claude`, e si guarda e si cancella con `arturo storico`. Cosa legge, dove va e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Lo storico delle chat".
+
+**Il principio**: chi arriva dalla chat ha già mesi di lavoro alle spalle, e Arturo parte da lì invece che da zero.
+
+**A chi serve**: a chi passa dalla chat a Claude Code e non vuole rispiegare da capo i lavori che ha già fatto.
+
+---
+
+## 2026-11-15 — Per chi è Arturo, mestiere per mestiere
+
+**Cosa cambia**: il README ha una sezione nuova, "Per chi è", e c'è una pagina nuova, [`docs/mestieri.md`](docs/mestieri.md). Dividono il lavoro della conoscenza in sei famiglie di mestieri: la parola, l'immagine, l'insegnamento e la ricerca, la produzione, la consulenza, l'archivio e la cura. Per ognuna dicono cosa Claude fa già oggi, se glielo chiedi. La roadmap ha cinque voci nuove sulla strada che parte dalla chat: lo storico delle tue chat come punto di partenza, l'intervista che continua, l'esportazione di un progetto, gli spazi che Arturo ti propone (Melchior e l'Orsa) e le forme nuove della Scoperta. Le scelte ancora aperte stanno fra le voci da decidere.
+
+**Il principio**: il racconto promette solo quello che Arturo fa oggi; il resto sta nella roadmap col suo stato.
+
+**A chi serve**: a chi vuole capire se Arturo fa per il suo mestiere, e a chi lo presenta a un collega.
+
+---
+
 ## 2026-11-16 — L'avviso sul contesto anche nelle sessioni in background
 
 **Cosa cambia**: l'avviso che ti dice quando il contesto si sta riempiendo trova node anche in una sessione aperta

@@ -16,7 +16,7 @@ Due rami:
       stati tolti il 30/10/2026: il dispatcher non manda più qui né dig né i GET, e
       scattavano solo se lo stesso comando conteneva anche un upload.
 
-Contratto del 28/10/2026 (Federico: "togli i controlli"): una guardia chiede solo sui rail, dove
+Contratto del 28/10/2026 (chi mantiene Arturo: "togli i controlli"): una guardia chiede solo sui rail, dove
 la forma del comando basta a decidere. Il codice Python, node o curl che chiama la rete (GET, POST
 generico, $() nell'URL) non arriva più qui: lo giudica il classificatore di auto mode, che legge
 il codice. Una regex non distingue uno script che legge archive.org da uno che porta fuori un

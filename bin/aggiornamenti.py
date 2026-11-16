@@ -677,7 +677,7 @@ def _applica(r: Path, ammesse: int = 0) -> int:
             _segnala_ostacolo(r, stato)
         return 0
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
-    # Un rilascio già rinviato una volta non aspetta più le altre sessioni (#4074, Federico 2/11/2026): chi
+    # Un rilascio già rinviato una volta non aspetta più le altre sessioni (#4074, 2/11/2026): chi
     # tiene sempre una sessione aperta restava indietro per giorni, come un'installazione al 23/10. Le sessioni rimaste
     # aperte leggono gli hook nuovi da subito, come dopo un /aggiorna; i mod cambiano alla loro riapertura.
     attende = ammesse > 0 or not rinvio_in_attesa(r, stato)

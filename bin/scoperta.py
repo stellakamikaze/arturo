@@ -12,6 +12,10 @@ Tre segnali:
   campi     gli stessi campi o paragrafi cambiati ogni volta;
   insieme   gruppi di file toccati insieme in almeno 3 sessioni.
 
+Dal 16/11/2026 (Fase D, #5702, bin/scoperta_forme.py) una proposta ha una forma: automazione (una skill),
+sintesi (un documento che raccoglie un lavoro lungo) o pagina (una pagina web locale da un modello della
+famiglia di mestiere). Anche un lavoro dello storico delle chat che torna da mesi è un candidato.
+
 La proposta arriva solo a fine lavoro, in /fine: al massimo 1 per sessione e 2 a settimana, con date,
 pezzi di diff e una bozza leggibile della skill. Un no la fa tacere per sempre; un sì passa la bozza a
 /creaskill; ogni skill creata così si annulla con `arturo scoperta annulla ID`. Tutto resta su questo
@@ -19,6 +23,7 @@ computer, in ~/.claude/data/scoperta/. Non esce niente: i conteggi nella telemet
 col testo della privacy approvato (piano del 14/11/2026, passo S9).
 
   analizza [--giorni N] [--json]   i candidati trovati negli ultimi N giorni (90), dal più forte
+  mappa [--giorni N]               per ogni progetto, cosa Arturo può proporre e in che forma (D2)
   proponi [--sessione ID]          per /fine: una proposta, se i limiti la permettono (exit 3: niente)
   rispondi ID si|no                la risposta della persona
   creata ID PERCORSO               la skill nata dal sì, perché si possa annullare
@@ -47,7 +52,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_orsa  # noqa: E402
+import scoperta_forme as forme  # noqa: E402  le forme sintesi e pagina e i lavori dello storico (Fase D)
 
 for _flusso in (sys.stdout, sys.stderr):
     try:
@@ -567,6 +574,12 @@ def _nome_skill(c: dict) -> str:
 
 def descrivi(c: dict) -> str:
     """La frase che apre la proposta: cosa ha visto Arturo, in parole comuni."""
+    if c.get("forma") in ("sintesi", "pagina"):
+        return forme.descrivi(c, _descrivi_file)
+    return _descrivi_file(c)
+
+
+def _descrivi_file(c: dict) -> str:
     volte = c["volte"]
     if c["segnale"] == "insieme":
         nomi = ", ".join(os.path.basename(f) for f in c["file"][:4])
@@ -587,7 +600,10 @@ def descrivi(c: dict) -> str:
 
 
 def bozza(c: dict) -> str:
-    """La bozza della skill: la legge la persona, poi /creaskill la rifinisce con lei."""
+    """La bozza della skill: la legge la persona, poi /creaskill la rifinisce con lei. Una sintesi o una
+    pagina ha la bozza sua (bin/scoperta_forme.py)."""
+    if c.get("forma") in ("sintesi", "pagina"):
+        return forme.bozza(c, _descrivi_file)
     nome = _nome_skill(c)
     file = [corto(f.replace("#", "N")) for f in c["file"][:5]]
     if c["segnale"] == "insieme":
@@ -649,6 +665,14 @@ def limiti_permettono(proposte: dict, sessione: str, adesso: dt.datetime) -> boo
     return sum(1 for p in fatte if (_ora(p["quando"]) or adesso) >= settimana) < PER_SETTIMANA
 
 
+def tutti(volte: list) -> list:
+    """I candidati dei file, ognuno con la sua forma, e i lavori dello storico che tornano, dal più forte."""
+    fam = forme.famiglia()
+    fuori = [forme.con_forma(c, fam) for c in candidati(volte)] + forme.dallo_storico(fam)
+    fuori.sort(key=lambda c: -c["forza"])
+    return fuori
+
+
 def proponi(sessione: str, giorni: int = 90, adesso: dt.datetime | None = None, volte: list | None = None):
     """La proposta di questa chiusura, o None. Una proposta già fatta non torna: un no tace per
     sempre, e una senza risposta resta in `stato` finché la persona non risponde."""
@@ -656,7 +680,7 @@ def proponi(sessione: str, giorni: int = 90, adesso: dt.datetime | None = None, 
     proposte = leggi_proposte()
     if not limiti_permettono(proposte, sessione, adesso):
         return None
-    for c in candidati(volte if volte is not None else raccogli(giorni)):
+    for c in tutti(volte if volte is not None else raccogli(giorni)):
         if c["id"] in proposte:
             continue
         testo = bozza(c)
@@ -665,7 +689,8 @@ def proponi(sessione: str, giorni: int = 90, adesso: dt.datetime | None = None, 
         percorso.write_text(testo + "\n\nProve:\n" + prove(c, 10) + "\n", encoding="utf-8")
         proposte[c["id"]] = {"stato": "proposta", "quando": adesso.isoformat(timespec="seconds"), "sessione": sessione,
                              "segnale": c["segnale"], "volte": c["volte"], "descrizione": descrivi(c),
-                             "tipo": os.path.splitext(c["famiglia"] or c["file"][0])[1].lower()}
+                             "forma": c.get("forma", "automazione"),
+                             "tipo": os.path.splitext(c["famiglia"] or (c["file"] or [""])[0])[1].lower()}
         _scrivi_json(_file("proposte.json"), proposte)
         return c
     return None
@@ -678,10 +703,10 @@ def blocco_proposta(c: dict) -> str:
         "Prove:",
         prove(c),
         "",
-        "Bozza della skill:",
+        "Bozza della skill:" if c.get("forma", "automazione") == "automazione" else f"Bozza della {c['forma']}:",
         bozza(c),
         "",
-        f"Risposta: arturo scoperta rispondi {c['id']} si (parte /creaskill con la bozza) oppure no (non torna più).",
+        forme.risposta(c, c["id"]),
     ])
 
 
@@ -697,7 +722,7 @@ def rispondi(ident: str, risposta: str) -> int:
         _scrivi_json(_file("proposte.json"), proposte)
         percorso = _file("bozze") / f"{ident}.md"
         print(f"Accettata. Bozza: {corto(str(percorso).replace(os.sep, '/'))}")
-        print(f"Ora: /creaskill con la bozza; a skill creata, arturo scoperta creata {ident} <cartella della skill>.")
+        print(forme.dopo_il_si(voce, ident))
         return 0
     if risposta == "no":
         voce.update(stato="rifiutata", risposta=dt.datetime.now().isoformat(timespec="seconds"))
@@ -733,7 +758,9 @@ def annulla(ident: str) -> int:
     sorgente = Path(voce["creata"])
     destinazione = _file("annullate") / f"{ident}-{dt.datetime.now():%Y%m%d-%H%M%S}"
     if sorgente.exists():
-        destinazione.parent.mkdir(parents=True, exist_ok=True)
+        # Tutta la cartella d'arrivo: una skill è una cartella e shutil.move la crea, una sintesi o una pagina
+        # è un file e senza la cartella cadeva (Fase D, 16/11/2026).
+        destinazione.mkdir(parents=True, exist_ok=True)
         shutil.move(str(sorgente), str(destinazione / sorgente.name))
     voce.update(stato="annullata", annullata=dt.datetime.now().isoformat(timespec="seconds"),
                 copia=str(destinazione / sorgente.name))
@@ -927,15 +954,18 @@ def main(argv: list) -> int:
     if verbo in ("-h", "--help", "aiuto", "help"):
         print(__doc__)
         return 0
+    if verbo == "mappa":
+        print("\n".join(forme.mappa(tutti(raccogli(_giorni(resto))), leggi_proposte())))
+        return 0
     if verbo == "analizza":
-        trovati = candidati(raccogli(_giorni(resto)))
+        trovati = tutti(raccogli(_giorni(resto)))
         if "--json" in resto:
             print(json.dumps([come_json(c) for c in trovati], ensure_ascii=False, indent=1))
             return 0
         if not trovati:
             print("Nessuna ripetizione trovata.")
         for c in trovati[:int(_opzione(resto, "--quanti", "10") or 10)]:
-            print(f"{c['id']} · {c['segnale']} · forza {c['forza']} · {descrivi(c)}")
+            print(f"{c['id']} · {c['segnale']} · {c['forma']} · forza {c['forza']} · {descrivi(c)}")
             print(prove(c, 3))
             print()
         return 0

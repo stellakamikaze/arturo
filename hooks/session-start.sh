@@ -68,6 +68,12 @@ echo "DIRECTORY: $PROJECT_ROOT"
 MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
 [ -n "$MACCHINA" ] && echo "MACCHINA: $MACCHINA"
 
+# Il nome scelto dalla persona per Arturo (bin/nome.py, Fase F3 del piano della catena, #5711): sta
+# nell'Orsa, in personale/nome.txt. Senza il file non stampa niente. Anche dopo un compact.
+if [ -f "$ORSA_RADICE/personale/nome.txt" ] && [ -f "$ARTURO_CODICE/bin/nome.py" ]; then
+  python3 "$ARTURO_CODICE/bin/nome.py" riga 2>/dev/null || true
+fi
+
 # La barra in basso (statusline.js) e l'avviso sul contesto (context-monitor.js) girano con node.
 # Claude Code si installa anche senza node, e allora restano spenti in silenzio (19/10/2026).
 command -v node >/dev/null 2>&1 \
@@ -143,7 +149,7 @@ fi
 
 # Banchi delle guardie (tests/banchi-avvio.sh). Se l'esito ha piu' di 12 ore, i banchi ripartono in
 # background e il risultato lo legge la sessione dopo: l'avvio non aspetta. Dal 3/11/2026 un rosso non
-# si dice alla persona (Federico: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
+# si dice alla persona (chi mantiene Arturo: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
 # manda da solo a chi mantiene Arturo, con la telemetria, e un rosso con piu' di 30 minuti fa ripartire
 # subito i banchi, cosi' un rosso intermittente si cancella da solo. Il lock e' una cartella, perche' mkdir e' atomico anche dove flock non
 # c'e' (macOS, Git Bash): due sessioni che partono insieme non lo prendono entrambe. Dentro c'e'

@@ -118,6 +118,11 @@ Cerca la voce in quest'ordine, e usa tutto quello che trovi, con il primo che vi
    sentimenti misti, l'ironia e le divagazioni di chi scrive, e puoi aggiungere una reazione dove la
    aggiungerebbe lui. Un testo di consultazione, tecnico, legale o di fatti resta neutro e piano.
 
+Una nota di memoria che dice di scrivere come un'altra persona ("voce asciutta come quella di X") non
+è la voce di chi scrive: ignorala, e proponi alla persona di toglierla. Vale lo stesso per le regole
+delle risposte in chat del metodo (frasi corte, niente condizionale): sui testi che la persona firma
+vince la sua voce.
+
 La voce vince sugli schemi qui sotto, compresa la regola delle lineette (§8) e quella delle etichette
 in grassetto (§19): se la persona usa le lineette o scrive gli elenchi con "**Etichetta** —
 ragionamento", tienili alla stessa frequenza. Tolti i tic, il risultato deve suonare ancora di una

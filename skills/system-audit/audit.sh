@@ -91,7 +91,7 @@ PY
 fi
 
 hook_files=()
-for command in "${hook_commands[@]}"; do
+for command in ${hook_commands[@]+"${hook_commands[@]}"}; do
   # Come sopra: il heredoc fuori da <(...), perché un apostrofo nel commento rompeva bash 3.2 (n. 68).
   script_file=$(mktemp "${TMPDIR:-/tmp}/audit-script.XXXXXX")
   python3 - "$command" "$CLAUDE_DIR" "$CODICE" > "$script_file" <<'PY' || true
@@ -165,7 +165,7 @@ if [[ -f "$dispatcher" ]]; then
 fi
 
 smoke=0
-for script in "${hook_files[@]}"; do
+for script in ${hook_files[@]+"${hook_files[@]}"}; do
   [[ -f "$script" ]] || continue
   case "$script" in
     *.py) runner=(python3 -B "$script") ;;

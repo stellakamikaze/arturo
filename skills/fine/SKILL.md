@@ -267,7 +267,9 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
 stabile, password e chiavi, dati sensibili (salute, opinioni politiche, religione, dati di terzi che la
-persona non ha dato per lavoro). Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto
+persona non ha dato per lavoro), come scrive la persona. La sua voce sta nella sua Orsa, in
+`~/.claude/personale/humanizer.md`: la propone la skill `humanizer` (`references/voce-cresce.md`) e la
+scrive solo col suo sì. Mai una nota che prende un'altra persona come modello di stile. Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto
 aggiornato in una nota che esiste. **Una nota nuova la salva senza chiedere**, e la chiusura la annuncia:
 
 ```bash
@@ -279,7 +281,8 @@ NOTA
 - `--tipo` è uno dei quattro di Claude Code (`user`, `feedback`, `project`, `reference`): la nota va in
   `data/memory/<cartella del tipo>/<nome>.md`. Il nome è corto, in minuscolo coi trattini.
 - Exit 6 vuol dire che la nota c'è già: aggiorna quella. Exit 5 vuol dire un segreto o un'istruzione
-  nascosta: riscrivi senza. Exit 4 vuol dire memoria spenta: niente nota, e non lo chiedi.
+  nascosta: riscrivi senza. Exit 7 vuol dire una nota di voce che prende un'altra persona come modello:
+  non la salvi. Exit 4 vuol dire memoria spenta: niente nota, e non lo chiedi.
 - **Chiede il sì** solo per il `CLAUDE.md` personale. Un `/fine` scritto dalla persona propone anche le
   righe rimaste in `## Note in attesa del sì` degli handoff precedenti, di qualunque giorno, e al sì le
   toglie dalla sezione.
@@ -292,9 +295,12 @@ Chiusura solo se ha coppie da unire o link rotti: le coppie le unisci tu solo se
 **La Scoperta.** Lancia sempre `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo scoperta confronta`: salva le modifiche fatte a
 mano dall'impronta di `/inizio`. Fuori dal Modo rotazione lancia poi `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo scoperta
 proponi`. Con exit 3 taci. Con exit 0 il blocco `SCOPERTA` va nella Chiusura, dopo la Memoria: la frase,
-le prove e la bozza come le stampa, poi "scrivimi **scoperta sì** e la costruiamo con /creaskill, **scoperta
-no** e non torna più". Al sì lancia `arturo scoperta rispondi <ID> si` e segui `/creaskill` partendo dalla
-bozza; a skill creata, `arturo scoperta creata <ID> <cartella della skill>`. Al no, `rispondi <ID> no`.
+le prove e la bozza come le stampa, poi "scrivimi **scoperta sì** e la costruiamo, **scoperta no** e non
+torna più". Al sì lancia `arturo scoperta rispondi <ID> si` e segui la forma della bozza (riga `Forma:`):
+un'automazione passa da `/creaskill` partendo dalla bozza, e a skill creata lanci `arturo scoperta creata <ID>
+<cartella della skill>`. Una sintesi o una pagina la scrivi tu dalla bozza, nella cartella del progetto: la
+mostri, una pagina la apri nel browser della persona, e salvi solo col suo sì. Poi lanci `arturo scoperta
+creata <ID> <file>`. Al no, `rispondi <ID> no`.
 
 ## FASE 9 · Config Sync, in una chiamata
 
@@ -304,6 +310,11 @@ macchina, avvisala prima con `SendMessage`: il commit di sync prende anche i suo
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/fine-coda.py; echo "rc=$?"
 ```
+
+**Con il sandbox dei comandi acceso** la coda gira fuori dal sandbox (`dangerouslyDisableSandbox`): fa commit e
+push di `~/.claude`, e il sandbox lascia scrivere solo `~/.claude/data`, dove stanno todo e handoff (segnalazione
+n. 81). Un todo o un handoff che il sandbox ferma con `Operation not permitted` vuol dire una config di prima
+dell'aggiornamento: rilancia quel comando fuori dal sandbox e dillo nella riga tecnica.
 
 La coda trova l'handoff dalla riga "- Sessione:" (un altro con `--handoff <percorso>`; attribuzione dei
 commit con `--trailer "<riga>"`). Si ferma su un rebase a metà o una config rotta
