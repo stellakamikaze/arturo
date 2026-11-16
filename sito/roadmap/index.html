@@ -35,7 +35,7 @@
  "description": "La roadmap di Arturo, l'harness in italiano per Claude Code: su cosa si lavora adesso, cosa viene dopo e cosa aspetta una decisione. Ogni voce si commenta.",
  "url": "https://arturo.stellakamikaze.org/roadmap/",
  "inLanguage": "it",
- "dateModified": "2026-11-03",
+ "dateModified": "2026-11-15",
  "publisher": {
   "@type": "Person",
   "name": "Federico Nejrotti"
@@ -181,8 +181,8 @@ ul,ol{margin:0;padding:0}
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">La strada di Arturo</h1>
-      <p>Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in <code>NOVITA.md</code>. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce si commenta nella pagina delle persone che usano Arturo: si entra con l'email dell'invito, e ognuno legge i commenti degli altri.</p>
-      <p class="testata__data">Aggiornata il <time datetime="2026-11-03">3 novembre 2026</time></p>
+      <p>Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in <code>NOVITA.md</code>. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (<code>docs/strati.md</code>). Ogni voce si commenta nella pagina delle persone che usano Arturo: si entra con l'email dell'invito, e ognuno legge i commenti degli altri.</p>
+      <p class="testata__data">Aggiornata il <time datetime="2026-11-15">15 novembre 2026</time></p>
       <div class="testata__vie">
         <a class="azione" href="/sviluppo/roadmap/">Commenta la roadmap</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/dev/ROADMAP.md">ROADMAP.md su GitHub</a>
@@ -199,13 +199,25 @@ ul,ol{margin:0;padding:0}
     <div class="voci">
 
       <article class="voce" id="plugin" aria-labelledby="t-plugin">
-        <p class="voce__data">In corso</p>
+        <p class="voce__data">Quasi finito</p>
         <div class="voce__corpo">
           <h3 id="t-plugin"><a href="#plugin">Arturo diventa un plugin, separato dalle tue modifiche</a></h3>
-          <p class="voce__stato">Il pacchetto del plugin si genera dal repository. Mancano il passo in <code>/setup</code>, il metodo che arriva all'avvio e la prova su un Mac pulito.</p>
+          <p class="voce__stato">Il plugin si installa, si aggiorna solo da rilasci firmati e all'avvio porta le regole di Arturo. Manca la prova su un Mac pulito.</p>
+          <p>Strato: Ingresso.</p>
           <p>Oggi Arturo vive nella stessa cartella delle tue modifiche, <code>~/.claude</code>. Per questo un aggiornamento può scontrarsi con un file che hai cambiato tu. Con il plugin, Arturo sta in una cartella sua e la tua parte personale resta tua: un aggiornamento cambia solo Arturo.</p>
-          <p>Chi oggi usa Arturo non nota niente finché non arriva il passaggio guidato (voce "Il passaggio al plugin").</p>
+          <p>Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di provare il passaggio guidato: la prova non cambia niente (voce "Il passaggio al plugin"). Su Windows la proposta arriva quando il passaggio è provato anche lì.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#plugin">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="revisione-novembre" aria-labelledby="t-revisione-novembre">
+        <p class="voce__data">In corso</p>
+        <div class="voce__corpo">
+          <h3 id="t-revisione-novembre"><a href="#revisione-novembre">Le correzioni della revisione di novembre</a></h3>
+          <p class="voce__stato">Prima le guardie su Windows: fatte le correzioni sui programmi scritti con <code>.exe</code> e in maiuscolo, sul Python che manca e sui comandi di Windows che cancellano o eseguono (<code>robocopy</code>, <code>reg delete</code>, PowerShell, <code>wsl</code>, node) e sull'avvio automatico (cartella Esecuzione automatica, profili PowerShell, <code>schtasks</code>, chiavi <code>Run</code> del registro, <code>sc create</code>) e sul codice Python e node che scrive la config (<code>open()</code>, <code>shutil.copy</code>, <code>write_text</code>, <code>writeFileSync</code>, archivi estratti).</p>
+          <p>Strato: Protezione.</p>
+          <p>Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con <code>.exe</code> passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#revisione-novembre">Commenta questa voce</a></p>
         </div>
       </article>
 
@@ -214,6 +226,7 @@ ul,ol{margin:0;padding:0}
         <div class="voce__corpo">
           <h3 id="t-conferme"><a href="#conferme">Meno conferme, le stesse guardie</a></h3>
           <p class="voce__stato">Una parte è scritta e aspetta il banco di prova.</p>
+          <p>Strato: Protezione.</p>
           <p>Le guardie fermano i comandi rischiosi: cancellazioni, invii, segreti. Alcune chiedono conferma più volte per la stessa cosa, o su un file che stai già modificando. L'obiettivo è una conferma sola, dove serve davvero.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#conferme">Commenta questa voce</a></p>
         </div>
@@ -224,9 +237,21 @@ ul,ol{margin:0;padding:0}
         <div class="voce__corpo">
           <h3 id="t-testata"><a href="#testata">La testata di Arturo sotto quella di Claude Code</a></h3>
           <p class="voce__stato">La riga con versione e stato della configurazione è uscita nella 0.2.0; il blocco con la stella e la roadmap arriva con la 0.3.</p>
+          <p>Strato: Ingresso.</p>
           <p>All'avvio, subito sotto l'intestazione di Claude Code, compare il blocco di Arturo: il marchio con la stella, la versione, lo stato della configurazione e gli aggiornamenti in arrivo. Ogni due settimane, o quando questa pagina cambia, il blocco ti ricorda la roadmap. Gli avvisi dei controlli interni non compaiono più a ogni avvio.</p>
           <p>L'intestazione di Claude Code, con la sua mascotte, non si può cambiare: nessuna impostazione e nessun mod la ridisegnano.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#testata">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="scrittura" aria-labelledby="t-scrittura">
+        <p class="voce__data">In corso</p>
+        <div class="voce__corpo">
+          <h3 id="t-scrittura"><a href="#scrittura">I testi che scrivi con Claude suonano tuoi</a></h3>
+          <p class="voce__stato">La skill <code>humanizer</code> è su dev ed esce con il prossimo rilascio.</p>
+          <p>Strato: Metodo.</p>
+          <p>Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti inventati, chiuse a effetto, elenchi di tre, parole gonfie. La skill <code>humanizer</code> li toglie senza cambiare cosa dice il testo, e segue il tuo modo di scrivere. È l'adattamento italiano di un progetto open source di blader, e prende il posto del catalogo dei tic che Arturo aveva dentro la skill dell'italiano semplificato.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#scrittura">Commenta questa voce</a></p>
         </div>
       </article>
 
@@ -235,6 +260,7 @@ ul,ol{margin:0;padding:0}
         <div class="voce__corpo">
           <h3 id="t-segnalazioni"><a href="#segnalazioni">Le vostre segnalazioni</a></h3>
           <p class="voce__stato">Tre correzioni escono con il prossimo rilascio.</p>
+          <p>Strato: Misura.</p>
           <p>Ogni <code>/segnala</code> e ogni messaggio dal sito diventa un compito. Qui stanno quelli ancora aperti: comandi che si fermano, testi poco chiari, passi di installazione che non tornano.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#segnalazioni">Commenta questa voce</a></p>
         </div>
@@ -249,20 +275,47 @@ ul,ol{margin:0;padding:0}
     <h2 class="sezione__titolo" id="s-prossimo">Prossimo<span>Versione 0.4. Parte quando finisce quello di adesso.</span></h2>
     <div class="voci">
 
-      <article class="voce" id="firma" aria-labelledby="t-firma">
-        <p class="voce__data">Da fare, dopo il plugin</p>
+      <article class="voce" id="scoperta" aria-labelledby="t-scoperta">
+        <p class="voce__data">In corso</p>
         <div class="voce__corpo">
-          <h3 id="t-firma"><a href="#firma">Aggiornamenti firmati anche con il plugin</a></h3>
-          <p>Oggi Arturo si aggiorna da solo, ma installa soltanto i rilasci firmati da chi lo mantiene. Con il plugin la firma deve valere allo stesso modo: il plugin punta a un rilascio firmato, l'aggiornamento controlla la firma, e il controllo della configurazione confronta i file con un elenco firmato.</p>
-          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#firma">Commenta questa voce</a></p>
+          <h3 id="t-scoperta"><a href="#scoperta">Arturo ti propone cosa automatizzare</a></h3>
+          <p class="voce__stato">La prima versione è pronta sul ramo di sviluppo <code>dev</code> ed esce col prossimo rilascio. Comprende il comando <code>arturo scoperta</code>, l'indice che si aggiorna dopo ogni modifica, l'impronta dei file presa da <code>/inizio</code> e la proposta che arriva con <code>/fine</code>. Per ora non manda niente alla telemetria: i conteggi partiranno solo quando sarà pubblicato il testo nuovo sulla privacy.</p>
+          <p>Strato: Scoperta.</p>
+          <p>Claude Code tiene già una copia di ogni versione dei file che modifichi con lui. Arturo le legge e cerca le ripetizioni: lo stesso file cambiato a intervalli regolari, gli stessi campi riscritti, gruppi di file toccati insieme. A fine lavoro, in <code>/fine</code>, ti propone un'automazione con le prove: le date, le modifiche, una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza diventa una skill o una routine, che puoi sempre annullare; se dici no, la stessa proposta non torna. Le versioni dei file e le bozze restano sul tuo computer: alla telemetria arriveranno solo i conteggi delle proposte fatte, accettate e annullate, dopo il testo nuovo della privacy.</p>
+          <p>La Scoperta legge anche l'indice delle tue chat, se l'hai fatto con <code>/setup</code>: un lavoro con almeno cinque conversazioni in chat, la prima e l'ultima in due mesi diversi, diventa una proposta senza aspettare che tu lo ripeta in Claude Code. Le proposte hanno tre forme: un'automazione, come nella prima versione; una sintesi, cioè un documento che raccoglie un lavoro lungo; oppure una pagina web locale, da un modello di mestiere, di solito quello della tua famiglia. Per esempio una lezione interattiva per chi insegna, un simulatore di spesa per chi produce eventi o un calendario editoriale per chi scrive una newsletter (<a href="https://github.com/stellakamikaze/arturo/blob/main/docs/mestieri.md">I mestieri della conoscenza</a>). <code>arturo scoperta mappa</code> ti dice per ogni progetto cosa Arturo può proporti e in che forma.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#scoperta">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="storico" aria-labelledby="t-storico">
+        <p class="voce__data">In corso</p>
+        <div class="voce__corpo">
+          <h3 id="t-storico"><a href="#storico">Arturo parte da quello che hai già fatto con l'IA</a></h3>
+          <p class="voce__stato">Su un ramo di sviluppo ci sono <code>arturo storico</code>, la fase 2a di <code>/setup</code> e il testo nuovo della privacy, approvato il 15/11. Restano la prova su un'esportazione vera e la verifica dei percorsi delle impostazioni nei tre servizi.</p>
+          <p>Strato: Ingresso, con la Memoria.</p>
+          <p>Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Gemini. Scarichi l'esportazione delle tue conversazioni e Arturo la legge: divide le conversazioni e le raggruppa per lavoro, insieme ai file che ci avevi caricato, quando l'esportazione li contiene. Il lavoro pesante lo fa uno script sul tuo computer, senza modello: a Claude arriva l'indice dei lavori, non le chat intere. Sul tuo computer resta solo l'indice che approvi, lavoro per lavoro: titolo, periodo, temi e materiali collegati. Il testo delle chat non resta, e l'indice si cancella con un comando. <code>/inizio</code> e la memoria lo usano da lì in poi.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#storico">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="intervista" aria-labelledby="t-intervista">
+        <p class="voce__data">In corso</p>
+        <div class="voce__corpo">
+          <h3 id="t-intervista"><a href="#intervista">L'intervista che continua</a></h3>
+          <p class="voce__stato">Su un ramo di sviluppo ci sono <code>arturo intervista</code>, la domanda in <code>/inizio</code> e le domande per famiglia in <a href="https://github.com/stellakamikaze/arturo/blob/main/docs/mestieri.md">I mestieri della conoscenza</a>. Per ora dura sei settimane dopo <code>/setup</code>, ma la durata è ancora fra le voci da decidere.</p>
+          <p>Strato: Metodo, con la Memoria.</p>
+          <p><code>/setup</code> ti intervista una volta. Dopo, <code>/inizio</code> ti fa al massimo una domanda al giorno su quello che Arturo non sa ancora del tuo lavoro, per esempio per chi lo fai. Le domande cambiano col mestiere (<a href="https://github.com/stellakamikaze/arturo/blob/main/docs/mestieri.md">I mestieri della conoscenza</a>). La risposta entra nella memoria solo col tuo sì, e <code>arturo intervista spegni</code> ferma le domande.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#intervista">Commenta questa voce</a></p>
         </div>
       </article>
 
       <article class="voce" id="passaggio" aria-labelledby="t-passaggio">
-        <p class="voce__data">Da fare, dopo la firma</p>
+        <p class="voce__data">Pronto</p>
         <div class="voce__corpo">
           <h3 id="t-passaggio"><a href="#passaggio">Il passaggio al plugin per chi usa già Arturo</a></h3>
-          <p>Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Parte solo dopo una decisione esplicita di chi mantiene Arturo.</p>
+          <p class="voce__stato">Il comando è <code>arturo migra</code>. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Chi mantiene Arturo decide quando chiederlo a tutti.</p>
+          <p>Strato: Ingresso.</p>
+          <p>Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#passaggio">Commenta questa voce</a></p>
         </div>
       </article>
@@ -272,16 +325,18 @@ ul,ol{margin:0;padding:0}
         <div class="voce__corpo">
           <h3 id="t-telemetria"><a href="#telemetria">Dove Arturo si blocca, detto dai numeri</a></h3>
           <p class="voce__stato">Le prime due fasi sono uscite.</p>
+          <p>Strato: Misura.</p>
           <p>La telemetria manda solo eventi: quale comando, quale guardia, quanto dura una sessione. Mai i tuoi testi, i tuoi file o le risposte di Claude. Le fasi che restano misurano dove le persone si fermano, e servono a migliorare Arturo. L'ultima fase parte solo dopo un parere legale sulla privacy.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#telemetria">Commenta questa voce</a></p>
         </div>
       </article>
 
       <article class="voce" id="ruoli" aria-labelledby="t-ruoli">
-        <p class="voce__data">Da fare</p>
+        <p class="voce__data">In corso</p>
         <div class="voce__corpo">
           <h3 id="t-ruoli"><a href="#ruoli">Assistenti per ruolo: posta, agenda, archivio</a></h3>
-          <p class="voce__stato">La prima parte, che trova i tuoi strumenti collegati, è uscita.</p>
+          <p class="voce__stato">È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali.</p>
+          <p>Strato: Collegamenti.</p>
           <p>Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva per urgenza, la posta, l'agenda, l'archivio dei documenti, e un osservatore che ti propone cosa delegare. Ogni skill ha una versione generica, e tu la adatti nella tua parte personale.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#ruoli">Commenta questa voce</a></p>
         </div>
@@ -300,17 +355,42 @@ ul,ol{margin:0;padding:0}
         <p class="voce__data">Da fare, dopo il passaggio dei primi utenti</p>
         <div class="voce__corpo">
           <h3 id="t-autore"><a href="#autore">Chi mantiene Arturo lo usa come voi</a></h3>
+          <p>Strato: Orsa.</p>
           <p>Oggi Arturo nasce dalla configurazione personale di chi lo mantiene. Dopo il plugin il verso si rovescia: anche quella configurazione diventa Arturo più una parte personale, come la vostra.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#autore">Commenta questa voce</a></p>
         </div>
       </article>
 
       <article class="voce" id="documentazione" aria-labelledby="t-documentazione">
-        <p class="voce__data">Da fare</p>
+        <p class="voce__data">In corso</p>
         <div class="voce__corpo">
           <h3 id="t-documentazione"><a href="#documentazione">Sito e documentazione</a></h3>
-          <p>Il README si apre con lo schema degli strati, e un capitolo spiega come estendere Arturo senza copiarlo. Il sito racconta il plugin. Il criterio: una persona nuova installa Arturo da una macchina pulita seguendo solo la documentazione.</p>
+          <p class="voce__stato">Il README è riordinato, e <code>docs/strati.md</code> descrive i due assi per chi sviluppa Arturo. Restano il sito e la prova da una macchina pulita.</p>
+          <p>Strato: Ingresso.</p>
+          <p>Il README parte da cosa fa Arturo, e <code>docs/strati.md</code> spiega come estendere una skill senza copiarla. Resta il sito, che deve raccontare il plugin. Il lavoro è finito quando una persona nuova installa Arturo su una macchina pulita seguendo solo la documentazione.</p>
+          <p>I mestieri della conoscenza (<code>docs/mestieri.md</code>) danno al racconto gli esempi, famiglia per famiglia, e il README racconta la strada dalla chat al terminale.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#documentazione">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="contesto" aria-labelledby="t-contesto">
+        <p class="voce__data">In corso</p>
+        <div class="voce__corpo">
+          <h3 id="t-contesto"><a href="#contesto">Esportare un progetto e limitare cosa Claude legge</a></h3>
+          <p class="voce__stato">Su un ramo di sviluppo ci sono <code>arturo fascicolo esporta</code> e <code>arturo fascicolo importa</code>. Come limitare cosa Claude legge aspetta una decisione.</p>
+          <p>Strato: Memoria, con la Protezione.</p>
+          <p>Il modello gira sui server dell'azienda che lo vende, ma la memoria di Arturo sta sul tuo computer, in file di testo accanto ai tuoi materiali. Per questo un progetto si può copiare e passare a qualcun altro. Questa voce aggiunge due comandi. <code>arturo fascicolo esporta</code> copia il contesto di un progetto in una cartella di file di testo, e un collega con Arturo la importa con <code>arturo fascicolo importa</code>. I file <code>.md</code> della stessa cartella si caricano in un progetto di ChatGPT o di Claude.ai. Un file con un possibile segreto resta fuori, e i testi che arrivano da un'altra persona passano dai controlli di <code>arturo fascicolo importa</code> prima di entrare nella memoria. L'ultima parte è un limite a cosa Claude legge: cartelle escluse dalla lettura, e un avviso prima di aprire un file che hai segnato come riservato.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#contesto">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="spazi" aria-labelledby="t-spazi">
+        <p class="voce__data">Pronto per il prossimo rilascio</p>
+        <div class="voce__corpo">
+          <h3 id="t-spazi"><a href="#spazi">Arturo ti propone uno spazio quando ti serve</a></h3>
+          <p>Strato: Orsa, con l'Ingresso.</p>
+          <p>Arturo ti propone uno spazio quando vede un segnale nel tuo lavoro, una volta sola e dicendoti quale segnale ha visto. Arturo ti suggerisce Melchior quando la memoria è spenta e hai almeno 15 handoff o un CLAUDE.md di almeno 250 righe, perché la memoria tiene le decisioni, gli errori già visti e le preferenze in note piccole, e porta in ogni sessione solo quelle che servono al lavoro di quel giorno. Ti propone di spostare nell'Orsa una correzione che hai fatto in tre sessioni diverse, perché lì gli aggiornamenti non la toccano. Nell'Orsa entra anche un nome tuo per Arturo, con <code>arturo nome</code>. Volta, la finestra simile alla chat, resta una prova di chi mantiene Arturo e non fa parte di questa voce.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#spazi">Commenta questa voce</a></p>
         </div>
       </article>
 
@@ -318,7 +398,8 @@ ul,ol{margin:0;padding:0}
         <p class="voce__data">Fermo, aspetta una decisione</p>
         <div class="voce__corpo">
           <h3 id="t-viste"><a href="#viste">Le viste dei tuoi compiti</a></h3>
-          <p>I tuoi compiti hanno già un archivio, un comando e una pagina locale. Restano da scegliere la vista dei progetti e il pannello dentro Claude Code.</p>
+          <p>Strato: Memoria.</p>
+          <p>I tuoi compiti hanno già un archivio, un comando e una pagina locale. Un compito può aspettarne un altro fin da quando nasce, e ogni progetto ha una riga che dice a che punto è. Restano da scegliere la vista dei progetti e il pannello dentro Claude Code.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#viste">Commenta questa voce</a></p>
         </div>
       </article>
@@ -327,6 +408,7 @@ ul,ol{margin:0;padding:0}
         <p class="voce__data">Rinviato</p>
         <div class="voce__corpo">
           <h3 id="t-organizzazioni"><a href="#organizzazioni">Arturo per le organizzazioni</a></h3>
+          <p>Strato: Orsa.</p>
           <p>Uno strato sopra Arturo, curato da una persona di riferimento: le skill del mestiere, la voce e le regole di scrittura, i collegamenti agli strumenti dell'organizzazione. È stato progettato e poi rinviato il 16 ottobre 2026, per finire prima il plugin.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#organizzazioni">Commenta questa voce</a></p>
         </div>
@@ -341,7 +423,7 @@ ul,ol{margin:0;padding:0}
     <h2 class="sezione__titolo" id="s-da-decidere">Da decidere<span>Aspettano una scelta di chi mantiene Arturo.</span></h2>
     <div class="elenco">
       <p>Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato parte dopo.</p>
-      <ul><li>Su quale Mac e con quale account fare la prova del plugin da zero. </li><li>Quando far partire il passaggio al plugin per chi usa già Arturo. </li><li>Quale vista dei progetti tenere, e se tenere la pagina <code>/dafare</code>. </li><li>Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". </li></ul>
+      <ul><li>Su quale Mac e con quale account fare la prova del plugin da zero. </li><li>Quando far partire il passaggio al plugin per chi usa già Arturo. </li><li>Quale vista dei progetti tenere, e se tenere la pagina <code>/dafare</code>. </li><li>Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". </li><li>Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). </li><li>Per quanto tempo continua l'intervista dopo <code>/setup</code>: oggi sei settimane, una domanda al giorno al massimo (voce "L'intervista che continua"). </li><li>Se i segnali di oggi per Melchior e l'Orsa sono quelli giusti, e con quali soglie (voce "Arturo ti propone uno spazio quando ti serve"). </li></ul>
     </div>
   </div>
 </section>
@@ -350,7 +432,7 @@ ul,ol{margin:0;padding:0}
   <div class="dentro">
     <h2 class="sezione__titolo" id="s-uscito-di-recente">Uscito di recente<span>Le ultime versioni, raccontate in Novità.</span></h2>
     <div class="elenco">
-      <ul><li>3 novembre 2026, versione 0.2.0: Arturo ha un numero di versione, la sessione si rinnova da sola a ogni passo finito, una riga di Arturo all'avvio, e in modalità auto un comando parte al primo colpo.</li><li>3 novembre 2026: la telemetria dice anche come usi Arturo, non solo quanto.</li><li>2 novembre 2026: <code>/inizio</code> capisce una frase, e un passo fermato diventa un comando per te.</li><li>1 novembre 2026: Arturo si installa incollando un link in Claude Code.</li><li>1 novembre 2026: le guardie chiudono i buchi trovati dalla revisione del 31 ottobre.</li><li>31 ottobre 2026: su Windows le guardie leggono il comando intero.</li><li>31 ottobre 2026: meno conferme sul tuo lavoro, le stesse guardie sui rischi veri.</li></ul>
+      <ul><li>6 novembre 2026, versione 0.2.6: col plugin vedi quando esce un rilascio nuovo, e hai tre comandi per mettere in ordine la tua copia dopo il passaggio.</li><li>5 novembre 2026, versione 0.2.5: Arturo si installa come plugin da rilasci firmati, e <code>arturo migra</code> porta al plugin chi ha già una copia.</li><li>3 novembre 2026, versione 0.2.0: Arturo ha un numero di versione, la sessione si rinnova da sola a ogni passo finito, una riga di Arturo all'avvio, e in modalità auto un comando parte al primo colpo.</li><li>3 novembre 2026: la telemetria dice anche come usi Arturo, non solo quanto.</li><li>2 novembre 2026: <code>/inizio</code> capisce una frase, e un passo fermato diventa un comando per te.</li><li>1 novembre 2026: Arturo si installa incollando un link in Claude Code.</li><li>1 novembre 2026: le guardie chiudono i buchi trovati dalla revisione del 31 ottobre.</li><li>31 ottobre 2026: su Windows le guardie leggono il comando intero.</li><li>31 ottobre 2026: meno conferme sul tuo lavoro, le stesse guardie sui rischi veri.</li></ul>
     </div>
   </div>
 </section>

@@ -14,6 +14,16 @@ Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un
 
 Il primo caso d'uso è il lavoro sui testi e sulle informazioni che hai già nelle cartelle: Claude Code rivede una bozza o riassume le trascrizioni di una riunione leggendole dal file, senza che tu le incolli. Il secondo è costruire piccoli strumenti per un caso preciso senza saper programmare: il codice lo scrive Claude Code, tu descrivi che cosa deve fare.
 
+Il lavoro della conoscenza si divide in sei famiglie di mestieri: la parola (giornalismo, pubblicità, editoria), l'immagine (art direction, fotografia, grafica), l'insegnamento e la ricerca, la produzione e l'organizzazione (eventi, festival, cultura), la consulenza e l'analisi, l'archivio e la cura. Per ognuna, materiali, lavori che tornano e cosa fa Arturo: https://arturo.stellakamikaze.org/mestieri/
+
+## Di chi è ogni parte
+
+Il modello è dell'azienda che lo vende (Anthropic per Claude), e Claude Code è il suo programma a pagamento. Arturo sta sopra, uguale per tutti, e si aggiorna da solo solo coi rilasci firmati. Sopra ancora c'è l'Orsa, la parte della configurazione che è della persona: il suo CLAUDE.md, le sue skill, le regole sul suo modo di scrivere. Nessun aggiornamento la tocca. I file, gli appunti e le note della memoria (Melchior, accesa di default) restano sul computer della persona.
+
+## Nella prossima versione
+
+Già pronti sul ramo di sviluppo, escono col prossimo rilascio: l'indice dei lavori ricavato dall'esportazione delle chat di ChatGPT, Claude.ai o Gemini (resta solo l'indice approvato, mai il testo delle chat); l'intervista che continua, al massimo una domanda al giorno nelle prime sei settimane; il fascicolo di un progetto da passare a un collega (`arturo fascicolo`); la Scoperta che propone anche sintesi e pagine web locali per mestiere, e `arturo scoperta mappa`; le proposte dell'Orsa e di Melchior quando Arturo vede un segnale; il nome scelto per Arturo (`arturo nome`).
+
 ## Perché il terminale, anche se non scrivi codice
 
 Versione intera con le fonti: https://arturo.stellakamikaze.org/claude-code-senza-terminale/#perche
@@ -109,7 +119,7 @@ Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito h
 - [La guida](https://arturo.stellakamikaze.org/installa/): l'installazione in cinque passi, per Mac e Windows, con la strada a mano
 - [Novità di Arturo](https://arturo.stellakamikaze.org/novita/): cosa cambia a ogni aggiornamento, la voce più recente in cima
 - [La strada di Arturo](https://arturo.stellakamikaze.org/roadmap/): la roadmap, su cosa si lavora adesso e dopo, con i commenti di chi lo usa
-- [Volta, la finestra di Arturo](https://arturo.stellakamikaze.org/finestra/): la finestra di Arturo nata da Herdr, in prova, con i progetti, la conversazione con Claude e le cose da fare in una finestra sola
+- [I mestieri della conoscenza](https://arturo.stellakamikaze.org/mestieri/): sei famiglie di mestieri, e per ognuna cosa fa Arturo oggi e nella prossima versione
 - [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
 - [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
 - [Privacy](https://arturo.stellakamikaze.org/privacy/): cosa raccolgono il sito, il modulo di feedback e la telemetria di Arturo
