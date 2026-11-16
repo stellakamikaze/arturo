@@ -535,6 +535,8 @@ COMANDI = {
     "storico": ("storico", "lo storico delle chat che avevi prima di Arturo, come indice dei lavori: leggi, approva, copia, mostra, togli, cancella, sincronizza"),
     "memoria": ("memoria", "la memoria dei progetti, accesa di default: senza parole dice cosa ricorda; stato, accendi, spegni, cerca, controlla, scheda, nota, togli, igiene"),
     "intervista": ("intervista", "l'intervista che continua dopo /setup, una domanda al giorno da /inizio: stato, proponi, risposta, salta, famiglia, spegni, accendi"),
+    "spazi": ("spazi", "gli spazi che Arturo ti propone quando vede un segnale (Volta, Melchior, l'Orsa), una volta sola: stato, proponi, si, no, spegni, accendi"),
+    "nome": ("nome", "il nome con cui chiami Arturo, nell'avvio e nei testi: senza parole dice quello di oggi; NOME, togli"),
     "fascicolo": ("fascicolo", "il contesto di un progetto in una cartella di file di testo, per un collega o un'altra IA: esporta, importa (con le guardie sui testi altrui)"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
     "progetti": ("progetti", "tutti i progetti che segui, letti dalla memoria che c'è già: cartelle, handoff, stato, fonte dei task (Volta)"),

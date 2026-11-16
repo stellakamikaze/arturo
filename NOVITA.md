@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-16 — Arturo ti propone uno spazio, e Claude può presentarsi col nome che scegli
+
+**Cosa cambia**: Arturo ha tre spazi, cioè parti che si accendono o si riempiono a parte: l'Orsa, il tuo CLAUDE.md; Melchior, la memoria; Volta, una finestra simile alla chat. Quando nel tuo lavoro vede un segnale, `/inizio` ti propone lo spazio che ti manca e ti dice quale segnale ha visto. Se hai corretto la stessa cosa in tre sessioni diverse, ti propone di scrivere la regola nel tuo CLAUDE.md, cioè nell'Orsa, dove vale sempre e gli aggiornamenti non la toccano. Se la memoria è spenta e hai almeno 15 handoff, o un CLAUDE.md di almeno 250 righe, ti propone di accendere Melchior. Volta non è ancora in Arturo: quando entrerà, `/inizio` la proporrà allo stesso modo a chi scrive spesso a Claude che il terminale lo mette in difficoltà. Ogni spazio te lo propone una volta sola, al massimo uno a settimana. Se rispondi **no** quello spazio non torna, e `arturo spazi spegni` ferma tutte le proposte. Poi c'è `arturo nome`: con `arturo nome Bruno` Claude si presenta come Bruno in ogni sessione. Comandi e file restano quelli di Arturo. Cosa legge e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Gli spazi che Arturo ti propone".
+
+**Il principio**: una parte di Arturo che non usi ancora te la propone Arturo, quando nel tuo lavoro c'è un segnale che si può contare, e ti mostra il segnale così puoi verificarlo. Se dici no, la proposta non torna.
+
+**A chi serve**: a chi corregge Claude sempre sulla stessa cosa, a chi ha spento la memoria e ha accumulato molti handoff, a chi vuole che Claude si presenti con un altro nome.
+
+---
+
 ## 2026-11-15 — Passare un progetto a un collega
 
 **Cosa cambia**: `arturo fascicolo esporta <progetto>` mette il contesto di un progetto in una cartella di file di testo: la scheda, le note della memoria, lo stato coi todo aperti, i lavori dello storico che scegli e i materiali di testo che indichi. Un file con un possibile segreto, come una password, resta fuori, e le note che parlano di te non escono. Il collega lo importa con `arturo fascicolo importa <cartella>`. Entra solo quello che l'elenco del fascicolo prevede, e Arturo rifiuta un file con un segreto o con un'istruzione nascosta. Niente sovrascrive i file del collega, e ogni nota porta in testa chi l'ha scritta. I file `.md` della cartella si caricano anche in un progetto di Claude.ai o di ChatGPT. Come funziona: [`docs/memoria.md`](docs/memoria.md), sezione "Passare un progetto a un collega".

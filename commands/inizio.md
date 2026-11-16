@@ -173,6 +173,10 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   Arturo non sa ancora del lavoro della persona: cosa fa, per chi, come. Le domande stanno in
   `~/.claude/docs/mestieri.md`, per famiglia di mestiere. Manca in rotazione, a memoria spenta, a intervista spenta
   o se oggi una domanda c'è già stata.
+- `SPAZIO`: nei giorni senza domanda dell'intervista, al massimo una proposta a settimana di uno spazio,
+  col segnale che l'ha fatta nascere: Volta se la persona fatica col terminale, Melchior se la memoria è
+  spenta e il lavoro cresce, l'Orsa se corregge la stessa cosa in più sessioni. Ogni spazio si propone una
+  volta sola. Manca in rotazione e a proposte spente.
 
 Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
@@ -376,6 +380,10 @@ Perché è fatta così:
 - **La domanda dell'intervista.** [solo se la FASE 1 stampa `INTERVISTA`] prima della riga di risposta
   metti una riga: "Una domanda per conoscerti meglio: <domanda>", e sotto "Rispondi quando vuoi, oppure
   **salta**". La domanda non ferma il lavoro: con un compito parti lo stesso.
+- **La proposta di uno spazio.** [solo se la FASE 1 stampa `SPAZIO`] prima della riga di risposta metti
+  due righe con parole tue: cosa hai visto (il "perché" della riga, coi suoi numeri) e cosa proponi (la
+  "proposta"). Sotto: "Se ti va, scrivimi **sì**; se no, **no** e non te lo ripropongo". Anche la proposta
+  non ferma il lavoro.
 - **Il messaggio chiude senza menu**, con le parole di risposta in grassetto. La persona risponde a
   parole.
 
@@ -399,6 +407,15 @@ Perché è fatta così:
   `arturo intervista famiglia <1-6>`. Con **salta** lancia `arturo intervista salta <id>`. Con "basta
   domande" lancia `arturo intervista spegni`. Un no al salvataggio non salva niente, e la domanda può
   tornare un altro giorno.
+- **La risposta alla proposta di uno spazio.** Col sì esegui il passo della riga `col sì` di `SPAZIO`:
+  per Volta leggi la guida d'installazione che la riga indica e seguila; per Melchior accendi la memoria;
+  per l'Orsa scrivi la regola in una riga, mostrala e solo col suo sì sul testo aggiungila al suo
+  `CLAUDE.md`. Poi lancia `python3 ~/.claude/bin/arturo spazi si <spazio>`. Col no lancia
+  `arturo spazi no <spazio>`, con "basta proposte" `arturo spazi spegni`. Senza risposta non fare niente:
+  la proposta non torna comunque.
+- **Il nome.** Se la persona vuole chiamare Arturo in un altro modo ("chiamati Bruno"), lancia
+  `python3 ~/.claude/bin/arturo nome "<nome>"`: il nome sta nell'Orsa e l'avvio lo ripete a ogni sessione.
+  Da subito usalo quando parli di te.
 - **"qualcosa non torna".** Se la persona dice che Arturo o il progetto non funzionano come si
   aspetta, apri con Read `~/.claude/commands/diagnosi.md` e seguilo.
 
@@ -423,7 +440,8 @@ Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotaz
   conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
   anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
   L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
-  Nemmeno la domanda dell'intervista: in rotazione nessuno risponde, e `arturo contesto` non la stampa.
+  Nemmeno la domanda dell'intervista o la proposta di uno spazio: in rotazione nessuno risponde, e
+  `arturo contesto` non le stampa.
 - Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
 - `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
   brief pieno l'ha avuto lo step prima. Poi parti subito.

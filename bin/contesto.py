@@ -23,8 +23,9 @@ Se non risponde, la sezione dei todo mostra la tabella Task Pendenti dell'ultimo
 NON VERIFICATO: mai "nessuno" quando la fonte è giù.
 
 Exit: 0 contesto stampato · 2 NON TROVATO (né cartella, né handoff, né todo, né scheda; stampa i nomi
-simili) · 3 uso sbagliato. Non scrive niente: niente pull, niente mkdir, niente todo. L'unica eccezione è
-il segno della domanda dell'intervista (INTERVISTA, bin/intervista.py), fuori dalla rotazione.
+simili) · 3 uso sbagliato. Non scrive niente: niente pull, niente mkdir, niente todo. Le uniche eccezioni
+sono il segno della domanda dell'intervista (INTERVISTA, bin/intervista.py) e, nei giorni senza domanda, il
+segno della proposta di uno spazio (SPAZIO, bin/spazi.py), tutte e due fuori dalla rotazione.
 """
 from __future__ import annotations
 
@@ -570,6 +571,19 @@ def sezione_intervista() -> list:
         return []
 
 
+def sezione_spazio() -> list:
+    """La proposta di uno spazio (bin/spazi.py, #5711): Volta, Melchior o l'Orsa, una volta sola e col segnale
+    che l'ha fatta nascere. Mai in rotazione, e mai lo stesso giorno della domanda dell'intervista: una
+    richiesta sola per /inizio. Scrive il segno della proposta in data/spazi/stato.json. Una sua rottura non
+    ferma /inizio."""
+    try:
+        import spazi
+        s = spazi.proponi()
+        return ["", *spazi.righe_contesto(s)] if s else []
+    except Exception:
+        return []
+
+
 def compito_da(argv: list) -> tuple:
     """(compito, rotazione). Il compito sono le parole dopo " -- ". Se la prima è --rotazione, è la marca
     della rotazione automatica (3/11/2026: "/inizio <slug> -- --rotazione <compito>") e non fa parte del
@@ -678,7 +692,8 @@ def main(argv: list) -> int:
     else:
         righe += sezione_non_verificata(elenco, ir, errore)
     if not rotazione:
-        righe += sezione_intervista()
+        domanda = sezione_intervista()
+        righe += domanda or sezione_spazio()
     if avvisi:
         righe += ["", "AVVISI"] + [f"  Attenzione: {a}" for a in avvisi]
     righe += sezione_filoni(s, ir)
