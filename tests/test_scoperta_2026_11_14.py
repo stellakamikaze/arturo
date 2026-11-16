@@ -22,6 +22,9 @@ SC09 impronta e confronta: un file cambiato a mano entra in manuali.jsonl coi ca
      sparisce con la copia che usava solo lei.
 SC10 i collegamenti: settings.json registra l'hook su Edit e Write, bin/arturo ha il comando, /inizio
      prende l'impronta, /fine confronta sempre e propone solo fuori dal Modo rotazione.
+SC11 confronta con una sessione parallela: un CLAUDE.md scritto da un'altra sessione di Claude dopo
+     l'impronta non è una modifica a mano (segnalazione 77). Una riga dell'indice di un'altra sessione
+     di prima dell'impronta non nasconde la modifica a mano che viene dopo.
 
 Sulla base 31ee9e7 (dev prima della Scoperta) sono rossi tutti i casi: bin/scoperta.py non c'è. Con
 --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi che lo sorvegliano.
@@ -38,7 +41,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["SC01", "SC02", "SC03", "SC04", "SC05", "SC06", "SC07", "SC08", "SC09", "SC10"]
+CASI = ["SC01", "SC02", "SC03", "SC04", "SC05", "SC06", "SC07", "SC08", "SC09", "SC10", "SC11"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/scoperta-indice.py", "settings.json", "commands/fine.md",
             "commands/inizio.md"]
 VELENI = [
@@ -60,6 +63,8 @@ VELENI = [
      "    tenute = list(_righe(file_manuali))"),
     (["SC09"], "bin/scoperta.py", "    pulisci_impronte()\n", ""),
     (["SC10"], "commands/fine.md", "Fuori dal Modo rotazione lancia poi", "Lancia poi"),
+    (["SC11"], "bin/scoperta.py", 'toccati_da_claude(sessione, _ora(dati.get("ora")))', "toccati_da_claude(sessione)"),
+    (["SC11"], "bin/scoperta.py", "            if ora is not None and ora >= da:", "            if ora is not None:"),
 ]
 
 REPORT_0 = "# Report settimanale\n\n| Campo | Valore |\n|---|---|\n| Stato | verde |\n| Data | 1/9 |\n\nNote fisse.\n"
@@ -386,8 +391,40 @@ def sc10(lab: Lab) -> str:
     return ""
 
 
+def sc11(lab: Lab) -> str:
+    progetto = lab.home / "Documents" / "Sito"
+    progetto.mkdir(parents=True)
+    (progetto / "CLAUDE.md").write_text("# Sito\n\n## File\nuno\n", encoding="utf-8")
+    (progetto / "note.md").write_text("Stato: bozza\n", encoding="utf-8")
+    sid = "sessione-mano-02"
+    # Un'altra sessione ha toccato note.md ieri, prima di /inizio: la modifica a mano di oggi conta.
+    indice = lab.cl / "data" / "scoperta" / "indice.jsonl"
+    indice.parent.mkdir(parents=True, exist_ok=True)
+    ieri = (dt.datetime.now() - dt.timedelta(days=1)).isoformat(timespec="seconds")
+    indice.write_text(json.dumps({"ora": ieri, "sessione": "sessione-altra-00", "percorso": str(progetto / "note.md"),
+                                  "strumento": "Edit", "piu": 1, "meno": 1, "campi": ["stato"]}) + "\n", encoding="utf-8")
+    r = lab.lancia(str(lab.cl / "bin" / "arturo"), "scoperta", "impronta", "--cartella", str(progetto), sessione=sid)
+    if "impronta di 2 file" not in r.stdout:
+        return f"impronta: {r.stdout} {r.stderr}"
+    # Una sessione parallela chiude con /fine e riscrive il CLAUDE.md del progetto.
+    (progetto / "CLAUDE.md").write_text("# Sito\n\n## File\ndue\n", encoding="utf-8")
+    dati = {"session_id": "sessione-parallela-03", "tool_name": "Edit", "cwd": str(progetto),
+            "tool_input": {"file_path": str(progetto / "CLAUDE.md"), "old_string": "uno\n", "new_string": "due\n"}}
+    lab.lancia(str(lab.cl / "hooks" / "scoperta-indice.py"), entrata=json.dumps(dati))
+    (progetto / "note.md").write_text("Stato: rivista\n", encoding="utf-8")
+    lab.scoperta("confronta", sessione=sid)
+    manuali = lab.cl / "data" / "scoperta" / "manuali.jsonl"
+    righe = [json.loads(x) for x in manuali.read_text(encoding="utf-8").splitlines()] if manuali.exists() else []
+    percorsi = [os.path.basename(x["percorso"]) for x in righe]
+    if "CLAUDE.md" in percorsi:
+        return "il CLAUDE.md scritto da una sessione parallela è contato come modifica a mano"
+    if percorsi != ["note.md"]:
+        return f"modifiche a mano: {percorsi}"
+    return ""
+
+
 PROVE = {"SC01": sc01, "SC02": sc02, "SC03": sc03, "SC04": sc04, "SC05": sc05, "SC06": sc06, "SC07": sc07,
-         "SC08": sc08, "SC09": sc09, "SC10": sc10}
+         "SC08": sc08, "SC09": sc09, "SC10": sc10, "SC11": sc11}
 
 
 def prova(repo: Path) -> list:
