@@ -13,6 +13,26 @@ modo di lavorare.
 
 ---
 
+## 2026-11-16 — /fine salva todo e handoff anche col sandbox dei comandi acceso
+
+**Cosa cambia**: se hai acceso il sandbox dei comandi di Claude Code, `/fine` non si inceppa più quando salva un todo o scrive l'handoff. Il sandbox adesso lascia scrivere la cartella `~/.claude/data`, dove Arturo tiene todo, handoff e memoria. Il resto della config resta protetto. La coda di `/fine`, che fa commit e push della config, gira fuori dal sandbox, e `/fine` lo dice a Claude. Se il sandbox è spento non cambia niente. Nasce dalla segnalazione n. 81.
+
+**Il principio**: una protezione accesa dalla persona non deve rompere la chiusura della sessione. La scrittura si apre solo dove stanno i dati di lavoro, non dove sta il codice che gira.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
+
+---
+
+## 2026-11-16 — Da /dafare la sessione si apre in iTerm2, se lavori in iTerm2
+
+**Cosa cambia**: sul Mac il tasto **o** di `/dafare`, cioè `arturo sessione`, apriva la sessione nuova sempre in Terminale. Adesso la apre in iTerm2 se il comando parte da iTerm2, e in Terminale negli altri casi. Per scegliere a mano scrivi `ARTURO_TERMINALE=iterm` oppure `ARTURO_TERMINALE=terminal` nell'ambiente. Nasce dalla segnalazione n. 80.
+
+**Il principio**: la sessione nuova nasce nel terminale che usi già, non in un'app che non apri mai.
+
+**A chi serve**: a chi lavora in iTerm2 sul Mac.
+
+---
+
 ## 2026-11-16 — La tua voce sta nella tua Orsa
 
 **Cosa cambia**: i testi che firmi tu, come una lettera, un'email o un post, seguono la tua voce, scritta nel file `~/.claude/personale/humanizer.md` della tua Orsa. Le regole del metodo di Arturo sulle frasi corte restano per la chat e per i testi tecnici. Nessun'altra persona fa da modello di stile. Una nota di memoria che dice "scrivi come X" non si salva più con `arturo memoria nota`, e se Claude la scrive in un altro modo riceve un avviso. Le note di questo tipo che hai già te le mostra la pulizia settimanale della memoria dentro `/fine`, e si tolgono solo col tuo sì. Se il file della voce manca, la prima volta che Claude riscrive un testo che firmi ti chiede due o tre testi tuoi, ti mostra cosa ci trova (lunghezza delle frasi, connettivi, registro, cosa eviti) e scrive solo quello che confermi. Nasce dalla proposta n. 78.
