@@ -14,7 +14,7 @@ punto in mezzo, all'a capo dopo un trattino, al carattere invisibile, al cirilli
 Si controllano il contenuto e il percorso di ogni file del repository, e i messaggi dei commit
 dell'intervallo che si pubblica: per default i commit che nessun remoto conosce ancora.
 
-  python3 tests/igiene.py --repo . [--intervallo A..B]
+  python3 tests/igiene.py --repo . [--intervallo A..B] [--commit SHA]
   python3 tests/igiene.py --impronta < termine.txt     l'impronta di un termine nuovo, letto da stdin
 
 Un termine nuovo entra solo come impronta, in uno degli elenchi qui sotto: il termine in chiaro non va
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import subprocess
 import sys
@@ -67,6 +68,17 @@ GLOBALE = frozenset((
     "ce5d15cebdd978a2f8bd164613a609fca32c6e0161a83199c2162429a09790b8",
     "d307be7d14339b3cc82cdfce1a991e744551113c287c48501569d82b7a4a64e1",
     "ec8f69a31cf186ac13ebc131ed2c602c8af6b9270235b1329d7ca47e6e98e679",
+    # Review del 7/11/2026, finding 95, 96 e 105: le persone che usano Arturo, gli id delle loro installazioni,
+    # una macchina e un account dell'autore. Prima stavano in test, commenti e NOVITA.md.
+    "d63d71f407ad92113aa5b858936038d68e0fde0a7ed8b8a03a4fea2c2eab80d5",
+    "f51ab9d849938a4f1e88903912ccdc17090df2bd9a432adc6aab61ffaf325d82",
+    "8d0cfd6182ef851052565eb5c11e79f73c691307f7b6ddb877b4303cc726f260",
+    "f6a761f669dfeafd8086a367b336cbee496a1b13ac5128c8cb9346ca7891ccf3",
+    "9e22710e05fe6c6dde97788b248a88855912816408ff8beb48a275be3c4a4700",
+    "21b2b7a347077906259e043592a4b6458035575cd4b4539f00095d4d48522817",
+    "301da88d49fc5f4f6ce0dd63b7f9b840c50149a2b25b27b417638ebdecb78248",
+    "1a9f445a124c9e63a407e54ff13bc4c2cd05068d174e34eaec7ab1a06acc71ed",
+    "57dfab13dd843f3a29a4b8021866559a7b182e0d315ddec53e89a8ec597d8115",
 ))
 # Termini che, con le due parti staccate da uno spazio, sono un comando pubblico e lecito (una CLI col
 # suo sottocomando): contano solo uniti, anche da un punto, un trattino o un carattere invisibile.
@@ -162,8 +174,10 @@ def _git(repo: Path, *argomenti: str) -> bytes:
 
 
 def messaggi(repo: Path, intervallo: Optional[str]) -> List[Tuple[str, str]]:
-    """(commit, messaggio) dell'intervallo. Senza intervallo: i commit che nessun remoto conosce."""
-    selezione = [intervallo] if intervallo else ["HEAD", "--not", "--remotes"]
+    """(commit, messaggio) dell'intervallo. Senza intervallo: i commit che nessun remoto conosce.
+    L'intervallo può avere più revisioni separate da spazi: su GitHub `A..B ^origin/dev` toglie i commit
+    già controllati su dev, che davano un'email in più da main e da ogni ramo che unisce dev (10/11/2026)."""
+    selezione = intervallo.split() if intervallo else ["HEAD", "--not", "--remotes"]
     uscita = _git(repo, "log", "--format=%h%x00%B%x00", *selezione).decode("utf-8", "replace")
     parti = uscita.split("\0")
     return [(parti[k].strip(), parti[k + 1]) for k in range(0, len(parti) - 1, 2)]
@@ -178,19 +192,56 @@ def file_del_repository(repo: Path) -> List[str]:
     return sorted(p.relative_to(repo).as_posix() for p in repo.rglob("*") if p.is_file())
 
 
-def controlla(repo: Path, intervallo: Optional[str] = None, impronte: Iterable[str] = GLOBALE) -> List[str]:
-    """Contenuto e percorso dei file, e messaggi dei commit dell'intervallo (solo in un repository git)."""
+def file_del_commit(repo: Path, commit: str) -> List[Tuple[str, bytes]]:
+    """(percorso, contenuto) di ogni file del commit, letti da git e non dalla cartella di lavoro: l'hook
+    pre-push controlla ciò che parte, e un file non salvato non dà un falso rosso (10/11/2026)."""
+    elenco = _git(repo, "ls-tree", "-r", "-z", commit).decode("utf-8", "replace")
+    voci = []
+    for riga in elenco.split("\0"):
+        if not riga:
+            continue
+        testa, nome = riga.split("\t", 1)
+        _, tipo, oggetto = testa.split()
+        if tipo == "blob":
+            voci.append((nome, oggetto))
+    if not voci:
+        return []
+    uscita = subprocess.run(["git", "-C", str(repo), "cat-file", "--batch"],
+                            input="".join(f"{o}\n" for _, o in voci).encode(), capture_output=True, check=True,
+                            timeout=120).stdout
+    fuori, pos = [], 0
+    for nome, _ in voci:
+        fine_testa = uscita.index(b"\n", pos)
+        dimensione = int(uscita[pos:fine_testa].split()[2])
+        inizio = fine_testa + 1
+        fuori.append((nome, uscita[inizio:inizio + dimensione]))
+        pos = inizio + dimensione + 1
+    return fuori
+
+
+def controlla(repo: Path, intervallo: Optional[str] = None, impronte: Iterable[str] = GLOBALE,
+              commit: Optional[str] = None) -> List[str]:
+    """Contenuto e percorso dei file, e messaggi dei commit dell'intervallo (solo in un repository git).
+    Con `commit` i file sono quelli del commit, non quelli della cartella di lavoro."""
     impronte = frozenset(impronte)
-    if intervallo and not (repo / ".git").exists():
+    if (intervallo or commit) and not (repo / ".git").exists():
         raise SystemExit(f"I03 igiene: {repo} non è un repository git, l'intervallo {intervallo} non si controlla")
+    if commit:
+        file = file_del_commit(repo, commit)
+    else:
+        file = [(nome, (repo / nome).read_bytes() if (repo / nome).is_file() else None)
+                for nome in file_del_repository(repo)]
     problemi = []
-    for nome in file_del_repository(repo):
+    for nome, dati in file:
         for _, h in trova(nome, impronte):
             problemi.append(f"percorso {nome} ({h})")
-        f = repo / nome
-        if not f.is_file():
+        if dati is None:
             continue
-        for riga, h in trova(f.read_text(encoding="utf-8", errors="replace"), impronte):
+        # Un file binario (un font, un'immagine) non porta testo: con i nomi brevi del 7/11/2026 i suoi byte letti
+        # come testo davano finestre per caso. Il suo percorso si controlla lo stesso.
+        if b"\0" in dati[:8192]:
+            continue
+        for riga, h in trova(dati.decode("utf-8", errors="replace"), impronte):
             problemi.append(f"{nome}:{riga} ({h})")
     for commit, testo in (messaggi(repo, intervallo) if (repo / ".git").exists() else []):
         for riga, h in trova(testo, impronte):
@@ -202,6 +253,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Igiene del repository pubblico (I03)")
     parser.add_argument("--repo", type=Path, default=Path("."))
     parser.add_argument("--intervallo", help="i commit da controllare, per esempio A..B; di default quelli non ancora su un remoto")
+    parser.add_argument("--commit", help="controlla i file di questo commit invece della cartella di lavoro (hook pre-push)")
     parser.add_argument("--impronta", action="store_true", help="stampa l'impronta del termine letto da stdin")
     args = parser.parse_args()
     for flusso in (sys.stdin, sys.stdout, sys.stderr):
@@ -212,7 +264,10 @@ def main() -> int:
     if args.impronta:
         print(impronta(sys.stdin.read().strip()))
         return 0
-    problemi = controlla(args.repo.resolve(), args.intervallo)
+    # Impronte in più, separate da virgole: le usano i test per provare l'hook con un termine inventato.
+    # Aggiungono soltanto, quindi il controllo può solo diventare più severo.
+    extra = {h.strip() for h in os.environ.get("ARTURO_IGIENE_IMPRONTE_EXTRA", "").split(",") if h.strip()}
+    problemi = controlla(args.repo.resolve(), args.intervallo, GLOBALE | extra, args.commit)
     if problemi:
         print("I03 igiene: nomi della config privata nel repository pubblico:\n  " + "\n  ".join(problemi), file=sys.stderr)
         return 1
