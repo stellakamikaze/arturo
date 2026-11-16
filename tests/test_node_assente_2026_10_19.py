@@ -65,7 +65,9 @@ def test_na01(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as t:
         radice = Path(t)
         home = casa_finta(repo, radice)
-        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice)}
+        # ARTURO_NODE_DIRS vuota: anche Homebrew e ~/.local/bin senza node, come su una macchina che non l'ha
+        # (dal 15/11/2026 il comando della barra cerca node anche lì, per il PATH minimo di ssh).
+        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice), "ARTURO_NODE_DIRS": ""}
         p = subprocess.run(["/bin/sh", "-c", comando_barra(repo)], input=ENTRATA, env=env,
                            capture_output=True, text=True, timeout=20)
         assert p.returncode == 0 and "node" in p.stdout, \

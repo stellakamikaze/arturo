@@ -55,11 +55,23 @@ modo di lavorare.
 
 ## 2026-11-15 — Per chi è Arturo, mestiere per mestiere
 
-**Cosa cambia**: il README ha una sezione nuova, "Per chi è", e c'è una pagina nuova, [`docs/mestieri.md`](docs/mestieri.md). Dividono il lavoro della conoscenza in sei famiglie di mestieri: la parola, l'immagine, l'insegnamento e la ricerca, la produzione, la consulenza, l'archivio e la cura. Per ognuna dicono cosa Claude fa già oggi, se glielo chiedi. La roadmap ha cinque voci nuove sulla strada che parte dalla chat: lo storico delle tue chat come punto di partenza, l'intervista che continua, l'esportazione di un progetto, gli spazi che Arturo ti propone (Volta, Melchior, l'Orsa) e le forme nuove della Scoperta. Le scelte ancora aperte stanno fra le voci da decidere.
+**Cosa cambia**: il README ha una sezione nuova, "Per chi è", e c'è una pagina nuova, [`docs/mestieri.md`](docs/mestieri.md). Dividono il lavoro della conoscenza in sei famiglie di mestieri: la parola, l'immagine, l'insegnamento e la ricerca, la produzione, la consulenza, l'archivio e la cura. Per ognuna dicono cosa Claude fa già oggi, se glielo chiedi. La roadmap ha cinque voci nuove sulla strada che parte dalla chat: lo storico delle tue chat come punto di partenza, l'intervista che continua, l'esportazione di un progetto, gli spazi che Arturo ti propone (Melchior e l'Orsa) e le forme nuove della Scoperta. Le scelte ancora aperte stanno fra le voci da decidere.
 
 **Il principio**: il racconto promette solo quello che Arturo fa oggi; il resto sta nella roadmap col suo stato.
 
 **A chi serve**: a chi vuole capire se Arturo fa per il suo mestiere, e a chi lo presenta a un collega.
+
+---
+
+## 2026-11-15 — La barra torna nelle sessioni aperte su un'altra macchina
+
+**Cosa cambia**: quando Volta apre una sessione di un altro computer, il comando nasce dalla connessione ssh, che
+non conosce le cartelle dove hai installato node. La barra con contesto e quota spariva, o diceva "manca node"
+anche con node installato. Adesso la barra cerca node anche nelle cartelle di Homebrew e in `~/.local/bin`.
+
+**Il principio**: un avviso che dice "manca" deve essere vero anche quando la sessione arriva da un'altra macchina.
+
+**A chi serve**: a chi apre da Volta le sessioni di un secondo computer.
 
 ---
 
