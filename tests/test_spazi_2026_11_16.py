@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """SP01-SP12: bin/spazi.py e bin/nome.py, la crescita con ordine (16/11/2026, Fase F1 e F3, #5711).
 
-La voce "Arturo ti propone uno spazio quando ti serve" (ROADMAP.md) promette: Arturo propone Volta, Melchior
-o l'Orsa quando vede un segnale nel lavoro, una volta sola e dicendo quale segnale ha visto; nell'Orsa entra
+La voce "Arturo ti propone uno spazio quando ti serve" (ROADMAP.md) promette: Arturo propone Melchior o
+l'Orsa quando vede un segnale nel lavoro, una volta sola e dicendo quale segnale ha visto; nell'Orsa entra
 un nome scelto dalla persona per Arturo, senza toccare i file di Arturo. Qui si provano su una HOME finta.
 
 SP01 la stessa correzione in tre sessioni propone l'Orsa, col numero di sessioni; in due sessioni tace.
 SP02 una volta sola: la correzione proposta non torna, anche ripetuta in una quarta sessione.
 SP03 una proposta a settimana: un secondo segnale il giorno dopo tace, dopo sette giorni esce.
 SP04 Melchior esce a memoria spenta con quindici handoff o un CLAUDE.md lungo; a memoria accesa tace.
-SP05 Volta esce con tre frasi di fatica in due sessioni, solo se Volta si installa da qui e Herdr non c'è.
+SP05 Volta non è uno spazio (resta una prova di chi mantiene Arturo, #5703): non si propone, "si volta" è
+     rifiutato e spazi.py non legge la cronologia delle conversazioni.
 SP06 tace spenta, con ARTURO_SPAZI=0 e senza /setup; accendi la riprende.
 SP07 arturo contesto stampa SPAZIO, ma non in rotazione e non il giorno della domanda dell'intervista.
 SP08 si e no scrivono la risposta, e lo stato non tiene il testo delle correzioni.
@@ -39,7 +40,7 @@ CORREZIONE = "Non usare il grassetto nelle email ai clienti, mai."
 SIMILE = "Mai il grassetto nelle email per i clienti."
 ALTRA = "Le date si scrivono per esteso, con il giorno della settimana."
 FATICA = ("Non capisco dove incollo il comando nel terminale", "come torno indietro? mi perdo nel terminale",
-          "dove scrivo la risposta?")
+          "dove scrivo la risposta?")  # le frasi che un tempo facevano proporre Volta: oggi non contano
 
 
 def giorno(n: int = 0) -> str:
@@ -92,16 +93,6 @@ class Banco:
 def _spazio(uscita: str) -> str:
     m = re.search(r"spazio: ([a-z]+) ·", uscita)
     return m.group(1) if m else ""
-
-
-def _con_volta(repo: Path) -> Path:
-    """Una copia del codice con l'installazione di Volta, come dopo F2 (#5703)."""
-    copia = Path(tempfile.mkdtemp(prefix="arturo-spazi-volta."))
-    for cartella in ("bin", "hooks", "docs"):
-        shutil.copytree(repo / cartella, copia / cartella)
-    (copia / "shared" / "volta").mkdir(parents=True)
-    (copia / "shared" / "volta" / "installa-herdr.sh").write_text("#!/bin/sh\n", encoding="utf-8")
-    return copia
 
 
 def test_sp01(b: Banco) -> None:
@@ -160,33 +151,17 @@ def test_sp04(b: Banco) -> None:
         f"SP04 un CLAUDE.md lungo a memoria spenta non propone Melchior: {r.stdout[-300:]}"
 
 
+
+
 def test_sp05(b: Banco) -> None:
     b.sessione("a", FATICA[:2])
     b.sessione("b", FATICA[2:])
-    senza = b.lancia("proponi", ARTURO_SPAZI_PIATTAFORMA="Darwin")
-    assert not _spazio(senza.stdout), f"SP05 Volta proposta senza la sua installazione: {senza.stdout[-200:]}"
-    copia = _con_volta(b.repo)
-    try:
-        linux = b.lancia("proponi", repo=copia, ARTURO_SPAZI_PIATTAFORMA="Linux")
-        assert not _spazio(linux.stdout), f"SP05 Volta proposta su Linux: {linux.stdout[-200:]}"
-        (b.home / "Applications" / "Herdr.app").mkdir(parents=True)
-        gia = b.lancia("proponi", repo=copia, ARTURO_SPAZI_PIATTAFORMA="Darwin")
-        assert not _spazio(gia.stdout), f"SP05 Volta proposta con Herdr già installato: {gia.stdout[-200:]}"
-        (b.home / "Applications" / "Herdr.app").rmdir()
-        r = b.lancia("proponi", repo=copia, ARTURO_SPAZI_PIATTAFORMA="Darwin")
-        assert _spazio(r.stdout) == "volta" and "3 volte" in r.stdout and "2 sessioni" in r.stdout \
-            and "setup-herdr.md" in r.stdout, f"SP05 tre frasi di fatica non propongono Volta: {r.stdout[-300:]}"
-    finally:
-        shutil.rmtree(copia, ignore_errors=True)
-    b.chiudi()
-    b.__init__(b.repo)
-    b.sessione("a", FATICA)
-    copia = _con_volta(b.repo)
-    try:
-        una = b.lancia("proponi", repo=copia, ARTURO_SPAZI_PIATTAFORMA="Darwin")
-        assert not _spazio(una.stdout), f"SP05 Volta proposta con una sessione sola: {una.stdout[-200:]}"
-    finally:
-        shutil.rmtree(copia, ignore_errors=True)
+    r = b.lancia("proponi")
+    assert not _spazio(r.stdout), f"SP05 Volta proposta come spazio: {r.stdout[-200:]}"
+    assert b.lancia("si", "volta").returncode == 3, "SP05 Volta accettata come spazio"
+    sorgente = (b.repo / "bin" / "spazi.py").read_text(encoding="utf-8")
+    assert '"projects"' not in sorgente and "jsonl" not in sorgente, \
+        "SP05 spazi.py legge la cronologia delle conversazioni"
 
 
 def test_sp06(b: Banco) -> None:
@@ -294,8 +269,8 @@ VELENI = (
      "stessa settimana"),
     ("SP04", [("bin/spazi.py", "    if memoria_accesa():\n        return None\n    radice", "    radice")],
      "memoria accesa"),
-    ("SP05", [("bin/spazi.py", "if trovate < SOGLIA_VOLTA or len(sessioni) < 2:", "if trovate < SOGLIA_VOLTA:")],
-     "sessione sola"),
+    ("SP05", [("bin/spazi.py", 'SPAZI = ("orsa", "melchior")', 'SPAZI = ("orsa", "melchior", "volta")')],
+     "accettata come spazio"),
     ("SP06", [("bin/spazi.py", "    if not setup_fatto():\n        return \"/setup non è ancora finito\"\n", "")],
      "devono tacere"),
     ("SP07", [("bin/contesto.py", "righe += domanda or sezione_spazio()",

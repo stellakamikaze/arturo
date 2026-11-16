@@ -53,7 +53,7 @@ In chat il modello e il contesto del tuo lavoro stanno nello stesso posto, sui s
 
 Per chi arriva dalla chat, la prossima voce della [roadmap](ROADMAP.md) è "Arturo parte da quello che hai già fatto con l'IA": Arturo leggerà l'esportazione delle tue chat e ne ricaverà un indice dei tuoi lavori. Sul computer resterà solo l'indice che approvi, lavoro per lavoro, e non il testo delle chat. Dopo viene la voce "L'intervista che continua": `/inizio` ti farà al massimo una domanda per sessione sul tuo lavoro. Nella voce "Arturo ti propone cosa automatizzare" è ancora da decidere se la Scoperta, oltre alle automazioni, proporrà anche sintesi e pagine web da condividere.
 
-Più avanti, la voce "Esportare un progetto e limitare cosa Claude legge" porta un comando per passare a un collega il contesto di un progetto, e la voce "Arturo ti propone uno spazio quando ti serve" porta Volta, una finestra simile alla chat per chi non vuole il terminale, che oggi sta su un ramo di prova. Melchior e l'Orsa ci sono già: la novità di questa seconda voce è che Arturo te li propone quando la memoria cresce o quando correggi spesso la stessa cosa. Lo stato di ognuna sta nella roadmap.
+Più avanti, la voce "Esportare un progetto e limitare cosa Claude legge" porta un comando per passare a un collega il contesto di un progetto, e la voce "Arturo ti propone uno spazio quando ti serve" porta le proposte di Melchior e dell'Orsa: Arturo te le fa quando la memoria è spenta e il lavoro cresce, o quando correggi spesso la stessa cosa. Lo stato di ognuna sta nella roadmap.
 
 ---
 

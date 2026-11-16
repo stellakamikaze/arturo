@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 """arturo spazi: Arturo propone uno spazio quando vede un segnale nel lavoro, una volta sola e col perché.
 
-  arturo spazi [stato] [--json]     i tre spazi: il segnale visto oggi, se è già stato proposto, la risposta
+  arturo spazi [stato] [--json]     i due spazi: il segnale visto oggi, se è già stato proposto, la risposta
   arturo spazi proponi [--json]     la proposta di oggi, se c'è, e la segna come fatta (arturo contesto)
   arturo spazi si SPAZIO            la persona ha detto sì: lo stato lo ricorda (il passo dopo lo fa Claude)
   arturo spazi no SPAZIO            la persona ha detto no: lo spazio non torna
   arturo spazi spegni | accendi     ferma o riprende le proposte
 
 Nasce il 16/11/2026 dalla voce "Arturo ti propone uno spazio quando ti serve" (ROADMAP.md, Fase F1 del piano
-della catena di prodotto, #5711). Gli spazi sono tre, e ognuno ha il suo segnale, contato in locale:
-- volta: la persona fatica col terminale. Negli ultimi GIORNI_VOLTA giorni ha scritto almeno SOGLIA_VOLTA
-  richieste, in almeno due sessioni, con frasi come "non capisco il terminale" o "dove incollo"
-  (FRASI_TERMINALE). Esce solo se Volta si può installare da qui (shared/volta/installa-herdr.sh nel codice
-  di Arturo, su un Mac con Apple Silicon o su Windows) e se Herdr non c'è già;
+della catena di prodotto, #5711). Gli spazi sono due, e ognuno ha il suo segnale, contato in locale:
 - melchior: la memoria è spenta e il lavoro cresce: almeno SOGLIA_HANDOFF handoff, oppure un CLAUDE.md di
   almeno SOGLIA_RIGHE righe. Melchior è la memoria di Arturo: ordina quello che oggi sta sparso e lo ritrova;
 - orsa: la persona corregge spesso lo stesso comportamento: la stessa correzione (arturo correzione) in
   almeno SOGLIA_ORSA sessioni diverse degli ultimi 14 giorni. Spostata nel CLAUDE.md, la regola sta
   nell'Orsa, dove gli aggiornamenti non la toccano, e vale in ogni sessione.
+Volta non è uno spazio di Arturo: resta una prova di chi mantiene Arturo (Federico, 16/11/2026, #5703).
 
 Una volta sola: uno spazio proposto non torna, qualunque sia la risposta. Per l'Orsa vale per ogni
 correzione: una correzione diversa che si ripete è una proposta nuova.
@@ -34,9 +31,7 @@ import argparse
 import datetime as dt
 import json
 import os
-import platform
 import re
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -47,12 +42,8 @@ sys.path.insert(0, str(QUI))
 sys.path.insert(0, str(QUI.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
 
-SPAZI = ("volta", "orsa", "melchior")  # l'ordine quando i segnali sono più di uno: prima chi blocca il lavoro
+SPAZI = ("orsa", "melchior")  # l'ordine quando i segnali sono più di uno: prima la correzione che torna
 INTERVALLO = 7          # giorni fra una proposta e la successiva
-GIORNI_VOLTA = 21
-SOGLIA_VOLTA = 3        # richieste con una frase di fatica, in almeno due sessioni
-SESSIONI_MASSIME = 80   # file di sessione letti al massimo, i più recenti
-TEMPO_MASSIMO = 1.5     # secondi: /inizio non aspetta oltre
 SOGLIA_HANDOFF = 15
 SOGLIA_RIGHE = 250
 SOGLIA_ORSA = 3
@@ -60,16 +51,6 @@ GIORNI_ORSA = 14
 SIMILI = 0.5            # quota di parole in comune perché due correzioni siano la stessa
 CODICE = QUI.parent
 
-# Frasi con cui una persona dice che il terminale le pesa. Si cercano nelle sue richieste, in minuscolo.
-FRASI_TERMINALE = [re.compile(p) for p in (
-    r"\bnon (?:so|capisco|trovo|riesco)\b[^.?!\n]{0,40}\b(?:terminale|shell|comando|comandi|incoll)",
-    r"\b(?:dove|come) (?:scrivo|incollo|clicco|lancio|apro|copio)\b",
-    r"\bterminale\b[^.?!\n]{0,30}\b(?:difficile|complicato|scomodo|mi spaventa|mi confonde|non mi piace)",
-    r"\b(?:odio|mi spaventa|mi confonde|mi perdo nel|ho paura del)\b[^.?!\n]{0,20}\bterminale\b",
-    r"\bpreferire[it] (?:la|una) (?:chat|finestra)\b",
-    r"\bcome (?:si )?(?:esce|torno indietro|scorro|vado a capo)\b",
-    r"\bnon vedo (?:niente|nulla|più niente|la risposta|il testo)\b",
-)]
 # Parole che non distinguono una correzione da un'altra.
 VUOTE = set("""alla alle allo agli anche ancora come con dalla dalle dagli dove fare fai fatto della delle dello
 degli nella nelle nello negli niente nulla ogni oppure per perché più poi prima dopo quando quella quelle quello
@@ -137,79 +118,6 @@ def spente(stato: dict) -> bool:
 def setup_fatto() -> bool:
     return (radice_orsa() / "data" / "setup-fatto").is_file()
 
-
-# --- Il segnale di Volta: la fatica col terminale -----------------------------------------------------
-
-def volta_installabile() -> bool:
-    if not (CODICE / "shared" / "volta" / "installa-herdr.sh").is_file():
-        return False  # Volta non è ancora nell'offerta di Arturo (#5703): niente da proporre
-    forzato = os.environ.get("ARTURO_SPAZI_PIATTAFORMA", "")  # solo per i banchi
-    sistema = forzato or platform.system()
-    if sistema == "Darwin":
-        return forzato == "Darwin" or platform.machine() == "arm64"
-    return sistema == "Windows"
-
-
-def herdr_installato() -> bool:
-    if os.environ.get("ARTURO_SPAZI_PIATTAFORMA"):
-        return (Path.home() / "Applications" / "Herdr.app").is_dir()
-    return bool(shutil.which("herdr-app")) or (Path.home() / "Applications" / "Herdr.app").is_dir()
-
-
-def _richieste(f: Path, scadenza: float) -> List[str]:
-    """Le frasi scritte dalla persona in una sessione, senza i promemoria (<...>)."""
-    fuori: List[str] = []
-    try:
-        with open(f, encoding="utf-8", errors="replace") as fh:
-            for riga in fh:
-                if '"user"' not in riga:
-                    continue
-                if time.monotonic() > scadenza:
-                    break
-                try:
-                    voce = json.loads(riga)
-                except ValueError:
-                    continue
-                if not isinstance(voce, dict) or voce.get("type") != "user":
-                    continue
-                messaggio = voce.get("message")
-                testo = messaggio.get("content") if isinstance(messaggio, dict) else None
-                if isinstance(testo, str) and testo.strip() and not testo.lstrip().startswith("<"):
-                    fuori.append(testo)
-    except OSError:
-        pass
-    return fuori
-
-
-def segnale_volta() -> Optional[dict]:
-    if not volta_installabile() or herdr_installato():
-        return None
-    radice = radice_orsa() / "projects"
-    limite = adesso() - GIORNI_VOLTA * 86400
-    try:
-        file = sorted(((f.stat().st_mtime, f) for f in radice.glob("*/*.jsonl")
-                       if f.is_file() and not f.is_symlink()), reverse=True)
-    except OSError:
-        return None
-    scadenza = time.monotonic() + TEMPO_MASSIMO
-    trovate, sessioni, esempio = 0, set(), ""
-    for quando, f in file[:SESSIONI_MASSIME]:
-        if quando < limite or time.monotonic() > scadenza:
-            break
-        for testo in _richieste(f, scadenza):
-            basso = testo.lower()
-            if any(p.search(basso) for p in FRASI_TERMINALE):
-                trovate += 1
-                sessioni.add(f.stem)
-                esempio = esempio or " ".join(testo.split())[:80]
-    if trovate < SOGLIA_VOLTA or len(sessioni) < 2:
-        return None
-    return {"spazio": "volta", "chiave": "volta",
-            "perche": f"negli ultimi {GIORNI_VOLTA} giorni hai scritto {trovate} volte, in {len(sessioni)} "
-                      f"sessioni, che il terminale ti mette in difficoltà (per esempio: \"{esempio}\")",
-            "proposta": "Volta, una finestra simile alla chat che lavora col terminale del tuo computer: "
-                        "a sinistra i progetti, al centro la conversazione, a destra i todo",
-            "con_il_si": f"leggi {CODICE / 'shared' / 'setup-herdr.md'} e segui l'installazione di Volta"}
 
 
 # --- Il segnale di Melchior: la memoria spenta e il lavoro che cresce ---------------------------------
@@ -330,8 +238,7 @@ def segnali(stato: dict) -> List[dict]:
     for spazio in SPAZI:
         if spazio != "orsa" and spazio in stato["proposte"]:
             continue
-        s = {"volta": segnale_volta, "melchior": segnale_melchior}.get(spazio)
-        segnale = segnale_orsa(stato) if spazio == "orsa" else s()
+        segnale = segnale_orsa(stato) if spazio == "orsa" else segnale_melchior()
         if segnale:
             fuori.append(segnale)
     return fuori
@@ -370,7 +277,7 @@ def comando_stato(come_json: bool) -> int:
     tace = perche_tace(stato)
     visti = {s["spazio"]: s["perche"] for s in segnali(stato)}
     dati = {"accese": not spente(stato), "tace": tace, "segnali": visti,
-            "proposte": stato["proposte"], "volta_installabile": volta_installabile()}
+            "proposte": stato["proposte"]}
     if come_json:
         print(json.dumps(dati, ensure_ascii=False))
         return 0
@@ -380,8 +287,6 @@ def comando_stato(come_json: bool) -> int:
         fatta = f"proposto il {p['data']}" + (f", risposta: {p['risposta']}" if p.get("risposta") else "") \
             if isinstance(p, dict) else "mai proposto"
         segnale = visti.get(spazio, "nessun segnale")
-        if spazio == "volta" and not dati["volta_installabile"]:
-            segnale = "Volta non si installa da qui"
         print(f"{spazio}: {fatta} · {segnale}")
     return 0
 

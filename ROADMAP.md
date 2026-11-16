@@ -180,13 +180,13 @@ Il modello gira sui server dell'azienda che lo vende, ma la memoria di Arturo st
 
 ### Arturo ti propone uno spazio quando ti serve {#spazi}
 
-Stato: in corso. Le proposte di Melchior e dell'Orsa e il nome sono pronti; Volta oggi sta su un ramo di prova.
+Stato: pronto per il prossimo rilascio.
 
 Strato: Orsa, con l'Ingresso.
 
-Arturo ti propone uno spazio quando vede un segnale nel tuo lavoro, una volta sola e dicendoti quale segnale ha visto. Se il terminale ti pesa, ti propone Volta, una finestra simile alla chat che lavora col terminale del tuo computer ([la finestra](https://arturo.stellakamikaze.org/finestra/)). Il segnale sono tre frasi in cui scrivi a Claude che il terminale ti mette in difficoltà, come "dove incollo" o "non capisco il comando", in almeno due sessioni delle ultime tre settimane. Melchior e l'Orsa ci sono già: Arturo ti suggerisce Melchior quando la memoria è spenta e hai almeno 15 handoff o un CLAUDE.md di almeno 250 righe, perché la memoria tiene le decisioni, gli errori già visti e le preferenze in note piccole, e porta in ogni sessione solo quelle che servono al lavoro di quel giorno. Ti propone di spostare nell'Orsa una correzione che hai fatto in tre sessioni diverse, perché lì gli aggiornamenti non la toccano. Nell'Orsa entra anche un nome tuo per Arturo, con `arturo nome`.
+Arturo ti propone uno spazio quando vede un segnale nel tuo lavoro, una volta sola e dicendoti quale segnale ha visto. Arturo ti suggerisce Melchior quando la memoria è spenta e hai almeno 15 handoff o un CLAUDE.md di almeno 250 righe, perché la memoria tiene le decisioni, gli errori già visti e le preferenze in note piccole, e porta in ogni sessione solo quelle che servono al lavoro di quel giorno. Ti propone di spostare nell'Orsa una correzione che hai fatto in tre sessioni diverse, perché lì gli aggiornamenti non la toccano. Nell'Orsa entra anche un nome tuo per Arturo, con `arturo nome`. Volta, la finestra simile alla chat, resta una prova di chi mantiene Arturo e non fa parte di questa voce.
 
-<!-- task: #5711 #5703 -->
+<!-- task: #5711 -->
 
 ### Le viste dei tuoi compiti {#viste}
 
@@ -219,8 +219,7 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Se la Scoperta, dopo le automazioni, propone anche sintesi e pagine web, e per quali mestieri. <!-- task: #5702 -->
 - Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
 - Per quanto tempo continua l'intervista dopo `/setup`: oggi sei settimane, una domanda al giorno al massimo (voce "L'intervista che continua"). <!-- task: #5709 -->
-- Se i segnali di oggi per Volta, Melchior e l'Orsa sono quelli giusti, e con quali soglie (voce "Arturo ti propone uno spazio quando ti serve"). <!-- task: #5711 -->
-- Quando Volta entra in Arturo per tutti: prima o dopo la prova con una persona esterna. <!-- task: #5703 -->
+- Se i segnali di oggi per Melchior e l'Orsa sono quelli giusti, e con quali soglie (voce "Arturo ti propone uno spazio quando ti serve"). <!-- task: #5711 -->
 
 ## Uscito di recente
 

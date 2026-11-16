@@ -174,8 +174,8 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   `~/.claude/docs/mestieri.md`, per famiglia di mestiere. Manca in rotazione, a memoria spenta, a intervista spenta
   o se oggi una domanda c'è già stata.
 - `SPAZIO`: nei giorni senza domanda dell'intervista, al massimo una proposta a settimana di uno spazio,
-  col segnale che l'ha fatta nascere: Volta se la persona fatica col terminale, Melchior se la memoria è
-  spenta e il lavoro cresce, l'Orsa se corregge la stessa cosa in più sessioni. Ogni spazio si propone una
+  col segnale che l'ha fatta nascere: Melchior se la memoria è spenta e il lavoro cresce, l'Orsa se
+  corregge la stessa cosa in più sessioni. Ogni spazio si propone una
   volta sola. Manca in rotazione e a proposte spente.
 
 Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
@@ -408,7 +408,7 @@ Perché è fatta così:
   domande" lancia `arturo intervista spegni`. Un no al salvataggio non salva niente, e la domanda può
   tornare un altro giorno.
 - **La risposta alla proposta di uno spazio.** Col sì esegui il passo della riga `col sì` di `SPAZIO`:
-  per Volta leggi la guida d'installazione che la riga indica e seguila; per Melchior accendi la memoria;
+  per Melchior accendi la memoria;
   per l'Orsa scrivi la regola in una riga, mostrala e solo col suo sì sul testo aggiungila al suo
   `CLAUDE.md`. Poi lancia `python3 ~/.claude/bin/arturo spazi si <spazio>`. Col no lancia
   `arturo spazi no <spazio>`, con "basta proposte" `arturo spazi spegni`. Senza risposta non fare niente:
