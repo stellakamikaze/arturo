@@ -120,6 +120,12 @@ Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito h
 - [Novità di Arturo](https://arturo.stellakamikaze.org/novita/): cosa cambia a ogni aggiornamento, la voce più recente in cima
 - [La strada di Arturo](https://arturo.stellakamikaze.org/roadmap/): la roadmap, su cosa si lavora adesso e dopo, con i commenti di chi lo usa
 - [I mestieri della conoscenza](https://arturo.stellakamikaze.org/mestieri/): sei famiglie di mestieri, e per ognuna cosa fa Arturo oggi e nella prossima versione
+- [Dalla chat al terminale](https://arturo.stellakamikaze.org/idee/recinto/): perché nel terminale l'IA esce dal recinto della chat
+- [Di chi è ogni parte](https://arturo.stellakamikaze.org/idee/strati/): il modello è di chi lo vende, il contesto del lavoro resta della persona
+- [Una briglia per Claude Code](https://arturo.stellakamikaze.org/idee/briglia/): cos'è un harness: guardie, ritmo, come è fatto Arturo
+- [Si parte da quello che hai già fatto](https://arturo.stellakamikaze.org/idee/storico/): l'indice dei lavori dall'esportazione delle chat, nella prossima versione
+- [Arturo ti propone cosa automatizzare](https://arturo.stellakamikaze.org/idee/proposte/): la Scoperta, l'intervista, sintesi e pagine
+- [Crescere con ordine](https://arturo.stellakamikaze.org/idee/orsa/): l'Orsa, Melchior e gli aggiornamenti che non toccano le tue aggiunte
 - [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
 - [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
 - [Privacy](https://arturo.stellakamikaze.org/privacy/): cosa raccolgono il sito, il modulo di feedback e la telemetria di Arturo

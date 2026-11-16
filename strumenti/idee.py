@@ -98,9 +98,10 @@ STILE = """
 .paper__dove{display:flex;flex-wrap:wrap;gap:8px 20px;margin:24px 0 0;font-size:.95rem;color:var(--grafite)}
 .paper__dove a{color:var(--inchiostro)}
 .paper{padding:clamp(40px,6vw,80px) 0 clamp(48px,7vw,96px)}
-.paper .dentro > *{max-width:68ch}
+.paper .dentro > *{max-width:36rem}
 .paper .dentro > .paper__figura{max-width:none;margin:clamp(28px,4vw,48px) 0}
-.paper p{color:var(--grafite)}
+.paper p{color:var(--grafite);text-wrap:pretty}
+.paper li{text-wrap:pretty}
 .paper h2{margin:clamp(36px,5vw,56px) 0 12px;font-weight:300;font-size:clamp(1.6rem, 1.2rem + 1.4vw, 2.3rem);line-height:1.1;letter-spacing:-.02em;font-stretch:110%}
 .paper__voci{margin:0 0 1em;padding:0;list-style:none;border-top:1px solid var(--inchiostro)}
 .paper__voci li{padding:12px 0;border-bottom:1px solid var(--filetto);color:var(--grafite)}
