@@ -310,6 +310,11 @@ macchina, avvisala prima con `SendMessage`: il commit di sync prende anche i suo
 python3 ~/.claude/bin/fine-coda.py; echo "rc=$?"
 ```
 
+**Con il sandbox dei comandi acceso** la coda gira fuori dal sandbox (`dangerouslyDisableSandbox`): fa commit e
+push di `~/.claude`, e il sandbox lascia scrivere solo `~/.claude/data`, dove stanno todo e handoff (segnalazione
+n. 81). Un todo o un handoff che il sandbox ferma con `Operation not permitted` vuol dire una config di prima
+dell'aggiornamento: rilancia quel comando fuori dal sandbox e dillo nella riga tecnica.
+
 La coda trova l'handoff dalla riga "- Sessione:" (un altro con `--handoff <percorso>`; attribuzione dei
 commit con `--trailer "<riga>"`). Si ferma su un rebase a metà o una config rotta
 (`hooks/controlla-config.py`), ripete il gate, applica la retention, committa (la memoria a parte) e

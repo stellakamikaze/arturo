@@ -618,5 +618,12 @@
       "app/node_modules"
     ],
     "baseRef": "head"
+  },
+  "sandbox": {
+    "filesystem": {
+      "allowWrite": [
+        "~/.claude/data"
+      ]
+    }
   }
 }

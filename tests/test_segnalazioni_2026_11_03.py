@@ -9,6 +9,8 @@ SZ02 nessun mod cambia il comando: in modalità auto un comando cambiato dopo la
      bash-dispatcher.sh legge lo stesso marcatore dell'avvio per non bloccare un glob in un'opzione.
 SZ03 /inizio dice perché la copia separata parte dall'HEAD locale (worktree.baseRef: "head" nei
      settings) e come accorgersene e rimediare se non succede (n. 45).
+SZ04 (16/11/2026, n. 81) il sandbox dei comandi lascia scrivere ~/.claude/data (todo e handoff), anche nel
+     frammento delle impostazioni del plugin, e /fine dice che la coda (commit e push) gira fuori dal sandbox.
 
 Sulla base 9c6a0e6 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -77,7 +79,27 @@ def test_sz03(repo: Path) -> None:
     assert settings.get("worktree", {}).get("baseRef") == "head", "SZ03 settings.json non ha worktree.baseRef head"
 
 
-TESTS = {"SZ01": test_sz01, "SZ02": test_sz02, "SZ03": test_sz03}
+def test_sz04(repo: Path) -> None:
+    settings = json.loads(read(repo / "settings.json") or "{}")
+    scrive = (settings.get("sandbox") or {}).get("filesystem", {}).get("allowWrite") or []
+    assert "~/.claude/data" in scrive, f"SZ04 il sandbox non lascia scrivere ~/.claude/data: {scrive!r}"
+    sys.path.insert(0, str(repo / "bin"))
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("impacchetta_sz04", repo / "bin" / "impacchetta.py")
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        plugin = m.impostazioni(settings)
+    finally:
+        sys.path.pop(0)
+    assert (plugin.get("sandbox") or {}).get("filesystem", {}).get("allowWrite") == scrive, \
+        "SZ04 il frammento del plugin perde la voce del sandbox"
+    fine = " ".join(read(repo / "commands" / "fine.md").split())
+    assert "dangerouslyDisableSandbox" in fine[fine.find("## FASE 9"):][:1500], \
+        "SZ04 /fine non dice che la coda gira fuori dal sandbox"
+
+
+TESTS = {"SZ01": test_sz01, "SZ02": test_sz02, "SZ03": test_sz03, "SZ04": test_sz04}
 
 
 def main() -> int:
