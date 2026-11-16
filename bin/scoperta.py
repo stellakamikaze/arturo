@@ -853,17 +853,28 @@ def impronta(radice: Path, sessione: str) -> int:
     return len(file)
 
 
-def toccati_da_claude(sessione: str) -> set:
-    return {r.get("percorso") for r in _righe(_file("indice.jsonl")) if r.get("sessione") == sessione}
+def toccati_da_claude(sessione: str, da: dt.datetime | None = None) -> set:
+    """I file che Claude ha scritto: in questa sessione, oppure in un'altra sessione aperta in
+    parallelo dopo l'impronta di /inizio (`da`). Quelle modifiche non sono fatte a mano."""
+    fuori = set()
+    for r in _righe(_file("indice.jsonl")):
+        if r.get("sessione") == sessione:
+            fuori.add(r.get("percorso"))
+        elif da is not None:
+            ora = _ora(r.get("ora"))
+            if ora is not None and ora >= da:
+                fuori.add(r.get("percorso"))
+    return fuori
 
 
 def confronta(sessione: str) -> int:
-    """Le modifiche fatte a mano fra /inizio e /fine: un file cambiato che Claude non ha toccato in
-    questa sessione. Rilanciato, sostituisce le righe di prima della stessa sessione."""
+    """Le modifiche fatte a mano fra /inizio e /fine: un file cambiato che Claude non ha toccato, né
+    in questa sessione né in un'altra dopo l'impronta. Rilanciato, sostituisce le righe di prima della
+    stessa sessione."""
     dati = _leggi_json(_file("impronte") / f"{sessione}.json", None) if sessione else None
     if not isinstance(dati, dict) or not isinstance(dati.get("file"), dict):
         return 0
-    prima, claude, modelli = dati["file"], toccati_da_claude(sessione), esclusioni()
+    prima, claude, modelli = dati["file"], toccati_da_claude(sessione, _ora(dati.get("ora"))), esclusioni()
     adesso = dt.datetime.now().isoformat(timespec="seconds")
     nuove = []
     for percorso, vecchia in prima.items():

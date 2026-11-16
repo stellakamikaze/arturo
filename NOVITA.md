@@ -13,6 +13,30 @@ modo di lavorare.
 
 ---
 
+## 2026-11-16 — L'avviso sul contesto anche nelle sessioni in background
+
+**Cosa cambia**: l'avviso che ti dice quando il contesto si sta riempiendo trova node anche in una sessione aperta
+in background o da un'altra macchina. Prima partiva con un PATH senza Homebrew e senza `~/.local/bin`, non trovava
+node e restava muto: la sessione arrivava al limite senza che Claude chiudesse il passo in tempo.
+
+**Il principio**: un avviso che tace per un guasto sembra un via libera.
+
+**A chi serve**: a chi apre sessioni con `claude --bg` o da Volta.
+
+---
+
+## 2026-11-15 — La barra torna nelle sessioni aperte su un'altra macchina
+
+**Cosa cambia**: quando Volta apre una sessione di un altro computer, il comando nasce dalla connessione ssh, che
+non conosce le cartelle dove hai installato node. La barra con contesto e quota spariva, o diceva "manca node"
+anche con node installato. Adesso la barra cerca node anche nelle cartelle di Homebrew e in `~/.local/bin`.
+
+**Il principio**: un avviso che dice "manca" deve essere vero anche quando la sessione arriva da un'altra macchina.
+
+**A chi serve**: a chi apre da Volta le sessioni di un secondo computer.
+
+---
+
 ## 2026-11-15 — La memoria lavora da sola
 
 **Cosa cambia**: ogni progetto ha una scheda con cos'è, dove sta la cartella, le decisioni prese e gli errori
