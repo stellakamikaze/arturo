@@ -14,8 +14,8 @@ SF03 la famiglia decide un pareggio: "budget" e "report" insieme senza famiglia 
 SF04 proponi: il blocco ha la bozza della sintesi, la riga Forma e la risposta giusta; proposte.json ha la
      forma; una seconda proposta nella stessa sessione esce con 3.
 SF05 rispondi si dice di scrivere la sintesi; creata e annulla spostano il file in data/scoperta/annullate/.
-SF06 un foglio .csv che torna è una pagina (cruscotto senza famiglia, simulatore con la produzione); un .md
-     e un gruppo di file insieme restano automazioni.
+SF06 un foglio .csv che torna è una pagina se il nome o i campi chiamano un modello (spese: simulatore,
+     report: cruscotto del report); un foglio dei solleciti, un .md e un gruppo di file restano automazioni.
 SF07 mappa: il lavoro dello storico con la sua forma, poi "proposta" dopo proponi; senza lavori, una riga.
 SF08 un indice dello storico rotto non ferma analizza.
 SF09 ogni famiglia di docs/mestieri.md ha un modello di pagina, e la pagina nomina ogni modello.
@@ -156,11 +156,13 @@ def test_sf05(b: Banco) -> None:
 def test_sf06(b: Banco) -> None:
     f = b.forme()
     base = {"segnale": "cadenza", "campi": ["totale"], "file": [], "famiglia": ""}
-    csv = f.con_forma(dict(base, famiglia="/x/elenco-#.csv", file=["/x/elenco-1.csv"]), None)
-    assert csv["forma"] == "pagina" and f.descrizione_modello(csv)["nome"] == "cruscotto dei dati", \
-        f"SF06 un foglio senza famiglia non è un cruscotto: {csv}"
-    csv = f.con_forma(dict(base, famiglia="/x/elenco.csv", file=["/x/elenco.csv"]), "produzione")
-    assert f.descrizione_modello(csv)["nome"] == "simulatore di spesa", f"SF06 con la produzione: {csv}"
+    spese = f.con_forma(dict(base, famiglia="/x/spese-#.csv", file=["/x/spese-1.csv"]), None)
+    assert spese["forma"] == "pagina" and f.descrizione_modello(spese)["nome"] == "simulatore di spesa", \
+        f"SF06 il foglio delle spese non è un simulatore: {spese}"
+    report = f.con_forma(dict(base, famiglia="/x/dati-report.tsv", file=["/x/dati-report.tsv"]), None)
+    assert f.descrizione_modello(report)["nome"] == "cruscotto del report", f"SF06 i dati del report: {report}"
+    solleciti = f.con_forma(dict(base, famiglia="/x/solleciti.csv", file=["/x/solleciti.csv"]), "produzione")
+    assert solleciti["forma"] == "automazione", f"SF06 il foglio dei solleciti diventa una pagina: {solleciti}"
     md = f.con_forma(dict(base, famiglia="/x/report.md", file=["/x/report.md"]), "produzione")
     insieme = f.con_forma(dict(base, segnale="insieme", file=["/x/a.csv", "/x/b.md"]), None)
     assert md["forma"] == "automazione" and insieme["forma"] == "automazione", \

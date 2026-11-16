@@ -10,11 +10,11 @@ Questo modulo aggiunge tre cose, e scoperta.py le usa:
 - D3, la forma. Un candidato è un'automazione (una skill, come prima), una sintesi (un documento che
   raccoglie un lavoro lungo) o una pagina (una pagina web locale, da un modello della famiglia di
   mestiere). Un lavoro dello storico è una pagina se titoli e temi chiamano un modello, altrimenti una
-  sintesi; un file di dati (csv, tsv) che cambia con un ritmo è una pagina; il resto resta automazione;
+  sintesi; un file di dati (csv, tsv) che cambia con un ritmo è una pagina se il nome o i campi chiamano
+  un modello; il resto resta automazione;
 - D2, la mappa. `arturo scoperta mappa` dice per ogni progetto cosa Arturo può proporre e in che forma.
 
-I modelli delle pagine stanno in MODELLI, uno per famiglia di docs/mestieri.md, più uno per i dati senza
-famiglia. La famiglia viene dall'intervista (bin/intervista.py): scelta dalla persona, dal suo CLAUDE.md
+I modelli delle pagine stanno in MODELLI, uno per famiglia di docs/mestieri.md. La famiglia viene dall'intervista (bin/intervista.py): scelta dalla persona, dal suo CLAUDE.md
 o dallo storico. Restano i limiti della Scoperta: le prove, il sì, l'annullamento, al massimo una proposta
 per sessione e due a settimana. Solo libreria standard, niente rete, niente modello.
 """
@@ -60,6 +60,7 @@ MODELLI: Dict[str, dict] = {
                  "cosa": "una pagina che mette in ordine i materiali per data, con una scheda per ognuno",
                  "parole": ["archivi", "inventari", "mostra", "collezion", "catalog", "fondo", "schedatura"]},
 }
+# Solo una rete: ogni pagina ha un modello, e questo nome compare solo se un dato arriva rotto.
 DATI_SENZA_FAMIGLIA = {"nome": "cruscotto dei dati",
                        "cosa": "una pagina che legge il foglio e ne mostra i numeri in tabelle e grafici"}
 
@@ -145,17 +146,17 @@ def dallo_storico(fam: Optional[str] = None) -> List[dict]:
 # --- D3: la forma di un candidato dei file ------------------------------------------------------------
 
 def con_forma(c: dict, fam: Optional[str]) -> dict:
-    """Mette forma e modello a un candidato dei file. Un file di dati che torna è una pagina."""
+    """Mette forma e modello a un candidato dei file. Un file di dati (csv, tsv) che torna è una pagina solo se
+    il nome o i campi chiamano un modello, come un foglio delle spese o i dati di un report: un foglio dei
+    solleciti resta un'automazione, la routine che prepara le bozze."""
     if c.get("forma"):
         return c
     ext = os.path.splitext(c.get("famiglia") or (c.get("file") or [""])[0])[1].lower()
+    modello = None
     if c.get("segnale") != "insieme" and ext in DATI:
         nome = os.path.basename(c.get("famiglia") or c["file"][0])
-        c["forma"] = "pagina"
-        c["modello"] = modello_per(nome + " " + " ".join(c.get("campi", [])), fam) or \
-            (fam if fam in ("consulenza", "produzione") else "")
-    else:
-        c["forma"], c["modello"] = "automazione", ""
+        modello = modello_per(nome + " " + " ".join(c.get("campi", [])), fam)
+    c["forma"], c["modello"] = ("pagina", modello) if modello else ("automazione", "")
     return c
 
 
