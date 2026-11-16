@@ -170,11 +170,11 @@ I mestieri della conoscenza (`docs/mestieri.md`) danno al racconto gli esempi, f
 
 ### Esportare un progetto e limitare cosa Claude legge {#contesto}
 
-Stato: da fare. Come limitare cosa Claude legge aspetta una decisione.
+Stato: in corso. Su un ramo di sviluppo ci sono `arturo fascicolo esporta` e `arturo fascicolo importa`. Come limitare cosa Claude legge aspetta una decisione.
 
 Strato: Memoria, con la Protezione.
 
-Il modello resta dell'azienda che lo vende; la memoria sta già sul tuo computer, in file di testo accanto ai tuoi materiali. Questa voce aggiunge un comando, `arturo contesto esporta`, che stacca un progetto in una cartella di file di testo: un collega con Arturo la importa così com'è, e la stessa cartella si carica in un progetto di ChatGPT o di Claude.ai. L'ultima parte è un limite a cosa Claude legge: cartelle escluse dalla lettura, e un avviso prima di aprire un file che hai segnato come riservato.
+Il modello gira sui server dell'azienda che lo vende, ma la memoria di Arturo sta sul tuo computer, in file di testo accanto ai tuoi materiali. Per questo un progetto si può copiare e passare a qualcun altro. Questa voce aggiunge due comandi. `arturo fascicolo esporta` copia il contesto di un progetto in una cartella di file di testo, e un collega con Arturo la importa con `arturo fascicolo importa`. I file `.md` della stessa cartella si caricano in un progetto di ChatGPT o di Claude.ai. Un file con un possibile segreto resta fuori, e i testi che arrivano da un'altra persona passano dai controlli di `arturo fascicolo importa` prima di entrare nella memoria. L'ultima parte è un limite a cosa Claude legge: cartelle escluse dalla lettura, e un avviso prima di aprire un file che hai segnato come riservato.
 
 <!-- task: #5710 -->
 

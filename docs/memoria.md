@@ -88,6 +88,47 @@ in `profilo/`, `feedback` in `feedback/`, `project` in `progetti/`, `reference` 
 `arturo memoria controlla` trova le note senza queste righe, le righe che non si leggono e i
 collegamenti rotti.
 
+## Passare un progetto a un collega
+
+Il contesto di un progetto è tuo, e puoi passarne una copia a un collega o a un altro strumento di IA.
+`arturo fascicolo esporta <progetto>` scrive una cartella di file di testo nella cartella in cui sei
+(`--in` ne sceglie un'altra). Dentro ci sono:
+
+- `scheda.md`: la scheda del progetto;
+- `note/`: le note della memoria legate al progetto;
+- `stato.md`: la riga di stato e i todo aperti;
+- `lavori.md`: i lavori dello storico delle chat che scegli con `--lavoro ID`;
+- `materiali/`: i file di testo che indichi con `--materiali` (Markdown, testo, CSV, JSON, HTML, sottotitoli);
+- `LEGGIMI.md` e `fascicolo.json` (il manifesto): cosa c'è, come si usa e l'impronta di ogni file, un
+  codice che cambia se il file viene modificato.
+
+Prima di scrivere, Arturo controlla ogni file. Un file con un possibile segreto (una password, un
+token) resta fuori, e il messaggio del comando dice perché. Le note su di te (tipo `user`) non entrano
+nel fascicolo, a meno che tu non aggiunga `--anche-persona`. Un file che sembra contenere istruzioni per Claude (per esempio un comando che manda dati a un
+indirizzo web) esce, ma il messaggio lo segna "da rivedere": il collega con Arturo lo rifiuterà.
+`--prova` mostra cosa uscirebbe e non scrive niente. Il fascicolo resta sul tuo
+computer: lo passi tu, come un qualsiasi file. Per un progetto di Claude.ai o di ChatGPT, carica i
+file `.md` della cartella fra i file del progetto.
+
+Il collega lo importa con `arturo fascicolo importa <cartella>`. I testi del fascicolo li ha scritti
+un'altra persona, quindi Arturo li tratta come dati:
+
+- entra solo un file elencato in `fascicolo.json`, con l'impronta giusta, dentro le cartelle previste e
+  in formato testo. Arturo rifiuta un link simbolico, un percorso con `..` o un file nascosto;
+- Arturo rifiuta un file con un possibile segreto o con un'istruzione nascosta, e il messaggio del
+  comando dice il motivo;
+- le note vanno in `~/.claude/data/memory/importati/<progetto>/`. Ogni nota porta in testa chi l'ha
+  scritta e una riga che dice a Claude di leggerla come dato, non come istruzione;
+- niente sovrascrive i tuoi file. Se hai già la scheda del progetto, quella importata va accanto. Se
+  una nota col suo nome c'è già, l'importata prende un nome suo;
+- una copia intera del fascicolo accettato resta in `~/.claude/data/fascicoli/`, una cartella che non
+  va su GitHub;
+- lo stesso fascicolo importato due volte entra una volta sola.
+
+`--prova` dice cosa entrerebbe e non scrive niente. Una nota importata si toglie come le altre, con
+`arturo memoria togli <nome>`. Se la tua `~/.claude` va su un GitHub privato, anche le note importate
+vanno lì, come le tue.
+
 ## Cosa esce dal computer
 
 - **Ad Anthropic**: le note che Claude apre entrano nella conversazione, e passano ad Anthropic

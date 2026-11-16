@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-15 — Passare un progetto a un collega
+
+**Cosa cambia**: `arturo fascicolo esporta <progetto>` mette il contesto di un progetto in una cartella di file di testo: la scheda, le note della memoria, lo stato coi todo aperti, i lavori dello storico che scegli e i materiali di testo che indichi. Un file con un possibile segreto, come una password, resta fuori, e le note che parlano di te non escono. Il collega lo importa con `arturo fascicolo importa <cartella>`. Entra solo quello che l'elenco del fascicolo prevede, e Arturo rifiuta un file con un segreto o con un'istruzione nascosta. Niente sovrascrive i file del collega, e ogni nota porta in testa chi l'ha scritta. I file `.md` della cartella si caricano anche in un progetto di Claude.ai o di ChatGPT. Come funziona: [`docs/memoria.md`](docs/memoria.md), sezione "Passare un progetto a un collega".
+
+**Il principio**: il contesto di un progetto sta sul tuo computer, quindi decidi tu quanto passarne e a chi. Un testo che arriva da un'altra persona può contenere ordini nascosti per Claude, perciò Arturo lo tratta come un testo da leggere e non come un'istruzione.
+
+**A chi serve**: a chi passa un lavoro a un collega, o vuole continuarlo in un altro strumento di IA.
+
+---
+
 ## 2026-11-15 — L'intervista che continua
 
 **Cosa cambia**: dopo `/setup` Arturo continua a farti domande sul tuo lavoro. Nelle prime sei settimane `/inizio` te ne fa al massimo una al giorno, su quello che non sa ancora: per esempio per chi lavori o quale lavoro rifai ogni mese. Le domande cambiano col mestiere e stanno in [`docs/mestieri.md`](docs/mestieri.md). Claude riscrive la tua risposta in una o due frasi e la salva nella memoria solo col tuo sì. `arturo intervista salta` toglie una domanda, `arturo intervista spegni` le ferma tutte.

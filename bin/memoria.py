@@ -959,9 +959,9 @@ def _decisioni(testo: str) -> list:
             for r in righe[i + 1:j] if r.strip().startswith(("- ", "* "))]
 
 
-def riepilogo() -> dict:
-    """I dati di "arturo memoria": progetti (scheda, note, ultime decisioni), altre note per tipo,
-    dormienti, cartelle. Legge e basta."""
+def _progetti_e_note() -> tuple:
+    """I progetti con le loro note (insiemi di Path), tutte le note, i loro testi e le altre note per
+    tipo. Una nota sta in un progetto se vive nella sua memory/ di Claude Code o se cita la sua scheda."""
     memdir_vera = os.path.realpath(str(mm.MEMORY_DIR))
     tutte = file_note(cartelle())
     testi = {p: leggi(p) for _d, p in tutte}
@@ -1032,6 +1032,25 @@ def riepilogo() -> dict:
         t = tipo(fm if isinstance(fm, dict) else {})
         t = t if t in TIPI else "?"
         altre[t] = altre.get(t, 0) + 1
+    return progetti, tutte, testi, altre
+
+
+def note_del_progetto(slug: str) -> tuple:
+    """(scheda o None, note del progetto in ordine di nome, senza la scheda): la usa arturo fascicolo."""
+    s = slug_progetto(slug)
+    scheda = mm.trova_scheda(s) if s else None
+    progetti, _tutte, _testi, _altre = _progetti_e_note()
+    for v in progetti:
+        if v["nome"] == s or (scheda is not None and v["nome"] == scheda.stem[len("progetto-"):]):
+            return scheda, sorted((p for p in v["note"] if p != scheda), key=lambda p: (p.name, str(p)))
+    return scheda, []
+
+
+def riepilogo() -> dict:
+    """I dati di "arturo memoria": progetti (scheda, note, ultime decisioni), altre note per tipo,
+    dormienti, cartelle. Legge e basta."""
+    memdir_vera = os.path.realpath(str(mm.MEMORY_DIR))
+    progetti, tutte, testi, altre = _progetti_e_note()
 
     dormienti = []
     for _d, p in tutte:
