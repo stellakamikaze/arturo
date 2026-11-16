@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-16 — La Scoperta propone anche sintesi e pagine
+
+**Cosa cambia**: fino a oggi la Scoperta ti proponeva solo una skill, quando vedeva un file cambiare con un ritmo. Adesso una proposta può avere tre forme. Un'automazione, come prima. Una sintesi, cioè un documento che raccoglie un lavoro lungo: cosa è, cosa hai deciso, i materiali, cosa resta aperto. Oppure una pagina web locale, da un modello del tuo mestiere: una lezione interattiva per chi insegna, un simulatore di spesa per chi produce eventi, un calendario editoriale per chi scrive una newsletter. I modelli sono sei, uno per famiglia, in [`docs/mestieri.md`](docs/mestieri.md). Se hai fatto l'indice dello storico delle chat con `/setup`, anche un lavoro che torna lì da almeno due mesi, in almeno cinque conversazioni, diventa una proposta dal primo giorno. Claude scrive la sintesi o la pagina dalla bozza e la salva solo col tuo sì, e `arturo scoperta annulla` la toglie e la tiene da parte. `arturo scoperta mappa` dice per ogni progetto cosa Arturo può proporti e in che forma. I limiti restano quelli di prima: al massimo una proposta per sessione e due a settimana.
+
+**Il principio**: un lavoro che torna non sempre si risolve con una skill. A volte serve un documento che lo riassume, a volte una pagina che si guarda e si usa meglio di un foglio di calcolo.
+
+**A chi serve**: a chi insegna, produce, scrive o cura, e ripete da mesi lo stesso lavoro in chat o negli stessi file.
+
+---
+
 ## 2026-11-16 — Arturo ti propone uno spazio, e Claude può presentarsi col nome che scegli
 
 **Cosa cambia**: Arturo ha due spazi, cioè parti che si accendono o si riempiono a parte: l'Orsa, il tuo CLAUDE.md, e Melchior, la memoria. Quando nel tuo lavoro vede un segnale, `/inizio` ti propone lo spazio che ti manca e ti dice quale segnale ha visto. Se hai corretto la stessa cosa in tre sessioni diverse, ti propone di scrivere la regola nel tuo CLAUDE.md, cioè nell'Orsa, dove vale sempre e gli aggiornamenti non la toccano. Se la memoria è spenta e hai almeno 15 handoff, o un CLAUDE.md di almeno 250 righe, ti propone di accendere Melchior. Ogni spazio te lo propone una volta sola, al massimo uno a settimana. Se rispondi **no** quello spazio non torna, e `arturo spazi spegni` ferma tutte le proposte. Poi c'è `arturo nome`: con `arturo nome Bruno` Claude si presenta come Bruno in ogni sessione. Comandi e file restano quelli di Arturo. Cosa legge e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Gli spazi che Arturo ti propone".

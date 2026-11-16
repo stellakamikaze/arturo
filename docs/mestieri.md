@@ -2,11 +2,11 @@
 
 Arturo è per chi lavora con la conoscenza: raccoglie materiali e ne ricava un lavoro da consegnare a qualcun altro. Questa pagina divide quel lavoro in sei famiglie di mestieri. Per ognuna dice che materiali usa, cosa chiede di solito all'IA in chat, quali lavori tornano e cosa Arturo può fare.
 
-Da questa pagina vengono gli esempi del README e del sito e le domande dell'intervista che continua: dopo `/setup`, `/inizio` ne fa al massimo una al giorno, sulle cose che Arturo non sa ancora. Se si decide di fare le forme nuove delle proposte della Scoperta, partiranno anche quelle da qui: la voce è ancora nella [roadmap](../ROADMAP.md).
+Da questa pagina vengono gli esempi del README e del sito e le domande dell'intervista che continua: dopo `/setup`, `/inizio` ne fa al massimo una al giorno, sulle cose che Arturo non sa ancora. Da qui vengono anche le pagine che la Scoperta propone, una per famiglia.
 
 Ogni proposta porta il suo stato:
 - **oggi**: Claude lo fa adesso, se glielo chiedi;
-- **Scoperta**: Arturo te lo propone da solo quando vede il lavoro ripetersi nei file che cambi, con le date e le modifiche come prove, e la skill nasce solo dopo il tuo sì. La prima versione propone solo automazioni ed esce col prossimo rilascio;
+- **Scoperta**: Arturo te lo propone da solo quando vede il lavoro ripetersi nei file che cambi, o in un lavoro dello storico delle chat che torna da mesi, con le date come prove, e il risultato nasce solo dopo il tuo sì. La proposta ha una di tre forme: un'automazione (una skill), una sintesi (un documento che raccoglie un lavoro lungo) o una pagina web locale, dal modello della tua famiglia;
 - **da decidere**: sta nella roadmap fra le voci da decidere, e non è detto che arrivi.
 
 Una persona può stare in più famiglie: chi insegna spesso anche scrive, chi produce eventi spesso anche cura.
@@ -33,7 +33,8 @@ L'intervista comincia da queste quattro, uguali per tutti: che lavoro fai, per c
 **Cosa può fare Arturo:**
 - Claude scrive la bozza leggendo le fonti nella cartella del pezzo, anche quelle che in chat non avresti fatto in tempo a incollare (oggi);
 - quando correggi un testo riscritto, Claude ti propone di aggiungere la correzione alle regole sul tuo modo di scrivere, e la volta dopo le usa (oggi);
-- il formato che rifai ogni settimana diventa una skill (Scoperta).
+- il formato che rifai ogni settimana diventa una skill (Scoperta);
+- una newsletter o una rubrica che segui in chat da mesi diventa un calendario editoriale: una pagina web locale con le uscite in ordine di data, il formato e lo stato di ogni pezzo (Scoperta).
 
 **Le domande dell'intervista:**
 - `parola-voce`: Hai testi tuoi o regole di stile che Claude deve imitare? Dimmi dove stanno.
@@ -52,7 +53,8 @@ L'intervista comincia da queste quattro, uguali per tutti: che lavoro fai, per c
 
 **Cosa può fare Arturo:**
 - Claude mette in ordine la cartella dei riferimenti e ne ricava una pagina sola da mandare al cliente, con le immagini scelte e le note (oggi);
-- Claude raccoglie i crediti in un foglio dai metadati delle immagini e dalle note della cartella, e segna le immagini senza credito (oggi).
+- Claude raccoglie i crediti in un foglio dai metadati delle immagini e dalle note della cartella, e segna le immagini senza credito (oggi);
+- un progetto con molte versioni, seguito in chat per mesi, diventa una galleria dei lavori: una pagina con le immagini, le versioni e le note del cliente (Scoperta).
 
 **Le domande dell'intervista:**
 - `immagine-riferimenti`: Dove tieni riferimenti e moodboard di un lavoro?
@@ -71,7 +73,8 @@ L'intervista comincia da queste quattro, uguali per tutti: che lavoro fai, per c
 
 **Cosa può fare Arturo:**
 - Claude ritrova i materiali di una lezione fra appunti e cartelle (oggi);
-- oltre alle slide, Claude costruisce una pagina web in cui gli studenti provano da soli il concetto della lezione (oggi, se glielo chiedi; che Arturo la proponga da solo è da decidere).
+- oltre alle slide, Claude costruisce una pagina web in cui gli studenti provano da soli il concetto della lezione (oggi, se glielo chiedi);
+- quando un corso torna in chat da mesi, Arturo ti propone da solo la lezione interattiva: la scaletta, gli esempi da provare e le domande per la classe in una pagina web locale (Scoperta).
 
 **Le domande dell'intervista:**
 - `insegnamento-corsi`: Quali corsi o lezioni tieni adesso, e dove stanno i materiali?
@@ -90,7 +93,7 @@ L'intervista comincia da queste quattro, uguali per tutti: che lavoro fai, per c
 
 **Cosa può fare Arturo:**
 - Claude confronta il foglio delle spese con le fatture della cartella e segna le voci che non tornano (oggi);
-- se glielo chiedi, ne fa una pagina in cui il cliente cambia le voci di spesa e vede subito cosa succede al totale, al posto del foglio di calcolo (oggi; che Arturo la proponga da solo è da decidere);
+- se glielo chiedi, ne fa una pagina in cui il cliente cambia le voci di spesa e vede subito cosa succede al totale, al posto del foglio di calcolo (oggi). Quando il foglio delle spese cambia con un ritmo, o il budget torna in chat da mesi, Arturo ti propone da solo questo simulatore di spesa (Scoperta);
 - se tieni i solleciti in un foglio che Claude aggiorna, la Scoperta vede il foglio cambiare ogni settimana e ti propone la routine, con le bozze pronte e l'invio che resta tuo (Scoperta).
 
 **Le domande dell'intervista:**
@@ -110,7 +113,8 @@ L'intervista comincia da queste quattro, uguali per tutti: che lavoro fai, per c
 
 **Cosa può fare Arturo:**
 - Claude legge la trascrizione di una riunione e ne ricava le decisioni e le cose da fare, ognuna con chi e quando, se la trascrizione lo dice (oggi);
-- il report mensile che rifai sugli stessi file diventa una routine da rileggere prima dell'invio (Scoperta).
+- il report mensile che rifai sugli stessi file diventa una routine da rileggere prima dell'invio (Scoperta);
+- se i dati del report stanno in un foglio che cambia ogni mese, Arturo ti propone un cruscotto del report: una pagina che li mostra mese per mese in tabelle e grafici (Scoperta).
 
 **Le domande dell'intervista:**
 - `consulenza-riunioni`: Dove finiscono trascrizioni e verbali delle riunioni coi clienti?
@@ -129,7 +133,8 @@ L'intervista comincia da queste quattro, uguali per tutti: che lavoro fai, per c
 
 **Cosa può fare Arturo:**
 - Claude apre le schede una per una, anche centinaia, le riporta allo stesso formato in un foglio solo e segna i campi che mancano (oggi);
-- quando le schede nuove arrivano ogni settimana nella stessa cartella, la Scoperta ti propone la routine che le controlla contro il formato del fondo (Scoperta).
+- quando le schede nuove arrivano ogni settimana nella stessa cartella, la Scoperta ti propone la routine che le controlla contro il formato del fondo (Scoperta);
+- una mostra o un fondo seguiti in chat per mesi diventano una linea del tempo: una pagina che mette in ordine i materiali per data, con una scheda per ognuno (Scoperta).
 
 **Le domande dell'intervista:**
 - `archivio-formato`: Che formato di scheda usi, e dove sta il modello?

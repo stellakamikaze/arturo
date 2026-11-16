@@ -291,9 +291,12 @@ Chiusura solo se ha coppie da unire o link rotti: le coppie le unisci tu solo se
 **La Scoperta.** Lancia sempre `python3 ~/.claude/bin/arturo scoperta confronta`: salva le modifiche fatte a
 mano dall'impronta di `/inizio`. Fuori dal Modo rotazione lancia poi `python3 ~/.claude/bin/arturo scoperta
 proponi`. Con exit 3 taci. Con exit 0 il blocco `SCOPERTA` va nella Chiusura, dopo la Memoria: la frase,
-le prove e la bozza come le stampa, poi "scrivimi **scoperta sì** e la costruiamo con /creaskill, **scoperta
-no** e non torna più". Al sì lancia `arturo scoperta rispondi <ID> si` e segui `/creaskill` partendo dalla
-bozza; a skill creata, `arturo scoperta creata <ID> <cartella della skill>`. Al no, `rispondi <ID> no`.
+le prove e la bozza come le stampa, poi "scrivimi **scoperta sì** e la costruiamo, **scoperta no** e non
+torna più". Al sì lancia `arturo scoperta rispondi <ID> si` e segui la forma della bozza (riga `Forma:`):
+un'automazione passa da `/creaskill` partendo dalla bozza, e a skill creata lanci `arturo scoperta creata <ID>
+<cartella della skill>`. Una sintesi o una pagina la scrivi tu dalla bozza, nella cartella del progetto: la
+mostri, una pagina la apri nel browser della persona, e salvi solo col suo sì. Poi lanci `arturo scoperta
+creata <ID> <file>`. Al no, `rispondi <ID> no`.
 
 ## FASE 9 · Config Sync, in una chiamata
 

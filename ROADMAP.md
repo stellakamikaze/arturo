@@ -90,7 +90,7 @@ Strato: Scoperta.
 
 Claude Code tiene già una copia di ogni versione dei file che modifichi con lui. Arturo le legge e cerca le ripetizioni: lo stesso file cambiato a intervalli regolari, gli stessi campi riscritti, gruppi di file toccati insieme. A fine lavoro, in `/fine`, ti propone un'automazione con le prove: le date, le modifiche, una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza diventa una skill o una routine, che puoi sempre annullare; se dici no, la stessa proposta non torna. Le versioni dei file e le bozze restano sul tuo computer: alla telemetria arriveranno solo i conteggi delle proposte fatte, accettate e annullate, dopo il testo nuovo della privacy.
 
-Dopo la prima versione, se arriva la voce "Arturo parte da quello che hai già fatto con l'IA", la Scoperta potrà leggere anche l'indice delle tue chat: così un lavoro che ripeti in chat da mesi può diventare una proposta senza aspettare che tu lo ripeta in Claude Code. L'idea è che le proposte prendano, oltre all'automazione della prima versione, altre due forme: una sintesi, oppure una pagina web da condividere, come una lezione interattiva per chi insegna o un simulatore di spesa per chi produce eventi ([I mestieri della conoscenza](docs/mestieri.md)). Se arrivano, e per quali mestieri, è da decidere.
+La Scoperta legge anche l'indice delle tue chat, se l'hai fatto con `/setup`: un lavoro che torna in chat da almeno due mesi, in almeno cinque conversazioni, diventa una proposta senza aspettare che tu lo ripeta in Claude Code. Le proposte hanno tre forme: un'automazione, come nella prima versione; una sintesi, cioè un documento che raccoglie un lavoro lungo; oppure una pagina web locale, da un modello del tuo mestiere. Per esempio una lezione interattiva per chi insegna, un simulatore di spesa per chi produce eventi o un calendario editoriale per chi scrive una newsletter ([I mestieri della conoscenza](docs/mestieri.md)). `arturo scoperta mappa` ti dice per ogni progetto cosa Arturo può proporti e in che forma.
 
 <!-- task: #5615 #5702 -->
 
@@ -216,7 +216,6 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
-- Se la Scoperta, dopo le automazioni, propone anche sintesi e pagine web, e per quali mestieri. <!-- task: #5702 -->
 - Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
 - Per quanto tempo continua l'intervista dopo `/setup`: oggi sei settimane, una domanda al giorno al massimo (voce "L'intervista che continua"). <!-- task: #5709 -->
 - Se i segnali di oggi per Melchior e l'Orsa sono quelli giusti, e con quali soglie (voce "Arturo ti propone uno spazio quando ti serve"). <!-- task: #5711 -->

@@ -207,6 +207,8 @@ BANCHI=(
   test_fascicolo_2026_11_15.py
   # Gli spazi proposti col segnale, una volta sola, e il nome scelto per Arturo (16/11/2026, Fase F1 e F3, #5711).
   test_spazi_2026_11_16.py
+  # Le forme della Scoperta (automazione, sintesi, pagina) e i lavori dello storico che tornano (16/11/2026, Fase D, #5702).
+  test_scoperta_forme_2026_11_16.py
   # arturo progetti, portato da herdr: l'elenco dei progetti dalla memoria, per Volta (M3, #5672).
   test_progetti_memoria_2026_11_11.py
   # Il salvataggio automatico di una sessione chiusa senza /fine (M4, #5672).
@@ -243,7 +245,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -541,6 +543,8 @@ VELENI=(
   test_fascicolo_2026_11_15.py
   # Gli spazi e il nome (16/11/2026): ogni rottura di spazi.py, nome.py, contesto.py, dell'avvio o dei testi fa rosso il suo caso SP.
   test_spazi_2026_11_16.py
+  # Le forme della Scoperta (16/11/2026): ogni rottura di scoperta_forme.py, scoperta.py o /fine fa rosso il suo caso SF.
+  test_scoperta_forme_2026_11_16.py
   # arturo progetti (M3, #5672): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
   # Il salvataggio automatico (M4, #5672): ogni rottura di salva-automatico.py, dell'hook o di contesto.py fa rosso il suo caso SV.
