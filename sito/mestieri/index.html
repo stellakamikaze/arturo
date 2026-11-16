@@ -124,7 +124,8 @@ ul{margin:0;padding:0;list-style:none}
 .famiglia h2{font-weight:300;font-size:clamp(1.9rem, 1.2rem + 2.2vw, 3rem);line-height:1.05;letter-spacing:-.02em;font-stretch:112%}
 .campi{display:grid;grid-template-columns:minmax(0,10rem) minmax(0,1fr);gap:12px 24px;margin:0 0 28px}
 .campi dt{font:600 .9rem/1.5 var(--testo);color:var(--inchiostro)}
-.campi dd{margin:0;color:var(--grafite)}
+.campi dd{margin:0;color:var(--grafite);text-wrap:pretty}
+.testata .testata__corpo > p{max-width:50ch}
 .famiglia h3{margin:0 0 4px;padding-top:20px;border-top:1px solid var(--inchiostro);font-size:1.2rem;font-weight:400;letter-spacing:-.015em}
 .voci li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 20px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--filetto)}
 .voci li p{margin:0;color:var(--grafite)}
@@ -136,7 +137,7 @@ ul{margin:0;padding:0;list-style:none}
 .legenda{display:flex;flex-wrap:wrap;gap:12px 24px;margin:28px 0 0;align-items:center;font-size:.92rem;color:var(--grafite)}
 .legenda li{display:flex;gap:8px;align-items:center}
 .controllo{padding:clamp(48px,7vw,96px) 0;border-top:1px solid var(--filetto)}
-.controllo p{max-width:62ch;margin-top:20px}
+.controllo p{max-width:56ch;margin-top:20px}
 .controllo h2{font-weight:300;font-size:clamp(1.9rem, 1.2rem + 2.2vw, 3rem);line-height:1.05;letter-spacing:-.02em;font-stretch:112%}
 @media (max-width:760px){
   .famiglia .dentro,.campi,.voci li{grid-template-columns:minmax(0,1fr)}

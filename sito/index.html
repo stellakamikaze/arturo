@@ -648,6 +648,7 @@ h3 .in-arrivo{display:table;margin:8px 0 0}
 .riga__testo > p > .in-arrivo:only-child{margin-left:0}
 .famiglie .uso__quando{color:var(--azione-giu)}
 .famiglie p:last-child{margin:0;color:var(--grafite)}
+#funzioni .testa p{max-width:50ch}
 .famiglie__via{margin:clamp(28px,4vw,40px) 0 0;padding-top:20px;border-top:1px solid var(--filetto)}
 .famiglie__via a{font-weight:600;color:var(--inchiostro);text-underline-offset:4px}
 .strati{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:var(--fra-lati);align-items:start}
@@ -1137,12 +1138,12 @@ h3 .in-arrivo{display:table;margin:8px 0 0}
           <div class="tabella-mock tabella-mock--larga" aria-label="Esempio di indice dei lavori">
             <p class="foglio__tipo">I tuoi lavori · da 4 esportazioni</p>
             <table>
-              <thead><tr><th scope="col">Lavoro</th><th scope="col">Periodo</th><th scope="col">Chat</th></tr></thead>
+              <thead><tr><th scope="col">Lavoro</th><th scope="col">Periodo</th><th scope="col" class="cifra">Chat</th></tr></thead>
               <tbody>
-                <tr><td>Newsletter del venerdì<small>cinema, uscite, interviste</small></td><td>giu-ott</td><td>31</td></tr>
-                <tr><td>Mostra al museo civico<small>elenco-opere.xlsx, testi-sala.docx</small></td><td>mar-set</td><td>18</td></tr>
-                <tr><td>Corso di scrittura, secondo anno<small>esercizi, letture</small></td><td>set-nov</td><td>12</td></tr>
-                <tr><td>Preventivi del festival<small>budget-2026.xlsx</small></td><td>apr-lug</td><td>9</td></tr>
+                <tr><td>Newsletter del venerdì<small>cinema, uscite, interviste</small></td><td>giu-ott</td><td class="cifra">31</td></tr>
+                <tr><td>Mostra al museo civico<small>elenco-opere.xlsx, testi-sala.docx</small></td><td>mar-set</td><td class="cifra">18</td></tr>
+                <tr><td>Corso di scrittura, secondo anno<small>esercizi, letture</small></td><td>set-nov</td><td class="cifra">12</td></tr>
+                <tr><td>Preventivi del festival<small>budget-2026.xlsx</small></td><td>apr-lug</td><td class="cifra">9</td></tr>
               </tbody>
             </table>
             <p class="tabella-mock__piede">Il testo delle chat resta nell'esportazione</p>

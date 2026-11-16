@@ -14,6 +14,8 @@ HTML e CSS statici, nessun framework, nessuna dipendenza di build. Sorgente in `
 
 Visitatore principale: **chi conosce già l'IA e la usa in chat** (ChatGPT, Claude) ma non ha mai usato un terminale (decisione di Federico, 15/10/2026). Primo utente reale: una persona non tecnica, dal 16/9/2026.
 
+Dal 16/11/2026 la home segue i vocali di Federico del 15/11: chi lavora con la conoscenza, diviso in sei famiglie di mestieri (`/mestieri/`, da `docs/mestieri.md` di dev), passa dalla chat web al terminale; il modello resta dell'azienda che lo vende, il contesto è della persona; Arturo parte dallo storico delle chat, la intervista, le propone automazioni, sintesi e pagine, e cresce con ordine nell'Orsa e in Melchior. Volta resta una prova di Federico: il sito non la propone. Le funzioni su dev non ancora rilasciate portano l'etichetta "Nella prossima versione".
+
 Casi d'uso, in quest'ordine: il lavoro cognitivo e della conoscenza (scrivere e revisionare, ricerca e sintesi, posta e progetti, archivio e documenti), poi i piccoli strumenti su misura per un caso d'uso specifico. Le organizzazioni (studio, redazione, associazione) hanno una pagina a sé, `sito/organizzazioni/`: nella home resta solo un rimando.
 
 ## Product Purpose
