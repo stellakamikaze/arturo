@@ -400,7 +400,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.claude/hooks/context-monitor.js",
+            "command": "PATH=\"$PATH:${ARTURO_NODE_DIRS-/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin}\" node ~/.claude/hooks/context-monitor.js",
             "timeout": 10
           }
         ]
