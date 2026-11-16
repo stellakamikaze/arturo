@@ -131,8 +131,9 @@ def caso_impostazioni_prima(repo):
     """I3: il settings.json di prima va nella copia, e le pagine lo dicono con la stessa frase."""
     assert IMPOSTAZIONI_PRIMA in sezione(leggi(repo, "sito/inizia/index.html"), "Per te"), \
         'la sezione "Per te" non ha la frase comune sulle impostazioni di prima'
-    assert IMPOSTAZIONI_PRIMA in testo(leggi(repo, "sito/index.html"), ""), \
-        "la home non ha la frase sulle impostazioni di prima"
+    # Dal 16/11/2026 la landing non ha più "Come lo tolgo?": la frase sta nella guida d'installazione.
+    assert IMPOSTAZIONI_PRIMA in testo(leggi(repo, "sito/installa/index.html"), ""), \
+        "la guida non ha la frase sulle impostazioni di prima"
     assert IMPOSTAZIONI_PRIMA in leggi(repo, "sito/llms.txt"), "llms.txt non ha la frase sulle impostazioni di prima"
     for percorso in ("sito/inizia/index.html", "sito/index.html", "sito/llms.txt"):
         t = testo(leggi(repo, percorso))
@@ -143,7 +144,7 @@ def caso_impostazioni_prima(repo):
 def caso_ingresso_persone(repo):
     """F1: chi arriva dal browser va alla guida; /inizia/ è scritta per Claude e lo dice in apertura."""
     h = leggi(repo, "sito/index.html")
-    m = re.search(r'<div class="promessa">.*?<a class="azione azione--grande[^"]*" href="([^"]+)".*?<figure class="palco">', h, re.S)
+    m = re.search(r'<div class="promessa">.*?<a class="azione azione--grande[^"]*" href="([^"]+)".*?</header>', h, re.S)
     assert m, "manca il pulsante principale della home"
     assert m.group(1) == "installa/", f"il pulsante principale della home non porta alla guida: {m.group(1)}"
     assert 'href="inizia/"' not in h, "la home ha ancora un link a inizia/"
@@ -186,7 +187,7 @@ def caso_windows(repo):
 
 def caso_frase_ovunque(repo):
     for percorso in ("sito/index.html", "sito/installa/index.html", "sito/llms.txt", "sito/setup/index.html"):
-        assert FRASE in html.unescape(leggi(repo, percorso)), f"{percorso} non cita la frase con /inizia/"
+        assert FRASE in html.unescape(leggi(repo, percorso)).replace("<wbr>", ""), f"{percorso} non cita la frase con /inizia/"
 
 
 def caso_virgolette(repo):
@@ -239,22 +240,25 @@ def caso_faq_uguali(repo):
     assert app["installUrl"] == "https://arturo.stellakamikaze.org/inizia/", "installUrl non è /inizia/"
     assert app["softwareRequirements"] == "Claude Code", "softwareRequirements diverso da Claude Code"
     assert app["operatingSystem"] == "macOS, Windows, Linux", "operatingSystem diverso"
-    json_ld = [(q["name"], q["acceptedAnswer"]["text"]) for q in nodi["FAQPage"]["mainEntity"]]
+    # Dal 16/11/2026 la landing a passi non ha più le domande: il JSON-LD non deve dichiararne di invisibili,
+    # e le risposte che contano stanno nelle pagine che le danno (la strada a mano, cosa legge Claude).
+    json_ld = [(q["name"], q["acceptedAnswer"]["text"]) for q in nodi.get("FAQPage", {}).get("mainEntity", [])]
     visibili = [(testo(s, ""), testo(r, "")) for s, r in re.findall(
         r'<details>\s*<summary>(.*?)</summary>\s*<div class="risposta">(.*?)</div>\s*</details>', h, re.S)]
     assert visibili == json_ld, f"FAQ diverse: visibili {visibili} JSON-LD {json_ld}"
-    domande = [d for d, _ in json_ld]
-    for d in ("Serve saper programmare?", "Cosa legge Claude sul mio computer?", "Posso farlo a mano?"):
-        assert d in domande, f"manca la domanda {d}"
+    assert 'id="a-mano"' in leggi(repo, "sito/installa/index.html"), "la guida non ha più la strada a mano"
+    assert "Cosa legge" in leggi(repo, "sito/privacy/index.html") or "legge" in leggi(repo, "sito/privacy/index.html"), \
+        "la privacy non dice cosa legge Claude"
     assert "un'ora" not in h.lower(), "la home dice ancora un'ora"
 
 
 def caso_carte(repo):
+    """Dal 16/11/2026 la finestra con le carte di Installalo è uscita dalla landing: la frase sta solo nell'apertura e
+    nella chiusura (caso_frase_in_vista), e nessuna copia vecchia porta la riga di installa.sh."""
     h = leggi(repo, "sito/index.html")
-    carte = re.search(r'<ol class="carte" id="carte">(.*?)</ol>', h, re.S).group(1)
-    assert carte.count('<li class="carta"') == 3, "le carte di Installalo non sono tre"
-    assert f'<pre id="c-frase">{FRASE}</pre>' in carte and 'data-copia="c-frase"' in carte, "manca la frase da copiare"
-    assert "installa.sh" not in carte, "le carte danno ancora la riga di installa.sh"
+    assert '<ol class="carte"' not in h, "la landing ha ancora le carte di Installalo"
+    assert h.replace("<wbr>", "").count(f">{FRASE}</pre>") == 2, "la frase da copiare non sta in due posti (apertura e chiusura)"
+    assert "curl -fsSL https://arturo.stellakamikaze.org/installa.sh" not in h, "la landing dà la riga di installa.sh"
 
 
 def frase_copiabile(pezzo, ident):
@@ -269,7 +273,7 @@ def caso_frase_in_vista(repo):
 
     Chi apre la home deve trovare i due passi e la frase col Copia senza cliccare una scheda."""
     h = leggi(repo, "sito/index.html")
-    m = re.search(r'<div class="promessa__via">(.*?)<figure class="palco">', h, re.S)
+    m = re.search(r'<div class="promessa__via">(.*?)</header>', h, re.S)
     assert m, "manca il blocco dei due passi nell'apertura"
     via = m.group(1)
     assert frase_copiabile(via, "c-frase-hero") == FRASE, "manca la frase da copiare nell'apertura"
