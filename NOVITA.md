@@ -25,7 +25,7 @@ modo di lavorare.
 
 ## 2026-11-17 — Le sessioni di prova si riconoscono dal nome e spariscono da sole
 
-**Cosa cambia**: quando Claude lancia una sessione per una sonda, un banco o una prova dal vivo, adesso le dà un nome che comincia con `prova-`, per esempio `claude --bg --name prova-5877 "Rispondi solo: ok"`. Da quel nome Arturo la riconosce. `/fine` in una sessione di prova non scrive handoff, todo né memoria, e la elimina con `claude rm`. Volta, quando la chiudi, non le manda `/fine`: la ferma e la elimina. `/revisione` la lascia fuori dall'estratto e dice quante ne ha saltate; quelle nate prima del nome le riconosce dal primo messaggio ("Rispondi solo: ok"). Sul MacBook erano circa 30 sessioni su 143 in una settimana (proposta n. 7 della prima revisione).
+**Cosa cambia**: quando Claude lancia una sessione per una sonda, un banco o una prova dal vivo, adesso le dà un nome che comincia con `prova-`, per esempio `claude --bg --name prova-5877 "Rispondi solo: ok"`. Da quel nome Arturo la riconosce. `/fine` in una sessione di prova non scrive handoff, todo né memoria, e la elimina con `claude rm`. Volta, quando la chiudi, non le manda `/fine`: la ferma e la elimina. `/revisione` la lascia fuori dall'estratto e dice quante ne ha saltate; quelle nate prima del nome le riconosce dal primo messaggio ("Rispondi solo: ok"). Sul MacBook erano circa 30 sessioni su 143 in una settimana (settima proposta della prima revisione).
 
 **Il principio**: una prova non è lavoro. Non lascia tracce da salvare, non chiede una chiusura e non entra nel racconto di come usi Arturo.
 

@@ -28,6 +28,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
 PREFISSO = "prova-"
 MARCATO = re.compile(r"^\s*prova-", re.I)
@@ -76,7 +78,7 @@ def programma_claude() -> str:
     scelto = (shutil.which(dato) if dato else None) or shutil.which("claude")
     if scelto:
         return scelto
-    for cartella in (Path.home() / ".local" / "bin", Path.home() / ".claude" / "local"):
+    for cartella in (Path.home() / ".local" / "bin", radice_orsa() / "local"):
         for nome in (("claude.exe", "claude.cmd") if os.name == "nt" else ("claude",)):
             if (cartella / nome).is_file():
                 return str(cartella / nome)
@@ -107,8 +109,7 @@ def trova_transcript(sid: str, projects: Path) -> str:
 
 
 def radice_projects() -> Path:
-    base = os.environ.get("CLAUDE_CONFIG_DIR")
-    return (Path(base) if base else Path.home() / ".claude") / "projects"
+    return radice_orsa() / "projects"
 
 
 def elimina_dopo(claude: str, lavoro: str) -> bool:
@@ -120,7 +121,7 @@ def elimina_dopo(claude: str, lavoro: str) -> bool:
             comando = ["powershell", "-NoProfile", "-Command",
                        f"Start-Sleep -Seconds {ATTESA_RM}; & '{claude}' rm {lavoro}"]
             subprocess.Popen(comando, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             creationflags=0x00000008 | 0x00000200)  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+                             creationflags=0x08000000 | 0x00000200)  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP: con DETACHED_PROCESS ogni figlio a console apre una finestra (FW01)
         else:
             subprocess.Popen(["sh", "-c", f'sleep {ATTESA_RM}; "$0" rm "$1"', claude, lavoro],
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
