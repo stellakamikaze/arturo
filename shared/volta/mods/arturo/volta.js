@@ -15,26 +15,37 @@
 // e, appena la sessione è ferma, in Claude Code con /rename.
 // Dopo ogni giro dell'elenco volta_note.py (accanto a questo file) porta le note della finestra (⌘⇧N)
 // fra le macchine di Herdr, con l'esito in ~/.cache/volta-note/stato.json (sincronizzaNote, cacheVolta("volta-note")).
+// Al più ogni minuto volta_davanti.py scrive su ogni macchina quale ha davanti la persona (l'ultima toccata, #5881),
+// in ~/.cache/volta-davanti/davanti.json: le sessioni lo leggono prima di aprire una pagina (giraDavanti).
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window, settings } from "herdr";
-import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, progettoApribile, progettoDi, macchinaQui, GESTI_MAX, visibili, sparite, passoCongedo, chiusa, chiave, trova } from "./sessioni.js";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, progettoApribile, progettoDi, macchinaQui, GESTI_MAX, visibili, sparite, passoCongedo, diProva, chiusa, chiave, trova, mia, vociRipartenza, checklistMandata, dopoRisposta } from "./sessioni.js";
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
-import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda } from "./dati.js";
+import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, chiudiAltrui, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
+import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda, ioQui } from "./dati.js";
 import { voloSposta, VOLO_FRESCO_MS, giuDa, dimenticata, testoHandoff, promptRipresa } from "./sessioni.js";
 import { cartellaHandoff, nomeFile, creaCartella, leggiGiu, scriviGiu, riprendiSu, conArturo } from "./dati.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
+import { apriChecklist } from "./checklist.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 import { run, panes } from "herdr";
+import { congedoSullaCopia } from "./sessioni.js";
 import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare, schedeSpente, SCHEDA, daAllineare } from "./sessioni.js";
+import { ricordaChiuse } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
+import { carte, ordineCoda, canaleRisposta, rigaRisposta, senzaRisposte, carteUf, LETTURA_UF_MS, RIMANDA_MS, conCapo, fondiDoppie, testoPerSessione, rigaMisura } from "./sessioni.js";
+import { gestoCoda, senzaScartate } from "./sessioni.js";
+import { schedeRisposta, rispondiSessione, registraRisposta, prendiCarteUf, apriLink, todo, nuova, scartaCarta, leggiScartate } from "./dati.js";
+import { leggiRecenti } from "./dati.js";
+import { gestoUf } from "./azioni.js";
+import { terminale } from "./casa.js";
 
 const OGNI = 30000;
 // Ogni quanto il mod chiede a volta_mod.py se nel repository c'è un mod nuovo (anche all'apertura).
@@ -53,6 +64,8 @@ const fontTerminale = () => {
 const OGNI_FUOCO = 1000;
 // Ogni quanto si guarda se c'è una sessione da chiudere da sola (#5366): una ferma da un'ora non ha fretta.
 const OGNI_AUTO = 60000;
+// il giro della macchina davanti (#5881): al più uno al minuto
+const DAVANTI_MS = 60000;
 // La sessione è già agganciata in un Terminale fuori dalla finestra: la frase del primo clic, e per
 // quanto resta sulla riga. Finché c'è, il clic dopo stacca quel Terminale e apre la scheda qui.
 const ALTROVE = "È aperta in un Terminale. Un altro clic la porta qui.";
@@ -149,6 +162,9 @@ export class Volta {
     this.escono = {};      // chiave -> true mentre la riga di una sessione in congedo si dissolve
     this.noteScript = null; // volta_note.py, se c'è: le note della finestra uguali su tutte le macchine
     this.noteInCorso = false;
+    this.davantiScript = null; // volta_davanti.py, se c'è: la macchina davanti alla persona (#5881)
+    this.davantiInCorso = false;
+    this.davantiUltimo = 0;
     // "Riduci movimento" del sistema: sul Mac subito, su Windows col Python di arturo.json (sotto)
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
@@ -161,6 +177,7 @@ export class Volta {
       this.micScript = await esiste(`${appHome()}/mods/arturo/volta_microfono.py`);
       if (this.micScript) { try { await exec(this.py, [this.micScript, "spegni"], { timeout: 20000 }); } catch { /* niente ponte */ } }
       this.noteScript = await esiste(`${appHome()}/mods/arturo/volta_note.py`);
+      this.davantiScript = await esiste(`${appHome()}/mods/arturo/volta_davanti.py`);
       this.script = sc.elenco;
       this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
@@ -190,6 +207,13 @@ export class Volta {
     cx.timer.every(OGNI_AUTO, (cx) => this.staccaFerme(cx));
     cx.timer.every(OGNI_AUTO, (cx) => this.allineaSpazi(cx));
     cx.timer.every(OGNI_AUTO, (cx) => { this.avvisaNascite(); this.chiudiOrfani(cx); });
+    // le carte UF della Coda dal capo (#5722): subito e ogni cinque minuti; il capo le rifà ogni ora
+    this.leggiUf(cx);
+    cx.timer.every(LETTURA_UF_MS, (cx) => this.leggiUf(cx));
+    // le carte scartate dalla Coda restano fuori anche dopo un riavvio (scartate.json, 16/11/2026)
+    cx.spawn(async (cx) => { this.scartate = { ...(await leggiScartate()), ...(this.scartate ?? {}) }; this.aggiornaCoda(); cx.notify(); });
+    // e le carte UF già risposte restano fuori fino al giro dopo del capo, anche dopo un riavvio (#5742)
+    cx.spawn(async (cx) => { this.risposte = { ...(await leggiRecenti()), ...(this.risposte ?? {}) }; this.aggiornaCoda(); cx.notify(); });
   }
 
   // Una macchina che smette di far partire sessioni (13/11/2026): un avviso solo per episodio, in shared
@@ -232,14 +256,36 @@ export class Volta {
 
   // L'elenco come lo vede chi usa la finestra: senza chiuse e senza sessioni in congedo.
   vis() {
-    return visibili(this.dati, this.congedi());
+    return visibili(this.dati, this.congedi(), this.chiuse());
+  }
+
+  // Le sessioni chiuse da chi usa la finestra e rimaste in claude agents (chiusaDaTe di sessioni.js, 16/11/2026):
+  // shared arturo.volta.chiuse, così restano fuori anche se il mod si ricarica.
+  chiuse() {
+    return shared("arturo.volta.chiuse") ?? {};
+  }
+
+  // Segna chiuse le sessioni di un congedo finito: la sessione e, se il congedo era passato alla copia,
+  // l'originale. Senza claude rm restano in claude agents, e l'elenco le rimostrava (Federico, 16/11/2026).
+  ricorda(c) {
+    if (!c?.id) return;
+    const voci = [{ host: c.host, id: c.id }, ...(c.copiaDi ? [{ host: c.host, id: c.copiaDi }] : [])];
+    setShared("arturo.volta.chiuse", ricordaChiuse(this.chiuse(), voci, Date.now()));
+  }
+
+  // Riaperta da chi usa la finestra (clic, ⌘K): via dalle chiuse, torna nell'elenco.
+  riapri(s) {
+    const ch = this.chiuse();
+    if (!s || !ch[chiave(s)]) return;
+    const { [chiave(s)]: _, ...resto } = ch;
+    setShared("arturo.volta.chiuse", resto);
   }
 
   // L'elenco del giro ⌘↓/⌘↑: come vis(), e in più fuori le sessioni che stanno uscendo (la dissolvenza
   // prima del congedo) e quelle con la scheda appena sparita (`forse` di guardaSchede), così un ⌘↓ subito
   // dopo ⌘W non riaggancia la sessione che si sta chiudendo.
   visGiro() {
-    return visibili(this.dati, uscenti(this.congedi(), this.escono, this.forse));
+    return visibili(this.dati, uscenti(this.congedi(), this.escono, this.forse), this.chiuse());
   }
 
   // Una scheda che agganciava una sessione e non c'è più, chiusa da chi usa la finestra (⌘W, la X,
@@ -339,7 +385,20 @@ export class Volta {
         if (cambio === null) { const { [kc]: _, ...resto } = ora; setShared("arturo.volta.congedi", resto); }
         else setShared("arturo.volta.congedi", { ...ora, [kc]: { ...ora[kc], ...cambio } });
       };
-      if (p.fai === "togli") { scrivi(null); continue; }
+      // il congedo finisce e la sessione resta in claude agents: fuori dall'elenco lo stesso (chiuse)
+      if (p.fai === "togli" && p.riaperta) {
+        // riaperta durante il congedo (#5633): resta aperta, niente stop, e torna nell'elenco
+        scrivi(null);
+        this.riapri(s);
+        registra("congedo", { macchina: s?.host, sid: s?.id ?? c.id, esito: "riaperta" });
+        notify({ title: `${c.titolo ?? "Sessione"}: resta aperta`, body: "L'hai riaperta durante la chiusura: non la fermo.", level: "info" });
+        continue;
+      }
+      if (p.fai === "togli") { scrivi(null); this.ricorda(c); continue; }
+      // la ripresa con /fine si segna prima di lanciarla (16/11/2026): una ricarica del mod durante la
+      // ripresa perdeva this.congedo, e la copia nuova del mod trovava ancora "attende". Toglieva il congedo
+      // della sessione ferma (la ripresa poi la riaccendeva fuori dal registro, visibile) o rifaceva /fine.
+      if (p.fai === "fine") scrivi({ fase: "fine", dal: Date.now() });
       this.congedo[kc] = true;
       cx.spawn(async (cx) => {
         let r;
@@ -358,13 +417,22 @@ export class Volta {
           // Se rm non va, la sessione resta lì, già fuori dall'elenco di Volta, e lo si dice.
           if (r?.errore) notify({ title: `${c.titolo ?? "Sessione"}: chiusa`, body: `Salvata con /fine, ma non riesco a eliminarla: ${r.errore}`, level: "warning" });
           scrivi(null);
+          this.ricorda(c);
         } else if (r?.errore && p.fai === "fine") {
           // la ripresa con /fine non parte: la sessione si ferma comunque, e lo si dice
           notify({ title: `${c.titolo ?? "Sessione"}: chiusa senza /fine`, body: r.errore, level: "warning" });
           registra("congedo", { macchina: s?.host, sid: s?.id ?? c.id, esito: "senza fine", errore: r.errore });
           const ferma = await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop").catch((e) => ({ errore: String(e?.message ?? e) }));
           if (ferma?.errore) registra("congedo stop", { macchina: s?.host, sid: s?.id ?? c.id, esito: "errore", errore: ferma.errore });
+          // una copia nata dalla ripresa e rimasta senza processo si ferma anche lei
+          if (congedoSullaCopia(c, r?.copia)) await azioneSessione({ ...c, id: r.copia.id, sessionId: r.copia.sessionId }, "stop").catch(() => null);
           scrivi({ fase: "ferma", dal: Date.now() });
+        } else if (p.fai === "fine" && congedoSullaCopia(c, r?.copia)) {
+          // la ripresa è nata come copia con un id nuovo: il congedo segue lei, che fa /fine e poi si ferma
+          const nuovo = congedoSullaCopia(c, r.copia, Date.now());
+          const { [kc]: _, ...resto } = this.congedi();
+          setShared("arturo.volta.congedi", { ...resto, [nuovo.chiave]: nuovo.voce });
+          registra("congedo copia", { macchina: c.host, sid: c.id, copia: nuovo.voce.id, esito: "ok" });
         } else scrivi({ fase: p.fase ?? c.fase, dal: Date.now(), ...(p.salvata ? { salvata: true } : {}) });
         this.aggiorna(cx);
         cx.notify();
@@ -404,7 +472,7 @@ export class Volta {
       const s = scelte[0];
       await writeTextFile(file, JSON.stringify({ ...reg, modo: "acceso", fatti: [...fatti, adesso],
         chiuse: [...(reg.chiuse ?? []).slice(-39), { sessionId: s.sessionId, titolo: titolo(s), quando: adesso, interazione: s.interazione || s.ultimo || "" }] }, null, 1), testo);
-      notify({ title: `${titolo(s)}: la chiudo`, body: `Aspettava un comando ${daQuanto(s.interazione || s.ultimo, adesso)}: faccio /fine e la fermo.`, level: "info" });
+      notify({ title: `${titolo(s)}: la chiudo`, body: `Aspettava un comando ${daQuanto(s.interazione || s.ultimo, adesso)}: ${diProva(s) ? "è una prova, la elimino." : "faccio /fine e la fermo."}`, level: "info" });
       this.congeda({ sessionId: s.sessionId, id: s.id, host: s.host ?? "qui", auto: true }, cx);
     } catch { /* un registro scritto da un'altra finestra nel frattempo: si riprova al giro dopo */ }
     finally { this.autoLavora = false; }
@@ -454,7 +522,8 @@ export class Volta {
       for (const [indirizzo, c] of Object.entries(this.schede)) {
         const s = c && this.dati.sessioni.find((x) => x.id === c.id && x.host === c.host);
         const p = panes().find((x) => x.terminal === indirizzo);
-        const dove = p ? sp.find((x) => !x.machine && x.tabs.some((tb) => tb.id === p.tab)) : null;
+        // anche lo spazio di un'altra macchina: lì stanno le schede delle sue sessioni (#5802)
+        const dove = p ? sp.find((x) => (!x.machine || x.machine === s?.host) && x.tabs.some((tb) => tb.id === p.tab)) : null;
         if (s) voci.push({ indirizzo, s, spazio: dove ? { nome: dove.name, libero: libero(dove.name) } : null });
       }
       this.allineati = this.allineati ?? new Set();
@@ -588,6 +657,7 @@ export class Volta {
         notify({ title: `${titolo(s)} ti aspetta`, body: `Su ${s.macchina}: aprila da Tutte le sessioni.`, level: "info" });
       const st = statiCorti(this.dati);
       if (JSON.stringify(st) !== JSON.stringify(shared("arturo.volta.stati") ?? {})) setShared("arturo.volta.stati", st);
+      this.aggiornaCoda();
     }
     this.portaNomi();
     this.portaInizi();
@@ -664,6 +734,7 @@ export class Volta {
       this.giraCoda(cx);
       cx.notify();
       this.sincronizzaNote(cx);
+      this.giraDavanti(cx);
     });
   }
 
@@ -679,6 +750,21 @@ export class Volta {
         await exec(this.py, [this.noteScript, "sincronizza", "--scrivi", `${cacheVolta("volta-note")}/stato.json`], { timeout: 60000 });
       } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
       this.noteInCorso = false;
+    });
+  }
+
+  // La macchina davanti (17/11/2026, #5881): volta_davanti.py chiede a ogni macchina da quanto nessuno tocca
+  // tastiera o mouse e scrive su tutte il file con l'ultimo tocco. Il giro dell'elenco dura 8 s: questo al più
+  // ogni DAVANTI_MS, mai due insieme. Il tocco vale 15 minuti, quindi un minuto di ritardo non sposta niente.
+  giraDavanti(cx) {
+    if (!this.davantiScript || this.davantiInCorso || Date.now() - this.davantiUltimo < DAVANTI_MS) return;
+    this.davantiInCorso = true;
+    this.davantiUltimo = Date.now();
+    cx.spawn(async () => {
+      try {
+        await exec(this.py, [this.davantiScript, "giro", "--scrivi", `${cacheVolta("volta-davanti")}/stato.json`], { timeout: 60000 });
+      } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
+      this.davantiInCorso = false;
     });
   }
 
@@ -750,6 +836,7 @@ export class Volta {
   // il riavvio se era in errore, poi la scheda. Se Claude esce subito dalla scheda, lo dice la riga.
   apri(s, argv, pronta, cx) {
     const k = chiave(s);
+    this.riapri(s);
     this.apro[k] = true;
     cx.notify();
     cx.spawn(async (cx) => {
@@ -776,9 +863,14 @@ export class Volta {
   // Sposta la copia chiusa di partenza ha lo stesso id, e il clic (o ⌘K) la riaprirebbe lì (#5537). Vale
   // anche la chiave macchina:id (#5634), che dice da sola quale copia.
   trovaId(id) {
-    const tra = (l) => (l ?? []).filter((x) => (String(id).includes(":") ? chiave(x) === id : x.id === id || String(x.sessionId).startsWith(id)));
+    // Un id nudo vale prima come id del lavoro, poi come inizio del sessionId: la prima conversazione di un
+    // lavoro che rinasce come lavoro suo ha il sessionId che comincia con l'id del lavoro (#5907).
+    const nudo = !String(id).includes(":");
+    const esatti = (l) => (l ?? []).filter((x) => (nudo ? x.id === id : chiave(x) === id));
+    const prefisso = (l) => (nudo ? (l ?? []).filter((x) => String(x.sessionId).startsWith(id)) : []);
     // Prima la riga visibile: la copia chiusa di partenza ha lo stesso id (#5537).
-    const l = [this.vis()?.sessioni, this.dati?.sessioni].map(tra).find((x) => x.length) ?? [];
+    const liste = [this.vis()?.sessioni, this.dati?.sessioni];
+    const l = liste.map(esatti).find((x) => x.length) ?? liste.map(prefisso).find((x) => x.length) ?? [];
     const copie = [...new Set(l.map(chiave))];
     if (!l.length) notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
     // Il solo id che sta su due macchine non dice quale copia (#5643): i comandi di Volta portano la chiave
@@ -825,7 +917,11 @@ export class Volta {
     const s = sessioneDavanti(t, this.dati?.sessioni ?? []);
     const v = s ? { id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina, tipo: s.tipo,
       stato: s.stato, titolo: titolo(s), progetto: s.progetto ?? null, sintesi: s.sintesi ?? null, fase: fase(s),
-      sposto: this.faccio?.[chiave(s)] === "sposta" || Boolean(this.codaSposta?.[chiave(s)]) } : null;
+      sposto: this.faccio?.[chiave(s)] === "sposta" || Boolean(this.codaSposta?.[chiave(s)]),
+      // la checklist della ripartenza ancora da mandare (17/11/2026): quante voci, per la testata, e
+      // l'elenco intero per il blocco sovrapposto (checklist.js, parte ripartenza)
+      checklist: s.ripartenza && !checklistMandata(s, shared("arturo.checklist.mandate")) ? vociRipartenza(s.ripartenza).length : 0,
+      chiave: chiave(s), ripartenza: s.ripartenza && !checklistMandata(s, shared("arturo.checklist.mandate")) ? s.ripartenza : null } : null;
     if (JSON.stringify(v) !== JSON.stringify(shared("arturo.volta.davanti") ?? null)) setShared("arturo.volta.davanti", v);
   }
 
@@ -984,6 +1080,150 @@ export class Volta {
     if (s) this.premi(s, cx);
   }
 
+  // Le carte della Coda (#5720), già in ordine, senza quelle appena risposte (senzaRisposte): la parte
+  // coda.js e la barra di stato le leggono da shared arturo.coda. Il capo (#5723) mette i suoi giudizi
+  // sulle carte delle sessioni (conCapo) e fonde le doppie; la misura della settimana va in
+  // arturo.coda.misura, per la testata della Coda.
+  aggiornaCoda() {
+    const cc = fondiDoppie(senzaScartate(senzaRisposte(ordineCoda([...conCapo(carte(this.dati?.sessioni), this.uf), ...carteUf(this.uf)]), this.risposte), this.scartate));
+    if (JSON.stringify(cc) !== JSON.stringify(shared("arturo.coda") ?? [])) setShared("arturo.coda", cc);
+    const m = rigaMisura(this.uf?.misura);
+    if (m !== (shared("arturo.coda.misura") ?? null)) setShared("arturo.coda.misura", m);
+  }
+
+  // "arturo.checklist" (⌘⇧S) e "arturo.checklist-<chiave>" (17/11/2026): la ripartenza di /inizio come
+  // checklist con le note, nel dialogo di checklist.js. Senza chiave vale la sessione della scheda davanti.
+  // La scelta torna con arturo.coda-rispondi, cioè rispondiCoda qui sotto: stessi canali della Coda.
+  checklist(k = null) {
+    const davanti = shared("arturo.volta.davanti");
+    const s = k ? this.trovaId(k) : davanti ? this.trovaId(`${davanti.host ?? "qui"}:${davanti.id}`) : null;
+    if (!s) return notify({ title: "Nessuna sessione davanti", body: "La checklist è quella della sessione nella scheda in primo piano.", level: "info", timeout: 4000 });
+    // senza ripartenza la lista sono i task del progetto della sessione (checklist.js); senza progetto non c'è
+    if (!vociRipartenza(s.ripartenza).length && !s.progetto) return notify({ title: `${titolo(s)} non ha una checklist`, body: "La checklist viene dalla ripartenza di /inizio o dai task del progetto: questa sessione non ha un progetto.", level: "info", timeout: 5000 });
+    const mandata = checklistMandata(s, shared("arturo.checklist.mandate"));
+    apriChecklist({ chiave: chiave(s), sessionId: s.sessionId, titolo: titolo(s), progetto: s.progetto ?? null, ripartenza: mandata ? null : s.ripartenza });
+  }
+
+  // "arturo.coda-rispondi-<chiave>-<esadecimale>": la risposta scelta su una carta della Coda (#5720),
+  // che torna alla sessione su qualunque macchina (#5721). Il canale lo sceglie canaleRisposta() di
+  // sessioni.js: un dialogo aperto o un'interattiva fuori da Herdr si aprono nella scheda con un avviso
+  // che dice il testo; con una scheda qui la risposta si scrive lì; in background la sonda ferma la
+  // sessione e la riprende con la risposta. Se non arriva, la sessione si apre come per il dialogo.
+  // Ogni risposta va nel registro (volta_carte.py risposta). La carta esce subito dalla Coda.
+  rispondiCoda(k, testo, cx, p = null) {
+    if (/^(uf|bozza):/.test(String(k))) return this.rispondiUf(k, testo, cx, p);
+    const s = this.trovaId(k);
+    if (!s || !testo) return;
+    const c = (shared("arturo.coda") ?? []).find((x) => x?.chiave === k) ?? { chiave: k, macchina: s.macchina, progetto: s.progetto ?? null };
+    const canale = canaleRisposta(s, c, schedeRisposta(s));
+    const apri = (perche) => {
+      terminale();
+      this.premi(s, cx);
+      notify({ title: perche ? `Scrivi tu in ${titolo(s)}: ${perche}` : `Scrivi in ${titolo(s)}`, body: testoPerSessione(testo), level: perche ? "warning" : "info", timeout: 12000 });
+    };
+    this.risposte = { ...(this.risposte ?? {}), [k]: Date.now() };
+    this.aggiornaCoda();
+    // la checklist resta in bozza finché la risposta non arriva (dopoRisposta di sessioni.js)
+    const esitoChecklist = (ok, errore) => {
+      const st = dopoRisposta({ bozze: shared("arturo.checklist.bozze"), mandate: shared("arturo.checklist.mandate"), aperte: shared("arturo.checklist.aperte") },
+        s.sessionId, { ok, errore, testo });
+      if (!st) return;
+      setShared("arturo.checklist.bozze", st.bozze);
+      setShared("arturo.checklist.mandate", st.mandate);
+      setShared("arturo.checklist.aperte", st.aperte);
+    };
+    if (canale === "dialogo" || canale === "apri") {
+      apri(null);
+      esitoChecklist(false, canale === "dialogo" ? "la sessione era ferma su un dialogo: rispondi lì, poi rimanda" : "la sessione è fuori da Herdr: scrivila tu");
+      registraRisposta(rigaRisposta(c, p?.scelta ?? testo, canale, "aperta", null, p?.nota));
+      return;
+    }
+    cx.spawn(async (cx) => {
+      let r;
+      try { r = await rispondiSessione(s, testoPerSessione(testo), canale); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
+      esitoChecklist(Boolean(r?.ok), r?.errore);
+      registraRisposta(rigaRisposta(c, p?.scelta ?? testo, canale, r?.ok ? "ok" : "errore", r?.errore, p?.nota));
+      registra("risposta", { macchina: s.host ?? "qui", sid: s.id, esito: r?.ok ? "ok" : "errore", errore: r?.errore });
+      if (r?.ok) return notify({ title: `Risposta a ${titolo(s)}`, body: testo, level: "info", timeout: 6000 });
+      // non è arrivata: la carta torna in Coda e la sessione si apre, col testo da scrivere
+      this.risposte = { ...(this.risposte ?? {}) };
+      delete this.risposte[k];
+      this.aggiornaCoda();
+      apri(r?.errore ?? "non ha risposto");
+      cx.notify();
+    });
+  }
+
+  // "arturo.coda-gesto-<chiave>-<esadecimale>" (16/11/2026): Già fatto, Scarta, Note o un'opzione col
+  // commento di C. gestoCoda() di sessioni.js dice cosa fa il gesto; Scarta di una sessione o di una bozza
+  // toglie la carta da questa macchina (scartate.json), il resto passa da rispondiCoda e rispondiUf.
+  gestoDaCoda(k, gesto, commento, cx) {
+    const c = (shared("arturo.coda") ?? []).find((x) => x?.chiave === k);
+    const p = gestoCoda(c, gesto, commento);
+    if (!p) return notify({ title: c ? "Scrivi la nota prima di Invio" : "Questa carta non c'è più", body: c ? c.domanda : "La Coda si rilegge fra poco.", level: "warning" });
+    if (p.azione !== "scarta") return this.rispondiCoda(k, p.testo, cx, p);
+    const quando = Number(c.quando) || Date.now();
+    this.scartate = { ...(this.scartate ?? {}), [k]: quando };
+    this.aggiornaCoda();
+    cx.spawn(async () => { await scartaCarta(k, quando); });
+    registraRisposta(rigaRisposta(c, p.scelta, "scarta", "ok", null, p.nota));
+    notify({ title: "Tolta dalla Coda", body: c.domanda, level: "info", timeout: 4000 });
+  }
+
+  // Le carte UF dal capo (volta_capo.py prendi, #5722). Un capo che non risponde lascia le carte di prima,
+  // segnate vecchie dallo script; uno script che non risponde lascia le carte com'erano.
+  leggiUf(cx) {
+    if (this.leggoUf) return;
+    this.leggoUf = true;
+    cx.spawn(async (cx) => {
+      try {
+        const d = await prendiCarteUf();
+        if (d) { this.uf = d; this.aggiornaCoda(); cx.notify(); }
+      } finally { this.leggoUf = false; }
+    });
+  }
+
+  // La risposta su una carta UF (#5722): il gesto di gestoUf() di azioni.js. Un task si scrive con
+  // `arturo todo` su questa macchina (il titolo atteso ferma il gesto se il task è cambiato); Apri porta
+  // Claude sul task, o Gmail in Firefox per una bozza; Riscrivi fa nascere Claude con /posta. La carta
+  // resta fuori dalla Coda fino al giro dopo del capo (senzaRisposte); se il gesto non riesce, torna.
+  rispondiUf(k, testo, cx, p = null) {
+    const c = (shared("arturo.coda") ?? []).find((x) => x?.chiave === k);
+    const g = gestoUf(c, testo, { nota: p?.nota });
+    if (!g) return notify({ title: "Questa carta non c'è più", body: "La Coda si rilegge fra poco.", level: "warning" });
+    const torna = (titoloAvviso, body) => {
+      this.risposte = { ...(this.risposte ?? {}) };
+      delete this.risposte[k];
+      this.aggiornaCoda();
+      notify({ title: titoloAvviso, body, level: "warning", timeout: 8000 });
+      cx.notify();
+    };
+    this.risposte = { ...(this.risposte ?? {}), [k]: Date.now() + (g.azione === "rimanda" ? RIMANDA_MS : 0) };
+    this.aggiornaCoda();
+    registraRisposta(rigaRisposta(c, p?.scelta ?? testo, "uf", "ok", null, p?.nota));
+    if (g.azione === "rimanda" || g.azione === "giafatto") return notify({ title: g.esito, body: c.domanda, level: "info", timeout: 4000 });
+    cx.spawn(async () => {
+      if (g.azione === "link") { if (!(await apriLink(g.url))) torna("Gmail non si apre", c.domanda); return; }
+      if (g.azione === "nuova") { terminale(); await nuova(g.prompt); return; }
+      // il commento della Coda va sul task prima del gesto: un gesto che chiude il task non lo perde
+      for (const argv of g.prima ?? []) {
+        const n = await todo(argv);
+        if (!n.ok) return torna("Il commento non è arrivato sul task", n.errore ?? c.domanda);
+      }
+      if (g.azione === "apri") {
+        terminale();
+        if (g.progetto) await apriProgetto(g.progetto, g.todo);
+        else await nuova(`Lavoriamo sul todo #${g.todo.id}: ${g.todo.titolo}`);
+        return;
+      }
+      const r = await todo(g.argv);
+      setShared("arturo.scritto", Date.now());
+      if (r.ok) return notify({ title: g.esito, body: c.domanda, level: "success", timeout: 4000 });
+      torna(r.codice === 2 ? "Questo task è cambiato nel frattempo" : "Non sono riuscito a scrivere il task",
+        r.codice === 2 ? "La carta torna in Coda: riprova dopo il giro del capo." : r.errore);
+    });
+  }
+
   // "arturo.volta-altro-<chiave>" e "arturo.volta-gesto-<verbo>-<chiave>": il clic su "Altro" e su un suo
   // bottone, da herdr-app do. Herdr non ha clic simulati: le prove dei gesti passano da qui (#5203).
   altroId(id, cx) {
@@ -1087,12 +1327,20 @@ export class Volta {
     // anche la sessione di una macchina che non risponde: il congedo aspetta che torni (passoCongedo, fino a
     // CONGEDO_VECCHIO_MS). Prima ⌘W chiudeva solo la scheda, e la sessione restava accesa su quella macchina
     // e tornava nell'elenco (Federico, 14/11/2026: "con CMD + W non chiude davvero alcune schede").
-    if (s && s.tipo === "background" && !chiusa(s)) return this.fare(s, { verbo: "chiudi", testo: "Chiudi" }, cx);
+    // Una scheda aperta dalla finestra di un'altra macchina (#5802) si chiude soltanto: il congedo lo fa la
+    // finestra che l'ha aperta, quando la vede sparire. Due congedi della stessa sessione farebbero due /fine.
+    if (s && s.tipo === "background" && !chiusa(s) && mia(t, ioQui())) return this.fare(s, { verbo: "chiudi", testo: "Chiudi" }, cx);
     run("tab.close", tab ? { id: tab } : {});
   }
 
   // Chiudi del menu: via la scheda, poi il congedo (/fine e claude stop), come ⌘W sulla scheda.
+  // Con la scheda aperta dalla finestra di un'altra macchina (#5811) chiude anche quella, e il congedo lo fa
+  // l'altra finestra quando la vede sparire (chiudiAltrui di dati.js): qui niente congedo, o sarebbero due /fine.
   async chiudi(s, cx) {
+    if (chiudiAltrui(s)) {
+      chiudiSchede(s);
+      return { ok: true };
+    }
     chiudiSchede(s);
     this.congeda(s, cx);
     return { ok: true };

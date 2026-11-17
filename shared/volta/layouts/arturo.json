@@ -152,6 +152,17 @@
                       },
                       "edge": "top",
                       "align": "center"
+                    },
+                    {
+                      "id": "ripartenza",
+                      "content": {
+                        "mod": "arturo",
+                        "props": {
+                          "parte": "ripartenza"
+                        }
+                      },
+                      "edge": "bottom",
+                      "align": "end"
                     }
                   ]
                 },
@@ -164,6 +175,18 @@
                     "mod": "arturo",
                     "props": {
                       "parte": "casa"
+                    }
+                  }
+                },
+                {
+                  "id": "coda",
+                  "type": "block",
+                  "shadow": "md",
+                  "radius": 10,
+                  "content": {
+                    "mod": "arturo",
+                    "props": {
+                      "parte": "coda"
                     }
                   }
                 }

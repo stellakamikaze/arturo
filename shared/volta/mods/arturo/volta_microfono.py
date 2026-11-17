@@ -33,6 +33,11 @@ Regole:
     delle sessioni (volta_sonda.py) a ogni lettura, finché trova microfono.json;
   - un ingresso Bluetooth non si cattura mai (`sorgente`): porta cassa o cuffia al profilo telefonata e
     ovatta la musica. Se il predefinito è Bluetooth il ponte prende il microfono integrato, o uno USB;
+  - col coperchio chiuso il microfono integrato è muto: il ponte prende uno USB (la webcam), e un ponte
+    già acceso si rifà al primo `accendi` dopo il cambio;
+  - `ricevi` tiene il PCM allineato ai campioni (`Allineamento`): un flusso arrivato sfasato di un byte
+    suonerebbe come rumore forte e costante, e la dettatura direbbe "No audio detected"; il byte tolto
+    finisce in ~/.cache/volta/microfono-ricevi.log;
   - `spegni` chiude tutto il gruppo del ponte, anche quando il ponte è morto e restano cattura e ssh.
 
 Sta nella cartella del mod, come volta_sonda.py: arriva su ogni macchina con l'aggiornamento del mod, e
@@ -40,7 +45,7 @@ il ponte lo trova là allo stesso posto (~/.config/herdr-app/mods/arturo).
 
 Solo macOS per ora: su Windows `accendi` e `ricevi` rispondono che manca il supporto.
 Variabili per i banchi: VOLTA_CACHE, VOLTA_MIC_AUDIO (un file JSON al posto di CoreAudio:
-{"predefinito": uid, "ingressi": [{"uid", "nome", "trasporto"}]}), VOLTA_MIC_CATTURA, VOLTA_MIC_SUONA e
+{"predefinito": uid, "ingressi": [{"uid", "nome", "trasporto"}], "coperchio_chiuso": bool}), VOLTA_MIC_CATTURA, VOLTA_MIC_SUONA e
 VOLTA_MIC_SSH (JSON: l'argv che sostituisce ffmpeg di cattura, ffmpeg di uscita e ssh col comando),
 VOLTA_MIC_SCADENZA e VOLTA_MIC_SILENZIO (secondi).
 Solo libreria standard, Python 3.8+.
@@ -48,6 +53,7 @@ Solo libreria standard, Python 3.8+.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import select
@@ -203,6 +209,16 @@ class Audio:
         return [{"uid": self._testo(i, "uid "), "nome": self._testo(i, "lnam"), "trasporto": self._trasporto(i)}
                 for i in self._dispositivi()]
 
+    def coperchio_chiuso(self) -> bool:
+        """Il MacBook col coperchio chiuso (monitor esterno): il microfono integrato c'è ma registra
+        silenzio. Un Mac senza coperchio non ha la voce AppleClamshellState e risponde False."""
+        try:
+            r = subprocess.run(["/usr/sbin/ioreg", "-r", "-k", "AppleClamshellState", "-d", "4"],
+                               capture_output=True, text=True, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return bool(re.search(r'"AppleClamshellState"\s*=\s*Yes', r.stdout))
+
     def predefinito(self) -> str:
         b = self._dato(1, "dIn ")
         return self._testo(self.s.unpack("@I", b)[0], "uid ") if len(b) == 4 else ""
@@ -228,6 +244,9 @@ class AudioFinto:
 
     def predefinito(self) -> str:
         return leggi(self.f).get("predefinito") or ""
+
+    def coperchio_chiuso(self) -> bool:
+        return bool(leggi(self.f).get("coperchio_chiuso"))
 
     def metti(self, uid: str) -> bool:
         d = leggi(self.f)
@@ -261,14 +280,24 @@ def sorgente(a) -> str | None:
     Un ingresso Bluetooth non si cattura: aprire il microfono di una cassa o di una cuffia la porta dal
     profilo musica (A2DP) a quello telefonata (HFP, 16 kHz mono), e la musica che sta suonando là
     diventa ovattata finché il ponte resta acceso. Se il predefinito è Bluetooth si prende il microfono
-    integrato, o in mancanza uno USB. Senza alternativa resta il predefinito."""
+    integrato, o in mancanza uno USB. Senza alternativa resta il predefinito.
+
+    Col coperchio chiuso il microfono integrato registra silenzio, anche se resta il predefinito: il
+    MacBook attaccato a monitor e webcam mandava -91 dB all'altra macchina (16/11/2026). Allora si
+    prende uno USB (la webcam), e l'integrato non vale come alternativa al Bluetooth."""
     if a is None:
         return None
     ingressi = a.ingressi()
     pre = a.predefinito()
-    if next((x.get("trasporto") for x in ingressi if x.get("uid") == pre), "") not in BLUETOOTH:
+    tipo = next((x.get("trasporto") for x in ingressi if x.get("uid") == pre), "")
+    chiuso = bool(getattr(a, "coperchio_chiuso", lambda: False)())
+    if tipo in BLUETOOTH:
+        ordine = ("usb ",) if chiuso else ("bltn", "usb ")
+    elif tipo == "bltn" and chiuso:
+        ordine = ("usb ",)
+    else:
         return None
-    for trasporto in ("bltn", "usb "):
+    for trasporto in ordine:
         for x in ingressi:
             if x.get("trasporto") == trasporto and x.get("nome") and VIRTUALE.lower() not in x["nome"].lower():
                 return x["nome"]
@@ -348,6 +377,71 @@ def scrivi_entro(fd: int, dati: bytes, secondi: float) -> bool:
     return True
 
 
+class Allineamento:
+    """Tiene il PCM a 16 bit allineato ai campioni: se il flusso arriva sfasato di un byte, lo riallinea.
+
+    Il 16/11/2026 un avvio del ponte è nato sfasato: in BlackHole arrivava un rumore costante a -15 dB al posto
+    della stanza a -60, e Claude rispondeva "No audio detected". Il PCM grezzo non dice dove comincia un campione,
+    ma il segnale sì: letto al passo giusto un microfono vero ha energia bassa, letto un byte più avanti il byte
+    basso finisce in quello alto e diventa rumore forte. Ogni FINESTRA byte si misurano tutte e due le letture:
+    se quella spostata è più bassa di SCARTO dB per DI_FILA finestre, si toglie un byte e lo si scrive nel log.
+    Il silenzio digitale e la voce forte restano come sono: lì la lettura giusta è già la più bassa."""
+
+    FINESTRA = 2 * FREQUENZA // 2   # mezzo secondo di audio
+    SCARTO = 15.0
+    DI_FILA = 2
+
+    def __init__(self, registro=None):
+        self.finestra = bytearray()
+        self.sospetti = 0
+        self.tolti = 0
+        self.inviati = 0
+        self.registro = registro
+
+    @staticmethod
+    def livello(b: bytes) -> float:
+        b = b[:len(b) // 2 * 2]
+        if not b:
+            return -120.0
+        import array
+        a = array.array("h", b)
+        if sys.byteorder != "little":
+            a.byteswap()
+        campioni = a[::4] or a
+        q = sum(x * x for x in campioni) / len(campioni)
+        return 20 * math.log10(max(1.0, math.sqrt(q)) / 32768)
+
+    def passa(self, pezzo: bytes) -> bytes:
+        """Il pezzo da mandare avanti: uguale a quello arrivato, o senza il primo byte se il flusso era sfasato."""
+        if self.sospetti >= self.DI_FILA and pezzo:
+            pezzo = pezzo[1:]
+            self.sospetti = 0
+            self.tolti += 1
+            self.finestra.clear()
+            if self.registro:
+                self.registro("riallineato: tolto un byte (volta %d)" % self.tolti)
+        # la finestra comincia sempre all'inizio di un campione del flusso mandato avanti: dopo un byte tolto
+        # può ripartire da un punto dispari, e allora il suo primo byte non si misura
+        self.finestra += pezzo[1:] if not self.finestra and self.inviati % 2 else pezzo
+        self.inviati += len(pezzo)
+        while len(self.finestra) >= self.FINESTRA + 1:
+            f = bytes(self.finestra[:self.FINESTRA + 1])
+            del self.finestra[:self.FINESTRA]
+            giusto, spostato = self.livello(f[:-1]), self.livello(f[1:])
+            self.sospetti = self.sospetti + 1 if spostato < giusto - self.SCARTO else 0
+        return pezzo
+
+
+def registro_ricevi(riga: str) -> None:
+    """Una riga in ~/.cache/volta/microfono-ricevi.log: qui si vede se il ricevitore ha dovuto riallineare."""
+    try:
+        cache().mkdir(parents=True, exist_ok=True)
+        with open(cache() / "microfono-ricevi.log", "a", encoding="utf-8") as f:
+            f.write("%s %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), riga))
+    except OSError:
+        pass
+
+
 def cmd_ricevi() -> int:
     def esci(codice: int, **d) -> int:
         print(json.dumps(d, ensure_ascii=False), flush=True)
@@ -396,6 +490,7 @@ def cmd_ricevi() -> int:
         # accorgerebbe dopo ore, e intanto l'ingresso resterebbe quello virtuale.
         entrata, uscita = sys.stdin.fileno(), figlio.stdin.fileno()
         os.set_blocking(uscita, False)
+        allinea = Allineamento(registro_ricevi)
         while figlio.poll() is None:
             pronto, _, _ = select.select([entrata], [], [], SILENZIO)
             if not pronto:
@@ -403,7 +498,7 @@ def cmd_ricevi() -> int:
             pezzo = os.read(entrata, 8192)
             if not pezzo:
                 break
-            if not scrivi_entro(uscita, pezzo, SILENZIO):
+            if not scrivi_entro(uscita, allinea.passa(pezzo), SILENZIO):
                 break
         return 0
     finally:
@@ -569,6 +664,15 @@ def ferma_locale() -> None:
     file_locale().unlink(missing_ok=True)
 
 
+def da_cambiare(d: dict) -> bool:
+    """True se il ponte attivo cattura un ingresso diverso da quello giusto adesso: il coperchio si è
+    chiuso, la webcam è arrivata, la cuffia Bluetooth è diventata il predefinito. Il ponte sceglie
+    l'ingresso solo all'avvio, quindi va rifatto."""
+    if d.get("stato") != "attivo" or "ingresso" not in d or finto("VOLTA_MIC_CATTURA"):
+        return False
+    return d.get("ingresso") != (sorgente(audio()) or "predefinito")
+
+
 def cmd_accendi(argv: list) -> int:
     if len(argv) != 1 or argv[0].startswith("-"):
         print("uso: volta_microfono.py accendi <target ssh>")
@@ -581,7 +685,7 @@ def cmd_accendi(argv: list) -> int:
     file_rinnovo().write_text(str(time.time()), encoding="utf-8")
     d = leggi(file_locale())
     stesso = d.get("target") == target
-    if stesso and d.get("stato") in ("avvio", "attivo") and nostro(d.get("pid"), "ponte"):
+    if stesso and d.get("stato") in ("avvio", "attivo") and nostro(d.get("pid"), "ponte") and not da_cambiare(d):
         print(json.dumps(stato_locale(), ensure_ascii=False))
         return 0
     # dopo un errore sullo stesso target si riprova solo dopo mezzo minuto: niente raffica di ssh

@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, agganciata, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi } from "./sessioni.js";
+import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -25,6 +25,9 @@ export async function config() {
     // volta_sonda.py: "volta" in arturo.json (una copia di prova), altrimenti quello del mod. L'unico
     // punto che lo dice: lo usano l'elenco di Volta (volta.js) e la nascita su un'altra macchina.
     volta: typeof c.volta === "string" && c.volta ? c.volta : `${appHome()}/mods/arturo/volta_sonda.py`,
+    // La macchina del capo (#5722): quella dove il giro orario di volta_capo.py scrive le carte UF della
+    // Coda (task e bozze). Il suo nome in herdr-core ("amaltea"); senza voce, o "qui", questa macchina.
+    capo: typeof c.capo === "string" && c.capo ? c.capo : "qui",
     // La chiusura automatica delle sessioni che aspettano un comando (#5366): "prova" (scrive solo cosa
     // chiuderebbe, in congedo-auto.json di cacheVolta()), "acceso" o "spento". Senza voce vale "prova".
     congedo: {
@@ -126,32 +129,28 @@ export function esito(r) {
 // Lo slug come lo fa Arturo: la copia sola sta in sessioni.js (slug, progettoDi).
 export { slug };
 
-// Lo spazio che raccoglie le sessioni senza progetto (aggancia). Fino al 12/11/2026 si chiamava "Volta" e si
-// scontrava col progetto Volta (herdr-arturo, nome alternativo volta): la tessera Volta di ⌘T portava qui.
-// Uno spazio "Volta" di prima vale ancora come libero, e libera() lo rinomina.
+// Lo spazio che raccoglie le sessioni senza progetto (aggancia). Fino al 12/11/2026 si chiamava "Volta";
+// dal 17/11/2026 "volta" è lo slug del progetto Volta (prima herdr-arturo), e uno spazio "Volta" è il suo.
 export const SPAZIO_LIBERO = "Senza progetto";
-export const libero = (nome) => ["senza-progetto", "volta"].includes(slug(nome));
+export const libero = (nome) => slug(nome) === "senza-progetto";
 
 // Uno spazio è un progetto se sta su questo computer, ha un nome scritto e non è lo spazio libero: quello
 // non ha todo e non va fra i progetti della barra.
 export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && !libero(s.name);
 
-// La chiave di un progetto: un nome alternativo ("volta") porta alla chiave della scheda ("herdr-arturo"),
+// La chiave di un progetto: un nome alternativo ("volta-celeste") porta alla chiave della scheda ("volta"),
 // così il progetto trova il suo spazio e non uno che ha per nome l'alternativo (progettoDi di sessioni.js).
 export const canonico = (nome) => progettoDi(nome, shared("arturo.progetti")).chiave;
 
-// Rinomina in "Senza progetto" gli spazi "Volta" di prima su questo computer (una volta, all'avvio della barra).
-export function libera() {
-  for (const s of spaces()) if (!s.machine && slug(s.name) === "volta") run("space.rename", { id: s.id, name: SPAZIO_LIBERO });
-}
-
 // Lo spazio di Herdr di un progetto: quello su questo computer col nome del progetto, anche se lo spazio
-// porta un nome alternativo ("volta-celeste" per herdr-arturo). Lo spazio libero non è mai di un progetto,
-// nemmeno quando il suo nome di prima ("Volta") è un nome alternativo. La mappa dei progetti si legge una volta.
-export function spazio(nome) {
+// porta un nome alternativo ("herdr-arturo" o "volta-celeste" per volta). Lo spazio libero non è mai di un
+// progetto. La mappa dei progetti si legge una volta.
+// `macchina`: lo spazio del progetto su quella macchina di Herdr (aggancia, #5802), invece che qui.
+export function spazio(nome, macchina = null) {
   const m = shared("arturo.progetti");
   const k = progettoDi(nome, m).chiave;
-  return k ? spaces().find((s) => !s.machine && !libero(s.name) && progettoDi(s.name, m).chiave === k) : undefined;
+  const dove = (s) => (macchina ? s.machine === macchina : !s.machine);
+  return k ? spaces().find((s) => dove(s) && !libero(s.name) && progettoDi(s.name, m).chiave === k) : undefined;
 }
 
 export const PAROLE = {
@@ -422,7 +421,8 @@ export async function tornataShell(g) {
 // un progetto). `todoScelto` ({id, titolo}) porta Claude direttamente su quel todo.
 export async function apri(nome, todoScelto) {
   nome = canonico(nome);
-  const s = spazio(nome);
+  // senza uno spazio qui, quello del progetto nel core di un'altra macchina (aggancia, #5802)
+  const s = spazio(nome) ?? spaces().map((x) => x.machine).filter(Boolean).map((m) => spazio(nome, m)).find(Boolean);
   if (s) {
     run("space.select", { id: s.id });
     if (!todoScelto) return;
@@ -473,7 +473,8 @@ export async function conversazione(nome) {
 // in background sulla macchina di "Nasce su" e si aggancia nello spazio che la persona sta guardando,
 // col suo progetto; dallo spazio libero, o senza spazio, nasce senza progetto.
 export async function nuovaScheda() {
-  const s = spaces().find((x) => x.active && !x.machine);
+  // anche uno spazio di un'altra macchina dà il progetto: lì Volta apre le sessioni di quella macchina (#5802)
+  const s = spaces().find((x) => x.active);
   const progetto = s?.named && !libero(s.name) ? canonico(s.name) : null;
   return nasciSu(dove(), "", progetto, "Nuova sessione");
 }
@@ -553,21 +554,38 @@ export const comando = (argv) => {
 };
 
 // I terminali che agganciano la sessione e che un pannello mostra: per etichetta, poi per argv.
-// Solo quelli di questa macchina: la finestra mostra anche le schede delle altre macchine di Herdr
-// ("amaltea/t21"), ma lì l'argv dell'aggancio non vale (è scritto per partire da qui: sarebbe un ssh
-// dalla macchina verso sé stessa), e chiudere o rinominare da qui le schede di un'altra finestra non
-// è il gesto chiesto. Un terminale che Volta ha appena chiuso (segnaTolto) non conta: Herdr lo elenca
+// Quelli di questa macchina e, dal 16/11/2026 (#5802), quelli del core della macchina della sessione
+// ("amaltea/t21"), dove la scheda aggancia in locale: le schede di un'altra macchina valgono solo per le
+// sessioni di quella macchina (etichettaVista, agganciataDa). Chiudere, staccare e mandare in congedo resta
+// di chi l'ha aperta (mie). Un terminale che Volta ha appena chiuso (segnaTolto) non conta: Herdr lo elenca
 // ancora per un attimo, e dopo Sposta la sessione arrivata ha lo stesso id della partita, quindi la
 // scheda vecchia passava per la nuova e la nuova non si apriva (13/11/2026, #5537).
 export function schedeDi(s) {
   if (!s?.id) return [];
   const visti = new Set(panes().map((p) => p.terminal));
   const tolti = shared("arturo.volta.tolti") ?? {};
-  const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s) &&
+  const casa = s.host ?? "qui";
+  const l = terminals().filter((x) => visti.has(x.address) && [null, casa].includes(macchinaIndirizzo(x.address)) && !occupataDaAltra(x, s) &&
     !(tolti[x.address] && Date.now() - tolti[x.address] < TOLTI_MS));
-  const dice = (x) => etichettaDice(x.labels?.[ETICHETTA], s, ambiguo(s.id));
+  const dice = (x) => etichettaDice(etichettaVista(x), s, ambiguo(s.id));
   const etichetta = l.filter((x) => dice(x) === true);
-  return etichetta.concat(l.filter((x) => !etichetta.includes(x) && dice(x) === null && agganciata(x.argv, s)));
+  return etichetta.concat(l.filter((x) => !etichetta.includes(x) && dice(x) === null && agganciataDa(x.argv, s, x.address)));
+}
+
+// Le schede della sessione aperte da questa finestra (mia di sessioni.js): quelle che chiude, stacca e
+// manda in congedo. Una scheda aperta dalla finestra di un'altra macchina la guarda quella: se la chiudesse
+// questa, l'altra la vedrebbe sparire e manderebbe la sessione in congedo una seconda volta.
+export function mie(s) {
+  const io = ioQui();
+  return schedeDi(s).filter((t) => mia(t, io));
+}
+
+// Il nome di questa macchina per il segno delle schede (SEGNO_DA di sessioni.js), dall'elenco che volta.js
+// pubblica in shared arturo.volta.macchine. null prima della prima lettura: le schede restano qui, con ssh.
+export function ioQui() {
+  const l = shared("arturo.volta.macchine");
+  const q = Array.isArray(l) ? l.find((m) => m?.questa && m.macchina) : null;
+  return q ? nomeFile(q.macchina) : null;
 }
 
 // I terminali di questa macchina che agganciano la sessione fuori dalla finestra: il core li tiene e
@@ -575,9 +593,13 @@ export function schedeDi(s) {
 // (hc run sh -c "claude attach <id>"). Vuoto se la sessione ha già una scheda qui (schedeDi): il clic
 // porta davanti quella, e ogni altro terminale che la aggancia è per forza fuori dai pannelli. Senza
 // questo controllo il clic apre un secondo aggancio, e i due si contendono la larghezza del terminale.
+// Una scheda aperta dalla finestra di un'altra macchina (non mie) non conta come scheda di qui, e i terminali
+// che un pannello mostra non sono mai fuori: così il Terminale fuori si trova e si stacca anche quando
+// la sessione ha la scheda di un'altra finestra in questo core (#5811, 17/11/2026).
 export function altrove(s) {
-  if (!s?.id || schedeDi(s).length) return [];
-  return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&
+  if (!s?.id || mie(s).length) return [];
+  const visti = new Set(panes().map((p) => p.terminal));
+  return terminals().filter((x) => !String(x.address).includes("/") && !visti.has(x.address) && (x.state ?? "live") === "live" &&
     !occupataDaAltra(x, s) && suaScheda(x, s, ambiguo(s.id)));
 }
 
@@ -639,11 +661,11 @@ export async function staccaAggancio(indirizzo, s) {
   if (d.state !== "live") return { errore: "la scheda non è viva" };
   if (shellPowerShell(d.argv?.[0])) {
     if (await nuda(indirizzo)) return { gia: true };
-    if (!agganciata(d.argv, s)) return { errore: "la scheda non è nata per agganciare questa sessione" };
+    if (!agganciataDa(d.argv, s, indirizzo)) return { errore: "la scheda non è nata per agganciare questa sessione" };
   } else {
     const f = d.foreground;
     if (!f || f.pid === d.pid) return { gia: true };
-    if (!agganciata(f.argv, s)) return { errore: "in primo piano non c'è l'aggancio di questa sessione" };
+    if (!agganciataDa(f.argv, s, indirizzo)) return { errore: "in primo piano non c'è l'aggancio di questa sessione" };
   }
   const k = await hc(["keys", indirizzo, "ctrl+z"]);
   if (k.code !== 0) return { errore: "il tasto non arriva alla scheda" };
@@ -672,7 +694,8 @@ export function segnaTolto(indirizzo) {
 // cambiare spazio non chiude niente. Un terminale del core senza pannello (un claude attach aperto con
 // hc run, o col lanciatore volta-claude) non è una scheda: chiuderlo non manda la sessione in congedo
 // (#5630). Per etichetta, poi per argv (come schedeDi), con la macchina: lo stesso id su due macchine è di
-// due sessioni (#5634).
+// due sessioni (#5634). Dal 16/11/2026 (#5802) solo le schede aperte da questa finestra (mia), anche nel
+// core di un'altra macchina: quella che ha aperto un'altra finestra la guarda l'altra.
 export function schedeAgganciate(sessioni) {
   const out = {};
   // anche le righe vecchie (macchina che non risponde): la scheda resta aperta, e senza la sua riga
@@ -680,10 +703,11 @@ export function schedeAgganciate(sessioni) {
   const fondo = (sessioni ?? []).filter((s) => s.tipo === "background" && s.id);
   const dentro = occupanti(sessioni);
   const visti = new Set(panes().map((p) => p.terminal));
+  const io = ioQui();
   for (const x of terminals()) {
-    if (!visti.has(x.address) || String(x.address).includes("/") || (x.state ?? "live") !== "live" || dentro[x.address]) continue;
-    const dice = (y) => etichettaDice(x.labels?.[ETICHETTA], y, doppio(sessioni, y.id));
-    const s = fondo.find((y) => dice(y) === true) ?? fondo.find((y) => dice(y) === null && agganciata(x.argv, y));
+    if (!visti.has(x.address) || !mia(x, io) || (x.state ?? "live") !== "live" || dentro[x.address]) continue;
+    const dice = (y) => etichettaDice(etichettaVista(x), y, doppio(sessioni, y.id));
+    const s = fondo.find((y) => dice(y) === true) ?? fondo.find((y) => dice(y) === null && agganciataDa(x.argv, y, x.address));
     if (s) out[x.address] = { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina, questa: Boolean(s.questa), cartella: s.cartella ?? null, titolo: titolo(s) };
   }
   return out;
@@ -727,9 +751,12 @@ export async function nuda(indirizzo) {
   }
 }
 
+// Sul core di un'altra macchina l'etichetta usa la chiave di là, "qui:<id>" (etichettaVista di sessioni.js):
+// così anche la finestra di quella macchina riconosce la scheda della sua sessione.
 async function etichetta(t, s) {
-  if (!t || t.labels?.[ETICHETTA] === chiaveSessione(s)) return;
-  try { await hc(["label", t.address, `${ETICHETTA}=${chiaveSessione(s)}`]); } catch { /* resta l'argv */ }
+  const v = macchinaIndirizzo(t?.address) ? `qui:${s.id}` : chiaveSessione(s);
+  if (!t || t.labels?.[ETICHETTA] === v) return;
+  try { await hc(["label", t.address, `${ETICHETTA}=${v}`]); } catch { /* resta l'argv */ }
 }
 
 // Il registro eventi (#5549): gli eventi della finestra si accodano qui e svuotaRegistro li scrive a lotti
@@ -804,11 +831,25 @@ export async function prepara(s, riavvia = false) {
 // La scheda nuova che aggancia una sessione: nello spazio del progetto (lo stesso della barra) o nello
 // spazio libero ("Senza progetto") per le sessioni senza progetto. Mai una scheda ritrovata per nome: quella la cerca
 // apriSessione, per etichetta e per argv.
+// Una sessione di un'altra macchina (#5802, 16/11/2026) apre la scheda in uno spazio di quella macchina, con
+// claude attach in locale (argvRemoto): resta aperta anche a questa macchina spenta, e il telefono la vede.
+// Resta qui con ssh se quella macchina non è fra le macchine di Volta o non risponde, se è Windows, o se
+// non si sa ancora il nome di questa. Torna l'argv che la scheda lancia: lo rilanciano apriSessione e veglia.
 export function aggancia(s, argv) {
   const nome = titolo(s).slice(0, 40);
   // lo spazio prende la chiave del progetto, mai il nome alternativo: uno spazio "volta" sarebbe preso per
   // quello libero e rinominato "Senza progetto" (#5487)
   const nomeSpazio = s.progetto ? canonico(s.progetto) : SPAZIO_LIBERO;
+  const remoto = !s.questa && altreMacchine().some((m) => m.host === s.host && !m.giu) ? argvRemoto(argv, ioQui()) : null;
+  if (remoto) {
+    const sp = s.progetto ? spazio(nomeSpazio, s.host) : spaces().find((x) => x.machine === s.host && libero(x.name));
+    // la cartella di un'altra macchina non si guarda da qui: la scheda parte dalla casa di là
+    if (sp) {
+      run("space.select", { id: sp.id });
+      run("tab.new", { name: nome, space: sp.id, argv: remoto });
+    } else run("space.new", { name: nomeSpazio, machine: s.host, tab: nome, argv: remoto });
+    return remoto;
+  }
   const sp = s.progetto ? spazio(nomeSpazio) : spaces().find((x) => !x.machine && libero(x.name));
   // una cartella che non c'è più (un worktree tolto) non apre la scheda: la sonda dà la più vicina che c'è (#5669)
   const cartella = s.questa && s.cartella ? (s.cartellaViva || s.cartella) : home();
@@ -816,7 +857,12 @@ export function aggancia(s, argv) {
     run("space.select", { id: sp.id });
     run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });
   } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv: argvScheda(argv) });
+  return argv;
 }
+
+// L'aggancio da rilanciare nella scheda `indirizzo`: una scheda nel core della macchina della sessione
+// aggancia in locale (attachLocale), una di qui con l'argv della sonda.
+const argvPer = (indirizzo, argv) => (macchinaIndirizzo(indirizzo) ? attachLocale(argv) ?? argv : argv);
 
 // Quanto si aspetta prima di guardare se claude attach è rimasto in piedi nella scheda (veglia).
 const VEGLIA = 6000;
@@ -852,18 +898,20 @@ export async function apriSessione(s, argv, pronta = false) {
   }
   if (rilancia) {
     mostra(scheda.address);
-    const r = await rilanciaAggancio(scheda.address, argv);
+    const r = await rilanciaAggancio(scheda.address, argvPer(scheda.address, argv));
     if (r.code !== 0) return { errore: "Non riesco a rilanciare Claude nella sua scheda: chiudi la scheda e riprova." };
     await etichetta(scheda, s);
   } else {
     aggancia(s, argv);
-    // run() non dice quale terminale ha creato: lo si cerca per argv appena Herdr lo elenca.
-    for (let i = 0; i < 10 && !scheda; i++) { scheda = schedeDi(s)[0] ?? null; if (!scheda) await pausa(400); }
+    // run() non dice quale terminale ha creato: lo si cerca per argv appena Herdr lo elenca. Una scheda
+    // nel core di un'altra macchina compare quando quella macchina risponde: l'attesa è più lunga.
+    for (let i = 0; i < 20 && !scheda; i++) { scheda = schedeDi(s)[0] ?? null; if (!scheda) await pausa(400); }
     // run() non dice gli errori di Herdr: senza scheda dopo l'attesa il clic lo dice, non finisce in silenzio (#5669)
     if (!scheda) return { errore: "Herdr non ha aperto la scheda: riprova fra poco." };
     await etichetta(scheda, s);
   }
-  return { come: rilancia ? "rilanciata" : "nuova", riavviata, veglia: scheda ? veglia(s, argv, scheda.address, riavviata) : Promise.resolve({}) };
+  const a = argvPer(scheda.address, argv);
+  return { come: rilancia ? "rilanciata" : "nuova", riavviata, veglia: scheda ? veglia(s, a, scheda.address, riavviata) : Promise.resolve({}) };
 }
 
 // Il rilancio dell'aggancio nella shell rimasta in una scheda (#5637): prima pulisce la riga (un mouse
@@ -1140,20 +1188,46 @@ export async function tracciaSposta(s, passo, dati = {}, nuova = false) {
 
 // Chiude le schede che agganciano la sessione: la prima metà di "Chiudi", prima di claude stop. La
 // scheda intera se dentro c'è solo quel terminale, altrimenti il solo terminale: i pannelli accanto
-// restano. Torna quante ne ha chiuse.
+// restano. Solo quelle aperte da questa finestra (mie), anche nel core di un'altra macchina. Torna quante ne ha chiuse.
 export function chiudiSchede(s) {
   let n = 0;
-  for (const t of schedeDi(s)) {
-    const p = panes().find((x) => x.terminal === t.address);
-    if (!p) continue;
+  for (const t of mie(s)) {
+    if (!panes().some((x) => x.terminal === t.address)) continue;
     segnaTolto(t.address);
-    // confirmed: sull'ultima scheda di uno spazio Herdr chiederebbe "Close space?", e annullare lasciava
-    // la scheda aperta col congedo già partito (12/11/2026)
-    if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab, confirmed: true });
-    else run("terminal.kill", { terminal: t.address });
+    chiudiTerminale(t.address);
     n++;
   }
   return n;
+}
+
+// confirmed: sull'ultima scheda di uno spazio Herdr chiederebbe "Close space?", e annullare lasciava
+// la scheda aperta col congedo già partito (12/11/2026)
+function chiudiTerminale(indirizzo) {
+  const p = panes().find((x) => x.terminal === indirizzo);
+  if (!p) return;
+  if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab, confirmed: true });
+  else run("terminal.kill", { terminal: indirizzo });
+}
+
+// Chiudi del menu su una sessione con la scheda aperta dalla finestra di un'altra macchina (#5811, 17/11/2026):
+// prima questa finestra mandava la sessione in congedo e la scheda dell'altra restava aperta. Ora chiude anche
+// quella scheda, senza segnarla tolta: la finestra che l'ha aperta la vede sparire e manda lei la sessione in
+// congedo (guardaSchede di volta.js), come col ⌘W. Due congedi farebbero due /fine. Se la macchina di una di
+// quelle finestre non risponde, nessuno vedrebbe sparire la scheda: allora non chiude niente e torna 0, e il
+// congedo lo fa questa finestra. Una scheda senza segno nel core di un'altra macchina non la guarda nessuno: si
+// chiude come una di qui. Torna quante schede di altre finestre ha chiuso.
+export function chiudiAltrui(s) {
+  const io = ioQui();
+  const l = schedeDi(s).filter((t) => !mia(t, io));
+  const giu = new Set((shared("arturo.volta.macchine") ?? []).filter((m) => m?.giu && m.macchina).map((m) => nomeFile(m.macchina)));
+  const note = new Set((shared("arturo.volta.macchine") ?? []).filter((m) => m?.macchina).map((m) => nomeFile(m.macchina)));
+  const padroni = l.filter((t) => daDi(t.argv));
+  if (padroni.some((t) => giu.has(daDi(t.argv)) || !note.has(daDi(t.argv)))) return 0;
+  for (const t of l) {
+    if (!daDi(t.argv)) segnaTolto(t.address);
+    chiudiTerminale(t.address);
+  }
+  return padroni.length;
 }
 
 // Rinomina e Cambia progetto (#5292): volta_sonda.py rinomina o progetto scrive il nome o il progetto
@@ -1172,8 +1246,10 @@ export async function cambiaSessione(s, cosa, valore, opzioni = []) {
 
 // I terminali di questa finestra che mostrano la sessione: le schede che la agganciano e, per
 // un'interattiva partita in una scheda di Herdr su questa macchina, quella scheda.
-function terminaliDi(s) {
-  const l = schedeDi(s).map((t) => t.address);
+// `solo_mie`: solo le schede aperte da questa finestra (mie). Una scheda nel core di un'altra macchina la
+// vedono due finestre, e /rename e /inizio li scrive solo chi l'ha aperta (#5810, 17/11/2026).
+function terminaliDi(s, soloMie = false) {
+  const l = (soloMie ? mie(s) : schedeDi(s)).map((t) => t.address);
   if (s?.questa && s.terminale && !l.includes(s.terminale) && panes().some((p) => p.terminal === s.terminale)) l.push(s.terminale);
   return l;
 }
@@ -1206,7 +1282,7 @@ const portati = new Map(); // sessionId → { nome, quando }
 async function scriviComando(s, testo) {
   let scritto = false;
   // la prima scheda buona: una sessione può averne più d'una, e una può essere rimasta con la shell
-  for (const a of terminaliDi(s)) {
+  for (const a of terminaliDi(s, true)) {
     if (await nuda(a)) continue;
     try {
       const schermo = await hc(["read", a]);
@@ -1219,6 +1295,84 @@ async function scriviComando(s, testo) {
   return scritto;
 }
 const scriviNome = (s, nome) => scriviComando(s, `/rename ${nome}`);
+
+// La risposta della Coda e della checklist nella scheda, come scriviComando, ma dice perché non entra:
+// l'errore va nel registro e nell'avviso (17/11/2026). La casella vuota sullo schermo vuol dire che non
+// c'è un dialogo aperto: se hc send rifiuta la scheda perché la conversazione aspetta la persona
+// (stato blocked dopo una domanda), si riprova una volta con --force.
+async function scriviRisposta(s, testo) {
+  const schede = terminaliDi(s, true);
+  if (!schede.length) return { errore: "la scheda della sessione l'ha aperta un'altra finestra" };
+  let errore = "la scheda ha solo la shell, senza Claude";
+  for (const a of schede) {
+    if (await nuda(a)) continue;
+    try {
+      const schermo = await hc(["read", a]);
+      if (schermo.code !== 0) { errore = "hc read non legge la scheda"; continue; }
+      const perche = percheNonEntra(schermo.stdout);
+      if (perche) { errore = perche; continue; }
+      let r = await hc(["send", a, testo]);
+      if (r.code !== 0) r = await hc(["send", "--force", a, testo]);
+      return r.code === 0 ? { ok: true } : { errore: `hc send non scrive: ${String(r.stderr || r.stdout || "").trim().slice(0, 120)}` };
+    } catch (e) {
+      errore = `la scheda non risponde (${String(e?.message ?? e).slice(0, 80)})`;
+    }
+  }
+  return { errore };
+}
+
+// Quante schede di questa finestra mostrano la sessione: per canaleRisposta() di sessioni.js.
+export const schedeRisposta = (s) => terminaliDi(s).length;
+
+// La risposta della Coda alla sessione (#5721), sul canale scelto da canaleRisposta(): "scheda" la scrive
+// nella scheda a casella vuota, "background" passa da volta_sonda.py rispondi (stop e ripresa con la
+// risposta). Gli altri canali li apre chi chiama. Torna { ok } oppure { errore, rifiutata? }.
+// Attesa: ATTESA_AZIONE più ATTESA_NASCITA della sonda, come iniziaSessione.
+export async function rispondiSessione(s, testo, canale) {
+  if (canale === "scheda") return scriviRisposta(s, testo);
+  if (canale !== "background") return { errore: `canale ${canale}: la risposta non parte da qui` };
+  const cfg = await config();
+  try {
+    const r = await exec(cfg.arturo[0], [cfg.volta, "rispondi", s.host ?? "qui", s.id, s.sessionId,
+      ...(s.cartella ? ["--cartella", s.cartella] : []), "--", testo], { timeout: 400000 });
+    return esito(r);
+  } catch (e) {
+    return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}
+
+// Una riga nel registro delle risposte (volta_carte.py risposta, rigaRisposta() di sessioni.js): per la
+// misura delle raccomandazioni accettate. Una scrittura che non riesce non ferma la Coda.
+// Le carte scartate dalla Coda (16/11/2026): volta_carte.py le tiene in scartate.json accanto al registro.
+export async function scartaCarta(chiaveCarta, quando) {
+  try {
+    const cfg = await config();
+    await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "scarta", JSON.stringify({ chiave: chiaveCarta, quando })], { timeout: 15000 });
+  } catch { /* resta scartata fino al riavvio */ }
+}
+// Le risposte UF delle ultime 48 ore dal registro (#5742): dopo un riavvio una carta già risposta resta
+// fuori fino al giro dopo del capo. { chiave: istante in ms }, {} se non si legge.
+export async function leggiRecenti() {
+  try {
+    const cfg = await config();
+    const d = esito(await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "recenti"], { timeout: 15000 }));
+    return d.errore ? {} : d;
+  } catch { return {}; }
+}
+export async function leggiScartate() {
+  try {
+    const cfg = await config();
+    const d = esito(await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "scartate"], { timeout: 15000 }));
+    return d.errore ? {} : d;
+  } catch { return {}; }
+}
+
+export async function registraRisposta(riga) {
+  try {
+    const cfg = await config();
+    await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "risposta", JSON.stringify(riga)], { timeout: 15000 });
+  } catch { /* il registro non ferma la Coda */ }
+}
 
 export async function portaNome(s) {
   const nome = daPortare(s);
@@ -1261,7 +1415,9 @@ export async function portaInizio(s, ripresa = true) {
   const p = iniziati.get(s.sessionId);
   let come = p && p.slug === slug && Date.now() - p.quando < PORTA_MS ? p.come : null;
   if (!come) {
-    if (terminaliDi(s).length) come = (await scriviComando(s, `/inizio ${slug}`)) ? "scheda" : null;
+    if (terminaliDi(s, true).length) come = (await scriviComando(s, `/inizio ${slug}`)) ? "scheda" : null;
+    // una scheda c'è ma l'ha aperta un'altra finestra: /inizio lo scrive quella (#5810)
+    else if (terminaliDi(s).length) return { fatto: false };
     else if (!ripresa) return { fatto: false };
     else if (s.tipo === "background") come = (await iniziaSessione(s, slug)).ok ? "ripresa" : null;
     else come = "terminale";
@@ -1335,6 +1491,34 @@ export async function azioneSessione(s, verbo, { congedo = false } = {}) {
 // risponde con un errore che la finestra mostra.
 export async function contestoProgetto(progetto) {
   return arturo("contesto", [String(progetto ?? ""), "--json"], "Arturo non risponde");
+}
+
+// Le carte UF della Coda (#5722): `volta_capo.py prendi <capo>` le legge dal capo con herdr-core, ne
+// tiene una copia e, col capo giù, rende l'ultima con vecchia: true. { letto, carte, vecchia?, errore? }
+// oppure null se lo script non risponde.
+export async function prendiCarteUf() {
+  try {
+    const c = await config();
+    const r = await exec(c.arturo[0], [`${appHome()}/mods/arturo/volta_capo.py`, "prendi", c.capo], { timeout: 60000 });
+    const d = JSON.parse(String(r.stdout ?? "").trim().split("\n").pop() || "null");
+    return d && Array.isArray(d.carte) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+// "Apri" di una bozza della Coda: Gmail in Firefox, che è il browser delle schede da leggere; senza
+// Firefox il browser di sistema.
+export async function apriLink(url) {
+  if (!/^https:\/\//.test(String(url ?? ""))) return false;
+  const win = home().includes("\\") || /^[A-Za-z]:/.test(home());
+  const prove = win ? [["cmd", ["/c", "start", "", "firefox", url]], ["cmd", ["/c", "start", "", url]]]
+    : [["open", ["-a", "Firefox", url]], ["open", [url]]];
+  for (const [cmd, args] of prove) {
+    try { if ((await exec(cmd, args, { timeout: 10000 })).code === 0) return true; } catch { /* la prossima */ }
+  }
+  notify({ title: "Non riesco ad aprire il link", body: url, level: "warning" });
+  return false;
 }
 
 // "Apri" di una fonte del contesto: il file nel programma di sistema (open sul Mac, start su Windows).

@@ -3,8 +3,8 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, window, shared, setShared, nextCommand, updates, notify, layout } from "herdr";
-import { todo, progetti, apri, nuova, nuovaScheda, conversazione, libera, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
-import { STACK, CASA, senzaTessere } from "./tessere.js";
+import { todo, progetti, apri, nuova, nuovaScheda, conversazione, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
+import { STACK, CASA, CODA, senzaTessere, senzaCoda } from "./tessere.js";
 import { terminale } from "./casa.js";
 import { ICONA, pulsante, pulsanteIcona, segnaleImpostazioni, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
@@ -14,7 +14,8 @@ import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
-import { rigaMod, decodifica } from "./sessioni.js";
+import { rigaMod, decodifica, leggiProvaChecklist } from "./sessioni.js";
+import { leggiGesto } from "./sessioni.js";
 import { instrada } from "./comandi.js";
 import { pastigliaTutto } from "./sposta.js";
 import { apriContesto } from "./contestoui.js";
@@ -41,8 +42,6 @@ export class Barra {
     this.volta.init(cx);
     // All'avvio lo stack "lavoro" mostra il terminale anche se .state/ ha salvato le tessere (sonda D2 del
     // 12/11): la barra c'è sempre, la parte Casa nasce solo a ⌘T.
-    // lo spazio delle sessioni senza progetto si chiama "Senza progetto" (12/11/2026): rinomina quelli "Volta"
-    libera();
     terminale();
     this.carica(cx);
     // La guida si apre da sola la prima volta, per chi arriva da /setup e per chi usa già Arturo.
@@ -105,6 +104,15 @@ export class Barra {
     else if (c === "casa" && senzaTessere(layout())) this.lungo("volta-nuova", cx, () => nuovaScheda());
     else if (c === "casa") { run("layout.select", { stack: STACK, child: CASA }); setShared("arturo.casa.apri", Date.now()); }
     else if (c === "casa-chiudi") terminale();
+    // ⌘⇧J: la Coda delle decisioni al posto del terminale (#5720); il segno dice alla parte di ripartire
+    // dalla prima carta. Un layout di prima del 15/11 non ha la Coda: lo dice, senza avviso d'errore.
+    else if (c === "coda" && senzaCoda(layout())) notify({ title: "La Coda non c'è in questa finestra", body: "Il layout è di prima della Coda: aggiorna Volta e riaprila.", level: "warning" });
+    else if (c === "coda") { run("layout.select", { stack: STACK, child: CODA }); setShared("arturo.coda.apri", Date.now()); }
+    else if (c === "coda-rispondi") this.volta.rispondiCoda(arg.chiave, decodifica(arg.testo), cx);
+    // ⌘⇧S: la checklist della ripartenza (checklist.js); dalla Coda con la chiave della sessione.
+    else if (c === "checklist") this.volta.checklist(arg);
+    else if (c === "checklist-prova") { const p = leggiProvaChecklist(arg); if (p) setShared("arturo.checklist.prova", { ...p, quando: Date.now() }); }
+    else if (c === "coda-gesto") { const x = leggiGesto(arg.dati); if (x) this.volta.gestoDaCoda(arg.chiave, x.gesto, x.commento, cx); }
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
     else if (c === "volta-giro") this.volta.giro(arg, cx);
     else if (c === "volta-chiudi") this.volta.chiudiDavanti(cx, arg);

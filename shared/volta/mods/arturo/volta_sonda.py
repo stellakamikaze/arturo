@@ -53,6 +53,10 @@ distribuire (#5172, 10/11/2026).
       una sessione in background spostata in un progetto riparte da /inizio SLUG (#5465): claude stop ID,
       poi la stessa conversazione ripresa col solo /inizio, come congeda. Stampa {ok, fermata} oppure
       {errore}.
+  python3 volta_sonda.py rispondi MACCHINA ID SESSIONID [--cartella DIR] -- TESTO
+      la risposta della Coda a una sessione in background ferma senza scheda (#5721): claude stop ID col
+      controllo "risposta" (rifiuta se lavora, aspetta in un dialogo o un'altra scheda la aggancia), poi
+      la stessa conversazione ripresa con TESTO come prompt. Stampa {ok, fermata} oppure {errore}.
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
@@ -60,7 +64,8 @@ distribuire (#5172, 10/11/2026).
       risponde non si tocca. Stampa {come} oppure {errore} (#5208).
 
 Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato, aspetta, tipo,
-attach, cartella, ultimo, risposta, azione, daPortare, carta }. `carta` è la carta della Coda (#5719):
+attach, cartella, ultimo, risposta, azione, daPortare, carta, ripartenza }. `ripartenza` è l'elenco di /inizio
+per la Checklist: { quando, progetto, titolo, filoni: [{ nome, voci: [{ n, id, testo, marca, sotto }] }], partenza }. `carta` è la carta della Coda (#5719):
 { tipo, fonte, quando, esito, domanda, opzioni, raccomandazione, prove, link, menu } oppure null. `host` è il nome della macchina in Herdr ("qui" per
 questa). Una macchina senza Claude Code resta fuori; una che non risponde tiene le righe dell'ultima
 lettura buona, segnate `vecchia`; così anche tutte le macchine di prima, se è Herdr a non rispondere.
@@ -72,6 +77,7 @@ Una lettura dura al più ATTESA_LETTURA secondi, macchine lente comprese (VOLTA_
 Per le prove: VOLTA_HC (il comando hc), VOLTA_SONDA_LOCALE (un JSON al posto della sonda di questa macchina).
 """
 import base64
+import io
 import json
 import re
 import os
@@ -80,6 +86,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tokenize
 import zlib
 # Niente .pyc nella cartella del mod: Herdr ricarica il mod a ogni file nuovo che vi compare, anche in
 # __pycache__, e la ricarica ferma per sempre le attese di Volta (cx.sleep di Sposta, #5556, 13/11/2026).
@@ -306,6 +313,101 @@ def scrivi(f, d):
         os.replace(tmp, f)
     except OSError:
         pass
+# Le code delle trascrizioni (#5489): ogni 30 secondi la sonda rileggeva fino a 3 MB per sessione, 38 MB
+# a giro. Ora tiene per sessione il file, il punto fin dove ha letto (la fine dell'ultima riga intera) e
+# lo stato del calcolo a quel punto: un file fermo non si rilegge, uno cresciuto si legge dal punto.
+# Un file più corto, un altro file o un'altra identità (ino) ripartono dagli ultimi CODA_MAX byte.
+CODA_MAX = 3000000
+fletture = os.path.join(radice, "cache", "volta-letture.json")
+letture = leggi(fletture)
+letture = letture if isinstance(letture, dict) else {}
+prima_letture = json.dumps(letture, sort_keys=True)
+VUOTO = {"risposta": "", "azione": "", "ultimo": "", "interazione": "", "coda": "", "chi": "", "fineFatta": False, "persona": ""}
+def passa(st, righe):
+    # Per le fasi di Volta (#5366): `interazione` è l'ora dell'ultimo messaggio vero (della persona o di
+    # Claude, non le righe di sistema), `coda` la fine dell'ultimo testo di Claude, `chi` chi ha parlato
+    # per ultimo ("claude" a turno chiuso con un testo, "azione" se l'ultima cosa è un comando, "persona"
+    # per un messaggio senza risposta), `fineFatta` se l'ultimo messaggio della persona è /fine.
+    # `persona` (#5633, 17/11/2026): l'ora dell'ultimo messaggio della persona che non è /fine, senza i
+    # messaggi di un'altra sessione. Dopo l'ora di un congedo vuol dire che qualcuno l'ha riaperta.
+    for l in righe:
+        try:
+            d = json.loads(l)
+        except ValueError:
+            continue
+        if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa
+            continue
+        st["ultimo"] = d.get("timestamp", st["ultimo"])
+        m = d.get("message") or {}
+        if not isinstance(m, dict):
+            continue
+        if d.get("type") == "assistant":
+            for b in m.get("content", []) or []:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "text" and b.get("text", "").strip():
+                    tx = b["text"].strip()
+                    # tagliata a una parola intera, col segno: l'Anteprima di Volta la mostra (#5240)
+                    st["risposta"] = tx if len(tx) <= 400 else tx[:400].rsplit(None, 1)[0] + "\u2026"
+                    st["coda"] = tx[-300:]
+                    st["chi"], st["interazione"] = "claude", d.get("timestamp", st["interazione"])
+                elif b.get("type") == "tool_use":
+                    i = b.get("input") or {}
+                    st["azione"] = b.get("name", "") + ": " + str(i.get("description") or i.get("command") or i.get("file_path") or "")[:150]
+                    st["chi"], st["interazione"] = "azione", d.get("timestamp", st["interazione"])
+        elif d.get("type") == "user" and not d.get("isMeta"):
+            c = m.get("content")
+            if isinstance(c, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in c):
+                st["interazione"] = d.get("timestamp", st["interazione"])  # l'esito di un comando: Claude lavora ancora
+                continue
+            tx = testo(c).strip()
+            if not tx or tx.startswith(("<local-command", "<system-reminder>", "Caveat:", "<task-notification>")):
+                continue
+            st["chi"], st["interazione"], st["coda"] = "persona", d.get("timestamp", st["interazione"]), ""
+            st["fineFatta"] = bool(re.match(r"\s*(<command-message>[^<]*</command-message>\s*)?(<command-name>)?/fine\b", tx))
+            if not st["fineFatta"] and not tx.startswith(("Another Claude session sent a message", "<agent-message")):
+                st["persona"] = d.get("timestamp", st["persona"])
+def coda_di(sid):
+    """I campi della coda della trascrizione di `sid`, o None senza trascrizione."""
+    v = letture.get(sid) if isinstance(letture.get(sid), dict) else {}
+    f = v.get("file") if isinstance(v.get("file"), str) and os.path.basename(v["file"]) == sid + ".jsonl" else None
+    if not f or not os.path.exists(f):
+        g = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl"))
+        f = g[0] if g else None
+    if not f:
+        letture.pop(sid, None)
+        return None
+    try:
+        info = os.stat(f)
+    except OSError:
+        return None
+    pos, stato_v = v.get("pos"), v.get("stato")
+    if v.get("file") == f and v.get("ino") == info.st_ino and isinstance(pos, int) and 0 <= pos <= info.st_size \
+            and isinstance(stato_v, dict) and set(stato_v) == set(VUOTO):
+        if pos == info.st_size:
+            return dict(stato_v)
+        da, taglio, base = pos, False, dict(stato_v)
+    else:
+        da = max(0, info.st_size - CODA_MAX)
+        taglio, base = da > 0, dict(VUOTO)
+    try:
+        with open(f, "rb") as fh:
+            fh.seek(da)
+            dati = fh.read()
+    except OSError:
+        return None
+    fine = dati.rfind(b"\n")
+    righe = dati[:fine + 1].decode("utf-8", "replace").splitlines() if fine >= 0 else []
+    if taglio:
+        righe = righe[1:]  # la prima riga dopo il taglio è a metà
+    passa(base, righe)
+    letture[sid] = {"file": f, "ino": info.st_ino, "pos": da + fine + 1 if fine >= 0 else da, "stato": base}
+    # un pezzo dopo l'ultimo a capo (una riga che si sta scrivendo) conta adesso, ma non entra nel registro
+    out = dict(base)
+    resto = dati[fine + 1:]
+    if resto.strip() and not (taglio and fine < 0):
+        passa(out, [resto.decode("utf-8", "replace")])
+    return out
 for s in sessioni:
     sid = s.get("sessionId") or "-"
     k = lavoro_di(s)
@@ -389,53 +491,19 @@ for s in sessioni:
     # Claude chiude il turno chiedendo qualcosa alla persona, e la toglie al messaggio dopo. I tetti li
     # mette carta_di() di qua, sulla macchina che legge: nella SONDA resta una riga sola.
     s["carta"] = leggi(os.path.join(radice, "cache", "carte", sid + ".json")) or None
-    f = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl"))
-    if not f:
+    # La ripartenza di /inizio (17/11/2026): la scrive scripts/ripartenza-scrivi.py della config, e la
+    # vista Checklist la mostra con una casella e una nota per riga. I tetti li mette ripartenza_di().
+    s["ripartenza"] = leggi(os.path.join(radice, "cache", "ripartenza", sid + ".json")) or None
+    st = coda_di(sid) if re.fullmatch(r"[0-9A-Za-z-]{4,64}", sid) else None
+    if st is None:
         continue
-    with open(f[0], "rb") as fh:
-        fh.seek(0, 2); fh.seek(max(0, fh.tell() - 3000000))
-        righe = fh.read().decode("utf-8", "replace").splitlines()[1:]
-    # Per le fasi di Volta (#5366): `interazione` è l'ora dell'ultimo messaggio vero (della persona o di
-    # Claude, non le righe di sistema), `coda` la fine dell'ultimo testo di Claude, `chi` chi ha parlato
-    # per ultimo ("claude" a turno chiuso con un testo, "azione" se l'ultima cosa è un comando, "persona"
-    # per un messaggio senza risposta), `fineFatta` se l'ultimo messaggio della persona è /fine.
-    risposta, azione, ultimo, interazione, coda, chi, fine_fatta = "", "", "", "", "", "", False
-    for l in righe:
-        try:
-            d = json.loads(l)
-        except ValueError:
-            continue
-        if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa
-            continue
-        ultimo = d.get("timestamp", ultimo)
-        m = d.get("message") or {}
-        if not isinstance(m, dict):
-            continue
-        if d.get("type") == "assistant":
-            for b in m.get("content", []) or []:
-                if not isinstance(b, dict):
-                    continue
-                if b.get("type") == "text" and b.get("text", "").strip():
-                    tx = b["text"].strip()
-                    # tagliata a una parola intera, col segno: l'Anteprima di Volta la mostra (#5240)
-                    risposta = tx if len(tx) <= 400 else tx[:400].rsplit(None, 1)[0] + "\u2026"
-                    coda = tx[-300:]
-                    chi, interazione = "claude", d.get("timestamp", interazione)
-                elif b.get("type") == "tool_use":
-                    i = b.get("input") or {}
-                    azione = b.get("name", "") + ": " + str(i.get("description") or i.get("command") or i.get("file_path") or "")[:150]
-                    chi, interazione = "azione", d.get("timestamp", interazione)
-        elif d.get("type") == "user" and not d.get("isMeta"):
-            c = m.get("content")
-            if isinstance(c, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in c):
-                interazione = d.get("timestamp", interazione)  # l'esito di un comando: Claude lavora ancora
-                continue
-            tx = testo(c).strip()
-            if not tx or tx.startswith(("<local-command", "<system-reminder>", "Caveat:", "<task-notification>")):
-                continue
-            chi, interazione, coda = "persona", d.get("timestamp", interazione), ""
-            fine_fatta = bool(re.match(r"\s*(<command-message>[^<]*</command-message>\s*)?(<command-name>)?/fine\b", tx))
-    s.update(risposta=risposta, azione=azione, ultimo=ultimo, interazione=interazione, coda=coda, chi=chi, fineFatta=fine_fatta)
+    s.update(st)
+# il registro delle code: solo le sessioni di questo giro, e lo si scrive solo se è cambiato
+viste = {s.get("sessionId") for s in sessioni}
+for k_ in [k_ for k_ in letture if k_ not in viste]:
+    letture.pop(k_)
+if json.dumps(letture, sort_keys=True) != prima_letture:
+    scrivi(fletture, letture)
 # La pulizia del registro: il pid di un'interattiva sparita torna libero per un altro processo, quindi la
 # sua voce va via subito; quella di un lavoro che claude agents non elenca più dopo LAVORI_GIORNI giorni.
 vivi = {lavoro_di(s) for s in tutte}
@@ -521,8 +589,19 @@ SONDA = SONDA.replace("#ELENCO#", ELENCO.strip()).replace("#CLAUDE#", CERCA_CLAU
 def senza_commenti(codice):
     """Il codice senza le righe di solo commento: la sonda verso un'altra macchina viaggia in una riga
     di cmd.exe (8191 caratteri), e i commenti ne prendevano quasi metà (13/11/2026). Un # dentro una
-    riga di codice resta: si tolgono solo le righe che cominciano con #."""
-    return "\n".join(r for r in codice.split("\n") if not r.lstrip().startswith("#"))
+    riga di codice resta: si tolgono solo le righe che cominciano con #. Dal 17/11/2026 (#5489, la
+    lettura incrementale portava la riga a 8075) va via anche il commento in fondo a una riga di codice,
+    trovato da tokenize: un # dentro una stringa resta."""
+    righe = codice.split("\n")
+    try:
+        for t in tokenize.generate_tokens(io.StringIO(codice).readline):
+            if t.type == tokenize.COMMENT:
+                r, c = t.start
+                prima = righe[r - 1][:c].rstrip()
+                righe[r - 1] = prima if prima.strip() else None
+    except (tokenize.TokenError, SyntaxError):
+        pass  # codice che tokenize non legge: restano i commenti in linea, come prima
+    return "\n".join(r for r in righe if r is not None and not r.lstrip().startswith("#"))
 
 # Gira sulla macchina dove nasce la sessione (anche con hc exec). L'argomento è un JSON in base64
 # ({"prompt", "progetto"}, e per Duplica e Fork anche "cartella", "riprendi", "nome"): passa intero anche
@@ -585,20 +664,40 @@ def lancia():
                               stdin=subprocess.DEVNULL, timeout=90)
     except subprocess.TimeoutExpired:
         esci(errore="claude --bg non ha risposto in 90 s: claude agents dice se è nata")
+# L'id del lavoro che claude --bg ha stampato ("claude attach <id>"), se non è quello ripreso: la ripresa
+# di una sessione fermata con claude stop nasce come copia con un id nuovo (16/11/2026, SessionStart
+# "fork"). Volta aspettava l'id vecchio, dava la ripresa per fallita e non fermava mai la copia.
+# Il lavoro ripreso è lo stesso se claude attach stampa il suo id (a["lavoro"]) o l'inizio del sessionId:
+# dopo /clear o una rotazione l'id del lavoro non è l'inizio del sessionId, e prima passava per copia.
+def copia_di(r):
+    m_ = re.search(r"claude attach ([0-9A-Za-z-]+)", (r.stdout or "") + "\n" + (r.stderr or ""))
+    if not m_ or str(a["riprendi"]).startswith(m_.group(1)) or m_.group(1) == a.get("lavoro"):
+        return None
+    return m_.group(1)
+# Ha un processo la sessione ripresa: per sessionId o per id del lavoro (16/11/2026, Federico: le sessioni
+# chiuse riapparivano). Una sessione ruotata svegliata dalla ripresa ha il processo sotto l'id del lavoro:
+# cercata solo per sessionId sembrava ferma, partiva una seconda ripresa e nasceva una copia che faceva
+# un altro /fine; Volta seguiva la copia, e l'originale restava aperta nell'elenco.
+def ripresa_viva():
+    return processo(a["riprendi"]) or (bool(a.get("lavoro")) and processo(a["lavoro"]))
 if a.get("stessa"):
     # la ripresa subito dopo claude stop non sveglia niente (12/11/2026): prima la sessione deve essere
-    # ferma davvero, e dopo il lancio deve avere un processo; se no, un secondo tentativo
+    # ferma davvero, e dopo il lancio deve avere un processo, lei o la sua copia; se no, un secondo
+    # tentativo. Una copia già nata non si rilancia: due riprese farebbero due copie.
     for _ in range(15):
-        if not processo(a["riprendi"]):
+        if not ripresa_viva():
             break
         time.sleep(1)
     for tentativo in range(2):
         r = lancia()
-        for _ in range(15):
+        nuovo = copia_di(r)
+        for _ in range(30 if nuovo else 15):
             time.sleep(1)
-            if processo(a["riprendi"]):
+            if ripresa_viva() or (nuovo and processo(nuovo)):
                 break
         else:
+            if nuovo:
+                esci(errore="ripresa lanciata, ma la copia %s non parte" % nuovo, copia=nuovo)
             continue
         break
     else:
@@ -808,6 +907,14 @@ def stato(s):
     return "ferma"
 
 
+def chiusa_senza(s):
+    """Una sessione in background senza processo è chiusa se è stata fermata (claude stop), spostata su
+    un'altra macchina, o ha /fine in fondo e non aspetta una risposta (#5760)."""
+    if s.get("state") == "stopped" or s.get("spostata") is True:
+        return True
+    return s.get("fineFatta") is True and stato(s) != "aspetta"
+
+
 def hc():
     """Il comando hc come argv. VOLTA_HC (prove) può essere un argv JSON: ["python3", "hc_finto.py"]."""
     finto = os.environ.get("VOLTA_HC")
@@ -845,8 +952,11 @@ def evento_hc(argv):
     return "hc %s%s" % (verbo, prog), macchina
 
 
-def lancia(argv, timeout=60):
+def lancia(argv, timeout=60, prova=False):
     # stdin chiuso: senza, ssh.exe e hc su Windows restano appesi
+    # `prova`: un tentativo con un ripiego dopo (claude_remoto, #5758). Se il programma non parte, nel
+    # registro va "ripiego", non un errore: sui Mac `claude` nudo non parte mai con il PATH di hc exec, e
+    # il registro del 15/11 lo contava come guasto mentre python3 lo trovava 26 ms dopo.
     ev = evento_hc(argv)
     t = time.monotonic()
     try:
@@ -859,8 +969,9 @@ def lancia(argv, timeout=60):
         raise
     if ev:
         testo = (r.stderr or r.stdout or "").strip() if r.returncode else ""
+        ripiego = prova and r.returncode != 0 and (r.returncode == 9009 or non_parte(r.stdout, r.stderr))
         registro.registra(ev[0], macchina=ev[1], ms=(time.monotonic() - t) * 1000,
-                          esito="ok" if r.returncode == 0 else "rc %d" % r.returncode,
+                          esito="ok" if r.returncode == 0 else "ripiego" if ripiego else "rc %d" % r.returncode,
                           errore=testo.splitlines()[-1] if testo else None)
     return r.returncode, r.stdout, r.stderr
 
@@ -943,27 +1054,33 @@ def sonda_locale(entro=None):
     return risposta(leggi_json(out))
 
 
-def sonda_remota(nome, entro=None):
+PYTHON = ("python3", "python")
+
+
+def sonda_remota(nome, entro=None, primo=None):
     """La sonda su un'altra macchina via herdr-core: prima python3, poi python (Windows, dove python3
     può essere lo stub dello Store, che esce 9009). I due tentativi e l'elenco nudo dividono lo stesso
-    tetto (`entro`), che vale anche per hc exec e per claude agents dentro la sonda."""
+    tetto (`entro`), che vale anche per hc exec e per claude agents dentro la sonda.
+    `primo`: il Python che ha risposto all'ultima lettura di quella macchina, provato per primo (17/11/2026).
+    Un errore che non è "programma assente" (macchina che dorme, rete giù, hc unavailable) ferma subito:
+    il secondo Python non lo aggiusta, e prima costava altri 10-30 s del tetto del giro."""
     # compressa: con terminale_di la sonda in base64 supererebbe gli 8191 caratteri di una riga di cmd.exe
     compressa = base64.b64encode(zlib.compress(senza_commenti(SONDA).encode(), 9)).decode()
     ultimo, senza = "nessun Python", 0
-    for py in ("python3", "python"):
+    for py in ((primo,) + tuple(p for p in PYTHON if p != primo)) if primo in PYTHON else PYTHON:
         rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",
                                                         "T=%d;import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % (max(2, t - 3), compressa)],
                                       entro, 1)
         if rc == 0:
             try:
-                return risposta(leggi_json(out))
+                return dict(risposta(leggi_json(out)), python=py)
             except ValueError:
                 ultimo = "risposta senza JSON"
                 continue
-        if non_parte(out, err):
+        if non_parte(out, err) or rc == 9009:
             senza += 1
             continue
-        ultimo = errore_hc((err or out).strip().splitlines()[-1]) if (err or out).strip() else "rc %d" % rc
+        raise RuntimeError(errore_hc((err or out).strip().splitlines()[-1]) if (err or out).strip() else "rc %d" % rc)
     if senza < 2:
         raise RuntimeError(ultimo)
     # senza Python: l'elenco nudo di claude agents, senza progetto né ultime parole
@@ -1028,6 +1145,9 @@ def raccogli(viste=None, prima=None, entro=None):
         altre = [{"macchina": m["nome"], "host": m["nome"], "questa": False, "target": m["target"],
                   "stato_hc": m["stato"], "perche": m["perche"]} for m in note]
 
+    # il Python che ha risposto all'ultima lettura di ogni macchina (sonda_remota lo prova per primo)
+    python_di = {m["host"]: m.get("python") for m in (prima or []) if isinstance(m, dict) and isinstance(m.get("host"), str)}
+
     def una(v):
         if "irraggiungibile" in v:
             return v
@@ -1036,13 +1156,15 @@ def raccogli(viste=None, prima=None, entro=None):
             return v
         with registro.Durata("lettura", macchina="qui" if v["questa"] else v["host"]) as dura:
             try:
-                d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], entro)
+                d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], entro, python_di.get(v["host"]))
             except Exception as e:  # spenta, in stop, rete giù: lo si dice e si va avanti
                 v["irraggiungibile"] = str(e)[:200]
                 dura.esito, dura.errore = "irraggiungibile", v["irraggiungibile"]
                 return v
         v["claude"] = d.get("claude")
         v["sessioni"] = d.get("sessioni") or []
+        if d.get("python") in PYTHON:
+            v["python"] = d["python"]
         if isinstance(d.get("nascita"), dict):
             v["nascita"] = d["nascita"]
         return v
@@ -1112,6 +1234,51 @@ def carta_di(c):
     return out if out["domanda"] or out["opzioni"] else None
 
 
+# I tetti della ripartenza: voci in tutto, caratteri per campo, età massima in secondi.
+RIPARTENZA_VOCI = 60
+RIPARTENZA_VECCHIA = 2 * 24 * 3600
+
+
+def ripartenza_di(r, adesso=None):
+    """La ripartenza di /inizio (ripartenza-scrivi.py) coi tetti di Volta: 60 voci, testo e riga sotto 200,
+    marca 60, nomi 80. Una ripartenza senza voci, o più vecchia di due giorni, non c'è."""
+    if not isinstance(r, dict):
+        return None
+
+    def corto(x, n):
+        return " ".join(x.split())[:n] if isinstance(x, str) else ""
+
+    def intero(x):
+        return x if isinstance(x, int) and not isinstance(x, bool) else None
+    q = r.get("quando")
+    q = q if isinstance(q, (int, float)) and not isinstance(q, bool) and q > 0 else 0
+    if not q or (adesso or time.time()) - q > RIPARTENZA_VECCHIA:
+        return None
+    filoni, quante, visti = [], 0, set()
+    for f in (r.get("filoni") if isinstance(r.get("filoni"), list) else [])[:12]:
+        if not isinstance(f, dict):
+            continue
+        voci = []
+        for v in (f.get("voci") if isinstance(f.get("voci"), list) else []):
+            if quante >= RIPARTENZA_VOCI:
+                break
+            n, testo = intero(v.get("n")) if isinstance(v, dict) else None, corto(v.get("testo"), 200) if isinstance(v, dict) else ""
+            if n is None or n in visti or not testo:
+                continue
+            visti.add(n)
+            quante += 1
+            voci.append({"n": n, "id": intero(v.get("id")), "testo": testo,
+                         "marca": corto(v.get("marca"), 60), "sotto": corto(v.get("sotto"), 200)})
+        if voci:
+            filoni.append({"nome": corto(f.get("nome"), 80), "voci": voci})
+    if not filoni:
+        return None
+    p = r.get("partenza") if isinstance(r.get("partenza"), dict) else {}
+    return {"quando": q, "progetto": corto(r.get("progetto"), 80), "titolo": corto(r.get("titolo"), 200),
+            "filoni": filoni, "partenza": {"n": intero(p.get("n")), "motivo": corto(p.get("motivo"), 200)}
+            if intero(p.get("n")) is not None else None}
+
+
 def righe(voci):
     """Da raccogli() all'elenco piatto: una riga per sessione."""
     out = []
@@ -1144,12 +1311,16 @@ def righe(voci):
                 # le fasi di Volta (#5366): ultimo messaggio vero, fine dell'ultimo testo, chi ha parlato
                 "interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],
                 "chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,
+                # l'ultimo messaggio della persona che non è /fine: una sessione riaperta durante il congedo
+                "persona": s.get("persona") if isinstance(s.get("persona"), str) else "",
                 # ripresa da un congedo di Volta (/fine dopo ⌘W): la persona l'aveva chiusa
                 "congedo": s.get("congedo") is True,
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
                 "daIniziare": s.get("daIniziare") if isinstance(s.get("daIniziare"), str) else None,
                 # la carta della Coda (#5719): cosa chiede la sessione, con opzioni e raccomandazione
                 "carta": carta_di(s.get("carta")),
+                # la ripartenza di /inizio, per la checklist con le note (17/11/2026)
+                "ripartenza": ripartenza_di(s.get("ripartenza")),
                 # In background senza processo e senza status ci sono due casi (#5495, 13/11/2026).
                 # chiusa: fermata con claude stop ("stopped") o dopo /fine come ultimo messaggio, cioè
                 # il congedo di ⌘W. Volta non la mostra più; una in errore resta, per Riavvia.
@@ -1157,8 +1328,11 @@ def righe(voci):
                 # con poca memoria) o rimasta senza processo dopo un riavvio. Resta nell'elenco e nel
                 # giro: claude attach la riprende. Spostata su un'altra macchina (volta_sposta.py): chiusa,
                 # perché claude stop lascia "done" una sessione che aveva finito il turno (#5537).
-                "chiusa": senza and (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),
-                "dorme": senza and not (s.get("state") == "stopped" or s.get("fineFatta") is True or s.get("spostata") is True),
+                # Una che aspetta una risposta dopo /fine (state "blocked" o "waiting", #5760, 16/11/2026) non è
+                # chiusa: /fine ha chiesto qualcosa e non ha finito. Prima Volta la nascondeva e la domanda
+                # restava senza risposta; ora dorme, e l'elenco e la Coda la mostrano con la domanda.
+                "chiusa": senza and chiusa_senza(s),
+                "dorme": senza and not chiusa_senza(s),
             })
     return out
 
@@ -1170,6 +1344,11 @@ def documento(voci, precedente=None, adesso=None):
     elenco = []
     for v in voci:
         voce = {"macchina": v["macchina"], "host": v["host"], "questa": v["questa"]}
+        # il Python buono di quella macchina, per il giro dopo; senza lettura resta quello dell'ultima buona
+        py = v.get("python") or next((m.get("python") for m in (precedente or {}).get("macchine", [])
+                                      if isinstance(m, dict) and m.get("host") == v["host"]), None)
+        if py in PYTHON:
+            voce["python"] = py
         if isinstance(v.get("nascita"), dict):
             voce["nascita"] = v["nascita"]
         if "irraggiungibile" in v:
@@ -1259,7 +1438,7 @@ def servizio(nome):
     return {"errore": d.get("errore") or "nessuna risposta"}
 
 
-def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=None, stessa=False):
+def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=None, stessa=False, lavoro=None):
     """Una sessione nuova in background su `nome` ("qui" o vuoto = questa macchina).
 
     Duplica e Fork (#5291) passano da qui: `cartella` è quella della sessione di partenza, `riprendi`
@@ -1272,7 +1451,10 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
     if riprendi is not None and not ID.fullmatch(riprendi or ""):  # mai un'opzione come --all
         return {"errore": "id di sessione non valido"}
     dati = {"prompt": prompt or "", "progetto": progetto}
-    dati.update({k: v for k, v in (("cartella", cartella), ("riprendi", riprendi), ("nome", titolo), ("stessa", stessa)) if v})
+    # `lavoro`: l'id del lavoro in background della ripresa (il congedo). Dopo /clear o una rotazione il
+    # sessionId non è più quello della nascita, e solo l'id dice che la ripresa ha svegliato la sessione.
+    dati.update({k: v for k, v in (("cartella", cartella), ("riprendi", riprendi), ("nome", titolo), ("stessa", stessa),
+                                   ("lavoro", lavoro if lavoro and ID.fullmatch(lavoro) else None)) if v})
     arg = base64.b64encode(json.dumps(dati).encode()).decode()
     if questa:
         voce = {"questa": True, "target": None}
@@ -1287,7 +1469,8 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
         if m["stato"] not in (None, "connected"):
             return {"errore": "%s non risponde: %s" % (nome, (m["perche"] or "Herdr non la raggiunge")[:160])}
         voce = {"questa": False, "target": m["target"]}
-        codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(NASCI.encode()).decode()
+        # compressa come la SONDA: senza, NASCI in base64 supera gli 8191 caratteri di una riga di cmd.exe
+        codice = "import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % base64.b64encode(zlib.compress(senza_commenti(NASCI).encode(), 9)).decode()
         tentativi = [hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_NASCITA - 30), py, "-c", codice, arg]
                      for py in ("python3", "python")]
     # prima il servizio, acceso dove sopravvive: un claude --bg senza servizio lo farebbe nascere a
@@ -1440,7 +1623,9 @@ CLAUDE_FUORI_PATH = CLAUDE_FUORI_PATH.replace("#CLAUDE#", CERCA_CLAUDE.strip())
 # gesto oppure rifiuta. Argomenti: REGOLA VERBO ID. Le regole:
 #   rm       solo se la sessione non gira (stopped, done, failed, crashed, senza pid) e nessuno la aggancia;
 #   respawn  solo se è in errore (failed, crashed) o stopped: mai una sessione che lavora o è accesa;
-#   congedo  (lo stop del congedo) solo se nessuna scheda la aggancia ancora.
+#   congedo  (lo stop del congedo) solo se nessuna scheda la aggancia ancora;
+#   risposta (lo stop della risposta della Coda, #5721) solo se nessuna scheda la aggancia e la sessione
+#            non lavora e non aspetta in un dialogo: lo stop perderebbe il lavoro o la domanda aperta.
 # Un elenco che non si legge ferma rm e respawn; un elenco di processi che non si legge non ferma niente.
 # Il rifiuto esce con codice RIFIUTO e una riga "volta-prima {json}" su stderr: {"motivo", "viva"}.
 # Un ssh verso un'altra macchina non conta come aggancio: aggancia la copia di là (#5634).
@@ -1507,6 +1692,13 @@ elif regola == "respawn":
 elif regola == "congedo":
     if agganci():
         no("è aperta in un'altra scheda", True)
+elif regola == "risposta":
+    if s is False:
+        no("non riesco a leggere lo stato della sessione")
+    if s and stato in ("busy", "working", "running", "starting", "waiting", "blocked"):
+        no(detto, True)
+    if agganci():
+        no("è aperta in un'altra scheda", True)
 else:
     no("regola sconosciuta: %s" % regola)
 raise SystemExit(subprocess.call([cl, verbo, sid], stdin=subprocess.DEVNULL))
@@ -1547,11 +1739,12 @@ def claude_remoto(nome, args, entro, prima=None):
     else:
         progs.insert(0, ["claude"])
     primo = None
-    for prog in progs:
+    for n, prog in enumerate(progs):
         t = round(entro - time.monotonic())
         if t < 10:
             break
-        rc, out, err = lancia(hc() + ["exec", "--on", nome, "--timeout", str(t - 5)] + prog + args, timeout=t)
+        rc, out, err = lancia(hc() + ["exec", "--on", nome, "--timeout", str(t - 5)] + prog + args, timeout=t,
+                              prova=n < len(progs) - 1)
         if rc != 0 and (rc == 9009 or non_parte(out, err)):  # il programma non è partito: il prossimo
             primo = primo or (rc, out, err)
             continue
@@ -1559,7 +1752,7 @@ def claude_remoto(nome, args, entro, prima=None):
     return primo or (1, "", "nessuna risposta in %d s" % ATTESA_AZIONE)
 
 
-def azione(nome, verbo, sid, congedo=False):
+def azione(nome, verbo, sid, congedo=False, regola=None):
     """Un comando di claude su una sessione di `nome` ("qui" = questa macchina): logs (l'anteprima,
     come righe di schermo), stop, respawn, rm. Le altre macchine passano da herdr-core (hc exec --on).
 
@@ -1569,13 +1762,15 @@ def azione(nome, verbo, sid, congedo=False):
     fanno nascere processi: non lo toccano.
 
     rm e respawn, e stop con `congedo`, passano dal controllo fresco di PRIMA sulla macchina della
-    sessione (#5636). Un rifiuto torna {errore, rifiutata: True, viva} e va nel registro."""
+    sessione (#5636). Un rifiuto torna {errore, rifiutata: True, viva} e va nel registro. `regola` sceglie
+    un altro controllo di PRIMA per lo stop (risposta, #5721)."""
     if verbo not in VERBI:
         return {"errore": "azione sconosciuta: %s" % verbo}
     if not ID.fullmatch(sid or ""):  # mai un'opzione come --all
         return {"errore": "id di sessione non valido"}
     qui = nome in (None, "", "qui")
-    regola = verbo if verbo in CONTROLLATI else "congedo" if congedo and verbo == "stop" else None
+    regola = (regola if regola and verbo == "stop" else verbo if verbo in CONTROLLATI
+              else "congedo" if congedo and verbo == "stop" else None)
     if verbo == "respawn":
         s = servizio(nome)
         if s.get("errore"):
@@ -1618,35 +1813,67 @@ PROMPT_CONGEDO_AUTO = os.environ.get("VOLTA_PROMPT_CONGEDO") or (
     "Niente rotazione, nessuna domanda e nessun menu: salva e chiudi.")
 
 
-def congeda(nome, sid_lavoro, session_id, cartella=None, auto=False):
+def riprendi_con(nome, sid_lavoro, session_id, prompt, cartella=None, regola="congedo"):
+    """claude stop, poi la stessa conversazione ripresa in background con `prompt`: il congedo, /inizio
+    di un progetto nuovo e la risposta della Coda. Lo stop passa dal controllo fresco di PRIMA con
+    `regola`: un rifiuto (un'altra scheda la aggancia, #5636; la sessione lavora) lascia la sessione
+    com'è, senza ripresa. Il progetto non passa a nasci, che riscriverebbe la scheda."""
     if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
         return {"errore": "id di sessione non valido"}
-    fermata = azione(nome, "stop", sid_lavoro, congedo=True)  # già ferma risponde con un errore: si va avanti
+    fermata = azione(nome, "stop", sid_lavoro, congedo=True, regola=regola)  # già ferma risponde con un errore: si va avanti
     if fermata.get("rifiutata"):
-        # un'altra scheda la aggancia ancora (#5636): la sessione resta aperta, niente /fine
         return {"errore": fermata["errore"], "rifiutata": True, "fermata": False}
-    r = nasci(nome, PROMPT_CONGEDO_AUTO if auto else PROMPT_CONGEDO, None, cartella, riprendi=session_id, stessa=True)
+    r = nasci(nome, prompt, None, cartella, riprendi=session_id, stessa=True, lavoro=sid_lavoro)
     if r.get("errore") and not str(r["errore"]).startswith("è partita"):
-        return {"errore": r["errore"], "fermata": bool(fermata.get("ok"))}
-    return {"ok": True, "fermata": bool(fermata.get("ok"))}
+        # una copia nata ma senza processo resta da fermare: Volta la ferma con l'originale
+        copia = {"copia": {"id": r["copia"], "sessionId": r["copia"]}} if ID.fullmatch(str(r.get("copia") or "")) else {}
+        return dict({"errore": r["errore"], "fermata": bool(fermata.get("ok"))}, **copia)
+    out = {"ok": True, "fermata": bool(fermata.get("ok"))}
+    # la ripresa è nata come copia con un id nuovo: Volta segue lei fino allo stop (16/11/2026)
+    if ID.fullmatch(str(r.get("id") or "")) and r["id"] != sid_lavoro:
+        out["copia"] = {"id": r["id"], "sessionId": str(r.get("sessionId") or r["id"])}
+    return out
+
+
+def congeda(nome, sid_lavoro, session_id, cartella=None, auto=False):
+    return riprendi_con(nome, sid_lavoro, session_id, PROMPT_CONGEDO_AUTO if auto else PROMPT_CONGEDO, cartella)
 
 
 def inizia(nome, sid_lavoro, session_id, slug, cartella=None):
     """Una sessione in background spostata in un altro progetto riparte da /inizio di quel progetto
     (#5465, Federico 12/11/2026). Come il congedo: claude stop, poi la stessa conversazione ripresa
     col solo /inizio. Volta lo chiede solo a sessione ferma e senza una scheda che la mostri: con la
-    scheda aperta scrive /inizio lì dentro. Il progetto non passa a nasci, che riscriverebbe la scheda."""
+    scheda aperta scrive /inizio lì dentro."""
     if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
         return {"errore": "id di sessione non valido"}
     if not SLUG.fullmatch(slug or ""):
         return {"errore": "il progetto è uno slug: minuscole, numeri e trattini, al più 40 caratteri"}
-    ferma = azione(nome, "stop", sid_lavoro, congedo=True)  # già ferma risponde con un errore: si va avanti
-    if ferma.get("rifiutata"):
-        return {"errore": ferma["errore"], "rifiutata": True, "fermata": False}
-    r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id, stessa=True)
-    if r.get("errore") and not str(r["errore"]).startswith("è partita"):
-        return {"errore": r["errore"], "fermata": bool(ferma.get("ok"))}
-    return {"ok": True, "fermata": bool(ferma.get("ok"))}
+    return riprendi_con(nome, sid_lavoro, session_id, "/inizio %s" % slug, cartella)
+
+
+# La risposta della Coda (#5721, step 4 del piano della Coda di Volta): come TESTO_NUOVA_MAX di sessioni.js.
+TESTO_RISPOSTA_MAX = 400
+
+
+def testo_risposta(testo):
+    """La risposta come la riceve la sessione: una riga, senza caratteri di controllo, al più
+    TESTO_RISPOSTA_MAX caratteri."""
+    t = "".join(" " if ord(c) < 32 or 127 <= ord(c) < 160 else c for c in str(testo or ""))
+    return re.sub(r"\s+", " ", t).strip()[:TESTO_RISPOSTA_MAX].strip()
+
+
+def rispondi(nome, sid_lavoro, session_id, testo, cartella=None):
+    """La risposta scelta su una carta della Coda arriva a una sessione in background ferma, senza una
+    scheda in questa finestra: claude stop, poi la stessa conversazione ripresa con la risposta come
+    prompt. Con la scheda aperta Volta la scrive lì (scriviComando di dati.js), e una sessione ferma in
+    un dialogo (AskUserQuestion, un permesso) si apre nella sua scheda: lo stop perderebbe la domanda.
+    Il controllo fresco di PRIMA (regola risposta) rifiuta lo stop se la sessione lavora o aspetta."""
+    if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
+        return {"errore": "id di sessione non valido"}
+    t = testo_risposta(testo)
+    if not t:
+        return {"errore": "la risposta è vuota"}
+    return riprendi_con(nome, sid_lavoro, session_id, t, cartella, regola="risposta")
 
 
 CAMBI = {"rinomina": "titolo", "progetto": "scheda"}
@@ -1834,6 +2061,17 @@ def main(argv):
             print("uso: volta_sonda.py inizia <macchina> <id> <sessionId> <progetto> [--cartella <dir>]")
             return 2
         esito = inizia(resto[0], resto[1], resto[2], resto[3], cartella)
+        print(json.dumps(esito, ensure_ascii=True))
+        return 0 if "errore" not in esito else 1
+    if argv and argv[0] == "rispondi":
+        testo = " ".join(argv[argv.index("--") + 1:]) if "--" in argv else ""
+        resto = argv[1:argv.index("--")] if "--" in argv else argv[1:]
+        cartella = resto[resto.index("--cartella") + 1] if "--cartella" in resto[:-1] else None
+        resto = [a for i, a in enumerate(resto) if a != "--cartella" and (i == 0 or resto[i - 1] != "--cartella")]
+        if len(resto) != 3 or any(x.startswith("--") for x in resto):
+            print("uso: volta_sonda.py rispondi <macchina> <id> <sessionId> [--cartella <dir>] -- <testo>")
+            return 2
+        esito = rispondi(resto[0], resto[1], resto[2], testo, cartella)
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":

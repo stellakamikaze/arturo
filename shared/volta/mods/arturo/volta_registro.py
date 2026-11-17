@@ -159,13 +159,13 @@ def quantile(v: list, q: float) -> int:
 
 def riassunto(righe: list) -> dict:
     """Per fonte, evento e macchina: quante volte, quanti errori, durate (mediana, p95, massimo) e gli
-    errori più frequenti."""
+    errori più frequenti. "ripiego" non è un errore: il tentativo non è partito e quello dopo prova (#5758)."""
     gruppi = {}
     for r in righe:
         k = (r.get("fonte", ""), r.get("evento", ""), r.get("macchina", ""))
         g = gruppi.setdefault(k, {"volte": 0, "errori": 0, "ms": [], "messaggi": {}})
         g["volte"] += 1
-        if r.get("esito") not in (None, "ok"):
+        if r.get("esito") not in (None, "ok", "ripiego"):
             g["errori"] += 1
             m = r.get("errore") or r.get("esito")
             g["messaggi"][m] = g["messaggi"].get(m, 0) + 1

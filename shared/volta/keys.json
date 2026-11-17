@@ -3,6 +3,8 @@
     "cmd-o": "arturo.apri",
     "cmd-k": "arturo.apri",
     "cmd-t": "arturo.casa",
+    "cmd-shift-j": "arturo.coda",
+    "cmd-shift-s": "arturo.checklist",
     "cmd-shift-n": "arturo.nota",
     "cmd-shift-e": "arturo.note",
     "cmd-w": "arturo.volta-chiudi",

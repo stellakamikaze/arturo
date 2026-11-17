@@ -153,6 +153,8 @@ node_modules
 # commit: HZ15 del banco di Herdr prova queste due, non il resto di data/.
 data/note-finestra/
 data/herdr-invito
+# Il resoconto della domenica del capo della Coda (volta_capo.py, 17/11/2026)
+data/report-uso/
 # Scritti da herdr-app check nella cartella del mod (8/11/2026)
 shared/volta/mods/*/gpui-kit.d.ts
 shared/volta/mods/*/jsconfig.json

@@ -47,7 +47,7 @@ const slugDi = slug;
 
 // Il progetto di un nome (il progetto di una sessione, il nome di uno spazio di Herdr, una tessera): la
 // chiave del suo progetto e il titolo noto, o null (#5487). Un nome alternativo ("volta", "volta-celeste")
-// porta alla chiave della scheda ("herdr-arturo"): colonna, spazi, testata, Da fare e tessere passano tutti
+// porta alla chiave della scheda ("volta"): colonna, spazi, testata, Da fare e tessere passano tutti
 // da qui, così una sessione e il suo spazio non si separano. `noti` è la mappa di shared arturo.progetti:
 // chi non chiama impostaProgetti (dati.js, testata.js) la passa letta da shared.
 export function progettoDi(p, noti = NOTI) {
@@ -57,7 +57,7 @@ export function progettoDi(p, noti = NOTI) {
 }
 // La chiave del progetto: quella del suo gruppo anche quando la sessione porta un nome alternativo.
 export const chiaveProgetto = (p) => progettoDi(p).chiave;
-// Il titolo vero del progetto se è noto ("Volta" per herdr-arturo), altrimenti null: chi ha un suo modo
+// Il titolo vero del progetto se è noto ("Volta" per volta), altrimenti null: chi ha un suo modo
 // di scrivere il nome ricavato dallo slug (bello() di dati.js) lo usa solo quando il titolo manca.
 export const titoloNoto = (p) => progettoDi(p).titolo;
 // Il nome di un gruppo "Per progetto" apre il progetto (/inizio) solo se il progetto è noto: un nome
@@ -167,6 +167,7 @@ export function fraseStato(s, adesso = Date.now()) {
   const q = daQuanto(s.interazione || s.ultimo, adesso);
   // addormentata (#5495): il servizio di Claude l'ha ritirata, il clic o il giro la riprendono
   const zz = dorme(s) ? ", addormentata" : "";
+  if (f === "stasi" && chiestaInFine(s)) return { testo: q ? `Ha chiesto qualcosa durante /fine ${q}` : "Ha chiesto qualcosa durante /fine", colore: "blocked" };
   if (f === "stasi") return { testo: (q ? `Ti aspetta ${q}` : "Ti aspetta") + zz, colore: "blocked" };
   if (zz) return { testo: q ? `Addormentata ${q}` : "Addormentata", colore: "dim" };
   return { testo: q ? `Aspetta un comando ${q}` : "Aspetta un comando", colore: "muted" };
@@ -202,7 +203,9 @@ export function carte(lista) {
     return { ...c, opzioni: Array.isArray(c.opzioni) ? c.opzioni : [], origine: "sessione",
       chiave: chiave(s), id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina,
       progetto: s.progetto ?? null, titolo: titolo(s), quando,
-      minima: !s.carta, blocco: s.stato === "aspetta" || Boolean(s.aspetta) };
+      minima: !s.carta, blocco: s.stato === "aspetta" || Boolean(s.aspetta),
+      // la ripartenza di /inizio (17/11/2026): la carta offre la checklist con le note
+      checklist: vociRipartenza(s.ripartenza).length, ripQuando: s.ripartenza?.quando ?? null };
   });
 }
 // L'ordine della Coda: prima ciò che solo la persona fa (invio, pagamento, segreto...), poi le sessioni
@@ -221,6 +224,242 @@ export function ordineCoda(lista) {
   return (lista ?? []).filter(Boolean).map((c, i) => ({ c, i, r: rangoCarta(c), q: Number(c.quando) || Infinity }))
     .sort((a, b) => a.r - b.r || a.q - b.q || a.i - b.i).map((x) => x.c);
 }
+
+// La vista Coda (#5720, step 3 del piano): una carta per volta, risposta in un tasto. Qui stanno le
+// decisioni senza Herdr (coda.js disegna): quale opzione è la raccomandata, cosa fa un tasto, dove va una
+// prova. Al più CODA_OPZIONI opzioni, come i tetti della sonda.
+export const CODA_OPZIONI = 6;
+const piana = (t) => String(t ?? "").toLowerCase().replace(/[*_`"'.!?:;,()]+/g, " ").replace(/\s+/g, " ").trim();
+// L'indice dell'opzione che la raccomandazione indica, o -1: prima l'opzione uguale, poi quella che la
+// raccomandazione nomina per intero ("1 tutte" in "Raccomando 1 tutte perché..."), la più lunga.
+export function raccomandata(c) {
+  const r = piana(c?.raccomandazione);
+  const oo = (Array.isArray(c?.opzioni) ? c.opzioni : []).slice(0, CODA_OPZIONI).map(piana);
+  if (!r || !oo.length) return -1;
+  const uguale = oo.indexOf(r);
+  if (uguale >= 0) return uguale;
+  const dentro = oo.map((o, i) => ({ o, i })).filter((x) => x.o && ` ${r} `.includes(` ${x.o} `))
+    .sort((a, b) => b.o.length - a.o.length);
+  return dentro.length ? dentro[0].i : -1;
+}
+// Cosa fa il tasto `k` (nome di Herdr: "1", "enter", "escape", "right", "t") sulla carta `c`:
+// { azione: "rispondi", testo, scelta, accettata } | { azione: "salta"|"indietro"|"apri"|"esci"|"scrivi" } | null.
+// Invio accetta la raccomandazione: l'opzione che indica, oppure il suo testo se non ne indica nessuna.
+export function tastoCoda(k, c) {
+  const oo = (Array.isArray(c?.opzioni) ? c.opzioni : []).slice(0, CODA_OPZIONI);
+  const ri = raccomandata(c);
+  if (/^[1-6]$/.test(k ?? "")) {
+    const n = Number(k) - 1;
+    if (!c || n >= oo.length) return null;
+    return { azione: "rispondi", testo: String(oo[n]), scelta: n + 1, accettata: n === ri };
+  }
+  if (k === "enter") {
+    if (!c) return null;
+    if (ri >= 0) return { azione: "rispondi", testo: String(oo[ri]), scelta: ri + 1, accettata: true };
+    const r = String(c.raccomandazione ?? "").trim();
+    return r ? { azione: "rispondi", testo: r, scelta: 0, accettata: true } : null;
+  }
+  if (k === "right" || k === "down") return { azione: "salta" };
+  if (k === "left" || k === "up") return { azione: "indietro" };
+  if (k === "t") return c ? { azione: "apri" } : null;
+  // i gesti di ogni carta (16/11/2026): F Già fatto, X Scarta, N Note (R resta la sua vecchia lettera),
+  // C il commento sul pulsante sotto il cursore (Tab lo prende il motore per spostare il fuoco)
+  if (k === "r" || k === "n") return c ? { azione: "scrivi" } : null;
+  if (k === "f") return c ? { azione: "gesto", gesto: GIA_FATTO } : null;
+  if (k === "x") return c ? { azione: "gesto", gesto: SCARTA } : null;
+  if (k === "c") return c ? { azione: "commenta" } : null;
+  if (k === "escape") return { azione: "esci" };
+  return null;
+}
+// La carta davanti dopo un salto: in giro, così dall'ultima si torna alla prima.
+export const passoCoda = (at, verso, n) => (n > 0 ? (((Number(at) || 0) + verso) % n + n) % n : 0);
+// La carta da mostrare: la stessa di prima se c'è ancora (per chiave), altrimenti quella al suo posto.
+export function cartaDavanti(lista, chiavePrima, at) {
+  const l = lista ?? [];
+  if (!l.length) return 0;
+  const i = chiavePrima ? l.findIndex((c) => c?.chiave === chiavePrima) : -1;
+  return i >= 0 ? i : Math.max(0, Math.min(Number(at) || 0, l.length - 1));
+}
+// Le prove di una carta: le immagini si mostrano nella vista, i video si aprono col programma del sistema.
+export const tipoProva = (p) => (/\.(png|jpe?g|gif|webp)$/i.test(String(p ?? "")) ? "immagine" : /\.(mp4|mov)$/i.test(String(p ?? "")) ? "video" : null);
+// Dove arriva la copia di una prova, relativa alla cartella dell'app: Herdr mostra solo le immagini che
+// stanno lì dentro (gpui-kit assets.rs). Una cartella per macchina e sessione, il nome del file ripulito.
+export function copiaProva(c, p) {
+  const pulito = (x) => String(x ?? "").replace(/[^0-9A-Za-z._-]+/g, "_").replace(/^\.+/, "_").slice(0, 80) || "_";
+  const nome = String(p ?? "").split(/[\\/]/).filter(Boolean).pop();
+  if (!nome || !tipoProva(nome)) return null;
+  return `carte/${pulito(c?.host ?? "qui")}/${pulito(String(c?.sessionId || c?.id || "").slice(0, 36))}/${pulito(nome)}`;
+}
+// La risposta della Coda torna alla barra come comando (lo stesso di herdr-app do), col testo in
+// esadecimale: "arturo.coda-rispondi-<chiave>-<esadecimale>". Al più TESTO_NUOVA_MAX caratteri.
+export const comandoRisposta = (chiaveCarta, testo, tetto = TESTO_NUOVA_MAX) => `arturo.coda-rispondi-${chiaveCarta}-${codifica(String(testo ?? "").trim().slice(0, tetto))}`;
+// Il testo di una carta come si legge: un link markdown "[testo](url)" resta il solo testo, o l'indirizzo se
+// il testo è "link"; via il grassetto e il codice. Il testo scritto dall'hook è markdown di Claude.
+export const testoPiano = (t) => String(t ?? "")
+  .replace(/\[([^\]]*)\]\((\S+?)\)/g, (_m, x, u) => (!x.trim() || /^(link|qui)$/i.test(x.trim()) ? u : x))
+  .replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
+// L'etichetta dell'opzione `i` (da 0): senza il numero davanti se è già il suo ("1 tutte" accanto al tasto 1).
+// La risposta che torna alla sessione resta il testo intero.
+export const etichettaOpzione = (o, i) => testoPiano(o).replace(new RegExp(`^\\s*${i + 1}[\\s.):-]+(?=\\S)`), "");
+// Il conteggio della testata: "Coda · 3", o null con la coda vuota.
+export const rigaCoda = (n) => (Number(n) > 0 ? `Coda · ${Number(n)}` : null);
+
+// La risposta della Coda torna alla sessione (#5721, step 4 del piano). Il canale, dalla sessione `s`,
+// dalla sua carta `c` e dal numero di schede che la mostrano in questa finestra:
+//   dialogo    la sessione è ferma in un dialogo (AskUserQuestion, un permesso): si apre la sua scheda,
+//              perché un testo scritto o uno stop perderebbero la domanda;
+//   scheda     una scheda qui la mostra: la risposta si scrive lì, a casella vuota (scriviComando);
+//   background nessuna scheda: volta_sonda.py rispondi, cioè claude stop e la stessa conversazione ripresa
+//              con la risposta come prompt;
+//   apri       un'interattiva in un Terminale fuori da Herdr: non si raggiunge, si apre e si dice il testo.
+export function canaleRisposta(s, c, schede = 0) {
+  if (!s) return "apri";
+  if (c?.menu || c?.blocco || s.stato === "aspetta" || s.aspetta) return "dialogo";
+  if (Number(schede) > 0) return "scheda";
+  if (s.tipo === "background" && s.id && s.sessionId) return "background";
+  return "apri";
+}
+// Quale opzione è la risposta `testo` sulla carta `c` e se segue la raccomandazione: { numero, accettata }.
+// numero 0 = una risposta libera o la raccomandazione senza un'opzione. Per il registro delle risposte.
+export function sceltaRisposta(c, testo) {
+  const t = piana(testo);
+  const oo = (Array.isArray(c?.opzioni) ? c.opzioni : []).slice(0, CODA_OPZIONI).map(piana);
+  const i = t ? oo.indexOf(t) : -1;
+  if (i >= 0) return { numero: i + 1, accettata: i === raccomandata(c) };
+  const r = piana(c?.raccomandazione);
+  return { numero: 0, accettata: Boolean(r) && r === t };
+}
+// La riga del registro delle risposte (volta_carte.py risposta), senza il testo della domanda.
+export function rigaRisposta(c, testo, canale, esito, errore = null, nota = "") {
+  const { numero, accettata } = sceltaRisposta(c, testo);
+  return { chiave: c?.chiave ?? null, macchina: c?.macchina ?? null, progetto: c?.progetto ?? null,
+    tipo: c?.tipo ?? null, canale, esito, raccomandazione: c?.raccomandazione || null,
+    scelta: String(testo ?? "").trim().slice(0, TESTO_CHECKLIST_MAX), numero, accettata, capo: Boolean(c?.capoRac),
+    ...(nota ? { nota: String(nota).slice(0, COMMENTO_MAX) } : {}),
+    ...(errore ? { errore: String(errore).slice(0, 160) } : {}) };
+}
+// Una carta appena risposta esce dalla Coda subito, senza aspettare la sonda dopo: altrimenti la vista
+// la rimostra e un secondo tasto risponde due volte. Torna se la sessione scrive una carta nuova (quando
+// più recente) o dopo RISPOSTA_MS, se la risposta non l'ha raggiunta. `risposte`: chiave → istante.
+export const RISPOSTA_MS = 3 * 60 * 1000;
+export function senzaRisposte(lista, risposte, ora = Date.now()) {
+  const rr = risposte && typeof risposte === "object" ? risposte : {};
+  return (lista ?? []).filter((c) => {
+    const q = Number(rr[c?.chiave]);
+    // una carta UF (#5722) resta fuori finché il capo non la rilegge dopo la risposta: un giro all'ora,
+    // con i task riletti dall'archivio. Rimanda di una bozza mette l'istante a domani (RIMANDA_MS).
+    if (c?.origine === "uf" && q > 0) return Number(c?.letto) > q;
+    return !(q > 0 && ora - q < RISPOSTA_MS && !(Number(c?.quando) > q));
+  });
+}
+
+// Le carte UF della Coda (#5722, step 5 del piano): i task che aspettano la persona e le bozze email non
+// partite, scritte dal giro orario del capo (volta_capo.py giro) e lette da ogni Volta con `volta_capo.py
+// prendi` ogni LETTURA_UF_MS. `d`: { letto (ms), carte, vecchia?, errore? }. Una carta tiene solo le chiavi
+// "uf:<numero>" e "bozza:<thread>", le sole che il comando della risposta sa portare (comandi.js).
+export const LETTURA_UF_MS = 5 * 60 * 1000;
+export const RIMANDA_MS = 24 * 3600 * 1000;
+export function carteUf(d) {
+  if (!d || !Array.isArray(d.carte)) return [];
+  const letto = Number(d.letto) || 0;
+  return d.carte.filter((c) => c && typeof c === "object" && /^(uf|bozza):[0-9A-Za-z]+$/.test(String(c.chiave ?? "")))
+    .map((c) => ({ ...c, origine: "uf", gruppo: c.gruppo === "tu" ? "tu" : "decidi",
+      opzioni: Array.isArray(c.opzioni) ? c.opzioni.map(String).slice(0, CODA_OPZIONI) : [],
+      prove: [], menu: false, minima: false, blocco: false, host: null, macchina: null,
+      quando: Number(c.quando) > 0 ? Number(c.quando) : 0, letto, vecchia: Boolean(d.vecchia) }));
+}
+
+// Il capo di gabinetto (#5723, step 6 del piano): il giro del capo giudica col modello le carte nuove e
+// scrive i giudizi delle sessioni in carte-uf.json (`giudizi`, per "s:<sessionId>", con l'istante della carta
+// giudicata); le carte UF arrivano già giudicate. conCapo mette il giudizio solo sulla stessa carta: una
+// carta nuova della sessione aspetta il giro dopo. Una carta reversibile, che non sia di quelle che solo
+// la persona fa, ha "Lascia a Claude" come prima opzione; il segno non agisce da solo.
+export const LASCIA = "Lascia a Claude";
+export const TESTO_LASCIA = "Scegli tu e vai avanti: il passo è reversibile. Fallo e riportalo come fatto.";
+export const idCapo = (c) => (c?.origine === "uf" ? String(c?.chiave ?? "") : `s:${c?.sessionId ?? ""}`);
+export function conCapo(lista, d) {
+  const gg = d?.giudizi && typeof d.giudizi === "object" ? d.giudizi : {};
+  return (lista ?? []).map((c) => {
+    const g = c?.sessionId ? gg[idCapo(c)] : null;
+    if (!g || typeof g !== "object" || Math.abs(Number(g.quando) - Number(c.quando)) >= 1000) return c;
+    const rac = String(c.raccomandazione ?? "").trim() ? "" : String(g.raccomandazione ?? "").slice(0, 200);
+    const reversibile = g.reversibile === true && !UMANI.includes(c.tipo);
+    const oo = Array.isArray(c.opzioni) ? c.opzioni : [];
+    return { ...c, riassunto: String(g.riassunto ?? "").slice(0, 140), reversibile,
+      doppia: typeof g.doppia === "string" ? g.doppia : null,
+      ...(rac ? { raccomandazione: rac, capoRac: true } : {}),
+      ...(reversibile ? { opzioni: [LASCIA, ...oo.filter((o) => o !== LASCIA)].slice(0, CODA_OPZIONI) } : {}) };
+  });
+}
+// Il testo che arriva alla sessione: "Lascia a Claude" diventa l'istruzione intera, il resto com'è.
+export function testoPerSessione(t) {
+  const x = String(t ?? "");
+  if (x.trim() === LASCIA) return TESTO_LASCIA;
+  return x.startsWith(`${LASCIA} · `) ? TESTO_LASCIA + x.slice(LASCIA.length) : x;
+}
+
+// I gesti di ogni carta (16/11/2026, Federico): Già fatto, Scarta e Note, più il commento che C apre sul
+// pulsante sotto il cursore. Il comando porta gesto e commento insieme, in JSON esadecimale:
+// "arturo.coda-gesto-<chiave>-<esadecimale>". gestoCoda() dice cosa fa il gesto su ogni tipo di carta:
+//   sessione  un'opzione o la raccomandazione col commento "· Nota: …"; Già fatto scrive "L'ho già fatto io.";
+//             Note scrive il commento; Scarta toglie la carta senza scrivere (torna con una carta nuova);
+//   task UF   il gesto di gestoUf (Già fatto = Fatto), col commento come nota prima del gesto; Scarta col
+//             commento lo usa come motivo; Note è la nota;
+//   bozza     Già fatto la toglie fino al giro dopo del capo; Scarta la toglie per sempre da questa
+//             macchina; Note e Riscrivi col commento fanno riscrivere a Claude con le indicazioni.
+// Torna { azione: "rispondi"|"uf"|"scarta", testo?, scelta, nota } o null.
+export const GIA_FATTO = "Già fatto";
+export const SCARTA = "Scarta";
+export const NOTE = "Note";
+export const COMMENTO_MAX = 300;
+export const comandoGesto = (chiaveCarta, gesto, commento = "") => `arturo.coda-gesto-${chiaveCarta}-${codifica(JSON.stringify({
+  g: String(gesto ?? "").trim().slice(0, 120), n: String(commento ?? "").replace(/\s+/g, " ").trim().slice(0, COMMENTO_MAX) }))}`;
+export function leggiGesto(hex) {
+  try {
+    const d = JSON.parse(decodifica(hex));
+    return typeof d?.g === "string" && d.g.trim() ? { gesto: d.g.trim(), commento: typeof d.n === "string" ? d.n.trim() : "" } : null;
+  } catch { return null; }
+}
+export function gestoCoda(c, gesto, commento = "") {
+  const g = String(gesto ?? "").trim();
+  const n = String(commento ?? "").replace(/\s+/g, " ").trim().slice(0, COMMENTO_MAX);
+  if (!c || !g) return null;
+  const uf = c.origine === "uf";
+  if (g === NOTE && !n) return null;
+  if (g === SCARTA && (!uf || c.fonte === "bozza")) return { azione: "scarta", scelta: g, nota: n };
+  if (!uf) {
+    if (g === NOTE) return { azione: "rispondi", testo: n, scelta: g, nota: n };
+    const base = g === GIA_FATTO ? "L'ho già fatto io." : g;
+    return { azione: "rispondi", testo: n ? `${base} · Nota: ${n}` : base, scelta: g, nota: n };
+  }
+  if (g === NOTE) return { azione: "uf", testo: n, scelta: g, nota: "" };
+  return { azione: "uf", testo: g === GIA_FATTO && c.fonte !== "bozza" ? "Fatto" : g, scelta: g, nota: n };
+}
+// Le carte scartate restano fuori: una bozza per sempre, una sessione finché non scrive una carta nuova.
+// `scartate`: chiave → istante della carta scartata (volta_carte.py scartate).
+export function senzaScartate(lista, scartate) {
+  const ss = scartate && typeof scartate === "object" ? scartate : {};
+  return (lista ?? []).filter((c) => {
+    if (!c || !Object.prototype.hasOwnProperty.call(ss, c.chiave)) return true;
+    if (c.origine === "uf") return false;
+    return Number(c.quando) > Number(ss[c.chiave]);
+  });
+}
+// Le carte doppie (il capo dice quale altra carta chiede la stessa decisione): esce la doppia se la sua
+// principale è in Coda e non è a sua volta una doppia; la principale porta i titoli delle doppie. Due
+// carte che si indicano a vicenda restano tutte e due.
+export function fondiDoppie(lista) {
+  const l = (lista ?? []).filter(Boolean);
+  const per = new Map(l.map((c) => [idCapo(c), c]));
+  const radice = (c) => !(c?.doppia && per.has(c.doppia) && c.doppia !== idCapo(c));
+  const via = new Set(l.filter((c) => !radice(c) && radice(per.get(c.doppia))).map(idCapo));
+  const doppie = {};
+  for (const c of l) if (via.has(idCapo(c))) (doppie[c.doppia] ??= []).push(String(c.titolo ?? c.domanda ?? "").slice(0, 80));
+  return l.filter((c) => !via.has(idCapo(c))).map((c) => (doppie[idCapo(c)] ? { ...c, doppie: doppie[idCapo(c)] } : c));
+}
+// La misura in testata della Coda: "Raccomandazioni accettate: 3 su 5 questa settimana", o null senza
+// raccomandazioni nel registro della settimana.
+export const rigaMisura = (m) => (Number(m?.su) > 0 ? `Raccomandazioni accettate: ${Number(m.accettate) || 0} su ${Number(m.su)} questa settimana` : null);
 
 // La chiusura automatica (#5366): le sessioni di questa macchina in background che aspettano un comando
 // da più di `dopoMin` minuti, senza un lavoro lasciato in corso, senza una scheda aperta in questa
@@ -392,10 +631,42 @@ export function gruppi(dati, modo = "macchina", ora = Date.now()) {
 // Claude dopo un'ora ferma (#5495, 13/11/2026): resta nell'elenco e nel giro, e claude attach la riprende.
 export const chiusa = (s) => Boolean(s) && s.tipo === "background" && s.chiusa === true;
 export const dorme = (s) => Boolean(s) && s.tipo === "background" && s.dorme === true && !chiusa(s);
-export function visibili(dati, congedi = {}) {
+// Ferma su una domanda di /fine (#5760, 16/11/2026, Federico: sì): senza processo, /fine in fondo e
+// claude agents la dice in attesa. La sonda non la segna più chiusa: resta nell'elenco e nella Coda con
+// la sua domanda, così la persona risponde (clic, claude attach) o la chiude (il congedo la ferma e la
+// elimina, senza un secondo /fine).
+export const chiestaInFine = (s) => dorme(s) && s.fineFatta === true && s.stato === "aspetta";
+// Una sessione chiusa non riappare mentre fa il /fine di chiusura (16/11/2026, Federico: "mentre fanno il
+// fine di chiusura non devono riapparire"). Restano fuori: la sessione nata da un congedo di Volta (la
+// sonda la segna `congedo`) finché /fine è il suo ultimo messaggio, anche mentre lavora, salvo errore
+// (Riavvia) o una domanda di /fine (#5760); riaperta e usata dopo, torna. E l'originale di un congedo
+// passato alla copia (`copiaDi`), finché quel congedo c'è.
+export const inChiusura = (s) => Boolean(s) && s.congedo === true && s.fineFatta === true && s.stato !== "errore" && !chiestaInFine(s);
+// Le sessioni chiuse da chi usa la finestra e rimaste in claude agents (16/11/2026, Federico: "continua ad
+// aprire schede che ho chiuso", a sinistra, dopo un po'). Un congedo che finisce senza claude rm (la ripresa
+// che non parte, /fine senza salvataggio, un errore, un tetto, un rm che non va) lascia la sessione ferma
+// ma non chiusa, e appena il congedo usciva dal registro l'elenco la rimostrava; così anche l'originale di
+// un congedo passato alla copia, quando la copia aveva finito. `chiuse`: { chiave: { da } } in shared
+// arturo.volta.chiuse. Resta fuori finché nessuno la riusa: torna se lavora o se la trascrizione va avanti
+// dopo `da` (oltre CHIUSE_MARGINE_MS), e Volta toglie la voce quando la riapri tu (clic, ⌘K). Una domanda
+// di /fine resta visibile (#5760): la persona risponde o la richiude. Le voci durano CHIUSE_TENUTA_MS.
+export const CHIUSE_TENUTA_MS = 7 * 86400000, CHIUSE_MARGINE_MS = 60000;
+export function chiusaDaTe(s, chiuse = {}) {
+  const v = chiuse?.[chiave(s)];
+  if (!v || s.stato === "lavora" || chiestaInFine(s)) return false;
+  return tempo(s) <= (Number(v.da) || 0) + CHIUSE_MARGINE_MS;
+}
+// Il registro delle chiuse con le sessioni `voci` ({ host, id }) segnate ad `ora`, senza le voci scadute.
+export function ricordaChiuse(chiuse = {}, voci = [], ora = Date.now()) {
+  const out = Object.fromEntries(Object.entries(chiuse ?? {}).filter(([, v]) => ora - (Number(v?.da) || 0) < CHIUSE_TENUTA_MS));
+  for (const v of voci) if (v?.id) out[chiave(v)] = { da: ora };
+  return out;
+}
+export function visibili(dati, congedi = {}, chiuse = {}) {
   if (!dati) return dati;
   const via = chiaviDi(congedi);
-  const l = (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(chiave(s)));
+  for (const c of Object.values(congedi ?? {})) if (c?.copiaDi) via.add(chiave({ host: c.host, id: c.copiaDi }));
+  const l = (dati.sessioni ?? []).filter((s) => !chiusa(s) && !inChiusura(s) && !via.has(chiave(s)) && !chiusaDaTe(s, chiuse));
   return { ...dati, sessioni: unaPerConversazione(l) };
 }
 
@@ -528,14 +799,43 @@ export function daAllineare(voci, opz = {}) {
 // Tetti: CONGEDO_MAX_MS per il turno in corso e per /fine; dopo, la sessione si ferma lo stesso e Volta lo
 // dice. Una macchina che non risponde tiene il congedo fino a CONGEDO_VECCHIO_MS.
 export const CONGEDO_MAX_MS = 20 * 60000, CONGEDO_AVVIO_MS = 20000, CONGEDO_SENZA_FINE_MS = 3 * 60000, CONGEDO_VECCHIO_MS = 6 * 3600000;
+// La ripresa di un congedo nata come copia (16/11/2026): claude --bg --resume di una sessione fermata con
+// claude stop apre una conversazione nuova con un id suo, e la sonda lo restituisce in `copia`. Il congedo
+// passa alla copia, che fa /fine e poi si ferma; prima Volta aspettava l'id vecchio e la copia restava
+// aperta. { chiave, voce } della voce nuova, o null se non c'è una copia diversa dalla sessione.
+export function congedoSullaCopia(c, copia, ora = Date.now()) {
+  if (!c || !copia?.id || copia.id === c.id) return null;
+  const voce = { ...c, id: copia.id, sessionId: copia.sessionId || copia.id, fase: "fine", da: ora, dal: ora, copiaDi: c.id };
+  return { chiave: chiave(voce), voce };
+}
+
+// Le sessioni di prova (#5877, 17/11/2026): nate da una sonda o da un banco col nome prova- (bin/prova.py di
+// Arturo, stesso prefisso). Alla chiusura non hanno niente da salvare: niente /fine, stop subito anche se
+// lavorano, poi claude rm come una salvata. Sul MacBook erano circa 30 sessioni su 143 in una settimana.
+export const PROVA = /^\s*prova-/i;
+export const diProva = (s) => PROVA.test(String(s?.nome ?? ""));
+
+// Riaperta durante il congedo (#5633, 14/11/2026: quattro sessioni chiuse per sbaglio, riprese a mano con
+// claude --bg --resume e richiuse da Volta due minuti dopo). La sonda dà in `persona` l'ora dell'ultimo
+// messaggio della persona che non è /fine, senza i messaggi di un'altra sessione: se viene dopo il gesto
+// di chiusura (oltre RIAPERTA_MARGINE_MS, per gli orologi di due macchine), qualcuno la sta usando. Il
+// congedo finisce senza stop e senza rm, e la sessione torna nell'elenco.
+export const RIAPERTA_MARGINE_MS = 30000;
+export const riaperta = (c, s) => Boolean(s) && Number(c?.da) > 0 && (Date.parse(s.persona || "") || 0) > Number(c.da) + RIAPERTA_MARGINE_MS;
+
 export function passoCongedo(c, s, ora = Date.now()) {
   const da = Number(c?.da) || ora, dal = Number(c?.dal) || da;
   const nome = s ? titolo(s) : "La sessione";
   if (!s || s.vecchia) return ora - da > (s ? CONGEDO_VECCHIO_MS : 3600000) ? { fai: "togli" } : { fai: "attendi" };
+  if (riaperta(c, s)) return { fai: "togli", riaperta: true };
   if (c.fase === "attende") {
     if (chiusa(s)) return { fai: "togli" };
+    if (diProva(s)) return { fai: "stop", fase: "ferma", salvata: true };
     // la chiusura automatica di una sessione che ha già fatto /fine (#5366): niente secondo /fine
-    if (c.fineFatta && s.stato !== "lavora") return { fai: "stop", fase: "ferma", salvata: true };
+    // /fine è già l'ultimo messaggio (un /fine di prima, una ripresa già partita, una domanda di /fine,
+    // #5760): niente secondo /fine, la sessione si ferma. Prima lo stop, poi l'rm: il controllo di PRIMA
+    // rifiuta l'rm di chi aspetta una risposta. Una ricarica del mod a metà congedo rifaceva /fine (16/11).
+    if ((c.fineFatta || s.fineFatta === true) && s.stato !== "lavora") return { fai: "stop", fase: "ferma", salvata: true };
     if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };
     return { fai: "fine", fase: "fine" };
   }
@@ -601,6 +901,9 @@ export function nascitePerAvviso(dati, viste = {}) {
 // e la sessione non ha più processo; "stop" se è ancora viva con /fine come ultimo messaggio (poi, ferma,
 // diventa "rm"); "rm" con avviso se è in errore senza /fine (la ripresa è caduta): la persona l'aveva
 // chiusa, la trascrizione resta su disco. Una viva, ferma o ritirata usata dopo il congedo non si tocca.
+// Una senza processo che aspetta una risposta (state "blocked" o "waiting") non si elimina (#5757, 16/11):
+// /fine ha chiesto qualcosa e non ha finito, come in passoCongedo. Il controllo fresco di PRIMA rifiutava
+// il suo rm, e Volta lo ritentava e lo ridiceva a ogni ricarica del mod (11 volte in un giorno sul MacBook).
 export const CONGEDO_ORFANO_MS = 10 * 60000;
 
 // Lo spostamento staccato (13/11/2026): volta_sposta.py scrive l'esito in un file e Volta lo legge a giri.
@@ -663,7 +966,7 @@ export function congediOrfani(dati, congedi = {}, ora = Date.now(), conScheda = 
     if (!morta && conScheda.has(chiave(s))) continue;
     // viva: si ferma solo se /fine è ancora l'ultimo messaggio; riaperta e usata dopo il congedo, resta
     if (!morta) { if (s.fineFatta) out.push({ s, fai: "stop" }); }
-    else if (s.fineFatta && s.stato !== "errore") out.push({ s, fai: "rm" });
+    else if (s.fineFatta && s.stato !== "errore" && s.stato !== "aspetta") out.push({ s, fai: "rm" });
     // ferma o ritirata senza /fine in fondo: riaperta e usata dopo il congedo, poi lasciata. Resta.
     else if (s.stato === "errore") out.push({ s, fai: "rm", avviso: `${titolo(s)}: chiusa senza salvataggio, /fine non era finito. La conversazione resta su disco.` });
   }
@@ -768,10 +1071,73 @@ export function occupanti(sessioni) {
 export function sessioneDi(terminale, sessioni) {
   if (!terminale) return null;
   const l = sessioni ?? [];
-  const e = terminale.labels?.[ETICHETTA];
+  const e = etichettaVista(terminale);
   return occupanti(l)[terminale.address]
     ?? l.find((s) => etichettaDice(e, s, doppio(l, s.id)) === true)
-    ?? l.find((s) => etichettaDice(e, s, doppio(l, s.id)) === null && agganciata(terminale.argv, s)) ?? null;
+    ?? l.find((s) => etichettaDice(e, s, doppio(l, s.id)) === null && agganciataDa(terminale.argv, s, terminale.address)) ?? null;
+}
+
+// Le schede nel core della macchina della sessione (#5802, 16/11/2026). Una sessione di un'altra macchina
+// si apriva in una scheda di qui con ssh -t <macchina> claude attach: a portatile chiuso la scheda spariva,
+// e il telefono, che parla col core di quella macchina, non vedeva la sessione. Ora la scheda nasce in uno
+// spazio di quella macchina e aggancia in locale. Da qui il suo indirizzo è "<macchina>/tNN".
+// La macchina di un indirizzo di Herdr: "amaltea/t21" dà "amaltea", un indirizzo di qui dà null.
+export function macchinaIndirizzo(a) {
+  const s = String(a ?? "");
+  const i = s.indexOf("/");
+  return i > 0 ? s.slice(0, i) : null;
+}
+// L'etichetta come la legge questa macchina. Sul core di un'altra macchina l'etichetta è scritta con le
+// chiavi di là: "qui:<id>" (la chiave che quella macchina dà alle sue sessioni), così la finestra di là
+// riconosce la scheda come sua. Da qui vale "<macchina>:<id>". Il solo id di prima vale per la sua macchina.
+export function etichettaVista(t) {
+  const v = t?.labels?.[ETICHETTA];
+  const m = macchinaIndirizzo(t?.address);
+  if (!v || !m) return v;
+  const x = String(v);
+  if (x.startsWith("qui:")) return `${m}:${x.slice(4)}`;
+  return x.includes(":") ? x : `${m}:${x}`;
+}
+// L'aggancio sul core della macchina della sessione: dall'argv della sonda (ssh, -t, opzioni, target,
+// claude, attach, id) resta claude attach <id>. null se l'argv non passa da ssh o non finisce con attach.
+export function attachLocale(argv) {
+  const a = Array.isArray(argv) ? argv.map(String) : [];
+  if (a.length < 4 || !/(^|[\\/])ssh(\.exe)?$/i.test(a[0]) || a[1] !== "-t") return null;
+  let j = 2;
+  while (j < a.length && a[j].startsWith("-")) j += a[j].length === 2 && OPZIONI_CON_VALORE.has(a[j][1]) ? 2 : 1;
+  const resto = a.slice(j + 1);
+  return resto.length === 3 && resto[1] === "attach" && resto[2] ? resto : null;
+}
+// L'argv aggancia `s` dal terminale `indirizzo`: un terminale di un'altra macchina aggancia in locale, e
+// vale solo per una sessione di quella macchina; uno di qui come sempre (agganciata).
+export function agganciataDa(argv, s, indirizzo) {
+  const m = macchinaIndirizzo(indirizzo);
+  if (!m) return agganciata(argv, s);
+  const loc = (s?.host ?? "qui") === m ? attachLocale(s.attach) : null;
+  return Boolean(loc) && agganciata(argv, { ...s, attach: loc });
+}
+// Chi ha aperto la scheda: la finestra di quella macchina la guarda, la stacca e la manda in congedo
+// quando sparisce. Lo dice l'argv di nascita, che il core tiene: env VOLTA_DA=<macchina> davanti a
+// claude attach. Un'etichetta arriverebbe dopo la nascita, e nel frattempo la finestra della macchina
+// della sessione la prenderebbe per sua e la manderebbe in congedo quando cambia padrone.
+export const SEGNO_DA = "VOLTA_DA=";
+export function daDi(argv) {
+  for (const a of Array.isArray(argv) ? argv : []) if (typeof a === "string" && a.startsWith(SEGNO_DA)) return a.slice(SEGNO_DA.length) || null;
+  return null;
+}
+// La scheda è di questa finestra (`io`: il nome di questa macchina, ioQui di dati.js): una scheda di qui
+// senza segno, come prima del 16/11/2026, o col segno di qui; una scheda di un'altra macchina solo col segno di qui.
+export function mia(t, io) {
+  const d = daDi(t?.argv);
+  return macchinaIndirizzo(t?.address) ? Boolean(io) && d === io : !d || d === io;
+}
+// L'argv della scheda nel core della macchina della sessione: env col segno di chi la apre, poi claude
+// attach in locale. null quando la scheda resta qui con ssh: senza il nome di questa macchina, senza un
+// aggancio ssh, o con una macchina Windows (lì env non c'è, e la scheda ha PowerShell).
+export function argvRemoto(argv, io) {
+  const loc = attachLocale(argv);
+  if (!io || !loc || percorsoWindows(loc[0])) return null;
+  return ["/usr/bin/env", SEGNO_DA + io, ...loc];
 }
 
 // L'etichetta di Herdr sul terminale che aggancia una sessione (hc label): dal 14/11/2026 la chiave
@@ -789,8 +1155,8 @@ export function etichettaDice(valore, s, ambiguo = false) {
 }
 // Il terminale `t` mostra la sessione `s`: per etichetta, poi per argv.
 export const suaScheda = (t, s, ambiguo = false) => {
-  const e = etichettaDice(t?.labels?.[ETICHETTA], s, ambiguo);
-  return e ?? agganciata(t?.argv, s);
+  const e = etichettaDice(etichettaVista(t), s, ambiguo);
+  return e ?? agganciataDa(t?.argv, s, t?.address);
 };
 
 // Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }
@@ -1009,7 +1375,7 @@ export const progettoNuovo = (testo) => String(testo ?? "").toLowerCase().normal
 
 // I progetti fra cui scegliere nel dialogo: quelli delle sessioni dell'elenco e quelli che passa chi
 // chiama (spazi aperti, cartelle della base), senza doppi, in ordine alfabetico. Un nome alternativo vale
-// la chiave del suo progetto: una sessione nata nella cartella volta-celeste e il progetto herdr-arturo
+// la chiave del suo progetto: una sessione nata nella cartella volta-celeste e il progetto volta
 // sono una riga sola, "Volta" (#5506).
 export function progettiNoti(dati, altri = []) {
   const visti = new Set();
@@ -1024,7 +1390,7 @@ export function progettiNoti(dati, altri = []) {
 export function filtraProgetti(noti, testo, quanti = 8) {
   const f = progettoNuovo(testo);
   const l = noti ?? [];
-  // cerca nello slug e nel titolo ("volta" trova herdr-arturo, che si chiama Volta)
+  // cerca nello slug e nel titolo ("celeste" trova volta-celeste, che si chiama Volta)
   const nomi = (p) => [p, slugDi(nomeProgetto(p))];
   const presi = f ? [...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;
   return presi.slice(0, quanti);
@@ -1073,6 +1439,8 @@ export function cerca(sessioni, progetti, testo, quanti = 12) {
 // Il comando di "Nuova richiesta" dalla ricerca: il testo viaggia in esadecimale come in comandoCambio,
 // al più TESTO_NUOVA_MAX caratteri (il resto la persona lo scrive nella sessione).
 export const TESTO_NUOVA_MAX = 400;
+// La checklist manda più righe e più note: il suo tetto è più largo (17/11/2026, provato sul canale background).
+export const TESTO_CHECKLIST_MAX = 1000;
 export const comandoNuova = (testo) => `arturo.nuova-${codifica(String(testo ?? "").trim().slice(0, TESTO_NUOVA_MAX))}`;
 
 // Il dialogo è un'altra copia del mod: manda il cambio alla barra come comando, lo stesso di herdr-app
@@ -1097,16 +1465,30 @@ export function leggiCambio(c) {
 // La casella di Claude Code è vuota, cioè si può scrivere un comando senza toccare una bozza: fra le
 // ultime due righe di bordo c'è il solo segno del prompt, o il suggerimento (Try "..."). Come
 // casella_vuota di teletrasporto.py. `schermo` è il testo di hc read.
-export function casellaVuota(schermo) {
+export const casellaVuota = (schermo) => testoCasella(schermo) === "";
+
+// Il testo nella casella di Claude Code: "" se \u00e8 vuota (o col suggerimento Try "..."), null se lo schermo
+// non mostra la casella (un dialogo, la shell). Per casellaVuota e per dire perch\u00e9 una risposta non entra.
+export function testoCasella(schermo) {
   const testo = String(schermo ?? "").replace(/\u001b\[[0-9;]*m/g, "").replace(/\u00a0/g, " ")
     .replace(/(\u2500{20,})(\u276f|>|  )/g, "$1\n$2");
   const righe = testo.split("\n").map((r) => r.trim());
   const bordi = righe.map((r, i) => (r.startsWith("\u2500".repeat(20)) && r.endsWith("\u2500") ? i : -1)).filter((i) => i >= 0);
-  if (bordi.length < 2) return false;
+  if (bordi.length < 2) return null;
   const dentro = righe.slice(bordi[bordi.length - 2] + 1, bordi[bordi.length - 1]).filter(Boolean);
-  if (dentro.length !== 1 || !["\u276f", ">"].includes(dentro[0][0])) return false;
+  if (!dentro.length) return null;
+  if (dentro.length !== 1 || !["\u276f", ">"].includes(dentro[0][0])) return dentro.join(" ").replace(/^[\u276f>]\s*/, "") || null;
   const t = dentro[0].slice(1).trim();
-  return t === "" || /^Try ".*"$/.test(t);
+  return t === "" || /^Try ".*"$/.test(t) ? "" : t;
+}
+
+// Perch\u00e9 una risposta non entra nella scheda, in parole della persona; null se la casella \u00e8 vuota.
+// "la scheda non ha la casella vuota" non diceva cosa c'era (17/11/2026, la checklist di belleville persa).
+export function percheNonEntra(schermo) {
+  const t = testoCasella(schermo);
+  if (t === "") return null;
+  if (t === null) return "la scheda non mostra la casella di Claude Code (un dialogo, o la sessione non \u00e8 pronta)";
+  return `nella casella c'\u00e8 gi\u00e0 un testo: "${t.slice(0, 80)}"`;
 }
 
 // Il nome scritto dalla persona va portato in Claude Code con /rename (campo daPortare della sonda):
@@ -1274,3 +1656,134 @@ export function macchinaDelProgetto(etichette, macchine) {
   }
   return null;
 }
+
+// La checklist della ripartenza (17/11/2026). /inizio scrive l'elenco numerato (ripartenza-scrivi.py della
+// config), la sonda lo porta in s.ripartenza, il dialogo di checklist.js lo mostra con una casella e una
+// nota per riga. Federico: "voglio poter vedere una checklist con spazio per eventuali note per poter
+// indicare ad Arturo e Volta su cosa lavorare".
+
+// Le voci della ripartenza, in fila come nel terminale.
+export const vociRipartenza = (r) => (Array.isArray(r?.filoni) ? r.filoni : []).flatMap((f) => (Array.isArray(f?.voci) ? f.voci : []));
+
+// La lista della checklist, da due fonti (Federico, 17/11: "deve funzionare associandola a tutte le convo e i
+// progetti"). Con la ripartenza di /inizio vale quella, coi suoi numeri. Senza, le voci sono i task aperti del
+// progetto della sessione (`vista`: l'uscita di `arturo todo --progetto X --json`, la stessa del pannello Da
+// fare), divisi per chi agisce e numerati da 1. Ogni voce con un ID si lega al todo della vista (`todo`): da lì
+// vengono titolo esatto e chi lo fa, che servono ai gesti. Torna { fonte, filoni, partenza } o null.
+export const GRUPPI_CHECKLIST = [["tu", "Tocca a te"], ["decidi", "Decidi tu"], ["io", "Ci pensa Claude"], ["fermo", "Fermi"]];
+export function listaChecklist(ripartenza, vista) {
+  const todi = new Map();
+  for (const g of vista?.gruppi ?? []) for (const t of g?.todo ?? []) if (Number.isInteger(t?.id)) todi.set(t.id, t);
+  const lega = (v) => ({ ...v, todo: Number.isInteger(v.id) ? todi.get(v.id) ?? null : null });
+  if (vociRipartenza(ripartenza).length) {
+    return { fonte: "ripartenza", partenza: ripartenza.partenza ?? null,
+      filoni: ripartenza.filoni.map((f) => ({ nome: f.nome ?? "", voci: (f.voci ?? []).map(lega) })).filter((f) => f.voci.length) };
+  }
+  let n = 0;
+  const filoni = GRUPPI_CHECKLIST.map(([tipo, nome]) => ({ nome,
+    voci: ((vista?.gruppi ?? []).find((g) => g?.tipo === tipo)?.todo ?? []).filter((t) => Number.isInteger(t?.id))
+      .map((t) => ({ n: ++n, id: t.id, testo: String(t.titolo ?? ""), marca: "", sotto: "", todo: t })) }))
+    .filter((f) => f.voci.length);
+  return filoni.length ? { fonte: "progetto", partenza: null, filoni } : null;
+}
+
+// Le scelte che restano quando la lista si rifà: un task nuovo nel progetto, uno chiuso altrove, una rilettura
+// che cambia l'ordine. `vecchie`: { [n]: { spunta, gesto, nota, aperta } } sulla lista di prima. Una voce si
+// riconosce dall'ID del task, o dal numero se non ne ha; con un'altra sessione, un'altra fonte o un'altra
+// ripartenza non resta niente. Torna le scelte sui numeri della lista nuova.
+export function riportaScelte(prima, dopo, vecchie = {}) {
+  const out = {};
+  if (!prima || !dopo || prima.fonte !== dopo.fonte || prima.sessione !== dopo.sessione || prima.quando !== dopo.quando) return out;
+  const chi = (v) => (Number.isInteger(v.id) ? `#${v.id}` : `n${v.n}`);
+  const per = new Map();
+  for (const v of (prima.filoni ?? []).flatMap((f) => f?.voci ?? [])) if (vecchie?.[v.n]) per.set(chi(v), vecchie[v.n]);
+  for (const v of (dopo.filoni ?? []).flatMap((f) => f?.voci ?? [])) if (per.has(chi(v))) out[v.n] = per.get(chi(v));
+  return out;
+}
+
+// I gesti di una riga, oltre alla casella "lavoraci adesso": l'etichetta e la parola nel testo per la sessione.
+// "chi" passa il task a Claude, o alla persona se è già di Claude.
+export const GESTI_CHECKLIST = [["fatto", "Già fatto", "Già fatto"], ["scarta", "Scarta", "Scartati"], ["rimanda", "Rimanda", "Rimandati"], ["chi", "A Claude", "A Claude"]];
+export const etichettaGesto = (g, v) => (g === "chi" && v?.todo?.chi === "io" ? "A te" : GESTI_CHECKLIST.find((x) => x[0] === g)?.[1] ?? "");
+
+// Il testo che torna alla sessione. `lista`: quella di listaChecklist, oppure la sola ripartenza (le prove di
+// prima). `scelte`: { [n]: { spunta, gesto, nota } }; `generale`: la nota in fondo. Solo le righe scelte, in
+// ordine: "Lavora su 2 5. Già fatto: 3. Scartati: 4. Note: 7: testo. Nota generale". Con la ripartenza si
+// usano i numeri, che la sessione conosce (FASE 3 di /inizio); coi task del progetto "#ID titolo corto",
+// perché la sessione quei numeri non li ha visti. Niente di scelto né scritto: "".
+export function testoChecklist(lista, scelte = {}, generale = "") {
+  const pulito = (x) => String(x ?? "").replace(/\s+/g, " ").trim();
+  const l = lista?.fonte ? lista : { fonte: "ripartenza", filoni: lista?.filoni ?? [] };
+  const voci = (l.filoni ?? []).flatMap((f) => f?.voci ?? []);
+  // il titolo corto si ferma a una parola intera, senza puntini: la frase chiude col suo punto
+  const corto = (t) => (t.length > 40 ? t.slice(0, 41).replace(/\s+\S*$/, "").replace(/[\s,;:.(–-]+$/, "") : t);
+  const rif = (v) => (l.fonte === "progetto" && Number.isInteger(v.id) ? `#${v.id} ${corto(pulito(v.testo))}` : String(v.n));
+  const sep = l.fonte === "progetto" ? "; " : " ";
+  const elenco = (filtro) => voci.filter(filtro).map(rif);
+  const parti = [];
+  const prese = elenco((v) => scelte?.[v.n]?.spunta);
+  if (prese.length) parti.push(`Lavora su ${prese.join(sep)}.`);
+  for (const [g, , parola] of GESTI_CHECKLIST) {
+    const x = voci.filter((v) => scelte?.[v.n]?.gesto === g);
+    if (g === "chi") {
+      const a = x.filter((v) => v.todo?.chi !== "io").map(rif);
+      const b = x.filter((v) => v.todo?.chi === "io").map(rif);
+      if (a.length) parti.push(`A Claude: ${a.join(sep)}.`);
+      if (b.length) parti.push(`A me: ${b.join(sep)}.`);
+    } else if (x.length) parti.push(`${parola}: ${x.map(rif).join(sep)}.`);
+  }
+  const note = voci.map((v) => [v, pulito(scelte?.[v.n]?.nota)]).filter(([, t]) => t).map(([v, t]) => `${rif(v)}: ${t}`);
+  if (note.length) parti.push(`Note: ${note.join("; ")}.`);
+  const g = pulito(generale);
+  if (g) parti.push(g);
+  return parti.join(" ");
+}
+
+// La ripartenza è già stata mandata? `mandate`: { [sessionId]: quando } (shared arturo.checklist.mandate).
+// Un /inizio nuovo scrive un quando nuovo: la checklist torna.
+export const checklistMandata = (s, mandate) => Boolean(s?.ripartenza && mandate?.[s.sessionId] === s.ripartenza.quando);
+
+// La checklist mandata resta in bozza finché la risposta non arriva (17/11/2026, Federico: "in tante
+// sessioni la lista dei todo inviati non arriva"). Prima "Manda" segnava la ripartenza come mandata e
+// azzerava scelte e note anche quando rispondiCoda falliva: la lista spariva. `stato`: { bozze, mandate,
+// aperte } di shared arturo.checklist.*; `bozza` di una sessione: { quando, ripartenza, lista, scelte,
+// generale, testo }. `esito`: { ok, errore, testo } di rispondiCoda: vale solo col testo della bozza, perché
+// anche le carte della Coda passano di lì. Arrivata: la bozza esce e la ripartenza è mandata.
+// Persa: la bozza resta con l'errore e il blocco si riapre, così la checklist rimette scelte e note.
+export function dopoRisposta(stato, sid, esito, ora = Date.now()) {
+  const bozze = { ...(stato?.bozze ?? {}) }, mandate = { ...(stato?.mandate ?? {}) }, aperte = { ...(stato?.aperte ?? {}) };
+  const b = bozze[sid];
+  if (!sid || !b || b.errore || String(b.testo ?? "").trim() !== String(esito?.testo ?? "").trim()) return null;
+  if (esito?.ok) {
+    delete bozze[sid];
+    if (b.ripartenza) mandate[sid] = b.ripartenza;
+  } else {
+    bozze[sid] = { ...b, errore: String(esito?.errore || "la sessione non ha risposto").slice(0, 200), persa: ora };
+    aperte[sid] = true;
+  }
+  return { bozze, mandate, aperte };
+}
+
+// Le scelte di una bozza persa sulla lista mostrata adesso, per numero di riga (riportaScelte: per ID del
+// task), con la nota generale e il motivo. null se la bozza non è persa o è già stata ripresa.
+export function bozzaPersa(bozza, lista, ripresa = null) {
+  if (!bozza?.errore || !lista || bozza.quando === ripresa) return null;
+  return { scelte: riportaScelte(bozza.lista, lista, bozza.scelte ?? {}), generale: String(bozza.generale ?? ""), errore: bozza.errore, quando: bozza.quando };
+}
+
+// La prova senza mouse della checklist sovrapposta (17/11/2026): `passi` sono i gesti di una persona, in ordine,
+// ognuno { id | n, fai: "spunta" | "gesto" | "nota", gesto?, testo? }; con `manda` alla fine preme Manda. La parte
+// li esegue nel suo timer, con lo stesso codice dei clic (checklist.js provaChecklist).
+export const comandoProvaChecklist = (passi, manda = true) => `arturo.checklist-prova-${codifica(JSON.stringify({ passi, manda }))}`;
+export function leggiProvaChecklist(hex) {
+  try {
+    const d = JSON.parse(decodifica(hex));
+    const passi = (Array.isArray(d?.passi) ? d.passi : []).filter((p) => p && ["spunta", "gesto", "nota"].includes(p.fai)
+      && (Number.isInteger(p.id) || Number.isInteger(p.n)) && (p.fai !== "gesto" || GESTI_CHECKLIST.some((g) => g[0] === p.gesto))).slice(0, 60);
+    return { passi, manda: d?.manda === true };
+  } catch { return null; }
+}
+
+// Il comando che apre la checklist: senza chiave quella della sessione davanti, con la chiave (dalla Coda)
+// quella della sessione macchina:id.
+export const comandoChecklist = (k = null) => (k ? `arturo.checklist-${k}` : "arturo.checklist");

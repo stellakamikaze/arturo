@@ -20,13 +20,25 @@ export const TENUTA = 60000;
 // riconosce dall'etichetta della scheda, poi dall'argv: una scheda rilanciata ha l'argv della shell.
 // Una macchina Windows non ha il ricevitore (niente microfono virtuale, e la sua shell ssh è PowerShell):
 // si riconosce dal percorso di claude nell'argv, e il ponte non parte invece di dare un errore a ogni giro.
+// Dal 16/11/2026 (#5802) la scheda di una sessione di un'altra macchina sta nel core di quella macchina
+// ("amaltea/t21") e aggancia in locale: la macchina viene dall'indirizzo, e l'etichetta "qui:<id>" è scritta
+// con le chiavi di là. Il ponte serve lo stesso: Claude registra sempre dalla macchina dove gira.
 export function bersaglio(terminale, sessioni) {
-  if (!terminale || typeof terminale.address !== "string" || terminale.address.includes("/")) return null;
+  if (!terminale || typeof terminale.address !== "string") return null;
+  const k = terminale.address.indexOf("/");
+  const remota = k > 0 ? terminale.address.slice(0, k) : null;
   const argv = Array.isArray(terminale.argv) ? terminale.argv : [];
   const i = argv.indexOf("attach");
   // l'etichetta è la chiave macchina:id dal 14/11/2026 (#5634), prima il solo id
-  const e = terminale.labels?.[ETICHETTA] ? String(terminale.labels[ETICHETTA]) : null;
-  const [host, id] = e?.includes(":") ? [e.slice(0, e.indexOf(":")), e.slice(e.indexOf(":") + 1)] : [null, e ?? (i >= 0 ? argv[i + 1] : null)];
+  let e = terminale.labels?.[ETICHETTA] ? String(terminale.labels[ETICHETTA]) : null;
+  if (remota && e) e = e.startsWith("qui:") ? `${remota}:${e.slice(4)}` : e.includes(":") ? e : `${remota}:${e}`;
+  let [host, id] = e?.includes(":") ? [e.slice(0, e.indexOf(":")), e.slice(e.indexOf(":") + 1)] : [null, e ?? (i >= 0 ? argv[i + 1] : null)];
+  if (remota) {
+    // una scheda di là che non aggancia una sessione di là (un ssh verso un'altra macchina) non è nostra
+    if (host !== null && host !== remota) return null;
+    if (argv.some((a) => /(^|[\\/])ssh(\.exe)?$/i.test(String(a)))) return null;
+    host = remota;
+  }
   if (!id) return null;
   const l = (sessioni ?? []).filter((x) => x && x.id === id && !x.questa && Array.isArray(x.attach) && (host === null || (x.host ?? "qui") === host));
   // lo stesso id su due altre macchine senza la chiave: decide la macchina che l'argv raggiunge con ssh

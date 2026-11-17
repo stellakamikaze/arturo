@@ -11,11 +11,13 @@ import { ICONA, punto, pulsante, pulsanteIcona, colore, apriElenco, tasti, nasce
 import { apriSposta, ICONA_SPOSTA } from "./sposta.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { leggiTutte } from "./notaui.js";
-import { macchinaBreve, sintesiTestata, titoloTestata } from "./sessioni.js";
+import { macchinaBreve, sintesiTestata, titoloTestata, rigaCoda } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
 
 const ARANCIO = "#f2a24a";
+// Le carte della Coda (#5720), come le pubblica la barra (volta.js).
+const carteInCoda = () => (Array.isArray(shared("arturo.coda")) ? shared("arturo.coda").length : 0);
 
 // Il progetto delle note adesso: quello di arturo.json, altrimenti lo spazio aperto (come il velo).
 export function progettoAdesso(scelto) {
@@ -67,6 +69,9 @@ export class Testata {
           .when(Boolean(sintesi), (e) => e.child(div().id("testata-sintesi").flex_none().text_size(TESTO.etichetta).text_color(t.foreground).child(sintesi)))
           .child(div().id("testata-dove").min_w(0).truncate().text_size(TESTO.etichetta).text_color(t.dim)
             .child(rigaDove(Boolean(sintesi), macchina ? macchinaBreve(macchina) : null, f ? f.testo : null))))))
+      // La checklist della ripartenza (checklist.js, 17/11/2026): c'è finché la scelta non è partita.
+      .when(Boolean(davanti?.checklist), (el) => el.child(div().flex_none().pr(SPAZIO.s)
+        .child(pulsante("checklist", "circle-check", `Su cosa lavorare · ${davanti.checklist}`, () => run("arturo.checklist"), true, "piccolo"))))
       // "Sposta su un'altra macchina" (sposta.js): per la sessione in background della scheda in primo
       // piano, quando Volta conosce un'altra macchina. Durante lo spostamento resta acceso e non riapre.
       .when(Boolean(davanti) && davanti.tipo === "background" && vociMacchina().length > 1, (el) => el.child(davanti.sposto
@@ -239,6 +244,12 @@ export class Stato {
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => apriElenco())
         .child(punto(ARANCIO, 7)).child(`${quante === 1 ? "1 nota" : `${quante} note`} · ${k.elenco}`)))
+      // la Coda delle decisioni (#5720): quante carte aspettano, il clic la apre come ⌘⇧J
+      .when(Boolean(rigaCoda(carteInCoda())), (el) => el.child(h_flex().id("stato-coda").gap(7).items_center().cursor_pointer()
+        .text_color(t.foreground).hover((s) => s.text_color(t.accent))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click(() => run("arturo.coda"))
+        .child(punto(t.blocked, 7)).child(`${rigaCoda(carteInCoda())} · ${k.coda}`)))
       .child(div().flex_1())
       .child(div().id("stato-tasti").text_color(t.dim).child(scorciatoie));
   }

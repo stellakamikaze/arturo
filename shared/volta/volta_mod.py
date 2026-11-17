@@ -31,6 +31,9 @@ Regole:
     ultimi; se la copia si rompe a metà torna il mod di prima;
   - un mod installato a mano con `installa --da` resta TENUTA_LOCALE ore, poi torna quello del repo;
   - keys.json e arturo.json sono della persona: non si toccano;
+  - a ogni controllo e a ogni `installa --da` la telemetria di Herdr si spegne in settings.json se il file
+    non dice niente (telemetria(), #5932): le app di prima la tenevano accesa e mandavano i dati a
+    telemetry.herdr.dev. Un valore scritto dalla persona resta;
   - senza rete o senza accesso al repo l'esito va in mod-stato.json, e il mod lo dice dopo un giorno;
   - a ogni controllo e a ogni `installa --da` le immagini dei progetti (i WebP di
     ~/.claude/data/volta-immagini) si copiano in ~/.config/herdr-app/immagini, dove il mod le apre con
@@ -89,7 +92,9 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
 # Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026). Ctrl+W su
 # Windows e ⌘W sul Mac stanno in PRENDE (arturo.volta-chiudi). Ctrl+Maiusc+W di Herdr resta.
-TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
+# La Coda delle decisioni (⌘⇧J, Ctrl+Shift+J su Windows, #5720, 15/11/2026).
+# La checklist della ripartenza (⌘⇧S, Ctrl+Shift+S su Windows, 17/11/2026).
+TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro", "arturo.coda", "arturo.checklist")
 # Tasti nuovi di un comando che c'era già: ⌘K apre la stessa ricerca di ⌘O (#5369). Si offre il solo tasto:
 # un ⌘O tolto dalla persona non torna.
 TASTI_AGGIUNTI = (("cmd-k", "arturo.apri"),)
@@ -539,6 +544,29 @@ def passo_immagini() -> dict:
     return d
 
 
+def telemetria() -> bool:
+    """Spegne la telemetria di Herdr nelle installazioni di prima (#5932, 17/11/2026). Le app costruite fino
+    al 17/11 la tengono accesa quando settings.json non dice niente, e mandano un rapporto al giorno a
+    telemetry.herdr.dev: qui la voce mancante diventa "telemetry": false, anche in un settings.json che non
+    c'è ancora. Un valore scritto dalla persona resta suo (le build nuove non mandano comunque niente), e un
+    file che non si legge come JSON non si tocca. Torna vero se ha scritto."""
+    f = app_home() / "settings.json"
+    try:
+        testo = f.read_text(encoding="utf-8") if f.exists() else "{}"
+        dati = json.loads(testo or "{}")
+    except (OSError, ValueError):
+        return False
+    if not isinstance(dati, dict) or "telemetry" in dati:
+        return False
+    dati["telemetry"] = False
+    try:
+        scrivi(f, dati)
+    except OSError:
+        return False
+    print("TELEMETRIA: spenta quella di Herdr in settings.json")
+    return True
+
+
 def passo_genera() -> dict:
     """Lancia staccato il generatore delle immagini dei progetti nuovi, se arturo.json lo indica con
     `immagini_genera` (l'argv, con ~ per la casa: per esempio volta-immagini.py nuovi --max 3). Non lo
@@ -622,6 +650,7 @@ def cmd_controlla(forza: bool = False) -> int:
     try:
         passo_immagini()
         passo_genera()
+        telemetria()
         installato = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         v = str(installato.get("versione") or "")
         messo = float(installato.get("installato") or 0)
@@ -691,6 +720,7 @@ def cmd_installa(argv: list) -> int:
         if riuscito:
             segna("locale", versione="locale", fino=adesso + TENUTA_LOCALE * 3600)
             passo_immagini()
+            telemetria()
         print(("INSTALLATO a mano (%s): resta %d ore" % (come, TENUTA_LOCALE)) if riuscito else "NON INSTALLATO: " + come)
         return 0 if riuscito else 1
     except Exception as e:  # noqa: BLE001

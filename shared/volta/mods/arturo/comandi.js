@@ -59,6 +59,23 @@ export function instrada(c) {
   // "casa": le tessere dei progetti al posto del terminale (⌘T dal 12/11/2026, #5371); "casa-chiudi" torna
   // al terminale (prove senza clic, herdr-app do).
   if (c === "casa" || c === "casa-chiudi") return { verbo: c, arg: null, lungo: false };
+  // "coda": la Coda delle decisioni al posto del terminale (⌘⇧J, #5720); "coda-rispondi-<chiave>-<esadecimale>":
+  // la risposta scelta su una carta (comandoRisposta di sessioni.js), per macchina:id.
+  if (c === "coda") return { verbo: "coda", arg: null, lungo: false };
+  const cr = /^coda-rispondi-([^:]+:[0-9A-Za-z]+)-((?:[0-9a-f]{4})+)$/.exec(c);
+  if (cr) return { verbo: "coda-rispondi", arg: { chiave: cr[1], testo: cr[2] }, lungo: false };
+  // "coda-gesto-<chiave>-<esadecimale>": un gesto della carta col suo commento (comandoGesto di sessioni.js).
+  const cg = /^coda-gesto-([^:]+:[0-9A-Za-z]+)-((?:[0-9a-f]{4})+)$/.exec(c);
+  if (cg) return { verbo: "coda-gesto", arg: { chiave: cg[1], dati: cg[2] }, lungo: false };
+  // "checklist" (⌘⇧S): la ripartenza di /inizio della sessione davanti come checklist con le note
+  // (checklist.js, 17/11/2026); "checklist-<chiave>" quella della sessione macchina:id, dalla Coda.
+  if (c === "checklist") return { verbo: "checklist", arg: null, lungo: false };
+  // "checklist-prova-<esadecimale>": i gesti di una persona sulla checklist sovrapposta, senza mouse (comandoProvaChecklist
+  // di sessioni.js): Herdr non simula i clic, e così una prova vera passa dallo stesso codice del pulsante.
+  const cp = /^checklist-prova-((?:[0-9a-f]{4})+)$/.exec(c);
+  if (cp) return { verbo: "checklist-prova", arg: cp[1], lungo: false };
+  const ck = /^checklist-([^:]+:[0-9A-Za-z-]+)$/.exec(c);
+  if (ck) return { verbo: "checklist", arg: ck[1], lungo: false };
   // "volta-nuova": la scheda nuova (la prima tessera di ⌘T) è una sessione di Claude, non una shell (#5290).
   if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };
   // "volta-giro-avanti" e "volta-giro-indietro": ⌘↓ e ⌘↑, la sessione dopo o prima nell'elenco.

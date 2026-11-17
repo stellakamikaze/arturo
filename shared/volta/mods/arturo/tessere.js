@@ -9,6 +9,8 @@ export const NUOVA = { tipo: "nuova", chiave: "", titolo: "Nuova richiesta" };
 export const STACK = "lavoro";
 export const TERMINALE = "main";
 export const CASA = "casa";
+// Il terzo figlio: la Coda delle decisioni (coda.js, ⌘⇧J, #5720).
+export const CODA = "coda";
 
 // Il nodo `id` nell'albero del layout vivo (layout() di Herdr), o null.
 function nodo(n, id) {
@@ -24,6 +26,11 @@ export const haTessere = (lay) => (nodo(lay, STACK)?.children ?? []).some((c) =>
 // Il layout è noto e non ha le tessere. Prima che Herdr pubblichi il layout, layout() è null: lì si prova lo
 // stesso a mostrare le tessere, come prima. layout.select su uno stack che non c'è apre un avviso d'errore.
 export const senzaTessere = (lay) => Boolean(lay) && !haTessere(lay);
+
+// Il layout ha la Coda: un layout installato prima del 15/11/2026 non ce l'ha, e ⌘⇧J lo dice invece di
+// chiedere a Herdr uno stack senza quel figlio (avviso d'errore, come #5456).
+export const haCoda = (lay) => (nodo(lay, STACK)?.children ?? []).some((c) => c?.id === CODA);
+export const senzaCoda = (lay) => Boolean(lay) && !haCoda(lay);
 
 // Le tessere sono mostrate al posto del terminale: lo stack "lavoro" ha "casa" come figlio attivo. Senza
 // `active` lo stack mostra il primo figlio, il terminale.

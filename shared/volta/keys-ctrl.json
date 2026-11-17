@@ -2,6 +2,8 @@
   "global": {
     "ctrl-shift-a": "arturo.apri",
     "ctrl-shift-t": "arturo.casa",
+    "ctrl-shift-j": "arturo.coda",
+    "ctrl-shift-s": "arturo.checklist",
     "ctrl-shift-m": "arturo.nota",
     "ctrl-shift-i": "arturo.note",
     "ctrl-down": "arturo.volta-giro-avanti",

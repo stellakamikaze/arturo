@@ -21,8 +21,12 @@ I passi, in quest'ordine:
      lavoro va in `git stash` ("volta-sposta-<sessionId>") e la sessione riparte su DA.
   4. copia la trascrizione nella cartella dei progetti di Claude su A: `<cartella codificata>/<SESSIONID>.jsonl`
      e la cartella `<SESSIONID>/` se c'è. Una copia che c'era già su A resta accanto, come `.prima-<ora>`.
-  5. riprende la stessa conversazione su A (claude --bg --resume, senza fork). Se non riparte, la
-     riprende su DA: la sessione non resta mai senza macchina.
+  5. riprende la stessa conversazione su A (claude --bg --resume, senza fork) dalla cartella della
+     trascrizione, anche se la sessione lavorava in un worktree: claude --bg vuole una cartella fidata per
+     nome, e un worktree non lo è (#5875). Se non riparte, la riprende su DA: la sessione non resta mai
+     senza macchina.
+  6. segna le due copie e guarda che su DA la copia ferma non abbia un processo: una riaccesa da un aggancio
+     aperto altrove si ferma di nuovo (spegni_partenza, #5875).
 Su DA la trascrizione resta com'è. Mai claude rm.
 Prima del passo 1 e prima del 3 guarda se la sessione sta facendo un turno: se sì rifiuta con
 {errore, lavora: true}, e Volta riprova a turno finito. Lo spostamento non interrompe mai un turno.
@@ -565,6 +569,10 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     scarico = esegui(a, SCARICA, {"sid": sid, "progetti": pronto["progetti"]}, entrata=pacco["pacco"], timeout=ATTESA_PACCO)
     if scarico.get("errore") or scarico.get("byte") != pacco["byte"]:
         return torna("la conversazione non arriva intera su %s: %s" % (vs.chi(a), scarico.get("errore") or "%s byte su %s" % (scarico.get("byte"), pacco["byte"])))
+    # La ripresa parte dalla cartella della trascrizione, anche per una sessione che lavora in un worktree:
+    # claude --bg parte solo da una cartella fidata per nome, e un worktree non lo è mai ("Workspace not
+    # trusted", provato il 17/11/2026 su 2.1.317, anche con la base dei progetti fidata). Il worktree c'è già
+    # su A (PREPARA), e la sessione ci rientra con EnterWorktree e path, che dalla base funziona (#5875).
     nata = riprendi_su(a, sid, pronto["cartella"], titolo)
     if nata.get("errore"):
         return torna("non riparte su %s: %s" % (vs.chi(a), nata["errore"]))
@@ -580,10 +588,36 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     perche = segna(da, {"sid": sid, "spostata": a or "qui"})
     if perche:
         avvisi.append("su %s la copia ferma non è segnata come spostata (%s): non riaprirla da lì" % (vs.chi(da), perche))
+    perche = spegni_partenza(da, id_lavoro, sid)
+    if perche:
+        avvisi.append(perche)
     fatto = {"id": nata["id"], "sessionId": sid, "attach": nata["attach"], "macchina": a or "qui", "cartella": pronto["cartella"]}
     # La sessione vive già su A: un errore farebbe riaprire a Volta la scheda di partenza, e la
     # conversazione tornerebbe viva su due macchine. Il segno mancato arriva come avviso (#5635).
     return dict(fatto, avviso="; ".join(avvisi)) if avvisi else fatto
+
+
+PAUSA_PARTENZA = 3
+GIRI_PARTENZA = 3
+
+
+def spegni_partenza(da, id_lavoro, sid):
+    """L'ultimo passo di uno spostamento riuscito (#5875): sulla macchina di partenza la copia della
+    conversazione non deve avere un processo. Un claude attach aperto da un'altra finestra di Volta (o da un
+    Terminale) riaccende la sessione dopo claude stop, e la conversazione vivrebbe su due macchine. Qui si
+    guarda GIRI_PARTENZA volte, a PAUSA_PARTENZA secondi, e una copia riaccesa si ferma di nuovo: il segno
+    "spostata" appena scritto la fa chiudere alla sonda di ogni finestra, che stacca il suo aggancio.
+    None se la partenza è spenta (o non risponde), altrimenti l'avviso."""
+    for giro in range(GIRI_PARTENZA):
+        ora = esegui(da, TROVA, {"sid": sid})
+        if ora.get("errore") or ora.get("nessuno") or not ora.get("pid"):
+            return None
+        vs.azione(da, "stop", ora.get("id") or id_lavoro)
+        time.sleep(PAUSA_PARTENZA)
+    ora = esegui(da, TROVA, {"sid": sid})
+    if ora.get("pid"):
+        return "su %s la copia di partenza si riaccende ancora (un aggancio aperto altrove?): chiudila da lì" % vs.chi(da)
+    return None
 
 
 def segna(nome, dati):
