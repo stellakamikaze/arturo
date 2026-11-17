@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — In Volta una chiusura con ⌘W si annulla per dieci secondi
+
+**Cosa cambia**: quando chiudi una sessione in Volta con ⌘W, con la X o con Chiudi, la scheda sparisce subito, ma Claude aspetta dieci secondi prima di salvare con /fine e di fermarla. Intanto la sua riga resta nell'elenco a sinistra e dice "Si chiude fra 10 s · Annulla", con i secondi che scendono. Un clic sulla riga, o ⌘Z (Ctrl+Alt+Z su Windows), annulla la chiusura e riapre la sessione. Passati i dieci secondi la chiusura va avanti come prima. La chiusura automatica delle sessioni ferme da un'ora non aspetta. Nasce dalla proposta 13 della prima revisione: il 14/11 una sessione era stata chiusa per sbaglio e ripresa a mano.
+
+**Il principio**: un gesto veloce ogni tanto si sbaglia. Una conferma a ogni chiusura rallenta tutte le altre; dieci secondi per tornare indietro non chiedono niente a nessuno.
+
+**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W.
+
+---
+
 ## 2026-11-17 — La ripartenza di /inizio diventa una checklist in Volta
 
 **Cosa cambia**: se usi Volta, dopo `/inizio` la lista dei todo compare anche nella finestra, con una casella e uno spazio per una nota su ogni riga. Spunti i todo da cui partire, segni quelli già fatti, da scartare o da rimandare, passi un todo a Claude o a te, e premi Manda: la scelta arriva alla sessione come un tuo messaggio, e Claude aggiorna i todo e parte da quelli spuntati. Chi non usa Volta vede la ripartenza di sempre. Il nuovo comando `arturo ripartenza scrivi` salva la lista, e una lista più vecchia di due giorni si cancella da sola.
