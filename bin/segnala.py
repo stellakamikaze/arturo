@@ -95,7 +95,7 @@ VOCI_PACCHETTO = (
     ("collega", "collega la segnalazione ai miei dati d'uso (l'id dell'installazione)", False),
 )
 VOCE_MASSIMO = 3900
-ORIGINI = ("segnala", "avvio", "fine")
+ORIGINI = ("segnala", "avvio", "fine", "revisione")  # revisione: /revisione, la revisione dell'uso (17/11/2026)
 # redigi: le categorie che la persona può rimettere con --tieni, col segnaposto e il nome nell'anteprima.
 REDAZIONE = {
     "web": ("[indirizzo web]", "indirizzi web"),

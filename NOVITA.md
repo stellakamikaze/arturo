@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — /revisione: Arturo rilegge come lo usi e ti propone cosa migliorare
+
+**Cosa cambia**: con `/revisione` Arturo rilegge le tue sessioni di Claude Code degli ultimi 30 giorni, o dei giorni che scegli (`/revisione 7`). Cerca quattro cose: lavori che chiedi più volte con le stesse spiegazioni e che nessuna skill copre, intoppi che tornano (Claude fermato, un no ripetuto, un blocco su un lavoro normale), igiene (note doppie, todo fermi, avvisi del controllo della config) e cose da unire, come due regole che dicono lo stesso. Ti mostra al massimo sette proposte, ognuna con le prove: le date e le tue parole. Tu scegli. Le proposte sulla tua config le applica Claude con te. Quelle che riguardano Arturo partono verso chi lo mantiene in una segnalazione sola, dopo che hai visto l'anteprima e detto **mando**. Un registro sul tuo computer ricorda le risposte, così la revisione dopo non ti ripropone un no.
+
+**Il principio**: chi usa Arturo vede dove si inceppa meglio di chi lo mantiene, ma raramente ha il tempo di scriverlo. Le prove vengono dalle sessioni vere, e le decisioni restano a te. Gli errori di Claude non te li attribuisce: li conta a parte.
+
+**A chi serve**: a chi usa Arturo da qualche settimana e vuole lavorare con meno intoppi, e a chi vuole aiutare a migliorarlo senza scrivere una segnalazione da zero.
+
+---
+
 ## 2026-11-16 — /fine salva todo e handoff anche col sandbox dei comandi acceso
 
 **Cosa cambia**: se hai acceso il sandbox dei comandi di Claude Code, `/fine` non si inceppa più quando salva un todo o scrive l'handoff. Il sandbox adesso lascia scrivere la cartella `~/.claude/data`, dove Arturo tiene todo, handoff e memoria. Il resto della config resta protetto. La coda di `/fine`, che fa commit e push della config, gira fuori dal sandbox, e `/fine` lo dice a Claude. Se il sandbox è spento non cambia niente. Nasce dalla segnalazione n. 81.

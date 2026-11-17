@@ -409,7 +409,7 @@ In tutto, Arturo porta:
 - **32 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
-- **7 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
+- **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
 
 Ci sono anche una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), e un **curriculum di principi** (`docs/principi/`) scritto per chi usa già l'IA in chat ma non ha mai aperto un terminale. Il **server** che raccoglie telemetria e segnalazioni è open source (`server/`): mi dice dove Arturo si inceppa sui computer di chi lo usa. Riceve nomi di comandi e numeri, mai i tuoi testi o i tuoi file, e la telemetria si spegne con un comando ([Impegni](#impegni)). A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti serve `git`, e la guida ti fa installare anche Python e node, se mancano.
 
@@ -423,7 +423,7 @@ tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativ
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
 commands/            11 slash command (i dieci qui sotto, più lo sparring che Claude apre da solo)
 agents/              8 subagent specializzati
-skills/              7 skill (+ regole condivise in shared/)
+skills/              8 skill (+ regole condivise in shared/)
 output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
@@ -504,7 +504,7 @@ fa vedere la coda così come parte.
 
 ### I comandi (`commands/`)
 
-Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
+Undici comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
 
 **Ogni giorno.** Due comandi bastano: apri la giornata con `/inizio` e la chiudi con `/fine`.
 
@@ -523,6 +523,7 @@ Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa
 
 - **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Se una richiesta torna uguale da una sessione all'altra, te la propone come cosa da delegare, con la scheda di come Claude la farebbe da solo.
 - **`/creaskill`** — fai spesso lo stesso lavoro? Ti fa quattro domande, una per volta, e ne fa una skill tua in `~/.claude/skills/`, che Claude usa da solo quando la richiesta torna.
+- **`/revisione`** — Arturo rilegge le tue sessioni degli ultimi 30 giorni e ti propone cosa migliorare: lavori che ripeti senza una skill, intoppi che tornano, note doppie, regole che si sovrappongono. Ogni proposta porta le prove, con le tue parole. Quelle che scegli e che riguardano Arturo arrivano a chi lo mantiene, dopo il tuo sì sull'anteprima; quelle sulla tua config le applica Claude con te.
 - **`/proponi`** — una tua skill può servire a tutti? La ripulisce con te da nomi e dati, ti mostra il testo e, dopo il tuo sì, la porta a chi mantiene Arturo come proposta.
 
 **Quello che Claude usa da solo.** Non serve ricordarli: Claude li apre quando servono. Lo sparring (`commands/sparring.md`) prova un principio del curriculum sul tuo lavoro vero, e lo propongono `/setup` e `/novita`. Le skill sono qui sotto.

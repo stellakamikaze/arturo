@@ -264,6 +264,13 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   nel banco del componente, gate `--toccati` in una sandbox senza rete né segreti, push su `dev` se è verde.
   Una correzione che tocca `.github/`, `server/` o la firma non arriva su `dev`. Risposta e rilascio restano
   a chi mantiene Arturo: la routine non scrive allo sportello e non crea tag.
+- **La revisione (17/11/2026).** `/revisione` (`skills/revisione/`, motore `bin/revisione.py`) rilegge i
+  transcript della persona e le porta le proposte. Quelle su Arturo arrivano come segnalazione con
+  `origine` `revisione`, una sola per revisione. Chi mantiene Arturo ha il suo modo in un file personale,
+  `~/.claude/personale/revisione-sviluppatore.md`: se c'è, la skill lo segue prima dei suoi passi. Lì stanno
+  la revisione delle segnalazioni ricevute, l'estratto delle altre macchine e dove vanno le proposte (task o
+  ROADMAP.md), fuori dal repository pubblico. Il server deve conoscere l'origine (`ORIGINI` in
+  `server/logica.js`): finché il Worker non è pubblicato, la segnalazione arriva come `segnala`.
 - **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
   Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
   `TELEGRAM_TOKEN` e `TELEGRAM_CHAT` (come si danno: `server/README.md`, passo 4).
