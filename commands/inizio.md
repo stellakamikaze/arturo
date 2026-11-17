@@ -386,6 +386,19 @@ Perché è fatta così:
   non ferma il lavoro.
 - **Il messaggio chiude senza menu**, con le parole di risposta in grassetto. La persona risponde a
   parole.
+- **La checklist di Volta.** Subito dopo la ripartenza passa lo stesso elenco, con gli stessi numeri e le
+  stesse parole, a `arturo ripartenza scrivi` su stdin, in un solo comando Bash. Se la persona usa Volta, la
+  vede come checklist con una nota per riga, e la sua scelta torna qui come messaggio (FASE 6). Senza Volta
+  il file non lo legge nessuno e si cancella da solo. Exit 2 = schema rotto: correggi il campo che dice e
+  rilancia. Non vale per il Modo rotazione e per la ripartenza breve di "Con un compito", che non hanno
+  l'elenco numerato. `id` è il numero del todo, oppure `null` per una riga senza todo.
+  ```bash
+  python3 ~/.claude/bin/arturo ripartenza scrivi <<'RIPARTENZA'
+  {"progetto": "<progetto>", "titolo": "<la riga del titolo>",
+   "filoni": [{"nome": "<filone>", "voci": [{"n": 1, "id": 5, "testo": "<todo>", "marca": "<marca>", "sotto": "<riga sotto o vuoto>"}]}],
+   "partenza": {"n": 1, "motivo": "<il motivo di Da dove partirei>"}}
+  RIPARTENZA
+  ```
 
 ## FASE 6: La risposta della persona
 
@@ -400,6 +413,15 @@ Perché è fatta così:
   (un invio, un pagamento, una cancellazione) ti fermi e chiedi.
 - **Un filone o dei numeri.** Parti da quei todo. Il task di sessione (`TaskCreate`) nasce solo per
   i todo scelti: due numerazioni insieme confondono i numeri.
+- **La risposta dalla checklist di Volta.** Arriva come un messaggio della persona, con i numeri della
+  ripartenza: "Lavora su 2 5. Già fatto: 3. Scartati: 4. Rimandati: 6. A Claude: 7. A me: 8. Note: 2:
+  testo. Nota generale". Ogni parte vale come se la persona l'avesse scritta a parole. "Lavora su" sono
+  i numeri da cui parti. "Già fatto" chiude il todo con `arturo todo fatto ID`: lo dice la persona, e
+  non serve un controllo tuo. "Scartati" usa `arturo todo scarta ID "<motivo>"`, col motivo dalla sua
+  nota o "scartato dalla checklist". "Rimandati" usa `arturo todo modifica ID --quando "più avanti"`. "A
+  Claude" usa `--chi io`, "A me" usa `--chi tu`. Una nota sotto un numero vale per quel todo, la nota
+  generale per tutta la sessione. Una riga senza todo (`id` nullo) si tratta a parole. Riporta in una
+  riga cosa hai scritto nell'archivio, poi parti da "Lavora su".
 - **La risposta all'intervista.** Riscrivi la risposta in una o due frasi coi fatti della persona, senza
   aggiungerne. Mostrala e chiedi: "La salvo nella memoria?". Solo col sì lancia
   `python3 ~/.claude/bin/arturo intervista risposta <id> --testo "<le frasi approvate>"`: la nota entra

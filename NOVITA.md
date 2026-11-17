@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — La ripartenza di /inizio diventa una checklist in Volta
+
+**Cosa cambia**: se usi Volta, dopo `/inizio` la lista dei todo compare anche nella finestra, con una casella e uno spazio per una nota su ogni riga. Spunti i todo da cui partire, segni quelli già fatti, da scartare o da rimandare, passi un todo a Claude o a te, e premi Manda: la scelta arriva alla sessione come un tuo messaggio, e Claude aggiorna i todo e parte da quelli spuntati. Chi non usa Volta vede la ripartenza di sempre. Il nuovo comando `arturo ripartenza scrivi` salva la lista, e una lista più vecchia di due giorni si cancella da sola.
+
+**Il principio**: la ripartenza era già un elenco numerato da leggere. Spuntarlo e annotarlo costa meno che riscrivere i numeri a mano, e le parole restano le stesse del terminale.
+
+**A chi serve**: a chi lavora con Volta e apre più progetti al giorno.
+
+---
+
 ## 2026-11-17 — Claude apre le cose sulla macchina che hai davanti
 
 **Cosa cambia**: se usi Arturo su più computer con Volta, Claude sa quale hai davanti. Volta chiede a ogni macchina da quanto nessuno tocca tastiera o mouse, e scrive su tutte quale hai toccato per ultima. Prima di aprirti una pagina, un documento o un'app, una sessione in background o agganciata da un altro computer legge quel segnale e apre lì. Prima di aprire scrive una riga, per esempio "Apro sul MacBook, in Firefox", così correggi subito se sbaglia. Se non tocchi niente da più di 15 minuti, o non usi Volta, Claude ti chiede una volta dove sei e se lo ricorda per la sessione. Chi usa un solo computer non vede differenze (proposta 11 della prima revisione).

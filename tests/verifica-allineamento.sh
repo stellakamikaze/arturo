@@ -223,6 +223,8 @@ BANCHI=(
   test_statusline_path_2026_11_15.py
   # /monitor impara dalle correzioni: segnali, mittenti, regole, sezioni, annullo (17/11/2026).
   test_monitor_impara_2026_11_17.py
+  # La ripartenza di /inizio come dati per la checklist di Volta (17/11/2026, #5910).
+  test_ripartenza_2026_11_17.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -253,7 +255,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -486,6 +488,8 @@ BASELINE=(
   "test_prova_2026_11_17.py 22e5935"
   # /monitor impara (17/11/2026): impara.py non c'è. e0ec624, il dev prima.
   "test_monitor_impara_2026_11_17.py e0ec624"
+  # La ripartenza per Volta (17/11/2026, #5910): il comando arturo ripartenza non c'è. b70d1d0, il dev prima.
+  "test_ripartenza_2026_11_17.py b70d1d0"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -575,6 +579,8 @@ VELENI=(
   test_telemetria_memoria_2026_11_15.py
   # /monitor impara (17/11/2026): ogni rottura di impara.py (soglie, sempre, modo proposta, annullo) fa rosso il suo caso IM.
   test_monitor_impara_2026_11_17.py
+  # La ripartenza (17/11/2026, #5910): ogni rottura di ripartenza.py o del passo di /inizio fa rosso il suo caso RP.
+  test_ripartenza_2026_11_17.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
