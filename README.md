@@ -409,7 +409,7 @@ In tutto, Arturo porta:
 - **32 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
-- **7 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
+- **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
 
 Ci sono anche una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), e un **curriculum di principi** (`docs/principi/`) scritto per chi usa già l'IA in chat ma non ha mai aperto un terminale. Il **server** che raccoglie telemetria e segnalazioni è open source (`server/`): mi dice dove Arturo si inceppa sui computer di chi lo usa. Riceve nomi di comandi e numeri, mai i tuoi testi o i tuoi file, e la telemetria si spegne con un comando ([Impegni](#impegni)). A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti serve `git`, e la guida ti fa installare anche Python e node, se mancano.
 
@@ -423,7 +423,7 @@ tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativ
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
 commands/            11 slash command (i dieci qui sotto, più lo sparring che Claude apre da solo)
 agents/              8 subagent specializzati
-skills/              7 skill (+ regole condivise in shared/)
+skills/              8 skill (+ regole condivise in shared/)
 output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
@@ -504,7 +504,7 @@ fa vedere la coda così come parte.
 
 ### I comandi (`commands/`)
 
-Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
+Undici comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
 
 **Ogni giorno.** Due comandi bastano: apri la giornata con `/inizio` e la chiudi con `/fine`.
 
@@ -523,6 +523,7 @@ Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa
 
 - **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Se una richiesta torna uguale da una sessione all'altra, te la propone come cosa da delegare, con la scheda di come Claude la farebbe da solo.
 - **`/creaskill`** — fai spesso lo stesso lavoro? Ti fa quattro domande, una per volta, e ne fa una skill tua in `~/.claude/skills/`, che Claude usa da solo quando la richiesta torna.
+- **`/revisione`** — Arturo rilegge le tue sessioni degli ultimi 30 giorni e ti propone cosa migliorare: lavori che ripeti senza una skill, intoppi che tornano, note doppie, regole che si sovrappongono. Ogni proposta porta le prove, con le tue parole. Quelle che scegli e che riguardano Arturo arrivano a chi lo mantiene, dopo il tuo sì sull'anteprima; quelle sulla tua config le applica Claude con te.
 - **`/proponi`** — una tua skill può servire a tutti? La ripulisce con te da nomi e dati, ti mostra il testo e, dopo il tuo sì, la porta a chi mantiene Arturo come proposta.
 
 **Quello che Claude usa da solo.** Non serve ricordarli: Claude li apre quando servono. Lo sparring (`commands/sparring.md`) prova un principio del curriculum sul tuo lavoro vero, e lo propongono `/setup` e `/novita`. Le skill sono qui sotto.
@@ -545,7 +546,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`concetti`** — quando chiedi "cos'è" o "che differenza c'è" su contesto e memoria, git e GitHub, branch e fork, aggiornamenti e modifiche tue, subagent, ultracode, le due finestre della quota o il sì a una conferma, Claude risponde in poche frasi e chiude con dove trovi la cosa in Arturo. Sono le domande della sera del Computer Club del 27/10/2026.
 - **`italiano-semplificato`** — quando chiedi di semplificare un testo, riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza) con gli schemi della skill `humanizer`.
 - **`humanizer`** — quando un testo in uscita suona scritto da un'IA (un post, un'email, una proposta, una pagina), lo riscrive perché suoni tuo senza cambiare cosa dice: toglie i contrasti inventati, le chiuse a sentenza, le terne, le lineette ovunque, le parole gonfie e i resti della chat, e non aggiunge fatti. Segue il tuo modo di scrivere: un tuo testo dato come campione, il tuo file `~/.claude/personale/humanizer.md`, che cresce con le tue correzioni, oppure la sezione "Come scrivo" del tuo `CLAUDE.md`. Per l'inglese usa l'originale. È l'adattamento italiano di [humanizer](https://github.com/blader/humanizer) di blader (MIT).
-- **`monitor`** — smista quello che ti arriva. Al primo avvio ti mostra in parole le fonti che sa leggere per te (posta, todo, sessioni con Claude, memoria), ti dice cosa manca per collegare le altre, e tiene la tua scelta in `data/monitor/fonti.json`. Il giro quotidiano, che legge le fonti e scrive il report, arriva con il prossimo aggiornamento. Come si aggiunge una fonte tua: `docs/monitor-ponti.md`.
+- **`monitor`** — smista quello che ti arriva. Al primo avvio ti mostra in parole le fonti che sa leggere per te (posta, todo, sessioni con Claude, memoria), ti dice cosa manca per collegare le altre, e tiene la tua scelta in `data/monitor/fonti.json`. Il giro quotidiano, che legge le fonti e scrive il report, arriva con il prossimo aggiornamento. Come si aggiunge una fonte tua: `docs/monitor-ponti.md`. Impara dalle tue correzioni con `arturo monitor impara`; come adattarlo al tuo lavoro: `docs/monitor-adattare.md`.
 
 **Le correzioni (`arturo correzione`).** Non è una skill: è un comando della CLI, e Claude lo usa da solo. Quando correggi Claude (un errore, un modo di fare, una parola), Claude scrive la regola in una riga con `arturo correzione aggiungi`. Da lì la correzione torna davanti a lui a ogni messaggio, dopo una compattazione e nei subagenti, fino alla fine della sessione: non devi ripeterla. `arturo correzione elenco` le mostra, `togli N` ne toglie una. Restano sul tuo computer, una cartella per sessione in `cache/correzioni/`, e si cancellano dopo 14 giorni. Una correzione che vale sempre va nel `CLAUDE.md` con `/fine`.
 

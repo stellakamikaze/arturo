@@ -6,7 +6,7 @@ qui girano in un processo solo. Il giudizio resta in /fine: destino dei file, ha
 salvare degli handoff in uscita (il dry-run della retention), memoria.
 
 Uso:
-  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--trailer <riga>] [-- <argomenti tuoi>]
+  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--rotazione] [--trailer <riga>] [-- <argomenti tuoi>]
 
 --leggero: il fine leggero della rotazione automatica (/fine --rotazione, 3/11/2026). Salta la retention,
 che aspetta il fine completo. Senza --leggero la coda scrive la data di oggi (AAAA-MM-GG) in
@@ -14,9 +14,14 @@ che aspetta il fine completo. Senza --leggero la coda scrive la data di oggi (AA
 un remote privato. Senza handoff
 (solo il sync della config) niente segno. Indice, retention e contesto leggono solo i file HANDOFF_*.md.
 
+--rotazione: il giro è in rotazione anche quando è il completo delle 18; --leggero lo implica. L'handoff
+non chiede alla persona /clear e /inizio (#5878): una riga "Prossimo passo:" con tutti e due, senza "io",
+"Claude" o "Arturo" come soggetto, o una riga della Ripartenza con "scrivi", "lancia", "tu"... prima di
+/clear, rende la coda rossa (exit 1). Con ARTURO_ROTAZIONE spenta ("0", "no", "off") il controllo tace.
+
 Ordine dei passi:
   1. stop se ~/.claude è a metà di un rebase, o se hooks/controlla-config.py la trova rotta;
-  2. gate (bin/handoff-gate.sh): rosso = niente commit;
+  2. gate (bin/handoff-gate.sh): rosso = niente commit; in rotazione anche il passo dopo che chiede /clear;
   3. retention con --applica: escono solo i file dell'elenco del dry-run della FASE 6 (non con --leggero);
      senza --leggero, il segno del fine completo nella cartella dell'handoff;
   4. indice (bin/index-rigenera.py --scrivi);
@@ -38,7 +43,8 @@ su stdout {"esiti": [...], "path": [...], "blocca": null o "motivo"}. I "path" (
 entrano nel commit di sync. Exit 0 fatto, 3 servizio giù (la coda prosegue e lo dice), 4 blocca.
 
 Exit:
-  0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso · 3 l'aggancio personale
+  0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
+  chiede /clear alla persona · 3 l'aggancio personale
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
   dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti
 
@@ -196,6 +202,41 @@ def handoff_della_sessione():
     return max(trovati, key=lambda f: f.name) if trovati else None
 
 
+# In rotazione /clear e /inizio li fa il tool ruota: un handoff che li chiede alla persona porta quella
+# richiesta nella chiusura (#5878, revisione del 17/11/2026: cinque sessioni chiuse con "scrivi /clear").
+RE_CLEAR = re.compile(r"(?i)(?<![\w/])/clear\b")
+RE_INIZIO = re.compile(r"(?i)(?<![\w/])/(?:arturo:)?inizio\b")
+RE_PASSO = re.compile(r"(?i)^\s*[-*]?\s*\**prossimo passo:?\**:?\s*(.*)$")
+# Il passo che nomina Claude come soggetto racconta il lavoro, non chiede un gesto alla persona.
+RE_SOGGETTO_CLAUDE = re.compile(r"(?i)^(io|claude|arturo)\b")
+# Fuori dal prossimo passo conta solo una richiesta esplicita, con il verbo prima di /clear.
+RE_RICHIESTA = re.compile(r"(?i)\b(tu|scrivi|scrivete|scrivimi|digita|lancia|esegui|batti|premi|incolla)\b"
+                          r"[^.\n]{0,60}(?<![\w/])/clear\b")
+
+
+def rotazione_spenta(valore):
+    """Lo stesso interruttore del mod (skills/arturo/hooks/rotazione/rotazione.ts, spenta())."""
+    return valore is not None and bool(re.fullmatch(r"(?i)0|no|off|spent[ao]|false", valore.strip()))
+
+
+def chiede_clear(testo):
+    """Le righe della Ripartenza (o "Prossimo passo:" ovunque) che chiedono alla persona /clear e /inizio."""
+    trovate, in_ripartenza = [], False
+    for riga in testo.splitlines():
+        if riga.startswith("## "):
+            in_ripartenza = riga.strip().lower() == "## ripartenza"
+            continue
+        passo = RE_PASSO.match(riga)
+        if not (passo or in_ripartenza) or not (RE_CLEAR.search(riga) and RE_INIZIO.search(riga)):
+            continue
+        if passo:
+            if not RE_SOGGETTO_CLAUDE.match(passo.group(1).strip("* ")):
+                trovate.append(riga.strip())
+        elif RE_RICHIESTA.search(riga):
+            trovate.append(riga.strip())
+    return trovate
+
+
 def personale(fase, base, in_stage):
     """L'aggancio personale: (esiti, path, blocca, offline). Assente = niente."""
     script = CL / "personale" / "fine-coda.py"
@@ -314,6 +355,8 @@ def main(argv):
     ap.add_argument("--trailer", action="append", default=[])
     ap.add_argument("--leggero", action="store_true",
                     help="fine leggero della rotazione: niente retention e niente segno del fine completo")
+    ap.add_argument("--rotazione", action="store_true",
+                    help="giro in rotazione (anche il completo delle 18): l'handoff non chiede /clear alla persona")
     ap.error = lambda m: (sys.stderr.write(f"fine-coda: {m}\n"), sys.exit(5))
     a = ap.parse_args(propri)
 
@@ -356,6 +399,20 @@ def main(argv):
             print("fine-coda: gate ROSSO, niente commit. Correggi l'handoff e rilancia.")
             return 1
         esiti.append("gate verde")
+
+        # 2b. rotazione: il passo dopo non chiede alla persona /clear e /inizio, li fa il tool ruota.
+        # Con il mod spento (ARTURO_ROTAZIONE) quella richiesta è la chiusura giusta e resta.
+        if (a.rotazione or a.leggero) and not rotazione_spenta(os.environ.get("ARTURO_ROTAZIONE")):
+            righe = chiede_clear(handoff.read_text(encoding="utf-8", errors="replace"))
+            if righe:
+                print("fine-coda: ROTAZIONE rossa: l'handoff chiede alla persona /clear e /inizio. In rotazione "
+                      "li fa il tool ruota (commands/fine.md, Modo rotazione).")
+                for r in righe[:5]:
+                    print(f"  {r}")
+                print("Riscrivi il passo dopo: \"io faccio <passo>\" se è tuo, il gesto vero se è della persona. "
+                      "Poi rilancia la coda.")
+                return 1
+            esiti.append("rotazione: il passo dopo non chiede /clear")
 
         # 3. retention: esce solo l'elenco del dry-run che /fine ha già letto. Il fine leggero della
         # rotazione non fa il triage della FASE 6: la retention aspetta il fine completo.

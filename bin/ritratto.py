@@ -18,6 +18,8 @@ nessun nome di file e nessuna frase. Tutto quello che altri possono aver scritto
 
 `scan` accetta solo radici stampate da `cartelle`: una radice fuori elenco ferma tutto con codice 2.
 Una cartella che il sistema nega (TCC di macOS, permessi) dà la riga "permesso negato" e codice 0.
+Le cartelle cloud di macOS (~/Library/CloudStorage/<servizio>, iCloud Drive) sono radici, anche via link
+come ~/Dropbox: il resto di ~/Library resta escluso.
 --avvelena toglie le esclusioni sui nomi: serve solo al banco (tests/test_ritratto_2026_11_01.py).
 
 Solo libreria standard, Python 3.8 o successivo.
@@ -725,6 +727,32 @@ def _parti(p: str, home: str) -> Tuple[bool, Tuple[str, ...]]:
     return False, Path(p).parts[1:]
 
 
+def _senza_cloud(parti: Tuple[str, ...]) -> Tuple[str, ...]:
+    """Le parti dopo il prefisso delle cartelle cloud di macOS, che stanno sotto Library (segnalazione 84).
+    Library resta esclusa: si salta solo Library/CloudStorage/<servizio> (Dropbox, GoogleDrive-...,
+    OneDrive-...) e Library/Mobile Documents/com~apple~CloudDocs (iCloud Drive). Il nome del servizio e
+    il resto del percorso si controllano come sempre."""
+    basse = [parte.lower() for parte in parti]
+    if basse[:2] == ["library", "cloudstorage"] and len(parti) > 2:
+        return parti[2:]
+    if basse[:3] == ["library", "mobile documents", "com~apple~clouddocs"]:
+        return parti[2:]
+    return parti
+
+
+def cartelle_cloud(home: Path) -> List[Tuple[str, str]]:
+    """Le cartelle cloud di macOS: ogni servizio in ~/Library/CloudStorage, e iCloud Drive."""
+    archivio = home / "Library" / "CloudStorage"
+    try:
+        servizi = sorted(d for d in archivio.iterdir() if d.is_dir()) if archivio.is_dir() else []
+    except OSError:
+        servizi = []
+    icloud = home / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+    if icloud.is_dir():
+        servizi.append(icloud)
+    return [("Cloud", str(d)) for d in servizi]
+
+
 def _radice_valida(p: str, home: Path, claude: Path, di_sessione: bool) -> bool:
     """I controlli valgono sul percorso scritto e su quello vero: un link o una junction verso ~/.claude
     o .ssh ha un nome innocuo, ma os.scandir lo segue."""
@@ -738,6 +766,8 @@ def _radice_valida(p: str, home: Path, claude: Path, di_sessione: bool) -> bool:
         dentro, parti = _parti(percorso, casa_)
         if di_sessione and not dentro:
             return False
+        if dentro:
+            parti = _senza_cloud(parti)
         if any(_nome_escluso(parte, True) is not None for parte in parti):
             return False
     return True
@@ -753,7 +783,7 @@ def radici(home: Path, sessioni: bool = True) -> List[Tuple[str, str]]:
     apre i file delle sessioni né history.jsonl: vale dopo un no alla 2b."""
     claude = home / ".claude"
     filtri = Filtri(home)
-    candidate = [(t, p, False) for t, p in cartelle_note(home)]
+    candidate = [(t, p, False) for t, p in cartelle_note(home) + cartelle_cloud(home)]
     base = base_progetti(home)
     if base:
         candidate.append(("Progetti", base, False))

@@ -84,6 +84,16 @@ Quando vede un segnale nel tuo lavoro, `/inizio` ti propone uno spazio: Melchior
 
 Il nome che scegli con `arturo nome` sta in `~/.claude/personale/nome.txt` e resta sul tuo computer. All'avvio di ogni sessione Arturo lo passa a Claude, quindi il nome passa dalla conversazione con Anthropic, come il tuo CLAUDE.md.
 
+## La revisione
+
+Con `/revisione` chiedi ad Arturo di rileggere come lo hai usato e di proporti cosa migliorare. Parte solo quando la lanci tu.
+
+- **Cosa legge.** Le sessioni di Claude Code salvate sul tuo computer, in `~/.claude/projects/`, degli ultimi 30 giorni o dei giorni che scegli. Da ogni sessione uno script sul tuo computer, `bin/revisione.py`, tiene i messaggi che hai scritto tu (tagliati a 500 caratteri), i comandi che hai lanciato, le skill usate e i momenti in cui hai fermato Claude o detto no. Dell'uscita dei comandi non copia niente: di un comando fallito resta solo che è fallito. Lo script non usa la rete.
+- **Dove va.** L'estratto lo legge Claude per scrivere le proposte. Passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude. Sta in una cartella temporanea della sessione e non va a chi mantiene Arturo.
+- **Cosa parte verso chi mantiene Arturo.** Solo le proposte che scegli e che riguardano Arturo, in una segnalazione sola. Prima dell'invio vedi l'anteprima, già pulita come ogni segnalazione di `/segnala`, e parte solo se dici **mando**. Le proposte che riguardano la tua config restano a te.
+- **Cosa resta sul computer.** Il registro della revisione, in `~/.claude/data/revisione/`: le proposte, le prove con parole tue corte e l'esito di ognuna. Serve alla revisione successiva per non riproporti un no. Se salvi `~/.claude` in un repository, questa cartella resta fuori. La togli cancellando la cartella.
+- **Cosa esce in telemetria.** Come per ogni skill di Arturo, il solo nome `revisione` alla chiusura della sessione. Mai proposte, prove o conteggi.
+
 ## Chi li riceve
 
 - **Cloudflare** ospita il server e il database (Workers e D1). È il solo posto dove stanno gli eventi e i testi.

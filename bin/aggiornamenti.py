@@ -92,8 +92,46 @@ def radice() -> Path:
     return Path(os.environ.get("ARTURO_RADICE") or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
-def git(r: Path, *argomenti, timeout: int = 30) -> subprocess.CompletedProcess:
+# Un computer senza chiave SSH su GitHub (#5880, 13/11/2026 sul MacBook): Claude Code scarica il catalogo
+# via HTTPS da solo, ma `claude plugin install` e `update` usano git@github.com e falliscono. Il ripiego
+# vale per quel solo processo: niente si scrive in ~/.gitconfig.
+SEGNI_SSH = ("publickey", "host key verification failed", "could not read from remote repository",
+             "correct access rights", "privilegi d'accesso", "git@github.com", "ssh: ")
+
+
+def errore_ssh(esito: subprocess.CompletedProcess) -> bool:
+    """Il comando è fallito su SSH (chiave che GitHub non riconosce, host sconosciuto, ssh che non parte)."""
+    testo = f"{esito.stdout or ''}\n{esito.stderr or ''}".lower()
+    return esito.returncode != 0 and any(segno in testo for segno in SEGNI_SSH)
+
+
+def env_https(base: dict = None) -> dict:
+    """L'ambiente con GitHub via HTTPS al posto di SSH, dopo le voci GIT_CONFIG_* che ci sono già. Con `gh`
+    installato, git chiede a gh le credenziali di github.com: serve se la sorgente è un repository privato."""
+    env = dict(os.environ if base is None else base)
+    try:
+        n = max(0, int(env.get("GIT_CONFIG_COUNT") or 0))
+    except ValueError:
+        n = 0
+    voci = [("url.https://github.com/.insteadOf", "git@github.com:"),
+            ("url.https://github.com/.insteadOf", "ssh://git@github.com/")]
+    gh = shutil.which("gh")
+    if gh:
+        # La voce vuota toglie gli helper di prima per github.com, poi gh. Barre in avanti e apici: git lancia
+        # l'helper con sh anche su Windows, dove gh sta in C:\Program Files\GitHub CLI.
+        voci += [("credential.https://github.com.helper", ""),
+                 ("credential.https://github.com.helper", "!'" + gh.replace("\\", "/") + "' auth git-credential")]
+    for chiave, valore in voci:
+        env[f"GIT_CONFIG_KEY_{n}"], env[f"GIT_CONFIG_VALUE_{n}"] = chiave, valore
+        n += 1
+    env["GIT_CONFIG_COUNT"] = str(n)
+    return env
+
+
+def git(r: Path, *argomenti, timeout: int = 30, https: bool = False) -> subprocess.CompletedProcess:
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_SSH_COMMAND="ssh -o BatchMode=yes")
+    if https:
+        env = env_https(env)
     try:
         return subprocess.run(["git", "-C", str(r), *argomenti], capture_output=True, text=True, encoding="utf-8",
                               errors="replace", timeout=timeout, env=env)
@@ -177,7 +215,8 @@ def scarica(r: Path, src: str) -> None:
     """Fetch di main e dei tag. Se la versione pubblicata non discende più da quella che la copia
     conosceva, la storia è stata riscritta: lo stato lo ricorda finché un /aggiorna non lo chiarisce."""
     prima = git(r, "rev-parse", "-q", "--verify", f"{src}/main").stdout.strip()
-    git(r, "fetch", "--quiet", "--tags", src, "main", timeout=90)
+    if errore_ssh(git(r, "fetch", "--quiet", "--tags", src, "main", timeout=90)):
+        git(r, "fetch", "--quiet", "--tags", src, "main", timeout=90, https=True)
     dopo = git(r, "rev-parse", "-q", "--verify", f"{src}/main").stdout.strip()
     if prima and dopo and prima != dopo and git(r, "merge-base", "--is-ancestor", prima, dopo).returncode != 0:
         scrivi(r / "session-env" / "aggiornamento-storia-riscritta.json", {"prima": prima, "dopo": dopo})
@@ -781,11 +820,17 @@ def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
     # lo ferma il lucchetto di cmd_applica (PC09). Niente ARTURO_AGGIORNAMENTI=manuali qui: un processo di
     # servizio di Claude Code nato da questo comando la erediterebbe, e spegnerebbe gli aggiornamenti delle
     # sessioni dopo senza dirlo (review dell'11/11/2026).
-    try:
-        return subprocess.run(comando, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                              timeout=timeout, stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.SubprocessError) as errore:
-        return subprocess.CompletedProcess(comando, 1, "", str(errore))
+    def lancia(env: dict = None) -> subprocess.CompletedProcess:
+        try:
+            return subprocess.run(comando, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                  timeout=timeout, stdin=subprocess.DEVNULL, env=env)
+        except (OSError, subprocess.SubprocessError) as errore:
+            return subprocess.CompletedProcess(comando, 1, "", str(errore))
+    esito = lancia()
+    # Senza chiave SSH su GitHub install e update falliscono su git@github.com: si riprova una volta via HTTPS.
+    if argomenti[:1] in (("install",), ("update",), ("marketplace",)) and errore_ssh(esito):
+        esito = lancia(env_https(dict(os.environ, GIT_TERMINAL_PROMPT="0")))
+    return esito
 
 
 def installato(orsa: Path) -> dict:

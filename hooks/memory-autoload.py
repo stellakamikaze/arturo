@@ -42,8 +42,20 @@ def main():
     if sys.argv[1:]:
         names = list(sys.argv[1:])
     else:
+        # La risalita si ferma alla home: il nome della home è il nome dell'utente, e se
+        # coincide con quello di una scheda, la cartella contenitore la proponeva a ogni
+        # avvio (#5868, 17/11/2026).
         cwd = Path.cwd()
-        names = [cwd.name] + [q.name for q in list(cwd.parents)[:3]]
+        try:
+            home = Path.home().resolve()
+            fermi = {home, *home.parents}
+        except (RuntimeError, OSError):
+            fermi = set()
+        names = []
+        for q in [cwd, *list(cwd.parents)[:3]]:
+            if q in fermi:
+                break
+            names.append(q.name)
     found = []
     for n in names:
         p = find_scheda(n)
