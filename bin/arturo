@@ -552,6 +552,7 @@ COMANDI = {
     "revisione": ("revisione", "la revisione di come usi Arturo, per /revisione: estrai, sintesi, igiene, registro, bozza, salva"),
     "fascicolo": ("fascicolo", "il contesto di un progetto in una cartella di file di testo, per un collega o un'altra IA: esporta, importa (con le guardie sui testi altrui)"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
+    "ripartenza": ("ripartenza", "la ripartenza di /inizio come dati, per la checklist di Volta: scrivi (JSON su stdin)"),
     "progetti": ("progetti", "tutti i progetti che segui, letti dalla memoria che c'è già: cartelle, handoff, stato, fonte dei task (Volta)"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
     "impostazioni": ("impostazioni", "col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica, adotta"),

@@ -52,6 +52,14 @@ browser per deviceId, mai per nome. Dopo ogni "disconnected", rilancia `list_con
 farle scegliere, descrivi ogni browser da cosa mostra, per esempio le schede aperte o l'accesso
 fatto (segnalazione n. 44, 2/11/2026).
 
+Prima di aprire una pagina, un file o un'app per la persona, scegli la macchina. Se la persona la
+nomina, usa quella. Se la sessione è interattiva nel terminale di questa macchina, usa questa. Se la
+sessione è in background, agganciata da un'altra macchina o remota, e Volta è installata, lancia
+`python3 ~/.config/herdr-app/mods/arturo/volta_davanti.py leggi`: la riga dice quale macchina ha
+toccato la persona per ultima e come raggiungerla. Se dice "ignota", o lo script manca, chiedi una
+volta e ricorda la risposta per la sessione. Prima di aprire, scrivi una riga: "Apro sul MacBook, in
+Firefox" (docs/browser-e-macchina.md, proposta 11 della revisione del 17/11/2026).
+
 ## Quando la persona non ha capito
 
 Se la persona risponde "non ho capito", "cioè?", "eh?", "in che senso?", oppure risponde a una

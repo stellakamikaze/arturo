@@ -13,6 +13,46 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — In Volta una sessione ferma per il limite o per la rete riparte da sola
+
+**Cosa cambia**: se usi Volta, una sessione che si è fermata per il limite d'uso del modello o per la connessione persa riparte da sola, senza che tu scriva "riprendi". Dopo il limite riparte un minuto dopo l'ora di sblocco; dopo una connessione persa, anche col Mac andato in stop, riparte quando la rete torna. Nell'elenco la riga dice "Limite d'uso: riparte da sola alle 16:01", e dopo "ripresa da sola alle 16:01". Volta ci prova al massimo due volte per ogni fermata: se si ferma di nuovo, la riga dice "riprendila tu". Non riparte mai una sessione che ti ha chiesto qualcosa, che ha un dialogo aperto o che stai chiudendo, e lascia stare gli altri errori, come il login scaduto. Chi non la vuole scrive `"ripresa": "spenta"` in `~/.config/herdr-app/arturo.json`. Nasce dalla proposta 12 della prima revisione: fra l'11 e il 17 novembre almeno nove sessioni sono rimaste ferme finché qualcuno non ha scritto "Riprendi".
+
+**Il principio**: quando una sessione si ferma per un motivo che non dipende da te, la ripresa non deve aspettare te. Le decisioni invece restano tue: dove serve una tua risposta, Volta non scrive niente.
+
+**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo.
+
+---
+
+## 2026-11-17 — In Volta una chiusura con ⌘W si annulla per dieci secondi
+
+**Cosa cambia**: quando chiudi una sessione in Volta con ⌘W, con la X o con Chiudi, la scheda sparisce subito, ma Claude aspetta dieci secondi prima di salvare con /fine e di fermarla. Intanto la sua riga resta nell'elenco a sinistra e dice "Si chiude fra 10 s · Annulla", con i secondi che scendono. Un clic sulla riga, o ⌘Z (Ctrl+Alt+Z su Windows), annulla la chiusura e riapre la sessione. Passati i dieci secondi la chiusura va avanti come prima. La chiusura automatica delle sessioni ferme da un'ora non aspetta. Nasce dalla proposta 13 della prima revisione: il 14/11 una sessione era stata chiusa per sbaglio e ripresa a mano.
+
+**Il principio**: un gesto veloce ogni tanto si sbaglia. Una conferma a ogni chiusura rallenta tutte le altre; dieci secondi per tornare indietro non chiedono niente a nessuno.
+
+**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W.
+
+---
+
+## 2026-11-17 — La ripartenza di /inizio diventa una checklist in Volta
+
+**Cosa cambia**: se usi Volta, dopo `/inizio` la lista dei todo compare anche nella finestra, con una casella e uno spazio per una nota su ogni riga. Spunti i todo da cui partire, segni quelli già fatti, da scartare o da rimandare, passi un todo a Claude o a te, e premi Manda: la scelta arriva alla sessione come un tuo messaggio, e Claude aggiorna i todo e parte da quelli spuntati. Chi non usa Volta vede la ripartenza di sempre. Il nuovo comando `arturo ripartenza scrivi` salva la lista, e una lista più vecchia di due giorni si cancella da sola.
+
+**Il principio**: la ripartenza era già un elenco numerato da leggere. Spuntarlo e annotarlo costa meno che riscrivere i numeri a mano, e le parole restano le stesse del terminale.
+
+**A chi serve**: a chi lavora con Volta e apre più progetti al giorno.
+
+---
+
+## 2026-11-17 — Claude apre le cose sulla macchina che hai davanti
+
+**Cosa cambia**: se usi Arturo su più computer con Volta, Claude sa quale hai davanti. Volta chiede a ogni macchina da quanto nessuno tocca tastiera o mouse, e scrive su tutte quale hai toccato per ultima. Prima di aprirti una pagina, un documento o un'app, una sessione in background o agganciata da un altro computer legge quel segnale e apre lì. Prima di aprire scrive una riga, per esempio "Apro sul MacBook, in Firefox", così correggi subito se sbaglia. Se non tocchi niente da più di 15 minuti, o non usi Volta, Claude ti chiede una volta dove sei e se lo ricorda per la sessione. Chi usa un solo computer non vede differenze (proposta 11 della prima revisione).
+
+**Il principio**: un computer acceso per un lavoro non vuol dire che tu sia lì. Il segnale resta sulle tue macchine: non entra nel repository, nella telemetria o nelle segnalazioni.
+
+**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background.
+
+---
+
 ## 2026-11-17 — /monitor impara dalle tue correzioni
 
 **Cosa cambia**: /monitor tiene conto di come lo correggi. Quando scarti un todo che ti ha proposto, ne rimetti in piedi uno, accogli o rifiuti la proposta di un mittente nuovo, o agisci su una voce del report, Arturo lo registra. Da lì impara tre cose: quali mittenti vanno da soli nei todo e quali non riproporti, quali regole di scarto sbagliano e vanno sospese, quali sezioni del report non apri mai e si possono ridurre a una riga. Ogni modifica compare in testa al report col comando per annullarla. Di serie è una proposta e entra col tuo sì; se preferisci, la fa da solo. Una nuova pagina, `docs/monitor-adattare.md`, spiega come adattare /monitor al tuo lavoro senza perdere gli aggiornamenti.
