@@ -44,8 +44,10 @@ senza firma: la verifica la fa Arturo, prima.
 - `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
   (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
   frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.
-- Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
-  `python3 ~/.claude/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
+- Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. `/aggiorna` è già la richiesta della
+  persona (#5880): niente altro sì, lancia subito `python3 ~/.claude/bin/aggiornamenti.py plugin`. La regola
+  `autoMode` "Arturo's own updater" lo fa passare dal classificatore. Se il classificatore lo nega lo stesso
+  (la regola arriva con `/setup`), prepara quel comando da lanciare con `!`, su una riga sola. Fa `claude plugin update` e controlla la copia
   installata col suo MANIFEST firmato, poi unisce a settings.json le voci nuove del frammento
   (`impostazioni applica`). Con `APPLICATO` chiedi di riavviare Claude Code, poi `/novita`. Una riga
   `IMPOSTAZIONI NON APPLICATE` sotto dice quale voce è in conflitto: proponi `/setup`, che la decide con lei.

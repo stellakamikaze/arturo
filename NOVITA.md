@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — /aggiorna installa senza fermarsi, anche senza chiave SSH
+
+**Cosa cambia**: quando scrivi `/aggiorna` e c'è un rilascio firmato, Arturo lo installa subito, senza chiederti un altro sì. In modalità auto il classificatore lo lasciava fermo, e dovevi lanciare tu il comando con `!`: adesso una regola `autoMode` copre lo script di aggiornamento di Arturo, e solo quello. Se il tuo computer non ha una chiave SSH riconosciuta da GitHub, l'installazione riprova da sola via HTTPS, e usa `gh` se c'è. Prima dovevi aggiungere a mano una riga a `~/.gitconfig`.
+
+**Il principio**: una richiesta fatta una volta non si chiede due volte. La sicurezza resta nella firma: si installa solo un rilascio con il tag firmato e i file uguali al MANIFEST.
+
+**A chi serve**: a chi usa Arturo in modalità auto, e a chi lo usa da un computer senza chiave SSH su GitHub. La regola arriva nei tuoi settings con `/setup`.
+
+---
+
 ## 2026-11-17 — /revisione: Arturo rilegge come lo usi e ti propone cosa migliorare
 
 **Cosa cambia**: con `/revisione` Arturo rilegge le tue sessioni di Claude Code degli ultimi 30 giorni, o dei giorni che scegli (`/revisione 7`). Cerca quattro cose: lavori che chiedi più volte con le stesse spiegazioni e che nessuna skill copre, intoppi che tornano (Claude fermato, un no ripetuto, un blocco su un lavoro normale), igiene (note doppie, todo fermi, avvisi del controllo della config) e cose da unire, come due regole che dicono lo stesso. Ti mostra al massimo sette proposte, ognuna con le prove: le date e le tue parole. Tu scegli. Le proposte sulla tua config le applica Claude con te. Quelle che riguardano Arturo partono verso chi lo mantiene in una segnalazione sola, dopo che hai visto l'anteprima e detto **mando**. Un registro sul tuo computer ricorda le risposte, così la revisione dopo non ti ripropone un no.
