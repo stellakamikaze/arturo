@@ -512,6 +512,17 @@ def web(argv: list) -> int:
     return arturo_web.main(argv, progetto=progetto_corrente())
 
 
+def monitor(argv: list) -> int:
+    """I comandi di /monitor fuori da Claude Code. Per ora uno: impara, il ciclo che impara dalle correzioni."""
+    if argv[:1] != ["impara"]:
+        print('arturo monitor: un comando, "arturo monitor impara" (segna, raccogli, calcola, applica, riepilogo, '
+              'annulla, mostra)', file=sys.stderr)
+        return 2
+    sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent / "monitor"))
+    import impara
+    return impara.main(argv[1:])
+
+
 def segnalazioni(argv: list) -> int:
     """L'interruttore delle segnalazioni automatiche: lo stesso di "arturo segnala modo"."""
     import segnala
@@ -525,6 +536,7 @@ COMANDI = {
     "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
     "schede": ("schede_mac", 'nel Terminale di macOS la scheda mostra solo il progetto: stato, applica, ripristina'),
     "sessione": ("sessione", "una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
+    "monitor": (monitor, "/monitor che impara dalle tue correzioni: impara segna, raccogli, calcola, applica, riepilogo, annulla, mostra"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "segnalazioni": (segnalazioni, "le segnalazioni partono da sole o solo dopo il tuo sì: automatiche, manuali; senza parole dice il modo"),
     "contatto": ("contatto", "il nome e l'email che dai agli sviluppatori di Arturo per ricontattarti sulle segnalazioni: imposta, togli, no"),

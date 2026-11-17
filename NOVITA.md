@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — /monitor impara dalle tue correzioni
+
+**Cosa cambia**: /monitor tiene conto di come lo correggi. Quando scarti un todo che ti ha proposto, ne rimetti in piedi uno, accogli o rifiuti la proposta di un mittente nuovo, o agisci su una voce del report, Arturo lo registra. Da lì impara tre cose: quali mittenti vanno da soli nei todo e quali non riproporti, quali regole di scarto sbagliano e vanno sospese, quali sezioni del report non apri mai e si possono ridurre a una riga. Ogni modifica compare in testa al report col comando per annullarla. Di serie è una proposta e entra col tuo sì; se preferisci, la fa da solo. Una nuova pagina, `docs/monitor-adattare.md`, spiega come adattare /monitor al tuo lavoro senza perdere gli aggiornamenti.
+
+**Il principio**: le tue correzioni sono già una spiegazione di cosa ti serve. Non vanno ripetute ogni volta. Arturo non nasconde mai una cifra, una scadenza vicina o una domanda diretta, e ogni cosa imparata si annulla.
+
+**A chi serve**: a chi usa /monitor tutti i giorni, e a chi ha un /monitor suo e vuole che impari come quello di serie.
+
+---
+
 ## 2026-11-17 — Le sessioni di prova si riconoscono dal nome e spariscono da sole
 
 **Cosa cambia**: quando Claude lancia una sessione per una sonda, un banco o una prova dal vivo, adesso le dà un nome che comincia con `prova-`, per esempio `claude --bg --name prova-5877 "Rispondi solo: ok"`. Da quel nome Arturo la riconosce. `/fine` in una sessione di prova non scrive handoff, todo né memoria, e la elimina con `claude rm`. Volta, quando la chiudi, non le manda `/fine`: la ferma e la elimina. `/revisione` la lascia fuori dall'estratto e dice quante ne ha saltate; quelle nate prima del nome le riconosce dal primo messaggio ("Rispondi solo: ok"). Sul MacBook erano circa 30 sessioni su 143 in una settimana (proposta n. 7 della prima revisione).
