@@ -161,6 +161,13 @@ const interazione = (s) => Date.parse(s?.interazione || s?.ultimo || "") || 0;
 // La frase di stato e il colore del tema (blocked, working, done, idle, muted, dim).
 export function fraseStato(s, adesso = Date.now()) {
   if (s.vecchia) return { testo: "Ultima lettura: la macchina non risponde", colore: "dim" };
+  // la ripresa da sola (#5882): l'errore e l'ora della ripresa al posto della fase; dopo, una coda alla fase
+  const r = fraseRipresa(s, adesso);
+  if (r?.colore) return r;
+  const f0 = fraseFase(s, adesso);
+  return r ? { testo: `${f0.testo} · ${r.testo}`, colore: f0.colore } : f0;
+}
+function fraseFase(s, adesso) {
   const f = fase(s);
   if (f === "attiva") return { testo: "Sta lavorando", colore: "working" };
   if (f === "errore") return { testo: "Si è fermata con un errore", colore: "blocked" };
@@ -464,15 +471,82 @@ export const rigaMisura = (m) => (Number(m?.su) > 0 ? `Raccomandazioni accettate
 // La chiusura automatica (#5366): le sessioni di questa macchina in background che aspettano un comando
 // da più di `dopoMin` minuti, senza un lavoro lasciato in corso, senza una scheda aperta in questa
 // finestra (chi la guarda la sta usando) e non già in congedo. Prima la più vecchia.
+// Una sessione col turno chiuso da un errore (#5882) non ha finito: aspetta la ripresa, o la persona.
 // `opz`: { dopoMin, congedi: { chiave: c }, conScheda: Set di chiavi }.
 export function daCongedare(dati, adesso, opz = {}) {
   const soglia = adesso - (Number(opz.dopoMin) || 60) * 60000;
   const via = chiaviDi(opz.congedi);
   const scheda = opz.conScheda ?? new Set();
   return (dati?.sessioni ?? [])
-    .filter((s) => s.questa && s.tipo === "background" && !s.vecchia && fase(s) === "attesa" && !lavoroInCorso(s.coda))
+    .filter((s) => s.questa && s.tipo === "background" && !s.vecchia && !s.errore && fase(s) === "attesa" && !lavoroInCorso(s.coda))
     .filter((s) => interazione(s) > 0 && interazione(s) < soglia && !via.has(chiave(s)) && !scheda.has(chiave(s)))
     .sort((a, b) => interazione(a) - interazione(b));
+}
+
+// La ripresa da sola (#5882, Federico 17/11/2026, dalla prima /revisione: "Riprendi" dopo Connection lost,
+// "Ho resettato, procedi" dopo il limite). Volta fa ripartire una sessione solo se il turno è finito con un
+// errore (campo errore della sonda): il limite d'uso all'ora di sblocco, la connessione persa (anche il Mac
+// andato in stop) quando la rete torna, cioè quando RIPRESA sulla sua macchina raggiunge Anthropic. Mai se
+// aspetta la persona (un dialogo, una carta della Coda), mai in congedo, mai un'interattiva fuori da Herdr.
+// Al più RIPRESA_TENTATIVI tentativi per fermata: la fermata finisce con un turno riuscito dopo l'ultimo.
+export const RIPRESA_TENTATIVI = 2;
+// dopo un limite: un minuto oltre lo sblocco. Dopo una connessione persa: un minuto, cinque al secondo tentativo.
+export const RIPRESA_DOPO_SBLOCCO_MS = 60000;
+export const RIPRESA_CONNESSIONE_MS = [60000, 5 * 60000];
+// per quanto la riga dice "ripresa da sola alle HH:MM" dopo l'ultimo tentativo
+export const RIPRESA_RIGA_MS = 60 * 60000;
+
+// I tentativi della fermata in corso: quelli dopo l'ultimo turno riuscito (le ore sono ISO UTC, si confrontano
+// come stringhe, come fa RIPRESA).
+export function tentativiRipresa(s) {
+  const tt = (Array.isArray(s?.ripresa) ? s.ripresa : []).filter((x) => typeof x?.ora === "string");
+  return tt.length && String(s?.riuscita ?? "") > tt[tt.length - 1].ora ? [] : tt;
+}
+
+// Quando la sessione riparte da sola (ms), o null se non riparte.
+export function quandoRipresa(s) {
+  const e = s?.errore;
+  if (!s || s.vecchia || chiusa(s) || s.congedo || !e || !["limite", "connessione"].includes(e.tipo)) return null;
+  if (s.stato === "lavora" || s.stato === "aspetta" || s.aspetta || s.carta) return null;
+  if (s.tipo !== "background" && !s.terminale) return null;
+  const tt = tentativiRipresa(s);
+  if (tt.length >= RIPRESA_TENTATIVI || tt.some((x) => x.errore === e.quando)) return null;
+  if (e.tipo === "limite") return Number(e.sblocco) > 0 ? Number(e.sblocco) * 1000 + RIPRESA_DOPO_SBLOCCO_MS : null;
+  const t = Date.parse(e.quando || "");
+  return t ? t + RIPRESA_CONNESSIONE_MS[Math.min(tt.length, RIPRESA_CONNESSIONE_MS.length - 1)] : null;
+}
+
+// Le sessioni da riprendere adesso, la più vecchia prima; non quelle in congedo. `opz`: { congedi }.
+export function daRiprendere(dati, adesso, opz = {}) {
+  const via = chiaviDi(opz.congedi);
+  return (dati?.sessioni ?? [])
+    .map((s) => ({ s, quando: quandoRipresa(s) }))
+    .filter((x) => x.quando !== null && x.quando <= adesso && !via.has(chiave(x.s)))
+    .sort((a, b) => a.quando - b.quando)
+    .map((x) => x.s);
+}
+
+// Il testo che riceve la sessione: una riga, come la risposta della Coda.
+export function testoRipresa(s) {
+  const perche = s?.errore?.tipo === "limite" ? "il limite d'uso, che ora è sbloccato" : "la connessione persa";
+  return `Riprendi da dove ti eri fermato: il turno di prima si è interrotto per ${perche}. È una ripresa automatica di Volta.`;
+}
+
+// La riga dell'elenco: prima della ripresa dice quando riparte, dopo che è ripartita da sola, e dopo due
+// tentativi a vuoto che tocca alla persona. null se la ripresa non c'entra.
+export function fraseRipresa(s, adesso = Date.now()) {
+  const e = s?.errore, tt = tentativiRipresa(s);
+  if (e && ["limite", "connessione"].includes(e.tipo)) {
+    const perche = e.tipo === "limite" ? "Limite d'uso" : "Connessione persa";
+    const q = quandoRipresa(s);
+    if (q !== null) return { testo: q > adesso ? `${perche}: riparte da sola alle ${oraCorta(q)}` : `${perche}: riparte da sola fra poco`, colore: "muted" };
+    if (tt.length >= RIPRESA_TENTATIVI && !tt.some((x) => x.errore === e.quando))
+      return { testo: `${perche} di nuovo dopo ${tt.length} riprese: riprendila tu`, colore: "blocked" };
+    if (e.tipo === "limite" && !(Number(e.sblocco) > 0)) return { testo: `${perche}: non so quando si sblocca, riprendila tu`, colore: "blocked" };
+    return null;
+  }
+  const u = tt[tt.length - 1], t = Date.parse(u?.ora ?? "");
+  return t && adesso - t < RIPRESA_RIGA_MS ? { testo: `ripresa da sola alle ${oraCorta(t)}`, colore: null } : null;
 }
 
 // Quante chiusure automatiche restano: al più `ora` nell'ultima ora e `giorno` nelle ultime 24 ore.

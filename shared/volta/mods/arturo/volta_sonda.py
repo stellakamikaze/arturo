@@ -57,6 +57,10 @@ distribuire (#5172, 10/11/2026).
       la risposta della Coda a una sessione in background ferma senza scheda (#5721): claude stop ID col
       controllo "risposta" (rifiuta se lavora, aspetta in un dialogo o un'altra scheda la aggancia), poi
       la stessa conversazione ripresa con TESTO come prompt. Stampa {ok, fermata} oppure {errore}.
+  python3 volta_sonda.py ripresa MACCHINA SESSIONID --errore ORA --tipo limite|connessione [--riuscita ORA]
+      la ripresa da sola (#5882): conta un tentativo sulla macchina della sessione dopo un turno finito
+      col limite d'uso o con la connessione persa. Rifiuta con la rete giù, con un tentativo già fatto
+      per quell'errore e oltre due per fermata. Stampa {ok, tentativo} oppure {errore, rifiutata?, rete?}.
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
@@ -322,7 +326,19 @@ fletture = os.path.join(radice, "cache", "volta-letture.json")
 letture = leggi(fletture)
 letture = letture if isinstance(letture, dict) else {}
 prima_letture = json.dumps(letture, sort_keys=True)
-VUOTO = {"risposta": "", "azione": "", "ultimo": "", "interazione": "", "coda": "", "chi": "", "fineFatta": False, "persona": ""}
+VUOTO = {"risposta": "", "azione": "", "ultimo": "", "interazione": "", "coda": "", "chi": "", "fineFatta": False, "persona": "", "errore": None, "riuscita": ""}
+def errore_api(d):
+    # La ripresa da sola (#5882): un turno finito col limite d'uso (rate_limit, con l'ora di sblocco) o con
+    # la connessione persa (server_error). Gli altri errori (login scaduto) aspettano la persona.
+    e = d.get("error")
+    if e not in ("rate_limit", "server_error"):
+        return None
+    r = d.get("apiErrorParams")
+    r = r.get("rate_limit_info") if isinstance(r, dict) else None
+    r = r if isinstance(r, dict) else d.get("quotaLimits")
+    t = r.get("resetsAt") if isinstance(r, dict) else None
+    return {"tipo": "limite" if e == "rate_limit" else "connessione", "quando": d.get("timestamp") or "",
+            "sblocco": t if isinstance(t, (int, float)) else None}
 def passa(st, righe):
     # Per le fasi di Volta (#5366): `interazione` è l'ora dell'ultimo messaggio vero (della persona o di
     # Claude, non le righe di sistema), `coda` la fine dell'ultimo testo di Claude, `chi` chi ha parlato
@@ -330,6 +346,8 @@ def passa(st, righe):
     # per un messaggio senza risposta), `fineFatta` se l'ultimo messaggio della persona è /fine.
     # `persona` (#5633, 17/11/2026): l'ora dell'ultimo messaggio della persona che non è /fine, senza i
     # messaggi di un'altra sessione. Dopo l'ora di un congedo vuol dire che qualcuno l'ha riaperta.
+    # `errore` (#5882): il turno è finito con un errore da cui si riparte (errore_api), finché non arriva
+    # un messaggio vero; `riuscita` l'ora dell'ultimo messaggio di Claude che non è un errore.
     for l in righe:
         try:
             d = json.loads(l)
@@ -342,6 +360,9 @@ def passa(st, righe):
         if not isinstance(m, dict):
             continue
         if d.get("type") == "assistant":
+            st["errore"] = errore_api(d) if d.get("isApiErrorMessage") else None
+            if not d.get("isApiErrorMessage"):
+                st["riuscita"] = d.get("timestamp", st["riuscita"])
             for b in m.get("content", []) or []:
                 if not isinstance(b, dict):
                     continue
@@ -363,7 +384,7 @@ def passa(st, righe):
             tx = testo(c).strip()
             if not tx or tx.startswith(("<local-command", "<system-reminder>", "Caveat:", "<task-notification>")):
                 continue
-            st["chi"], st["interazione"], st["coda"] = "persona", d.get("timestamp", st["interazione"]), ""
+            st["chi"], st["interazione"], st["coda"], st["errore"] = "persona", d.get("timestamp", st["interazione"]), "", None
             st["fineFatta"] = bool(re.match(r"\s*(<command-message>[^<]*</command-message>\s*)?(<command-name>)?/fine\b", tx))
             if not st["fineFatta"] and not tx.startswith(("Another Claude session sent a message", "<agent-message")):
                 st["persona"] = d.get("timestamp", st["persona"])
@@ -494,6 +515,8 @@ for s in sessioni:
     # La ripartenza di /inizio (17/11/2026): la scrive scripts/ripartenza-scrivi.py della config, e la
     # vista Checklist la mostra con una casella e una nota per riga. I tetti li mette ripartenza_di().
     s["ripartenza"] = leggi(os.path.join(radice, "cache", "ripartenza", sid + ".json")) or None
+    # i tentativi della ripresa da sola (#5882), scritti da RIPRESA: al più due per fermata
+    s["ripresa"] = leggi(os.path.join(radice, "cache", "volta-ripresa", sid + ".json")) or None
     st = coda_di(sid) if re.fullmatch(r"[0-9A-Za-z-]{4,64}", sid) else None
     if st is None:
         continue
@@ -869,6 +892,75 @@ if titolo:
     esci(ok=True, titolo=nuovo["titolo"], portato=bool(nuovo.get("portato")))
 esci(ok=True, progetto=valore, iniziato=nuovo.get("inizio") is not False)
 '''
+
+# La ripresa da sola (#5882, Federico 17/11/2026): gira sulla macchina della sessione prima di ogni
+# tentativo e lo conta PRIMA di riprendere, così un processo ucciso a metà non lascia il conto indietro.
+# Rifiuta se la rete non arriva ad Anthropic (si riprova al giro dopo, senza contare), se questo errore
+# ha già avuto il suo tentativo (due finestre di Volta vedono la stessa sessione), se la fermata ha già
+# RIPRESA_MAX tentativi o se un'altra finestra sta scrivendo il registro. La fermata finisce con un turno
+# riuscito dopo l'ultimo tentativo (`riuscita`). Il registro sta in cache/volta-ripresa/<sessionId>.json;
+# i file di più di 14 giorni vanno via. VOLTA_RETE (host:porta) cambia l'indirizzo provato, per le prove.
+RIPRESA = r'''
+import base64, json, os, socket, sys, time
+a = json.loads(base64.b64decode(sys.argv[1]).decode("utf-8"))
+def esci(**d):
+    print(json.dumps(d)); raise SystemExit
+h, _, n = (os.environ.get("VOLTA_RETE") or "api.anthropic.com:443").rpartition(":")
+try:
+    socket.create_connection((h, int(n)), 8).close()
+except (OSError, ValueError):
+    esci(errore="la rete non arriva ad Anthropic", rete=False)
+d = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"), "cache", "volta-ripresa")
+f = os.path.join(d, a["sessionId"] + ".json")
+try:
+    os.makedirs(d, exist_ok=True)
+    for x in os.listdir(d):
+        if time.time() - os.path.getmtime(os.path.join(d, x)) > 14 * 86400:
+            os.remove(os.path.join(d, x))
+except OSError:
+    pass
+blocco = f + ".blocco"
+try:
+    os.close(os.open(blocco, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+except FileExistsError:
+    try:
+        vecchio = time.time() - os.path.getmtime(blocco) > 120
+    except OSError:
+        vecchio = True
+    if not vecchio:
+        esci(errore="un'altra finestra la sta riprendendo", rifiutata=True)
+except OSError as e:
+    esci(errore="non riesco a scrivere: " + str(e)[:160])
+try:
+    try:
+        with open(f, encoding="utf-8") as fh:
+            tt = json.load(fh).get("tentativi") or []
+    except (OSError, ValueError, AttributeError):
+        tt = []
+    tt = [x for x in tt if isinstance(x, dict) and isinstance(x.get("ora"), str)]
+    if tt and (a.get("riuscita") or "") > tt[-1]["ora"]:
+        tt = []
+    if any(x.get("errore") == a["errore"] for x in tt):
+        esci(errore="questo errore ha già avuto la sua ripresa", rifiutata=True)
+    if len(tt) >= a["max"]:
+        esci(errore="già %d riprese per questa fermata" % len(tt), rifiutata=True)
+    t = time.time()
+    tt.append({"ora": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t)) + ".%03dZ" % (int(t * 1000) % 1000),
+               "errore": a["errore"], "tipo": a["tipo"]})
+    tmp = "%s.%d.tmp" % (f, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"tentativi": tt}, fh)
+    os.replace(tmp, f)
+    esci(ok=True, tentativo=len(tt))
+except OSError as e:
+    esci(errore="non riesco a scrivere: " + str(e)[:160])
+finally:
+    try:
+        os.remove(blocco)
+    except OSError:
+        pass
+'''
+RIPRESA_MAX = 2
 
 # Gira sulla macchina dove nascerà la sessione, prima di NASCI (#5208). Il servizio di Claude che tiene
 # le sessioni in background (claude daemon) parte da solo al primo claude --bg, ma a tempo: muore con
@@ -1345,6 +1437,22 @@ def ripartenza_di(r, adesso=None):
             if intero(p.get("n")) is not None else None}
 
 
+def errore_riga(e):
+    """L'errore della riga (#5882): { tipo, quando, sblocco } con sblocco in secondi o None, oppure None."""
+    if not isinstance(e, dict) or e.get("tipo") not in ("limite", "connessione") or not isinstance(e.get("quando"), str):
+        return None
+    t = e.get("sblocco")
+    return {"tipo": e["tipo"], "quando": e["quando"][:40],
+            "sblocco": t if isinstance(t, (int, float)) and not isinstance(t, bool) and t > 0 else None}
+
+
+def tentativi_riga(r):
+    """I tentativi della ripresa da sola scritti da RIPRESA: [{ ora, errore, tipo }], al più gli ultimi 4."""
+    tt = r.get("tentativi") if isinstance(r, dict) else None
+    return [{"ora": x["ora"][:40], "errore": str(x.get("errore") or "")[:40], "tipo": str(x.get("tipo") or "")[:12]}
+            for x in (tt if isinstance(tt, list) else []) if isinstance(x, dict) and isinstance(x.get("ora"), str)][-4:]
+
+
 def righe(voci):
     """Da raccogli() all'elenco piatto: una riga per sessione."""
     out = []
@@ -1379,6 +1487,11 @@ def righe(voci):
                 "chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,
                 # l'ultimo messaggio della persona che non è /fine: una sessione riaperta durante il congedo
                 "persona": s.get("persona") if isinstance(s.get("persona"), str) else "",
+                # la ripresa da sola (#5882): l'errore che ha chiuso il turno, l'ultimo turno riuscito e
+                # i tentativi già fatti su quella macchina
+                "errore": errore_riga(s.get("errore")),
+                "riuscita": s.get("riuscita") if isinstance(s.get("riuscita"), str) else "",
+                "ripresa": tentativi_riga(s.get("ripresa")),
                 # ripresa da un congedo di Volta (/fine dopo ⌘W): la persona l'aveva chiusa
                 "congedo": s.get("congedo") is True,
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
@@ -1970,11 +2083,17 @@ def cambia(nome, verbo, sid, valore="", portato=False):
     # `portato` vale per tutti e due: il nome che Claude Code ha già (/rename), il progetto da cui la
     # sessione è già ripartita (/inizio, #5465)
     segno = {"portato": bool(portato)} if verbo == "rinomina" else {"iniziato": bool(portato)}
-    arg = base64.b64encode(json.dumps(dict({"cosa": CAMBI[verbo], "sessionId": sid, "valore": valore}, **segno)).encode()).decode()
+    return python_su(nome, SCRIVI, dict({"cosa": CAMBI[verbo], "sessionId": sid, "valore": valore}, **segno))
+
+
+def python_su(nome, script, dati):
+    """`script` con `dati` (JSON in base64 come argomento) sulla macchina `nome` ("qui" = questa): la sua
+    risposta JSON, oppure {errore}. Su un'altra macchina prova python3, poi python."""
+    arg = base64.b64encode(json.dumps(dati).encode()).decode()
     if nome in (None, "", "qui"):
-        tentativi = [[sys.executable, "-c", SCRIVI, arg]]
+        tentativi = [[sys.executable, "-c", script, arg]]
     else:
-        codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SCRIVI.encode()).decode()
+        codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(script.encode()).decode()
         tentativi = [hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), py, "-c", codice, arg]
                      for py in ("python3", "python")]
     ultimo = "nessun Python"
@@ -1991,6 +2110,18 @@ def cambia(nome, verbo, sid, valore="", portato=False):
             testo = (err or out).strip()
             ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
     return {"errore": ultimo}
+
+
+def ripresa(nome, session_id, errore, tipo, riuscita=""):
+    """Conta un tentativo della ripresa da sola (#5882) sulla macchina della sessione, con RIPRESA:
+    {ok, tentativo} oppure {errore, rifiutata?, rete?}. Il testo lo porta poi Volta, nella scheda o con
+    rispondi. Lo stesso errore ha un tentativo solo, la stessa fermata al più RIPRESA_MAX."""
+    if not ID.fullmatch(session_id or ""):
+        return {"errore": "id di sessione non valido"}
+    if tipo not in ("limite", "connessione") or not re.fullmatch(r"[0-9T:.Z+-]{10,40}", errore or ""):
+        return {"errore": "errore da riprendere non valido"}
+    return python_su(nome, RIPRESA, {"sessionId": session_id, "errore": errore, "tipo": tipo,
+                                     "riuscita": riuscita or "", "max": RIPRESA_MAX})
 
 
 def main_cambia(verbo, argv):
@@ -2138,6 +2269,21 @@ def main(argv):
             print("uso: volta_sonda.py rispondi <macchina> <id> <sessionId> [--cartella <dir>] -- <testo>")
             return 2
         esito = rispondi(resto[0], resto[1], resto[2], testo, cartella)
+        print(json.dumps(esito, ensure_ascii=True))
+        return 0 if "errore" not in esito else 1
+    if argv and argv[0] == "ripresa":
+        opz, resto, i = {}, [], 1
+        while i < len(argv):
+            if argv[i] in ("--errore", "--tipo", "--riuscita") and i + 1 < len(argv):
+                opz[argv[i][2:]] = argv[i + 1]
+                i += 2
+            else:
+                resto.append(argv[i])
+                i += 1
+        if len(resto) != 2 or not opz.get("errore") or not opz.get("tipo"):
+            print("uso: volta_sonda.py ripresa <macchina> <sessionId> --errore <ora> --tipo limite|connessione [--riuscita <ora>]")
+            return 2
+        esito = ripresa(resto[0], resto[1], opz["errore"], opz["tipo"], opz.get("riuscita", ""))
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":

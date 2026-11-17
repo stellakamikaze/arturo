@@ -44,7 +44,8 @@ import { apriMenuProgetto } from "./menusessione.js";
 import { carte, ordineCoda, canaleRisposta, rigaRisposta, senzaRisposte, carteUf, LETTURA_UF_MS, RIMANDA_MS, conCapo, fondiDoppie, testoPerSessione, rigaMisura } from "./sessioni.js";
 import { gestoCoda, senzaScartate } from "./sessioni.js";
 import { schedeRisposta, rispondiSessione, registraRisposta, prendiCarteUf, apriLink, todo, nuova, scartaCarta, leggiScartate } from "./dati.js";
-import { leggiRecenti } from "./dati.js";
+import { leggiRecenti, riprendiDaSola } from "./dati.js";
+import { daRiprendere, testoRipresa } from "./sessioni.js";
 import { gestoUf } from "./azioni.js";
 import { terminale } from "./casa.js";
 
@@ -65,6 +66,8 @@ const fontTerminale = () => {
 const OGNI_FUOCO = 1000;
 // Ogni quanto si guarda se c'è una sessione da chiudere da sola (#5366): una ferma da un'ora non ha fretta.
 const OGNI_AUTO = 60000;
+// la ripresa da sola (#5882): la stessa sessione non si riprova prima di due minuti
+const RIPROVA_MS = 2 * 60000;
 // Ogni quanto si ridisegna la riga "Si chiude fra N s · Annulla" di una sessione appena chiusa (#5883).
 const OGNI_ANNULLO = 1000;
 // il giro della macchina davanti (#5881): al più uno al minuto
@@ -492,6 +495,34 @@ export class Volta {
     }
   }
 
+  // La ripresa da sola (#5882, Federico 17/11/2026): dopo ogni giro, una sessione col turno chiuso dal limite
+  // d'uso o dalla connessione persa riparte quando è ora (daRiprendere di sessioni.js). Una alla volta; la
+  // stessa sessione non si riprova per RIPROVA_MS (la rete ancora giù, un'altra finestra), e il conto dei
+  // tentativi lo tiene la macchina della sessione. Ogni esito va nel registro, la ripresa riuscita anche
+  // in un avviso.
+  riprendiFerme(cx) {
+    if (this.riprendoDaSola || !this.dati) return;
+    const adesso = Date.now();
+    this.provate = Object.fromEntries(Object.entries(this.provate ?? {}).filter(([, t]) => adesso - t < RIPROVA_MS));
+    const s = daRiprendere(this.dati, adesso, { congedi: this.congedi() }).find((x) => !(chiave(x) in this.provate));
+    if (!s) return;
+    this.riprendoDaSola = true;
+    this.provate[chiave(s)] = adesso;
+    cx.spawn(async (cx) => {
+      try {
+        if ((await config()).ripresa === "spenta") return;
+        let r;
+        try { r = await riprendiDaSola(s, testoRipresa(s)); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
+        if (r.salta) return;
+        registra("ripresa", { macchina: s.host ?? "qui", sid: s.id, tipo: s.errore?.tipo, tentativo: r.tentativo, canale: r.canale,
+          esito: r.ok ? "ok" : r.rete === false ? "rete" : r.rifiutata ? "rifiutata" : "errore", errore: r.errore });
+        if (!r.ok) return;
+        notify({ title: `${titolo(s)} è ripartita da sola`, body: s.errore?.tipo === "limite" ? "Il limite d'uso si è sbloccato." : "La connessione è tornata.", level: "info", timeout: 6000 });
+        this.aggiorna(cx);
+      } finally { this.riprendoDaSola = false; }
+    });
+  }
+
   // La chiusura automatica (#5366, nota di Federico dell'11/11): una sessione di questa macchina che
   // aspetta un comando da più di un'ora va in congedo da sola, una alla volta, al più 3 all'ora e 12 al
   // giorno (arturo.json: congedo, congedo_dopo_min, congedo_ora, congedo_giorno). In modo "prova" scrive
@@ -784,6 +815,7 @@ export class Volta {
       svuotaRegistro(this.py);
       this.passiCongedo(cx);
       this.giraCoda(cx);
+      this.riprendiFerme(cx);
       cx.notify();
       this.sincronizzaNote(cx);
       this.giraDavanti(cx);

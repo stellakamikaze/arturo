@@ -726,6 +726,15 @@ HZ159 ⌘W da annullare (#5883, 17/11/2026, prima /revisione: "chiusa da Volta p
      scrive `annulla` solo senza `auto`, disegna con visLista e lascia vis() a Sposta e giro, il clic sulla
      riga e ⌘Z annullano e riaprono; ⌘Z e Ctrl+Alt+Z liberi da Herdr, arturo.volta-annulla in TASTI_NUOVI,
      instrada e barra lo portano ad annulla().
+HZ163 la ripresa da sola (#5882, 17/11/2026, prima /revisione: "Riprendi" dopo Connection lost, "Ho resettato,
+     procedi" dopo il limite): la sonda legge dalla trascrizione l'errore che chiude il turno (limite con
+     l'ora di sblocco, connessione persa; il login scaduto no), lo toglie al messaggio dopo, tiene l'ultimo
+     turno riuscito e i tentativi di cache/volta-ripresa. RIPRESA conta il tentativo prima di riprendere:
+     niente con la rete giù o col registro occupato, uno per errore, due per fermata, da capo dopo un turno
+     riuscito. Con node: riparte all'ora di sblocco più un minuto, dopo una connessione persa fra uno e
+     cinque minuti; mai se aspetta la persona, in congedo, vecchia o fuori da Herdr; la riga dice "riparte
+     da sola alle HH:MM", poi "ripresa da sola alle HH:MM", e "riprendila tu" dopo due tentativi; la
+     chiusura automatica lascia stare le sessioni ferme per errore. volta.js e dati.js la collegano.
 """
 from __future__ import annotations
 
@@ -741,7 +750,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ162")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ162", "HZ163")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -12391,6 +12400,42 @@ def hz162(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_RIPRESA = r"""
+import { quandoRipresa, daRiprendere, fraseRipresa, fraseStato, daCongedare, testoRipresa, tentativiRipresa } from "./sessioni.mjs";
+const T0 = Date.parse("2026-11-17T10:00:00Z");
+const iso = (ms) => new Date(ms).toISOString();
+const base = { host: "qui", questa: true, tipo: "background", id: "a1", sessionId: "s1", stato: "ferma", chi: "claude", coda: "API Error",
+  interazione: iso(T0), ultimo: iso(T0) };
+const lim = { ...base, errore: { tipo: "limite", quando: iso(T0), sblocco: T0 / 1000 + 3600 } };
+const con = { ...base, id: "a2", errore: { tipo: "connessione", quando: iso(T0), sblocco: null } };
+const q = (s) => quandoRipresa(s);
+const unTent = [{ ora: iso(T0 + 120000), errore: iso(T0), tipo: "connessione" }];
+const con2 = { ...con, errore: { tipo: "connessione", quando: iso(T0 + 180000), sblocco: null }, ripresa: unTent };
+const dueTent = [...unTent, { ora: iso(T0 + 500000), errore: iso(T0 + 180000), tipo: "connessione" }];
+const con3 = { ...con, errore: { tipo: "connessione", quando: iso(T0 + 600000), sblocco: null }, ripresa: dueTent };
+const nuovaFermata = { ...con3, riuscita: iso(T0 + 550000) };
+const out = {
+  lim: q(lim) - T0, con: q(con) - T0, con2: q(con2) - T0, con3: q(con3), nuova: q(nuovaFermata) - (T0 + 600000),
+  stesso: q({ ...con, ripresa: [{ ora: iso(T0 + 1), errore: iso(T0), tipo: "connessione" }] }),
+  senzaSblocco: q({ ...lim, errore: { ...lim.errore, sblocco: null } }),
+  no: [q({ ...lim, stato: "aspetta" }), q({ ...lim, aspetta: "permission" }), q({ ...lim, carta: { domanda: "x" } }), q({ ...lim, stato: "lavora" }),
+       q({ ...lim, congedo: true }), q({ ...lim, vecchia: true }), q({ ...lim, chiusa: true }), q({ ...lim, tipo: "interattiva" }),
+       q({ ...base }), q({ ...lim, errore: { tipo: "login", quando: iso(T0) } })],
+  dentroHerdr: q({ ...lim, tipo: "interattiva", terminale: "t1" }) - T0,
+  scelte: daRiprendere({ sessioni: [lim, con, { ...con, id: "a3" }] }, T0 + 120000, { congedi: { "qui:a3": { id: "a3" } } }).map((s) => s.id),
+  presto: daRiprendere({ sessioni: [lim] }, T0 + 3600000).length,
+  frasi: [fraseRipresa(lim, T0)?.testo, fraseRipresa(con, T0 + 61000)?.testo, fraseRipresa(con3, T0 + 700000)?.testo,
+          fraseRipresa({ ...base, ripresa: unTent }, T0 + 200000)?.testo, fraseRipresa({ ...base, ripresa: unTent }, T0 + 120000 + 3600001),
+          fraseRipresa({ ...lim, errore: { ...lim.errore, sblocco: null } }, T0)?.testo, fraseRipresa(base, T0)],
+  stato: [fraseStato(lim, T0).testo, fraseStato({ ...base, ripresa: unTent }, T0 + 200000).testo],
+  congedo: daCongedare({ sessioni: [lim, { ...base, id: "a9", coda: "Fatto." }] }, T0 + 7200000, {}).map((s) => s.id),
+  testi: [testoRipresa(lim), testoRipresa(con)],
+  tent: [tentativiRipresa({ ripresa: unTent, riuscita: iso(T0 + 130000) }).length, tentativiRipresa({ ripresa: unTent, riuscita: iso(T0) }).length],
+};
+console.log(JSON.stringify(out));
+"""
+
+
 PROVA_BOZZA = r"""
 import { dopoRisposta, bozzaPersa, testoCasella, percheNonEntra, casellaVuota, rigaRisposta } from "./sessioni.mjs";
 const lista = { fonte: "progetto", sessione: "s1", quando: null, filoni: [{ nome: "x", voci: [{ n: 1, id: 11, testo: "a" }, { n: 2, id: 12, testo: "b" }] }] };
@@ -12412,6 +12457,166 @@ const vuote = [casellaVuota(box("❯ ")), casellaVuota(box("❯ ciao"))];
 const riga = rigaRisposta({ chiave: "k" }, "x".repeat(900), "scheda", "ok").scelta.length;
 console.log(JSON.stringify({ ok, ko, altro, niente, doppia, persa, ripresa, inViaggio, caselle, perche, vuote, riga }));
 """
+
+
+def hz163(repo: Path, casa: Path) -> str | None:
+    """La ripresa da sola delle sessioni ferme per limite o connessione (#5882, 17/11/2026)."""
+    import importlib.util  # noqa: PLC0415
+    import socket  # noqa: PLC0415
+    mod = repo / "shared/volta/mods/arturo"
+    sonda = mod / "volta_sonda.py"
+    pezzi = {
+        "volta.js": ("this.giraCoda(cx);\n      this.riprendiFerme(cx);",
+                     "daRiprendere(this.dati, adesso, { congedi: this.congedi() }).find((x) => !(chiave(x) in this.provate))",
+                     'if ((await config()).ripresa === "spenta") return;', "r = await riprendiDaSola(s, testoRipresa(s));",
+                     'registra("ripresa", {'),
+        "dati.js": ('const canale = terminaliDi(s, true).length ? "scheda" : terminaliDi(s).length ? null : s.tipo === "background" ? "background" : null;',
+                    '[cfg.volta, "ripresa", s.host ?? "qui", s.sessionId, "--errore", s.errore.quando,',
+                    "if (r.errore) return r;\n  const m = await rispondiSessione(s, testo, canale);",
+                    'ripresa: c.ripresa === "spenta" ? "spenta" : "accesa",'),
+    }
+    for f, cc in pezzi.items():
+        testo = (mod / f).read_text(encoding="utf-8")
+        for pezzo in cc:
+            if pezzo not in testo:
+                return f"{f} non collega la ripresa da sola: manca {pezzo[:80]}"
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "CLAUDE_CONFIG_DIR": str(casa / ".claude"),
+           "HERDR_APP_HOME": str(casa / "app")}
+    # 1. RIPRESA conta i tentativi: una porta locale che ascolta fa da Anthropic raggiungibile
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    viva = "127.0.0.1:%d" % srv.getsockname()[1]
+    chiusa = socket.socket()
+    chiusa.bind(("127.0.0.1", 0))
+    morta = "127.0.0.1:%d" % chiusa.getsockname()[1]
+    chiusa.close()
+
+    def rip(errore, rete=viva, riuscita=None):
+        argv = [sys.executable, str(sonda), "ripresa", "qui", "sid-r", "--errore", errore, "--tipo", "connessione"]
+        if riuscita:
+            argv += ["--riuscita", riuscita]
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=60, env={**env, "VOLTA_RETE": rete})
+        try:
+            return json.loads(r.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return {"rotta": (r.stderr or r.stdout).strip()[-200:]}
+    reg = casa / ".claude" / "cache" / "volta-ripresa" / "sid-r.json"
+    try:
+        giu = rip("2026-11-17T10:00:00.000Z", morta)
+        if giu.get("rete") is not False or reg.exists():
+            return f"con la rete giù RIPRESA conta il tentativo o non lo dice: {giu}"
+        passi = [("2026-11-17T10:00:00.000Z", None, {"ok": True, "tentativo": 1}),
+                 ("2026-11-17T10:00:00.000Z", None, {"rifiutata": True}),
+                 ("2026-11-17T10:05:00.000Z", None, {"ok": True, "tentativo": 2}),
+                 ("2026-11-17T10:09:00.000Z", None, {"rifiutata": True}),
+                 ("2026-11-17T10:30:00.000Z", "2099-01-01T00:00:00.000Z", {"ok": True, "tentativo": 1})]
+        for errore, riuscita, atteso in passi:
+            r = rip(errore, riuscita=riuscita)
+            if any(r.get(k) != x for k, x in atteso.items()):
+                return f"RIPRESA su {errore} (riuscita {riuscita}): {r}, atteso {atteso}"
+        (reg.parent / "sid-r.json.blocco").write_text("")
+        r = rip("2026-11-17T11:00:00.000Z")
+        (reg.parent / "sid-r.json.blocco").unlink()
+        if not r.get("rifiutata"):
+            return f"col registro occupato da un'altra finestra RIPRESA conta lo stesso: {r}"
+    finally:
+        srv.close()
+    if os.name == "nt":
+        return None
+    # 2. la sonda legge errore, riuscita e tentativi dalla trascrizione e dal registro
+    radice = casa / ".claude"
+    (radice / "projects" / "p").mkdir(parents=True)
+    trascr = radice / "projects" / "p" / "sid-r.jsonl"
+    finto = casa / "claude"
+    finto.write_text("#!/bin/sh\necho '[{\"id\":\"lav7\",\"sessionId\":\"sid-r\",\"kind\":\"background\",\"state\":\"done\",\"status\":\"idle\",\"pid\":5,\"startedAt\":9999999999999,\"cwd\":\"/tmp\"}]'\n", encoding="utf-8")
+    finto.chmod(0o755)
+    codice = ("import importlib.util, json, sys\n"
+              "spec = importlib.util.spec_from_file_location('vs', sys.argv[1]); vs = importlib.util.module_from_spec(spec); spec.loader.exec_module(vs)\n"
+              "g = {'T': 20, '__name__': 'sonda'}\n"
+              "src = vs.SONDA.replace('cl = trova_claude()', 'cl = sys.argv[1] or trova_claude()')\n"
+              "sys.argv = [sys.argv[0], sys.argv[2]]\n"
+              "exec(compile(src, 'sonda', 'exec'), g)\n")
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz163", sonda)
+    vs = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(vs)
+
+    def giro():
+        r = subprocess.run([sys.executable, "-c", codice, str(sonda), str(finto)], capture_output=True, text=True, timeout=60, env=env)
+        try:
+            s = json.loads(r.stdout.strip().splitlines()[-1])["sessioni"][0]
+        except (ValueError, IndexError, KeyError):
+            return None, f"la sonda non dà la sessione: {(r.stderr or r.stdout).strip()[-200:]}"
+        return vs.righe([{"macchina": "qui", "host": "qui", "questa": True, "claude": "claude", "sessioni": [s]}])[0], None
+
+    def riga(**d):
+        return json.dumps(d) + "\n"
+    ok = riga(type="assistant", timestamp="2026-11-17T09:01:00.000Z", message={"content": [{"type": "text", "text": "Fatto il primo pezzo."}]})
+    limite = riga(type="assistant", timestamp="2026-11-17T09:02:00.000Z", isApiErrorMessage=True, error="rate_limit", apiErrorStatus=429,
+                  apiErrorParams={"rate_limit_info": {"status": "rejected", "resetsAt": 1794754800}},
+                  message={"model": "<synthetic>", "content": [{"type": "text", "text": "You've reached your Fable limit."}]})
+    rete = riga(type="assistant", timestamp="2026-11-17T09:03:00.000Z", isApiErrorMessage=True, error="server_error", apiError="connection_failed",
+                message={"model": "<synthetic>", "content": [{"type": "text", "text": "API Error: Connection lost mid-response."}]})
+    login = riga(type="assistant", timestamp="2026-11-17T09:04:00.000Z", isApiErrorMessage=True, error="authentication_failed",
+                 message={"model": "<synthetic>", "content": [{"type": "text", "text": "Not logged in · Please run /login"}]})
+    persona = riga(type="user", timestamp="2026-11-17T09:05:00.000Z", message={"role": "user", "content": "riprendi"})
+    casi = [(ok + limite, {"tipo": "limite", "quando": "2026-11-17T09:02:00.000Z", "sblocco": 1794754800}, "2026-11-17T09:01:00.000Z"),
+            (ok + rete, {"tipo": "connessione", "quando": "2026-11-17T09:03:00.000Z", "sblocco": None}, "2026-11-17T09:01:00.000Z"),
+            (ok + login, None, "2026-11-17T09:01:00.000Z"),
+            (ok + limite + persona, None, "2026-11-17T09:01:00.000Z")]
+    for testo, errore, riuscita in casi:
+        trascr.write_text(testo, encoding="utf-8")
+        (radice / "cache" / "volta-letture.json").unlink(missing_ok=True)
+        v, e = giro()
+        if e:
+            return e
+        if v.get("errore") != errore or v.get("riuscita") != riuscita:
+            return f"la sonda legge l'errore del turno come {v.get('errore')} (riuscita {v.get('riuscita')!r}), atteso {errore} ({riuscita!r})"
+    reg.parent.mkdir(parents=True, exist_ok=True)
+    reg.write_text(json.dumps({"tentativi": [{"ora": "2026-11-17T09:06:00.000Z", "errore": "x", "tipo": "limite"}]}), encoding="utf-8")
+    v, e = giro()
+    if e:
+        return e
+    if v.get("ripresa") != [{"ora": "2026-11-17T09:06:00.000Z", "errore": "x", "tipo": "limite"}]:
+        return f"la sonda non porta i tentativi di cache/volta-ripresa: {v.get('ripresa')}"
+    # 3. con node: quando riparte, cosa dice la riga, chi resta fuori
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_RIPRESA.replace("./sessioni.mjs", (casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:300]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["lim"] != 3660000 or g["con"] != 60000 or g["con2"] != 180000 + 300000 or g["con3"] is not None or g["nuova"] != 60000:
+        return f"la ripresa non parte all'ora giusta: limite {g['lim']}, connessione {g['con']}, secondo {g['con2']}, terzo {g['con3']}, nuova fermata {g['nuova']}"
+    if g["stesso"] is not None or g["senzaSblocco"] is not None:
+        return f"riparte due volte sullo stesso errore o su un limite senza ora di sblocco: {g['stesso']} {g['senzaSblocco']}"
+    if any(x is not None for x in g["no"]):
+        return f"riparte una sessione che aspetta la persona, lavora, è in congedo, vecchia, chiusa, fuori da Herdr o senza errore da riprendere: {g['no']}"
+    if g["dentroHerdr"] != 3660000:
+        return f"un'interattiva in una scheda di Herdr non riparte: {g['dentroHerdr']}"
+    if g["scelte"] != ["a2"] or g["presto"] != 0:
+        return f"daRiprendere sceglie male (prima dell'ora, o una in congedo): {g['scelte']} {g['presto']}"
+
+    def ora(ms):
+        return time.strftime("%H:%M", time.localtime(ms / 1000))
+    t0 = 1794736800000  # 2026-11-17T10:00:00Z
+    attese = [f"Limite d'uso: riparte da sola alle {ora(t0 + 3660000)}", "Connessione persa: riparte da sola fra poco",
+              "Connessione persa di nuovo dopo 2 riprese: riprendila tu", f"ripresa da sola alle {ora(t0 + 120000)}", None,
+              "Limite d'uso: non so quando si sblocca, riprendila tu", None]
+    if g["frasi"] != attese:
+        return f"la riga della ripresa: {g['frasi']}, attese {attese}"
+    if g["stato"][0] != attese[0] or not g["stato"][1].endswith(f" · ripresa da sola alle {ora(t0 + 120000)}"):
+        return f"fraseStato non porta la ripresa: {g['stato']}"
+    if g["congedo"] != ["a9"]:
+        return f"la chiusura automatica chiude una sessione ferma per errore: {g['congedo']}"
+    if "limite d'uso" not in g["testi"][0] or "connessione persa" not in g["testi"][1] or any("\n" in x for x in g["testi"]):
+        return f"il testo della ripresa non dice perché, o va a capo: {g['testi']}"
+    if g["tent"] != [0, 1]:
+        return f"la fermata non finisce col turno riuscito dopo l'ultimo tentativo: {g['tent']}"
+    return None
 
 
 def hz160(repo: Path, casa: Path) -> str | None:
@@ -12466,7 +12671,7 @@ def hz160(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ162": hz162}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ162": hz162, "HZ163": hz163}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -12512,6 +12717,17 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 VELENI = [
     ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', 'sessioni = da_cache(k_ag) if con_cache else None', 'sessioni = None'),
+    ('HZ163', 'shared/volta/mods/arturo/volta_sonda.py', 'if e not in ("rate_limit", "server_error"):', 'if e not in ("rate_limit", "server_error", "authentication_failed"):'),
+    ('HZ163', 'shared/volta/mods/arturo/volta_sonda.py', 'st["chi"], st["interazione"], st["coda"], st["errore"] = "persona", d.get("timestamp", st["interazione"]), "", None', 'st["chi"], st["interazione"], st["coda"] = "persona", d.get("timestamp", st["interazione"]), ""'),
+    ('HZ163', 'shared/volta/mods/arturo/volta_sonda.py', 'if any(x.get("errore") == a["errore"] for x in tt):', 'if False:'),
+    ('HZ163', 'shared/volta/mods/arturo/volta_sonda.py', 'if len(tt) >= a["max"]:', 'if len(tt) > a["max"]:'),
+    ('HZ163', 'shared/volta/mods/arturo/volta_sonda.py', '    esci(errore="la rete non arriva ad Anthropic", rete=False)', '    pass'),
+    ('HZ163', 'shared/volta/mods/arturo/volta_sonda.py', 'if tt and (a.get("riuscita") or "") > tt[-1]["ora"]:', 'if False:'),
+    ('HZ163', 'shared/volta/mods/arturo/sessioni.js', '  if (s.stato === "lavora" || s.stato === "aspetta" || s.aspetta || s.carta) return null;', '  if (s.stato === "lavora") return null;'),
+    ('HZ163', 'shared/volta/mods/arturo/sessioni.js', 'if (tt.length >= RIPRESA_TENTATIVI || tt.some((x) => x.errore === e.quando)) return null;', 'if (tt.length > RIPRESA_TENTATIVI) return null;'),
+    ('HZ163', 'shared/volta/mods/arturo/sessioni.js', '!s.vecchia && !s.errore && fase(s) === "attesa"', '!s.vecchia && fase(s) === "attesa"'),
+    ('HZ163', 'shared/volta/mods/arturo/sessioni.js', 'return tt.length && String(s?.riuscita ?? "") > tt[tt.length - 1].ora ? [] : tt;', 'return tt;'),
+    ('HZ163', 'shared/volta/mods/arturo/sessioni.js', 'Number(e.sblocco) * 1000 + RIPRESA_DOPO_SBLOCCO_MS', 'Number(e.sblocco) * 1000'),
     ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', 'if k not in VOLATILI', 'if True'),
     ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', ' and c["chiave"] == k and', ' and'),
     ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', 'return v if ok and all(vivo(s["pid"])', 'return v if ok and all(True'),

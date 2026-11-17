@@ -36,6 +36,9 @@ export async function config() {
       ora: numero(c.congedo_ora, 3, 0),
       giorno: numero(c.congedo_giorno, 12, 0),
     },
+    // La ripresa da sola delle sessioni ferme per limite o connessione (#5882): "accesa" di serie, "spenta"
+    // la toglie (Federico l'ha approvata il 17/11/2026).
+    ripresa: c.ripresa === "spenta" ? "spenta" : "accesa",
   };
 }
 
@@ -1339,6 +1342,27 @@ export async function rispondiSessione(s, testo, canale) {
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
   }
+}
+
+// La ripresa da sola (#5882): il canale come la risposta della Coda, ma solo dove arriva senza la persona.
+// Una scheda di questa finestra: il testo si scrive lì. Una scheda di un'altra finestra: lo fa quella. In
+// background senza schede: stop e ripresa col testo (rispondi). Prima volta_sonda.py ripresa conta il
+// tentativo sulla macchina della sessione, e rifiuta con la rete giù o un tentativo già fatto.
+// Torna { ok, tentativo } | { errore, rifiutata?, rete?, salta? }.
+export async function riprendiDaSola(s, testo) {
+  const canale = terminaliDi(s, true).length ? "scheda" : terminaliDi(s).length ? null : s.tipo === "background" ? "background" : null;
+  if (!canale) return { errore: "la sessione la raggiunge un'altra finestra", salta: true };
+  const cfg = await config();
+  let r;
+  try {
+    r = esito(await exec(cfg.arturo[0], [cfg.volta, "ripresa", s.host ?? "qui", s.sessionId, "--errore", s.errore.quando,
+      "--tipo", s.errore.tipo, ...(s.riuscita ? ["--riuscita", s.riuscita] : [])], { timeout: 90000 }));
+  } catch (e) {
+    return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+  if (r.errore) return r;
+  const m = await rispondiSessione(s, testo, canale);
+  return { ...m, tentativo: r.tentativo, canale };
 }
 
 // Una riga nel registro delle risposte (volta_carte.py risposta, rigaRisposta() di sessioni.js): per la
