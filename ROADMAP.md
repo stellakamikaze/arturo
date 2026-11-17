@@ -144,6 +144,16 @@ Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva
 
 <!-- task: #4536 #4538 -->
 
+### Una sessione ferma riparte da sola {#ripresa}
+
+Stato: da fare. Nasce dalla prima `/revisione` del 17 novembre 2026.
+
+Strato: Ingresso.
+
+Oggi una sessione si ferma quando finisce il limite d'uso del modello, quando la connessione cade a metà risposta o quando il computer va in stop. Poi aspetta che tu scriva "riprendi". Arturo la fa ripartire da sola appena può: quando il limite si azzera, quando la rete torna, quando il computer si sveglia. Ti dice in una riga che è ripartita e da dove. I lavori lunghi in parallelo aspettano il limite invece di fermarsi tutti insieme.
+
+<!-- task: #5882 -->
+
 ## Dopo (versione 0.5 e oltre)
 
 ### Chi mantiene Arturo lo usa come voi {#autore}
