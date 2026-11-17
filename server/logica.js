@@ -182,7 +182,8 @@ export const LIMITI = {
   // Il pacchetto tecnico si svuota prima del testo: serve alla diagnosi, non alla storia.
   pacchettoGiorni: 90,
   eventiPerLotto: 500,
-  eventiPerGiorno: 500,
+  // Un computer usato tutto il giorno fa circa 800 eventi (#5996, 17/11/2026): 500 fermava la coda.
+  eventiPerGiorno: 2000,
   eventiTotaliPerGiorno: 100000,
   // Le installazioni nuove accettate in un giorno (8/11/2026, review del 7/11, finding 40): il tetto per installazione
   // si aggirava con un id nuovo a ogni POST, e da un solo IP 200 lotti riempivano il server per il giorno.

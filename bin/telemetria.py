@@ -154,7 +154,9 @@ TRANSCRIPT_MASSIMO = 64 * 1024 * 1024
 SESSIONI_RICORDATE = 50
 OGNI = 6 * 3600         # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
-LOTTO = 500
+# Il lotto sta sotto il tetto giornaliero del server (eventiPerGiorno in server/logica.js): con un lotto da 500 e il
+# tetto a 500, un lotto rifiutato fermava la coda per tutto il giorno (#5996, 17/11/2026).
+LOTTO = 100
 SPENTI = {"0", "no", "off", "false", "spenta"}
 # I tag dei rilasci di Arturo: v0.2.0, v0.2.1 dal 3/11/2026. Prima erano date (v2026-10-19, v2026-10-19.2), e il
 # server le traduce nel loro numero. La stessa forma di rilascio() in server/logica.js.

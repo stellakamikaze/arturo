@@ -111,8 +111,11 @@ const casi = {
     const f = finti();
     const grande = post("/v1/eventi", JSON.stringify(lotto([{ evento: "sessione" }])) + " ".repeat(LIMITI.corpoEventi));
     assert.equal((await gestisci(grande, { ...f, adesso })).status, 413, "V03 corpo troppo grande accettato");
-    const pieno = Array.from({ length: LIMITI.eventiPerGiorno }, () => ({ evento: "sessione" }));
-    assert.equal((await gestisci(post("/v1/eventi", lotto(pieno)), { ...f, adesso })).status, 200);
+    // Il tetto del giorno vale più lotti pieni (#5996): si riempie a lotti, poi un evento in più torna 429.
+    const pieno = Array.from({ length: LIMITI.eventiPerLotto }, () => ({ evento: "sessione" }));
+    for (let n = 0; n < LIMITI.eventiPerGiorno; n += LIMITI.eventiPerLotto) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto(pieno)), { ...f, adesso })).status, 200, `V03 lotto ${n} rifiutato`);
+    }
     assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }])), { ...f, adesso })).status, 429,
       "V03 il tetto giornaliero per installazione non regge");
   },
