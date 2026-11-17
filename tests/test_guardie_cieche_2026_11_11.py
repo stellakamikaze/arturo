@@ -124,7 +124,12 @@ def test_gc03(b: Banco):
                            "hook_event_name": "PreToolUse", "session_id": "gc"}).encode("utf-8")
 
     lungo, tempo = grezzo(b, evento(f"rm -rf {lavoro} # " + "A" * 1_100_000))
-    sporco, _ = grezzo(b, evento(f"rm -rf {lavoro} # X").replace(b"X", b"\xff"))
+    # Solo il segnaposto diventa il byte non valido. Un replace su ogni "X" toccava anche il percorso: il mktemp
+    # del gate scrive lettere maiuscole (`gate-fixture.5QX3AP`), rm puntava a una cartella che non esiste e la
+    # guardia taceva a ragione. Il caso usciva silent in circa un gate su dieci (#5676, 17/11/2026).
+    con_segnaposto = evento(f"rm -rf {lavoro} # @SPORCO@")
+    assert con_segnaposto.count(b"@SPORCO@") == 1, "GC03 il segnaposto del byte non valido compare nel percorso"
+    sporco, _ = grezzo(b, con_segnaposto.replace(b"@SPORCO@", b"\xff"))
     dati, _ = grezzo(b, evento("cat > f.txt <<'EOF'\n" + "riga di dati\n" * 100_000 + "EOF"))
     casi = [("comando da 1,1 MB", lungo, "ask"), ("in meno di 20 secondi", tempo < 20, True),
             ("byte non valido", sporco, "ask"), ("heredoc grande di soli dati", dati, "silent")]
