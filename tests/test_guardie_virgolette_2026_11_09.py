@@ -344,8 +344,9 @@ def _processi_python(b: Banco, comando: str) -> int:
     finti.mkdir(exist_ok=True)
     conta = b.home / "conta-python.txt"
     finto = finti / "python3"
-    finto.write_text(f'#!/bin/bash\necho x >> "{conta.as_posix()}"\nexec "{Path(sys.executable).as_posix()}" "$@"\n',
-                     encoding="utf-8", newline="\n")
+    # open con newline e non write_text(newline=): quello c'è solo da Python 3.10 (sul Mac c'è il 3.9).
+    with open(finto, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f'#!/bin/bash\necho x >> "{conta.as_posix()}"\nexec "{Path(sys.executable).as_posix()}" "$@"\n')
     finto.chmod(0o755)
     b.dispatcher("true")  # crea la copia delle guardie
     conta.write_text("", encoding="utf-8")
@@ -396,7 +397,8 @@ def _gv11_revisione(b: Banco) -> list:
     # non è un punto.
     locale = b.home / ".claude" / "arturo" / "bash-dispatcher.local"
     locale.parent.mkdir(parents=True, exist_ok=True)
-    locale.write_text("FINALE block-dangerous.py\n", encoding="utf-8", newline="\n")
+    with open(locale, "w", encoding="utf-8", newline="\n") as f:
+        f.write("FINALE block-dangerous.py\n")
     dati = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "cwd": str(b.home),
             "hook_event_name": "PreToolUse", "session_id": "gv"}
     p = subprocess.run([bash_vero(), str(b.home / ".claude" / "hooks" / "bash-dispatcher.sh")], input=json.dumps(dati),
