@@ -14,6 +14,8 @@ SG03 un progetto fuori dalle cartelle della sessione fa tornare la shell alla ca
      Dopo /chrome a sessione aperta gli strumenti arrivano solo con claude --continue (n. 40).
 SG04 con due Chrome collegati Claude resta sul browser scelto per deviceId e, dopo una disconnessione,
      controlla inUse e lo dice (n. 44, 3/11/2026).
+SG05 prima di aprire per la persona Claude sceglie la macchina: quella nominata, questa se è interattiva,
+     altrimenti la macchina davanti di Volta (volta_davanti.py leggi) o una domanda (#5881, 17/11/2026).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -87,7 +89,14 @@ def test_sg04(repo: Path) -> None:
         assert pezzo in stile, f"SG04 lo stile non dice come restare sul Chrome scelto: manca {pezzo}"
 
 
-TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04}
+def test_sg05(repo: Path) -> None:
+    stile = read(repo / "output-styles" / "conciso.md")
+    for pezzo in ("scegli la macchina", "`python3 ~/.config/herdr-app/mods/arturo/volta_davanti.py leggi`",
+                  "Se dice \"ignota\", o lo script manca, chiedi una", "\"Apro sul MacBook, in"):
+        assert pezzo in stile, f"SG05 lo stile non dice come scegliere la macchina davanti: manca {pezzo}"
+
+
+TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04, "SG05": test_sg05}
 
 
 def main() -> int:

@@ -41,7 +41,9 @@ prima, perché browser e profili esistono solo su una macchina.
 3. Se la sessione è un job in background, un attach via ssh o una sessione remota, la macchina della
    sessione non dice niente. Un Mac acceso per un lavoro non vuol dire che la persona stia lì.
    Claude usa la macchina davanti, se un segnale la dice (step 9, #5881). Senza segnale chiede una volta
-   e ricorda la risposta per la sessione.
+   e ricorda la risposta per la sessione. Il segnale è
+   `python3 ~/.config/herdr-app/mods/arturo/volta_davanti.py leggi`: dice "questa", "un'altra" col nome
+   `hc exec --on` per raggiungerla, o "ignota".
 
 Chi usa Arturo su un solo computer resta sempre al punto 2: per lui non cambia niente.
 
@@ -81,7 +83,7 @@ silenzioso in una correzione immediata. È la regola comune alle tre segnalazion
 |---|---|---|---|
 | Browser nominato e riga dell'account | regola, nessuna funzione nuova | `output-styles/conciso.md` e banco accanto a SG04 | #5600 |
 | Mappa profilo Chrome e account Google | funzione nuova, approvata il 17/11 | file locale in `~/.claude/data/browser/`, mai in telemetria | #5692 |
-| Macchina davanti | funzione nuova, approvata il 17/11 | Volta, con un ripiego per chi non lo usa | #5881 |
+| Macchina davanti | fatta il 17/11 (Volta 709be18) | `volta_davanti.py` di Volta, regola in `output-styles/conciso.md` (SG05) | #5881 |
 
 La regola di #5600 non aspetta lo step 9: non cambia il disegno e non aggiunge stato.
 

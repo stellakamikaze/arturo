@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — Claude apre le cose sulla macchina che hai davanti
+
+**Cosa cambia**: se usi Arturo su più computer con Volta, Claude sa quale hai davanti. Volta chiede a ogni macchina da quanto nessuno tocca tastiera o mouse, e scrive su tutte quale hai toccato per ultima. Prima di aprirti una pagina, un documento o un'app, una sessione in background o agganciata da un altro computer legge quel segnale e apre lì. Prima di aprire scrive una riga, per esempio "Apro sul MacBook, in Firefox", così correggi subito se sbaglia. Se non tocchi niente da più di 15 minuti, o non usi Volta, Claude ti chiede una volta dove sei e se lo ricorda per la sessione. Chi usa un solo computer non vede differenze (proposta 11 della prima revisione).
+
+**Il principio**: un computer acceso per un lavoro non vuol dire che tu sia lì. Il segnale resta sulle tue macchine: non entra nel repository, nella telemetria o nelle segnalazioni.
+
+**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background.
+
+---
+
 ## 2026-11-17 — /monitor impara dalle tue correzioni
 
 **Cosa cambia**: /monitor tiene conto di come lo correggi. Quando scarti un todo che ti ha proposto, ne rimetti in piedi uno, accogli o rifiuti la proposta di un mittente nuovo, o agisci su una voce del report, Arturo lo registra. Da lì impara tre cose: quali mittenti vanno da soli nei todo e quali non riproporti, quali regole di scarto sbagliano e vanno sospese, quali sezioni del report non apri mai e si possono ridurre a una riga. Ogni modifica compare in testa al report col comando per annullarla. Di serie è una proposta e entra col tuo sì; se preferisci, la fa da solo. Una nuova pagina, `docs/monitor-adattare.md`, spiega come adattare /monitor al tuo lavoro senza perdere gli aggiornamenti.
