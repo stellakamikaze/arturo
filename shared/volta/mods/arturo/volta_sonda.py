@@ -245,7 +245,7 @@ def agenti(extra):
     if v is None:
         guasto[0] = "claude agents: risposta senza elenco"
     return v
-sessioni = agenti(["--all"])
+#AGENTI#
 if sessioni is None:
     sessioni = agenti([])
 if sessioni is None:
@@ -584,6 +584,72 @@ print(json.dumps(uscita))
 '''
 SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())
 SONDA = SONDA.replace("#ELENCO#", ELENCO.strip()).replace("#CLAUDE#", CERCA_CLAUDE.strip())
+# La cache di claude agents entra solo nella lettura di questa macchina (#5946, 17/11/2026): verso le
+# altre la SONDA viaggia in una riga di cmd.exe (8191 caratteri), e la cache la portava a 8100.
+AGENTI_CACHE = r'''
+# La cache di claude agents (#5946, 17/11/2026): claude agents costa 0,15-0,2 s (l'avvio di node) e
+# teneva la lettura locale sopra 0,25 s. L'elenco viene dai file di stato dei lavori e delle sessioni
+# e dal roster del servizio: se nessuno di quei file è cambiato, e nemmeno il programma claude,
+# l'elenco di prima vale. Dei file conta il contenuto senza VOLATILI: una sessione che lavora riscrive
+# detail, tokens e fan (i subagent) ogni pochi secondi, e con l'mtime la cache non serviva mai a un giro
+# di 30 s. claude agents non mostra nessuno di quei campi. Prova del 17/11/2026 su una macchina: stessa
+# chiave e uscita diversa 0 volte su 79 letture. Una voce con un pid che non c'è più, o più di
+# AGENTI_MAX secondi, rileggono. Su Windows niente cache: os.kill(pid, 0) lì termina il processo.
+AGENTI_MAX = 120
+VOLATILI = ("detail", "tokens", "fan", "linkScanOffset", "linkScanPath", "inFlight", "updatedAt", "statusUpdatedAt")
+fag = os.path.join(radice, "cache", "volta-agenti.json")
+def chiave_ag():
+    import hashlib
+    h = hashlib.sha1()
+    for f in sorted(glob.glob(os.path.join(radice, "jobs", "*", "state.json")) + glob.glob(os.path.join(radice, "sessions", "*.json"))) + [os.path.join(radice, "daemon", "roster.json")]:
+        try:
+            with open(f, "rb") as fh:
+                d = json.loads(fh.read())
+            if isinstance(d, dict):
+                d = {k: v for k, v in d.items() if k not in VOLATILI}
+            h.update(f.encode("utf-8", "replace") + json.dumps(d, sort_keys=True).encode())
+        except (OSError, ValueError):
+            h.update(f.encode("utf-8", "replace") + b" ?")
+    try:
+        st = os.stat(cl)
+        h.update(("%s %d %d" % (cl, st.st_mtime_ns, st.st_size)).encode("utf-8", "replace"))
+    except OSError:
+        pass
+    return h.hexdigest()
+def vivo(p):
+    try:
+        os.kill(p, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        pass  # c'è, di un altro utente
+    return True
+def da_cache(k):
+    try:
+        with open(fag, encoding="utf-8") as fh:
+            c = json.load(fh)
+        v = c["sessioni"]
+        ok = isinstance(v, list) and c["chiave"] == k and 0 <= time.time() - c["ora"] <= AGENTI_MAX
+        return v if ok and all(vivo(s["pid"]) for s in v if type(s.get("pid")) is int and s["pid"] > 0) else None
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+con_cache = os.name != "nt"
+k_ag = chiave_ag() if con_cache else None
+sessioni = da_cache(k_ag) if con_cache else None
+if sessioni is None:
+    sessioni = agenti(["--all"])
+    if con_cache and sessioni is not None and chiave_ag() == k_ag:  # cambiato mentre leggevo: si rilegge
+        try:
+            os.makedirs(os.path.dirname(fag), exist_ok=True)
+            tmp = "%s.%d.tmp" % (fag, os.getpid())
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump({"chiave": k_ag, "ora": time.time(), "sessioni": sessioni}, fh)
+            os.replace(tmp, fag)
+        except OSError:
+            pass
+'''
+SONDA_REMOTA = SONDA.replace("#AGENTI#", 'sessioni = agenti(["--all"])')
+SONDA = SONDA.replace("#AGENTI#", AGENTI_CACHE.strip())
 
 
 def senza_commenti(codice):
@@ -1065,7 +1131,7 @@ def sonda_remota(nome, entro=None, primo=None):
     Un errore che non è "programma assente" (macchina che dorme, rete giù, hc unavailable) ferma subito:
     il secondo Python non lo aggiusta, e prima costava altri 10-30 s del tetto del giro."""
     # compressa: con terminale_di la sonda in base64 supererebbe gli 8191 caratteri di una riga di cmd.exe
-    compressa = base64.b64encode(zlib.compress(senza_commenti(SONDA).encode(), 9)).decode()
+    compressa = base64.b64encode(zlib.compress(senza_commenti(SONDA_REMOTA).encode(), 9)).decode()
     ultimo, senza = "nessun Python", 0
     for py in ((primo,) + tuple(p for p in PYTHON if p != primo)) if primo in PYTHON else PYTHON:
         rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",

@@ -38,6 +38,7 @@ import { run, panes } from "herdr";
 import { congedoSullaCopia } from "./sessioni.js";
 import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare, schedeSpente, SCHEDA, daAllineare } from "./sessioni.js";
 import { ricordaChiuse } from "./sessioni.js";
+import { ANNULLA_MS, inAnnullo, senzaAnnullo, conAnnullo, daAnnullare } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
 import { carte, ordineCoda, canaleRisposta, rigaRisposta, senzaRisposte, carteUf, LETTURA_UF_MS, RIMANDA_MS, conCapo, fondiDoppie, testoPerSessione, rigaMisura } from "./sessioni.js";
@@ -64,6 +65,8 @@ const fontTerminale = () => {
 const OGNI_FUOCO = 1000;
 // Ogni quanto si guarda se c'è una sessione da chiudere da sola (#5366): una ferma da un'ora non ha fretta.
 const OGNI_AUTO = 60000;
+// Ogni quanto si ridisegna la riga "Si chiude fra N s · Annulla" di una sessione appena chiusa (#5883).
+const OGNI_ANNULLO = 1000;
 // il giro della macchina davanti (#5881): al più uno al minuto
 const DAVANTI_MS = 60000;
 // La sessione è già agganciata in un Terminale fuori dalla finestra: la frase del primo clic, e per
@@ -203,6 +206,7 @@ export class Volta {
       if (k !== this.fuoco) { this.fuoco = k; cx.notify(); this.riaggancia(k, cx); }
       this.davanti(k);
     });
+    cx.timer.every(OGNI_ANNULLO, (cx) => this.giraAnnullo(cx));
     cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));
     cx.timer.every(OGNI_AUTO, (cx) => this.staccaFerme(cx));
     cx.timer.every(OGNI_AUTO, (cx) => this.allineaSpazi(cx));
@@ -281,6 +285,52 @@ export class Volta {
     setShared("arturo.volta.chiuse", resto);
   }
 
+  // L'elenco disegnato a sinistra: come vis(), e in più le sessioni chiuse da meno di ANNULLA_MS, con la riga
+  // "Si chiude fra N s · Annulla" in `annullo` (#5883). Solo per il disegno: Sposta, il giro e la ricerca
+  // usano vis(), e una sessione che si sta chiudendo non entra nei loro elenchi.
+  visLista(ora = Date.now()) {
+    const tutti = this.congedi();
+    return conAnnullo(visibili(this.dati, senzaAnnullo(tutti, ora), this.chiuse()), tutti, ora);
+  }
+
+  // Il conto alla rovescia delle sessioni appena chiuse (#5883): un disegno al secondo finché ce n'è una, e
+  // il passo del congedo appena un'attesa finisce, senza aspettare il giro delle schede.
+  giraAnnullo(cx) {
+    const ora = Date.now();
+    const l = Object.entries(this.congedi()).filter(([, c]) => inAnnullo(c, ora));
+    const n = l.length;
+    // nell'ultimo secondo la riga si dissolve (#5410), come quella della chiusura automatica
+    for (const [k, c] of l) {
+      if (!movimento() || this.escono[k] || Number(c.annulla) - ora > OGNI_ANNULLO) continue;
+      this.escono[k] = true;
+      cx.timer.after(Number(c.annulla) - ora + ESCE.duration + 50, (cx) => { delete this.escono[k]; cx.notify(); });
+    }
+    if (!n && !this.annulli) return;
+    const finita = n < (this.annulli ?? 0);
+    this.annulli = n;
+    cx.notify();
+    if (finita) this.passiCongedo(cx);
+  }
+
+  // ⌘Z (Ctrl+Alt+Z su Windows) o il clic sulla riga "Si chiude fra N s · Annulla" (#5883): il congedo non è
+  // ancora partito (passoCongedo aspetta), la sua voce si toglie e la sessione si riapre in una scheda, con
+  // lo stesso gesto del clic. `k`: la chiave della riga; senza, l'ultima sessione chiusa. Scaduta l'attesa
+  // non annulla più niente: /fine potrebbe essere partito. true se ha annullato.
+  annulla(k, cx) {
+    const tutti = this.congedi(), ora = Date.now();
+    const voce = k ? (inAnnullo(tutti[k], ora) ? [k, tutti[k]] : null) : daAnnullare(tutti, ora);
+    if (!voce) return false;
+    const [kc, c] = voce;
+    const { [kc]: _, ...resto } = tutti;
+    setShared("arturo.volta.congedi", resto);
+    delete this.escono[kc];
+    registra("congedo", { macchina: c.host, sid: c.id, esito: "annullato" });
+    const s = trova(this.dati?.sessioni, c);
+    if (s) this.premi(s, cx);
+    cx.notify();
+    return true;
+  }
+
   // L'elenco del giro ⌘↓/⌘↑: come vis(), e in più fuori le sessioni che stanno uscendo (la dissolvenza
   // prima del congedo) e quelle con la scheda appena sparita (`forse` di guardaSchede), così un ⌘↓ subito
   // dopo ⌘W non riaggancia la sessione che si sta chiudendo.
@@ -333,11 +383,13 @@ export class Volta {
   congeda(c, cx) {
     const s = trova(this.dati?.sessioni, c);
     if (!s || s.tipo !== "background" || chiusa(s) || this.congedi()[chiave(s)]) return;
-    if (!c.uscita && this.esce(s, c, cx)) return;
+    // un gesto della persona aspetta ANNULLA_MS prima di /fine (#5883): la riga resta, senza dissolvenza
+    const annulla = !c.auto;
+    if (!annulla && !c.uscita && this.esce(s, c, cx)) return;
     const ora = Date.now();
     setShared("arturo.volta.congedi", { ...this.congedi(), [chiave(s)]: { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina,
       cartella: s.cartella ?? null, titolo: titolo(s), fase: "attende", da: ora, dal: ora,
-      ...(c.auto ? { auto: true } : {}), ...(c.auto && s.fineFatta ? { fineFatta: true } : {}) } });
+      ...(c.auto ? { auto: true } : {}), ...(c.auto && s.fineFatta ? { fineFatta: true } : {}), ...(annulla ? { annulla: ora + ANNULLA_MS } : {}) } });
     if (this.menu === chiave(s)) this.menu = null;
     cx.notify();
     this.passiCongedo(cx);
@@ -1376,10 +1428,12 @@ export class Volta {
       if (r.errore) this.avvisa(s, `Non riesco: ${r.errore}`, cx);
       else if (a.verbo === "logs") this.anteprime[k] = r.righe?.length ? r.righe : ["(niente da mostrare)"];
       else {
-        this.avvisa(s, FATTO[a.verbo], cx);
-        // la riga di una sessione chiusa sparisce subito: l'esito va in un avviso
+        // la riga di una sessione chiusa dice già "Si chiude fra N s · Annulla" (#5883): niente avviso sotto
+        if (a.verbo !== "chiudi") this.avvisa(s, FATTO[a.verbo], cx);
+        // l'esito va in un avviso, col modo di annullare finché l'attesa dura
         if (a.verbo === "chiudi") notify({ title: titolo(s), level: "info", timeout: 5000,
-          body: s.vecchia ? `Chiusa: ${s.macchina ?? "la sua macchina"} non risponde, Claude salva con /fine e si ferma quando torna.` : FATTO.chiudi });
+          body: (s.vecchia ? `Chiusa: ${s.macchina ?? "la sua macchina"} non risponde, Claude salva con /fine e si ferma quando torna.` : FATTO.chiudi)
+            + (inAnnullo(this.congedi()[chiave(s)]) ? ` Fra ${Math.round(ANNULLA_MS / 1000)} s: per annullare clicca la riga o premi ${tasti().annulla}.` : "") });
         if (a.verbo === "rm") this.menu = null;
         this.aggiorna(cx);
       }
@@ -1444,17 +1498,19 @@ export class Volta {
     const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" }
       : apro ? { testo: "La apro…", colore: "working" }
       : this.veglio[k] ? { testo: "Aperta: guardo se Claude resta nella scheda…", colore: "working" }
-      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);
+      : lavoro ? { testo: lavoro, colore: "working" }
+      : s.annullo ? { testo: s.annullo, colore: "accent" } : dettaglio(s, modo);
     const avviso = this.avvisi[chiave(s)];
     // il pallino per chi lavora, ti aspetta o è in errore; niente per chi aspetta solo un comando (#5366)
-    const vivo = !s.vecchia && !inAttesa(s);
-    const az = azioni(s);
+    const vivo = !s.vecchia && !inAttesa(s) && !s.annullo;
+    // la riga di una sessione appena chiusa (#5883): niente "Altro" e niente X, il clic annulla la chiusura
+    const az = s.annullo ? [] : azioni(s);
     const aperto = this.menu === k && az.length > 0;
     // La X compare col puntatore sopra la riga, e il primo clic chiede la conferma (xRiga di sessioni.js).
     // Su una sessione viva chiude con /fine e la toglie dall'elenco, come ⌘W (Federico, 12/11/2026); su una
     // chiusa o in errore la elimina (claude rm, lo stesso Elimina di "Altro"). Nascosta tiene il suo posto:
     // il titolo non va a capo in modo diverso quando appare.
-    const xa = xRiga(s);
+    const xa = s.annullo ? null : xRiga(s);
     const chiedoX = Boolean(xa) && this.chiedo[k] === xa.verbo, faccioX = Boolean(xa) && this.faccio[k] === xa.verbo;
     const vediX = Boolean(xa) && (this.sopra === k || chiedoX || faccioX);
     const x = xa ? div().id(`vx-${s.host}-${s.id}`).mt(2).px(5).py(2).rounded(6).flex_none()
@@ -1494,12 +1550,13 @@ export class Volta {
           // Un clic apre la sessione; il doppio clic sul titolo apre anche il dialogo del nome.
           .on_click((e, cx) => {
             if (this.trascino?.mosso || Date.now() - this.trascinata < 500) return;  // un trascinamento non apre
+            if (s.annullo) return this.annulla(k, cx);
             return e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx);
           })
           .child(div().pt(6).child(vivo || sposto || apro || lavoro || this.veglio[k] ? segno(colore(t, d.colore), motoDi(d.colore, !sposto && !apro && !lavoro && !this.veglio[k] && fase(s) === "stasi")) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
-            .child((s.titolo ? div().whitespace_normal() : div().truncate()).id(`vt-${s.host}-${s.id}`).text_size(TESTO.riga).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
+            .child((s.titolo ? div().whitespace_normal() : div().truncate()).id(`vt-${s.host}-${s.id}`).text_size(TESTO.riga).text_color(s.vecchia || s.annullo ? t.muted : t.foreground).child(titolo(s)))
             .child(div().id(`vd-${s.host}-${s.id}`).truncate().text_size(TESTO.etichetta).text_color(colore(t, d.colore)).child(d.testo))))
         .when(az.length > 0, (el) => el.child(div().id(`va-${s.host}-${s.id}`).mt(SPAZIO.xs).px(SPAZIO.s + 2).py(1).rounded(RAGGIO.controllo).cursor_pointer()
           .text_size(TESTO.nota).text_color(aperto ? t.foreground : t.dim).hover((st) => st.bg(t.selected))
@@ -1535,8 +1592,8 @@ export class Volta {
   // Un gruppo: le sessioni che lavorano o ti aspettano sempre; quelle che aspettano un comando dietro
   // "N in attesa di comando" (#5366), salvo un gruppo di due o meno.
   gruppo(t, g, modo, cx, aperto = null) {
-    const vive = g.sessioni.filter((s) => !inAttesa(s));
-    const ferme = g.sessioni.filter(inAttesa);
+    const vive = g.sessioni.filter((s) => !inAttesa(s) || s.annullo);
+    const ferme = g.sessioni.filter((s) => inAttesa(s) && !s.annullo);
     const mostra = mostrate(g, this.aperti[g.chiave]);
     // Per progetto l'intestazione è il progetto: un clic lo apre (il suo spazio, con /inizio), come la
     // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
@@ -1592,7 +1649,7 @@ export class Volta {
     const t = theme();
     impostaProgetti(shared("arturo.progetti"));
     const modo = this.modo();
-    const lista = gruppi(this.vis(), modo);
+    const lista = gruppi(this.visLista(), modo);
     // lo spazio aperto, letto una volta sola: spaces() passa il confine con Herdr, e una chiamata per
     // gruppo faceva sforare il tempo del disegno ("This view could not be re-rendered", 12/11/2026)
     const aperto = progettoDi(spaces().find((x) => x.active)?.name).chiave;

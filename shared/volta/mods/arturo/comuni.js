@@ -14,8 +14,8 @@ export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 // Herdr (Alt+↓ per la sessione che aspetta), perché su Windows ⌘ sarebbe il tasto Windows.
 export function tasti() {
   return window()?.platform === "macos"
-    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E", tessere: "⌘T", coda: "⌘⇧J", checklist: "⌘⇧S" }
-    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T", coda: "Ctrl+Shift+J", checklist: "Ctrl+Shift+S" };
+    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E", tessere: "⌘T", coda: "⌘⇧J", checklist: "⌘⇧S", annulla: "⌘Z" }
+    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T", coda: "Ctrl+Shift+J", checklist: "Ctrl+Shift+S", annulla: "Ctrl+Alt+Z" };
 }
 
 // Un pallino di stato disegnato, non un carattere.

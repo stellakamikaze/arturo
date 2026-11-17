@@ -823,7 +823,33 @@ export const diProva = (s) => PROVA.test(String(s?.nome ?? ""));
 export const RIAPERTA_MARGINE_MS = 30000;
 export const riaperta = (c, s) => Boolean(s) && Number(c?.da) > 0 && (Date.parse(s.persona || "") || 0) > Number(c.da) + RIAPERTA_MARGINE_MS;
 
+// ⌘W da annullare (#5883, Federico, 17/11/2026: "chiusa da Volta per sbaglio alle 17:06"). La scheda si chiude
+// subito; /fine, stop e rm aspettano ANNULLA_MS. Il congedo di un gesto della persona porta in `annulla` l'ora
+// in cui parte; fino ad allora la riga resta nell'elenco con "Si chiude fra N s · Annulla", e il clic sulla
+// riga o ⌘Z (Ctrl+Alt+Z su Windows) toglie il congedo e riapre la sessione. Niente conferma prima. La
+// chiusura automatica (#5366) non ha l'attesa: nessuno l'ha chiesta, e nessuno guarda.
+export const ANNULLA_MS = 10000;
+export const inAnnullo = (c, ora = Date.now()) => Boolean(c) && Number(c.annulla) > ora;
+export const secondiAnnullo = (c, ora = Date.now()) => Math.max(1, Math.ceil((Number(c?.annulla) - ora) / 1000));
+export const rigaAnnullo = (c, ora = Date.now()) => `Si chiude fra ${secondiAnnullo(c, ora)} s · Annulla`;
+// Il registro dei congedi senza quelli ancora da annullare, nella forma di visibili(): l'elenco li mostra.
+export function senzaAnnullo(congedi = {}, ora = Date.now()) {
+  return Object.fromEntries(Object.entries(congedi ?? {}).filter(([, c]) => !inAnnullo(c, ora)));
+}
+// L'elenco di visibili() con le sessioni da annullare segnate: `annullo` è la riga da scrivere.
+export function conAnnullo(dati, congedi = {}, ora = Date.now()) {
+  if (!dati) return dati;
+  const da = Object.fromEntries(Object.values(congedi ?? {}).filter((c) => c?.id && inAnnullo(c, ora)).map((c) => [chiave(c), c]));
+  return { ...dati, sessioni: (dati.sessioni ?? []).map((s) => (da[chiave(s)] ? { ...s, annullo: rigaAnnullo(da[chiave(s)], ora) } : s)) };
+}
+// Quale congedo annulla ⌘Z: l'ultimo chiuso fra quelli ancora in attesa. [chiave, voce] o null.
+export function daAnnullare(congedi = {}, ora = Date.now()) {
+  const l = Object.entries(congedi ?? {}).filter(([, c]) => inAnnullo(c, ora));
+  return l.length ? l.reduce((a, b) => ((Number(b[1].da) || 0) > (Number(a[1].da) || 0) ? b : a)) : null;
+}
+
 export function passoCongedo(c, s, ora = Date.now()) {
+  if (inAnnullo(c, ora)) return { fai: "attendi" };
   const da = Number(c?.da) || ora, dal = Number(c?.dal) || da;
   const nome = s ? titolo(s) : "La sessione";
   if (!s || s.vecchia) return ora - da > (s ? CONGEDO_VECCHIO_MS : 3600000) ? { fai: "togli" } : { fai: "attendi" };
@@ -980,7 +1006,8 @@ export const inAttesa = (s) => fase(s) === "attesa";
 export function mostrate(g, aperto) {
   // il gruppo di una macchina giù da DIMENTICA_MS si piega tutto (giuDa, più sotto)
   if (g.raccolta) return aperto ? g.sessioni : [];
-  const vive = g.sessioni.filter((s) => !inAttesa(s));
+  // una sessione appena chiusa (`annullo`, #5883) si vede sempre: la sua riga è il modo di annullare
+  const vive = g.sessioni.filter((s) => !inAttesa(s) || s.annullo);
   const ferme = g.sessioni.length - vive.length;
   return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;
 }

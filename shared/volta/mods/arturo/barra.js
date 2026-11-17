@@ -116,6 +116,7 @@ export class Barra {
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
     else if (c === "volta-giro") this.volta.giro(arg, cx);
     else if (c === "volta-chiudi") this.volta.chiudiDavanti(cx, arg);
+    else if (c === "volta-annulla") this.volta.annulla(null, cx);
     else if (c === "contesto") apriContesto(arg);
     else if (c === "volta-menu") this.volta.menuId(arg);
     else if (c === "volta-altro") this.volta.altroId(arg, cx);

@@ -85,6 +85,9 @@ export function instrada(c) {
   if (c === "volta-chiudi") return { verbo: "volta-chiudi", arg: null, lungo: false };
   // "volta-chiudi-<scheda>": la X di una scheda nella fila delle schede, lo stesso gesto su quella scheda.
   if (c.startsWith("volta-chiudi-")) return { verbo: "volta-chiudi", arg: dopo("volta-chiudi-"), lungo: false };
+  // "volta-annulla": ⌘Z (Ctrl+Alt+Z su Windows) riapre l'ultima sessione chiusa mentre la riga dice ancora "Si
+  // chiude fra N s · Annulla" (#5883); da herdr-app do è la prova senza mouse dello stesso gesto.
+  if (c === "volta-annulla") return { verbo: "volta-annulla", arg: null, lungo: false };
   // "contesto" e "contesto-<slug>": la finestra del contesto di un progetto (contestoui.js); senza slug
   // quello dello spazio aperto.
   if (c === "contesto") return { verbo: "contesto", arg: null, lungo: false };

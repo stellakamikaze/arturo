@@ -714,6 +714,18 @@ HZ158 le letture incrementali delle trascrizioni (17/11/2026, #5489): la sonda t
      (un contenuto cambiato a pari lunghezza non si vede), uno cresciuto si legge dal punto, con
      risposta, chi, fineFatta e persona giusti, e una riga ancora a metà conta ma non entra nel punto;
      un file più corto riparte da capo.
+HZ162 la cache di claude agents nella lettura locale (17/11/2026, #5946): la sonda non richiama claude
+     agents se i file di stato di lavori e sessioni non cambiano, a parte detail, tokens e le ore
+     di aggiornamento; rilegge se cambia uno stato, nasce un lavoro, cambia il programma claude, muore
+     il pid di una voce o la cache supera AGENTI_MAX. La riga verso le altre macchine resta senza cache.
+HZ159 ⌘W da annullare (#5883, 17/11/2026, prima /revisione: "chiusa da Volta per sbaglio alle 17:06"; con node):
+     il congedo di un gesto della persona porta `annulla` e passoCongedo aspetta ANNULLA_MS (10 s) prima di
+     /fine; una voce senza `annulla` (la chiusura automatica) parte subito. Nei 10 s la riga resta
+     nell'elenco disegnato (senzaAnnullo e conAnnullo) con "Si chiude fra N s · Annulla", anche fra quelle in
+     attesa di comando di un gruppo chiuso, e poi sparisce; daAnnullare sceglie l'ultima chiusa. volta.js
+     scrive `annulla` solo senza `auto`, disegna con visLista e lascia vis() a Sposta e giro, il clic sulla
+     riga e ⌘Z annullano e riaprono; ⌘Z e Ctrl+Alt+Z liberi da Herdr, arturo.volta-annulla in TASTI_NUOVI,
+     instrada e barra lo portano ad annulla().
 """
 from __future__ import annotations
 
@@ -729,7 +741,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ160")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ162")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -3306,6 +3318,8 @@ def hz44(repo: Path, casa: Path) -> str | None:
     env.pop("VOLTA_SONDA_LOCALE", None)
     for extra, attesi in (({}, {"inter": "ferma", "fatta": "ferma", "fermata": "ferma", "rotta": "errore"}),
                           ({"HZ_SENZA_ALL": "1"}, {"inter": "ferma", "fatta": "ferma"})):
+        # il Claude finto cambia risposta con l'ambiente, non coi file: la cache di claude agents (#5946) va tolta
+        (casa / "conf" / "cache" / "volta-agenti.json").unlink(missing_ok=True)
         r = subprocess.run([sys.executable, str(mod / "volta_sonda.py"), "volta"], capture_output=True, text=True, timeout=60, env={**env, **extra})
         try:
             righe = json.loads(r.stdout)["sessioni"]
@@ -3569,7 +3583,7 @@ def hz49(repo: Path, casa: Path) -> str | None:
     if inizio < 0 or fine < inizio:
         return "volta.js non ha riga() prima di interruttore()"
     corpo = vj[inizio:fine]
-    for pezzo, perche in (("const xa = xRiga(s);", "la X non nasce da xRiga() di sessioni.js"),
+    for pezzo, perche in (("const xa = s.annullo ? null : xRiga(s);", "la X non nasce da xRiga() di sessioni.js"),
                           ("const vediX = Boolean(xa) && (this.sopra === k || chiedoX || faccioX);", "la X non segue il puntatore"),
                           (".when(!vediX, (el) => el.invisible())", "la X nascosta non tiene il suo posto"),
                           (".on_click((_e, cx) => this.fare(s, xa, cx))", "il clic sulla X non passa da fare() con la conferma"),
@@ -4749,13 +4763,13 @@ def hz60(repo: Path, casa: Path) -> str | None:
         return f"la sonda verso un'altra macchina è una riga di {len(codice)} caratteri: cmd.exe ne regge 8191"
     try:
         dentro_riga = codice.split("'")[1]
-        if zlib.decompress(base64.b64decode(dentro_riga)).decode("utf-8") != m.senza_commenti(m.SONDA):
+        if zlib.decompress(base64.b64decode(dentro_riga)).decode("utf-8") != m.senza_commenti(m.SONDA_REMOTA):
             return "la riga compressa non torna la SONDA (senza le righe di commento)"
         spazio = {"exec": lambda testo: righe.append(testo)}
         exec(codice, spazio)  # noqa: S102
     except Exception as e:  # noqa: BLE001
         return f"la riga della sonda remota non si apre: {type(e).__name__}: {e}"
-    if righe[-1] != m.senza_commenti(m.SONDA).encode("utf-8"):
+    if righe[-1] != m.senza_commenti(m.SONDA_REMOTA).encode("utf-8"):
         return "la riga della sonda remota non esegue la SONDA"
     return None
 
@@ -5851,6 +5865,9 @@ def lotto5(casa: Path, base: str = "ClaudeCode") -> tuple[dict, Path]:
 
 def leggi5(sonda: Path, env: dict, sessioni: list) -> dict:
     """Una lettura dell'elenco con quelle sessioni di claude agents: le righe per id."""
+    # il Claude finto cambia risposta con l'ambiente, non coi file: la cache di claude agents (#5946) va tolta
+    if env.get("CLAUDE_CONFIG_DIR"):
+        (Path(env["CLAUDE_CONFIG_DIR"]) / "cache" / "volta-agenti.json").unlink(missing_ok=True)
     r = subprocess.run([sys.executable, str(sonda), "volta"], capture_output=True, text=True, timeout=40,
                        env={**env, "HZ_SESSIONI": json.dumps(sessioni)})
     try:
@@ -7291,8 +7308,12 @@ def hz148(repo: Path, casa: Path) -> str | None:
         return "a congedo finito l'originale di un congedo passato alla copia torna nell'elenco"
     if "    this.riapri(s);\n    this.apro[k] = true;" not in vj:
         return "una sessione chiusa riaperta col clic o con ⌘K resta fuori dall'elenco"
-    if vj.count("this.chiuse())") < 2:
-        return "vis() o visGiro() non passano il registro delle chiuse a visibili()"
+    # vis(), visGiro() e visLista() (l'elenco disegnato, #5883): tutte e tre col registro delle chiuse
+    for pezzo in ("return visibili(this.dati, this.congedi(), this.chiuse());",
+                  "return visibili(this.dati, uscenti(this.congedi(), this.escono, this.forse), this.chiuse());",
+                  "visibili(this.dati, senzaAnnullo(tutti, ora), this.chiuse())"):
+        if pezzo not in vj:
+            return f"vis(), visGiro() o visLista() non passano il registro delle chiuse a visibili(): manca {pezzo[:60]}"
     node = shutil.which("node")
     if not node:
         return None
@@ -8230,10 +8251,10 @@ def hz82(repo: Path, casa: Path) -> str | None:
         return f"volta_mod.py: l'elenco dei mod tolti è {d['elenco']}"
     dopo = leggi(app2 / "keys.json")
     attesi2 = dict(miei, **{fonte[i][0]: fonte[i][1] for i in range(3)})
-    # i due tasti del giro fra le sessioni (HZ86) e quello della checklist (HZ156) entrano perché in questo
+    # i due tasti del giro fra le sessioni (HZ86), quello della checklist (HZ156) e ⌘Z (HZ159) entrano perché in questo
     # keys.json sono liberi; un tasto preso dalla persona resta suo
     giro = {k: v for k, v in leggi(vc / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json")).get("global", {}).items()
-            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist")) and k not in miei}
+            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla")) and k not in miei}
     attesi2.update(giro)
     # i tasti di serie di Herdr che questo keys.json non ha entrano, sotto quelli già presenti (#5369)
     serie = leggi(vc / ("keys-herdr-macos.json" if sys.platform == "darwin" else "keys-herdr.json"))
@@ -8870,7 +8891,7 @@ def hz89(repo: Path, casa: Path) -> str | None:
         return "Chiudi del menu non passa dal congedo"
     if 'p.fai === "rm" ? "rm" : "stop"' not in volta or "...(p.salvata ? { salvata: true } : {})" not in volta:
         return "volta.js non elimina con claude rm la sessione salvata, o non tiene salvata nel registro dei congedi"
-    if "gruppi(this.vis(), modo)" not in volta or "gruppi(this.dati," in volta:
+    if "gruppi(this.visLista(), modo)" not in volta or "gruppi(this.dati," in volta or "visibili(this.dati, senzaAnnullo(tutti, ora), this.chiuse())" not in volta:
         return "l'elenco mostra ancora le sessioni chiuse e quelle in congedo"
     if dati.count("segnaTolto(t.address)") != 3:  # Chiudi, Chiudi su una scheda senza segno (#5811), Stacca
         return "dati.js non segna le schede che chiude Volta stessa (Chiudi, Sposta, Stacca)"
@@ -8995,8 +9016,8 @@ console.log(JSON.stringify(out));
 def hz92(repo: Path, casa: Path) -> str | None:
     mod = repo / "shared/volta/mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("const vive = g.sessioni.filter((s) => !inAttesa(s));", "`${ferme.length} in attesa di comando`",
-                  "const vivo = !s.vecchia && !inAttesa(s);"):
+    for pezzo in ("const vive = g.sessioni.filter((s) => !inAttesa(s) || s.annullo);", "`${ferme.length} in attesa di comando`",
+                  "const vivo = !s.vecchia && !inAttesa(s) && !s.annullo;"):
         if pezzo not in vj:
             return f"volta.js non ha più: {pezzo}"
     sonda = mod / "volta_sonda.py"
@@ -9185,7 +9206,7 @@ def hz94(repo: Path, casa: Path) -> str | None:
             return f"comuni.js non ha più: {pezzo}"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo in ("const mr = movimento() ? motoRiga(this.entrano.get(k), this.escono[k]) : null;",
-                  "if (!c.uscita && this.esce(s, c, cx)) return;", "this.congeda({ ...c, uscita: true }, cx);",
+                  "if (!annulla && !c.uscita && this.esce(s, c, cx)) return;", "this.congeda({ ...c, uscita: true }, cx);",
                   "if (!ids?.length || !cx || !movimento()) return;", "this.entra(entrate(prima, this.dati), cx);",
                   '"com.apple.universalaccess", "reduceMotion"', 'segno(colore(t, d.colore), motoDi(d.colore,', 'fase(s) === "stasi")'):
         if pezzo not in vj:
@@ -12193,6 +12214,180 @@ def hz158(repo: Path, casa: Path) -> str | None:
         return e
     if v.get("chi") != "persona" or v.get("risposta") != "" or v.get("persona") != "2026-11-17T10:00:00Z":
         return f"un file più corto non riparte da capo: chi {v.get('chi')!r}, risposta {v.get('risposta')!r}"
+PROVA_ANNULLO = r"""
+const S = await import(%s);
+const T = Date.parse("2026-11-17T09:00:00Z");
+const s = { macchina: "M", host: "qui", questa: true, tipo: "background", id: "a1", sessionId: "a1-s", nome: "a1", stato: "ferma",
+  fineFatta: false, persona: new Date(T - 600000).toISOString(), ultimo: new Date(T - 300000).toISOString() };
+const voce = { sessionId: "a1-s", id: "a1", host: "qui", titolo: "a1", fase: "attende", da: T, dal: T, annulla: T + S.ANNULLA_MS };
+const out = {};
+out.ms = S.ANNULLA_MS;
+out.passi = [0, 3000, 9999, 10000].map((d) => `${d}:${S.passoCongedo(voce, s, T + d).fai}`);
+const auto = { ...voce, auto: true }; delete auto.annulla;
+out.auto = S.passoCongedo(auto, s, T).fai;
+const dati = { macchine: [], sessioni: [s] };
+const lista = (d) => S.conAnnullo(S.visibili(dati, S.senzaAnnullo({ "qui:a1": voce }, T + d), {}), { "qui:a1": voce }, T + d).sessioni.map((x) => `${x.id}|${x.annullo ?? ""}`);
+out.lista = [0, 3000, 9001, 10000].map(lista);
+out.vis = S.visibili(dati, { "qui:a1": voce }, {}).sessioni.length;
+// una in attesa di comando, in un gruppo chiuso con una che lavora: la riga dell'annullo si vede lo stesso
+const ferma = { ...s, id: "b1", stato: "ferma", chi: "claude", coda: "Fatto.", annullo: "Si chiude fra 5 s · Annulla" };
+const lavora = { ...s, id: "b2", stato: "lavora" };
+out.attesa = S.inAttesa(ferma);
+out.mostrate = S.mostrate({ sessioni: [lavora, ferma] }, false).map((x) => x.id);
+const vecchia = { ...voce, id: "c1", da: T - 5000, annulla: T + 5000 }, nuova = { ...voce, id: "c2", da: T - 1000, annulla: T + 9000 };
+const scaduta = { ...voce, id: "c3", da: T, annulla: T - 1 };
+out.ultima = (S.daAnnullare({ "qui:c1": vecchia, "qui:c2": nuova, "qui:c3": scaduta }, T) ?? [null])[0];
+out.nessuna = S.daAnnullare({ "qui:c3": scaduta }, T);
+console.log(JSON.stringify(out));
+"""
+
+
+def hz159(repo: Path, casa: Path) -> str | None:
+    """⌘W da annullare (#5883): l'attesa di 10 s, la riga "Si chiude fra N s · Annulla", ⌘Z e il clic."""
+    v = repo / "shared/volta"
+    mod = v / "mods/arturo"
+    mac, win = leggi(v / "keys.json")["global"], leggi(v / "keys-ctrl.json")["global"]
+    if mac.get("cmd-z") != "arturo.volta-annulla" or win.get("ctrl-alt-z") != "arturo.volta-annulla":
+        return f"⌘Z e Ctrl+Alt+Z non annullano la chiusura: {mac.get('cmd-z')}, {win.get('ctrl-alt-z')}"
+    di_herdr = set(leggi(v / "keys-herdr-macos.json").get("global", {})) | set(leggi(v / "keys-herdr.json").get("global", {})) | set(HERDR_CTRL)
+    for sez in ("global", "terminal"):
+        di_herdr |= set(leggi(v / "keys-herdr-macos.json").get(sez, {})) | set(leggi(v / "keys-herdr.json").get(sez, {}))
+    presi = sorted(k for k, c in {**mac, **win}.items() if c == "arturo.volta-annulla" and k in di_herdr)
+    if presi:
+        return f"il tasto che annulla la chiusura è già di Herdr: {presi}"
+    if '"arturo.volta-annulla"' not in re.search(r"TASTI_NUOVI = \((.*?)\)\n", (v / "volta_mod.py").read_text(encoding="utf-8")).group(1):
+        return "arturo.volta-annulla non è in TASTI_NUOVI: chi ha già Volta non riceve ⌘Z"
+    pezzi = {
+        "volta.js": ("const annulla = !c.auto;", "...(annulla ? { annulla: ora + ANNULLA_MS } : {})",
+                     "const lista = gruppi(this.visLista(), modo);", "return visibili(this.dati, this.congedi(), this.chiuse());",
+                     "return conAnnullo(visibili(this.dati, senzaAnnullo(tutti, ora), this.chiuse()), tutti, ora);",
+                     "if (s.annullo) return this.annulla(k, cx);", "cx.timer.every(OGNI_ANNULLO, (cx) => this.giraAnnullo(cx));",
+                     "const voce = k ? (inAnnullo(tutti[k], ora) ? [k, tutti[k]] : null) : daAnnullare(tutti, ora);",
+                     'setShared("arturo.volta.congedi", resto);\n    delete this.escono[kc];', "if (s) this.premi(s, cx);",
+                     "if (finita) this.passiCongedo(cx);"),
+        "barra.js": ('else if (c === "volta-annulla") this.volta.annulla(null, cx);',),
+        "comandi.js": ('if (c === "volta-annulla") return { verbo: "volta-annulla", arg: null, lungo: false };',),
+        "comuni.js": ('annulla: "⌘Z" }', 'annulla: "Ctrl+Alt+Z" }'),
+    }
+    for f, cc in pezzi.items():
+        testo = (mod / f).read_text(encoding="utf-8")
+        for pezzo in cc:
+            if pezzo not in testo:
+                return f"{f} non collega l'annullo di ⌘W: manca {pezzo[:80]}"
+    cm = (mod / "comandi.js").read_text(encoding="utf-8")
+    if cm.find('if (c === "volta-annulla")') > cm.find('if (c.startsWith("volta-")) return { verbo: "volta"'):
+        return "comandi.js legge volta-annulla dopo volta-<id>: ⌘Z aprirebbe la sessione 'annulla'"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_ANNULLO % json.dumps((casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:300]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["ms"] != 10000:
+        return f"l'attesa prima del congedo non è di 10 s: {g['ms']} ms"
+    if g["passi"] != ["0:attendi", "3000:attendi", "9999:attendi", "10000:fine"]:
+        return f"il congedo non aspetta 10 s prima di /fine, o non parte dopo: {g['passi']}"
+    if g["auto"] != "fine":
+        return f"la chiusura automatica aspetta come un gesto della persona: {g['auto']}"
+    if g["lista"] != [["a1|Si chiude fra 10 s · Annulla"], ["a1|Si chiude fra 7 s · Annulla"], ["a1|Si chiude fra 1 s · Annulla"], []]:
+        return f"la riga della sessione appena chiusa non conta i secondi, o resta dopo l'attesa: {g['lista']}"
+    if g["vis"] != 0:
+        return "vis() (Sposta, giro, ricerca) mostra la sessione che si sta chiudendo"
+    if not g["attesa"] or g["mostrate"] != ["b2", "b1"]:
+        return f"la riga dell'annullo resta nascosta fra quelle in attesa di comando: {g['mostrate']}"
+    if g["ultima"] != "qui:c2" or g["nessuna"] is not None:
+        return f"⌘Z non annulla l'ultima chiusa, o annulla una scaduta: {g['ultima']} {g['nessuna']}"
+    return None
+
+
+def hz162(repo: Path, casa: Path) -> str | None:
+    """La cache di claude agents nella lettura locale (#5946, 17/11/2026)."""
+    if os.name == "nt":
+        return None
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
+    radice = casa / ".claude"
+    (radice / "jobs" / "lav1").mkdir(parents=True)
+    (radice / "sessions").mkdir(parents=True)
+    stato = radice / "jobs" / "lav1" / "state.json"
+    sess = radice / "sessions" / "77.json"
+    chiamate = casa / "chiamate.log"
+    pid = {"v": os.getpid()}
+    finto = casa / "claude"
+
+    def scrivi_finto():
+        voci = [{"id": "lav1", "sessionId": "sid-c", "kind": "background", "state": "working", "status": "busy",
+                 "pid": pid["v"], "startedAt": 9999999999999, "cwd": "/tmp"}]
+        finto.write_text("#!/bin/sh\necho x >> '%s'\necho '%s'\n" % (chiamate, json.dumps(voci)), encoding="utf-8")
+        finto.chmod(0o755)
+    scrivi_finto()
+    stato.write_text(json.dumps({"state": "working", "detail": "uno", "tokens": 1, "name": "a"}), encoding="utf-8")
+    sess.write_text(json.dumps({"pid": 77, "status": "busy", "updatedAt": 1}), encoding="utf-8")
+    codice = ("import importlib.util, json, sys\n"
+              "spec = importlib.util.spec_from_file_location('vs', sys.argv[1]); vs = importlib.util.module_from_spec(spec); spec.loader.exec_module(vs)\n"
+              "g = {'T': 20, '__name__': 'sonda'}\n"
+              "src = vs.SONDA.replace('cl = trova_claude()', 'cl = sys.argv[1] or trova_claude()')\n"
+              "sys.argv = [sys.argv[0], sys.argv[2]]\n"
+              "exec(compile(src, 'sonda', 'exec'), g)\n")
+
+    def giro():
+        """Quante volte la sonda ha chiamato claude agents in questo giro, e le sessioni lette."""
+        prima = len(chiamate.read_text().splitlines()) if chiamate.exists() else 0
+        r = subprocess.run([sys.executable, "-c", codice, str(sonda), str(finto)], capture_output=True, text=True, timeout=60,
+                           env={**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "CLAUDE_CONFIG_DIR": str(radice), "HERDR_APP_HOME": str(casa / "app")})
+        try:
+            s = json.loads(r.stdout.strip().splitlines()[-1])["sessioni"]
+        except (ValueError, IndexError, KeyError):
+            return None, f"la sonda non dà le sessioni: {(r.stderr or r.stdout).strip()[-200:]}"
+        return len(chiamate.read_text().splitlines()) - prima, s
+
+    passi = [("primo giro", lambda: None, 1)]
+    passi.append(("niente cambiato", lambda: None, 0))
+    passi.append(("cambiato solo detail e tokens di un lavoro", lambda: stato.write_text(
+        json.dumps({"state": "working", "detail": "due, più lungo", "tokens": 99, "name": "a"}), encoding="utf-8"), 0))
+    passi.append(("cambiato solo updatedAt di una sessione", lambda: sess.write_text(
+        json.dumps({"pid": 77, "status": "busy", "updatedAt": 2}), encoding="utf-8"), 0))
+    passi.append(("cambiato lo stato di un lavoro", lambda: stato.write_text(
+        json.dumps({"state": "idle", "detail": "due, più lungo", "tokens": 99, "name": "a"}), encoding="utf-8"), 1))
+    passi.append(("cambiato lo status di una sessione", lambda: sess.write_text(
+        json.dumps({"pid": 77, "status": "idle", "updatedAt": 2}), encoding="utf-8"), 1))
+    passi.append(("un lavoro nuovo", lambda: ((radice / "jobs" / "lav2").mkdir(), (radice / "jobs" / "lav2" / "state.json").write_text("{}")), 1))
+    passi.append(("di nuovo fermo", lambda: None, 0))
+
+    def morto():
+        p = subprocess.Popen([sys.executable, "-c", "pass"])
+        p.wait()
+        pid["v"] = p.pid
+        scrivi_finto()  # il programma claude cambia: rilegge e mette in cache la voce col pid morto
+    passi.append(("claude cambiato", morto, 1))
+    passi.append(("pid della voce in cache morto", lambda: None, 1))
+
+    def vecchia():
+        pid["v"] = os.getpid()
+        scrivi_finto()
+        giro()
+        f = radice / "cache" / "volta-agenti.json"
+        d = json.loads(f.read_text(encoding="utf-8"))
+        d["ora"] -= 10000
+        f.write_text(json.dumps(d), encoding="utf-8")
+    passi.append(("cache più vecchia del tetto", vecchia, 1))
+    for nome, fai, attese in passi:
+        fai()
+        n, s = giro()
+        if n is None:
+            return s
+        if n != attese:
+            return f"{nome}: claude agents chiamato {n} volte, attese {attese}"
+        if not s or s[0].get("id") != "lav1":
+            return f"{nome}: la sonda non dà la sessione dalla cache: {s}"
+    import importlib.util
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz162", sonda)
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    if "volta-agenti.json" in m.SONDA_REMOTA or "volta-agenti.json" not in m.SONDA:
+        return "la cache deve stare nella sola lettura di questa macchina, non nella riga verso le altre"
     return None
 
 
@@ -12271,7 +12466,7 @@ def hz160(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ160": hz160}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ162": hz162}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -12316,6 +12511,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', 'sessioni = da_cache(k_ag) if con_cache else None', 'sessioni = None'),
+    ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', 'if k not in VOLATILI', 'if True'),
+    ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', ' and c["chiave"] == k and', ' and'),
+    ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', 'return v if ok and all(vivo(s["pid"])', 'return v if ok and all(True'),
+    ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', ' <= AGENTI_MAX\n', ' <= 10 ** 9\n'),
+    ('HZ162', 'shared/volta/mods/arturo/volta_sonda.py', '\nSONDA_REMOTA = SONDA.replace("#AGENTI#", \'sessioni = agenti(["--all"])\')', '\nSONDA_REMOTA = SONDA.replace("#AGENTI#", AGENTI_CACHE.strip())'),
     ('HZ149', 'shared/volta/mods/arturo/dati.js', '  const l = schedeDi(s).filter((t) => !mia(t, io));\n  const giu', '  const l = [];\n  const giu'),
     ('HZ149', 'shared/volta/mods/arturo/dati.js', '  if (padroni.some((t) => giu.has(daDi(t.argv)) || !note.has(daDi(t.argv)))) return 0;', ''),
     ('HZ149', 'shared/volta/mods/arturo/volta.js', '    if (chiudiAltrui(s)) {\n      chiudiSchede(s);\n      return { ok: true };\n    }', '    chiudiAltrui(s);'),
@@ -12328,6 +12529,19 @@ VELENI = [
     ("HZ160", "shared/volta/mods/arturo/dati.js", '      if (r.code !== 0) r = await hc(["send", "--force", a, testo]);\n', ""),
     ('HZ158', 'shared/volta/mods/arturo/volta_sonda.py', '    if v.get("file") == f and v.get("ino") == info.st_ino', '    if False and v.get("ino") == info.st_ino'),
     ('HZ158', 'shared/volta/mods/arturo/volta_sonda.py', '            if not st["fineFatta"] and not tx.startswith', '            if False and not tx.startswith'),
+    ('HZ159', 'shared/volta/mods/arturo/sessioni.js', '  if (inAnnullo(c, ora)) return { fai: "attendi" };\n', ''),
+    ('HZ159', 'shared/volta/mods/arturo/sessioni.js', 'export const ANNULLA_MS = 10000;', 'export const ANNULLA_MS = 3000;'),
+    ('HZ159', 'shared/volta/mods/arturo/sessioni.js', '  const vive = g.sessioni.filter((s) => !inAttesa(s) || s.annullo);', '  const vive = g.sessioni.filter((s) => !inAttesa(s));'),
+    ('HZ159', 'shared/volta/mods/arturo/sessioni.js', '((Number(b[1].da) || 0) > (Number(a[1].da) || 0) ? b : a)', '((Number(b[1].da) || 0) < (Number(a[1].da) || 0) ? b : a)'),
+    ('HZ159', 'shared/volta/mods/arturo/sessioni.js', '  return Object.fromEntries(Object.entries(congedi ?? {}).filter(([, c]) => !inAnnullo(c, ora)));', '  return congedi ?? {};'),
+    ('HZ159', 'shared/volta/mods/arturo/volta.js', ', ...(annulla ? { annulla: ora + ANNULLA_MS } : {})', ''),
+    ('HZ159', 'shared/volta/mods/arturo/volta.js', 'const annulla = !c.auto;', 'const annulla = true;'),
+    ('HZ159', 'shared/volta/mods/arturo/volta.js', 'const lista = gruppi(this.visLista(), modo);', 'const lista = gruppi(this.vis(), modo);'),
+    ('HZ159', 'shared/volta/mods/arturo/volta.js', '            if (s.annullo) return this.annulla(k, cx);\n', ''),
+    ('HZ159', 'shared/volta/keys.json', '"cmd-z": "arturo.volta-annulla"', '"cmd-shift-z": "arturo.volta-annulla"'),
+    ('HZ159', 'shared/volta/keys-ctrl.json', '"ctrl-alt-z": "arturo.volta-annulla"', '"ctrl-shift-z": "arturo.volta-annulla"'),
+    ('HZ159', 'shared/volta/volta_mod.py', ', "arturo.checklist", "arturo.volta-annulla")', ', "arturo.checklist")'),
+    ('HZ159', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-annulla") this.volta.annulla(null, cx);\n', ''),
     ('HZ153', 'shared/volta/mods/arturo/volta_capo.py', '            prima = lette.get(m["host"])\n', '            prima = None\n'),
     ('HZ153', 'shared/volta/mods/arturo/volta_capo.py', '                                if isinstance(x, dict) and str(x.get("quando", ""))[:19] >= iso(dal)]', '                                if isinstance(x, dict)]'),
     ('HZ153', 'shared/volta/mods/arturo/volta_capo.py', '            if not m.get("irraggiungibile"):\n                avvisi.append(', '            if True:\n                avvisi.append('),
@@ -12379,6 +12593,7 @@ VELENI = [
     ('HZ148', 'shared/volta/mods/arturo/volta.js', ', ...(c.copiaDi ? [{ host: c.host, id: c.copiaDi }] : [])', ''),
     ('HZ148', 'shared/volta/mods/arturo/volta.js', '    this.riapri(s);\n    this.apro[k] = true;', '    this.apro[k] = true;'),
     ('HZ148', 'shared/volta/mods/arturo/volta.js', 'visibili(this.dati, this.congedi(), this.chiuse())', 'visibili(this.dati, this.congedi())'),
+    ('HZ148', 'shared/volta/mods/arturo/volta.js', 'visibili(this.dati, senzaAnnullo(tutti, ora), this.chiuse())', 'visibili(this.dati, senzaAnnullo(tutti, ora))'),
     ('HZ149', 'shared/volta/mods/arturo/dati.js', '  const remoto = !s.questa && altreMacchine().some((m) => m.host === s.host && !m.giu) ? argvRemoto(argv, ioQui()) : null;', '  const remoto = null;'),
     ('HZ149', 'shared/volta/mods/arturo/dati.js', '  const remoto = !s.questa && altreMacchine().some((m) => m.host === s.host && !m.giu) ?', '  const remoto = !s.questa ?'),
     ('HZ149', 'shared/volta/mods/arturo/dati.js', '  const v = macchinaIndirizzo(t?.address) ? `qui:${s.id}` : chiaveSessione(s);', '  const v = chiaveSessione(s);'),
@@ -12549,7 +12764,7 @@ VELENI = [
     ('HZ132', 'shared/volta/mods/arturo/sessioni.js', 'new RegExp(`^\\\\s*${i + 1}[\\\\s.):-]+(?=\\\\S)`)', 'new RegExp(`^\\\\s*\\\\d+[\\\\s.):-]*`)'),
     ('HZ133', 'shared/volta/layouts/arturo.json', '"parte": "coda"', '"parte": "casa"'),
     ('HZ133', 'shared/volta/keys.json', '"cmd-shift-j": "arturo.coda"', '"cmd-shift-d": "arturo.coda"'),
-    ('HZ133', 'shared/volta/volta_mod.py', '"arturo.volta-giro-indietro", "arturo.coda", "arturo.checklist")', '"arturo.volta-giro-indietro", "arturo.checklist")'),
+    ('HZ133', 'shared/volta/volta_mod.py', '"arturo.volta-giro-indietro", "arturo.coda", "arturo.checklist", "arturo.volta-annulla")', '"arturo.volta-giro-indietro", "arturo.checklist", "arturo.volta-annulla")'),
     ('HZ133', 'shared/volta/mods/arturo/volta.js', '    if (JSON.stringify(cc) !== JSON.stringify(shared("arturo.coda") ?? [])) setShared("arturo.coda", cc);\n', ''),
     ('HZ134', 'shared/volta/mods/arturo/volta_carte.py', '        if not isinstance(d, dict) or not ({"manca", "grande", "b64"} & set(d)):', '        if not isinstance(d, dict):'),
     ('HZ134', 'shared/volta/mods/arturo/volta_carte.py', '    if os.path.isfile(dest):\n', '    if False:\n'),
@@ -12662,14 +12877,14 @@ VELENI = [
     ('HZ94', 'shared/volta/mods/arturo/sessioni.js', 'export const ESCE = { duration: 140, easing: "ease-in" };', 'export const ESCE = { duration: 400, easing: "ease-in" };'),
     ('HZ94', 'shared/volta/mods/arturo/comuni.js', 'svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore));', 'svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore).spin(GIRO_MS));'),
     ('HZ94', 'shared/volta/mods/arturo/barra.js', '      .child(stella)', '      .child(stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }))'),
-    ('HZ94', 'shared/volta/mods/arturo/volta.js', 'if (!c.uscita && this.esce(s, c, cx)) return;', 'if (this.esce(s, c, cx)) return;'),
+    ('HZ94', 'shared/volta/mods/arturo/volta.js', 'if (!annulla && !c.uscita && this.esce(s, c, cx)) return;', 'if (!annulla && this.esce(s, c, cx)) return;'),
     ('HZ94', 'shared/volta/mods/arturo/volta.js', '    if (!movimento()) return false;\n    const k = chiave(s);', '    const k = chiave(s);'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";', '  if (chiede(s.coda)) return "stasi";'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\b(scrivimi|scrivi|dimmi|', '  /\\b(xscrivimi|xscrivi|dimmi|'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /prossimo passo:[^\\n]*(\\btu\\b|\\btuo\\b|\\btua\\b|\\bfederico\\b|\\(tu\\))/i,\n', ''),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\?[\\s*_`)]*$/,\n  /\\?\\s*\\n/,\n', ''),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.stato === "aspetta" || s.aspetta) return "stasi";', '  if (s.stato === "aspetta") return "stasi";'),
-    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  const vive = g.sessioni.filter((s) => !inAttesa(s));', '  const vive = g.sessioni.filter((s) => s.stato !== "ferma");'),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  const vive = g.sessioni.filter((s) => !inAttesa(s) || s.annullo);', '  const vive = g.sessioni.filter((s) => s.stato !== "ferma");'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (f === "stasi") return { testo: (q ? `Ti aspetta ${q}` : "Ti aspetta") + zz, colore: "blocked" };\n', ''),
     ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '                    st["chi"], st["interazione"] = "claude", d.get("timestamp", st["interazione"])', '                    st["chi"] = "claude"'),
     ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '            st["fineFatta"] = bool(re.match(', '            st["fineFatta"] = False and bool(re.match('),
@@ -13015,7 +13230,7 @@ VELENI = [
     ("HZ32", "bin/note_finestra.py", '"parte": None, "elemento": None,', '"parte": None,'),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", 'SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())\n', ''),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '        s["terminale"] = terminale_di(s["pid"])', '        s["terminale"] = None'),
-    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(senza_commenti(SONDA).encode(), 9)).decode()", "base64.b64encode(senza_commenti(SONDA).encode()).decode()"),
+    ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(senza_commenti(SONDA_REMOTA).encode(), 9)).decode()", "base64.b64encode(senza_commenti(SONDA_REMOTA).encode()).decode()"),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "    if os.name != \"nt\":\n        try:\n            amb = subprocess.run([\"ps\"", "    if os.name == \"nt\":\n        try:\n            amb = subprocess.run([\"ps\""),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '                if riga.startswith("HC_TERMINAL_ID="):', '                if riga.startswith("HC_TERMINALE="):', "windows"),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "            blocco = numero(parametri + 0x80) if parametri else 0", "            blocco = numero(parametri + 0x70) if parametri else 0", "windows"),
@@ -13201,7 +13416,7 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/testata.js", ".when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));", ";"),
     ("HZ34", "shared/volta/mods/arturo/dati.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
     ("HZ34", "shared/volta/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),
-    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
+    ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", '    sessioni = agenti(["--all"])\n    if con_cache', "    sessioni = agenti([])\n    if con_cache"),
     ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", '    if (s.get("startedAt") or 0) >= soglia:\n        return True', "    if True:\n        return True"),
     ("HZ44", "shared/volta/mods/arturo/volta_sonda.py", "    sessioni = agenti([])\n", "    sessioni = None\n"),
     ("HZ44", "shared/volta/mods/arturo/barra.js", 'else if (c === "volta-altro") this.volta.altroId(arg, cx);', ""),
@@ -13239,7 +13454,7 @@ VELENI = [
     ("HZ47", "shared/volta/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
     ("HZ48", "shared/volta/mods/arturo/volta_sonda.py", 'lavoro = s.get("id") if fondo else None', "lavoro = None"),
     ("HZ48", "shared/volta/mods/arturo/volta_sonda.py", 'corto = lavoro if isinstance(lavoro, str)', 'corto = sid[:8] if isinstance(lavoro, str)'),
-    ("HZ49", "shared/volta/mods/arturo/volta.js", 'const xa = xRiga(s);', 'const xa = null;'),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", 'const xa = s.annullo ? null : xRiga(s);', 'const xa = null;'),
     ("HZ49", "shared/volta/mods/arturo/volta.js", "const vediX = Boolean(xa) && (this.sopra === k || chiedoX || faccioX);", "const vediX = Boolean(xa);"),
     ("HZ49", "shared/volta/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, xa, cx))", ""),
     ("HZ50", "shared/volta/mods/arturo/barra.js", ' nuova · ${tasti().elenco} elenco`, () => apriElenco()', ' nuova · ${tasti().elenco} elenco`, () => apriGuida()'),
@@ -13302,7 +13517,7 @@ VELENI = [
     ('HZ54', 'shared/volta/mods/arturo/volta.js', '    if (a.verbo === "apri") return this.premi(s, cx);\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    this.congeda(s, cx);'),
     ('HZ54', 'shared/volta/mods/arturo/volta.js', 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', 'false ? await copiaSessione(s, a.verbo)'),
-    ('HZ54', 'shared/volta/mods/arturo/volta.js', '      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);', '      : dettaglio(s, modo);'),
+    ('HZ54', 'shared/volta/mods/arturo/volta.js', '      : lavoro ? { testo: lavoro, colore: "working" }\n      : s.annullo', '      : s.annullo'),
     ('HZ54', 'shared/volta/mods/arturo/volta.js', 'const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));', 'const voci = azioni(s);'),
     ('HZ54', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-menu") this.volta.menuId(arg);\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),

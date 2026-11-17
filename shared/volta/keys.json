@@ -8,6 +8,7 @@
     "cmd-shift-n": "arturo.nota",
     "cmd-shift-e": "arturo.note",
     "cmd-w": "arturo.volta-chiudi",
+    "cmd-z": "arturo.volta-annulla",
     "cmd-down": "arturo.volta-giro-avanti",
     "cmd-up": "arturo.volta-giro-indietro",
     "cmd-shift-down": "agent.next",
