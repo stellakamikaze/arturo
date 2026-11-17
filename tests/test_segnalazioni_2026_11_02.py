@@ -16,6 +16,8 @@ SG04 con due Chrome collegati Claude resta sul browser scelto per deviceId e, do
      controlla inUse e lo dice (n. 44, 3/11/2026).
 SG05 prima di aprire per la persona Claude sceglie la macchina: quella nominata, questa se è interattiva,
      altrimenti la macchina davanti di Volta (volta_davanti.py leggi) o una domanda (#5881, 17/11/2026).
+SG06 Claude usa il browser che la persona nomina, ne carica la skill prima di ripiegare su un altro server
+     MCP del browser, e prima di toccare i dati di un account dice quale account è collegato (n. 74, #5600).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -96,7 +98,17 @@ def test_sg05(repo: Path) -> None:
         assert pezzo in stile, f"SG05 lo stile non dice come scegliere la macchina davanti: manca {pezzo}"
 
 
-TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04, "SG05": test_sg05}
+def test_sg06(repo: Path) -> None:
+    stile = " ".join(read(repo / "output-styles" / "conciso.md").split())
+    for pezzo in ("Quando la persona nomina un browser", "carica la skill di quel browser prima di ogni altra via",
+                  "Un altro server MCP del browser vale solo col sì della persona", "`tabs_context_mcp`",
+                  "segnalazione n. 74", "Prima di cercare o modificare i dati di un account",
+                  "\"Uso il Chrome con l'account del lavoro\"", "Permission denied"):
+        assert pezzo in stile, f"SG06 lo stile non dice quale browser e quale account usare: manca {pezzo}"
+
+
+TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04, "SG05": test_sg05,
+         "SG06": test_sg06}
 
 
 def main() -> int:

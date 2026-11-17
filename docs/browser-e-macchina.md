@@ -26,8 +26,8 @@ nuove dello step 9 del piano di novembre 2026 (#5881, #5692).
   browser con `select_browser` e lo dice. Il banco è SG04 in `tests/test_segnalazioni_2026_11_02.py`.
 - Lo stesso stile dice che dopo `/chrome` a sessione aperta gli strumenti arrivano solo con `/exit` e
   `claude --continue` (segnalazione n. 40).
-- Manca tutto il resto: il browser nominato dalla persona, il profilo collegato, l'account Google e la
-  macchina dove sta la persona.
+- Dal 17/11 lo stesso stile dice anche la macchina (SG05), il browser nominato dalla persona e la riga
+  dell'account collegato (SG06, #5600). Manca la mappa dei profili Chrome e degli account (#5692).
 
 ## Le tre domande, in quest'ordine
 
@@ -81,7 +81,7 @@ silenzioso in una correzione immediata. È la regola comune alle tre segnalazion
 
 | Pezzo | Tipo | Dove | Task |
 |---|---|---|---|
-| Browser nominato e riga dell'account | regola, nessuna funzione nuova | `output-styles/conciso.md` e banco accanto a SG04 | #5600 |
+| Browser nominato e riga dell'account | regola fatta il 17/11, nessuna funzione nuova | `output-styles/conciso.md`, banco SG06 | #5600 |
 | Mappa profilo Chrome e account Google | funzione nuova, approvata il 17/11 | file locale in `~/.claude/data/browser/`, mai in telemetria | #5692 |
 | Macchina davanti | fatta il 17/11 (Volta 709be18) | `volta_davanti.py` di Volta, regola in `output-styles/conciso.md` (SG05) | #5881 |
 
