@@ -9,7 +9,8 @@ aggiunte).
 1. Si ferma se `~/.claude` è a metà di un rebase o se `hooks/controlla-config.py` la trova rotta: una
    config rotta committata arriverebbe su tutte le macchine.
 2. Ripete il gate della FASE 5. Senza handoff della sessione salta gate, retention e indice e fa solo il
-   sync della config.
+   sync della config. In rotazione (`--leggero` o `--rotazione`) si ferma anche se l'handoff chiede alla
+   persona `/clear` e `/inizio`: in rotazione li fa il tool `ruota`. Con `ARTURO_ROTAZIONE=0` tace.
 3. Sposta nel cestino i file del dry-run della FASE 6 e rigenera l'indice.
 4. Aggiunge al commit i file di Arturo e gli handoff. CLAUDE.md, `personale/`, todo e memoria entrano
    solo se il remote della config risulta privato a `gh`. Mai lucchetti, log delle letture della

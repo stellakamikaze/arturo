@@ -30,7 +30,8 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
 `rotazione` fa `/clear` e `/inizio` da solo, e il lavoro riparte sul passo dopo.
 
 - **Una volta al giorno è completo.** Se `~/.claude/data/handoffs/<slug>/.ultimo-fine-completo` non porta la
-  data di oggi e sono passate le 18, questo giro segue tutte le fasi, poi ruota. Il `/fine` scritto dalla
+  data di oggi e sono passate le 18, questo giro segue tutte le fasi, con la coda
+  `python3 ~/.claude/bin/fine-coda.py --rotazione`, poi ruota. Il `/fine` scritto dalla
   persona è sempre completo e non ruota.
 - **Fasi del fine leggero:** FASE 1 senza `structural-completeness-reviewer`, poi 2, 3, 4, 5, 7 solo se è
   cambiato un fatto durevole del progetto o se il progetto non ha ancora la scheda, 8, e la 9 con `python3 ~/.claude/bin/fine-coda.py --leggero`.
@@ -321,7 +322,8 @@ commit con `--trailer "<riga>"`). Si ferma su un rebase a metà o una config rot
 pusha; memoria, todo, `personale/` e `CLAUDE.md` solo verso un remote privato. Confronta lo stat di ogni commit
 (`-- commit <hash> --`) e le righe rimaste fuori coi file della sessione. L'ultima riga (`coda: ...`) va
 nella riga tecnica.
-- **rc=1**: gate rosso, niente commit. **rc=4**: rebase a metà, config rotta, marcatori di conflitto o
+- **rc=1**: gate rosso, niente commit. In rotazione anche `ROTAZIONE rossa`: l'handoff chiede alla persona
+  `/clear` e `/inizio`. Riscrivi il passo dopo ("io faccio <passo>") e rilancia. **rc=4**: rebase a metà, config rotta, marcatori di conflitto o
   blocco delle tue aggiunte, niente commit. In entrambi i casi leggi la riga, sistema e rilancia.
 - **rc=6**: `git add` o `git commit` falliti, la riga dice perché. **rc=3**: le tue aggiunte dicono che
   un servizio è giù, il resto è fatto.
