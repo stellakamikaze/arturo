@@ -48,9 +48,15 @@ PARTE = 120_000     # caratteri per file di estratto: il modello li legge uno al
 PROPOSTE_MASSIMO = 7
 CHI = {"tu": "io, nella mia config", "arturo": "chi mantiene Arturo"}
 BOZZA_MASSIMO = 3900  # come VOCE_MASSIMO di bin/segnala.py: oltre, il server taglia
+# Testo che Claude Code mette nel turno della persona senza che lei l'abbia scritto (prova del 17/11/2026 su 304
+# sessioni: il corpo delle skill caricate, i messaggi fra sessioni con l'id nel tag, le note sulle immagini).
 RUMORE = ("<task-notification>", "<cross-session-message>", "<local-command-stdout>",
-          "<local-command-caveat>", "<system-reminder>", "Caveat: The messages below",
-          "<bash-stdout>", "<bash-stderr>", "This session is being continued from a previous conversation")
+          "<local-command-caveat>", "<system-reminder", "Caveat: The messages below",
+          "<bash-stdout>", "<bash-stderr>", "This session is being continued from a previous conversation",
+          "Base directory for this skill:", "Another Claude session sent a message")
+IMMAGINE = re.compile(r"\[Image[^\]]*\]\s*")
+A_META = re.compile(r"\s*The user sent a new message while you were working:\s*(.*?)\s*"
+                    r"(?:This is how Claude Code surfaces messages.*)?$", re.S)
 CMD = re.compile(r"<command-name>/?([A-Za-z0-9:_./-]+)</command-name>")
 ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 BASH = re.compile(r"<bash-input>(.*?)</bash-input>", re.S)
@@ -127,7 +133,8 @@ def leggi_sessione(f: str, da: str) -> dict:
                 r = json.loads(line)
             except ValueError:
                 continue
-            if not isinstance(r, dict) or r.get("isSidechain"):
+            # Solo i turni: un record api-request-blob ha dentro il testo di Claude con role assistant.
+            if not isinstance(r, dict) or r.get("type") not in ("user", "assistant") or r.get("isSidechain"):
                 continue
             ts = r.get("timestamp", "")
             if ts and ts < da:
@@ -159,6 +166,12 @@ def leggi_sessione(f: str, da: str) -> dict:
                 continue
             t = testo_di(content)
             if not t:
+                continue
+            meta = A_META.match(t)
+            if meta:
+                t = meta.group(1)  # un messaggio scritto a metà turno: conta il testo della persona
+            t = IMMAGINE.sub("", t)
+            if not t.strip():
                 continue
             if "[Request interrupted by user" in t:
                 eventi.append((ts, "interrotto", ""))

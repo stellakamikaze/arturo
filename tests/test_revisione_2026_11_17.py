@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """RV01-RV08: /revisione, la revisione di come la persona usa Arturo (17/11/2026).
 
-RV01 l'estratto tiene prompt, slash, Esc, rifiuti e blocchi del classificatore, segna [mod] i prompt dei mod, e
-     salta isMeta, sidechain e notifiche;
+RV01 l'estratto tiene prompt, slash, Esc, rifiuti e blocchi del classificatore, segna [mod] i prompt dei mod, tiene
+     il testo di un messaggio scritto a metà turno, e salta isMeta, sidechain, notifiche, i record api-request-blob,
+     il corpo delle skill caricate, i messaggi fra sessioni e le note sulle immagini (prova del 17/11/2026);
 RV02 dell'uscita dei comandi non copia niente, neanche da un comando fallito con un segreto finto;
 RV03 la sintesi separa gli attriti della persona (Esc, rifiuti) dagli errori di Claude (comandi falliti);
 RV04 la bozza porta solo le proposte scelte e lascia fuori quelle della persona ("chi": "tu"); prepara di
@@ -70,6 +71,14 @@ def transcript() -> str:
         utente("PROMPT-SIDECHAIN-NON-DEVE-USCIRE", isSidechain=True),
         utente("<task-notification>NOTIFICA-NON-DEVE-USCIRE</task-notification>"),
         utente("prompt scritto dal mod di rotazione", origin={"kind": "plugin"}),
+        # Prova del 17/11/2026 su 304 sessioni vere: testo che non è della persona, entrato come prompt.
+        riga(type="api-request-blob", message={"role": "assistant", "content": [
+            {"type": "text", "text": "BLOB-DI-CLAUDE-NON-DEVE-USCIRE"}]}),
+        utente("Base directory for this skill: /x/skills/prova\n\nCORPO-SKILL-NON-DEVE-USCIRE"),
+        utente('<system-reminder id="891e064b">\nAnother Claude session sent a message: SESSIONE-NON-DEVE-USCIRE\n</system-reminder>'),
+        utente("The user sent a new message while you were working:\naggiungi anche il totale del mese\n\n"
+               "This is how Claude Code surfaces messages the user sends mid-turn"),
+        utente([{"type": "text", "text": "[Image: original 3201x1800, displayed at 2576x1449.] guarda lo screenshot della pagina"}]),
     ]
     return "\n".join(righe) + "\n"
 
@@ -106,8 +115,10 @@ def prova(repo: Path, solo: str = "") -> list:
 
         if not solo or solo == "RV01":
             attesi = ("prepara il preventivo", "/fine salva", "[interrotto con Esc]", "[rifiutato]",
-                      "usa il file giusto", "[bloccato dal classificatore]", "[mod] prompt scritto dal mod")
-            vietati = ("NOTA-META", "PROMPT-SIDECHAIN", "NOTIFICA-NON")
+                      "usa il file giusto", "[bloccato dal classificatore]", "[mod] prompt scritto dal mod",
+                      "aggiungi anche il totale del mese", "guarda lo screenshot della pagina")
+            vietati = ("NOTA-META", "PROMPT-SIDECHAIN", "NOTIFICA-NON", "BLOB-DI-CLAUDE", "CORPO-SKILL", "SESSIONE-NON",
+                       "This is how Claude Code", "[Image")
             mancano = [a for a in attesi if a not in estratto]
             entrati = [v for v in vietati if v in estratto]
             if rc != 0 or mancano or entrati:
@@ -193,7 +204,10 @@ def prova(repo: Path, solo: str = "") -> list:
 
 # (caso, file, testo giusto, testo rotto)
 VELENI = [
-    ("RV01", "bin/revisione.py", 'if not isinstance(r, dict) or r.get("isSidechain"):', "if not isinstance(r, dict):"),
+    ("RV01", "bin/revisione.py", 'or r.get("type") not in ("user", "assistant") or r.get("isSidechain"):',
+     'or r.get("isSidechain"):'),
+    ("RV01", "bin/revisione.py", '"Base directory for this skill:", ', ""),
+    ("RV01", "bin/revisione.py", "                t = meta.group(1)", "                pass"),
     ("RV02", "bin/revisione.py", '            errori.append(p.get("tool_use_id"))',
      '            segnali.append((p.get("tool_use_id"), "rifiuto", s[:300]))'),
     ("RV03", "bin/revisione.py", 'DELLA_PERSONA = ("interrotto", "rifiuto")', 'DELLA_PERSONA = ("interrotto",)'),
