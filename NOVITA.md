@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — In Volta una sessione ferma per il limite o per la rete riparte da sola
+
+**Cosa cambia**: se usi Volta, una sessione che si è fermata per il limite d'uso del modello o per la connessione persa riparte da sola, senza che tu scriva "riprendi". Dopo il limite riparte un minuto dopo l'ora di sblocco; dopo una connessione persa, anche col Mac andato in stop, riparte quando la rete torna. Nell'elenco la riga dice "Limite d'uso: riparte da sola alle 16:01", e dopo "ripresa da sola alle 16:01". Volta ci prova al massimo due volte per ogni fermata: se si ferma di nuovo, la riga dice "riprendila tu". Non riparte mai una sessione che ti ha chiesto qualcosa, che ha un dialogo aperto o che stai chiudendo, e lascia stare gli altri errori, come il login scaduto. Chi non la vuole scrive `"ripresa": "spenta"` in `~/.config/herdr-app/arturo.json`. Nasce dalla proposta 12 della prima revisione: fra l'11 e il 17 novembre almeno nove sessioni sono rimaste ferme finché qualcuno non ha scritto "Riprendi".
+
+**Il principio**: quando una sessione si ferma per un motivo che non dipende da te, la ripresa non deve aspettare te. Le decisioni invece restano tue: dove serve una tua risposta, Volta non scrive niente.
+
+**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo.
+
+---
+
 ## 2026-11-17 — In Volta una chiusura con ⌘W si annulla per dieci secondi
 
 **Cosa cambia**: quando chiudi una sessione in Volta con ⌘W, con la X o con Chiudi, la scheda sparisce subito, ma Claude aspetta dieci secondi prima di salvare con /fine e di fermarla. Intanto la sua riga resta nell'elenco a sinistra e dice "Si chiude fra 10 s · Annulla", con i secondi che scendono. Un clic sulla riga, o ⌘Z (Ctrl+Alt+Z su Windows), annulla la chiusura e riapre la sessione. Passati i dieci secondi la chiusura va avanti come prima. La chiusura automatica delle sessioni ferme da un'ora non aspetta. Nasce dalla proposta 13 della prima revisione: il 14/11 una sessione era stata chiusa per sbaglio e ripresa a mano.

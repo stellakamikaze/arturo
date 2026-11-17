@@ -146,7 +146,7 @@ Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva
 
 ### Una sessione ferma riparte da sola {#ripresa}
 
-Stato: da fare. Nasce dalla prima `/revisione` del 17 novembre 2026.
+Stato: in corso. Nasce dalla prima `/revisione` del 17 novembre 2026. Dal 17 novembre Volta fa ripartire da sola le sessioni ferme per il limite o per la connessione persa. Restano i lavori lunghi in parallelo che aspettano il limite.
 
 Strato: Ingresso.
 
