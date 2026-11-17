@@ -433,6 +433,7 @@ shared/regole-interfaccia.md Le regole di interfaccia che Impeccable e Hallmark 
 docs/diagram-design.md Come installare diagram-design (diagrammi) dall'upstream
 docs/come-e-fatto.md Il disegno di Arturo: Orsa, Arturo, Claude Code e i progetti da cui dipende
 docs/privacy.md      Cosa raccoglie la telemetria, per quanto, e i tuoi diritti
+docs/browser-e-macchina.md Per chi sviluppa: come Claude sceglie macchina, browser e profilo
 tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
 firme/               La chiave pubblica dei rilasci: l'aggiornamento automatico installa solo i tag firmati con essa
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
