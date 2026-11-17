@@ -198,6 +198,13 @@ def test_y01(repo: Path) -> None:
             (lab.dir / nome).mkdir()
             assert "progetto-officina.md" in lab.hook("memory-autoload.py", {}, cwd=lab.dir / nome).stdout, \
                 f"Y01 memory-autoload non legge alias e cartella delle schede ({nome})"
+        # la risalita si ferma alla home: il nome della home (l'utente) non propone una scheda omonima (#5868)
+        (lab.mem.parent.parent / "-progetto-scheda" / "memory" / f"progetto-{lab.home.name}.md").write_text(
+            f"---\nname: progetto-{lab.home.name}\ndescription: omonima della home\n---\ncorpo\n", encoding="utf-8")
+        (lab.home / "Documents" / "ClaudeCode").mkdir(parents=True)
+        for dove in (lab.home, lab.home / "Documents" / "ClaudeCode"):
+            assert f"progetto-{lab.home.name}.md" not in lab.hook("memory-autoload.py", {}, cwd=dove).stdout, \
+                f"Y01 memory-autoload risale oltre la home e propone la scheda omonima ({dove.name})"
         assert zitti(dict(lab.env, ARTURO_MEMORIA="0")), "Y01 ARTURO_MEMORIA=0 non spegne gli hook"
         assert lab.arturo("spegni").returncode == 0 and zitti(), "Y01 spegni non spegne gli hook"
         assert not zitti(dict(lab.env, ARTURO_MEMORIA="1")), "Y01 ARTURO_MEMORIA=1 non accende gli hook"
@@ -982,6 +989,8 @@ TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y0
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
 VELENI = (
+    ("Y01", [("hooks/memory-autoload.py", "            if q in fermi:\n                break\n", "")],
+     "risale oltre la home"),
     ("Y08", [("hooks/melchior_match.py", "        if vero in visti:\n            continue\n", ""),
              ("hooks/melchior_match.py", "            if chiave in visti:\n                continue\n", "")],
      "conta più di una volta"),
