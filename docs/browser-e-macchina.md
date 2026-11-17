@@ -80,21 +80,21 @@ silenzioso in una correzione immediata. È la regola comune alle tre segnalazion
 | Pezzo | Tipo | Dove | Task |
 |---|---|---|---|
 | Browser nominato e riga dell'account | regola, nessuna funzione nuova | `output-styles/conciso.md` e banco accanto a SG04 | #5600 |
-| Mappa profilo Chrome e account Google | funzione nuova: decide chi mantiene Arturo | file locale in `~/.claude/data/`, mai in telemetria | #5692 |
-| Macchina davanti | funzione nuova: decide chi mantiene Arturo | Volta, con un ripiego per chi non lo usa | #5881 |
+| Mappa profilo Chrome e account Google | funzione nuova, approvata il 17/11 | file locale in `~/.claude/data/browser/`, mai in telemetria | #5692 |
+| Macchina davanti | funzione nuova, approvata il 17/11 | Volta, con un ripiego per chi non lo usa | #5881 |
 
 La regola di #5600 non aspetta lo step 9: non cambia il disegno e non aggiunge stato.
 
-## Le domande per lo step 9
+## Le decisioni per lo step 9
 
-Ognuna parte come domanda a chi mantiene Arturo, con la raccomandazione, prima del codice.
+Chi mantiene Arturo ha approvato le tre raccomandazioni il 17/11/2026. Il codice parte da qui.
 
-1. **Il segnale della macchina davanti.** Raccomandazione: Volta scrive su ogni macchina un file con la
+1. **Il segnale della macchina davanti.** Volta scrive su ogni macchina un file con la
    macchina dove la persona ha toccato tastiera o finestra per ultimo, e l'ora. La sessione lo legge prima
    di aprire. Senza Volta, o con il file più vecchio di 15 minuti, vale il punto 3: Claude chiede una volta.
-2. **La mappa dei profili.** Raccomandazione: la mappa nasce solo dal sì della persona, la prima volta
+2. **La mappa dei profili.** La mappa nasce solo dal sì della persona, la prima volta
    che Claude trova l'account giusto. Tiene il nome del profilo Chrome e il dominio dell'account, non
    l'indirizzo intero. Il deviceId resta un suggerimento: nessuno ha provato che regga fra due sessioni.
    Claude controlla l'account a ogni uso, anche con la mappa.
-3. **Dove sta la mappa.** Raccomandazione: in `~/.claude/data/browser/`, fuori da git e fuori dalla
+3. **Dove sta la mappa.** In `~/.claude/data/browser/`, fuori da git e fuori dalla
    telemetria. Un account è un dato personale: `/segnala` lo toglie già, e la mappa non lo aggiunge.
