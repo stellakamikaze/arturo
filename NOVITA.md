@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — /monitor impara dalle tue correzioni
+
+**Cosa cambia**: /monitor tiene conto di come lo correggi. Quando scarti un todo che ti ha proposto, ne rimetti in piedi uno, accogli o rifiuti la proposta di un mittente nuovo, o agisci su una voce del report, Arturo lo registra. Da lì impara tre cose: quali mittenti vanno da soli nei todo e quali non riproporti, quali regole di scarto sbagliano e vanno sospese, quali sezioni del report non apri mai e si possono ridurre a una riga. Ogni modifica compare in testa al report col comando per annullarla. Di serie è una proposta e entra col tuo sì; se preferisci, la fa da solo. Una nuova pagina, `docs/monitor-adattare.md`, spiega come adattare /monitor al tuo lavoro senza perdere gli aggiornamenti.
+
+**Il principio**: le tue correzioni sono già una spiegazione di cosa ti serve. Non vanno ripetute ogni volta. Arturo non nasconde mai una cifra, una scadenza vicina o una domanda diretta, e ogni cosa imparata si annulla.
+
+**A chi serve**: a chi usa /monitor tutti i giorni, e a chi ha un /monitor suo e vuole che impari come quello di serie.
+
+---
+
 ## 2026-11-17 — /revisione: Arturo rilegge come lo usi e ti propone cosa migliorare
 
 **Cosa cambia**: con `/revisione` Arturo rilegge le tue sessioni di Claude Code degli ultimi 30 giorni, o dei giorni che scegli (`/revisione 7`). Cerca quattro cose: lavori che chiedi più volte con le stesse spiegazioni e che nessuna skill copre, intoppi che tornano (Claude fermato, un no ripetuto, un blocco su un lavoro normale), igiene (note doppie, todo fermi, avvisi del controllo della config) e cose da unire, come due regole che dicono lo stesso. Ti mostra al massimo sette proposte, ognuna con le prove: le date e le tue parole. Tu scegli. Le proposte sulla tua config le applica Claude con te. Quelle che riguardano Arturo partono verso chi lo mantiene in una segnalazione sola, dopo che hai visto l'anteprima e detto **mando**. Un registro sul tuo computer ricorda le risposte, così la revisione dopo non ti ripropone un no.

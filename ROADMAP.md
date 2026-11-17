@@ -136,7 +136,7 @@ La telemetria manda solo eventi: quale comando, quale guardia, quanto dura una s
 
 ### Assistenti per ruolo: posta, agenda, archivio {#ruoli}
 
-Stato: in corso. È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali.
+Stato: in corso. È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali. /monitor impara dalle tue correzioni (scarti, ripristini, mittenti, voci del report) e ha una guida per adattarlo al tuo lavoro.
 
 Strato: Collegamenti.
 

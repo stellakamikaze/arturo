@@ -219,6 +219,8 @@ BANCHI=(
   test_telemetria_memoria_2026_11_15.py
   # La barra trova node col PATH minimo di ssh, come nelle sessioni che Volta apre su un'altra macchina (15/11/2026).
   test_statusline_path_2026_11_15.py
+  # /monitor impara dalle correzioni: segnali, mittenti, regole, sezioni, annullo (17/11/2026).
+  test_monitor_impara_2026_11_17.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -474,6 +476,8 @@ BASELINE=(
   "test_windows_minori_2026_11_10.py 3f12336"
   # /revisione (17/11/2026): 8117411, il dev prima.
   "test_revisione_2026_11_17.py 8117411"
+  # /monitor impara (17/11/2026): impara.py non c'è. e0ec624, il dev prima.
+  "test_monitor_impara_2026_11_17.py e0ec624"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -557,6 +561,8 @@ VELENI=(
   test_salva_automatico.py
   # La telemetria della memoria (M7, #5672): ogni rottura di telemetria.py, inject-now.sh o salva-automatico.py fa rosso il suo caso TM.
   test_telemetria_memoria_2026_11_15.py
+  # /monitor impara (17/11/2026): ogni rottura di impara.py (soglie, sempre, modo proposta, annullo) fa rosso il suo caso IM.
+  test_monitor_impara_2026_11_17.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
