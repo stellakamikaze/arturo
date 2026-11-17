@@ -124,11 +124,12 @@ soglia sbaglia, la persona lo segnala.
 
 ## 5. Il tuo /monitor
 
-Ogni persona adatta /monitor al suo lavoro. Il modello sta in `docs/monitor-adattare.md`. In breve:
+Ogni persona adatta /monitor al suo lavoro. Il modello sta in `~/.claude/docs/monitor-adattare.md`. In breve:
 - Una persona che vuole un /monitor tutto suo scrive una skill `monitor` nella sua Orsa e la
   dichiara in `~/.claude/personale/sostituzioni.txt`. Quella di Arturo resta `arturo:monitor`.
 - Le fonti sue vanno nei ponti personali (`~/.claude/personale/monitor/ponti.json`,
-  `docs/monitor-ponti.md`), le scelte sull'apprendimento in `apprendimento.json`.
+  `~/.claude/docs/monitor-ponti.md`), le scelte sull'apprendimento in
+  `~/.claude/personale/monitor/apprendimento.json`.
 - Il /monitor personale usa lo stesso motore: chiama `arturo monitor impara` coi tipi di segnale
   del passo 4. Così impara come quello di serie, e un aggiornamento di Arturo non tocca i suoi file.
 
