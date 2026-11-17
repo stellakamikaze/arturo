@@ -10,7 +10,8 @@ RV04 la bozza porta solo le proposte scelte e lascia fuori quelle della persona 
      /segnala toglie dall'anteprima l'email e il percorso della home;
 RV05 prepara accetta --origine revisione e la scrive nel file pronto; il server la conosce;
 RV06 il passo 0 della skill dice SVILUPPATORE solo se c'è ~/.claude/personale/revisione-sviluppatore.md;
-RV07 salva scrive il registro con un .gitignore che lo tiene fuori dai repository, e registro conta le rifiutate;
+RV07 salva scrive il registro con un .gitignore che lo tiene fuori dai repository, con tutte le proposte anche
+     oltre le 7 del report della persona, e registro conta le rifiutate;
 RV08 la skill ha name, description e when_to_use, i sottocomandi che cita esistono, la telemetria la conta.
 
 Senza rete né Claude: transcript finti in una HOME di prova. Sulla base 8117411 (il dev prima) sono tutti rossi,
@@ -138,7 +139,9 @@ def prova(repo: Path, solo: str = "") -> list:
             {"cosa": "Far partire da sola la skill dei preventivi", "prove": ["S1: \"come la volta scorsa\""], "chi": "arturo"},
             {"cosa": "Togliere la nota doppia", "prove": ["igiene"], "chi": "tu"},
             {"cosa": f"Scrivere a mario.rossi@example.com da {casa}/lavoro", "prove": ["S1"], "chi": "arturo"},
-            {"cosa": "Proposta non scelta", "prove": ["S1"], "chi": "arturo"}]}), encoding="utf-8")
+            {"cosa": "Proposta non scelta", "prove": ["S1"], "chi": "arturo"}]
+            # Il modo di chi mantiene Arturo ne ha anche 13 (prima revisione del 17/11/2026): il registro le tiene tutte.
+            + [{"cosa": f"Proposta in più {k}", "prove": ["S1"], "chi": "arturo"} for k in range(5, 14)]}), encoding="utf-8")
         bozza = tmp / "bozza.md"
         if not solo or solo in ("RV04", "RV05"):
             rcb, tb = esegui([sys.executable, str(script), "bozza", "--da", str(proposte), "--scelte", "1 2 3",
@@ -185,7 +188,7 @@ def prova(repo: Path, solo: str = "") -> list:
             gi = leggi(reg / ".gitignore")
             rcr, tr = esegui([sys.executable, str(script), "registro"], env)
             ok = (rcs == 0 and gi.strip().endswith("*") and "proposte rifiutate: 1" in tr and "esito: scelta" in tr
-                  and "esito: in attesa" in tr)
+                  and "esito: in attesa" in tr and tr.count("esito:") == 13)
             if not ok:
                 rossi.append(f"RV07 registro: rc {rcs}/{rcr}, gitignore {gi!r}, {tr[:300]!r}")
         if not solo or solo == "RV08":
@@ -217,6 +220,7 @@ VELENI = [
      "test -f ~/.claude/personale/altro.md"),
     ("RV07", "bin/revisione.py", 'r.strip().startswith("esito: rifiutata")', 'r.strip().startswith("esito: no")'),
     ("RV08", "skills/revisione/SKILL.md", "name: revisione\n", "name: rev\n"),
+    ("RV07", "bin/revisione.py", "PROPOSTE_MASSIMO = 20", "PROPOSTE_MASSIMO = 7"),
 ]
 
 

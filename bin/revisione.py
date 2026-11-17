@@ -45,7 +45,7 @@ TAGLIO = 500        # caratteri per prompt: basta a capire la richiesta
 CORTO = 40          # sotto questa lunghezza un prompt porta la coda del messaggio di Claude prima
 CODA = 200          # caratteri di quella coda
 PARTE = 120_000     # caratteri per file di estratto: il modello li legge uno alla volta
-PROPOSTE_MASSIMO = 7
+PROPOSTE_MASSIMO = 20  # il report della persona ne mostra 7 (SKILL.md); il modo di chi mantiene Arturo anche di più
 CHI = {"tu": "io, nella mia config", "arturo": "chi mantiene Arturo"}
 BOZZA_MASSIMO = 3900  # come VOCE_MASSIMO di bin/segnala.py: oltre, il server taglia
 # Testo che Claude Code mette nel turno della persona senza che lei l'abbia scritto (prova del 17/11/2026 su 304
