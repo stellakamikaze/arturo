@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — Le sessioni di prova si riconoscono dal nome e spariscono da sole
+
+**Cosa cambia**: quando Claude lancia una sessione per una sonda, un banco o una prova dal vivo, adesso le dà un nome che comincia con `prova-`, per esempio `claude --bg --name prova-5877 "Rispondi solo: ok"`. Da quel nome Arturo la riconosce. `/fine` in una sessione di prova non scrive handoff, todo né memoria, e la elimina con `claude rm`. Volta, quando la chiudi, non le manda `/fine`: la ferma e la elimina. `/revisione` la lascia fuori dall'estratto e dice quante ne ha saltate; quelle nate prima del nome le riconosce dal primo messaggio ("Rispondi solo: ok"). Sul MacBook erano circa 30 sessioni su 143 in una settimana (proposta n. 7 della prima revisione).
+
+**Il principio**: una prova non è lavoro. Non lascia tracce da salvare, non chiede una chiusura e non entra nel racconto di come usi Arturo.
+
+**A chi serve**: a chi usa Volta e `/revisione`, e a chi prova Arturo dal vivo con sessioni usa e getta.
+
+---
+
 ## 2026-11-17 — /revisione distingue il classificatore giù da un hook che cambia il comando
 
 **Cosa cambia**: in modalità auto un comando può tornare indietro "senza verdetto" per due motivi. Il primo è un hook che riscrive il comando dopo il controllo del classificatore: era il caso delle segnalazioni n. 56, n. 57 e n. 58, col `setopt nonomatch` aggiunto in testa. Dalla 0.2.0 Arturo imposta zsh all'avvio della sessione e non tocca più il comando, e nei transcript dal 5 novembre questo caso non compare più. Il secondo è il classificatore che non risponde per un guasto del server, come il 16 novembre fra le 8:33 e le 8:43, quando si sono fermate insieme le sessioni di due computer. `/revisione` li contava insieme e li attribuiva a un hook. Adesso li separa, e un guasto del server non diventa una proposta.

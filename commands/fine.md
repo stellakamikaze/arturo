@@ -60,6 +60,13 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   posizione e il prossimo passo con chi lo fa. Se il tool non c'è (mod spento),
   chiudi con "scrivi **/clear** e poi **/inizio <slug>**".
 
+## FASE 0 · Sessione di prova
+
+Prima di tutto lancia `python3 ~/.claude/bin/prova.py --elimina; echo "rc=$?"`. Con `rc=0` la sessione è
+di prova: il suo nome comincia con `prova-` (#5877). Allora salta tutte le fasi: niente handoff, todo,
+memoria, commit né sync. Se è in background, lo script lancia `claude rm` fra 30 secondi. Chiudi con la
+riga che stampa. Con `rc=1` o `rc=2` prosegui dalla FASE 1.
+
 ## FASE 1 · Inventario
 
 Git, validate e commit girano nella cartella del progetto: la riga `cartella:` di `arturo contesto`, che

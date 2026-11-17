@@ -199,6 +199,8 @@ BANCHI=(
   test_windows_minori_2026_11_10.py
   # /revisione: estratto dei transcript senza l'uscita dei comandi, attriti separati, bozza e registro (17/11/2026).
   test_revisione_2026_11_17.py
+  # Le sessioni di prova marcate dal nome prova-: /fine non salva e le elimina (17/11/2026, #5877).
+  test_prova_2026_11_17.py
   # La Scoperta v1 dalle versioni dei file (14/11/2026, passo S7, #5615).
   test_scoperta_2026_11_14.py
   # Lo storico delle chat: zip letto senza estrarlo, filtri del ritratto, solo l'indice su disco (15/11/2026, #5700).
@@ -478,6 +480,8 @@ BASELINE=(
   "test_windows_minori_2026_11_10.py 3f12336"
   # /revisione (17/11/2026): 8117411, il dev prima.
   "test_revisione_2026_11_17.py 8117411"
+  # #5877 (17/11/2026): le sessioni di prova. 22e5935, il dev prima.
+  "test_prova_2026_11_17.py 22e5935"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -539,6 +543,8 @@ VELENI=(
   test_windows_minori_2026_11_10.py
   # /revisione (17/11/2026): ogni riga tolta fa rosso il suo caso RV.
   test_revisione_2026_11_17.py
+  # #5877 (17/11/2026): ogni riga tolta fa rosso il suo caso PV.
+  test_prova_2026_11_17.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
   test_contatto_2026_11_10.py
   # Le segnalazioni automatiche (11/11/2026): ogni filtro tolto da manda fa rosso il suo caso SA.

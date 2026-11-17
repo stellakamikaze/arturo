@@ -14,7 +14,10 @@ RV07 salva scrive il registro con un .gitignore che lo tiene fuori dai repositor
      oltre le 7 del report della persona, e registro conta le rifiutate;
 RV08 la skill ha name, description e when_to_use, i sottocomandi che cita esistono, la telemetria la conta;
 RV09 un "senza verdetto" per un hook e un classificatore giù ("no verdict (error)") restano due segnali
-     diversi: la raffica del 16/11/2026 era un guasto del server, non un hook (#5873).
+     diversi: la raffica del 16/11/2026 era un guasto del server, non un hook (#5873);
+RV10 le sessioni di prova restano fuori dall'estratto: quella col nome prova- (bin/prova.py, anche dopo un
+     cambio di nome) e quella nata prima del marcatore, dal primo prompt; una vera che comincia con
+     "Rispondi solo" e continua resta dentro, e estrai dice quante ne ha saltate (#5877).
 
 Senza rete né Claude: transcript finti in una HOME di prova. Sulla base 8117411 (il dev prima) sono tutti rossi,
 ognuno col suo codice. --avvelena: ogni veleno toglie la riga che il suo caso sorveglia.
@@ -31,7 +34,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08", "RV09"]
+CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08", "RV09", "RV10"]
 SEGRETO = "sk-prova-NONDEVEUSCIRE-4242"
 
 
@@ -97,6 +100,22 @@ def transcript() -> str:
     return "\n".join(righe) + "\n"
 
 
+def sessioni_di_prova() -> dict:
+    """#5877: una sessione col nome prova- (anche rinominata dopo), una di prova nata prima del marcatore, e una
+    vera che comincia con "Rispondi solo" ma continua: le prime due fuori dall'estratto, la terza dentro."""
+    return {
+        "bbbbbbbb-2222.jsonl": [
+            json.dumps({"type": "custom-title", "customTitle": "altro-nome", "sessionId": "bbbbbbbb-2222"}),
+            utente("PROMPT-DI-PROVA-MARCATA: scrivi un paragrafo sul mare"),
+            json.dumps({"type": "agent-name", "agentName": "prova-5877", "sessionId": "bbbbbbbb-2222"}),
+        ],
+        "cccccccc-3333.jsonl": [utente("Rispondi solo: PROVA-VECCHIA-NON-DEVE-USCIRE")],
+        "dddddddd-4444.jsonl": [utente("Rispondi solo sì o no: il preventivo SESSIONE-VERA-RESTA è partito?"),
+                                utente("allora mandalo"), utente("aggiungi il cliente in copia"),
+                                utente("e salva la bozza")],
+    }
+
+
 def esegui(argv, env, cwd=None):
     try:
         p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
@@ -119,6 +138,8 @@ def prova(repo: Path, solo: str = "") -> list:
         orsa = casa / ".claude"
         (orsa / "projects" / "-tmp-progetto-prova").mkdir(parents=True)
         (orsa / "projects" / "-tmp-progetto-prova" / "aaaaaaaa-1111.jsonl").write_text(transcript(), encoding="utf-8")
+        for nome, righe in sessioni_di_prova().items():
+            (orsa / "projects" / "-tmp-progetto-prova" / nome).write_text("\n".join(righe) + "\n", encoding="utf-8")
         env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "CLAUDE_CONFIG_DIR": str(orsa),
                "ARTURO_TELEMETRIA": "0", "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1"}
         env.pop("ARTURO_RADICE", None)
@@ -137,6 +158,11 @@ def prova(repo: Path, solo: str = "") -> list:
             entrati = [v for v in vietati if v in estratto]
             if rc != 0 or mancano or entrati:
                 rossi.append(f"RV01 estratto: rc {rc}, mancano {mancano}, entrati {entrati} · {testo[-200:]!r}")
+        if not solo or solo == "RV10":
+            fuori = [v for v in ("PROMPT-DI-PROVA-MARCATA", "PROVA-VECCHIA-NON") if v in estratto]
+            if rc != 0 or fuori or "SESSIONE-VERA-RESTA" not in estratto or "2 sessioni di prova saltate" not in testo:
+                rossi.append(f"RV10 sessioni di prova: rc {rc}, entrate {fuori}, vera "
+                             f"{'SESSIONE-VERA-RESTA' in estratto} · {testo[-160:]!r}")
         if not solo or solo == "RV02":
             if rc != 0 or not estratto or SEGRETO in estratto or SEGRETO in sintesi:
                 rossi.append(f"RV02 uscita dei comandi copiata o estratto vuoto: rc {rc}, "
@@ -244,6 +270,9 @@ VELENI = [
     ("RV07", "bin/revisione.py", "PROPOSTE_MASSIMO = 20", "PROPOSTE_MASSIMO = 7"),
     ("RV09", "bin/revisione.py", 'tipo = "senza-verdetto" if "hook" in s[:240] else "classificatore-giu"',
      'tipo = "senza-verdetto"'),
+    ("RV10", "bin/revisione.py", '            saltate["prova"] += 1\n        elif any(', "            pass\n        if any("),
+    ("RV10", "bin/prova.py", 'MARCATO = re.compile(r"^\\s*prova-", re.I)', 'MARCATO = re.compile(r"^\\s*xprova-", re.I)'),
+    ("RV10", "bin/revisione.py", "PROVA_PROMPT = 3", "PROVA_PROMPT = 9"),
 ]
 
 

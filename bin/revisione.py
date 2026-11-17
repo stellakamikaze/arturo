@@ -39,7 +39,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_arturo, radice_orsa  # noqa: E402
+import prova  # noqa: E402
 
 TAGLIO = 500        # caratteri per prompt: basta a capire la richiesta
 CORTO = 40          # sotto questa lunghezza un prompt porta la coda del messaggio di Claude prima
@@ -65,6 +67,11 @@ NEGATO = "Permission for this action was denied by the Claude Code auto mode cla
 SENZA_VERDETTO = "auto mode classifier gave no verdict"
 RIFIUTO = "The user doesn't want to proceed with this tool use"
 SALTATI = ("clear", "compact", "model", "exit", "resume")
+# Le sessioni di prova (#5877) restano fuori dall'estratto: il marcatore è il nome `prova-` (bin/prova.py).
+# Quelle nate prima del marcatore si riconoscono dal primo prompt, se la sessione ha al più PROVA_PROMPT prompt.
+PROVA_VECCHIA = re.compile(r"^\s*(rispondi solo\b|sonda usa e getta|prova\b.{0,80}?\b(usa e getta|rispondi solo)\b)",
+                           re.I | re.S)
+PROVA_PROMPT = 3
 # Chi ha causato l'attrito: la persona (ha fermato o detto no) o Claude (un comando fallito). /insights
 # di Claude Code li mescola e attribuisce alla persona gli errori di Claude: qui restano separati.
 DELLA_PERSONA = ("interrotto", "rifiuto")
@@ -129,10 +136,16 @@ def attriti(content) -> tuple:
 
 def leggi_sessione(f: str, da: str) -> dict:
     eventi, skill, errori_tool = [], Counter(), Counter()
-    cwd = inizio = ultimo_claude = ""
+    cwd = inizio = ultimo_claude = nome = ""
     ultimo_tool = {}
     with open(f, encoding="utf-8", errors="replace") as righe:
         for line in righe:
+            if '"custom-title"' in line or '"agent-name"' in line:
+                try:
+                    nome = prova.nome_da_record(json.loads(line)) or nome
+                except ValueError:
+                    pass
+                continue
             if '"user"' not in line and '"assistant"' not in line:
                 continue
             try:
@@ -202,7 +215,14 @@ def leggi_sessione(f: str, da: str) -> dict:
                 testo += f'  ⟵ dopo Claude: "…{corto(ultimo_claude, 10**6)[-CODA:]}"'
             eventi.append((ts, "mod" if mod else "prompt", testo))
     return {"id": os.path.basename(f)[:-6], "cwd": cwd, "inizio": inizio, "eventi": eventi,
-            "skill": skill, "errori": errori_tool}
+            "skill": skill, "errori": errori_tool, "prova": di_prova(nome, eventi)}
+
+
+def di_prova(nome: str, eventi: list) -> bool:
+    if prova.e_prova(nome):
+        return True
+    scritti = [e[2] for e in eventi if e[1] == "prompt"]
+    return 0 < len(scritti) <= PROVA_PROMPT and bool(PROVA_VECCHIA.match(scritti[0]))
 
 
 def skill_dei_subagent(f: str, da: str, conta: dict) -> None:
@@ -231,7 +251,9 @@ def chiave_prompt(testo: str) -> str:
     return " ".join(parole[:8])
 
 
-def sessioni_di(projects: Path, giorni: int) -> list:
+def sessioni_di(projects: Path, giorni: int, saltate: Counter | None = None) -> list:
+    """Le sessioni con almeno un prompt, senza quelle di prova: saltate["prova"] le conta."""
+    saltate = Counter() if saltate is None else saltate
     lim = time.time() - giorni * 86400
     da = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(lim))
     sessioni, da_sub = [], defaultdict(Counter)
@@ -247,7 +269,9 @@ def sessioni_di(projects: Path, giorni: int) -> list:
         if os.path.basename(f).startswith("agent-"):
             continue
         s = leggi_sessione(f, da)
-        if any(e[1] in ("prompt", "comando", "bang") for e in s["eventi"]):
+        if s["prova"]:
+            saltate["prova"] += 1
+        elif any(e[1] in ("prompt", "comando", "bang") for e in s["eventi"]):
             sessioni.append(s)
     sessioni.sort(key=lambda s: s["inizio"])
     for s in sessioni:
@@ -319,7 +343,8 @@ def estrai(a) -> int:
     if not projects.is_dir():
         print(f"Nessun transcript in {projects}: Claude Code non ha ancora sessioni su questo computer.")
         return 1
-    sessioni = sessioni_di(projects, a.giorni)
+    saltate = Counter()
+    sessioni = sessioni_di(projects, a.giorni, saltate)
     uscita = Path(a.output)
     uscita.mkdir(parents=True, exist_ok=True)
     for vecchio in uscita.glob("estratto-*.md"):
@@ -337,7 +362,8 @@ def estrai(a) -> int:
     for n, testo in enumerate(parti, 1):
         (uscita / f"estratto-{n}.md").write_text(testo, encoding="utf-8")
     print(f"{len(sessioni)} sessioni in {len(parti)} file di estratto: {uscita}/sintesi.md, "
-          + ", ".join(f"estratto-{n}.md" for n in range(1, len(parti) + 1)))
+          + ", ".join(f"estratto-{n}.md" for n in range(1, len(parti) + 1))
+          + f" · {saltate['prova']} sessioni di prova saltate")
     return 0
 
 
