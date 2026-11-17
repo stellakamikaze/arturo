@@ -46,7 +46,10 @@ poi gli eventi in ordine:
 - i prompt della persona; uno corto porta `⟵ dopo Claude: "…"`, la fine del messaggio a cui rispondeva;
 - gli slash con gli argomenti, e `[!]` per un comando che la persona ha lanciato lei col `!`;
 - `[interrotto con Esc]` e `[rifiutato]`: attriti della persona, a volte col motivo;
-- `[bloccato dal classificatore]` col motivo; `[senza verdetto, …]` non è un giudizio di rischio;
+- `[bloccato dal classificatore]` col motivo;
+- i due "senza verdetto" non sono un giudizio di rischio. `[senza verdetto, hook dopo la revisione]` è un hook che cambia il comando: un difetto della config;
+  `[classificatore giù, …]` è un guasto passeggero del server. Molti nello stesso minuto, in più sessioni o
+  su più macchine, sono lo stesso guasto: non diventano una proposta;
 - `[mod]`: un prompt scritto da un mod, non dalla persona;
 - `comandi falliti`: errori di Claude, non della persona. Non attribuirli a lei.
 

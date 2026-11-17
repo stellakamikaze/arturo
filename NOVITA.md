@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-17 — /revisione distingue il classificatore giù da un hook che cambia il comando
+
+**Cosa cambia**: in modalità auto un comando può tornare indietro "senza verdetto" per due motivi. Il primo è un hook che riscrive il comando dopo il controllo del classificatore: era il caso delle segnalazioni n. 56, n. 57 e n. 58, col `setopt nonomatch` aggiunto in testa. Dalla 0.2.0 Arturo imposta zsh all'avvio della sessione e non tocca più il comando, e nei transcript dal 5 novembre questo caso non compare più. Il secondo è il classificatore che non risponde per un guasto del server, come il 16 novembre fra le 8:33 e le 8:43, quando si sono fermate insieme le sessioni di due computer. `/revisione` li contava insieme e li attribuiva a un hook. Adesso li separa, e un guasto del server non diventa una proposta.
+
+**Il principio**: una proposta deve puntare alla causa vera. Un guasto del server passa da solo: Claude riprova il comando una volta e nel frattempo continua con le letture, che non passano dal classificatore.
+
+**A chi serve**: a chi lancia `/revisione` e a chi aveva segnalato i comandi da rilanciare due volte.
+
+---
+
 ## 2026-11-17 — /aggiorna installa senza fermarsi, anche senza chiave SSH
 
 **Cosa cambia**: quando scrivi `/aggiorna` e c'è un rilascio firmato, Arturo lo installa subito, senza chiederti un altro sì. In modalità auto il classificatore lo lasciava fermo, e dovevi lanciare tu il comando con `!`: adesso una regola `autoMode` copre lo script di aggiornamento di Arturo, e solo quello. Se il tuo computer non ha una chiave SSH riconosciuta da GitHub, l'installazione riprova da sola via HTTPS, e usa `gh` se c'è. Prima dovevi aggiungere a mano una riga a `~/.gitconfig`.

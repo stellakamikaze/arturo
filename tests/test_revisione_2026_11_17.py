@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RV01-RV08: /revisione, la revisione di come la persona usa Arturo (17/11/2026).
+"""RV01-RV09: /revisione, la revisione di come la persona usa Arturo (17/11/2026).
 
 RV01 l'estratto tiene prompt, slash, Esc, rifiuti e blocchi del classificatore, segna [mod] i prompt dei mod, tiene
      il testo di un messaggio scritto a metà turno, e salta isMeta, sidechain, notifiche, i record api-request-blob,
@@ -12,7 +12,9 @@ RV05 prepara accetta --origine revisione e la scrive nel file pronto; il server 
 RV06 il passo 0 della skill dice SVILUPPATORE solo se c'è ~/.claude/personale/revisione-sviluppatore.md;
 RV07 salva scrive il registro con un .gitignore che lo tiene fuori dai repository, con tutte le proposte anche
      oltre le 7 del report della persona, e registro conta le rifiutate;
-RV08 la skill ha name, description e when_to_use, i sottocomandi che cita esistono, la telemetria la conta.
+RV08 la skill ha name, description e when_to_use, i sottocomandi che cita esistono, la telemetria la conta;
+RV09 un "senza verdetto" per un hook e un classificatore giù ("no verdict (error)") restano due segnali
+     diversi: la raffica del 16/11/2026 era un guasto del server, non un hook (#5873).
 
 Senza rete né Claude: transcript finti in una HOME di prova. Sulla base 8117411 (il dev prima) sono tutti rossi,
 ognuno col suo codice. --avvelena: ogni veleno toglie la riga che il suo caso sorveglia.
@@ -29,7 +31,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08"]
+CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08", "RV09"]
 SEGRETO = "sk-prova-NONDEVEUSCIRE-4242"
 
 
@@ -79,6 +81,17 @@ def transcript() -> str:
         utente('<system-reminder id="891e064b">\nAnother Claude session sent a message: SESSIONE-NON-DEVE-USCIRE\n</system-reminder>'),
         utente("The user sent a new message while you were working:\naggiungi anche il totale del mese\n\n"
                "This is how Claude Code surfaces messages the user sends mid-turn"),
+        # #5873: le due cause del "senza verdetto", coi testi veri di Claude Code (transcript del 3/11 e del 16/11).
+        assistente([{"type": "tool_use", "id": "t5", "name": "Bash", "input": {"command": "ls *.md"}}]),
+        risultato("t5", "The server-side auto mode classifier gave no verdict for Bash: a hook changed this call's "
+                        "input after auto mode reviewed it, so the review does not cover what would run.", True),
+        assistente([{"type": "tool_use", "id": "t6", "name": "Bash", "input": {"command": "pwd"}}]),
+        risultato("t6", "The server-side auto mode classifier gave no verdict (error), so auto mode cannot determine "
+                        "the safety of Bash. This is a transient failure of the check, not a judgment about the action",
+                  True),
+        assistente([{"type": "tool_use", "id": "t7", "name": "Edit", "input": {"file_path": "/tmp/b"}}]),
+        risultato("t7", "The server-side auto mode classifier gave no verdict (the response ended before its verdict "
+                        "arrived), so auto mode cannot determine the safety of Edit.", True),
         utente([{"type": "text", "text": "[Image: original 3201x1800, displayed at 2576x1449.] guarda lo screenshot della pagina"}]),
     ]
     return "\n".join(righe) + "\n"
@@ -133,6 +146,14 @@ def prova(repo: Path, solo: str = "") -> list:
                   and "classificatore 1" in sintesi)
             if not ok:
                 rossi.append(f"RV03 sintesi: {sintesi[:400]!r}")
+
+        if not solo or solo == "RV09":
+            ok = (estratto.count("[senza verdetto, hook dopo la revisione]") == 1
+                  and estratto.count("[classificatore giù, guasto del server]") == 2
+                  and "senza verdetto per un hook 1, classificatore giù 2" in sintesi
+                  and "blocchi del sistema: 4" in sintesi)
+            if not ok:
+                rossi.append(f"RV09 hook e classificatore giù: {sintesi[:500]!r}")
 
         proposte = tmp / "proposte.json"
         proposte.write_text(json.dumps({"proposte": [
@@ -221,6 +242,8 @@ VELENI = [
     ("RV07", "bin/revisione.py", 'r.strip().startswith("esito: rifiutata")', 'r.strip().startswith("esito: no")'),
     ("RV08", "skills/revisione/SKILL.md", "name: revisione\n", "name: rev\n"),
     ("RV07", "bin/revisione.py", "PROPOSTE_MASSIMO = 20", "PROPOSTE_MASSIMO = 7"),
+    ("RV09", "bin/revisione.py", 'tipo = "senza-verdetto" if "hook" in s[:240] else "classificatore-giu"',
+     'tipo = "senza-verdetto"'),
 ]
 
 

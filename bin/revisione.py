@@ -68,11 +68,16 @@ SALTATI = ("clear", "compact", "model", "exit", "resume")
 # Chi ha causato l'attrito: la persona (ha fermato o detto no) o Claude (un comando fallito). /insights
 # di Claude Code li mescola e attribuisce alla persona gli errori di Claude: qui restano separati.
 DELLA_PERSONA = ("interrotto", "rifiuto")
-DEL_SISTEMA = ("classificatore", "senza-verdetto")
+# "Senza verdetto" ha due cause con lo stesso inizio di messaggio. Un hook che cambia il comando dopo la
+# revisione ("a hook changed", "changed by a hook") è un difetto della config. Il classificatore giù
+# ("no verdict (error)", "the response ended before its verdict arrived") è un guasto passeggero del server:
+# il 16/11/2026 alle 08:33-08:43 ha fermato insieme due macchine (#5873), e Arturo non lo corregge.
+DEL_SISTEMA = ("classificatore", "senza-verdetto", "classificatore-giu")
 ETICHETTE = {"prompt": "", "comando": "", "bang": "[!] ", "mod": "[mod] ", "mod-comando": "[mod] ",
              "interrotto": "[interrotto con Esc]", "rifiuto": "[rifiutato] ",
              "classificatore": "[bloccato dal classificatore] ",
-             "senza-verdetto": "[senza verdetto, hook dopo la revisione] "}
+             "senza-verdetto": "[senza verdetto, hook dopo la revisione] ",
+             "classificatore-giu": "[classificatore giù, guasto del server] "}
 
 
 def ora_locale(ts: str) -> str:
@@ -115,7 +120,8 @@ def attriti(content) -> tuple:
             m = re.match(r"Reason:\s*(.{0,160}?)(?:\. If you have|\n|$)", s[len(NEGATO):].lstrip(". "), re.S)
             segnali.append((p.get("tool_use_id"), "classificatore", m.group(1).strip() if m else ""))
         elif SENZA_VERDETTO in s[:120]:
-            segnali.append((p.get("tool_use_id"), "senza-verdetto", ""))
+            tipo = "senza-verdetto" if "hook" in s[:240] else "classificatore-giu"
+            segnali.append((p.get("tool_use_id"), tipo, ""))
         else:
             errori.append(p.get("tool_use_id"))
     return segnali, errori
@@ -274,7 +280,8 @@ def sintesi_di(sessioni: list, giorni: int) -> str:
         f"prompt scritti: {tot['prompt']} · comandi: {tot['comando']} · comandi col !: {tot['bang']}"
         f" · dai mod: {tot['mod'] + tot['mod-comando']}",
         f"attriti della persona: {persona} (interruzioni con Esc {tot['interrotto']}, rifiuti {tot['rifiuto']})",
-        f"blocchi del sistema: {sistema} (classificatore {tot['classificatore']}, senza verdetto {tot['senza-verdetto']})",
+        f"blocchi del sistema: {sistema} (classificatore {tot['classificatore']}, senza verdetto per un hook "
+        f"{tot['senza-verdetto']}, classificatore giù {tot['classificatore-giu']})",
         f"errori di Claude (comandi falliti): {sum(err.values())}"
         + (" · per strumento: " + ", ".join(f"{k} {n}" for k, n in err.most_common(6)) if err else ""),
         "comandi più usati: " + (", ".join(f"{k} {n}" for k, n in comandi.most_common(10)) or "nessuno"),
