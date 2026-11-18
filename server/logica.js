@@ -56,7 +56,7 @@ export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", 
 export const SKILL = ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "revisione", "system-audit", "todo"];
 // Le skill uscite (3/11/2026: i mod gws e riscrivi-bash, diventati hook; poi i sei mod diventati parti di skills/arturo):
 // un client fino alla 0.2.x le manda ancora.
-// Restano accettate perché un nome fuori elenco fa rifiutare il lotto intero; da togliere con l'evento tappa (#3435).
+// Restano accettate per non scartare le skill di quei client; da togliere quando nessun client attivo le manda più.
 export const SKILL_USCITE = ["apri", "cache-fredda", "dafare", "gws", "redazione-segreti", "riscrivi-bash", "rotazione", "testata"];
 
 // I nomi di Arturo che la deriva può dire oltre la forma (24/10/2026). La regex di `deriva` resta uguale, lettera per
@@ -133,7 +133,7 @@ export const EVENTI = {
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
   // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
-  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|firme|hooks|output-styles|server|shared|skills|templates|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
+  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|firme|hooks|output-styles|server|shared|skills|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
   config: /^rotta-(settings|conflitto|rebase|hook)$/,
   // Dal 15/10/2026, per il miglioramento di Arturo. In coda, nello stesso ordine di bin/telemetria.py.
   setup: /^(fase:(10|[0-9][a-z]?)|fine)$/,
@@ -153,12 +153,6 @@ export const EVENTI = {
   richiamo: /^(0|1|2-5|6-20|>20)\/(0|1|2-5|6-20|>20)$/,
   salvataggio: /^automatico$/,
   inizio: /^(persona|rotazione)$/,
-  // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati per
-  // non perdere i dati dei client fermi (prima del 24/10/2026 un evento fuori elenco faceva rifiutare il
-  // lotto intero). Da togliere dopo qualche settimana, insieme al loro posto in M09 (tests/test_telemetria.py).
-  // tappa: tolta dal client il 16/10/2026 con il percorso a tappe. Per la stessa ragione `deriva`
-  // accetta ancora la radice templates/, tolta dal client il 16/10/2026: esce con tappa (#3435).
-  tappa: /^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$/,
 };
 // Le soglie della ritenzione: installazioni ancora vive dopo 7, 30 e 60 giorni dalla prima volta.
 // Sessanta giorni è il criterio di successo di Arturo (uso vivo dopo due mesi).

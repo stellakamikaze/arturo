@@ -170,7 +170,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "memoria", "richiamo", "salvataggio", "inizio", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
+      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "memoria", "richiamo", "salvataggio", "inizio"], "V08 l'elenco degli eventi");
   },
   async V10() {
     const f = finti();
@@ -268,11 +268,11 @@ const casi = {
     assert.equal((await gestisci(post("/altro", {}), { ...f, adesso })).status, 404);
     assert.equal((await gestisci(post("/v1/eventi", "{non json"), { ...f, adesso })).status, 400);
   },
-  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no. `tappa` è un
-  // evento vecchio (il client non lo manda più dal 16/10/2026): resta accettato, con la stessa regola.
+  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no. `tappa`, tolta dal client
+  // il 16/10/2026 e dal server il 18/11/2026 (#3435), si scarta con ogni valore.
   async V16() {
     const buoni = [["setup", "fase:7b"], ["setup", "fase:4b"], ["setup", "fine"], ["chiede", "exfil-guard.py"], ["confermata", "exfil-guard.py"],
-      ["errore", "data-guard.py"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"], ["claude", "2.1.290"],
+      ["errore", "data-guard.py"], ["claude", "2.1.290"],
       ["aggiorna", "rifiutato"], ["aggiorna", "indietro"], ["aggiorna", "scartato"]];
     for (const [evento, valore] of buoni) {
       const f = finti();
@@ -281,7 +281,7 @@ const casi = {
     }
     const cattivi = [["setup", "fase:11"], ["setup", "fase:3 nota"], ["tappa", "tappa:5"], ["tappa", "tappa:testo"],
       ["tappa", "note:3"], ["claude", "2.1.x-beta"], ["chiede", "una guardia con spazi"], ["aggiorna", "forse"],
-      ["tappa", "tappa:3\n"]];
+      ["tappa", "tappa:3\n"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"]];
     for (const [evento, valore] of cattivi) await scartato(evento, valore, "V16");
   },
   // Fase 2 della telemetria (3/11/2026, #4540): durata e turni solo nelle fasce, skill solo di Arturo o altro.
