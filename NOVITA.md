@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Colori e barra a modo tuo, senza perderli a ogni aggiornamento
+
+**Cosa cambia**: i colori del pannello /dafare, i colori della scheda del terminale e i pezzi della barra in basso si cambiano in un file tuo, `~/.claude/personale/aspetto.json`. Gli aggiornamenti non lo toccano, quindi non devi più rimettere a mano le tue modifiche dopo ogni rilascio. Puoi spegnere un pezzo della barra, come la quota, e aggiungerne uno tuo con un piccolo file JavaScript. `arturo aspetto esempio` ti dà un file da copiare, e `arturo aspetto controlla` ti dice se un valore è scritto male. Un valore sbagliato non rompe niente: vale quello di Arturo. Nasce dalla proposta n. 73.
+
+**Il principio**: quello che cambi tu sta in un posto tuo. Arturo si aggiorna senza toccarlo, e tu non scegli più fra le tue modifiche e l'ultima versione.
+
+**A chi serve**: a chi ha cambiato un colore o un pezzo della barra e lo perdeva a ogni aggiornamento.
+
+---
+
 ## 2026-11-18 — Una sessione chiusa con /fine diventa viola
 
 **Cosa cambia**: dopo un /fine la scheda del terminale diventa viola, in iTerm2 e in Windows Terminal, e in fondo alla barra compare "✓ chiusa · /inizio <progetto>". Con molte sessioni aperte vedi subito quali hai già chiuso e come riprenderle. Se scrivi di nuovo nella sessione, al turno dopo torna verde come prima. Il viola vale per una settimana dall'ultimo /fine. Nasce dalla proposta n. 71, che l'aveva già provato su un Mac.

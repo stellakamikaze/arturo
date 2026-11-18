@@ -46,8 +46,30 @@ const C = {
   arturo: '#f2a24a',
 }
 
-const COLORE_GRUPPO: Record<string, string> = { tu: C.sera, decidi: C.sera, io: C.passa, fermo: C.blocca }
-const COLORE_PAROLA: Record<Parola, string> = { 'a rischio': C.blocca, 'chiede te': C.sera, fermo: C.cenere, va: C.passa }
+// I colori scelti dalla persona in ~/.claude/personale/aspetto.json (proposta n. 73, 18/11/2026) si fondono
+// sopra C alla prima lettura, da `arturo aspetto mostra dafare`: il mod parla solo con la CLI (banco U02).
+// Per questo gruppi e parole leggono C a ogni disegno, non una volta sola al caricamento del modulo.
+let paletteLetta = false
+async function leggiPalette($: EngineInterface): Promise<void> {
+  if (paletteLetta) return
+  paletteLetta = true
+  const r = await cli($, ['mostra', 'dafare'], 'aspetto')
+  if (!r.ok) return
+  try {
+    const colori = (JSON.parse(r.stdout) as { colori?: Record<string, unknown> }).colori ?? {}
+    for (const [nome, valore] of Object.entries(colori)) {
+      if (Object.hasOwn(C, nome) && typeof valore === 'string' && /^#[0-9a-f]{6}$/i.test(valore)) {
+        (C as Record<string, string>)[nome] = valore
+      }
+    }
+  } catch {
+    // un file che non si legge lascia i colori di serie
+  }
+}
+const coloreGruppo = (tipo: string): string | undefined =>
+  ({ tu: C.sera, decidi: C.sera, io: C.passa, fermo: C.blocca } as Record<string, string>)[tipo]
+const coloreParola = (parola: Parola): string =>
+  ({ 'a rischio': C.blocca, 'chiede te': C.sera, fermo: C.cenere, va: C.passa } as Record<Parola, string>)[parola]
 const PAROLE: Parola[] = ['a rischio', 'chiede te', 'fermo', 'va']
 
 const vista = atom({ plugin: 'arturo', key: 'vista' } as const, null)
@@ -187,6 +209,7 @@ export function normalizzaVista(dato: unknown): Vista | 'versione' | 'forma' {
 
 // Rilegge le cose da fare. Un guasto lascia intatta la vista di prima: mai vuota per un errore.
 async function carica($: EngineInterface): Promise<void> {
+  await leggiPalette($)
   const r = await cli($, ['--json'])
   if (!r.ok) {
     await update($, errore, () => r.testo)
@@ -602,7 +625,7 @@ export const register: Register = on => {
               <Text bold color={C.sera} wrap="wrap">CHIEDONO TE O SONO A RISCHIO ({chiedono.length})</Text>
               {stretto ? null : <Text color={C.cenere} wrap="wrap">Il numero apre il progetto sul todo da cui partire.</Text>}
               {chiedono.map((x, i) => rigaLista(
-                { chiave: `adesso-${x.nome}`, progetto: x.nome, todo: x.da_dove?.id ?? null }, i, x.parola, COLORE_PAROLA[x.parola],
+                { chiave: `adesso-${x.nome}`, progetto: x.nome, todo: x.da_dove?.id ?? null }, i, x.parola, coloreParola(x.parola),
                 [fraseDi(x), x.da_dove ? `parti da #${x.da_dove.id} ${titoloDi(x.da_dove.id)}${x.da_dove.motivo ? `: ${x.da_dove.motivo}` : ''}` : ''],
               ))}
             </Box>
@@ -625,7 +648,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {ps.map((x, i) => rigaLista(
           { chiave: `progetto-${x.nome}`, progetto: x.nome, todo: x.da_dove?.id ?? null }, i,
-          `${x.parola} · ${quante(x.aperti)}`, COLORE_PAROLA[x.parola], [fraseDi(x)],
+          `${x.parola} · ${quante(x.aperti)}`, coloreParola(x.parola), [fraseDi(x)],
         ))}
       </Box>
     )
@@ -683,7 +706,7 @@ export const register: Register = on => {
             ? v.gruppi.map(g => {
                 const dentro = altre.filter(r => r.t.gruppo === g.tipo)
                 if (dentro.length === 0) return null
-                const colore = COLORE_GRUPPO[g.tipo] ?? C.inchiostro
+                const colore = coloreGruppo(g.tipo) ?? C.inchiostro
                 return (
                   <Box flexDirection="column">
                     <Text bold color={colore} wrap="wrap">{g.titolo} ({dentro.length})</Text>

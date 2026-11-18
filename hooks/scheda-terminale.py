@@ -47,6 +47,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_orsa  # noqa: E402
+import aspetto_valori as aspetto  # noqa: E402
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
           "Notification": "attende", "Stop": "fermo", "StopFailure": "problema", "SessionEnd": "fine"}
@@ -307,10 +308,15 @@ def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
             testo += "\x1b]6;1;bg;*;default\x07"
         return testo
     testo = f"\x1b]0;{TITOLO[stato].format(p=pulito)}\x07"
+    # I colori scelti dalla persona in personale/aspetto.json vincono su quelli di serie (proposta n. 73).
+    try:
+        suoi = (aspetto.leggi()[0].get("scheda") or {})
+    except Exception:
+        suoi = {}
     if os.environ.get("WT_SESSION"):
-        return testo + f"\x1b[2;15;{DECAC[stato]},|"
+        return testo + f"\x1b[2;15;{(suoi.get('decac') or {}).get(stato, DECAC[stato])},|"
     if os.environ.get("TERM_PROGRAM") == "iTerm.app":
-        r, g, b = RGB[stato]
+        r, g, b = (suoi.get("colori") or {}).get(stato, RGB[stato])
         return (testo + f"\x1b]6;1;bg;red;brightness;{r}\x07"
                 f"\x1b]6;1;bg;green;brightness;{g}\x07\x1b]6;1;bg;blue;brightness;{b}\x07")
     # Terminal di Apple non colora la scheda, ma segna con una campanella la scheda in secondo
