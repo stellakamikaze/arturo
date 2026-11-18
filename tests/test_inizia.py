@@ -50,8 +50,16 @@ RIGA_GUIDA = "Non hai ancora Claude Code? Parti dalla pagina principale: arturo.
 SENZA_VIRGOLETTE = ("sito/index.html", "sito/inizia/index.html", "sito/installa/index.html", "sito/llms.txt",
                     "sito/setup/index.html", "sito/js/home.js", "sito/js/installa-1.js", "sito/js/installa-2.js",
                     "PRODUCT.md", "DESIGN.md", "strumenti/pubblica.sh")
+# Le pagine che restano raggiungibili dopo la landing singola (18/11/2026) e i loro generatori:
+# nessuna porta più a una pagina che la home ha assorbito. strumenti/pagine/pagine.py resta fuori:
+# scrive anche le pagine scollegate, che si citano fra loro; la sua pagina en/ è nell'elenco.
+RAGGIUNGIBILI = ("sito/index.html", "sito/inizia/index.html", "sito/roadmap/index.html", "sito/privacy/index.html",
+                 "sito/feedback/index.html", "sito/en/index.html", "sito/llms.txt", "sito/sitemap.xml",
+                 "strumenti/roadmap.py", "strumenti/pagine/base.py")
+ASSORBITE = re.compile(r'(?:href="|https://arturo\.stellakamikaze\.org/)(?:\.\./|/)?'
+                       r'(installa|novita|idee|mestieri|organizzazioni|finestra|confronto|claude-code-[a-z-]+)/')
 # I file che i casi leggono: --avvelena li copia, poi ne rompe uno.
-LETTI = SENZA_VIRGOLETTE + ("sito/sitemap.xml", "server/arturo-sito.conf")
+LETTI = tuple(dict.fromkeys(SENZA_VIRGOLETTE + RAGGIUNGIBILI + ("sito/sitemap.xml", "server/arturo-sito.conf")))
 VIRGOLETTE = re.compile("[«»“”„‘’]")
 
 
@@ -313,10 +321,18 @@ def caso_pubblica_punta(repo):
     assert "origin/landing-v2" in p[i:j], "prepara non controlla la punta di origin/landing-v2 prima di caricare"
 
 
+def caso_pagina_sola(repo):
+    trovati = []
+    for f in RAGGIUNGIBILI:
+        for m in ASSORBITE.finditer(leggi(repo, f)):
+            trovati.append(f"{f}: {m.group(0)}")
+    assert not trovati, "una pagina raggiungibile porta a una pagina assorbita: " + "; ".join(trovati[:5])
+
+
 CASI = [caso_niente_nascosto, caso_comandi_pagina, caso_niente_scorciatoie, caso_parole, caso_dopo,
         caso_impostazioni_prima, caso_ingresso_persone, caso_attesa_cache, caso_windows,
         caso_frase_ovunque, caso_virgolette, caso_guida_cinque, caso_a_mano, caso_faq_uguali, caso_carte,
-        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta]
+        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta, caso_pagina_sola]
 
 INIZIA = "sito/inizia/index.html"
 
@@ -378,6 +394,15 @@ VELENI = [
     ("F8 virgolette basse in PRODUCT.md", "PRODUCT.md", sostituisci(
         '"update automatico è acceso di default"', "\u00abupdate automatico è acceso di default\u00bb"),
      caso_virgolette, "PRODUCT.md:"),
+    ("P1 la roadmap torna alla guida", "sito/roadmap/index.html", sostituisci(
+        'href="../#installa">Installa</a>', 'href="../installa/">Installa</a>'),
+     caso_pagina_sola, "sito/roadmap/index.html: href=\"../installa/"),
+    ("P1 il generatore delle pagine torna alla guida", "strumenti/pagine/base.py", sostituisci(
+        'href="../#installa">Tutti i passi</a>', 'href="../installa/">Tutti i passi</a>'),
+     caso_pagina_sola, "strumenti/pagine/base.py: href=\"../installa/"),
+    ("P1 llms.txt torna alle novità del sito", "sito/llms.txt", sostituisci(
+        "https://arturo.stellakamikaze.org/#installa", "https://arturo.stellakamikaze.org/novita/"),
+     caso_pagina_sola, "sito/llms.txt: https://arturo.stellakamikaze.org/novita/"),
     ("F8 virgolette basse in DESIGN.md", "DESIGN.md", sostituisci(
         '"Sessione di esempio"', "\u00abSessione di esempio\u00bb"),
      caso_virgolette, "DESIGN.md:"),

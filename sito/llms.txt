@@ -110,7 +110,7 @@ elif [ -d "$B" ]; then
 fi
 ```
 
-Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito ha cinque passi, e la strada a mano con ogni comando già scritto: https://arturo.stellakamikaze.org/installa/#a-mano
+Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. L'installazione sul sito sta in https://arturo.stellakamikaze.org/#installa, e la strada a mano con ogni comando già scritto nel README: https://github.com/stellakamikaze/arturo#installazione
 
 ## Pagine
 

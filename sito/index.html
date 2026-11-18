@@ -55,7 +55,7 @@
    "license": "https://opensource.org/licenses/MIT",
    "inLanguage": "it",
    "installUrl": "https://arturo.stellakamikaze.org/inizia/",
-   "releaseNotes": "https://arturo.stellakamikaze.org/novita/",
+   "releaseNotes": "https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md",
    "author": {
     "@type": "Person",
     "@id": "https://arturo.stellakamikaze.org/#autore",
@@ -164,7 +164,6 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .promessa__link::after{content:"\00a0↓"}
 /* i due passi d'installazione: fondo pieno, così il reticolo della volta non ci passa sotto il testo */
 .via{padding:20px 20px 16px;background:var(--bianco);border-top:1px solid var(--inchiostro)}
-.via h3{margin:0 0 12px;color:var(--inchiostro);font:400 1.3rem/1.2 var(--titolo);letter-spacing:-.02em}
 .via ol{display:grid;gap:16px;margin:0;padding:0;list-style:none}
 .via li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start}
 .via__boa{display:grid;place-items:center;width:28px;height:28px;background:var(--azione);color:var(--bianco);font:600 .9rem/1 var(--titolo);font-stretch:75%}
@@ -275,7 +274,6 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .chiusura h2{font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
 .chiusura__via{justify-self:start;display:grid;gap:12px;justify-items:start;margin-top:28px}
 .chiusura__via p{margin:0;color:var(--vuoto-cenere)}
-.chiusura__frase{margin:24px 0 12px}
 .chiusura .via{margin-top:28px;max-width:600px;color:var(--grafite)}
 .via .piu{max-width:none;margin-top:12px}
 .via .piu li{display:block;font-size:.9rem}
@@ -308,7 +306,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   /* sul telefono: titolo, la frase, i due passi, poi il pulsante della guida */
   .promessa{display:flex;flex-direction:column;gap:0}
   .promessa > div:first-child{display:contents}
-  .promessa h2{order:0}.promessa__testo{order:1;margin:12px 0 16px}.promessa__via{order:2}
+  .promessa h2{order:0}.promessa__testo{order:1;margin:12px 0 16px}
   .promessa__azioni{order:3;margin:16px 0 4px}
   .promessa .azione--grande{width:100%}
   .via{padding:16px 12px 12px}
@@ -580,10 +578,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 .harness .anelli svg{max-width:340px}
 @media (max-width:1020px){.quattro{grid-template-columns:repeat(2,minmax(0,1fr))}.dentro--lato{display:block}.dentro--lato .testa{position:static;margin-bottom:clamp(36px,5vw,64px)}}
 @media (max-width:760px){.quattro,.limiti,.scritti__corpo{grid-template-columns:minmax(0,1fr)}.articoli a{grid-template-columns:minmax(0,1fr);gap:4px}}
-/* La catena dei vocali (16/11/2026): etichetta "nella prossima versione", famiglie, strati, righe con lastra, finte nuove */
-.in-arrivo{display:inline-block;vertical-align:middle;margin-left:4px;padding:4px 8px;background:var(--carta-2);box-shadow:inset 0 0 0 1px var(--inchiostro);font:600 .78rem/1.2 var(--testo);letter-spacing:0;color:var(--inchiostro);white-space:nowrap}
-h3 .in-arrivo{display:table;margin:8px 0 0}
-.riga__testo > p > .in-arrivo:only-child{margin-left:0}
+/* La catena dei vocali (16/11/2026): famiglie, strati, righe con lastra, finte nuove */
 .famiglie .uso__quando{color:var(--azione-giu)}
 .famiglie p:last-child{margin:0;color:var(--grafite)}
 #funzioni .testa p{max-width:50ch}
@@ -662,7 +657,6 @@ html{scroll-padding-top:64px}
 .passo:nth-of-type(even) .passo__testo{order:2}
 .passo__testo h3{margin:0 0 12px;font-weight:300;font-size:clamp(1.6rem, 1.15rem + 1.5vw, 2.4rem);line-height:1.08;letter-spacing:-.02em;font-stretch:110%;text-wrap:balance}
 .passo__n{display:block;margin-bottom:12px;font:300 1rem/1 var(--titolo);color:var(--cenere)}
-.passo__testo h3 .in-arrivo{display:table;margin:12px 0 0}
 .passo__testo p{margin:0 0 16px;max-width:46ch;color:var(--grafite)}
 .piu{margin-top:8px;border-top:1px solid var(--filetto);max-width:46ch}
 .piu summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px;cursor:pointer;list-style:none;font-weight:600;color:var(--inchiostro)}
@@ -701,13 +695,13 @@ html{scroll-padding-top:64px}
 .chat ol{margin:0 0 10px;padding-left:1.3em}
 .chat li{padding:4px 0;border-bottom:1px solid var(--filetto)}
 .chat__poi{color:var(--inchiostro)}
-/* passo 3: la pila che si tocca */
+/* passo 4: la pila che si tocca */
 .pila--scena{display:grid;padding:0;background:var(--bianco);box-shadow:var(--ombra-foglio);border-top:0}
 .pila--scena .pila__strato{grid-template-columns:minmax(0,1fr) auto;width:100%;border:0;border-bottom:1px solid var(--filetto);font:inherit;text-align:left;cursor:pointer;min-height:52px}
 .pila--scena .pila__strato[aria-pressed="true"]{box-shadow:inset 4px 0 0 var(--azione)}
 .pila--scena .pila__strato:hover .pila__nome{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
 .pila__dettaglio{margin:0;padding:16px;min-height:4.5em;color:var(--inchiostro);background:var(--bianco)}
-/* passi 4 e 7: le risposte nel terminale */
+/* passi 3 e 7: le risposte nel terminale */
 .scena-bottoni{display:flex;gap:8px;padding:0 24px 20px}
 .scena-bottoni button,.leggi{min-height:44px;padding:0 16px;border:1px solid var(--term-bordo-su, #3a3f47);background:transparent;color:var(--term-testo);font:500 .9rem/1 var(--testo);cursor:pointer}
 .scena-bottoni button:hover{border-color:var(--term-tu);color:var(--bianco)}
@@ -726,7 +720,6 @@ html{scroll-padding-top:64px}
 .forma-pannello .foglio,.forma-pannello .tabella-mock{max-width:420px}
 .foglio__titolo{margin:0 0 4px;font:400 1.25rem/1.15 var(--titolo);letter-spacing:-.015em;color:var(--inchiostro)}
 .foglio h5{margin:12px 0 4px;font:600 .8rem/1.3 var(--testo);color:var(--inchiostro)}
-.forma-stato{margin:0}
 .simulatore input[type="range"]{display:block;width:100%;max-width:180px;margin:6px 0 0;accent-color:var(--azione)}
 .simulatore tr.manca.dentro-budget td{color:var(--passa)}
 @media (max-width:1020px){

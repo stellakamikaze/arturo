@@ -314,13 +314,13 @@ def head(p) -> str:
 def testata(p) -> str:
     if p["lang"] == "it":
         menu = ('<a class="menu__voce" href="../">Cos\'è Arturo</a>\n'
-                '        <a class="azione azione--scura stretta" href="../installa/">Installa</a>')
+                '        <a class="azione azione--scura stretta" href="../#installa">Installa</a>')
         marchio_label = "Arturo, pagina principale"
         percorso = "Percorso"
         salta = "Vai al contenuto"
     else:
         menu = ('<a class="menu__voce" href="../" hreflang="it">Arturo in Italian</a>\n'
-                '        <a class="azione azione--scura stretta" href="../installa/" hreflang="it">Install</a>')
+                '        <a class="azione azione--scura stretta" href="../#installa" hreflang="it">Install</a>')
         marchio_label = "Arturo, home page (in Italian)"
         percorso = "Breadcrumb"
         salta = "Skip to content"
@@ -404,7 +404,7 @@ def chiusura_it() -> str:
     </div>
     <pre class="frase">Installa Arturo: https://<wbr>arturo.stellakamikaze.org/<wbr>inizia/</pre>
     <div class="chiusura__vie">
-      <a class="azione azione--chiara" href="../installa/">Guida passo per passo</a>
+      <a class="azione azione--chiara" href="../#installa">Tutti i passi</a>
       <a class="azione azione--bordo" href="../">Cos'è Arturo</a>
     </div>
   </div>

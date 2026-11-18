@@ -269,7 +269,7 @@ MODELLO = """<!doctype html>
       </a>
       <div class="menu__fine">
         <a class="menu__voce" href="../">Cos'è Arturo</a>
-        <a class="azione azione--scura stretta" href="../installa/">Installa</a>
+        <a class="azione azione--scura stretta" href="../#installa">Installa</a>
       </div>
     </div>
   </nav>
@@ -298,7 +298,7 @@ MODELLO = """<!doctype html>
     </div>
     <div class="chiusura__vie">
       <a class="azione azione--chiara" href="../feedback/">Scrivimi</a>
-      <a class="azione azione--bordo" href="../novita/">Le novità</a>
+      <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">Le novità</a>
     </div>
   </div>
 </section>

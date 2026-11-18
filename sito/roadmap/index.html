@@ -35,7 +35,7 @@
  "description": "La roadmap di Arturo, l'harness in italiano per Claude Code: su cosa si lavora adesso, cosa viene dopo e cosa aspetta una decisione. Ogni voce si commenta.",
  "url": "https://arturo.stellakamikaze.org/roadmap/",
  "inLanguage": "it",
- "dateModified": "2026-11-15",
+ "dateModified": "2026-11-18",
  "publisher": {
   "@type": "Person",
   "name": "Federico Nejrotti"
@@ -174,7 +174,7 @@ ul,ol{margin:0;padding:0}
       </a>
       <div class="menu__fine">
         <a class="menu__voce" href="../">Cos'è Arturo</a>
-        <a class="azione azione--scura stretta" href="../installa/">Installa</a>
+        <a class="azione azione--scura stretta" href="../#installa">Installa</a>
       </div>
     </div>
   </nav>
@@ -182,7 +182,7 @@ ul,ol{margin:0;padding:0}
     <div class="testata__corpo">
       <h1 id="titolo">La strada di Arturo</h1>
       <p>Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in <code>NOVITA.md</code>. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (<code>docs/strati.md</code>). Ogni voce si commenta nella pagina delle persone che usano Arturo: si entra con l'email dell'invito, e ognuno legge i commenti degli altri.</p>
-      <p class="testata__data">Aggiornata il <time datetime="2026-11-15">15 novembre 2026</time></p>
+      <p class="testata__data">Aggiornata il <time datetime="2026-11-18">18 novembre 2026</time></p>
       <div class="testata__vie">
         <a class="azione" href="/sviluppo/roadmap/">Commenta la roadmap</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/dev/ROADMAP.md">ROADMAP.md su GitHub</a>
@@ -259,7 +259,7 @@ ul,ol{margin:0;padding:0}
         <p class="voce__data">In corso</p>
         <div class="voce__corpo">
           <h3 id="t-segnalazioni"><a href="#segnalazioni">Le vostre segnalazioni</a></h3>
-          <p class="voce__stato">Tre correzioni escono con il prossimo rilascio.</p>
+          <p class="voce__stato">Col prossimo rilascio escono quattro proposte: colori e barra in un file tuo che gli aggiornamenti non toccano, la sessione chiusa in viola, gli elenchi lunghi in un file e la riga d'esempio nel brief.</p>
           <p>Strato: Misura.</p>
           <p>Ogni <code>/segnala</code> e ogni messaggio dal sito diventa un compito. Qui stanno quelli ancora aperti: comandi che si fermano, testi poco chiari, passi di installazione che non tornano.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#segnalazioni">Commenta questa voce</a></p>
@@ -335,10 +335,21 @@ ul,ol{margin:0;padding:0}
         <p class="voce__data">In corso</p>
         <div class="voce__corpo">
           <h3 id="t-ruoli"><a href="#ruoli">Assistenti per ruolo: posta, agenda, archivio</a></h3>
-          <p class="voce__stato">È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali.</p>
+          <p class="voce__stato">È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali. /monitor impara dalle tue correzioni (scarti, ripristini, mittenti, voci del report) e ha una guida per adattarlo al tuo lavoro.</p>
           <p>Strato: Collegamenti.</p>
           <p>Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva per urgenza, la posta, l'agenda, l'archivio dei documenti, e un osservatore che ti propone cosa delegare. Ogni skill ha una versione generica, e tu la adatti nella tua parte personale.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#ruoli">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="ripresa" aria-labelledby="t-ripresa">
+        <p class="voce__data">In corso</p>
+        <div class="voce__corpo">
+          <h3 id="t-ripresa"><a href="#ripresa">Una sessione ferma riparte da sola</a></h3>
+          <p class="voce__stato">Nasce dalla prima <code>/revisione</code> del 17 novembre 2026. Dal 17 novembre Volta fa ripartire da sola le sessioni ferme per il limite o per la connessione persa. Restano i lavori lunghi in parallelo che aspettano il limite.</p>
+          <p>Strato: Ingresso.</p>
+          <p>Oggi una sessione si ferma quando finisce il limite d'uso del modello, quando la connessione cade a metà risposta o quando il computer va in stop. Poi aspetta che tu scriva "riprendi". Arturo la fa ripartire da sola appena può: quando il limite si azzera, quando la rete torna, quando il computer si sveglia. Ti dice in una riga che è ripartita e da dove. I lavori lunghi in parallelo aspettano il limite invece di fermarsi tutti insieme.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#ripresa">Commenta questa voce</a></p>
         </div>
       </article>
 
@@ -445,7 +456,7 @@ ul,ol{margin:0;padding:0}
     </div>
     <div class="chiusura__vie">
       <a class="azione azione--chiara" href="../feedback/">Scrivimi</a>
-      <a class="azione azione--bordo" href="../novita/">Le novità</a>
+      <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">Le novità</a>
     </div>
   </div>
 </section>
