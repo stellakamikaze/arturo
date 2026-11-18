@@ -13,6 +13,13 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Le correzioni si registrano anche col sandbox dei comandi acceso
+
+**Cosa cambia**: quando correggi Claude, la regola che scrive con `arturo correzione aggiungi` si salva anche col sandbox dei comandi acceso. Prima il sandbox fermava il comando con `Operation not permitted`, Claude doveva rilanciarlo senza protezioni e la regola arrivava in ritardo. Le correzioni adesso stanno in `~/.claude/data/correzioni/`, l'unica cartella che il sandbox lascia scrivere. Quelle scritte prima nella cartella vecchia valgono ancora per la sessione in corso. Nasce dalla segnalazione n. 88, lo stesso guasto della n. 81 su un altro comando.
+
+**Il principio**: una protezione accesa non deve far perdere una regola che hai appena dato.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
 ## 2026-11-18 — Claude non cattura più lo schermo del Mac senza dirtelo
 
 **Cosa cambia**: per dire "fatto" su un file che si legge con uno script, come un foglio Excel, un documento Word o un CSV, a Claude basta controllarne il contenuto. Non apre il file per fotografare lo schermo. Per guardare un documento usa prima l'anteprima di Quick Look (`qlmanage -t`) o il PDF, che non chiedono permessi. Se una cattura dello schermo serve davvero, Claude te lo dice prima in una riga: perché la fa, e che macOS ti chiederà il permesso di registrare schermo e audio. Nasce dalla segnalazione n. 89: il Mac aveva chiesto quel permesso senza alcun avviso, per un file già controllato.

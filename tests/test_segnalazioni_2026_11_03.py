@@ -11,6 +11,8 @@ SZ03 /inizio dice perché la copia separata parte dall'HEAD locale (worktree.bas
      settings) e come accorgersene e rimediare se non succede (n. 45).
 SZ04 (16/11/2026, n. 81) il sandbox dei comandi lascia scrivere ~/.claude/data (todo e handoff), anche nel
      frammento delle impostazioni del plugin, e /fine dice che la coda (commit e push) gira fuori dal sandbox.
+SZ05 (18/11/2026, n. 88) arturo correzione scrive dentro la cartella che il sandbox lascia scrivere
+     (~/.claude/data), e legge ancora la correzione di una sessione scritta prima in ~/.claude/cache.
 
 Sulla base 9c6a0e6 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -99,7 +101,29 @@ def test_sz04(repo: Path) -> None:
         "SZ04 /fine non dice che la coda gira fuori dal sandbox"
 
 
-TESTS = {"SZ01": test_sz01, "SZ02": test_sz02, "SZ03": test_sz03, "SZ04": test_sz04}
+def test_sz05(repo: Path) -> None:
+    settings = json.loads(read(repo / "settings.json"))
+    scrive = ((settings.get("sandbox") or {}).get("filesystem") or {}).get("allowWrite") or []
+    with tempfile.TemporaryDirectory() as t:
+        radice = Path(t) / ".claude"
+        vecchia = radice / "cache" / "correzioni"
+        vecchia.mkdir(parents=True)
+        (vecchia / "vecchia-1.json").write_text(json.dumps([{"testo": "regola di prima", "quando": 0}]), encoding="utf-8")
+        env = {"PATH": "/usr/bin:/bin", "HOME": t, "USERPROFILE": t, "ARTURO_RADICE": str(radice),
+               "PYTHONIOENCODING": "utf-8"}
+        uno = subprocess.run([sys.executable, str(repo / "bin" / "correzioni.py"), "aggiungi", "regola nuova"],
+                             env=dict(env, CLAUDE_CODE_SESSION_ID="nuova-1"), capture_output=True, text=True, timeout=60)
+        assert uno.returncode == 0, f"SZ05 aggiungi esce {uno.returncode}: {uno.stderr[-300:]}"
+        scritti = [p.relative_to(radice).as_posix() for p in radice.rglob("*.json")]
+        dentro = [p for p in scritti if any(p.startswith(w.replace("~/.claude/", "", 1) + "/") for w in scrive)]
+        assert "data/correzioni/nuova-1.json" in scritti and dentro == [p for p in scritti if p != "cache/correzioni/vecchia-1.json"], \
+            f"SZ05 la correzione non sta nella cartella che il sandbox lascia scrivere {scrive}: {scritti}"
+        due = subprocess.run([sys.executable, str(repo / "bin" / "correzioni.py"), "elenco"],
+                             env=dict(env, CLAUDE_CODE_SESSION_ID="vecchia-1"), capture_output=True, text=True, timeout=60)
+        assert "regola di prima" in due.stdout, f"SZ05 la correzione scritta in cache/ prima del 18/11 si perde: {due.stdout!r}"
+
+
+TESTS = {"SZ01": test_sz01, "SZ02": test_sz02, "SZ03": test_sz03, "SZ04": test_sz04, "SZ05": test_sz05}
 
 
 def main() -> int:
