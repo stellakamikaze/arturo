@@ -355,8 +355,8 @@ Cosa ricorda e cosa esce dal computer sta in [`docs/memoria.md`](docs/memoria.md
 **Cosa cambia**: `/setup` non propone più Lancillotto, l'app per Mac che annotava come lavori. Il server di Arturo
 non accetta più i suoi eventi, e il riepilogo della settimana non ha più il blocco "Dove migliorare Lancillotto".
 `/sparring` parte dai candidati della Scoperta invece che dai numeri di Lancillotto. Se Lancillotto è già sul tuo
-Mac, resta lì finché non lo togli tu, e il server rifiuta quello che prova a mandare. Le righe arrivate al server fino a oggi restano al
-massimo 12 mesi, e chi lo ha usato può chiederne la cancellazione col suo id (`docs/privacy.md`).
+Mac, resta lì finché non lo togli tu, e il server rifiuta quello che prova a mandare. Le righe arrivate al server fino a oggi
+sono già cancellate.
 
 **Il principio**: per capire cosa ripeti basta guardare come cambiano i tuoi file, senza un'app che registra tutto quello che fai al Mac.
 
