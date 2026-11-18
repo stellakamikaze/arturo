@@ -30,6 +30,7 @@ jobs:
           PRIMA: ${{ github.event.before || github.event.pull_request.base.sha }}
           DOPO: ${{ github.event.pull_request.head.sha || github.sha }}
           RAMO: ${{ github.ref_name }}
+          EVENTO: ${{ github.event_name }}
         run: |
           # Un branch nuovo, o riscritto da un rebase, non ha un "prima": si controllano i commit che dev
           # non ha. Prima si controllava tutta la storia, e i nomi nei messaggi dei commit vecchi, già su
@@ -46,4 +47,15 @@ jobs:
           if [ "$RAMO" != "dev" ] && git rev-parse -q --verify origin/dev >/dev/null; then
             INTERVALLO="${INTERVALLO} ^origin/dev"
           fi
+          # Anche i commit che un altro ramo pubblico ha già si sono controllati al loro arrivo, e un nome nel loro
+          # messaggio è già pubblico: il primo push di landing-catena-voce dava rosso per quattro commit di ottobre
+          # (18/11/2026, #6063). Riscrivere quella storia è una decisione a parte (#5026).
+          # Un ramo che contiene già DOPO non conta: due rami spinti insieme con lo stesso commit nuovo si
+          # toglierebbero a vicenda, e nessuno dei due lo controllerebbe. In una pull request i commit di origin
+          # sono arrivati con un push, che li ha controllati: lì contano tutti i rami, e il fork resta controllato.
+          for R in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
+            case "$R" in refs/remotes/origin/HEAD|"refs/remotes/origin/${RAMO}") continue ;; esac
+            if [ "$EVENTO" != "pull_request" ] && git merge-base --is-ancestor "$DOPO" "$R"; then continue; fi
+            INTERVALLO="${INTERVALLO} ^${R}"
+          done
           python3 tests/igiene.py --repo . --intervallo "$INTERVALLO"
