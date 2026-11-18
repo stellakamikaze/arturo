@@ -331,6 +331,41 @@ function chiusuraSegmento(sessione, transcript) {
   return progetto ? ` │ \x1b[48;5;98;97;1m ✓ chiusa · /inizio ${progetto} \x1b[0m` : '';
 }
 
+// --- L'aspetto della persona (proposta n. 73, 18/11/2026) ------------------
+// ~/.claude/personale/aspetto.json, fuori da git: i pezzi spenti e un file suo che accoda un testo. Gli stessi nomi
+// di hooks/aspetto_valori.py, che lo legge per la scheda e per `arturo aspetto`. Un valore sbagliato non conta.
+const PEZZI_BARRA = ['contesto', 'quota', 'aggiornamento', 'chiusa', 'task'];
+
+function aspettoBarra() {
+  try {
+    const dati = JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, 'personale', 'aspetto.json'), 'utf8'));
+    const barra = dati && typeof dati.barra === 'object' && dati.barra ? dati.barra : {};
+    const spenti = new Set((Array.isArray(barra.spenti) ? barra.spenti : []).filter(x => PEZZI_BARRA.includes(x)));
+    const aggiunta = typeof barra.aggiunta === 'string' && /^[A-Za-z0-9_-]{1,40}\.js$/.test(barra.aggiunta) ? barra.aggiunta : '';
+    return { spenti, aggiunta };
+  } catch (e) {
+    return { spenti: new Set(), aggiunta: '' };
+  }
+}
+
+// Il file della persona gira con la sua fiducia, come personale/session-start.sh. Un errore, o un testo che non
+// è testo, non rompe la barra: si tolgono i caratteri di controllo tranne i colori SGR, e il testo si ferma a 60.
+function aggiuntaPersona(nome, dati) {
+  if (!nome) return '';
+  try {
+    const modulo = require(path.join(CLAUDE_DIR, 'personale', nome));
+    const funzione = typeof modulo === 'function' ? modulo : modulo && modulo.default;
+    if (typeof funzione !== 'function') return '';
+    const testo = String(funzione(dati) || '');
+    const pulito = testo.replace(/\x1b\[[0-9;]*m|[\x00-\x1f\x7f-\x9f]/g, m => (m.length > 1 ? m : ''));
+    const visibile = pulito.replace(/\x1b\[[0-9;]*m/g, '');
+    if (!visibile.trim()) return '';
+    return ` │ ${visibile.length > 60 ? visibile.slice(0, 59) + '…' : pulito}\x1b[0m`;
+  } catch (e) {
+    return '';
+  }
+}
+
 // --- Quota dell'abbonamento ------------------------------------------------
 // Arriva già su stdin (`rate_limits`): nessuna lettura, nessun processo.
 // Chiavi assenti (prima della prima risposta, o piano senza limiti dichiarati,
@@ -529,9 +564,13 @@ process.stdin.on('end', () => {
       : accorcia(progetto, PROGETTO_MAX);
 
     // Output
-    const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento(session) + chiusuraSegmento(session, data.transcript_path || '');
+    const aspetto = aspettoBarra();
+    const pezzo = (nome, fai) => (aspetto.spenti.has(nome) ? '' : fai());
+    if (aspetto.spenti.has('contesto')) ctx = '';
+    const quota = pezzo('quota', () => quotaSegmento(data.rate_limits)) + pezzo('aggiornamento', () => aggiornamentoSegmento(session))
+      + pezzo('chiusa', () => chiusuraSegmento(session, data.transcript_path || '')) + aggiuntaPersona(aspetto.aggiunta, data);
     const sigla = abbreviaModello(model);
-    task = accorcia(task, TASK_MAX);
+    task = aspetto.spenti.has('task') ? '' : accorcia(task, TASK_MAX);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     } else {

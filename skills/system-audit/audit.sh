@@ -472,6 +472,19 @@ if [[ -f "$personale_py" ]] && command -v python3 >/dev/null 2>&1; then
   fi
 fi
 
+# L'aspetto della persona (proposta n. 73, 18/11/2026): un valore sbagliato in personale/aspetto.json non rompe
+# niente, vale quello di Arturo, ma la persona non vede il colore che ha scelto. WARN, uno per valore.
+aspetto_py="$CODICE/bin/aspetto.py"
+if [[ -f "$CLAUDE_DIR/personale/aspetto.json" && -f "$aspetto_py" ]] && command -v python3 >/dev/null 2>&1; then
+  if aspetto_out=$(CLAUDE_CONFIG_DIR="$CLAUDE_DIR" python3 "$aspetto_py" controlla 2>&1); then
+    ok "aspetto: personale/aspetto.json valido"
+  else
+    while IFS= read -r riga; do
+      case "$riga" in "ERRORE "*) warning "aspetto: ${riga#ERRORE }" ;; esac
+    done < <(printf '%s\n' "$aspetto_out")
+  fi
+fi
+
 echo "=== System Audit ==="
 printf '%s\n' "${report[@]}"
 printf 'Totali: PASS=%s WARN=%s FAIL=%s\n' "$pass" "$warn" "$fail"

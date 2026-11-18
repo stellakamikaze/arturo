@@ -248,9 +248,13 @@ def riga_plugin(esito: dict) -> str:
                        "aggiornato git e OpenSSH, /aggiorna reinstalla la copia e la controlla")
         else:
             rimedio = "per rimettere il rilascio firmato: /aggiorna, che reinstalla la copia e la controlla"
+        # Colori e pezzi della barra hanno un posto loro (proposta n. 73, 18/11/2026).
+        dove = "~/.claude/personale/"
+        if any(f.endswith(("statusline.js", "scheda-terminale.py", "dafare/register.tsx")) for f in esito["file"]):
+            dove = "~/.claude/personale/ (colori e pezzi della barra in ~/.claude/personale/aspetto.json, arturo aspetto esempio)"
         parti.append(f"{len(esito['file'])} file del plugin non sono come nel rilascio firmato ({elenco}): se è una "
                      "guardia, protegge come l'ha scritta chi l'ha cambiata. Una modifica tua va in "
-                     f"~/.claude/personale/; {rimedio}")
+                     f"{dove}; {rimedio}")
     return ("DERIVA: " + "; ".join(parti) + ".") if parti else ""
 
 

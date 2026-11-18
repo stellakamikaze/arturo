@@ -225,6 +225,8 @@ BANCHI=(
   test_monitor_impara_2026_11_17.py
   # La ripartenza di /inizio come dati per la checklist di Volta (17/11/2026, #5910).
   test_ripartenza_2026_11_17.py
+  # L'aspetto della persona in personale/aspetto.json: scheda, barra, /dafare, DERIVA (proposta n. 73, #5432).
+  test_aspetto_2026_11_18.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -490,6 +492,8 @@ BASELINE=(
   "test_monitor_impara_2026_11_17.py e0ec624"
   # La ripartenza per Volta (17/11/2026, #5910): il comando arturo ripartenza non c'è. b70d1d0, il dev prima.
   "test_ripartenza_2026_11_17.py b70d1d0"
+  # L'aspetto (18/11/2026, proposta n. 73): aspetto_valori.py e arturo aspetto non ci sono. 58e0435, il dev prima.
+  "test_aspetto_2026_11_18.py 58e0435"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
