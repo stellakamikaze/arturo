@@ -9,7 +9,23 @@
   /* l'indice dei passi segue la lettura */
   var voci=tutti('.indice-passi a');
   if(voci.length&&'IntersectionObserver' in window){
-    var segna=function(id){voci.forEach(function(a){if(a.getAttribute('href')==='#'+id)a.setAttribute('aria-current','step');else a.removeAttribute('aria-current')})};
+    var elenco=d.querySelector('.indice-passi ol');
+    /* sul telefono l'indice scorre di lato: sfuma dove ci sono altri passi e tiene in vista quello in lettura (18/11/2026) */
+    var bordi=function(){
+      elenco.classList.toggle('oltre-sinistra',elenco.scrollLeft>2);
+      elenco.classList.toggle('oltre-destra',elenco.scrollLeft+elenco.clientWidth<elenco.scrollWidth-2);
+    };
+    elenco.addEventListener('scroll',bordi,{passive:true});
+    window.addEventListener('resize',bordi);
+    bordi();
+    var segna=function(id){voci.forEach(function(a){
+      if(a.getAttribute('href')!=='#'+id){a.removeAttribute('aria-current');return}
+      a.setAttribute('aria-current','step');
+      if(elenco.scrollWidth>elenco.clientWidth){
+        var voce=a.parentNode;
+        elenco.scrollTo({left:voce.offsetLeft-(elenco.clientWidth-voce.offsetWidth)/2,behavior:riduci?'auto':'smooth'});
+      }
+    })};
     var visto=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)segna(e.target.id)})},{rootMargin:'-40% 0px -55% 0px'});
     tutti('.passo').forEach(function(p){visto.observe(p)});
   }
