@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TS01-TS07: titolo e colore della scheda del terminale (hooks/scheda-terminale.py, 16/10/2026).
+"""TS01-TS16: titolo e colore della scheda del terminale (hooks/scheda-terminale.py, 16/10/2026).
 
 TS01 lo stato segue l'evento: al lavoro giallo, attende verde, problema rosso (StopFailure). Il titolo
      è "LAVORANDO · <progetto>" al lavoro e "SBLOCCA · <progetto>" quando la sessione aspetta la persona
@@ -13,6 +13,9 @@ TS04 se stato e progetto non cambiano l'hook non scrive niente, e il titolo non 
 TS05 un input rotto o un evento sconosciuto non scrive niente ed esce 0.
 TS06 settings.json collega l'hook ai sette eventi in async e spegne il titolo di Claude Code.
 TS07 un evento partito prima dell'ultimo salvato non sovrascrive lo stato.
+TS16 (proposta n. 71, 18/11/2026) a turno finito una sessione chiusa con /fine diventa viola, e la barra in basso
+     dice "chiusa · /inizio <progetto>": un handoff degli ultimi 7 giorni con "- Sessione: <id>", e nessun
+     messaggio della persona dopo. Un messaggio scritto dopo il /fine la riapre, un handoff vecchio non conta.
 TS08 all'avvio di una sessione sparisce lo stato delle sessioni ferme da una settimana, e solo quello.
 TS10 in Terminal di Apple la campanella (BEL) suona quando la sessione passa la mano (Notification,
      StopFailure); all'avvio, al lavoro, alla sola fine del turno e negli altri terminali no.
@@ -469,9 +472,57 @@ def test_ts15(repo: Path) -> None:
         c.chiudi()
 
 
+def barra(repo: Path, c: "Casa", sessione: str, transcript: Path) -> str:
+    dati = {"session_id": sessione, "transcript_path": str(transcript), "workspace": {"current_dir": str(c.dir)},
+            "model": {"display_name": "Opus"}}
+    env = dict(c.env, CLAUDE_CONFIG_DIR=str(c.home / ".claude"))
+    r = subprocess.run(["node", str(repo / "hooks" / "statusline.js")], input=json.dumps(dati).encode("utf-8"),
+                       capture_output=True, env=env, timeout=30)
+    return r.stdout.decode("utf-8", "replace")
+
+
+def test_ts16(repo: Path) -> None:
+    c = Casa(repo, "TS16", {"TERM_PROGRAM": "iTerm.app"})
+    viola, verde = "\x1b]6;1;bg;red;brightness;135\x07", "\x1b]6;1;bg;red;brightness;40\x07"
+    try:
+        sessione = "sessione-chiusa-1"
+        t = c.dir / "t.jsonl"
+        t.write_text(riga_transcript(type="user", message={"role": "user", "content": "/fine"}), encoding="utf-8")
+        voce = {"transcript_path": str(t), "sessione": sessione}
+        c.evento("UserPromptSubmit", prompt="/inizio romanzo", **voce)
+        cartella = c.home / ".claude" / "data" / "handoffs" / "romanzo"
+        cartella.mkdir(parents=True)
+        handoff = cartella / "HANDOFF_2026-11-18_12-00.md"
+        handoff.write_text(f"# Handoff\n- Sessione: {sessione}\n", encoding="utf-8")
+        os.utime(handoff, (time.time() + 2, time.time() + 2))
+        with t.open("a", encoding="utf-8") as f:  # dopo il /fine solo risultati di strumenti e promemoria
+            f.write(riga_transcript(type="user", message={"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "x", "content": "ok"}]}))
+            f.write(riga_transcript(type="user", isMeta=True, message={"role": "user", "content": "promemoria"}))
+        chiusa = c.evento("Stop", **voce)
+        assert viola in chiusa and "]0;romanzo\x07" in chiusa, f"TS16 la sessione chiusa con /fine non è viola: {chiusa!r}"
+        assert "chiusa · /inizio romanzo" in barra(repo, c, sessione, t), "TS16 la barra non dice che la sessione è chiusa"
+        with t.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() + 30)),
+                                "type": "user", "message": {"role": "user", "content": "ancora una cosa"}}) + "\n")
+        c.evento("UserPromptSubmit", prompt="ancora una cosa", **voce)
+        riaperta = c.evento("Stop", **voce)
+        assert verde in riaperta, f"TS16 una sessione riaperta dopo /fine resta viola: {riaperta!r}"
+        assert "chiusa" not in barra(repo, c, sessione, t), "TS16 la barra dice chiusa una sessione riaperta"
+        vecchia = "sessione-vecchia-2"
+        h2 = cartella / "HANDOFF_2026-11-01_10-00.md"
+        h2.write_text(f"- Sessione: {vecchia}\n", encoding="utf-8")
+        os.utime(h2, (time.time() - 8 * 86400, time.time() - 8 * 86400))
+        c.evento("UserPromptSubmit", prompt="/inizio romanzo", transcript_path=str(c.dir / "manca.jsonl"), sessione=vecchia)
+        fuori = c.evento("Stop", transcript_path=str(c.dir / "manca.jsonl"), sessione=vecchia)
+        assert verde in fuori, f"TS16 un handoff di 8 giorni fa segna ancora la sessione come chiusa: {fuori!r}"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
          "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10,
-         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14, "TS15": test_ts15}
+         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14, "TS15": test_ts15, "TS16": test_ts16}
 
 
 def main() -> int:

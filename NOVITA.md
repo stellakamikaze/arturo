@@ -13,6 +13,13 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Una sessione chiusa con /fine diventa viola
+
+**Cosa cambia**: dopo un /fine la scheda del terminale diventa viola, in iTerm2 e in Windows Terminal, e in fondo alla barra compare "✓ chiusa · /inizio <progetto>". Con molte sessioni aperte vedi subito quali hai già chiuso e come riprenderle. Se scrivi di nuovo nella sessione, al turno dopo torna verde come prima. Il viola vale per una settimana dall'ultimo /fine. Nasce dalla proposta n. 71, che l'aveva già provato su un Mac.
+
+**Il principio**: lo stato di una sessione si legge a colpo d'occhio, senza aprirla. Chiusa è uno stato come gli altri, con un colore suo.
+
+**A chi serve**: a chi tiene aperte più sessioni insieme.
 ## 2026-11-18 — Un elenco lungo arriva in un file, e un foglio ambiguo parte da una riga d'esempio
 
 **Cosa cambia**: quando Claude deve mostrarti un elenco di più di 30 righe, come i tuoi todo o i risultati di una ricerca, lo scrive in un file numerato e te lo apre. In chat restano il conteggio e le voci che servono a decidere, e tu rispondi coi numeri del file. Dove c'è un pannello o la checklist di Volta, l'elenco va lì. Poi il brief: se una richiesta arriva da un collega e chiede di riempire un foglio con colonne poco chiare, Claude ti chiede prima una riga d'esempio compilata, invece di riempire tutte le colonne con dati deboli. Nascono dalle proposte n. 76 e n. 82.
