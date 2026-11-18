@@ -10,8 +10,9 @@ di dati.js): ~/.cache/volta-registro per la finestra vera, <HERDR_APP_HOME>/cach
 finestra di prova, VOLTA_REGISTRO per i banchi. Non in cacheVolta(): volta.js rilegge l'elenco a ogni cambio
 di quella cartella. I file più vecchi di TENUTA giorni si tolgono alla prima scrittura del giorno.
 
-Una riga tiene solo i campi di CAMPI, tagliati: verbo, macchina, id corto della sessione, durata, esito e la
-prima riga dell'errore. Mai prompt, testo delle conversazioni o segreti. Una scrittura che non riesce non
+Una riga tiene solo i campi di CAMPI, tagliati: verbo, macchina, id corto della sessione, durata, esito, la
+prima riga dell'errore, la scheda (terminale) e il progetto. Un campo nuovo di registra() va aggiunto qui,
+altrimenti pulisci() lo scarta. Mai prompt, testo delle conversazioni o segreti. Una scrittura che non riesce non
 ferma chi scrive: registra() non solleva mai.
 Lo importano volta_sonda.py e volta_sposta.py (stessa cartella); volta.js lo chiama con `scrivi`.
 """
@@ -29,7 +30,8 @@ sys.dont_write_bytecode = True  # come gli altri script del mod: niente __pycach
 
 TENUTA = 14
 # come e servizio dell'evento apri (step 5 del piano, 17/11/2026): com'è andato il clic e se prepara è servito
-CAMPI = {"ora": 32, "fonte": 20, "evento": 40, "macchina": 60, "sid": 12, "esito": 20, "errore": 160, "come": 20, "servizio": 20}
+CAMPI = {"ora": 32, "fonte": 20, "evento": 40, "macchina": 60, "sid": 12, "esito": 20, "errore": 160, "come": 20, "servizio": 20,
+         "terminale": 40, "progetto": 40}
 # i campi in millisecondi: ms (la durata) e visibile (dal clic a Claude nella scheda, evento apri)
 DURATE = ("ms", "visibile")
 ID = re.compile(r"[^0-9A-Za-z-]")

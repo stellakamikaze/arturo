@@ -366,7 +366,7 @@ HZ85 la spunta di un todo e /rename (revisione dell'11/11/2026): ancoraFatti di 
      scrive arturo.scritto, così la barra rilegge i conti. portaNome di dati.js (con node, orologio finto)
      non riscrive lo stesso nome per 5 minuti e intanto riprova solo a segnarlo alla sonda; un nome nuovo,
      un'altra sessione e i 5 minuti passati lo riscrivono; un /rename non riuscito non conta come scritto.
-HZ86 ⌘↓ e ⌘↑ girano fra tutte le sessioni dell'elenco (12/11/2026): keys.json li lega ad
+HZ86 ⌘↓ e ⌘↑ girano fra le sessioni con una scheda (12/11/2026, ristretto il 14/11): keys.json li lega ad
      arturo.volta-giro-avanti e -indietro, instrada() li legge prima di volta-<id>, la barra li porta a
      Volta.giro(). sessioni.js con node: ordineGiro() prende solo le sessioni con una scheda in questa
      finestra, in ogni stato e anche nascoste (dal 14/11), e lascia fuori quelle che stanno in un Terminale; statoGiro() tiene l'ordine dentro una raffica di tasti; passoGiro() gira
@@ -452,7 +452,8 @@ HZ100 installa-herdr.sh senza keys.json parte dai tasti di serie di Herdr (share
      Volta ha ⌘W, ⌘C e gli altri, la sezione terminal, e i tasti di Arturo sopra, ⌘T sulle tessere (#5369).
 HZ101 la riga accesa, il comando di Sposta su e la tessera che fa nascere una conversazione nel progetto
      (conversazione-<slug>, casa.js e barra.js; 12/11/2026, Federico): sessioni.js con node: corrente() è
-     l'ultima sessione del giro dentro la raffica di ⌘↓ e ⌘↑, poi quella della scheda in primo piano;
+     l'ultima sessione del giro dentro la raffica di ⌘↓ e ⌘↑ (su una scheda spenta, la sessione che la
+     scheda mostra), poi quella della scheda in primo piano;
      sessioneDavanti() riconosce chi gira nel terminale di una scheda in uno spazio di un'altra macchina
      (torre/t13) prima dell'etichetta; unaPerConversazione() toglie la copia ferma di una sessione
      spostata. comandi.js legge volta-sposta-<macchina>-<id>; testata e main.js hanno pulsante e popup.
@@ -547,7 +548,8 @@ HZ122 niente aggancio durante uno Sposta (S3 del piano F3·S, #5635, 14/11/2026)
      segno mancato arriva come avviso: la sessione è già di là, e un errore riaprirebbe la partenza.
 HZ123 ⌘↓ e ⌘W sulle schede che ci sono (14/11/2026, Federico: "mi apre schede chiuse, non va su
      determinate schede", "con CMD + W non chiude davvero alcune schede"): schedeSpente di sessioni.js (con
-     node) dà le schede di sessioni chiuse o di una macchina giù, una volta sola, nell'ordine dei pannelli;
+     node) dà le schede di sessioni chiuse o di una macchina giù, una volta sola, nell'ordine dei pannelli,
+     senza quelle delle sessioni che stanno uscendo (uscenti, come visGiro);
      giro() conta come scheda solo un terminale in un pannello, le aggiunge in coda e le porta davanti senza
      riagganciare; ⌘W manda in congedo anche la sessione di una macchina che non risponde.
 HZ125 lo spazio della scheda segue il progetto (14/11/2026): daAllineare sposta la scheda di una sessione in
@@ -4000,7 +4002,7 @@ console.log(JSON.stringify({
   lavora: verbi(bg("lavora")), ferma: verbi(bg("ferma")), errore: verbi(bg("errore")),
   interattiva: verbi({ ...bg("ferma"), tipo: "interattiva" }), vecchia: verbi(bg("ferma", { vecchia: true })), niente: verbi(null),
   conProgetto: verbi(bg("lavora", { progetto: "deck" })),
-  x: [m.xRiga(bg("lavora")), m.xRiga(bg("errore")), m.xRiga({ ...bg("ferma"), tipo: "interattiva" }), m.xRiga(bg("ferma", { vecchia: true }))].map((a) => a ? a.verbo + (a.conferma ? "!" : "") : null),
+  x: [m.xRiga(bg("lavora")), m.xRiga(bg("errore")), m.xRiga({ ...bg("ferma"), tipo: "interattiva" }), m.xRiga(bg("ferma", { vecchia: true })), m.xRiga(bg("ferma", { vecchia: true, chiusa: true }))].map((a) => a ? a.verbo + (a.conferma ? "!" : "") : null),
   testi: m.menu(bg("errore")).filter((a) => a.verbo !== "respawn").map((a) => a.testo), solo: [...m.SOLO_MENU].sort(),
   fork: [m.titoloFork({ titolo: "Rifare il deck" }), m.titoloFork({ titolo: "x".repeat(80) }).length],
 }));
@@ -4060,9 +4062,9 @@ def hz54(repo: Path, casa: Path) -> str | None:
     voci = {"lavora": [*primi, "sposta", "rinomina", "chiudi", "logs"], "ferma": [*primi, "sposta", "rinomina", "chiudi", "logs"],
             "errore": [*primi, "sposta", "rinomina", "logs", "respawn", "rm!"], "interattiva": [*primi, "rinomina"],
             "conProgetto": [*primi, "sposta", "rinomina", "contesto", "chiudi", "logs"],
-            "vecchia": ["riprendi"], "niente": [], "testi": ["Apri", "Duplica", "Fork", "Sposta in un progetto…", "Sposta su…", "Rinomina…", "Anteprima", "Elimina"],
+            "vecchia": ["riprendi", "chiudi"], "niente": [], "testi": ["Apri", "Duplica", "Fork", "Sposta in un progetto…", "Sposta su…", "Rinomina…", "Anteprima", "Elimina"],
             "solo": ["apri", "chiudi", "contesto", "duplica", "fork", "progetto", "rinomina", "riprendi", "sposta"], "fork": ["Rifare il deck (fork)", 60],
-            "x": ["chiudi!", "rm!", None, None]}
+            "x": ["chiudi!", "rm!", None, "chiudi!", None]}
     for k, v in voci.items():
         if d.get(k) != v:
             return f"menu di sessioni.js, {k}: {d.get(k)}, atteso {v}"
@@ -8544,14 +8546,14 @@ def hz85(repo: Path, casa: Path) -> str | None:
 PROVA_GIRO = r"""
 const n = await import(%s);
 const c = await import(%s);
-const bg = (id, stato = "lavora", fine = true) => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato, ...(stato === "ferma" ? { chi: "claude", fineFatta: fine } : {}) });
-const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma", false), bg("a3", "ferma"), bg("a4", "ferma"),
+const bg = (id, stato = "lavora") => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato, ...(stato === "ferma" ? { chi: "claude" } : {}) });
+const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma"), bg("a3", "ferma"), bg("a4", "ferma"),
     { sessionId: "t1", id: "t1", tipo: "interattiva", stato: "aspetta" }, { sessionId: "f1", id: "f1", tipo: "interattiva", stato: "lavora", vecchia: true }] },
   { chiave: "b", sessioni: [bg("b1", "ferma"), { sessionId: "h1", id: "h1", tipo: "interattiva", terminale: "t9", questa: true, stato: "lavora" }] }];
 const viste = new Set(["qui:a1", "qui:a2", "qui:h1", "qui:t1", "qui:f1"]);
 const o = n.ordineGiro(g, {}, viste);
 console.log(JSON.stringify({ o, aperto: n.ordineGiro(g, { a: true }, viste), vuoto: n.ordineGiro(null), senza: n.ordineGiro(g, {}),
-  attese: n.ordineGiro([{ chiave: "c", sessioni: [bg("w1", "aspetta"), bg("w2", "ferma", false), { ...bg("w3", "aspetta"), vecchia: true }] }], {}),
+  attese: n.ordineGiro([{ chiave: "c", sessioni: [bg("w1", "aspetta"), bg("w2", "ferma"), { ...bg("w3", "aspetta"), vecchia: true }] }], {}),
   scheda: n.ordineGiro(g, {}, new Set(["qui:a3", "qui:b1"])),
   nuovo: n.statoGiro(null, o, 1000),
   raffica: n.statoGiro({ ids: ["x", "qui:h1", "qui:a1"], ultimo: "qui:h1", quando: 1000 }, o, 1000 + n.GIRO_MS),
@@ -8569,7 +8571,7 @@ console.log(JSON.stringify({ o, aperto: n.ordineGiro(g, { a: true }, viste), vuo
 
 
 def hz86(repo: Path, casa: Path) -> str | None:
-    """⌘↓ e ⌘↑ girano fra le sessioni dell'elenco, di ogni macchina, col gesto del clic."""
+    """⌘↓ e ⌘↑ girano fra le sessioni con una scheda e quelle senza che lavorano o ti aspettano, di ogni macchina."""
     vc = repo / "shared/volta"
     mod = vc / "mods/arturo"
     tasti = leggi(vc / "keys.json").get("global", {})
@@ -9674,6 +9676,9 @@ const l = [{ host: "qui", id: "a", sessionId: "A", stato: "ferma", tipo: "backgr
 const g = { ids: ["a", "b"], ultimo: "b", quando: 1000 };
 console.log(JSON.stringify({
   corrente: [n.corrente(g, "a", 1500), n.corrente(g, "a", 1001 + n.GIRO_MS), n.corrente(null, "a", 5), n.corrente(null, null, 5)],
+  spenta: [n.corrente({ ...g, ultimo: n.SCHEDA + "t4" }, "qui:a", 1500, [{ address: "t4", labels: { "arturo.sessione": "torre:d" } }], l),
+    n.corrente({ ...g, ultimo: n.SCHEDA + "t5" }, "qui:a", 1500, [{ address: "t5", argv: ["zsh"] }], l),
+    n.corrente({ ...g, ultimo: n.SCHEDA + "t4" }, null, 1500)],
   davanti: [n.sessioneDavanti({ address: "torre/t13", labels: { "arturo.sessione": "d" } }, l)?.id ?? null,
     n.sessioneDavanti({ address: "amaltea/t13" }, l), n.sessioneDavanti(null, l)],
   una: n.unaPerConversazione(l).map((s) => s.host + "/" + s.id),
@@ -9687,7 +9692,7 @@ def hz101(repo: Path, casa: Path) -> str | None:
     """La riga accesa dell'elenco e il comando di Sposta su."""
     mod = repo / "shared/volta/mods/arturo"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("this.acceso = corrente(this.giroSt, davanti ? chiave(davanti) : null, Date.now());",
+    for pezzo in ("this.acceso = corrente(this.giroSt, davanti ? chiave(davanti) : null, Date.now(), terminals(), this.dati?.sessioni ?? []);",
                   "const acceso = this.acceso === k;", 'else if (c === "volta-sposta") this.volta.spostaId(arg.macchina, arg.id, cx);'):
         if pezzo not in volta + (mod / "barra.js").read_text(encoding="utf-8"):
             return f"volta.js o barra.js non hanno più: {pezzo[:70]}"
@@ -9710,6 +9715,8 @@ def hz101(repo: Path, casa: Path) -> str | None:
     g = json.loads(r.stdout.strip().splitlines()[-1])
     if g["corrente"] != ["b", "a", "a", None]:
         return f"corrente() non segue il giro dentro la raffica, o non torna alla scheda dopo: {g['corrente']}"
+    if g["spenta"] != ["torre:d", "qui:a", None]:
+        return f"corrente() sulla scheda spenta del giro non accende la riga della sua sessione: {g['spenta']}"
     if g["davanti"] != ["b", None, None]:
         return f"sessioneDavanti() non riconosce chi gira nel terminale di un'altra macchina: {g['davanti']}"
     if g["una"] != ["amaltea/a", "torre/b", "torre/d", "qui/e", "amaltea/e"]:
@@ -10675,6 +10682,8 @@ const t = (address, sessione) => ({ address, argv: ["zsh"], labels: sessione ? {
 console.log(JSON.stringify({
   spente: n.schedeSpente([t("t1", "qui:c1"), t("t2", "torre:v1"), t("t3", "qui:a1"), t("t4"), t("t1", "qui:c1")], sessioni),
   vuote: n.schedeSpente(null, sessioni), prefisso: n.SCHEDA,
+  uscita: n.schedeSpente([t("t1", "qui:c1"), t("t2", "torre:v1")], sessioni, n.uscenti({}, { "torre:v1": true }, {})),
+  congedo: n.schedeSpente([t("t1", "qui:c1"), t("t2", "torre:v1")], sessioni, { x: { id: "c1", host: "qui" } }),
 }));
 """
 
@@ -10685,6 +10694,7 @@ def hz123(repo: Path, casa: Path) -> str | None:
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo, perche in ((" && visti.has(s.questa ? s.terminale : `${s.host}/${s.terminale}`))", "giro() conta come scheda anche un terminale senza pannello (un hc run)"),
                           (".concat(spente), Date.now());", "giro() non aggiunge le schede delle sessioni chiuse o di una macchina giù"),
+                          ("sessioni,\n      uscenti(this.congedi(), this.escono, this.forse));", "giro() rimette nel giro la scheda spenta di una sessione che sta uscendo"),
                           ("    if (id?.startsWith(SCHEDA)) { mostra(id.slice(SCHEDA.length)); return; }\n", "giro() non porta davanti la scheda spenta, o la riaggancia"),
                           ("const daQui = f?.terminal && st.ids.includes(SCHEDA + f.terminal) ? SCHEDA + f.terminal", "dalla scheda di una sessione chiusa il giro non sa da dove ripartire"),
                           ('    if (s && s.tipo === "background" && !chiusa(s) && mia(t, ioQui())) return this.fare(s, { verbo: "chiudi"', "⌘W su una sessione di una macchina giù chiude solo la scheda, e la sessione resta accesa"),
@@ -10702,6 +10712,8 @@ def hz123(repo: Path, casa: Path) -> str | None:
     d = json.loads(r.stdout.strip().splitlines()[-1])
     if d["spente"] != ["scheda:t1", "scheda:t2"] or d["vuote"] != [] or d["prefisso"] != "scheda:":
         return f"schedeSpente sbaglia (attese le schede t1 chiusa e t2 di una macchina giù, una volta sola): {d}"
+    if d["uscita"] != ["scheda:t1"] or d["congedo"] != ["scheda:t2"]:
+        return f"schedeSpente rimette nel giro la scheda di una sessione che esce o in congedo: {d['uscita']} {d['congedo']}"
     return None
 
 
@@ -10793,8 +10805,8 @@ def hz128(repo: Path, casa: Path) -> str | None:
         return f"il prompt di ripresa sfora il tetto o non parte da /inizio del progetto: {d['lungo']} {d['conA']!r}"
     if d["senzaA"].startswith("/inizio") or "breve" not in d["senzaA"] or d["senzaProgetto"].startswith("/inizio"):
         return f"senza Arturo o senza progetto il prompt parte da /inizio: {d['senzaA'][:60]!r}"
-    if d["menu"] != ["riprendi"] or d["menuChiusa"] != []:
-        return f"il menu di una riga vecchia non è solo Riprendi su…: {d['menu']} {d['menuChiusa']}"
+    if d["menu"] != ["riprendi", "chiudi"] or d["menuChiusa"] != []:
+        return f"il menu di una riga vecchia non è Riprendi su… e Chiudi con /fine: {d['menu']} {d['menuChiusa']}"
     if d["cmd"] != {"verbo": "volta-riprendi", "arg": {"macchina": "studio", "id": "torre:d0a9ddff"}, "lungo": False}:
         return f"instrada() non legge volta-riprendi: {d['cmd']}"
     if d["arturo"] != [True, True, False, False] or d["file"] != ["Torre-grande-studio", "senza-nome"]:
@@ -13336,7 +13348,7 @@ VELENI = [
     ('HZ164', 'shared/volta/mods/arturo/dati.js', '    if (claudeDavanti(t)) {', '    if (false) {'),
     ('HZ164', 'shared/volta/mods/arturo/volta.js', 'const OGNI = 10000;', 'const OGNI = 30000;'),
     ('HZ164', 'shared/volta/mods/arturo/volta_registro.py', 'DURATE = ("ms", "visibile")', 'DURATE = ("ms",)'),
-    ('HZ164', 'shared/volta/mods/arturo/volta_registro.py', ', "come": 20, "servizio": 20}', '}'),
+    ('HZ164', 'shared/volta/mods/arturo/volta_registro.py', ', "come": 20, "servizio": 20,\n', ',\n'),
     ('HZ164', 'shared/volta/mods/arturo/volta.js', 'cx.timer.every(OGNI, (cx) => this.aggiorna(cx, false));', 'cx.timer.every(OGNI, (cx) => this.aggiorna(cx));'),
     ('HZ164', 'shared/volta/mods/arturo/volta.js', '      if (this.ancora) this.aggiorna(cx);\n', ''),
     ('HZ164', 'shared/volta/mods/arturo/volta_sonda.py', '    if json.dumps(togli(dati), sort_keys=True) != json.dumps(togli(precedente), sort_keys=True):', '    if json.dumps(dati, sort_keys=True) != json.dumps(precedente, sort_keys=True):'),
@@ -13537,7 +13549,8 @@ VELENI = [
     ('HZ122', 'shared/volta/mods/arturo/volta_sposta.py', '    for _ in range(2):\n        r = esegui(nome, SEGNA, dati)', '    for _ in range(1):\n        r = esegui(nome, SEGNA, dati)'),
     ('HZ122', 'shared/volta/mods/arturo/volta_sposta.py', '    return dict(fatto, avviso="; ".join(avvisi)) if avvisi else fatto', '    return fatto'),
     ('HZ122', 'shared/volta/mods/arturo/volta_sposta.py', '        print(json.dumps(lavora(resto[0], resto[3]) or {"ok": True}, ensure_ascii=True))', '        print(json.dumps({"ok": True}))'),
-    ('HZ123', 'shared/volta/mods/arturo/sessioni.js', '    if (s && (s.vecchia || chiusa(s)) && !out.includes(SCHEDA + t.address))', '    if (s && chiusa(s))'),
+    ('HZ123', 'shared/volta/mods/arturo/sessioni.js', '    if (s && (s.vecchia || chiusa(s)) && !via.has(chiave(s)) && !out.includes(SCHEDA + t.address))', '    if (s && chiusa(s))'),
+    ('HZ123', 'shared/volta/mods/arturo/sessioni.js', ' && !via.has(chiave(s)) && !out.includes(SCHEDA', ' && !out.includes(SCHEDA'),
     ('HZ123', 'shared/volta/mods/arturo/volta.js', '.concat(spente), Date.now());', ', Date.now());'),
     ('HZ123', 'shared/volta/mods/arturo/volta.js', '    if (id?.startsWith(SCHEDA)) { mostra(id.slice(SCHEDA.length)); return; }\n', ''),
     ('HZ123', 'shared/volta/mods/arturo/volta.js', '    if (s && s.tipo === "background" && !chiusa(s) && mia(t, ioQui())) return this.fare(s, { verbo: "chiudi"', '    if (s && s.tipo === "background" && !s.vecchia && !chiusa(s) && mia(t, ioQui())) return this.fare(s, { verbo: "chiudi"'),
@@ -14352,7 +14365,9 @@ VELENI = [
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (s.tipo === "background" && !chiusa(s) && s.stato !== "errore") out.push({ verbo: "chiudi", testo: "Chiudi con /fine" });', 'out.push({ verbo: "chiudi", testo: "Chiudi con /fine" });'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (rm) return { ...rm, aiuto: "Elimina la sessione" };\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (s.progetto) out.push({ verbo: "contesto", testo: "Contesto del progetto" });\n', ''),
-    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (s?.vecchia) return s.tipo === "background" && !chiusa(s) ? [{ verbo: "riprendi", testo: "Riprendi su…" }] : [];\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (s?.vecchia) return s.tipo === "background" && !chiusa(s)\n', '  if (false)\n'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', ', { verbo: "chiudi", testo: "Chiudi con /fine" }] : [];', '] : [];'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (!s || s.tipo !== "background" || (s.vecchia && chiusa(s))) return null;', '  if (!s || s.vecchia || s.tipo !== "background") return null;'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));', 'return out.concat(azioni(s));'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '.slice(0, 53).trim()} (fork)`', '.slice(0, 53).trim()} (copia)`'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '`${titolo(s).slice(0, 53).trim()} (fork)`', '`${titolo(s)} (fork)`'),
@@ -14497,7 +14512,8 @@ VELENI = [
     ("HZ100", "shared/volta/installa-herdr.sh", 'serie=keys-herdr-macos.json\n', 'serie=keys-herdr.json\n'),
     ('HZ101', 'shared/volta/mods/arturo/casa.js', 'comandoConversazione(t.chiave)', 'comandoApri(t.chiave)'),
     ('HZ101', 'shared/volta/mods/arturo/comandi.js', '  if (c.startsWith("conversazione-")) return { verbo: "conversazione", arg: dopo("conversazione-"), lungo: true };\n', ''),
-    ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;\n', ''),
+    ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  const u = giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS ? giroSt.ultimo : null;', '  const u = null;'),
+    ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (!u.startsWith(SCHEDA)) return u;', '  return u;'),
     ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  return li ?? sessioneDi(terminale, sessioni);', '  return sessioneDi(terminale, sessioni) ?? li;'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["ramo"] == "HEAD":\n', '    if False:\n'),
     ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', 'd.update(progetto=a["progetto"], fonte="teletrasporto", quando=time.time())', 'd.update(progetto=a["progetto"], fonte="persona", inizio=False, quando=time.time())'),

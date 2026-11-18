@@ -182,6 +182,11 @@ export class Volta {
     this.davantiScript = null; // volta_davanti.py, se c'è: la macchina davanti alla persona (#5881)
     this.davantiInCorso = false;
     this.davantiUltimo = 0;
+    this.autoLavora = false;   // true mentre congedaFerme lavora: un giro alla volta
+    this.staccoLavora = false; // true mentre staccaFerme lavora
+    this.noStacco = new Set(); // indirizzi delle schede che non si sono staccate: non si riprovano fino al ricarico
+    this.allineaLavora = false; // true mentre allineaSpazi lavora
+    this.allineati = new Set(); // "chiave|progetto" degli spostamenti già fatti: non si ripetono fino al ricarico
     // "Riduci movimento" del sistema: sul Mac subito, su Windows col Python di arturo.json (sotto)
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
@@ -587,7 +592,6 @@ export class Volta {
       // via le schede chiuse e quelle riagganciate da un'altra strada (il clic sulla riga)
       const tieni = {};
       for (const [a, v] of Object.entries(prima)) if (a in this.schede && (await nuda(a))) tieni[a] = v;
-      this.noStacco = this.noStacco ?? new Set();
       const visti = new Set(panes().map((p) => p.terminal));
       const no = new Set([...this.noStacco, ...Object.keys(tieni)]);
       const l = daStaccare(this.schede, this.dati.sessioni, Date.now(), { davanti: focused()?.terminal ?? null, visti, no });
@@ -621,7 +625,6 @@ export class Volta {
         const dove = p ? sp.find((x) => (!x.machine || x.machine === s?.host) && x.tabs.some((tb) => tb.id === p.tab)) : null;
         if (s) voci.push({ indirizzo, s, spazio: dove ? { nome: dove.name, libero: libero(dove.name) } : null });
       }
-      this.allineati = this.allineati ?? new Set();
       const r = daAllineare(voci, { prima: this.visteProgetti, letto: this.giroBuono ?? this.dati.letto, davanti: focused()?.terminal ?? null, fatti: this.allineati });
       this.visteProgetti = r.visti;
       for (const { indirizzo, s, progetto } of r.sposta) {
@@ -633,7 +636,7 @@ export class Volta {
     } finally { this.allineaLavora = false; }
   }
 
-  // Una scheda staccata da staccaFerme torna in primo piano (un clic sulla scheda, ⌘⇧↓): l'aggancio
+  // Una scheda staccata da staccaFerme torna in primo piano (un clic sulla scheda, ⌘⇧↓, ⌘↓ e ⌘↑): l'aggancio
   // riparte da solo, con la strada del clic sulla riga (apri), che accende il servizio e risveglia una
   // sessione già ritirata.
   riaggancia(indirizzo, cx) {
@@ -992,9 +995,11 @@ export class Volta {
     return copie.length === 1 ? l[0] : undefined;
   }
 
-  // ⌘↓ e ⌘↑ ("arturo.volta-giro-avanti" e "-indietro"): la sessione dopo o prima nell'elenco, di ogni
-  // macchina, con lo stesso gesto del clic. Parte dalla scheda in primo piano; dentro una raffica di
-  // tasti parte dall'ultima sessione chiesta, perché un aggancio ci mette qualche secondo ad aprirsi.
+  // ⌘↓ e ⌘↑ ("arturo.volta-giro-avanti" e "-indietro"): la sessione dopo o prima nel giro (ordineGiro), di
+  // ogni macchina: quelle con una scheda e quelle in background senza scheda che lavorano o ti aspettano,
+  // aperte col gesto del clic. In coda le schede spente (schedeSpente), portate davanti con mostra. Parte
+  // dalla scheda in primo piano; dentro una raffica di tasti parte dall'ultima chiesta, perché un aggancio
+  // ci mette qualche secondo ad aprirsi.
   giro(verso, cx) {
     impostaProgetti(shared("arturo.progetti"));
     const sessioni = this.dati?.sessioni ?? [];
@@ -1005,7 +1010,8 @@ export class Volta {
     const visti = new Set(pannelli);
     const conScheda = new Set(sessioni.filter((s) => (s.terminale && s.tipo !== "background" && visti.has(s.questa ? s.terminale : `${s.host}/${s.terminale}`))
       || schedeDi(s).length).map(chiave));
-    const spente = schedeSpente(pannelli.map((a) => terminals().find((x) => x.address === a) ?? { address: a }), sessioni);
+    const spente = schedeSpente(pannelli.map((a) => terminals().find((x) => x.address === a) ?? { address: a }), sessioni,
+      uscenti(this.congedi(), this.escono, this.forse));
     const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.visGiro(), this.modo()), this.aperti, conScheda).concat(spente), Date.now());
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
@@ -1428,8 +1434,9 @@ export class Volta {
 
   // ⌘W (Ctrl+W su Windows): il comando "arturo.volta-chiudi" (Federico, 12/11/2026: "quella sessione va
   // in chiusura e non deve più apparirmi nelle freccette e nell'elenco"). Se la scheda davanti aggancia
-  // una sessione in background viva, è Chiudi del menu: via la scheda, congedo, fuori da elenco e giro
-  // subito. Una scheda senza sessione (una shell, un'interattiva) si chiude come il ⌘W di Herdr.
+  // una sessione in background non chiusa, anche di una macchina che non risponde, è Chiudi del menu: via
+  // la scheda, congedo, fuori da elenco e giro subito. Una scheda senza sessione (una shell,
+  // un'interattiva) si chiude come il ⌘W di Herdr.
   // `scheda`: la X di una scheda nella fila delle schede (testata.js); senza, la scheda in primo piano.
   chiudiDavanti(cx, scheda = null) {
     const f = focused();
@@ -1718,7 +1725,7 @@ export class Volta {
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) ?? { address: f.terminal } : null;
     const davanti = sessioneDavanti(scheda, this.dati?.sessioni ?? []);
-    this.acceso = corrente(this.giroSt, davanti ? chiave(davanti) : null, Date.now());
+    this.acceso = corrente(this.giroSt, davanti ? chiave(davanti) : null, Date.now(), terminals(), this.dati?.sessioni ?? []);
     // il guasto del giro della sonda, o quello della lettura dell'elenco dopo il giro (#5575): prima il
     // secondo restava nel registro, e la colonna mostrava un elenco vecchio come se fosse fresco
     const guasto = this.errore || this.erroreLettura;

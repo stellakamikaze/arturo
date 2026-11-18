@@ -1133,12 +1133,15 @@ export function ordineGiro(lista, aperti = {}, conScheda = new Set()) {
 // giro vengono dopo le sessioni, nell'ordine dei pannelli, come "scheda:<indirizzo>", e il tasto le porta
 // davanti senza riagganciare niente (Federico, 14/11/2026: "non va su determinate schede"). Prima il giro
 // le saltava: restavano aperte e non si raggiungevano coi tasti. `terminali`: quelli dei pannelli, in ordine.
+// `uscita`: le sessioni che stanno uscendo (uscenti(), lo stesso filtro di visGiro): dopo ⌘W su una sessione
+// di una macchina giù la sua scheda non rientra nel giro mentre il pannello sparisce.
 export const SCHEDA = "scheda:";
-export function schedeSpente(terminali, sessioni) {
+export function schedeSpente(terminali, sessioni, uscita = {}) {
+  const via = chiaviDi(uscita);
   const out = [];
   for (const t of terminali ?? []) {
     const s = sessioneDi(t, sessioni);
-    if (s && (s.vecchia || chiusa(s)) && !out.includes(SCHEDA + t.address)) out.push(SCHEDA + t.address);
+    if (s && (s.vecchia || chiusa(s)) && !via.has(chiave(s)) && !out.includes(SCHEDA + t.address)) out.push(SCHEDA + t.address);
   }
   return out;
 }
@@ -1155,11 +1158,16 @@ export function statoGiro(prima, adesso, ora) {
 
 // La sessione che l'elenco accende a sinistra (Federico, 12/11/2026: "evidenziarmi su quale sto
 // lavorando"). Dentro una raffica di ⌘↓ e ⌘↑ è l'ultima chiesta col giro, perché la scheda ci mette
-// qualche secondo ad aprirsi; fuori dalla raffica è quella della scheda in primo piano. Chiavi (chiave()):
-// null se nessuna.
-export function corrente(giroSt, idScheda, ora) {
-  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;
-  return idScheda ?? null;
+// qualche secondo ad aprirsi; fuori dalla raffica è quella della scheda in primo piano. Chiavi (chiave()),
+// null se nessuna. Il giro può stare su una scheda spenta ("scheda:<indirizzo>", schedeSpente): lì si accende
+// la riga della sessione che quella scheda mostra, cercata fra `terminali` e `sessioni`, o la scheda davanti.
+export function corrente(giroSt, idScheda, ora, terminali = [], sessioni = []) {
+  const u = giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS ? giroSt.ultimo : null;
+  if (!u) return idScheda ?? null;
+  if (!u.startsWith(SCHEDA)) return u;
+  const a = u.slice(SCHEDA.length);
+  const s = sessioneDi((terminali ?? []).find((t) => t?.address === a) ?? { address: a }, sessioni);
+  return s ? chiave(s) : idScheda ?? null;
 }
 
 // La sessione che una scheda mostra, anche quando la scheda sta in uno spazio di un'altra macchina
@@ -1452,11 +1460,13 @@ export function azioni(s) {
 // incolla (Federico, 12/11/2026: "tagliare"), il dialogo di cambio.js (#5292). Secondo: Rinomina e il
 // contesto del progetto (contestoui.js), se la sessione ne ha uno. Terzo: Chiudi (/fine, poi stop, come
 // ⌘W) e i gesti di "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un lavoro in
-// background da fermare: resta senza Chiudi. Una riga vecchia non ha menu.
+// background da fermare: resta senza Chiudi. Una riga vecchia ha solo Riprendi su… e Chiudi.
 export function menu(s) {
-  // una sessione di una macchina che non risponde: solo Riprendi su… (14/11/2026), una sessione nuova su
-  // un'altra macchina dall'ultima lettura (promptRipresa); la conversazione vera resta là
-  if (s?.vecchia) return s.tipo === "background" && !chiusa(s) ? [{ verbo: "riprendi", testo: "Riprendi su…" }] : [];
+  // una sessione di una macchina che non risponde: Riprendi su… (14/11/2026), una sessione nuova su
+  // un'altra macchina dall'ultima lettura (promptRipresa), e Chiudi con /fine come ⌘W: il congedo aspetta
+  // che la macchina torni (passoCongedo, fino a CONGEDO_VECCHIO_MS). La conversazione vera resta là.
+  if (s?.vecchia) return s.tipo === "background" && !chiusa(s)
+    ? [{ verbo: "riprendi", testo: "Riprendi su…" }, { verbo: "chiudi", testo: "Chiudi con /fine" }] : [];
   if (!s) return [];
   const out = [{ verbo: "apri", testo: "Apri" }, { verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" },
     { verbo: "progetto", testo: "Sposta in un progetto…" }];
@@ -1475,9 +1485,10 @@ export const GRUPPI_MENU = [["apri", "duplica", "fork", "progetto", "sposta", "r
 
 // La X della riga (Federico, 12/11/2026: "la X per chiudere e innescare il processo di fine"): su una
 // sessione in background viva è Chiudi con /fine, con la conferma; su una chiusa o in errore è Elimina.
-// Un'interattiva e una riga vecchia non hanno X: non hanno un congedo.
+// Anche la riga di una macchina che non risponde ha Chiudi, come ⌘W: il congedo aspetta che torni.
+// Un'interattiva non ha X: non ha un congedo. Una riga vecchia già chiusa neanche: Elimina vuole la macchina.
 export function xRiga(s) {
-  if (!s || s.vecchia || s.tipo !== "background") return null;
+  if (!s || s.tipo !== "background" || (s.vecchia && chiusa(s))) return null;
   const rm = azioni(s).find((a) => a.verbo === "rm");
   if (rm) return { ...rm, aiuto: "Elimina la sessione" };
   return { verbo: "chiudi", testo: "Chiudi", conferma: "Chiudi con /fine?", aiuto: "Chiudi: Claude salva con /fine, poi la sessione si ferma" };
