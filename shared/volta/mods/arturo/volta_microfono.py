@@ -738,4 +738,8 @@ def main(argv: list) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    # --entro di Volta (TETTI di sessioni.js): qui i figli hanno tetti propri sotto quello del comando
+    # (microfono, 30 s), e il ponte è staccato apposta. Basta toglierlo, senza volta_sonda.py: il ricevitore
+    # gira anche sull'altra macchina via ssh.
+    argv = sys.argv[1:]
+    sys.exit(main(argv[2:] if argv[:1] == ["--entro"] else argv))

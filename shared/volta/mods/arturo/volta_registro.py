@@ -263,4 +263,7 @@ def main(argv: list) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    # --entro di Volta (TETTI di sessioni.js): `scrivi` non lancia figli, e questo file gira anche da solo
+    # su un'altra macchina (altre_macchine), senza volta_sonda.py accanto: qui basta toglierlo.
+    argv = sys.argv[1:]
+    raise SystemExit(main(argv[2:] if argv[:1] == ["--entro"] else argv))

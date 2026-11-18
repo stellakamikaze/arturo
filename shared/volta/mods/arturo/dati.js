@@ -794,7 +794,7 @@ export async function svuotaRegistro(py) {
   const coda = codaRegistro.splice(0, codaRegistro.length);
   try {
     for (const lotto of lottiRegistro(coda))
-      await exec(py, [`${appHome()}/mods/arturo/volta_registro.py`, "scrivi", "--righe", JSON.stringify(lotto)], { timeout: 15000 });
+      await exec(py, [`${appHome()}/mods/arturo/volta_registro.py`, ...entroDi("registro"), "scrivi", "--righe", JSON.stringify(lotto)], { timeout: tettoDi("registro") });
   } catch { /* il registro non ferma Volta */ } finally {
     registroInCorso = false;
   }
@@ -1045,7 +1045,7 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
       nata = esito(await exec(c.arturo[0], args, { timeout: tettoDi("nasci") }));
     } catch (e) {
       registra("nascita", { macchina, ms: Date.now() - t0, esito: "eccezione", errore: String(e?.message ?? e) });
-      nata = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
+      nata = { errore: `${nomeMacchina(macchina)} non ha risposto in ${Math.round(tettoDi("nasci") / 60000)} minuti: se la sessione è nata, la trovi fra le sessioni` };
     }
     registra("nascita", { macchina, sid: nata.id, ms: Date.now() - t0, esito: nata.errore ? "errore" : "ok", errore: nata.errore });
     if (nata.attach?.length) {
@@ -1067,8 +1067,9 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
   }
 }
 
-// Quanto dura al massimo una nascita: i 6 minuti di attesa della sonda più l'aggancio della scheda.
-const NASCITA_MAX = 420000;
+// Quanto dura al massimo una nascita: l'attesa della sonda (TETTI.comandi.nasci) più un minuto per
+// l'aggancio della scheda.
+const NASCITA_MAX = tettoDi("nasci") + 60000;
 
 // La macchina dove sta nascendo una sessione, o null. shared arturo.nascita è { macchina, da }: oltre
 // NASCITA_MAX non vale più, perché chi l'ha scritto può essere morto prima di toglierlo (una finestra
@@ -1419,7 +1420,7 @@ export async function riprendiDaSola(s, testo) {
 export async function scartaCarta(chiaveCarta, quando) {
   try {
     const cfg = await config();
-    await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "scarta", JSON.stringify({ chiave: chiaveCarta, quando })], { timeout: 15000 });
+    await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, ...entroDi("carte"), "scarta", JSON.stringify({ chiave: chiaveCarta, quando })], { timeout: tettoDi("carte") });
   } catch { /* resta scartata fino al riavvio */ }
 }
 // Le risposte UF delle ultime 48 ore dal registro (#5742): dopo un riavvio una carta già risposta resta
@@ -1427,14 +1428,14 @@ export async function scartaCarta(chiaveCarta, quando) {
 export async function leggiRecenti() {
   try {
     const cfg = await config();
-    const d = esito(await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "recenti"], { timeout: 15000 }));
+    const d = esito(await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, ...entroDi("carte"), "recenti"], { timeout: tettoDi("carte") }));
     return d.errore ? {} : d;
   } catch { return {}; }
 }
 export async function leggiScartate() {
   try {
     const cfg = await config();
-    const d = esito(await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "scartate"], { timeout: 15000 }));
+    const d = esito(await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, ...entroDi("carte"), "scartate"], { timeout: tettoDi("carte") }));
     return d.errore ? {} : d;
   } catch { return {}; }
 }
@@ -1442,7 +1443,7 @@ export async function leggiScartate() {
 export async function registraRisposta(riga) {
   try {
     const cfg = await config();
-    await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, "risposta", JSON.stringify(riga)], { timeout: 15000 });
+    await exec(cfg.arturo[0], [`${appHome()}/mods/arturo/volta_carte.py`, ...entroDi("carte"), "risposta", JSON.stringify(riga)], { timeout: tettoDi("carte") });
   } catch { /* il registro non ferma la Coda */ }
 }
 

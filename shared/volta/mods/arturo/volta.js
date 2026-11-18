@@ -192,7 +192,7 @@ export class Volta {
       const sc = await script(c);
       // Un ponte rimasto da prima (mod ricaricato, Volta riaperta) si chiude: lo riaccende il primo giro.
       this.micScript = await esiste(`${appHome()}/mods/arturo/volta_microfono.py`);
-      if (this.micScript) { try { await exec(this.py, [this.micScript, "spegni"], { timeout: 20000 }); } catch { /* niente ponte */ } }
+      if (this.micScript) { try { await exec(this.py, [this.micScript, ...entroDi("microfono"), "spegni"], { timeout: tettoDi("microfono") }); } catch { /* niente ponte */ } }
       this.noteScript = await esiste(`${appHome()}/mods/arturo/volta_note.py`);
       this.davantiScript = await esiste(`${appHome()}/mods/arturo/volta_davanti.py`);
       this.script = sc.elenco;
@@ -663,7 +663,7 @@ export class Volta {
     this.micLavora = true;
     let risposta = null;
     try {
-      const r = await exec(this.py, [this.micScript, azione.verbo, ...(azione.target ? [azione.target] : [])], { timeout: 20000 });
+      const r = await exec(this.py, [this.micScript, ...entroDi("microfono"), azione.verbo, ...(azione.target ? [azione.target] : [])], { timeout: tettoDi("microfono") });
       // l'ultima riga JSON, come dati.js (#5578): prima un avviso dopo il JSON dava "non riesco a lanciare il ponte"
       const d = esito(r);
       risposta = d.errore && !d.stato ? { stato: "errore", motivo: d.errore } : d;
@@ -917,7 +917,7 @@ export class Volta {
     cx.spawn(async (cx) => {
       let portata = null;
       try {
-        portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));
+        portata = esito(await exec(this.py, [this.sposta, ...entroDi("porta"), "porta-volta", s.host, s.sessionId], { timeout: tettoDi("porta") }));
       } catch (e) {
         portata = { errore: `${s.macchina} non risponde` };
       }

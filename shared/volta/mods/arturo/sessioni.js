@@ -1925,6 +1925,10 @@ export const comandoChecklist = (k = null) => (k ? `arturo.checklist-${k}` : "ar
 // chiude da sé i suoi figli.
 // `fasi`: i tetti dentro Python. Le somme stanno sotto i comandi (il banco HZ42 tiene i conti):
 // nasci aspetta macchine + servizio + nascita, Riavvia servizio + azione, gli altri gesti azione.
+// Lo spostamento (volta_sposta.py) lavora staccato, senza la scadenza del comando: `pacco` per ogni pezzo
+// che viaggia, `prepara` per la cartella sulla macchina d'arrivo (`clone` il git clone lì dentro), `agenti`
+// per una lettura di claude agents, `riparte` per l'attesa della sessione ripresa. Il capo (volta_capo.py)
+// gira da launchd: `todo`, `gmail`, `lettura_capo` (la sonda delle sessioni) e `modello` (claude -p).
 // `dorme` e `riprova`: una macchina che non ha risposto all'ultima lettura si legge col tetto corto
 // `dorme` (il giro non aspetta 40 s un Mac che dorme), e col tetto pieno solo ogni `riprova` secondi.
 export const TETTI = {
@@ -1941,6 +1945,14 @@ export const TETTI = {
     "giro_davanti": 40,
     "remoto": 40,
     "pacco": 300,
+    "prepara": 360,
+    "clone": 300,
+    "agenti": 15,
+    "riparte": 90,
+    "todo": 120,
+    "gmail": 60,
+    "lettura_capo": 120,
+    "modello": 300,
     "dorme": 2,
     "riprova": 600
   },
@@ -1960,7 +1972,11 @@ export const TETTI = {
     "sposta": 60,
     "congeda": 400,
     "rispondi": 400,
-    "inizia": 400
+    "inizia": 400,
+    "carte": 15,
+    "registro": 15,
+    "microfono": 30,
+    "porta": 60
   }
 };
 

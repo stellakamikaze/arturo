@@ -231,7 +231,7 @@ if gi:
             try:
                 r = subprocess.run(["git", "clone"] + (["--branch", ramo] if sul_remoto else []) + [gi["url"], top],
                                    capture_output=True, text=True, encoding="utf-8", errors="replace",
-                                   stdin=subprocess.DEVNULL, timeout=300)
+                                   stdin=subprocess.DEVNULL, timeout=a["clone"])
                 rc, out = r.returncode, (r.stderr or r.stdout or "").strip()
             except (OSError, subprocess.SubprocessError) as e:
                 rc, out = 1, str(e)
@@ -384,10 +384,13 @@ esci(ok=True)
 TROVA = COMUNE + "\n" + vs.ELENCO.strip() + "\n" + vs.CERCA_CLAUDE.strip() + r'''
 cl = trova_claude()
 visto = None
-for giro in range(15 if a.get("vivo") else 1):
+# `t`: una lettura di claude agents; `entro`: con `vivo`, quanto aspettare in tutto che la sessione riparta
+fine = time.monotonic() + (a.get("entro") or 0)
+while True:
     try:
         r = subprocess.run([cl, "agents", "--json", "--all"], capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", stdin=subprocess.DEVNULL, timeout=15)
+                           errors="replace", stdin=subprocess.DEVNULL,
+                           timeout=max(1, min(a["t"], fine - time.monotonic()) if a.get("vivo") else a["t"]))
         for s in elenco(r.stdout) or []:
             if s.get("sessionId") == a["sid"] and s.get("id"):
                 visto = s
@@ -395,8 +398,9 @@ for giro in range(15 if a.get("vivo") else 1):
                     esci(ok=True, id=s["id"], pid=s.get("pid"), claude=cl, stato=s.get("status") or s.get("state") or "")
     except (OSError, subprocess.SubprocessError):
         pass
-    if a.get("vivo"):
-        time.sleep(2)
+    if not a.get("vivo") or time.monotonic() + 2 >= fine:
+        break
+    time.sleep(2)
 if visto:
     esci(errore="la sessione %s non riparte" % visto["id"])
 esci(ok=True, nessuno=True, claude=cl)
@@ -427,7 +431,9 @@ os.replace(f + ".tmp", f)
 esci(ok=True)
 '''
 
-ATTESA_PACCO = 300
+# I tetti dello spostamento stanno in TETTI di sessioni.js (fasi): lo spostamento lavora staccato, senza
+# la scadenza del comando, e ogni passo ha il suo.
+ATTESA_PACCO = vs.FASI["pacco"]
 
 
 def esegui(nome, codice, dati, entrata=None, timeout=vs.ATTESA_AZIONE):
@@ -465,6 +471,14 @@ def controlla_git(gi):
     return None
 
 
+def trova(nome, sid, vivo=False):
+    """La sessione `sid` in claude agents su `nome`. Con `vivo` aspetta che riparta, fino a FASI["riparte"]."""
+    if not vivo:
+        return esegui(nome, TROVA, {"sid": sid, "t": vs.FASI["agenti"]})
+    return esegui(nome, TROVA, {"sid": sid, "t": vs.FASI["agenti"], "vivo": True, "entro": vs.FASI["riparte"] - 5},
+                  timeout=vs.FASI["riparte"])
+
+
 def riprendi_su(nome, sid, cartella, titolo):
     """La stessa conversazione in background su `nome`: {id, attach} oppure {errore}.
 
@@ -472,7 +486,7 @@ def riprendi_su(nome, sid, cartella, titolo):
     macchina di partenza), claude respawn lo riaccende: rilegge la trascrizione appena copiata e tiene il
     sessionId. claude --bg --resume, lì, farebbe una sessione nuova con un altro sessionId (provato il
     12/11/2026). Su una macchina dove la conversazione non è mai stata, claude --bg --resume."""
-    prima = esegui(nome, TROVA, {"sid": sid})
+    prima = trova(nome, sid)
     if prima.get("errore"):
         return {"errore": prima["errore"]}
     if not prima.get("nessuno"):
@@ -483,7 +497,7 @@ def riprendi_su(nome, sid, cartella, titolo):
         r = vs.nasci(nome, "", None, cartella, riprendi=sid, titolo=titolo, stessa=True)
         if r.get("errore") and not str(r["errore"]).startswith("è partita"):
             return {"errore": r["errore"]}
-    viva = esegui(nome, TROVA, {"sid": sid, "vivo": True}, timeout=90)
+    viva = trova(nome, sid, vivo=True)
     if viva.get("errore") or viva.get("nessuno"):
         return {"errore": viva.get("errore") or "claude agents non la elenca"}
     voce = {"questa": nome in (None, "", "qui"), "claude": viva["claude"]}
@@ -496,7 +510,7 @@ def riprendi_su(nome, sid, cartella, titolo):
 def lavora(da, sid):
     """Il rifiuto se la sessione `sid` su `da` sta facendo un turno, o None. Volta la sposta a turno finito
     (coda di volta.js): fermarla adesso interromperebbe il lavoro a metà. `lavora` dice a Volta di riprovare."""
-    ora = esegui(da, TROVA, {"sid": sid})
+    ora = trova(da, sid)
     if not ora.get("errore") and vs.stato({"status": ora.get("stato")}) == "lavora":
         return {"errore": "sta lavorando: la sposto a turno finito", "lavora": True}
     return None
@@ -526,8 +540,8 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
         if commit.get("errore"):
             return {"errore": commit["errore"]}
         bundle = commit.get("bundle")
-    pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": gi, "nome": vs.chi(a), "bundle": bool(bundle)},
-                    entrata=bundle, timeout=360)
+    pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": gi, "nome": vs.chi(a), "bundle": bool(bundle),
+                                 "clone": vs.FASI["clone"]}, entrata=bundle, timeout=vs.FASI["prepara"])
     if pronto.get("errore"):
         return {"errore": pronto["errore"]}
     # Preparare la cartella dura anche minuti: nel frattempo la persona può averle scritto. Un turno
@@ -540,7 +554,7 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     if fermata.get("errore"):
         # Una sessione già ferma risponde con un errore, e si va avanti. Se ha ancora un processo, lo stop
         # non l'ha fermata: portarla avanti la lascerebbe viva su due macchine (#5574, 14/11/2026).
-        ora = esegui(da, TROVA, {"sid": sid})
+        ora = trova(da, sid)
         if ora.get("errore") or ora.get("pid"):
             return {"errore": "claude stop non ferma la sessione su %s: %s; resta lì" % (vs.chi(da), fermata["errore"])}
     def torna(perche):
@@ -603,12 +617,12 @@ def spegni_partenza(da, id_lavoro, sid):
     "spostata" appena scritto la fa chiudere alla sonda di ogni finestra, che stacca il suo aggancio.
     None se la partenza è spenta (o non risponde), altrimenti l'avviso."""
     for giro in range(GIRI_PARTENZA):
-        ora = esegui(da, TROVA, {"sid": sid})
+        ora = trova(da, sid)
         if ora.get("errore") or ora.get("nessuno") or not ora.get("pid"):
             return None
         vs.azione(da, "stop", ora.get("id") or id_lavoro)
         time.sleep(PAUSA_PARTENZA)
-    ora = esegui(da, TROVA, {"sid": sid})
+    ora = trova(da, sid)
     if ora.get("pid"):
         return "su %s la copia di partenza si riaccende ancora (un aggancio aperto altrove?): chiudila da lì" % vs.chi(da)
     return None

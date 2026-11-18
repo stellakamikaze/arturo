@@ -51,21 +51,21 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from volta_sonda import FASI, NonRisponde, errore_hc, remoto, togli_entro, ultima_riga  # noqa: E402
+from volta_sonda import FASI, NonRisponde, errore_hc, lancia, remoto, resta_al_comando, togli_entro, ultima_riga  # noqa: E402
 
 VERSIONE = 1
 MAX_TASK = 40
 SCADUTI_GG = 7
 FRA_GG = 3
 BOZZA_VECCHIA_GG = 3
-ATTESA_TODO = 120
+ATTESA_TODO = FASI["todo"]
 RILETTURA_MIN_S = float(os.environ.get("VOLTA_CAPO_RILETTURA_MIN_S") or 2)   # sotto: lucchetto di un'altra rilettura
 RILETTURA_ATTESA_S = float(os.environ.get("VOLTA_CAPO_RILETTURA_ATTESA_S") or 15)
 RILETTURA_TENTATIVI = 6
-ATTESA_GMAIL = 60
+ATTESA_GMAIL = FASI["gmail"]
 ATTESA_CAPO = FASI["remoto"]
-ATTESA_SONDA = 120
-ATTESA_MODELLO = 300
+ATTESA_SONDA = FASI["lettura_capo"]
+ATTESA_MODELLO = FASI["modello"]
 SESSIONI_FRESCHE_S = 15 * 60   # sessioni.json scritto dalla Volta di qui: oltre, il capo rilegge con la sonda
 MAX_GIUDIZIO = 50              # carte al modello per giro (prima le sessioni): le altre al giro dopo
 REPORT_ORA = 20                # la domenica il report si scrive dal giro delle 20 in poi
@@ -139,6 +139,12 @@ def con_path():
     return env
 
 
+def corri(argv, attesa, env=None, entrata=None):
+    """Un figlio con lancia() di volta_sonda.py: mai oltre la scadenza del comando, gli hc nel registro."""
+    rc, out, err = lancia(argv, timeout=attesa, entrata=entrata, env=env)
+    return subprocess.CompletedProcess(argv, rc, out, err)
+
+
 # --- i task ---------------------------------------------------------------------------------------
 
 def argv_arturo():
@@ -164,8 +170,7 @@ def leggi_todo(avvisi):
         # vuol dire lucchetto preso, e il giro aspetta e riprova finché la prende, al più RILETTURA_TENTATIVI volte.
         for tentativo in range(RILETTURA_TENTATIVI):
             inizio = time.monotonic()
-            r = subprocess.run(base + ["--rileggi"], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               timeout=ATTESA_TODO, stdin=subprocess.DEVNULL, env=con_path())
+            r = corri(base + ["--rileggi"], ATTESA_TODO, env=con_path())
             if r.returncode != 0 or time.monotonic() - inizio >= RILETTURA_MIN_S:
                 break
             if tentativo == RILETTURA_TENTATIVI - 1:
@@ -174,8 +179,7 @@ def leggi_todo(avvisi):
             time.sleep(RILETTURA_ATTESA_S)
         if r.returncode != 0:
             avvisi.append("i task non si rileggono: %s" % taglia(r.stderr or r.stdout or "uscita %d" % r.returncode, 160))
-        r = subprocess.run(base + ["--json"], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=ATTESA_TODO, stdin=subprocess.DEVNULL, env=con_path())
+        r = corri(base + ["--json"], ATTESA_TODO, env=con_path())
     except (OSError, subprocess.TimeoutExpired) as e:
         avvisi.append("arturo todo non risponde: %s" % taglia(e, 160))
         return None
@@ -233,8 +237,7 @@ def gws_json(argv, account):
     env = con_path()
     env["GOOGLE_WORKSPACE_CLI_CONFIG_DIR"] = os.path.join(os.path.expanduser("~"), ".config", account)
     env.pop("GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE", None)
-    r = subprocess.run(["gws"] + argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       timeout=ATTESA_GMAIL, stdin=subprocess.DEVNULL, env=env)
+    r = corri(["gws"] + argv, ATTESA_GMAIL, env=env)
     i = r.stdout.find("{")
     if r.returncode != 0 or i < 0:
         raise RuntimeError(taglia(r.stderr or r.stdout or "uscita %d" % r.returncode, 160))
@@ -355,8 +358,10 @@ def leggi_sessioni(avvisi):
         return d
     sonda = os.path.join(os.path.dirname(os.path.abspath(__file__)), "volta_sonda.py")
     try:
-        r = subprocess.run([sys.executable, sonda, "volta"], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=ATTESA_SONDA, stdin=subprocess.DEVNULL, env=con_path())
+        # la sonda riceve la sua scadenza: allo scadere ferma da sé i suoi hc, che non restano orfani
+        resta = resta_al_comando()
+        t = ATTESA_SONDA if resta is None else max(2, min(ATTESA_SONDA, resta))
+        r = corri([sys.executable, sonda, "--entro", str(max(1, int(t) - 5)), "volta"], t, env=con_path())
         d = json.loads(r.stdout)
     except (OSError, ValueError, subprocess.TimeoutExpired) as e:
         avvisi.append("le sessioni non si leggono: %s" % taglia(e, 140))
@@ -434,8 +439,7 @@ def modello(prompt, avvisi):
             return None
     argv = ["claude", "-p", "--model", "opus", "--tools", "", "--strict-mcp-config", "--output-format", "text"]
     try:
-        r = subprocess.run(argv, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=ATTESA_MODELLO, env=con_path())
+        r = corri(argv, ATTESA_MODELLO, env=con_path(), entrata=prompt)
     except (OSError, subprocess.TimeoutExpired) as e:
         avvisi.append("il modello non risponde: %s" % taglia(e, 140))
         return None

@@ -163,7 +163,7 @@ def esegui(modo, arg):
 '''
 
 FRESCO_S = 15 * 60    # oltre, il tocco non dice più dove sta la persona: Claude chiede (decisione del 17/11/2026)
-ATTESA_GIRO = FASI["giro_davanti"]  # tutto il giro: sta sotto il tetto "davanti" di tetti.js
+ATTESA_GIRO = FASI["giro_davanti"]  # tutto il giro: sta sotto il tetto "davanti" di TETTI (sessioni.js)
 
 
 def locale():

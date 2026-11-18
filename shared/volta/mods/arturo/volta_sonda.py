@@ -1220,8 +1220,8 @@ def resta_al_comando():
 
 
 def togli_entro(argv):
-    """Toglie `--entro SECONDI` dalla testa di argv e fissa SCADENZA (#5581). Volta (tetti.js) lo mette
-    subito dopo lo script: allo scadere del suo exec Herdr uccide solo Python, e hc, ssh e claude restavano
+    """Toglie `--entro SECONDI` dalla testa di argv e fissa SCADENZA (#5581). Volta (TETTI di sessioni.js) lo
+    mette subito dopo lo script: allo scadere del suo exec Herdr uccide solo Python, e hc, ssh e claude restavano
     orfani. Con la scadenza ogni figlio di lancia() finisce prima. Solo in testa: dopo `--` c'è testo
     libero (un prompt, un nome) che può dire anche "--entro". La scadenza resta in questo processo: un
     figlio staccato (lo spostamento) o una sessione nata qui non la ereditano."""
@@ -1238,12 +1238,13 @@ def togli_entro(argv):
     return argv
 
 
-def lancia(argv, timeout=60, prova=False, entrata=None):
+def lancia(argv, timeout=60, prova=False, entrata=None, env=None):
     # stdin chiuso: senza, ssh.exe e hc su Windows restano appesi. `entrata`: il testo per stdin (hc exec -i).
     # `prova`: un tentativo con un ripiego dopo (claude_remoto, #5758). Se il programma non parte, nel
     # registro va "ripiego", non un errore: sui Mac `claude` nudo non parte mai con il PATH di hc exec, e
     # il registro del 15/11 lo contava come guasto mentre python3 lo trovava 26 ms dopo.
     # Mai oltre la scadenza del comando (--entro, #5581): fuori tempo è TimeoutExpired, come il tetto proprio.
+    # `env`: l'ambiente del figlio (il capo allarga il PATH di launchd), senza quello di questo processo.
     resta = resta_al_comando()
     if resta is not None and resta < timeout:
         timeout = max(0.1, resta)
@@ -1252,7 +1253,7 @@ def lancia(argv, timeout=60, prova=False, entrata=None):
     try:
         r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL if entrata is None else None, input=entrata,
-                           timeout=timeout, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+                           timeout=timeout, env=dict(os.environ if env is None else env, PYTHONIOENCODING="utf-8"))
     except subprocess.TimeoutExpired:
         if ev:  # il registro (#5549): le chiamate a hc che scadono
             registro.registra(ev[0], macchina=ev[1], ms=(time.monotonic() - t) * 1000, esito="tetto",
@@ -1315,13 +1316,13 @@ def leggi_json(out):
     raise ValueError("nessun JSON nell'uscita")
 
 
-def entro_il_tetto(argv, entro, margine=0):
+def entro_il_tetto(argv, entro):
     """lancia() con i secondi che restano alla lettura. Fuori tempo dice quanti erano, non il comando."""
     t = resta(entro)
     if t < 2:
         raise RuntimeError("non ha risposto in tempo")
     try:
-        return lancia(argv(t), timeout=t + margine)
+        return lancia(argv(t), timeout=t)
     except subprocess.TimeoutExpired:
         raise RuntimeError("non ha risposto in %d s" % t) from None
 
@@ -2209,7 +2210,7 @@ def rifiuto(rc, out, err):
 
 def claude_remoto(nome, args, entro, prima=None):
     """claude con `args` su `nome` via hc exec, entro l'istante `entro`. Prima claude nudo, come lo trova
-    il PATH di hc exec (Windows); se non parte, python3 e poi python con CLAUDE_FUORI_PATH (i Mac, #5555).
+    il PATH di hc exec (Windows); se non parte, i Python di remoto() con CLAUDE_FUORI_PATH (i Mac, #5555).
     Se non parte niente, resta l'errore di claude nudo, che dice cosa manca. Con `prima` (una regola di
     PRIMA) il gesto passa dal controllo fresco: solo python3 e python, che lo portano.
     Passa da remoto(): una macchina che non risponde solleva NonRisponde."""

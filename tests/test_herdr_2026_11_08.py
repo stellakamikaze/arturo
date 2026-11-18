@@ -740,6 +740,8 @@ HZ161 il lancio remoto unico e i tetti in una tabella (17/11/2026, #5580 e #5581
      chiama toglie --entro, e ogni chiamata JS lo passa con un nome di TETTI (sessioni.js). Con --entro 3 un hc appeso
      si ferma prima e non resta vivo; --entro dopo `--` resta testo. Una macchina che non ha risposto si
      legge col tetto corto, e il giro sta sotto 3 s; passato FASI["riprova"] si riprova col tetto pieno.
+     Dal 18/11/2026 (#5997) anche le chiamate locali (carte, registro, microfono, porta-volta) passano
+     --entro, e nessuno script del mod scrive a mano un tetto ATTESA_ con un numero.
 HZ164 il clic svelto e l'elenco fresco (17/11/2026, step 5 del piano di revisione; con node): servizioAcceso dice
      acceso il servizio di una macchina vista da prepara o da una nascita da meno di SERVIZIO_VISTO_MS, o con
      una sessione in background che lavora o aspetta (non vecchia, non dorme, non chiusa); allora apriSessione
@@ -1574,7 +1576,7 @@ def hz20(repo: Path, casa: Path) -> str | None:
     volta = (repo / "shared/volta/mods/arturo/volta.js").read_text(encoding="utf-8")
     if "this.py = c.arturo[0];" not in volta or "const c = await config();" not in volta:
         return "volta.js non prende Python da arturo.json"
-    for pezzo in ('exec(this.py, [this.script, ...entroDi("volta"), "volta"', 'exec(this.py, [this.sposta, "porta-volta"'):
+    for pezzo in ('exec(this.py, [this.script, ...entroDi("volta"), "volta"', 'exec(this.py, [this.sposta, ...entroDi("porta"), "porta-volta"'):
         if pezzo not in volta:
             return f"volta.js senza {pezzo}"
     if 'exec("python' in volta:
@@ -2359,7 +2361,7 @@ def hz34(repo: Path, casa: Path) -> str | None:
     # il percorso sta solo in config() di dati.js, e volta.js lo prende da lì
     if "${appHome()}/mods/arturo/volta_sonda.py" not in dati or "esiste(c.volta)" not in volta or "volta_sonda.py`" in volta:
         return "volta.js non lancia volta_sonda.py del mod"
-    if "[this.sposta, \"porta-volta\"" not in volta:
+    if "[this.sposta, ...entroDi(\"porta\"), \"porta-volta\"" not in volta:
         return "volta.js non lascia porta-volta a teletrasporto.py"
     sessione = lambda sid, **k: dict({"sessionId": sid, "kind": "background", "state": "done"}, **k)  # noqa: E731
     conf = {
@@ -4999,7 +5001,7 @@ def hz63(repo: Path, casa: Path) -> str | None:
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo, perche in (("cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));", "volta.js non guarda il fuoco per il microfono"),
                           ("this.micScript = await esiste(`${appHome()}/mods/arturo/volta_microfono.py`);", "volta.js non cerca lo script del ponte nel mod"),
-                          ('await exec(this.py, [this.micScript, "spegni"], { timeout: 20000 });', "all'avvio volta.js non chiude un ponte rimasto"),
+                          ('await exec(this.py, [this.micScript, ...entroDi("microfono"), "spegni"], { timeout: tettoDi("microfono") });', "all'avvio volta.js non chiude un ponte rimasto"),
                           ("passo(this.mic, spento ? null : bersaglio(t, this.dati?.sessioni), Date.now(), spento)", "volta.js non decide il ponte con passo() e bersaglio()"),
                           ('.on_click(() => setShared("arturo.microfono.spento", shared("arturo.microfono.spento") !== true))', "il clic sulla riga non spegne e riaccende il ponte"),
                           ('.when(Boolean(rigaMicrofono(shared("arturo.microfono"))), (el) =>', "l'elenco non mostra la riga del microfono")):
@@ -5839,7 +5841,7 @@ def hz73(repo: Path, casa: Path) -> str | None:
     vecchia = '.split("\\n").pop() || "{}"'
     if vecchia in dati:
         return "dati.js legge ancora un esito senza guardare il codice d'uscita"
-    if 'portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));' not in volta:
+    if 'portata = esito(await exec(this.py, [this.sposta, ...entroDi("porta"), "porta-volta", s.host, s.sessionId], { timeout: tettoDi("porta") }));' not in volta:
         return "volta.js (porta-volta) non legge l'esito con esito()"
     m = casa / "mod"
     m.mkdir()
@@ -9774,7 +9776,7 @@ letto = lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid})
 if letto.get("errore"):
     print(json.dumps({"errore_letto": letto["errore"]}))
     raise SystemExit
-pronto = lancia("a", vs.PREPARA, {"rel": letto["rel"], "git": letto["git"], "nome": "a"})
+pronto = lancia("a", vs.PREPARA, {"rel": letto["rel"], "git": letto["git"], "nome": "a", "clone": vs.vs.FASI["clone"]})
 out["pronto"] = {"cartella": pronto.get("cartella"), "progetti": pronto.get("progetti"), "errore": pronto.get("errore"),
                  "y": os.path.exists(os.path.join(basi["a"], "prova", "y.txt"))}
 pacco = lancia("da", vs.PACCO, {"trascrizione": letto["trascrizione"], "sid": sid})
@@ -12762,15 +12764,29 @@ def hz161(repo: Path, casa: Path) -> str | None:
     for nome in ("volta_sonda.py", "volta_note.py", "volta_davanti.py", "volta_carte.py", "volta_capo.py"):
         if "main(togli_entro(sys.argv[1:]))" not in (mod / nome).read_text(encoding="utf-8"):
             return f"{nome} non toglie --entro dagli argomenti"
+    # registro e microfono girano anche da soli su un'altra macchina, senza volta_sonda.py: tolgono --entro da sé
+    for nome in ("volta_registro.py", "volta_microfono.py"):
+        if 'main(argv[2:] if argv[:1] == ["--entro"] else argv)' not in (mod / nome).read_text(encoding="utf-8"):
+            return f"{nome} non toglie --entro dagli argomenti"
+    r = subprocess.run([sys.executable, str(mod / "volta_registro.py"), "--entro", "5", "scrivi", "--righe", "[]"],
+                       capture_output=True, text=True, timeout=30, env=dict(os.environ, VOLTA_REGISTRO=str(casa / "registro-entro")))
+    if r.returncode != 0:
+        return f"volta_registro.py non accetta --entro: {(r.stderr or r.stdout).strip()[-160:]}"
+    # i tetti Python stanno in TETTI anche loro (#5997): nessun ATTESA_ scritto a mano con un numero
+    for f in sorted(mod.glob("*.py")):
+        a_mano = re.search(r"^ATTESA_\w+ = \d", f.read_text(encoding="utf-8"), re.M)
+        if a_mano:
+            return f"{f.name} ha un tetto scritto a mano fuori da TETTI: {a_mano.group(0)}"
     testo = (mod / "sessioni.js").read_text(encoding="utf-8")
     i = testo.index("export const TETTI = ")
     comandi = json.loads(testo[testo.index("{", i):testo.index("\n};", i) + 2])["comandi"]
-    # ogni chiamata JS a uno script di Volta passa --entro, coi nomi della tabella
-    chiamata = re.compile(r"""\[(c|cfg)\.volta,|\[this\.(script|noteScript|davantiScript),|volta_capo\.py`,""")
+    # ogni chiamata JS a uno script di Volta passa --entro, coi nomi della tabella: anche le locali brevi
+    # (carte, registro, microfono) e il teletrasporto di porta-volta (#5997)
+    chiamata = re.compile(r"""\[(c|cfg)\.volta,|\[this\.(script|noteScript|davantiScript|micScript|sposta),|mods/arturo/volta_\w+\.py`,""")
     for f in ("dati.js", "volta.js", "coda.js"):
         t = (mod / f).read_text(encoding="utf-8")
         for riga in t.splitlines():
-            if chiamata.search(riga) and "...entroDi(" not in riga:
+            if chiamata.search(riga) and "exec(" in riga and "...entroDi(" not in riga:
                 return f"{f}: una chiamata a uno script di Volta senza --entro: {riga.strip()[:90]}"
         for dentro in re.findall(r"\b(?:entroDi|tettoDi)\(([^()]*)\)", t):
             for nome in re.findall(r'"(\w+)"', dentro):
@@ -13814,6 +13830,12 @@ VELENI = [
     ('HZ161', 'shared/volta/mods/arturo/volta_sonda.py', '            elif memoria(v["host"]).get("giu"):\n', '            elif False:\n'),
     ('HZ161', 'shared/volta/mods/arturo/volta.js', '[this.noteScript, ...entroDi("note"), "sincronizza",', '[this.noteScript, "sincronizza",'),
     ('HZ161', 'shared/volta/mods/arturo/volta_note.py', 'main(togli_entro(sys.argv[1:]))', 'main(sys.argv[1:])'),
+    ('HZ161', 'shared/volta/mods/arturo/volta_microfono.py', 'sys.exit(main(argv[2:] if argv[:1] == ["--entro"] else argv))', 'sys.exit(main(argv))'),
+    ('HZ161', 'shared/volta/mods/arturo/volta_registro.py', 'main(argv[2:] if argv[:1] == ["--entro"] else argv)', 'main(argv)'),
+    ('HZ161', 'shared/volta/mods/arturo/dati.js', '`${appHome()}/mods/arturo/volta_carte.py`, ...entroDi("carte"), "recenti"]', '`${appHome()}/mods/arturo/volta_carte.py`, "recenti"]'),
+    ('HZ161', 'shared/volta/mods/arturo/volta.js', '[this.sposta, ...entroDi("porta"), "porta-volta",', '[this.sposta, "porta-volta",'),
+    ('HZ161', 'shared/volta/mods/arturo/volta_sposta.py', 'ATTESA_PACCO = vs.FASI["pacco"]', 'ATTESA_PACCO = 300'),
+    ('HZ161', 'shared/volta/mods/arturo/volta_capo.py', 'ATTESA_MODELLO = FASI["modello"]', 'ATTESA_MODELLO = 300'),
     ('HZ161', 'shared/volta/mods/arturo/volta_carte.py', '        rc, out, err, py = remoto(macchina, LEGGI, [percorso], attesa=ATTESA)', '        rc, out, err, py = remoto(macchina, LEGGI, [percorso], attesa=ATTESA)\n        hc() + ["exec", "--on", macchina]'),
     ('HZ85', 'shared/volta/mods/arturo/dati.js', '  for (const a of terminaliDi(s, true)) {', '  for (const a of terminaliDi(s)) {'),
     ('HZ77', 'shared/volta/mods/arturo/dati.js', '  if (!s?.id || mie(s).length) return [];', '  if (!s?.id || schedeDi(s).length) return [];'),
@@ -13983,9 +14005,9 @@ VELENI = [
     ("HZ73", "shared/volta/mods/arturo/dati.js", '...(valore ? ["--", valore] : [])], { timeout: tettoDi("cambia") });\n    return esito(r);', '...(valore ? ["--", valore] : [])], { timeout: tettoDi("cambia") });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
     ("HZ73", "shared/volta/mods/arturo/dati.js", '{ timeout: tettoDi(verbo === "respawn" ? "respawn" : "azione") });\n    return esito(r);', '{ timeout: tettoDi(verbo === "respawn" ? "respawn" : "azione") });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
     ("HZ73", "shared/volta/mods/arturo/dati.js", '      nata = esito(await exec(c.arturo[0], args, { timeout: tettoDi("nasci") }));', '      nata = JSON.parse(((await exec(c.arturo[0], args, { timeout: tettoDi("nasci") })).stdout || "").trim() || "{}");'),
-    ("HZ73", "shared/volta/mods/arturo/volta.js", 'portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));', 'portata = JSON.parse((await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 })).stdout || "{}");'),
+    ("HZ73", "shared/volta/mods/arturo/volta.js", 'portata = esito(await exec(this.py, [this.sposta, ...entroDi("porta"), "porta-volta", s.host, s.sessionId], { timeout: tettoDi("porta") }));', 'portata = JSON.parse((await exec(this.py, [this.sposta, ...entroDi("porta"), "porta-volta", s.host, s.sessionId], { timeout: tettoDi("porta") })).stdout || "{}");'),
     ("HZ66", "shared/volta/mods/arturo/dati.js", "  return ora - n.da < NASCITA_MAX ? n.macchina : null;", "  return n.macchina;"),
-    ("HZ66", "shared/volta/mods/arturo/dati.js", "const NASCITA_MAX = 420000;", "const NASCITA_MAX = 360000;"),
+    ("HZ66", "shared/volta/mods/arturo/dati.js", 'const NASCITA_MAX = tettoDi("nasci") + 60000;', 'const NASCITA_MAX = tettoDi("nasci");'),
     ("HZ66", "shared/volta/mods/arturo/dati.js", '  if (!n || typeof n !== "object" || typeof n.macchina !== "string" || !Number.isFinite(n.da)) return null;',
      '  if (!n) return null;\n  if (typeof n === "string") return n;'),
     ("HZ66", "shared/volta/mods/arturo/dati.js", ' || !Number.isFinite(n.da)) return null;', ') return null;\n  if (!Number.isFinite(n.da)) return n.macchina;'),

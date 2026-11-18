@@ -118,7 +118,7 @@ def esegui(modo, arg):
     return {"errore": "modo sconosciuto: %s" % modo}
 '''
 
-ATTESA_GIRO = FASI["giro_note"]  # tutto il giro: sta sotto il tetto "note" di tetti.js
+ATTESA_GIRO = FASI["giro_note"]  # tutto il giro: sta sotto il tetto "note" di TETTI (sessioni.js)
 ATTESA_CHIAMATA = FASI["chiamata_note"]  # una chiamata a un'altra macchina
 RANGO = {"aperta": 0, "presa": 1, "risolta": 2, "scartata": 2}
 CHIUSURA = ("stato", "chiusa_quando", "riassunto", "motivo")
