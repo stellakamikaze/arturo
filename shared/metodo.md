@@ -29,7 +29,8 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 ## Fatto vuol dire verificato
 
 - Dici "fatto" solo dopo aver controllato l'effetto vero nello strumento, e mostri l'uscita del controllo.
-- Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrà la persona: dai il link e lo screenshot che hai guardato.
+- Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrà la persona: dai il link e lo screenshot che hai guardato. Un file locale che uno script legge (xlsx, docx, csv) si controlla nel contenuto, senza screenshot.
+- Una cattura dello schermo del Mac (`screencapture`) fa chiedere a macOS il permesso di registrare schermo e audio. Per vedere un documento usa prima `qlmanage -t` o il PDF. Se la cattura serve davvero, dillo prima in una riga, col motivo e col permesso che macOS chiederà.
 - Un'interfaccia che costruisci o tocchi (pagina, dashboard, form) passa prima dal controllo di `$ARTURO_CODICE/shared/regole-interfaccia.md`: copre ciò che Impeccable e Hallmark non dicono, e vale anche senza di loro.
 - Un diagramma dentro una pagina, un documento o una presentazione lo disegni con la skill `diagram-design`, se è installata (`$ARTURO_CODICE/docs/diagram-design.md`).
 - Un effetto che arriverà dopo (un job programmato, un invio differito) è "armato", non fatto, fino al primo scatto.

@@ -170,14 +170,17 @@ def simili(a: set, b: set) -> bool:
 
 def correzioni_recenti() -> List[tuple]:
     """(sessione, testo) delle correzioni degli ultimi GIORNI_ORSA giorni (bin/correzioni.py)."""
-    radice = radice_orsa() / "cache" / "correzioni"
+    # data/correzioni dal 18/11/2026 (segnalazione n. 88), cache/correzioni prima: si leggono tutte e due.
     limite = adesso() - GIORNI_ORSA * 86400
     fuori = []
-    try:
-        file = list(radice.glob("*.json"))
-    except OSError:
-        return []
-    for f in file:
+    file = {}
+    for radice in (radice_orsa() / "data" / "correzioni", radice_orsa() / "cache" / "correzioni"):
+        try:
+            for f in radice.glob("*.json"):
+                file.setdefault(f.stem, f)  # una sessione presente in tutte e due: vale data/
+        except OSError:
+            pass
+    for f in file.values():
         try:
             if f.stat().st_mtime < limite:
                 continue

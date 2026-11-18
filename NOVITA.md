@@ -13,6 +13,43 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — I tasti di /dafare si leggono anche col tema scuro
+
+**Cosa cambia**: nel pannello /dafare i nomi dei progetti, i numeri dei todo e i tasti in basso hanno sempre il colore scuro del pannello. Prima prendevano il colore del tema del terminale: col tema scuro erano bianchi sul fondo chiaro, e si vedevano solo le lettere dei tasti. La correzione l'ha scritta una persona che usa Arturo, con la pull request n. 4, e risponde alla segnalazione n. 86. Un banco nuovo controlla che ogni tasto del pannello resti colorato.
+
+**Il principio**: il pannello porta il suo fondo, e allora porta anche i suoi colori. Niente del testo deve dipendere dal tema scelto da chi lo guarda.
+
+**A chi serve**: a chi usa /dafare con un tema scuro.
+
+---
+
+## 2026-11-18 — Claude usa il browser che nomini e dice con quale account lavora
+
+**Cosa cambia**: se scrivi "via Chrome" o "su Firefox", Claude usa quel browser. Se gli strumenti di quel browser non sono pronti, li carica prima di provare altre vie, e un altro browser lo usa solo col tuo sì. Prima di cercare o cambiare i dati di un account, come un Drive, un foglio o una casella, Claude scrive in una riga quale account è collegato. Se è quello sbagliato, cambia browser prima di agire. Nasce dalla segnalazione n. 74: Claude aveva ignorato il browser nominato e poi aveva lavorato nel profilo Chrome sbagliato.
+
+**Il principio**: il browser e l'account sono una scelta tua. Claude te li dice prima di toccare dei dati, così un errore si vede prima che faccia danni.
+
+**A chi serve**: a chi ha più browser o più account Google collegati.
+
+---
+
+## 2026-11-18 — Le correzioni si registrano anche col sandbox dei comandi acceso
+
+**Cosa cambia**: quando correggi Claude, la regola che scrive con `arturo correzione aggiungi` si salva anche col sandbox dei comandi acceso. Prima il sandbox fermava il comando con `Operation not permitted`, Claude doveva rilanciarlo senza protezioni e la regola arrivava in ritardo. Le correzioni adesso stanno in `~/.claude/data/correzioni/`, l'unica cartella che il sandbox lascia scrivere. Quelle scritte prima nella cartella vecchia valgono ancora per la sessione in corso. Nasce dalla segnalazione n. 88, lo stesso guasto della n. 81 su un altro comando.
+
+**Il principio**: una protezione accesa non deve far perdere una regola che hai appena dato.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
+## 2026-11-18 — Claude non cattura più lo schermo del Mac senza dirtelo
+
+**Cosa cambia**: per dire "fatto" su un file che si legge con uno script, come un foglio Excel, un documento Word o un CSV, a Claude basta controllarne il contenuto. Non apre il file per fotografare lo schermo. Per guardare un documento usa prima l'anteprima di Quick Look (`qlmanage -t`) o il PDF, che non chiedono permessi. Se una cattura dello schermo serve davvero, Claude te lo dice prima in una riga: perché la fa, e che macOS ti chiederà il permesso di registrare schermo e audio. Nasce dalla segnalazione n. 89: il Mac aveva chiesto quel permesso senza alcun avviso, per un file già controllato.
+
+**Il principio**: verificare non vuol dire spaventare. Una richiesta di sistema che arriva senza spiegazione sembra un problema di sicurezza, anche quando non lo è.
+
+**A chi serve**: a chi usa Arturo su un Mac e chiede fogli, documenti o file da scaricare.
+
+---
+
 ## 2026-11-17 — In Volta una sessione ferma per il limite o per la rete riparte da sola
 
 **Cosa cambia**: se usi Volta, una sessione che si è fermata per il limite d'uso del modello o per la connessione persa riparte da sola, senza che tu scriva "riprendi". Dopo il limite riparte un minuto dopo l'ora di sblocco; dopo una connessione persa, anche col Mac andato in stop, riparte quando la rete torna. Nell'elenco la riga dice "Limite d'uso: riparte da sola alle 16:01", e dopo "ripresa da sola alle 16:01". Volta ci prova al massimo due volte per ogni fermata: se si ferma di nuovo, la riga dice "riprendila tu". Non riparte mai una sessione che ti ha chiesto qualcosa, che ha un dialogo aperto o che stai chiudendo, e lascia stare gli altri errori, come il login scaduto. Chi non la vuole scrive `"ripresa": "spenta"` in `~/.config/herdr-app/arturo.json`. Nasce dalla proposta 12 della prima revisione: fra l'11 e il 17 novembre almeno nove sessioni sono rimaste ferme finché qualcuno non ha scritto "Riprendi".
@@ -338,8 +375,8 @@ Cosa ricorda e cosa esce dal computer sta in [`docs/memoria.md`](docs/memoria.md
 **Cosa cambia**: `/setup` non propone più Lancillotto, l'app per Mac che annotava come lavori. Il server di Arturo
 non accetta più i suoi eventi, e il riepilogo della settimana non ha più il blocco "Dove migliorare Lancillotto".
 `/sparring` parte dai candidati della Scoperta invece che dai numeri di Lancillotto. Se Lancillotto è già sul tuo
-Mac, resta lì finché non lo togli tu, e il server rifiuta quello che prova a mandare. Le righe arrivate al server fino a oggi restano al
-massimo 12 mesi, e chi lo ha usato può chiederne la cancellazione col suo id (`docs/privacy.md`).
+Mac, resta lì finché non lo togli tu, e il server rifiuta quello che prova a mandare. Le righe arrivate al server fino a oggi
+sono già cancellate.
 
 **Il principio**: per capire cosa ripeti basta guardare come cambiano i tuoi file, senza un'app che registra tutto quello che fai al Mac.
 
