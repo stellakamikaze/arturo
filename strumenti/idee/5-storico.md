@@ -3,9 +3,8 @@ passo: 5
 titolo: Si parte da quello che hai già fatto
 sottotitolo: Le tue chat con l'IA diventano un indice dei lavori, sul tuo computer.
 descrizione: Come Arturo legge l'esportazione delle chat di ChatGPT, Claude.ai o Gemini e ne ricava un indice dei lavori, e cosa resta sul computer.
-prossima: sì
 ---
-{prossima} Chi arriva dalla chat non parte da zero. Ha mesi di lavoro alle spalle, chiusi dentro le conversazioni: una newsletter seguita ogni settimana, una mostra preparata in primavera, i preventivi di un festival. Arturo parte da lì, invece di chiederti di rispiegare tutto da capo.
+Chi arriva dalla chat non parte da zero. Ha mesi di lavoro alle spalle, chiusi dentro le conversazioni: una newsletter seguita ogni settimana, una mostra preparata in primavera, i preventivi di un festival. Arturo parte da lì, invece di chiederti di rispiegare tutto da capo.
 
 ## L'esportazione
 

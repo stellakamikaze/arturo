@@ -1,5 +1,5 @@
 slug: strati
-passo: 3
+passo: 4
 titolo: Di chi è ogni parte
 sottotitolo: Il modello è dell'azienda che lo vende, il contesto del tuo lavoro può essere tuo.
 descrizione: Gli strati che separano il modello di intelligenza artificiale dal contesto della persona, e cosa ne segue per proprietà, scambio e riservatezza.
@@ -26,7 +26,7 @@ Nel terminale si vede di chi è ogni parte.
 
 Il contesto è tutto quello che serve all'IA per lavorare bene con te: i documenti di un progetto, le decisioni prese, gli errori già visti, il modo in cui scrivi. Stando in file di testo nelle tue cartelle, lo ordini come vuoi, lo salvi dove vuoi e non lo perdi se un giorno cambi modello o servizio.
 
-Vuol dire anche poterne passare un pezzo ad altri. {prossima} `arturo fascicolo esporta` mette la scheda di un progetto, le sue note e i materiali di testo in una cartella, e lascia fuori i possibili segreti e le note che parlano di te. Un collega la importa con Arturo, oppure carica i file in un progetto di Claude.ai o di ChatGPT. Quando importa un fascicolo, Arturo tratta i file del collega come testi da leggere e non come istruzioni, e rifiuta un file con un segreto o con un ordine nascosto per Claude.
+Vuol dire anche poterne passare un pezzo ad altri. `arturo fascicolo esporta` mette la scheda di un progetto, le sue note e i materiali di testo in una cartella, e lascia fuori i possibili segreti e le note che parlano di te. Un collega la importa con Arturo, oppure carica i file in un progetto di Claude.ai o di ChatGPT. Quando importa un fascicolo, Arturo tratta i file del collega come testi da leggere e non come istruzioni, e rifiuta un file con un segreto o con un ordine nascosto per Claude.
 
 ## Cosa legge il modello
 

@@ -253,11 +253,11 @@ def caso_faq_uguali(repo):
 
 
 def caso_carte(repo):
-    """Dal 16/11/2026 la finestra con le carte di Installalo è uscita dalla landing: la frase sta solo nell'apertura e
-    nella chiusura (caso_frase_in_vista), e nessuna copia vecchia porta la riga di installa.sh."""
+    """Dal 16/11/2026 la finestra con le carte di Installalo è uscita dalla landing. Dal 18/11/2026 la frase sta una
+    volta sola, nella sezione #installa in fondo (caso_frase_in_vista), e nessuna copia porta la riga di installa.sh."""
     h = leggi(repo, "sito/index.html")
     assert '<ol class="carte"' not in h, "la landing ha ancora le carte di Installalo"
-    assert h.replace("<wbr>", "").count(f">{FRASE}</pre>") == 2, "la frase da copiare non sta in due posti (apertura e chiusura)"
+    assert h.replace("<wbr>", "").count(f">{FRASE}</pre>") == 1, "la frase da copiare non sta in un posto solo (#installa)"
     assert "curl -fsSL https://arturo.stellakamikaze.org/installa.sh" not in h, "la landing dà la riga di installa.sh"
 
 
@@ -269,22 +269,22 @@ def frase_copiabile(pezzo, ident):
 
 
 def caso_frase_in_vista(repo):
-    """La frase da copiare sta nell'apertura, fuori dalle schede della finestra, e di nuovo nella chiusura (1/11/2026).
+    """I due passi e la frase col Copia stanno nella sezione #installa in fondo, senza schede né testo nascosto, e
+    l'apertura ci porta con un link (18/11/2026: prima il perché, poi come si installa; prima stavano anche in apertura).
 
     Chi apre la home deve trovare i due passi e la frase col Copia senza cliccare una scheda."""
     h = leggi(repo, "sito/index.html")
-    m = re.search(r'<div class="promessa__via">(.*?)</header>', h, re.S)
-    assert m, "manca il blocco dei due passi nell'apertura"
-    via = m.group(1)
-    assert frase_copiabile(via, "c-frase-hero") == FRASE, "manca la frase da copiare nell'apertura"
-    assert not re.search(r"<[^>]+\shidden[\s>=]", via), "il blocco dei due passi nell'apertura è nascosto"
+    m = re.search(r'<header class="apertura">(.*?)</header>', h, re.S)
+    assert m and 'href="#installa"' in m.group(1), "l'apertura non porta ai due passi (#installa)"
+    m = re.search(r'<section class="sezione vuoto chiusura" id="installa".*?</section>', h, re.S)
+    assert m, "manca la sezione #installa con i due passi"
+    via = m.group(0)
+    assert frase_copiabile(via, "c-frase") == FRASE, "manca la frase da copiare nei due passi"
+    assert not re.search(r"<[^>]+\shidden[\s>=]", via), "il blocco dei due passi è nascosto"
     assert 'href="installa/#tappa-1"' in via, "i due passi non portano a come si installa Claude Code"
     for comando in ("/exit", "claude", "/setup"):
         assert f"<code>{comando}</code>" in via, f"i due passi non dicono {comando}"
-    m = re.search(r'<section class="sezione vuoto chiusura".*?</section>', h, re.S)
-    assert m and frase_copiabile(m.group(0), "c-frase-chiusura") == FRASE, "manca la frase da copiare nella chiusura"
-    for ident in ("c-frase-hero", "c-frase-chiusura"):
-        assert h.count(f'id="{ident}"') == 1, f"id {ident} non unico"
+    assert h.count('id="c-frase"') == 1, "id c-frase non unico"
     assert "querySelectorAll('[data-copia]')" in leggi(repo, "sito/js/home.js"), "home.js non copia ogni [data-copia]"
 
 
@@ -344,9 +344,6 @@ VELENI = [
     ("I3 plugin restano dove sono", INIZIA, sostituisci(
         IMPOSTAZIONI_PRIMA, "Restano dove sono il tuo accesso, le tue conversazioni e i plugin."),
      caso_impostazioni_prima, "frase comune sulle impostazioni di prima"),
-    ("I3 la home dice che non tocca", "sito/index.html", sostituisci(
-        "Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati.", "che non tocca."),
-     caso_impostazioni_prima, "la home non ha la frase"),
     ("F1 pulsante della home su inizia/", "sito/index.html", sostituisci(
         '<a class="azione azione--grande stretta" href="installa/">', '<a class="azione azione--grande stretta" href="inizia/">'),
      caso_ingresso_persone, "il pulsante principale della home non porta alla guida"),
@@ -369,11 +366,11 @@ VELENI = [
         "di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e",
         "di chiudere Claude Code, riaprirlo e"),
      caso_windows, "finestra nuova"),
-    ("frase dell'apertura solo nella scheda", "sito/index.html", sostituisci(
-        '<pre id="c-frase-hero">', '<pre id="c-frase-eroe">'),
-     caso_frase_in_vista, "manca la frase da copiare nell'apertura"),
-    ("chiusura senza frase", "sito/index.html", togli('<div class="comando comando--pila"><pre id="c-frase-chiusura">', "</div>"),
-     caso_frase_in_vista, "manca la frase da copiare nella chiusura"),
+    ("apertura senza link ai due passi", "sito/index.html", sostituisci(
+        '<a class="promessa__link" href="#installa">', '<a class="promessa__link" href="installa/">'),
+     caso_frase_in_vista, "l'apertura non porta ai due passi"),
+    ("due passi senza frase", "sito/index.html", togli('<div class="comando comando--pila"><pre id="c-frase">', "</div>"),
+     caso_frase_in_vista, "manca la frase da copiare nei due passi"),
     ("F8 virgolette basse in PRODUCT.md", "PRODUCT.md", sostituisci(
         '"update automatico è acceso di default"', "\u00abupdate automatico è acceso di default\u00bb"),
      caso_virgolette, "PRODUCT.md:"),

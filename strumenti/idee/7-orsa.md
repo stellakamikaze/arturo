@@ -10,7 +10,7 @@ Il valore del terminale è che puoi costruirti strumenti su misura per il tuo la
 
 Il nome Arturo viene da Arktouros, "il guardiano dell'orsa", la stella che i naviganti usavano per tenere la rotta. L'Orsa è la parte della configurazione che è tua: il tuo CLAUDE.md, le aggiunte ai comandi in `personale/`, le skill che crei con `/creaskill`, le regole sul tuo modo di scrivere. Gli aggiornamenti di Arturo cambiano solo Arturo, e si allineano all'Orsa senza toccarla.
 
-{prossima} Nell'Orsa entra anche il nome. Con `arturo nome` Claude si presenta come vuoi tu in ogni sessione, mentre comandi e file restano quelli di Arturo.
+Nell'Orsa entra anche il nome. Con `arturo nome` Claude si presenta come vuoi tu in ogni sessione, mentre comandi e file restano quelli di Arturo.
 
 ## Melchior, la memoria
 
@@ -18,7 +18,7 @@ Melchior è la memoria di Arturo, accesa di default. Tiene decisioni, errori gi�
 
 ## Arturo te li propone
 
-{prossima} Arturo ti propone l'Orsa o Melchior quando nel tuo lavoro vede un segnale che si può contare. Se correggi Claude sulla stessa cosa in tre sessioni diverse, Arturo ti propone di scrivere la regola nell'Orsa, dove vale sempre. Se la memoria è spenta e hai almeno 15 handoff, o un CLAUDE.md di almeno 250 righe, ti propone di riaccendere Melchior. Ogni proposta arriva una volta sola, col segnale che l'ha fatta partire, e con un no non torna.
+Arturo ti propone l'Orsa o Melchior quando nel tuo lavoro vede un segnale che si può contare. Se correggi Claude sulla stessa cosa in tre sessioni diverse, Arturo ti propone di scrivere la regola nell'Orsa, dove vale sempre. Se la memoria è spenta e hai almeno 15 handoff, o un CLAUDE.md di almeno 250 righe, ti propone di riaccendere Melchior. Ogni proposta arriva una volta sola, col segnale che l'ha fatta partire, e con un no non torna.
 
 {figura:orsa}
 

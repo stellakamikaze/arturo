@@ -1,5 +1,5 @@
 slug: briglia
-passo: 4
+passo: 3
 titolo: Una briglia per Claude Code
 sottotitolo: Arturo usa Claude e gli mette intorno regole scritte prima: in inglese si chiama harness, i finimenti del cavallo.
 descrizione: Che cos'è un harness, cosa contiene Arturo, come le guardie chiedono conferma e come le sessioni si aprono e si chiudono in ordine.

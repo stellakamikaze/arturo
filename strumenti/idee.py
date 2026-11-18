@@ -176,11 +176,11 @@ def main() -> None:
                '      <p class="paper__sotto">Sette paper brevi, uno per passo del racconto.</p>\n'
                '      <p class="paper__dove"><a href="../#racconto">Torna al racconto</a></p>')
     principale = ('<article class="paper" aria-labelledby="titolo"><div class="dentro">\n'
-                  '<p>Ogni paper allarga un passo della pagina principale: per chi è Arturo, perché il terminale, di chi è '
-                  "il contesto, cos'è un harness, da dove parte, cosa ti propone e come cresce senza rompersi.</p>\n"
+                  '<p>Ogni paper allarga un passo della pagina principale: per chi è Arturo, perché il terminale, '
+                  "cos'è un harness, di chi è il contesto, da dove parte, cosa ti propone e come cresce senza rompersi.</p>\n"
                   f'<ol class="elenco-paper">{"".join(voci)}</ol>\n</div></article>')
     pagina = (testa_pagina("Le idee dietro Arturo · sette paper brevi", "Sette paper brevi che allargano il racconto di "
-                           "Arturo: mestieri, terminale, strati, harness, storico, proposte, Orsa.",
+                           "Arturo: mestieri, terminale, harness, strati, storico, proposte, Orsa.",
                            "https://arturo.stellakamikaze.org/idee/", 1, False)
               + corpo_pagina(modello, 1, testata, principale))
     (SITO / "idee" / "index.html").write_text(pagina, encoding="utf-8")

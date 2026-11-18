@@ -159,6 +159,9 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .promessa h2 span{display:block;color:var(--cenere)}
 .promessa__testo{margin:16px 0 24px;max-width:52ch;color:var(--grafite)}
 .promessa .azione--grande{min-height:52px;padding:0 24px;font-size:1.05rem}
+.promessa__azioni{display:flex;flex-wrap:wrap;align-items:center;gap:16px 28px}
+.promessa__link{display:inline-flex;align-items:center;min-height:44px;font-weight:600;color:var(--inchiostro);text-underline-offset:4px}
+.promessa__link::after{content:"\00a0↓"}
 /* i due passi d'installazione: fondo pieno, così il reticolo della volta non ci passa sotto il testo */
 .via{padding:20px 20px 16px;background:var(--bianco);border-top:1px solid var(--inchiostro)}
 .via h3{margin:0 0 12px;color:var(--inchiostro);font:400 1.3rem/1.2 var(--titolo);letter-spacing:-.02em}
@@ -243,6 +246,11 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .vuoto a{color:var(--bianco)}
 .vuoto code{background:var(--vuoto-2);color:var(--bianco)}
 .vuoto :focus-visible{outline-color:var(--term-tu)}
+.vuoto .via p,.vuoto .via__poi{color:var(--grafite)}
+.vuoto .via a{color:var(--azione-giu)}
+.vuoto .via a:focus-visible{outline-color:var(--azione)}
+.vuoto .via code{background:var(--carta-2);color:var(--inchiostro)}
+.vuoto .via ::selection{background:var(--azione);color:var(--bianco)}
 
 /* ---------- comandi ---------- */
 
@@ -262,12 +270,13 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 
 /* ---------- chiusura ---------- */
 .chiusura{text-align:left}
-.chiusura .dentro{display:grid;grid-template-columns:minmax(0,1fr)}
+.chiusura .dentro{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);column-gap:var(--fra-lati);align-items:end}
 .chiusura .dentro > *{max-width:760px}
 .chiusura h2{font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
 .chiusura__via{justify-self:start;display:grid;gap:12px;justify-items:start;margin-top:28px}
 .chiusura__via p{margin:0;color:var(--vuoto-cenere)}
 .chiusura__frase{margin:24px 0 12px}
+.chiusura .via{margin-top:28px;max-width:560px;color:var(--grafite)}
 .chiusura .comando{max-width:560px}
 .chiusura .comando pre{font-size:.86rem}
 .vuoto .azione--chiara{color:var(--inchiostro)}
@@ -296,7 +305,8 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   .promessa{display:flex;flex-direction:column;gap:0}
   .promessa > div:first-child{display:contents}
   .promessa h2{order:0}.promessa__testo{order:1;margin:12px 0 16px}.promessa__via{order:2}
-  .promessa .azione--grande{order:3;width:100%;margin:16px 0 4px}
+  .promessa__azioni{order:3;margin:16px 0 4px}
+  .promessa .azione--grande{width:100%}
   .via{padding:16px 12px 12px}
   .via .comando{margin:0 -12px}
   .via .comando pre,.chiusura .comando pre{font-size:.76rem}
@@ -526,6 +536,8 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 .tabella-mock th{text-align:left;padding:0 8px 8px 0;font-weight:600;color:var(--inchiostro);border-bottom:1px solid var(--inchiostro)}
 .tabella-mock td{padding:8px 8px 8px 0;border-bottom:1px solid var(--filetto);vertical-align:top}
 .tabella-mock td:nth-child(2){font-variant-numeric:tabular-nums;color:var(--cenere)}
+.domanda-giorno{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--filetto);color:var(--inchiostro);font:400 1.15rem/1.3 var(--titolo);letter-spacing:-.01em}
+.domanda-giorno span{display:block;margin-bottom:4px;color:var(--cenere);font:600 .78rem/1.3 var(--testo);letter-spacing:0}
 .tabella-mock tr.manca td{color:var(--allarme)}
 .tabella-mock__piede{margin:8px 0 0;font-size:.74rem;color:var(--cenere)}
 /* ---------- come lo uso io ---------- */
@@ -635,9 +647,12 @@ h3 .in-arrivo{display:table;margin:8px 0 0}
 .indice-passi a:hover{color:var(--inchiostro)}
 .indice-passi a[aria-current="step"]{color:var(--inchiostro);border-bottom-color:var(--azione)}
 .indice-passi a[aria-current="step"] b{background:var(--azione);color:var(--bianco);box-shadow:none}
+.indice-passi__blocco{margin-left:8px;padding-left:12px;border-left:1px solid var(--filetto)}
 html{scroll-padding-top:64px}
 .racconto{padding:var(--ritmo) 0}
 .racconto__titolo{margin:0 0 clamp(28px,4vw,48px);font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%;max-width:18ch}
+.racconto__titolo span{display:block;color:var(--cenere)}
+.racconto__titolo--blocco{margin-top:clamp(64px,8vw,120px)}
 .passo{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:24px var(--fra-lati);align-items:center;padding:clamp(28px,4vw,48px) 0;border-top:1px solid var(--inchiostro)}
 .passo:nth-of-type(even){grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
 .passo:nth-of-type(even) .passo__testo{order:2}
@@ -763,23 +778,14 @@ html{scroll-padding-top:64px}
 
     <div class="promessa">
       <div>
-        <h2>Un harness per chi lavora con la conoscenza. <span>Porta l'IA dalla chat ai tuoi file.</span></h2>
-        <p class="promessa__testo">Arturo non è un'intelligenza artificiale. È un insieme di istruzioni in italiano per Claude Code, il programma di Anthropic che lavora sul tuo computer, pensato per chi non ha mai aperto un terminale. È gratuito e open source; Claude Code richiede un abbonamento.</p>
-        <a class="azione azione--grande stretta" href="installa/">Guida passo per passo</a>
-      </div>
-      <div class="promessa__via">
-        <div class="via">
-          <h3>Si installa in due passi</h3>
-          <ol>
-            <li><span class="via__boa" aria-hidden="true">1</span><p><strong>Installa Claude Code</strong>, poi scrivi <code>claude</code> e fai l'accesso. <a href="installa/#tappa-1">Come si installa</a></p></li>
-            <li><span class="via__boa" aria-hidden="true">2</span><p><strong>In Claude Code incolla questa frase</strong> e premi Invio:</p><div class="comando comando--pila"><pre id="c-frase-hero">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase-hero">Copia</button></div></li>
-          </ol>
-          <p class="via__poi">Claude fa il resto e ti chiede conferma a ogni passo. Poi scrivi <code>/exit</code>, <code>claude</code> e <code>/setup</code>.</p>
+        <h2>Porta l'IA dalla chat al tuo computer. <span>Anche se non hai mai aperto un terminale.</span></h2>
+        <p class="promessa__testo">Arturo non è un'intelligenza artificiale. È una briglia per Claude Code, il programma di Anthropic che lavora sui tuoi file: istruzioni pronte, in italiano, per chi scrive, insegna, fotografa, produce o cura. È gratuito e open source; Claude Code richiede un abbonamento.</p>
+        <div class="promessa__azioni">
+          <a class="azione azione--grande stretta" href="installa/">Guida passo per passo</a>
+          <a class="promessa__link" href="#installa">Si installa in due passi</a>
         </div>
       </div>
     </div>
-    
-
   </div>
 </header>
 
@@ -788,11 +794,11 @@ html{scroll-padding-top:64px}
     <ol>
       <li><a href="#passo-1"><b>1</b>Per chi è</a></li>
       <li><a href="#passo-2"><b>2</b>Il recinto</a></li>
-      <li><a href="#passo-3"><b>3</b>Di chi è</a></li>
-      <li><a href="#passo-4"><b>4</b>La briglia</a></li>
-      <li><a href="#passo-5"><b>5</b>Lo storico</a></li>
-      <li><a href="#passo-6"><b>6</b>Le proposte</a></li>
-      <li><a href="#passo-7"><b>7</b>L'Orsa</a></li>
+      <li><a href="#passo-3"><b>3</b>La briglia</a></li>
+      <li class="indice-passi__blocco"><a href="#passo-4"><b>4</b>Di chi è</a></li>
+      <li><a href="#passo-5"><b>5</b>Impara</a></li>
+      <li><a href="#passo-6"><b>6</b>Propone</a></li>
+      <li><a href="#passo-7"><b>7</b>Con ordine</a></li>
     </ol>
   </div>
 </nav>
@@ -800,12 +806,12 @@ html{scroll-padding-top:64px}
 <main id="principale">
   <section class="racconto" id="racconto" aria-labelledby="t-racconto">
     <div class="dentro">
-      <h2 class="racconto__titolo" id="t-racconto">Dalla chat al terminale, in sette passi.</h2>
+      <h2 class="racconto__titolo" id="t-racconto">Dalla chat al terminale, <span>con una guida.</span></h2>
 
       <article class="passo" id="passo-1" aria-labelledby="t-passo-1">
         <div class="passo__testo">
           <h3 id="t-passo-1"><span class="passo__n">1</span>Per chi lavora con la conoscenza.</h3>
-          <p>Scrivi, fotografi, insegni, organizzi eventi o curi un archivio: raccogli materiali e ne ricavi qualcosa da consegnare. Oggi lo fai con l'IA in una chat.</p>
+          <p>Scrivi, fotografi, insegni, organizzi eventi o curi un archivio: raccogli materiali e ne ricavi qualcosa da consegnare. Oggi lo fai in chat con l'IA, e puoi continuare a farlo.</p>
           <a class="passo__paper" href="mestieri/">Le sei famiglie di mestieri</a>
         </div>
         <div class="passo__scena lastra lastra--giallo">
@@ -829,7 +835,7 @@ html{scroll-padding-top:64px}
       <article class="passo" id="passo-2" aria-labelledby="t-passo-2">
         <div class="passo__testo">
           <h3 id="t-passo-2"><span class="passo__n">2</span>Nel terminale il recinto della chat salta.</h3>
-          <p>In chat l'IA vede solo quello che le incolli. Nel terminale ha il tuo computer: legge le cartelle, scrive i file, costruisce pagine da condividere.</p>
+          <p>In chat l'IA vede solo quello che le incolli. Nel terminale, la finestra dove si danno comandi al computer, ha accesso ai tuoi file: legge le cartelle, scrive i file, costruisce pagine da condividere. Il passaggio sembra tecnico, e Arturo lo rende semplice.</p>
           <a class="passo__paper" href="idee/recinto/">Dalla chat al terminale</a>
         </div>
         <div class="passo__scena lastra lastra--cielo">
@@ -857,26 +863,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-3" aria-labelledby="t-passo-3">
         <div class="passo__testo">
-          <h3 id="t-passo-3"><span class="passo__n">3</span>Il modello è dell'azienda. Il contesto è tuo.</h3>
-          <p>Documenti, decisioni e memoria restano file di testo sul tuo computer: li ordini come vuoi, li passi a un collega e non li perdi se cambi servizio.</p>
-          <a class="passo__paper" href="idee/strati/">Di chi è ogni parte</a>
-        </div>
-        <div class="passo__scena lastra lastra--azzurro">
-          <div class="pila pila--scena" data-scena="strati">
-            <button type="button" class="pila__strato pila__strato--loro" aria-pressed="false" data-cosa="Claude. Riceve quello che gli serve per rispondere, come in chat."><span class="pila__nome">Il modello</span><span class="pila__chi">di Anthropic</span></button>
-            <button type="button" class="pila__strato pila__strato--loro" aria-pressed="false" data-cosa="Il programma che dà al modello il computer. È a pagamento."><span class="pila__nome">Claude Code</span><span class="pila__chi">di Anthropic</span></button>
-            <button type="button" class="pila__strato pila__strato--arturo" aria-pressed="false" data-cosa="Regole, comandi e guardie uguali per tutti. Si aggiorna da solo, solo coi rilasci firmati."><span class="pila__nome">Arturo</span><span class="pila__chi">lo mantengo io</span></button>
-            <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="false" data-cosa="Il tuo CLAUDE.md, le tue skill, le regole su come scrivi. Nessun aggiornamento la tocca."><span class="pila__nome">L'Orsa</span><span class="pila__chi">tua</span></button>
-            <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="true" data-cosa="Progetti, appunti, note della memoria. File di testo sul tuo computer."><span class="pila__nome">I tuoi file e la memoria</span><span class="pila__chi">tuoi</span></button>
-            <p class="pila__dettaglio" aria-live="polite">Progetti, appunti, note della memoria. File di testo sul tuo computer.</p>
-          </div>
-        </div>
-      </article>
-
-      <article class="passo" id="passo-4" aria-labelledby="t-passo-4">
-        <div class="passo__testo">
-          <h3 id="t-passo-4"><span class="passo__n">4</span>Arturo è una briglia per Claude.</h3>
-          <p>Regole scritte prima: cosa Claude fa da solo, cosa ti chiede, come chiude la sera e riparte la mattina. Prima di cancellare i tuoi file o mandarli fuori dal computer, ti chiede un sì.</p>
+          <h3 id="t-passo-3"><span class="passo__n">3</span>Arturo ti prende per mano nel terminale.</h3>
+          <p>Sono istruzioni pronte: dicono a Claude Code cosa fa da solo, cosa ti chiede, come chiude la sera e riparte la mattina. Prima di cancellare i tuoi file o mandarli fuori dal computer, ti chiede un sì.</p>
           <a class="passo__paper" href="idee/briglia/">Una briglia per Claude Code</a>
         </div>
         <div class="passo__scena lastra lastra--verde">
@@ -892,10 +880,30 @@ html{scroll-padding-top:64px}
         </div>
       </article>
 
+      <h2 class="racconto__titolo racconto__titolo--blocco" id="t-ambiente">Un ambiente di lavoro tuo, <span>che impara come lavori.</span></h2>
+
+      <article class="passo" id="passo-4" aria-labelledby="t-passo-4">
+        <div class="passo__testo">
+          <h3 id="t-passo-4"><span class="passo__n">4</span>Il modello è dell'azienda, il contesto è tuo.</h3>
+          <p>Documenti, decisioni e memoria restano file di testo sul tuo computer: li ordini come vuoi, li passi a un collega e non li perdi se cambi servizio.</p>
+          <a class="passo__paper" href="idee/strati/">Di chi è ogni parte</a>
+        </div>
+        <div class="passo__scena lastra lastra--azzurro">
+          <div class="pila pila--scena" data-scena="strati">
+            <button type="button" class="pila__strato pila__strato--loro" aria-pressed="false" data-cosa="Claude. Riceve quello che gli serve per rispondere, come in chat."><span class="pila__nome">Il modello</span><span class="pila__chi">di Anthropic</span></button>
+            <button type="button" class="pila__strato pila__strato--loro" aria-pressed="false" data-cosa="Il programma che dà al modello il computer. È a pagamento."><span class="pila__nome">Claude Code</span><span class="pila__chi">di Anthropic</span></button>
+            <button type="button" class="pila__strato pila__strato--arturo" aria-pressed="false" data-cosa="Regole, comandi e guardie uguali per tutti. Si aggiorna da solo, solo coi rilasci firmati."><span class="pila__nome">Arturo</span><span class="pila__chi">lo mantengo io</span></button>
+            <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="false" data-cosa="Il tuo CLAUDE.md, le tue skill, le regole su come scrivi. Nessun aggiornamento la tocca."><span class="pila__nome">L'Orsa</span><span class="pila__chi">tua</span></button>
+            <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="true" data-cosa="Progetti, appunti, note della memoria. File di testo sul tuo computer."><span class="pila__nome">I tuoi file e la memoria</span><span class="pila__chi">tuoi</span></button>
+            <p class="pila__dettaglio" aria-live="polite">Progetti, appunti, note della memoria. File di testo sul tuo computer.</p>
+          </div>
+        </div>
+      </article>
+
       <article class="passo" id="passo-5" aria-labelledby="t-passo-5">
         <div class="passo__testo">
-          <h3 id="t-passo-5"><span class="passo__n">5</span>Si parte dalle chat che hai già fatto. <span class="in-arrivo">Nella prossima versione</span></h3>
-          <p>Arturo legge l'esportazione delle tue chat e ne ricava un indice dei lavori. Tiene solo quello che approvi, mai il testo delle chat.</p>
+          <h3 id="t-passo-5"><span class="passo__n">5</span>Arturo impara come lavori.</h3>
+          <p>Al primo avvio legge l'esportazione delle tue chat e ne ricava un indice dei lavori: tiene i lavori che approvi, non le conversazioni. Poi, per sei settimane, ti fa al massimo una domanda al giorno sul tuo mestiere.</p>
           <a class="passo__paper" href="idee/storico/">Si parte da quello che hai già fatto</a>
         </div>
         <div class="passo__scena lastra lastra--cielo">
@@ -910,6 +918,7 @@ html{scroll-padding-top:64px}
                 <tr><td>Preventivi del festival<small>budget-2026.xlsx</small></td><td>apr-lug</td><td class="cifra">9</td></tr>
               </tbody>
             </table>
+            <p class="domanda-giorno"><span>La domanda di oggi</span>Quale lavoro rifai ogni mese?</p>
             <button type="button" class="leggi" hidden>Leggi l'esportazione</button>
           </div>
           <p class="lastra__nota">Esempio. Il testo delle chat resta nell'esportazione, che puoi cancellare.</p>
@@ -918,8 +927,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-6" aria-labelledby="t-passo-6">
         <div class="passo__testo">
-          <h3 id="t-passo-6"><span class="passo__n">6</span>Arturo osserva come lavori, e ti propone.</h3>
-          <p>Quando un lavoro torna, ti propone di automatizzarlo, con le date come prove. Nella prossima versione propone anche sintesi e pagine interattive per il tuo mestiere.</p>
+          <h3 id="t-passo-6"><span class="passo__n">6</span>Arturo osserva come lavori e ti fa proposte.</h3>
+          <p>Se un lavoro torna, ti propone di automatizzarlo e ti mostra quando l'hai rifatto. Oppure una sintesi, o una pagina interattiva: la lezione con cui gli studenti giocano, il consuntivo dove il cliente sposta le cifre.</p>
           <a class="passo__paper" href="idee/proposte/">Arturo ti propone cosa automatizzare</a>
         </div>
         <div class="passo__scena lastra lastra--giallo">
@@ -943,7 +952,6 @@ html{scroll-padding-top:64px}
                 <h5>Cosa resta aperto</h5>
                 <p class="foglio__allarme">Sei opere senza scheda di prestito.</p>
               </article>
-              <p class="forma-stato"><span class="in-arrivo">Nella prossima versione</span></p>
             </div>
             <div role="tabpanel" id="forma-pagina" aria-labelledby="forma-3" class="forma-pannello">
               <div class="tabella-mock simulatore">
@@ -961,7 +969,6 @@ html{scroll-padding-top:64px}
                 </table>
                 <p class="tabella-mock__piede">Sposta il catering: il totale cambia subito.</p>
               </div>
-              <p class="forma-stato"><span class="in-arrivo">Nella prossima versione</span></p>
             </div>
           </div>
         </div>
@@ -970,7 +977,7 @@ html{scroll-padding-top:64px}
       <article class="passo" id="passo-7" aria-labelledby="t-passo-7">
         <div class="passo__testo">
           <h3 id="t-passo-7"><span class="passo__n">7</span>Lo adatti a te, con ordine.</h3>
-          <p>Regole e skill tue stanno nell'Orsa, la memoria in Melchior: nessun aggiornamento le tocca. Nella prossima versione, se correggi Claude tre volte sulla stessa cosa, Arturo ti propone di farne una regola.</p>
+          <p>Regole, skill e perfino il suo nome stanno nell'Orsa, la memoria sta in Melchior: sono strati tuoi, che gli aggiornamenti non toccano. Se correggi Claude tre volte sulla stessa cosa, ti propone di farne una regola. Se il terminale non fa per te, c'è Volta, una finestra simile alla chat, ancora in prova.</p>
           <a class="passo__paper" href="idee/orsa/">Crescere con ordine</a>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
@@ -982,18 +989,23 @@ html{scroll-padding-top:64px}
               <button type="button" data-risposta="no">No</button>
             </div>
           </div>
-          <p class="lastra__nota">Sessione di esempio. La proposta arriva nella prossima versione.</p>
+          <p class="lastra__nota">Sessione di esempio.</p>
         </div>
       </article>
     </div>
   </section>
 
-  <section class="sezione vuoto chiusura" aria-labelledby="t-chiusura">
+  <section class="sezione vuoto chiusura" id="installa" aria-labelledby="t-chiusura">
     <div class="dentro">
       <div>
-        <h2 id="t-chiusura">Un link, e Claude fa il resto.</h2>
-        <p class="chiusura__frase">In Claude Code incolla questa frase e premi Invio.</p>
-        <div class="comando comando--pila"><pre id="c-frase-chiusura">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase-chiusura">Copia</button></div>
+        <h2 id="t-chiusura">Si installa in due passi.</h2>
+        <div class="via">
+          <ol>
+            <li><span class="via__boa" aria-hidden="true">1</span><p><strong>Installa Claude Code</strong>, poi nel terminale scrivi <code>claude</code> e fai l'accesso. <a href="installa/#tappa-1">Come si installa</a></p></li>
+            <li><span class="via__boa" aria-hidden="true">2</span><p><strong>In Claude Code incolla questa frase</strong> e premi Invio:</p><div class="comando comando--pila"><pre id="c-frase">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase">Copia</button></div></li>
+          </ol>
+          <p class="via__poi">Claude fa il resto e ti chiede conferma a ogni passo. Poi esci con <code>/exit</code>, riapri con <code>claude</code> e scrivi <code>/setup</code>.</p>
+        </div>
       </div>
       <div class="chiusura__via">
         <p>Non hai ancora Claude Code? La guida parte da lì.</p>
@@ -1010,9 +1022,9 @@ html{scroll-padding-top:64px}
       </div>
       <ul class="limiti">
         <li><strong>Claude Code è a pagamento.</strong> Serve un abbonamento Anthropic, che decide prezzi e limiti.</li>
-        <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat, e così i file che Claude apre. Sul disco restano nelle tue cartelle.</li>
-        <li><strong>Gli aggiornamenti sono codice di altri.</strong> Si installano da soli soltanto se li ho firmati io, e puoi chiedere di confermarli uno per uno.</li>
-        <li id="telemetria"><strong>Arturo manda dati d'uso, accesi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
+        <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat, e lo stesso vale per i file che Claude apre, che restano nelle tue cartelle.</li>
+        <li><strong>Gli aggiornamenti sono codice che arriva da fuori.</strong> Si installano da soli soltanto se li ho firmati io, e puoi chiedere di confermarli uno per uno.</li>
+        <li id="telemetria"><strong>Arturo manda dati d'uso, attivi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
       </ul>
     </div>
   </section>
@@ -1024,16 +1036,16 @@ html{scroll-padding-top:64px}
       <div class="piede__firma">
         <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT.</p>
         <p>Arturo prende il nome dalla stella che segue l'Orsa: i naviganti la trovavano proseguendo l'arco del suo timone.</p>
-        <small>Questa pagina conta le visite con Plausible, ospitato da chi mantiene Arturo: niente cookie, nessun tracker di terzi, nessun font da server esterni. Cosa raccoglie il sito sta nella <a href="privacy/">pagina della privacy</a>. Aggiornata il 16 novembre 2026.</small>
+        <small>Questa pagina conta le visite con Plausible, ospitato da chi mantiene Arturo: niente cookie, nessun tracker di terzi, nessun font da server esterni. Cosa raccoglie il sito sta nella <a href="privacy/">pagina della privacy</a>. Aggiornata il 18 novembre 2026.</small>
       </div>
       <div>
         <h2>Le idee</h2>
         <ul>
           <li><a href="mestieri/">I mestieri della conoscenza</a></li>
           <li><a href="idee/recinto/">Dalla chat al terminale</a></li>
-          <li><a href="idee/strati/">Di chi è ogni parte</a></li>
           <li><a href="idee/briglia/">Una briglia per Claude Code</a></li>
-          <li><a href="idee/storico/">Si parte da quello che hai già fatto</a></li>
+          <li><a href="idee/strati/">Di chi è ogni parte</a></li>
+          <li><a href="idee/storico/">Si parte da quello che hai già&nbsp;fatto</a></li>
           <li><a href="idee/proposte/">Arturo ti propone cosa automatizzare</a></li>
           <li><a href="idee/orsa/">Crescere con ordine</a></li>
         </ul>
