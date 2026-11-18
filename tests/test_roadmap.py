@@ -107,7 +107,7 @@ def rm04(repo: Path) -> None:
     assert "task:" not in pagina, "RM04 commento dei task nella pagina pubblicata"
     assert "Commenta questa voce" in pagina, "RM04 pagina senza Commenta"
     home = (repo / "sito" / "index.html").read_text(encoding="utf-8")
-    assert home.count('href="roadmap/"') >= 2, "RM04 la home non porta alla roadmap da menu e piede"
+    assert home.count('href="roadmap/"') >= 1, "RM04 la home non porta alla roadmap dal piede (landing singola, 18/11/2026)"
     assert "<loc>https://arturo.stellakamikaze.org/roadmap/</loc>" in (repo / "sito" / "sitemap.xml").read_text(encoding="utf-8"), "RM04 sitemap"
     assert "https://arturo.stellakamikaze.org/roadmap/" in (repo / "sito" / "llms.txt").read_text(encoding="utf-8"), "RM04 llms.txt"
 

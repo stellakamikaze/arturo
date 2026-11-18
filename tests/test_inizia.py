@@ -43,7 +43,7 @@ CRONOLOGIA = ("Quello che leggo resta nella cronologia di questa conversazione, 
 IMPOSTAZIONI_PRIMA = ("Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. "
                       "Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: "
                       "/setup ti propone di riportare hook, plugin e preferenze.")
-RIGA_GUIDA = "Non hai ancora Claude Code? Parti dalla guida: installa/"
+RIGA_GUIDA = "Non hai ancora Claude Code? Parti dalla pagina principale: arturo.stellakamikaze.org"
 # I file del sito toccati dall'ingresso col link: qui niente virgolette basse o curve. Il resto di
 # sito/ (novità, privacy, feedback) ne ha ancora, e una voce delle novità cita una virgoletta curva
 # come fatto: si sistemano a parte.
@@ -142,17 +142,18 @@ def caso_impostazioni_prima(repo):
 
 
 def caso_ingresso_persone(repo):
-    """F1: chi arriva dal browser va alla guida; /inizia/ è scritta per Claude e lo dice in apertura."""
+    """F1: chi arriva dal browser va ai due passi della home (#installa, landing singola dal 18/11/2026); /inizia/ è
+    scritta per Claude e lo dice in apertura."""
     h = leggi(repo, "sito/index.html")
     m = re.search(r'<div class="promessa">.*?<a class="azione azione--grande[^"]*" href="([^"]+)".*?</header>', h, re.S)
     assert m, "manca il pulsante principale della home"
-    assert m.group(1) == "installa/", f"il pulsante principale della home non porta alla guida: {m.group(1)}"
+    assert m.group(1) == "#installa", f"il pulsante principale della home non porta ai due passi: {m.group(1)}"
     assert 'href="inizia/"' not in h, "la home ha ancora un link a inizia/"
     p = leggi(repo, "sito/inizia/index.html")
     m = re.search(r"</h1>\s*<p>(.*?)</p>", p, re.S)
     assert m and testo(m.group(1)).startswith(RIGA_GUIDA), "manca la riga per chi non ha Claude Code"
-    assert 'href="https://arturo.stellakamikaze.org/installa/"' in m.group(1), \
-        "la riga per chi non ha Claude Code non porta alla guida"
+    assert 'href="https://arturo.stellakamikaze.org/#installa"' in m.group(1), \
+        "la riga per chi non ha Claude Code non porta ai due passi"
 
 
 def caso_attesa_cache(repo):
@@ -274,14 +275,15 @@ def caso_frase_in_vista(repo):
 
     Chi apre la home deve trovare i due passi e la frase col Copia senza cliccare una scheda."""
     h = leggi(repo, "sito/index.html")
-    m = re.search(r'<header class="apertura">(.*?)</header>', h, re.S)
+    m = re.search(r'<div class="promessa">(.*?)</header>', h, re.S)
     assert m and 'href="#installa"' in m.group(1), "l'apertura non porta ai due passi (#installa)"
     m = re.search(r'<section class="sezione vuoto chiusura" id="installa".*?</section>', h, re.S)
     assert m, "manca la sezione #installa con i due passi"
     via = m.group(0)
     assert frase_copiabile(via, "c-frase") == FRASE, "manca la frase da copiare nei due passi"
     assert not re.search(r"<[^>]+\shidden[\s>=]", via), "il blocco dei due passi è nascosto"
-    assert 'href="installa/#tappa-1"' in via, "i due passi non portano a come si installa Claude Code"
+    for riga in ("curl -fsSL https://claude.ai/install.sh | bash", "irm https://claude.ai/install.ps1 | iex"):
+        assert f">{riga}</pre>" in via, f"i due passi non dicono come si installa Claude Code: {riga}"
     for comando in ("/exit", "claude", "/setup"):
         assert f"<code>{comando}</code>" in via, f"i due passi non dicono {comando}"
     assert h.count('id="c-frase"') == 1, "id c-frase non unico"
@@ -299,8 +301,8 @@ def caso_server(repo):
 
 def caso_rimandi(repo):
     s = leggi(repo, "sito/setup/index.html")
-    assert 'url=../installa/' in s and 'canonical" href="https://arturo.stellakamikaze.org/installa/"' in s, \
-        "setup/ non porta alla guida installa/"
+    assert 'url=../#installa' in s and 'canonical" href="https://arturo.stellakamikaze.org/"' in s, \
+        "setup/ non porta ai due passi della home"
     assert "<loc>https://arturo.stellakamikaze.org/inizia/</loc>" in leggi(repo, "sito/sitemap.xml"), "la sitemap non ha /inizia/"
 
 
@@ -345,12 +347,12 @@ VELENI = [
         IMPOSTAZIONI_PRIMA, "Restano dove sono il tuo accesso, le tue conversazioni e i plugin."),
      caso_impostazioni_prima, "frase comune sulle impostazioni di prima"),
     ("F1 pulsante della home su inizia/", "sito/index.html", sostituisci(
-        '<a class="azione azione--grande stretta" href="installa/">', '<a class="azione azione--grande stretta" href="inizia/">'),
-     caso_ingresso_persone, "il pulsante principale della home non porta alla guida"),
+        '<a class="azione azione--grande stretta" href="#installa">', '<a class="azione azione--grande stretta" href="inizia/">'),
+     caso_ingresso_persone, "il pulsante principale della home non porta ai due passi"),
     ("F1 senza la riga per chi non ha Claude Code", INIZIA, togli("<p>Non hai ancora Claude Code?", "</p>\n"),
      caso_ingresso_persone, "manca la riga per chi non ha Claude Code"),
-    ("F1 setup/ rimanda a inizia/", "sito/setup/index.html", sostituisci("installa/", "inizia/"),
-     caso_rimandi, "setup/ non porta alla guida"),
+    ("F1 setup/ rimanda a inizia/", "sito/setup/index.html", sostituisci("../#installa", "../inizia/"),
+     caso_rimandi, "setup/ non porta ai due passi"),
     ("F7 si ferma subito", INIZIA, sostituisci(
         "aspetta 5 minuti (GitHub si aggiorna in ritardo) e rilancia i due comandi, una volta sola. Se ancora non compare, fermati", "fermati"),
      caso_attesa_cache, "non fa aspettare 5 minuti"),
@@ -367,8 +369,10 @@ VELENI = [
         "di chiudere Claude Code, riaprirlo e"),
      caso_windows, "finestra nuova"),
     ("apertura senza link ai due passi", "sito/index.html", sostituisci(
-        '<a class="promessa__link" href="#installa">', '<a class="promessa__link" href="installa/">'),
+        '<a class="azione azione--grande stretta" href="#installa">', '<a class="azione azione--grande stretta" href="installa/">'),
      caso_frase_in_vista, "l'apertura non porta ai due passi"),
+    ("due passi senza Claude Code per Windows", "sito/index.html", togli('<li><strong>Windows:</strong>', "</li>"),
+     caso_frase_in_vista, "i due passi non dicono come si installa Claude Code"),
     ("due passi senza frase", "sito/index.html", togli('<div class="comando comando--pila"><pre id="c-frase">', "</div>"),
      caso_frase_in_vista, "manca la frase da copiare nei due passi"),
     ("F8 virgolette basse in PRODUCT.md", "PRODUCT.md", sostituisci(

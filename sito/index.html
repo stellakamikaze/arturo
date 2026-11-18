@@ -276,7 +276,11 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .chiusura__via{justify-self:start;display:grid;gap:12px;justify-items:start;margin-top:28px}
 .chiusura__via p{margin:0;color:var(--vuoto-cenere)}
 .chiusura__frase{margin:24px 0 12px}
-.chiusura .via{margin-top:28px;max-width:560px;color:var(--grafite)}
+.chiusura .via{margin-top:28px;max-width:600px;color:var(--grafite)}
+.via .piu{max-width:none;margin-top:12px}
+.via .piu li{display:block;font-size:.9rem}
+.via .comando--riga{margin:8px 0 4px}
+.via__so{margin:0;padding-top:12px;color:var(--grafite);font-size:.9rem;line-height:1.45}
 .chiusura .comando{max-width:560px}
 .chiusura .comando pre{font-size:.86rem}
 .vuoto .azione--chiara{color:var(--inchiostro)}
@@ -660,8 +664,18 @@ html{scroll-padding-top:64px}
 .passo__n{display:block;margin-bottom:12px;font:300 1rem/1 var(--titolo);color:var(--cenere)}
 .passo__testo h3 .in-arrivo{display:table;margin:12px 0 0}
 .passo__testo p{margin:0 0 16px;max-width:46ch;color:var(--grafite)}
-.passo__paper{font-weight:600;color:var(--inchiostro);text-underline-offset:4px}
-.passo__paper::after{content:" →"}
+.piu{margin-top:8px;border-top:1px solid var(--filetto);max-width:46ch}
+.piu summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px;cursor:pointer;list-style:none;font-weight:600;color:var(--inchiostro)}
+.piu summary::-webkit-details-marker{display:none}
+.piu summary::after{content:"";flex:none;width:14px;height:14px;background:linear-gradient(currentColor,currentColor) center/14px 1.5px no-repeat,linear-gradient(currentColor,currentColor) center/1.5px 14px no-repeat;transition:background-size .18s cubic-bezier(.16,1,.3,1)}
+.piu[open] summary::after{background-size:14px 1.5px,1.5px 0}
+.piu summary:hover{color:var(--azione-giu)}
+.piu summary:focus-visible{outline:2px solid var(--azione);outline-offset:3px}
+.piu ul{margin:0 0 4px;padding:0;list-style:none}
+.piu li{padding:10px 0;border-top:1px solid var(--filetto);font-size:.95rem;line-height:1.5;color:var(--grafite)}
+.piu li a{color:var(--azione-giu);text-underline-offset:3px}
+.piu code{font-size:.85em}
+@media (prefers-reduced-motion:reduce){.piu summary::after{transition:none}}
 .passo__scena{margin:0;min-width:0}
 .lastra--giallo{background:var(--giallo)}
 .lastra--verde{background:var(--verde)}
@@ -762,13 +776,12 @@ html{scroll-padding-top:64px}
       </a>
       <ul class="menu__voci">
         <li><a href="#racconto">Il racconto</a></li>
-        <li><a href="idee/">Le idee</a></li>
+        <li><a href="#installa">Come si installa</a></li>
         <li><a href="#impegni">I limiti</a></li>
-        <li><a href="organizzazioni/">Organizzazioni</a></li>
-        <li><a href="roadmap/">Roadmap</a></li>
+        <li><a href="https://github.com/stellakamikaze/arturo">GitHub</a></li>
       </ul>
       <div class="menu__fine">
-        <a class="azione azione--scura stretta" href="installa/">Installa</a>
+        <a class="azione azione--scura stretta" href="#installa">Installa</a>
       </div>
     </div>
   </nav>
@@ -781,8 +794,8 @@ html{scroll-padding-top:64px}
         <h2>Porta l'IA dalla chat al tuo computer. <span>Anche se non hai mai aperto un terminale.</span></h2>
         <p class="promessa__testo">Arturo non è un'intelligenza artificiale. È una briglia per Claude Code, il programma di Anthropic che lavora sui tuoi file: istruzioni pronte, in italiano, per chi scrive, insegna, fotografa, produce o cura. È gratuito e open source; Claude Code richiede un abbonamento.</p>
         <div class="promessa__azioni">
-          <a class="azione azione--grande stretta" href="installa/">Guida passo per passo</a>
-          <a class="promessa__link" href="#installa">Si installa in due passi</a>
+          <a class="azione azione--grande stretta" href="#installa">Installa Arturo</a>
+          <a class="promessa__link" href="#racconto">Come funziona</a>
         </div>
       </div>
     </div>
@@ -812,7 +825,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-1"><span class="passo__n">1</span>Per chi lavora con la conoscenza.</h3>
           <p>Scrivi, fotografi, insegni, organizzi eventi o curi un archivio: raccogli materiali e ne ricavi qualcosa da consegnare. Oggi lo fai in chat con l'IA, e puoi continuare a farlo.</p>
-          <a class="passo__paper" href="mestieri/">Le sei famiglie di mestieri</a>
+          <details class="piu"><summary>Le sei famiglie di mestieri</summary><ul><li>La parola, l'immagine, l'insegnamento e la ricerca, la produzione, la consulenza, l'archivio e la cura.</li><li>Per ognuna Arturo conosce i materiali, i lavori che tornano e le domande da farti.</li><li>Il tuo mestiere non c'è? <a href="feedback/">Scrivimelo</a>.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--giallo">
           <div class="scheda-mestiere" data-scena="mestieri">
@@ -836,7 +849,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-2"><span class="passo__n">2</span>Nel terminale il recinto della chat salta.</h3>
           <p>In chat l'IA vede solo quello che le incolli. Nel terminale, la finestra dove si danno comandi al computer, ha accesso ai tuoi file: legge le cartelle, scrive i file, costruisce pagine da condividere. Il passaggio sembra tecnico, e Arturo lo rende semplice.</p>
-          <a class="passo__paper" href="idee/recinto/">Dalla chat al terminale</a>
+          <details class="piu"><summary>Perché il terminale</summary><ul><li>In chat il lavoro di raccolta resta a te: apri i file, copi i pezzi, li incolli, riporti la risposta dove serve.</li><li>Nel terminale Claude Code mette a confronto cinque fonti senza che tu ne copi una riga, e scrive il risultato in un file.</li><li>Conta più conoscere il proprio mestiere che saper programmare: lo dice <a href="https://www.anthropic.com/research/claude-code-expertise">una ricerca di Anthropic</a> sulle sessioni di Claude Code.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--cielo">
           <div class="confronto" data-scena="recinto">
@@ -865,7 +878,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-3"><span class="passo__n">3</span>Arturo ti prende per mano nel terminale.</h3>
           <p>Sono istruzioni pronte: dicono a Claude Code cosa fa da solo, cosa ti chiede, come chiude la sera e riparte la mattina. Prima di cancellare i tuoi file o mandarli fuori dal computer, ti chiede un sì.</p>
-          <a class="passo__paper" href="idee/briglia/">Una briglia per Claude Code</a>
+          <details class="piu"><summary>Cosa c'è dentro</summary><ul><li>Il modello risponde, Claude Code gli apre il tuo computer, Arturo gli mette le briglie: regole, comandi e abitudini in italiano.</li><li>Le guardie controllano ogni azione di Claude sul computer: quelle che non si annullano aspettano il tuo sì, quelle dannose si fermano.</li><li><code>/fine</code> salva il lavoro e scrive un appunto col prossimo passo; <code>/inizio</code> lo rilegge il giorno dopo.</li><li>Si aggiorna da solo a fine sessione, solo coi rilasci firmati. Con <code>arturo aggiornamenti manuali</code> li confermi uno per uno.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--verde">
           <div class="finestra" data-scena="guardia">
@@ -886,7 +899,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-4"><span class="passo__n">4</span>Il modello è dell'azienda, il contesto è tuo.</h3>
           <p>Documenti, decisioni e memoria restano file di testo sul tuo computer: li ordini come vuoi, li passi a un collega e non li perdi se cambi servizio.</p>
-          <a class="passo__paper" href="idee/strati/">Di chi è ogni parte</a>
+          <details class="piu"><summary>Di chi sono i dati</summary><ul><li>In chat modello, conversazioni, file e memoria stanno tutti in casa dell'azienda che ti vende il servizio.</li><li>Il contesto (documenti, decisioni, errori già visti, il tuo modo di scrivere) è fatto di file tuoi: lo ordini e lo salvi dove vuoi.</li><li><code>arturo fascicolo esporta</code> mette un progetto in una cartella da passare a un collega, senza segreti e senza le note su di te.</li><li>Quello che Claude legge passa da Anthropic, come in chat, ma non arriva a chi mantiene Arturo.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
           <div class="pila pila--scena" data-scena="strati">
@@ -904,7 +917,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-5"><span class="passo__n">5</span>Arturo impara come lavori.</h3>
           <p>Al primo avvio legge l'esportazione delle tue chat e ne ricava un indice dei lavori: tiene i lavori che approvi, non le conversazioni. Poi, per sei settimane, ti fa al massimo una domanda al giorno sul tuo mestiere.</p>
-          <a class="passo__paper" href="idee/storico/">Si parte da quello che hai già fatto</a>
+          <details class="piu"><summary>Le tue vecchie chat</summary><ul><li>L'esportazione la scarichi tu da ChatGPT, Claude.ai o Gemini: Arturo non entra nel tuo account.</li><li>La legge uno script sul tuo computer, senza mandarla a nessuna IA, e toglie password, IBAN, telefoni ed email di altri.</li><li>Resta l'indice dei lavori che approvi; <code>arturo storico cancella</code> lo toglie tutto.</li><li>Le domande dell'intervista cambiano col mestiere, e salva in memoria solo le risposte che approvi.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--cielo">
           <div class="tabella-mock tabella-mock--larga" data-scena="storico">
@@ -929,7 +942,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-6"><span class="passo__n">6</span>Arturo osserva come lavori e ti fa proposte.</h3>
           <p>Se un lavoro torna, ti propone di automatizzarlo e ti mostra quando l'hai rifatto. Oppure una sintesi, o una pagina interattiva: la lezione con cui gli studenti giocano, il consuntivo dove il cliente sposta le cifre.</p>
-          <a class="passo__paper" href="idee/proposte/">Arturo ti propone cosa automatizzare</a>
+          <details class="piu"><summary>Le proposte di Arturo</summary><ul><li>Arturo nota i lavori che ripeti: un file aggiornato a scadenza fissa, gli stessi campi riscritti, file che cambiano sempre insieme.</li><li>Al massimo una proposta per sessione e due a settimana; con un no non torna.</li><li>Una sintesi o una pagina te la mostra prima, e la salva solo col secondo sì.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--giallo">
           <div class="proposta" data-scena="proposte">
@@ -978,7 +991,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-7"><span class="passo__n">7</span>Lo adatti a te, con ordine.</h3>
           <p>Regole, skill e perfino il suo nome stanno nell'Orsa, la memoria sta in Melchior: sono strati tuoi, che gli aggiornamenti non toccano. Se correggi Claude tre volte sulla stessa cosa, ti propone di farne una regola. Se il terminale non fa per te, c'è Volta, una finestra simile alla chat, ancora in prova.</p>
-          <a class="passo__paper" href="idee/orsa/">Crescere con ordine</a>
+          <details class="piu"><summary>L'Orsa e Melchior</summary><ul><li>L'Orsa tiene le tue personalizzazioni, comprese le skill che crei con <code>/creaskill</code>, al riparo dagli aggiornamenti di Arturo.</li><li>Melchior, la memoria, porta in ogni sessione solo le note utili quel giorno; chiedi "cosa ricordi di me?" per vederle.</li><li>Con <code>arturo nome</code> Claude si presenta col nome che scegli, e comandi e file restano quelli di Arturo.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
           <div class="finestra" data-scena="orsa">
@@ -1001,15 +1014,28 @@ html{scroll-padding-top:64px}
         <h2 id="t-chiusura">Si installa in due passi.</h2>
         <div class="via">
           <ol>
-            <li><span class="via__boa" aria-hidden="true">1</span><p><strong>Installa Claude Code</strong>, poi nel terminale scrivi <code>claude</code> e fai l'accesso. <a href="installa/#tappa-1">Come si installa</a></p></li>
+            <li><span class="via__boa" aria-hidden="true">1</span><div><p><strong>Installa Claude Code</strong>, il programma di Anthropic. Serve un piano a pagamento: Pro, Max, Team, Enterprise o Console.</p>
+              <details class="piu"><summary>Come si fa, su Mac o su Windows</summary><ul>
+                <li><strong>Mac:</strong> premi Cmd + Spazio, scrivi Terminale e premi Invio. Incolla questa riga e premi Invio:<div class="comando comando--riga"><pre id="c-cc-mac">curl -fsSL https://claude.ai/install.sh | bash</pre><button type="button" data-copia="c-cc-mac">Copia</button></div></li>
+                <li><strong>Windows:</strong> premi il tasto Windows, scrivi PowerShell e premi Invio. Incolla col tasto destro del mouse e premi Invio:<div class="comando comando--riga"><pre id="c-cc-win">irm https://claude.ai/install.ps1 | iex</pre><button type="button" data-copia="c-cc-win">Copia</button></div></li>
+                <li>L'installazione scarica circa 270 MB e per qualche minuto non scrive niente: aspetta. Poi scrivi <code>claude</code> nella stessa finestra e accedi al tuo account Anthropic.</li>
+              </ul></details></div></li>
             <li><span class="via__boa" aria-hidden="true">2</span><p><strong>In Claude Code incolla questa frase</strong> e premi Invio:</p><div class="comando comando--pila"><pre id="c-frase">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase">Copia</button></div></li>
           </ol>
           <p class="via__poi">Claude fa il resto e ti chiede conferma a ogni passo. Poi esci con <code>/exit</code>, riapri con <code>claude</code> e scrivi <code>/setup</code>.</p>
+          <p class="via__so"><code>/setup</code> ti fa poche domande: dati d'uso, conversazioni, cartelle da guardare, la bozza del tuo CLAUDE.md. A ognuna puoi dire di no.</p>
+          <details class="piu"><summary>Se qualcosa non torna</summary><ul>
+            <li><code>command not found</code>: chiudi il terminale, aprine uno nuovo e scrivi di nuovo <code>claude</code>.</li>
+            <li>L'accesso rifiuta il piano gratuito: Claude Code chiede un piano a pagamento.</li>
+            <li>Claude non conosce <code>/setup</code>: Arturo non si è installato. Incolla di nuovo la frase e leggi cosa scrive lo script.</li>
+            <li>Claude scrive che lo script non è uguale alla copia su GitHub: fermati e <a href="feedback/">scrivimelo</a>.</li>
+            <li>Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il vecchio <code>settings.json</code> va in una copia con la data.</li>
+          </ul></details>
         </div>
       </div>
       <div class="chiusura__via">
-        <p>Non hai ancora Claude Code? La guida parte da lì.</p>
-        <a class="azione azione--grande azione--chiara stretta" href="installa/">Guida passo per passo</a>
+        <p>Preferisci leggere ogni comando prima di lanciarlo? La strada a mano sta nel README.</p>
+        <a class="azione azione--grande azione--chiara stretta" href="https://github.com/stellakamikaze/arturo#installazione">README su GitHub</a>
       </div>
     </div>
   </section>
@@ -1025,6 +1051,7 @@ html{scroll-padding-top:64px}
         <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat, e lo stesso vale per i file che Claude apre, che restano nelle tue cartelle.</li>
         <li><strong>Gli aggiornamenti sono codice che arriva da fuori.</strong> Si installano da soli soltanto se li ho firmati io, e puoi chiedere di confermarli uno per uno.</li>
         <li id="telemetria"><strong>Arturo manda dati d'uso, attivi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
+        <li><strong>Per uno studio o una redazione, oggi ognuno lo installa per sé.</strong> All'organizzazione non arriva niente. Uno strato comune, con la voce e le regole dell'organizzazione, tornerà più avanti.</li>
       </ul>
     </div>
   </section>
@@ -1039,26 +1066,11 @@ html{scroll-padding-top:64px}
         <small>Questa pagina conta le visite con Plausible, ospitato da chi mantiene Arturo: niente cookie, nessun tracker di terzi, nessun font da server esterni. Cosa raccoglie il sito sta nella <a href="privacy/">pagina della privacy</a>. Aggiornata il 18 novembre 2026.</small>
       </div>
       <div>
-        <h2>Le idee</h2>
-        <ul>
-          <li><a href="mestieri/">I mestieri della conoscenza</a></li>
-          <li><a href="idee/recinto/">Dalla chat al terminale</a></li>
-          <li><a href="idee/briglia/">Una briglia per Claude Code</a></li>
-          <li><a href="idee/strati/">Di chi è ogni parte</a></li>
-          <li><a href="idee/storico/">Si parte da quello che hai già&nbsp;fatto</a></li>
-          <li><a href="idee/proposte/">Arturo ti propone cosa automatizzare</a></li>
-          <li><a href="idee/orsa/">Crescere con ordine</a></li>
-        </ul>
-      </div>
-      <div>
         <h2>Arturo</h2>
         <ul>
-          <li><a href="installa/">Installa</a></li>
-          <li><a href="organizzazioni/">Organizzazioni</a></li>
-          <li><a href="claude-code-in-italiano/">Claude Code in italiano</a></li>
-          <li><a href="claude-code-senza-terminale/">Senza terminale</a></li>
-          <li><a href="claude-code-sicurezza/">Le guardie</a></li>
-          <li><a href="confronto/">Il confronto</a></li>
+          <li><a href="#racconto">Il racconto</a></li>
+          <li><a href="#installa">Come si installa</a></li>
+          <li><a href="#impegni">I limiti</a></li>
           <li><a href="https://stellakamikaze.org">Articoli e newsletter</a></li>
         </ul>
       </div>
@@ -1066,8 +1078,8 @@ html{scroll-padding-top:64px}
         <h2>Progetto</h2>
         <ul>
           <li><a href="https://github.com/stellakamikaze/arturo">GitHub</a></li>
-          <li><a href="novita/">Novità</a></li>
           <li><a href="roadmap/">Roadmap</a></li>
+          <li><a href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">Novità</a></li>
           <li><a href="feedback/">Dimmi com'è andata</a></li>
           <li><a href="privacy/">Privacy</a></li>
           <li><a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">Sicurezza</a></li>
