@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Una sessione chiusa con /fine diventa viola
+
+**Cosa cambia**: dopo un /fine la scheda del terminale diventa viola, in iTerm2 e in Windows Terminal, e in fondo alla barra compare "✓ chiusa · /inizio <progetto>". Con molte sessioni aperte vedi subito quali hai già chiuso e come riprenderle. Se scrivi di nuovo nella sessione, al turno dopo torna verde come prima. Il viola vale per una settimana dall'ultimo /fine. Nasce dalla proposta n. 71, che l'aveva già provato su un Mac.
+
+**Il principio**: lo stato di una sessione si legge a colpo d'occhio, senza aprirla. Chiusa è uno stato come gli altri, con un colore suo.
+
+**A chi serve**: a chi tiene aperte più sessioni insieme.
+
+---
+
 ## 2026-11-18 — I tasti di /dafare si leggono anche col tema scuro
 
 **Cosa cambia**: nel pannello /dafare i nomi dei progetti, i numeri dei todo e i tasti in basso hanno sempre il colore scuro del pannello. Prima prendevano il colore del tema del terminale: col tema scuro erano bianchi sul fondo chiaro, e si vedevano solo le lettere dei tasti. La correzione l'ha scritta una persona che usa Arturo, con la pull request n. 4, e risponde alla segnalazione n. 86. Un banco nuovo controlla che ogni tasto del pannello resti colorato.
