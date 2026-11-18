@@ -267,7 +267,7 @@ python3 ~/.claude/bin/arturo memoria scheda <slug> --cosa "<cos'è, in una riga>
 
 La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripresentarsi?**
 - Vale per questo progetto: due righe nel `CLAUDE.md` del progetto (FASE 7).
-- Vale per ogni progetto: una nota nella memoria di Claude Code. Prima cerca se esiste già
+- Vale per ogni progetto: una nota nella memoria di Arturo (`~/.claude/data/memory`). Prima cerca se esiste già
   (`python3 ~/.claude/bin/arturo memoria cerca "parole"`) e aggiorna quella. Un fatto, un file.
 - Vale in ogni sessione: una regola nel `CLAUDE.md` personale (opzionale A). Altrimenti muore con l'handoff.
   Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.

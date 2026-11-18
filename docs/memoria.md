@@ -41,6 +41,9 @@ Ogni cosa ricordata è una nota: un file di testo con poche righe in testa e il 
   si sposta, e Arturo continua a proporla quando c'entra. La prima volta che torna proposta, l'igiene
   dopo toglie il segno. L'igiene segnala anche i collegamenti rotti e le note quasi uguali, che
   conviene unire, e lo fa senza Claude e senza cancellare niente.
+- Quando un comando fallisce, Arturo guarda il testo dell'errore. Se una nota porta quel testo nel
+  campo `firma:`, Arturo dice a Claude dov'è la lezione già scritta, una volta per sessione. Così lo
+  stesso errore non si risolve da capo ogni volta.
 - Ogni nota che Claude scrive passa da un controllo. Se dentro c'è una password, o un testo che
   prova a dare ordini a Claude di nascosto, Claude riceve un avviso. La nota resta scritta, e Claude la può correggere.
 
@@ -81,7 +84,8 @@ I preventivi partono dal modello dell'anno scorso, con le tariffe del listino.
   Claude lavori, `project` per un progetto, `reference` per un'informazione da ritrovare.
   Claude Code scrive il tipo anche dentro `metadata:`, e vale lo stesso.
 - Facoltativi: `alias` (altri nomi del progetto), `cartella` (dove sta il progetto), `triggers`
-  (parole che devono richiamare la nota).
+  (parole che devono richiamare la nota), `firma` (pezzi esatti di un messaggio d'errore, almeno 8
+  caratteri: quando un comando fallisce con quel testo, Arturo propone la nota).
 
 Una nota nuova scritta in `~/.claude/data/memory/` va da sola nella cartella del suo tipo: `user`
 in `profilo/`, `feedback` in `feedback/`, `project` in `progetti/`, `reference` in `reference/`.

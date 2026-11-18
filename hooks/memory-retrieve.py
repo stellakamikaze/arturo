@@ -150,8 +150,9 @@ def main():
         return
 
     seen, state_file = load_seen(session_id)
-    # v3-9 (24/10/2026): una nota `stato: dormiente` esce dal push, non dal punteggio
-    # (il matcher resta congelato). Resta nel recall e nelle firme d'errore.
+    # v3-9 (24/10/2026): una nota `stato: dormiente` (la scrive un reaper personale) esce dal push, non dal
+    # punteggio, e resta nel recall e nelle firme d'errore. La marca `dormiente: <data>` di
+    # `arturo memoria igiene` è un'altra cosa: quella nota si propone ancora (docs/memoria.md).
     fresh = [(s, p, fm) for s, p, fm in scored
              if str(p) not in seen and str(mm.campo(fm, "stato") or "") != "dormiente"][:MAX_SUGGEST]
     if not fresh:

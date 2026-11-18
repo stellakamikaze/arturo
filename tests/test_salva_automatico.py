@@ -13,6 +13,8 @@ SV08 hooks/session-end.sh lancia il salvataggio.
 SV09 arturo contesto (/inizio) dice "L'ultima volta non hai chiuso con /fine" e riporta le ultime richieste.
 SV10 a memoria spenta (ARTURO_MEMORIA=0) nessun file.
 SV11 dalla home vale l'ultimo /inizio <nome> che porta a un progetto con handoff.
+SV12 una scheda che ha la cartella fra i suoi alias decide lo slug: gli handoff vanno nella cartella del progetto,
+     non in una seconda col nome della cartella di lavoro (18/11/2026).
 
 Veleno: --avvelena rompe bin/salva-automatico.py (o il punto sorvegliato) nella copia di prova, un punto per caso,
 ed esce 0 solo se ogni rottura fa rosso il suo caso (VELENI del gate).
@@ -29,7 +31,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11"]
+CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12"]
 SA = "bin/salva-automatico.py"
 # caso -> (file, testo, testo rotto)
 VELENI = {
@@ -45,6 +47,7 @@ VELENI = {
     "SV09": ("bin/contesto.py", "        if n == 0 and SALVATO_AUTO in testo.splitlines():", "        if False:"),
     "SV10": (SA, "and not mm.memoria_accesa():", "and False:"),
     "SV11": (SA, "            return slug(m.group(1)), None", "            return \"\", None"),
+    "SV12": (SA, "        return slug_del_progetto(cartella), cartella", "        return slug(cartella.name), cartella"),
 }
 SEGRETO = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 
@@ -227,6 +230,19 @@ def prova(lab: Lab) -> list:
     r = lab.salva("s-home", lab.home)
     if len([p for p in lab.handoff() if "- Sessione: s-home" in p.read_text(encoding="utf-8")]) != 1:
         rossi.append(f"SV11 dalla home: {r.stdout.strip()!r} {r.stderr.strip()[-200:]!r}")
+
+    # SV12: la scheda con la cartella fra gli alias decide lo slug
+    schede = lab.cl / "data" / "memory" / "progetti"
+    schede.mkdir(parents=True, exist_ok=True)
+    scheda = schede / "progetto-romanzo.md"
+    scheda.write_text("---\nname: progetto-romanzo\ndescription: il romanzo\nalias: [mio-libro]\n---\ncorpo\n",
+                      encoding="utf-8")
+    lab.transcript("s-alias", [utente("rileggi il capitolo quattro")])
+    r = lab.salva("s-alias", lab.progetto)
+    nel_progetto = [p for p in lab.handoff("romanzo") if "- Sessione: s-alias" in p.read_text(encoding="utf-8")]
+    if len(nel_progetto) != 1 or any("- Sessione: s-alias" in p.read_text(encoding="utf-8") for p in lab.handoff()):
+        rossi.append(f"SV12 slug dalla scheda: {r.stdout.strip()!r} {r.stderr.strip()[-200:]!r}")
+    scheda.unlink()
 
     # SV08: session-end.sh lo lancia
     lab.transcript("s-hook", [utente("chiudi il capitolo tre")])

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y20: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y23: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta con `arturo memoria spegni`: memory-retrieve, memory-autoload, subagent-memory-context e
@@ -54,6 +54,14 @@ Y20 cosa ricorda (M6, 15/11/2026): `arturo memoria` senza argomenti dice per pro
 Y21 la voce di ognuno sta nella sua Orsa (proposta n. 78, 16/11/2026): lo scanner, `memoria nota` (exit 7) e
     l'igiene fermano o segnalano una nota che fa di un'altra persona il modello di stile; il metodo, /fine e
     humanizer lo dicono; il nome di chi mantiene Arturo resta solo nei crediti e nel contatto.
+Y22 una persona appena installata (revisione del 18/11/2026): HOME senza projects/ e senza data/memory,
+    CLAUDE_CONFIG_DIR tolto. Retrieve, subagent-memory-context e recall tacciono o dicono "nessuna nota"
+    con exit 0, autoload dice solo l'avviso del primo avvio, nessun traceback. Poi `arturo memoria nota`
+    salva la prima nota e il retrieve la propone alla domanda giusta.
+Y23 firma d'errore (hooks/memory-firma.py, in Arturo dal 18/11/2026): una nota con `firma:` in qualunque
+    cartella di data/memory arriva quando un tool fallisce con quel testo, una volta per sessione, col
+    percorso vero; una nota archiviata arriva marcata; un errore senza firma tace; a memoria spenta tace;
+    settings.json registra l'hook su PostToolUseFailure.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
 suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y20 una copia del
@@ -115,7 +123,7 @@ class Lab:
         (self.mem / "feedback_pytest.md").write_text(NOTA, encoding="utf-8")
         (self.mem / "MEMORY.md").write_text("- [Pytest](feedback_pytest.md) — come installarlo\n", encoding="utf-8")
         self.env = {k: v for k, v in os.environ.items()
-                    if k not in ("ARTURO_MEMORIA", "ARTURO_TELEMETRIA", "DO_NOT_TRACK")}
+                    if k not in ("ARTURO_MEMORIA", "ARTURO_TELEMETRIA", "DO_NOT_TRACK", "CLAUDE_CONFIG_DIR")}
         self.env.update(HOME=str(self.home), USERPROFILE=str(self.home), PYTHONDONTWRITEBYTECODE="1")
 
     def chiudi(self) -> None:
@@ -981,10 +989,76 @@ def test_y21(repo: Path) -> None:
     assert not trovati, f"Y21 il nome di chi mantiene Arturo fuori dai crediti: {', '.join(trovati)}"
 
 
+def test_y22(repo: Path) -> None:
+    """Installazione pulita: niente note, niente cartelle, nessun rumore; poi la prima nota arriva."""
+    presenti(repo, "Y22")
+    lab = Lab(repo)
+    try:
+        shutil.rmtree(lab.claude / "projects")
+        assert not (lab.claude / "data" / "memory").exists(), "Y22 il laboratorio parte con data/memory"
+        esiti = {
+            "retrieve": lab.richiamo(DOMANDA, "y22-a"),
+            "subagent": lab.hook("subagent-memory-context.py", {"agent_type": "general-purpose", "session_id": "y22"}),
+            "autoload": lab.hook("memory-autoload.py", {"session_id": "y22"}),
+            "recall": subprocess.run([sys.executable, "-B", str(lab.claude / "scripts" / "melchior_recall.py"),
+                                      "pytest sul mac"], capture_output=True, text=True, encoding="utf-8",
+                                     env=lab.env, cwd=str(lab.dir), timeout=60),
+        }
+        for nome, r in esiti.items():
+            assert r.returncode == 0 and "Traceback" not in r.stderr, f"Y22 {nome} si rompe a memoria vuota: {r.stderr[-300:]}"
+        assert not esiti["retrieve"].stdout.strip(), f"Y22 il retrieve parla a memoria vuota: {esiti['retrieve'].stdout}"
+        assert not esiti["subagent"].stdout.strip(), f"Y22 il subagente riceve il promemoria a memoria vuota: {esiti['subagent'].stdout}"
+        assert "nessuna nota" in esiti["recall"].stdout, f"Y22 il recall a memoria vuota: {esiti['recall'].stdout}"
+        assert "Traceback" not in esiti["autoload"].stdout, "Y22 autoload stampa un errore"
+        r = lab.arturo("nota", "--tipo", "feedback", "--nome", "pytest-sul-mac", "--descrizione",
+                       "come installare pytest sul mac senza brew", "--testo", "Con pipx, non con brew.")
+        assert r.returncode == 0, f"Y22 la prima nota non si salva: {r.stdout} {r.stderr}"
+        trovate = voci(lab.richiamo(DOMANDA, "y22-b").stdout)
+        assert any("pytest-sul-mac" in v for v in trovate), f"Y22 la prima nota non arriva al retrieve: {trovate}"
+    finally:
+        lab.chiudi()
+
+
+def test_y23(repo: Path) -> None:
+    """La firma d'errore porta la nota giusta quando un tool fallisce."""
+    presenti(repo, "Y23")
+    assert "hooks/memory-firma.py" in json.dumps(json.loads((repo / "settings.json").read_text(encoding="utf-8"))
+                                               ["hooks"].get("PostToolUseFailure", [])), \
+        "Y23 settings.json non registra memory-firma su PostToolUseFailure"
+    lab = Lab(repo)
+    try:
+        mem = lab.claude / "data" / "memory"
+        (mem / "feedback").mkdir(parents=True)
+        (mem / "_archive" / "errori").mkdir(parents=True)
+        (mem / "feedback" / "stampante-offline.md").write_text(
+            "---\nname: stampante-offline\ndescription: la stampante va riaccesa dal pannello\ntype: feedback\n"
+            "firma:\n  - \"printer is offline\"\n---\ncorpo\n", encoding="utf-8")
+        (mem / "_archive" / "errori" / "errore-vecchio.md").write_text(
+            "---\nname: errore-vecchio\ndescription: il disco esterno va rimontato\ntype: feedback\n"
+            "firma:\n  - \"volume not mounted\"\n---\ncorpo\n", encoding="utf-8")
+
+        def errore(testo, sid="y23-a", env=None):
+            r = lab.hook("memory-firma.py", {"session_id": sid, "hook_event_name": "PostToolUseFailure",
+                                              "tool_name": "Bash", "error": testo}, env)
+            assert r.returncode == 0, f"Y23 l'hook esce {r.returncode}: {r.stderr[-200:]}"
+            return r.stdout
+        t1 = errore("lp: Error: Printer is offline (code 3)")
+        assert "stampante-offline" in t1 and "feedback/stampante-offline.md" in t1, f"Y23 la firma non trova la nota: {t1!r}"
+        assert errore("lp: Error: Printer is offline (code 3)") == "", "Y23 la stessa nota torna nella stessa sessione"
+        t2 = errore("mount: Volume not mounted")
+        assert "errore-vecchio" in t2 and "ARCHIVIATA" in t2, f"Y23 la nota archiviata non arriva marcata: {t2!r}"
+        assert errore("qualcosa di nuovo e mai visto", "y23-b") == "", "Y23 un errore senza firma parla"
+        assert errore("Printer is offline", "y23-c", env=dict(lab.env, ARTURO_MEMORIA="0")) == "", \
+            "Y23 a memoria spenta la firma parla"
+    finally:
+        lab.chiudi()
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
          "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
-         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20, "Y21": test_y21}
+         "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20, "Y21": test_y21,
+         "Y22": test_y22, "Y23": test_y23}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -1053,6 +1127,10 @@ VELENI = (
      "l'igiene non segnala"),
     ("Y21", [("shared/metodo.md", "~/.claude/personale/humanizer.md", "il CLAUDE.md")], "il metodo non dice"),
     ("Y21", [("bin/riporta-tuoi.sh", "deciso il 2/11/2026", "deciso da Federico il 2/11/2026")], "fuori dai crediti"),
+    ("Y22", [("hooks/subagent-memory-context.py", "    if mm.memoria_accesa() and mm.elenco_note():", "    if mm.memoria_accesa():")],
+     "riceve il promemoria a memoria vuota"),
+    ("Y23", [("hooks/memory-firma.py", '    e = payload.get("error")', '    e = payload.get("tool_response")')],
+     "la firma non trova la nota"),
 )
 
 
@@ -1065,6 +1143,7 @@ def avvelena(repo: Path) -> int:
             for parte in ("bin", "hooks", "scripts", "commands", "skills", "shared"):
                 shutil.copytree(repo / parte, copia / parte, ignore=shutil.ignore_patterns("__pycache__"))
             shutil.copy2(repo / ".gitignore", copia / ".gitignore")
+            shutil.copy2(repo / "settings.json", copia / "settings.json")
             for file, vecchio, nuovo in modifiche:
                 bersaglio = copia / file
                 testo = bersaglio.read_text(encoding="utf-8")

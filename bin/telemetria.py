@@ -1066,7 +1066,9 @@ def stato_memoria():
         import melchior_match as mm
         if not mm.memoria_accesa():
             return False, 0
-        return True, conta_note(mm.MEMORY_DIR) if mm.MEMORY_DIR.is_dir() else 0
+        # Tutte le radici (data/memory, projects/*/memory, cartelle aggiunte): per una persona nuova le note
+        # stanno quasi tutte in projects/*/memory, e la sola data/memory dava 0 (18/11/2026).
+        return True, len(mm.elenco_note())
     except Exception:  # noqa: BLE001 - un modulo della memoria rotto non ferma la telemetria
         return None
 

@@ -295,8 +295,8 @@ Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, c
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
 Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
 Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu (contratto
-in `~/.claude/docs/memoria.md`). Le note stanno su questo computer e mai nella telemetria; quelle che Claude
-apre vanno ad Anthropic con la conversazione.
+in `~/.claude/docs/memoria.md`). Le note stanno su questo computer: nella telemetria ne entra solo il numero, in fasce, mai il nome o il
+testo. Quelle che Claude apre vanno ad Anthropic con la conversazione.
 
 Leggi lo stato senza mostrarlo:
 

@@ -408,6 +408,11 @@ def test_f04(repo: Path) -> None:
             return subprocess.run([sys.executable, "-B", str(script), "--radice", str(radice), "--oggi", OGGI, *a],
                                   capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert lancia().returncode == 2, "F04 senza --dry-run/--out/--scrivi non è exit 2"
+        try:  # un nome vecchio del progetto come link alla cartella vera (su Windows può mancare il permesso)
+            os.symlink("beta", str(radice / "beta-vecchio"), target_is_directory=True)
+            con_link = True
+        except (OSError, NotImplementedError):
+            con_link = False
         prima = read(radice / "INDEX.md")
         r = lancia("--dry-run")
         assert r.returncode == 0 and read(radice / "INDEX.md") == prima, f"F04 --dry-run: {r.returncode} {r.stderr}"
@@ -423,6 +428,7 @@ def test_f04(repo: Path) -> None:
         assert righe(attive, "PP-COPERTINA") and righe(attive, "PP-LIBRO") and not righe(r.stdout, "PP-LIBRO-VECCHIO"), \
             "F04 il filone Copertina e il progetto libro non hanno una riga ciascuno"
         assert righe(attive, "PP-BETA") and not righe(attive, "VECCHIO-BETA"), "F04 la Ripartenza non vince sull'INDEX"
+        assert not con_link or len(righe(r.stdout, "PP-BETA")) == 1, "F04 la cartella link conta due volte i suoi handoff"
         alfa = righe(attive, "alfa/HANDOFF_2026-09-25")
         assert alfa and "DA-INDEX-ALFA" in alfa[0] and "STATO-INDEX-ALFA" in alfa[0], f"F04 alfa: {alfa}"
         assert not righe(r.stdout, "RIGA-SUPERATA") and righe(attive, "DA-PROSSIMI-DELTA"), "F04 superate o Prossimi passi"
