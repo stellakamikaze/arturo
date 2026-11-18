@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Le correzioni si registrano anche col sandbox dei comandi acceso
+
+**Cosa cambia**: quando correggi Claude, la regola che scrive con `arturo correzione aggiungi` si salva anche col sandbox dei comandi acceso. Prima il sandbox fermava il comando con `Operation not permitted`, Claude doveva rilanciarlo senza protezioni e la regola arrivava in ritardo. Le correzioni adesso stanno in `~/.claude/data/correzioni/`, l'unica cartella che il sandbox lascia scrivere. Quelle scritte prima nella cartella vecchia valgono ancora per la sessione in corso. Nasce dalla segnalazione n. 88, lo stesso guasto della n. 81 su un altro comando.
+
+**Il principio**: una protezione accesa non deve far perdere una regola che hai appena dato.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
+
+---
+
 ## 2026-11-17 — In Volta una sessione ferma per il limite o per la rete riparte da sola
 
 **Cosa cambia**: se usi Volta, una sessione che si è fermata per il limite d'uso del modello o per la connessione persa riparte da sola, senza che tu scriva "riprendi". Dopo il limite riparte un minuto dopo l'ora di sblocco; dopo una connessione persa, anche col Mac andato in stop, riparte quando la rete torna. Nell'elenco la riga dice "Limite d'uso: riparte da sola alle 16:01", e dopo "ripresa da sola alle 16:01". Volta ci prova al massimo due volte per ogni fermata: se si ferma di nuovo, la riga dice "riprendila tu". Non riparte mai una sessione che ti ha chiesto qualcosa, che ha un dialogo aperto o che stai chiudendo, e lascia stare gli altri errori, come il login scaduto. Chi non la vuole scrive `"ripresa": "spenta"` in `~/.config/herdr-app/arturo.json`. Nasce dalla proposta 12 della prima revisione: fra l'11 e il 17 novembre almeno nove sessioni sono rimaste ferme finché qualcuno non ha scritto "Riprendi".

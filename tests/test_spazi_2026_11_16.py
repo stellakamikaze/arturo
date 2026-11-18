@@ -69,7 +69,7 @@ class Banco:
         return subprocess.run(comando, env=env, input=stdin, capture_output=True, text=True, timeout=120)
 
     def correzione(self, sessione: str, testo: str) -> None:
-        c = self.claude / "cache" / "correzioni"
+        c = self.claude / "data" / "correzioni"
         c.mkdir(parents=True, exist_ok=True)
         (c / f"{sessione}.json").write_text(json.dumps([{"testo": testo, "quando": 0}]), encoding="utf-8")
 
