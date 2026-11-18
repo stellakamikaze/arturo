@@ -247,7 +247,7 @@ def test_m08(repo: Path) -> None:
 
 # Gli eventi che il client non manda più e il server accetta ancora, per non rifiutare i lotti dei
 # client non aggiornati. In coda all'elenco del server; si tolgono da qui e da logica.js insieme.
-EVENTI_VECCHI = ["tappa"]  # tolta dal client il 16/10/2026
+EVENTI_VECCHI: list = []  # tappa tolta anche dal server il 18/11/2026 (#3435)
 
 
 def test_m09(repo: Path) -> None:
