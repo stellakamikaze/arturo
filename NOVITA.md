@@ -13,6 +13,26 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — I tasti di /dafare si leggono anche col tema scuro
+
+**Cosa cambia**: nel pannello /dafare i nomi dei progetti, i numeri dei todo e i tasti in basso hanno sempre il colore scuro del pannello. Prima prendevano il colore del tema del terminale: col tema scuro erano bianchi sul fondo chiaro, e si vedevano solo le lettere dei tasti. La correzione l'ha scritta una persona che usa Arturo, con la pull request n. 4, e risponde alla segnalazione n. 86. Un banco nuovo controlla che ogni tasto del pannello resti colorato.
+
+**Il principio**: il pannello porta il suo fondo, e allora porta anche i suoi colori. Niente del testo deve dipendere dal tema scelto da chi lo guarda.
+
+**A chi serve**: a chi usa /dafare con un tema scuro.
+
+---
+
+## 2026-11-18 — Claude usa il browser che nomini e dice con quale account lavora
+
+**Cosa cambia**: se scrivi "via Chrome" o "su Firefox", Claude usa quel browser. Se gli strumenti di quel browser non sono pronti, li carica prima di provare altre vie, e un altro browser lo usa solo col tuo sì. Prima di cercare o cambiare i dati di un account, come un Drive, un foglio o una casella, Claude scrive in una riga quale account è collegato. Se è quello sbagliato, cambia browser prima di agire. Nasce dalla segnalazione n. 74: Claude aveva ignorato il browser nominato e poi aveva lavorato nel profilo Chrome sbagliato.
+
+**Il principio**: il browser e l'account sono una scelta tua. Claude te li dice prima di toccare dei dati, così un errore si vede prima che faccia danni.
+
+**A chi serve**: a chi ha più browser o più account Google collegati.
+
+---
+
 ## 2026-11-18 — Le correzioni si registrano anche col sandbox dei comandi acceso
 
 **Cosa cambia**: quando correggi Claude, la regola che scrive con `arturo correzione aggiungi` si salva anche col sandbox dei comandi acceso. Prima il sandbox fermava il comando con `Operation not permitted`, Claude doveva rilanciarlo senza protezioni e la regola arrivava in ritardo. Le correzioni adesso stanno in `~/.claude/data/correzioni/`, l'unica cartella che il sandbox lascia scrivere. Quelle scritte prima nella cartella vecchia valgono ancora per la sessione in corso. Nasce dalla segnalazione n. 88, lo stesso guasto della n. 81 su un altro comando.
