@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Claude non cattura più lo schermo del Mac senza dirtelo
+
+**Cosa cambia**: per dire "fatto" su un file che si legge con uno script, come un foglio Excel, un documento Word o un CSV, a Claude basta controllarne il contenuto. Non apre il file per fotografare lo schermo. Per guardare un documento usa prima l'anteprima di Quick Look (`qlmanage -t`) o il PDF, che non chiedono permessi. Se una cattura dello schermo serve davvero, Claude te lo dice prima in una riga: perché la fa, e che macOS ti chiederà il permesso di registrare schermo e audio. Nasce dalla segnalazione n. 89: il Mac aveva chiesto quel permesso senza alcun avviso, per un file già controllato.
+
+**Il principio**: verificare non vuol dire spaventare. Una richiesta di sistema che arriva senza spiegazione sembra un problema di sicurezza, anche quando non lo è.
+
+**A chi serve**: a chi usa Arturo su un Mac e chiede fogli, documenti o file da scaricare.
+
+---
+
 ## 2026-11-17 — In Volta una sessione ferma per il limite o per la rete riparte da sola
 
 **Cosa cambia**: se usi Volta, una sessione che si è fermata per il limite d'uso del modello o per la connessione persa riparte da sola, senza che tu scriva "riprendi". Dopo il limite riparte un minuto dopo l'ora di sblocco; dopo una connessione persa, anche col Mac andato in stop, riparte quando la rete torna. Nell'elenco la riga dice "Limite d'uso: riparte da sola alle 16:01", e dopo "ripresa da sola alle 16:01". Volta ci prova al massimo due volte per ogni fermata: se si ferma di nuovo, la riga dice "riprendila tu". Non riparte mai una sessione che ti ha chiesto qualcosa, che ha un dialogo aperto o che stai chiudendo, e lascia stare gli altri errori, come il login scaduto. Chi non la vuole scrive `"ripresa": "spenta"` in `~/.config/herdr-app/arturo.json`. Nasce dalla proposta 12 della prima revisione: fra l'11 e il 17 novembre almeno nove sessioni sono rimaste ferme finché qualcuno non ha scritto "Riprendi".
