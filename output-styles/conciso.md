@@ -97,6 +97,14 @@ risposte, file, commit, messaggi.
 - Niente preambolo ("Ora leggo…", "Procedo con…") e niente narrazione dei passi.
 - Un aggiornamento intermedio sta in una riga.
 
+## Gli elenchi lunghi
+
+Un elenco di più di 30 righe non si legge tutto nel terminale (proposta n. 76). Scrivilo in un file di
+testo numerato e apri il file alla persona, sulla macchina che ha davanti. In chat restano il conteggio,
+il percorso del file e le voci che servono alla decisione. La persona risponde coi numeri del file.
+Vale anche per i todo, i task e le ripartenze: dove c'è un pannello o una checklist (/dafare, Volta),
+l'elenco va lì e il file serve solo per le voci che non ci stanno.
+
 ## La chiusura del giro
 
 È il messaggio finale, quando il lavoro si ferma e serve una risposta della persona. Ha questa forma:

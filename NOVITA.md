@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-18 — Un elenco lungo arriva in un file, e un foglio ambiguo parte da una riga d'esempio
+
+**Cosa cambia**: quando Claude deve mostrarti un elenco di più di 30 righe, come i tuoi todo o i risultati di una ricerca, lo scrive in un file numerato e te lo apre. In chat restano il conteggio e le voci che servono a decidere, e tu rispondi coi numeri del file. Dove c'è un pannello o la checklist di Volta, l'elenco va lì. Poi il brief: se una richiesta arriva da un collega e chiede di riempire un foglio con colonne poco chiare, Claude ti chiede prima una riga d'esempio compilata, invece di riempire tutte le colonne con dati deboli. Nascono dalle proposte n. 76 e n. 82.
+
+**Il principio**: un elenco che non si legge tutto non serve a decidere. E una domanda prima della ricerca costa meno di una tabella da rifare tre volte.
+
+**A chi serve**: a chi lavora con molti todo, e a chi riceve ricerche da fare per conto di altri.
+
+---
+
 ## 2026-11-18 — I tasti di /dafare si leggono anche col tema scuro
 
 **Cosa cambia**: nel pannello /dafare i nomi dei progetti, i numeri dei todo e i tasti in basso hanno sempre il colore scuro del pannello. Prima prendevano il colore del tema del terminale: col tema scuro erano bianchi sul fondo chiaro, e si vedevano solo le lettere dei tasti. La correzione l'ha scritta una persona che usa Arturo, con la pull request n. 4, e risponde alla segnalazione n. 86. Un banco nuovo controlla che ogni tasto del pannello resti colorato.

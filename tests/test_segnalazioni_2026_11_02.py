@@ -18,6 +18,8 @@ SG05 prima di aprire per la persona Claude sceglie la macchina: quella nominata,
      altrimenti la macchina davanti di Volta (volta_davanti.py leggi) o una domanda (#5881, 17/11/2026).
 SG06 Claude usa il browser che la persona nomina, ne carica la skill prima di ripiegare su un altro server
      MCP del browser, e prima di toccare i dati di un account dice quale account è collegato (n. 74, #5600).
+SG07 un elenco di più di 30 righe va in un file aperto alla persona, in chat il conteggio (proposta n. 76),
+     e il brief chiede una riga d'esempio per un foglio di un terzo con colonne ambigue (proposta n. 82).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -107,8 +109,18 @@ def test_sg06(repo: Path) -> None:
         assert pezzo in stile, f"SG06 lo stile non dice quale browser e quale account usare: manca {pezzo}"
 
 
+def test_sg07(repo: Path) -> None:
+    stile = " ".join(read(repo / "output-styles" / "conciso.md").split())
+    for pezzo in ("## Gli elenchi lunghi", "più di 30 righe", "apri il file alla persona", "In chat restano il conteggio",
+                  "proposta n. 76"):
+        assert pezzo in stile, f"SG07 lo stile non dice dove va un elenco lungo: manca {pezzo}"
+    brief = " ".join(read(repo / "skills" / "prompt-master" / "SKILL.md").split())
+    for pezzo in ("chiede una riga d'esempio", "arriva da un terzo", "proposta n. 82"):
+        assert pezzo in brief, f"SG07 il brief non chiede la riga d'esempio per un foglio ambiguo: manca {pezzo}"
+
+
 TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04, "SG05": test_sg05,
-         "SG06": test_sg06}
+         "SG06": test_sg06, "SG07": test_sg07}
 
 
 def main() -> int:
