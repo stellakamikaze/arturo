@@ -712,7 +712,7 @@ html{scroll-padding-top:64px}
 <body>
 <a class="salta" href="#principale">Salta al contenuto</a>
 
-<p class="barra"><a href="#impegni">Gratuito e in italiano, ma serve un abbonamento a Claude</a></p>
+<p class="barra"><a href="#impegni">Gratuito e in italiano. Serve un abbonamento Claude</a></p>
 
 <header class="apertura">
 <svg class="volta" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
@@ -763,8 +763,8 @@ html{scroll-padding-top:64px}
 
     <div class="promessa">
       <div>
-        <h2>Un harness per chi lavora con la conoscenza. <span>Con Arturo, Claude lavora sui tuoi file senza che tu debba portargli i materiali dalla chat.</span></h2>
-        <p class="promessa__testo">Arturo è un harness per Claude Code, il programma di Anthropic che lavora sui file del tuo computer (harness è il nome tecnico delle regole e delle abitudini che si mettono intorno a un modello). L'ho scritto in italiano, per chi scrive, insegna, produce o cura e non ha mai aperto un terminale. Arturo è gratuito e open source, mentre Claude Code richiede un abbonamento ad Anthropic.</p>
+        <h2>Un harness per chi lavora con la conoscenza. <span>Porta l'IA dalla chat ai tuoi file.</span></h2>
+        <p class="promessa__testo">Arturo non è un'intelligenza artificiale. È un insieme di istruzioni in italiano per Claude Code, il programma di Anthropic che lavora sul tuo computer, pensato per chi non ha mai aperto un terminale. È gratuito e open source; Claude Code richiede un abbonamento.</p>
         <a class="azione azione--grande stretta" href="installa/">Guida passo per passo</a>
       </div>
       <div class="promessa__via">
@@ -774,7 +774,7 @@ html{scroll-padding-top:64px}
             <li><span class="via__boa" aria-hidden="true">1</span><p><strong>Installa Claude Code</strong>, poi scrivi <code>claude</code> e fai l'accesso. <a href="installa/#tappa-1">Come si installa</a></p></li>
             <li><span class="via__boa" aria-hidden="true">2</span><p><strong>In Claude Code incolla questa frase</strong> e premi Invio:</p><div class="comando comando--pila"><pre id="c-frase-hero">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase-hero">Copia</button></div></li>
           </ol>
-          <p class="via__poi">Claude installa Arturo e ti chiede conferma a ogni passo. Quando ha finito, scrivi <code>/exit</code>, poi <code>claude</code> e <code>/setup</code>.</p>
+          <p class="via__poi">Claude fa il resto e ti chiede conferma a ogni passo. Poi scrivi <code>/exit</code>, <code>claude</code> e <code>/setup</code>.</p>
         </div>
       </div>
     </div>
@@ -800,12 +800,12 @@ html{scroll-padding-top:64px}
 <main id="principale">
   <section class="racconto" id="racconto" aria-labelledby="t-racconto">
     <div class="dentro">
-      <h2 class="racconto__titolo" id="t-racconto">Che cosa cambia quando l'IA esce dalla chat.</h2>
+      <h2 class="racconto__titolo" id="t-racconto">Dalla chat al terminale, in sette passi.</h2>
 
       <article class="passo" id="passo-1" aria-labelledby="t-passo-1">
         <div class="passo__testo">
-          <h3 id="t-passo-1"><span class="passo__n">1</span>Arturo è pensato per chi raccoglie materiali e ne ricava qualcosa di nuovo.</h3>
-          <p>Chi lavora con la conoscenza passa buona parte del tempo a raccogliere materiali per ricavarne qualcosa da consegnare, che sia un articolo, una lezione o il consuntivo di un evento. Oggi lo facciamo spesso con l'IA in una chat, e allora la giornata diventa un andirivieni: si apre un documento, se ne copia un pezzo, lo si incolla e si riporta indietro la risposta. <strong>Il lavoro resta lo stesso, ma una parte della giornata se ne va a fare da tramite.</strong></p>
+          <h3 id="t-passo-1"><span class="passo__n">1</span>Per chi lavora con la conoscenza.</h3>
+          <p>Scrivi, fotografi, insegni, organizzi eventi o curi un archivio: raccogli materiali e ne ricavi qualcosa da consegnare. Oggi lo fai con l'IA in una chat.</p>
           <a class="passo__paper" href="mestieri/">Le sei famiglie di mestieri</a>
         </div>
         <div class="passo__scena lastra lastra--giallo">
@@ -828,8 +828,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-2" aria-labelledby="t-passo-2">
         <div class="passo__testo">
-          <h3 id="t-passo-2"><span class="passo__n">2</span>In una chat l'IA vede soltanto quello che le portiamo.</h3>
-          <p>In una chat il modello vede solo quello che gli incolliamo, e il risultato lo dobbiamo spostare noi, a mano, dove serve. Claude Code lavora invece nel terminale, e quindi ha a disposizione il computer: <strong>legge le tue cartelle, scrive i file e costruisce anche pagine da condividere, così i materiali li va a prendere da solo dove sono.</strong></p>
+          <h3 id="t-passo-2"><span class="passo__n">2</span>Nel terminale il recinto della chat salta.</h3>
+          <p>In chat l'IA vede solo quello che le incolli. Nel terminale ha il tuo computer: legge le cartelle, scrive i file, costruisce pagine da condividere.</p>
           <a class="passo__paper" href="idee/recinto/">Dalla chat al terminale</a>
         </div>
         <div class="passo__scena lastra lastra--cielo">
@@ -857,8 +857,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-3" aria-labelledby="t-passo-3">
         <div class="passo__testo">
-          <h3 id="t-passo-3"><span class="passo__n">3</span>Il contesto del tuo lavoro sta in file di testo sul tuo computer.</h3>
-          <p>Il modello appartiene all'azienda che lo vende, mentre i documenti, le decisioni prese e quello che Arturo sa di te sono file di testo sul tuo computer. Puoi ordinarli come preferisci, e <strong>se un giorno cambi servizio il contesto che hai costruito resta tutto lì.</strong></p>
+          <h3 id="t-passo-3"><span class="passo__n">3</span>Il modello è dell'azienda. Il contesto è tuo.</h3>
+          <p>Documenti, decisioni e memoria restano file di testo sul tuo computer: li ordini come vuoi, li passi a un collega e non li perdi se cambi servizio.</p>
           <a class="passo__paper" href="idee/strati/">Di chi è ogni parte</a>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
@@ -875,8 +875,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-4" aria-labelledby="t-passo-4">
         <div class="passo__testo">
-          <h3 id="t-passo-4"><span class="passo__n">4</span>Arturo mette a Claude una briglia, fatta di regole scritte prima.</h3>
-          <p>Arturo stabilisce, prima che il lavoro cominci, che cosa Claude può fare da solo e che cosa deve chiederti, come chiudere la sessione la sera e come riprenderla la mattina. Queste regole contano soprattutto nei pochi momenti in cui un errore costa caro, e per questo <strong>prima di un comando che cancella i tuoi file o li manda fuori dal computer, Arturo si ferma e ti chiede un sì.</strong></p>
+          <h3 id="t-passo-4"><span class="passo__n">4</span>Arturo è una briglia per Claude.</h3>
+          <p>Regole scritte prima: cosa Claude fa da solo, cosa ti chiede, come chiude la sera e riparte la mattina. Prima di cancellare i tuoi file o mandarli fuori dal computer, ti chiede un sì.</p>
           <a class="passo__paper" href="idee/briglia/">Una briglia per Claude Code</a>
         </div>
         <div class="passo__scena lastra lastra--verde">
@@ -894,8 +894,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-5" aria-labelledby="t-passo-5">
         <div class="passo__testo">
-          <h3 id="t-passo-5"><span class="passo__n">5</span>Arturo potrà partire da quello che hai già fatto in chat. <span class="in-arrivo">Nella prossima versione</span></h3>
-          <p>Chi usa l'IA da un po' ha già la storia del proprio lavoro, sparsa in decine di conversazioni. Dalla prossima versione potrai scaricare l'esportazione delle chat e passarla a uno script che gira sul tuo computer e ne ricava un indice dei lavori. <strong>Dell'indice resta solo quello che approvi, e il testo delle chat Arturo non lo tiene mai.</strong></p>
+          <h3 id="t-passo-5"><span class="passo__n">5</span>Si parte dalle chat che hai già fatto. <span class="in-arrivo">Nella prossima versione</span></h3>
+          <p>Arturo legge l'esportazione delle tue chat e ne ricava un indice dei lavori. Tiene solo quello che approvi, mai il testo delle chat.</p>
           <a class="passo__paper" href="idee/storico/">Si parte da quello che hai già fatto</a>
         </div>
         <div class="passo__scena lastra lastra--cielo">
@@ -918,8 +918,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-6" aria-labelledby="t-passo-6">
         <div class="passo__testo">
-          <h3 id="t-passo-6"><span class="passo__n">6</span>Arturo guarda come lavori, e quando un lavoro torna te lo fa notare.</h3>
-          <p>Molte cose che facciamo ogni settimana le facciamo quasi allo stesso modo, e proprio per questo smettiamo di accorgercene. Arturo invece se ne accorge, e <strong>quando un lavoro torna, a fine sessione ti propone di automatizzarlo</strong> e ti mostra, come prove, le date in cui l'hai rifatto. Nella prossima versione la proposta potrà essere anche una sintesi o una pagina pensata per il tuo mestiere.</p>
+          <h3 id="t-passo-6"><span class="passo__n">6</span>Arturo osserva come lavori, e ti propone.</h3>
+          <p>Quando un lavoro torna, ti propone di automatizzarlo, con le date come prove. Nella prossima versione propone anche sintesi e pagine interattive per il tuo mestiere.</p>
           <a class="passo__paper" href="idee/proposte/">Arturo ti propone cosa automatizzare</a>
         </div>
         <div class="passo__scena lastra lastra--giallo">
@@ -969,8 +969,8 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-7" aria-labelledby="t-passo-7">
         <div class="passo__testo">
-          <h3 id="t-passo-7"><span class="passo__n">7</span>Puoi adattarlo a te senza perdere gli aggiornamenti.</h3>
-          <p>Uno strumento che si aggiorna rischia di cancellare le modifiche di chi lo usa, e per questo Arturo tiene le tue regole, le tue skill e la tua memoria fuori dal proprio codice: stanno nell'Orsa, la parte della configurazione che è solo tua, e in Melchior, dove Arturo tiene la memoria, e lì <strong>nessun aggiornamento le tocca.</strong> Nella prossima versione, poi, se correggi Claude sulla stessa cosa in tre sessioni, Arturo ti propone di scrivere quella correzione come regola nell'Orsa.</p>
+          <h3 id="t-passo-7"><span class="passo__n">7</span>Lo adatti a te, con ordine.</h3>
+          <p>Regole e skill tue stanno nell'Orsa, la memoria in Melchior: nessun aggiornamento le tocca. Nella prossima versione, se correggi Claude tre volte sulla stessa cosa, Arturo ti propone di farne una regola.</p>
           <a class="passo__paper" href="idee/orsa/">Crescere con ordine</a>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
@@ -991,12 +991,12 @@ html{scroll-padding-top:64px}
   <section class="sezione vuoto chiusura" aria-labelledby="t-chiusura">
     <div class="dentro">
       <div>
-        <h2 id="t-chiusura">L'installazione la fa Claude, a partire da un link.</h2>
+        <h2 id="t-chiusura">Un link, e Claude fa il resto.</h2>
         <p class="chiusura__frase">In Claude Code incolla questa frase e premi Invio.</p>
         <div class="comando comando--pila"><pre id="c-frase-chiusura">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase-chiusura">Copia</button></div>
       </div>
       <div class="chiusura__via">
-        <p>Se non hai ancora Claude Code, la guida comincia proprio da lì.</p>
+        <p>Non hai ancora Claude Code? La guida parte da lì.</p>
         <a class="azione azione--grande azione--chiara stretta" href="installa/">Guida passo per passo</a>
       </div>
     </div>
@@ -1005,13 +1005,14 @@ html{scroll-padding-top:64px}
   <section class="sezione" id="impegni" aria-labelledby="t-impegni">
     <div class="dentro">
       <div class="testa testa--pila">
-        <h2 id="t-impegni">Che cosa devi sapere prima di cominciare.</h2>
+        <h2 id="t-impegni">I limiti, detti prima.</h2>
+        <p>Arturo è gratuito. Lo strumento su cui gira no.</p>
       </div>
       <ul class="limiti">
-        <li><strong>Claude Code è a pagamento.</strong> Serve un abbonamento ad Anthropic, ed è Anthropic a decidere prezzi e limiti.</li>
-        <li><strong>Quello che scrivi passa da Anthropic.</strong> Succede come in chat, e lo stesso vale per il contenuto dei file che Claude apre, che però restano salvati nelle tue cartelle.</li>
-        <li><strong>Gli aggiornamenti sono codice che arriva da fuori e gira sul tuo computer.</strong> Per questo si installano da soli soltanto se li ho firmati io, e se preferisci puoi chiedere di confermarli uno per uno.</li>
-        <li id="telemetria"><strong>Di default Arturo manda dati d'uso.</strong> Sono eventi presi da un elenco chiuso, che mi servono per capire dove le persone si bloccano, e non contengono mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
+        <li><strong>Claude Code è a pagamento.</strong> Serve un abbonamento Anthropic, che decide prezzi e limiti.</li>
+        <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat, e così i file che Claude apre. Sul disco restano nelle tue cartelle.</li>
+        <li><strong>Gli aggiornamenti sono codice di altri.</strong> Si installano da soli soltanto se li ho firmati io, e puoi chiedere di confermarli uno per uno.</li>
+        <li id="telemetria"><strong>Arturo manda dati d'uso, accesi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
       </ul>
     </div>
   </section>
