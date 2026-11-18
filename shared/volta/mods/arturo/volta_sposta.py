@@ -432,33 +432,27 @@ ATTESA_PACCO = 300
 
 def esegui(nome, codice, dati, entrata=None, timeout=vs.ATTESA_AZIONE):
     """Lancia `codice` su `nome` ("qui" = questa macchina) con `dati` in base64; `entrata` va su stdin.
-    Su un'altra macchina prova python3, poi python, solo se il primo non è partito. Torna il JSON."""
+    Su un'altra macchina passa da vs.remoto(). Torna il JSON."""
     arg = base64.b64encode(json.dumps(dati).encode()).decode()
-    if nome in (None, "", "qui"):
-        tentativi = [[sys.executable, "-c", codice, arg]]
-    else:
-        avvio = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(codice.encode()).decode()
-        tentativi = [vs.hc() + ["exec", "--on", nome, "--timeout", str(timeout - 5)] + (["-i"] if entrata is not None else [])
-                     + [py, "-c", avvio, arg] for py in ("python3", "python")]
-    ultimo = "nessun Python"
-    for argv in tentativi:
-        try:
-            r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               input=entrata if entrata is not None else "", timeout=timeout,
-                               env=dict(os.environ, PYTHONIOENCODING="utf-8"))
-        except subprocess.TimeoutExpired:
-            return {"errore": "%s non ha risposto in %d s" % (vs.nome_qui() if nome in (None, "", "qui") else nome, timeout)}
-        except OSError as e:
-            return {"errore": "%s non risponde: %s" % (nome, str(e)[:160])}
-        if r.returncode != 0 and (r.returncode == 9009 or vs.non_parte(r.stdout, r.stderr)):
-            continue
-        try:
-            return vs.leggi_json(r.stdout)
-        except ValueError:
-            testo = (r.stderr or r.stdout or "").strip()
-            ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % r.returncode
-            break
-    return {"errore": ultimo}
+    try:
+        if nome in (None, "", "qui"):
+            rc, out, err = vs.lancia([sys.executable, "-c", codice, arg], timeout=timeout,
+                                     entrata=entrata if entrata is not None else "")
+        else:
+            avvio = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(codice.encode()).decode()
+            rc, out, err, py = vs.remoto(nome, avvio, [arg], attesa=timeout, entrata=entrata)
+            if py is None:
+                return {"errore": "nessun Python su %s" % nome}
+    except vs.NonRisponde as e:
+        return {"errore": str(e)[:200]}
+    except subprocess.TimeoutExpired:
+        return {"errore": "%s non ha risposto in %d s" % (vs.chi(nome), timeout)}
+    except OSError as e:
+        return {"errore": "%s non risponde: %s" % (vs.chi(nome), str(e)[:160])}
+    try:
+        return vs.leggi_json(out)
+    except ValueError:
+        return {"errore": vs.ultima_riga(out, err, rc)}
 
 
 def controlla_git(gi):

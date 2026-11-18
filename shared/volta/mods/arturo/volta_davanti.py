@@ -34,7 +34,7 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from volta_sonda import hc, lancia, macchine, scrivi_atomico  # noqa: E402
+from volta_sonda import FASI, hc, lancia, macchine, scrivi_atomico, togli_entro  # noqa: E402
 import volta_note  # noqa: E402
 
 # Il codice che gira su ogni macchina: qui con exec(), di là compresso dentro hc exec. Misura l'inattività di
@@ -163,7 +163,7 @@ def esegui(modo, arg):
 '''
 
 FRESCO_S = 15 * 60    # oltre, il tocco non dice più dove sta la persona: Claude chiede (decisione del 17/11/2026)
-ATTESA_GIRO = 40      # tutto il giro: sta sotto i 60 s che volta.js aspetta
+ATTESA_GIRO = FASI["giro_davanti"]  # tutto il giro: sta sotto il tetto "davanti" di tetti.js
 
 
 def locale():
@@ -177,7 +177,7 @@ class Remota(volta_note.Remota):
     """La chiamata di volta_note.py, col CODICE di questo script."""
 
     def __init__(self, nome, entro):
-        self.nome, self.entro, self.py = nome, entro, None
+        self.nome, self.entro = nome, entro
         self.compresso = base64.b64encode(zlib.compress(CODICE.encode(), 9)).decode()
 
 
@@ -269,4 +269,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main(togli_entro(sys.argv[1:])))

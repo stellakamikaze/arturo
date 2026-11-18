@@ -51,7 +51,7 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from volta_sonda import errore_hc, hc, non_parte  # noqa: E402
+from volta_sonda import FASI, NonRisponde, errore_hc, remoto, togli_entro, ultima_riga  # noqa: E402
 
 VERSIONE = 1
 MAX_TASK = 40
@@ -63,7 +63,7 @@ RILETTURA_MIN_S = float(os.environ.get("VOLTA_CAPO_RILETTURA_MIN_S") or 2)   # s
 RILETTURA_ATTESA_S = float(os.environ.get("VOLTA_CAPO_RILETTURA_ATTESA_S") or 15)
 RILETTURA_TENTATIVI = 6
 ATTESA_GMAIL = 60
-ATTESA_CAPO = 40
+ATTESA_CAPO = FASI["remoto"]
 ATTESA_SONDA = 120
 ATTESA_MODELLO = 300
 SESSIONI_FRESCHE_S = 15 * 60   # sessioni.json scritto dalla Volta di qui: oltre, il capo rilegge con la sonda
@@ -537,21 +537,15 @@ REGISTRO = ("import json,os,sys;p=os.path.expanduser(sys.argv[1]);r=[]\n"
 
 
 def py_su(macchina, codice, *args, attesa=ATTESA_CAPO):
-    """(riga, errore): l'ultima riga di `codice` eseguito con Python su `macchina` via herdr-core."""
-    errore = "nessun Python"
-    for py in ("python3", "python"):
-        argv = hc() + ["exec", "--on", macchina, "--timeout", str(attesa), py, "-c", codice, *args]
-        try:
-            r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               timeout=attesa + 5, stdin=subprocess.DEVNULL)
-        except (OSError, subprocess.TimeoutExpired):
-            return None, "%s non ha risposto in tempo" % macchina
-        if non_parte(r.stdout, r.stderr):
-            errore = "%s non ha %s" % (macchina, py)
-            continue
-        riga = (r.stdout.strip().splitlines() or [""])[-1]
-        return riga, (None if r.returncode == 0 else errore_hc(riga or r.stderr) or "%s non risponde" % macchina)
-    return None, errore
+    """(riga, errore): l'ultima riga di `codice` eseguito con Python su `macchina`, con remoto()."""
+    try:
+        rc, out, err, py = remoto(macchina, codice, args, attesa=attesa)
+    except NonRisponde as e:
+        return None, str(e)[:200]
+    if py is None:
+        return None, "%s non ha Python" % macchina
+    riga = (out.strip().splitlines() or [""])[-1]
+    return riga, (None if rc == 0 else ultima_riga(out, err, rc))
 
 
 def inizio_settimana(ora):
@@ -967,4 +961,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main(togli_entro(sys.argv[1:])))

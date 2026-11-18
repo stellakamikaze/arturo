@@ -5,7 +5,8 @@ un'altra macchina passano da herdr-core (`hc exec --on <macchina>`), che gira ne
 grafica e conosce già ssh, chiavi e Windows. Niente nomi di macchine scritti qui: Volta è un'app da
 distribuire (#5172, 10/11/2026).
 
-  python3 volta_sonda.py volta [--scrivi FILE]   l'elenco, nel formato di ~/.cache/volta/sessioni.json
+  python3 volta_sonda.py volta [--fresca] [--scrivi FILE]   l'elenco, nel formato di ~/.cache/volta/sessioni.json;
+      --fresca (un gesto) non accetta le letture già fatte sulle altre macchine (LETTURA_S, #5583)
   python3 volta_sonda.py nasci MACCHINA [--progetto SLUG] [-- PROMPT]
       una sessione nuova in background (claude --bg) su MACCHINA ("qui" per questa), nella base dei
       progetti di quella macchina, dopo aver acceso il servizio di Claude. Stampa {id, sessionId, attach,
@@ -89,6 +90,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import tokenize
 import zlib
@@ -216,6 +218,24 @@ exec(CERCA_CLAUDE)
 # {"claude": percorso o null, "sessioni": [...]} con progetto e ultime parole letti dai file di Claude,
 # oppure {"errore"} se claude agents non dà l'elenco: la macchina è irraggiungibile, non vuota.
 # Chi la lancia mette davanti T, i secondi che ha: claude agents non aspetta oltre.
+# Documenti appeso (18/11/2026, Amaltea): un dialogo dei permessi di macOS senza risposta fa scadere ogni
+# accesso a Documenti dopo circa 20-40 s con EINTR ("Interrupted system call"), ssh compreso. Una nascita
+# aspettava 42 s e poi falliva con "Can't read the current directory". La prova legge la cartella con un
+# tetto: torna il motivo se è appesa, None se risponde (o se non è macOS, o se la cartella non c'è).
+PERMESSO = r'''
+def cartella_appesa(cartella, tetto=5):
+    if sys.platform != "darwin" or not os.path.isdir(cartella):
+        return None
+    try:
+        r = subprocess.run(["ls", "-A", cartella], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=tetto)
+    except subprocess.TimeoutExpired:
+        return "oltre %d s" % tetto
+    except OSError:
+        return None
+    return "Interrupted system call" if "Interrupted system call" in (r.stderr or "") else None
+'''
+
 SONDA = r'''
 import glob, json, os, re, shutil, subprocess, sys, time
 scade =time.time() + (T if "T" in globals() else 40)
@@ -225,6 +245,56 @@ cl = trova_claude()
 if not os.path.exists(cl):
     print(json.dumps({"claude": None, "sessioni": []})); raise SystemExit
 radice = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+# La lettura condivisa (step 6 del piano di revisione, #5583, 18/11/2026): con tre Volta aperte ogni macchina
+# era letta tre volte a giro, e tre sonde insieme riscrivevano volta-lavori, titolo e volta-letture.json.
+# Ora una lettura sola per volta, sotto il blocco (una cartella: os.mkdir è atomico anche su Windows), e
+# l'esito resta in volta-lettura.json. Chi lo chiama mette davanti C, l'età in secondi che accetta: il giro
+# di un'altra Volta accetta l'esito di un'altra lettura di meno di C secondi, e così la sonda non rilegge.
+# Senza C (la lettura di questa macchina, un gesto) si legge sempre; se un'altra lettura è in corso la si
+# aspetta, poi si legge. Un blocco più vecchio di BLOCCO_MAX è di una sonda morta e si toglie.
+import atexit
+BLOCCO_MAX = 50
+flet = os.path.join(radice, "cache", "volta-lettura.json")
+fblocco = flet + ".blocco"
+eta = globals().get("C") or 0
+def condivisa():
+    try:
+        with open(flet, encoding="utf-8") as fh:
+            c = json.load(fh)
+        return c["uscita"] if isinstance(c["uscita"], dict) and 0 <= time.time() - c["inizio"] <= eta else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+def dalla_condivisa():
+    u = condivisa() if eta else None
+    if u:
+        print(json.dumps(dict(u, condivisa=True))); raise SystemExit
+def libera():
+    try:
+        os.rmdir(fblocco)
+    except OSError:
+        pass
+preso = False
+while not preso:
+    try:
+        os.makedirs(os.path.dirname(flet), exist_ok=True)
+        os.mkdir(fblocco)
+        preso = True
+        atexit.register(libera)
+        dalla_condivisa()  # una lettura giovane, anche scritta mentre si aspettava il blocco
+    except FileExistsError:
+        try:
+            if time.time() - os.path.getmtime(fblocco) > BLOCCO_MAX:
+                os.rmdir(fblocco)
+                continue
+        except OSError:
+            continue
+        if time.time() > scade - 3:
+            break  # il blocco non si libera in tempo: si legge senza
+        time.sleep(0.1)
+        dalla_condivisa()
+    except OSError:
+        break  # una cartella che non si scrive: si legge senza blocco e senza esito condiviso
+inizio = time.time()
 # Senza --all claude agents nasconde le sessioni in background fermate (stopped) e quelle in errore
 # (failed): Volta non le mostrerebbe, e Riavvia non comparirebbe mai (#5203). Delle chiuse tiene quelle
 # nate negli ultimi CHIUSE_GIORNI giorni; un Claude senza --all dà l'elenco di prima.
@@ -601,11 +671,25 @@ for s in sessioni:
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 uscita = {"claude": cl, "sessioni": sessioni}
 rotta = nascite()
+# Documenti appeso: al più una prova al minuto, e "da" resta l'ora della prima volta finché dura
+#PERMESSO#
+fp = os.path.join(radice, "cache", "volta-permesso.json")
+pr = leggi(fp)
+if time.time() - float(pr.get("quando") or 0) > 60:
+    ap = cartella_appesa(os.path.join(os.path.expanduser("~"), "Documents"))
+    pr = {"quando": time.time(), "appesa": ap, "da": (pr.get("da") or time.strftime("%Y-%m-%dT%H:%M:%S")) if ap else None}
+    scrivi(fp, pr)
+if pr.get("appesa"):
+    rotta = {"rotta": True, "permesso": True, "da": pr.get("da"), "motivo": "Documenti non si legge: " + str(pr["appesa"])}
 if rotta:
     uscita["nascita"] = rotta
+if preso:  # l'esito per le altre Volta, poi via il blocco
+    scrivi(flet, {"inizio": inizio, "uscita": uscita})
+    libera()
 print(json.dumps(uscita))
 '''
 SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())
+SONDA = SONDA.replace("#PERMESSO#", PERMESSO.strip())
 SONDA = SONDA.replace("#ELENCO#", ELENCO.strip()).replace("#CLAUDE#", CERCA_CLAUDE.strip())
 # La cache di claude agents entra solo nella lettura di questa macchina (#5946, 17/11/2026): verso le
 # altre la SONDA viaggia in una riga di cmd.exe (8191 caratteri), e la cache la portava a 8100.
@@ -727,6 +811,12 @@ if a.get("riprendi") and not qui:
     esci(errore="la cartella della sessione non c'è più: " + str(cartella or "sconosciuta")[:120])
 if qui:
     base = cartella
+# Documenti appeso (18/11/2026): esce subito col motivo, invece di 42 s e "Can't read the current directory"
+#PERMESSO#
+appesa = cartella_appesa(base)
+if appesa:
+    esci(errore="un permesso di macOS aspetta una risposta sullo schermo di questa macchina: %s non si legge (%s)"
+         % (base, appesa), permesso=True)
 argv = [cl, "--bg"]
 if a.get("riprendi"):
     # "stessa": la ripresa della stessa conversazione (il congedo, /fine), senza copia
@@ -835,6 +925,7 @@ if a.get("progetto"):
 esci(id=corto, sessionId=sid, claude=cl, cartella=base)
 '''
 NASCI = NASCI.replace("#ELENCO#", ELENCO.strip()).replace("#CLAUDE#", CERCA_CLAUDE.strip())
+NASCI = NASCI.replace("#PERMESSO#", PERMESSO.strip())
 
 # Gira sulla macchina della sessione (anche con hc exec): scrive il nome o il progetto che la persona le
 # ha dato dalla finestra (#5292). L'argomento è un JSON in base64: {"cosa": "titolo" | "scheda",
@@ -1033,20 +1124,33 @@ esci(errore="il servizio di Claude non si accende (%s)" % come)
 '''
 SERVIZIO = SERVIZIO.replace("#CLAUDE#", CERCA_CLAUDE.strip())
 
+
+
+def leggi_tetti():
+    """La tabella dei tetti di tempo (#5581): l'oggetto TETTI di sessioni.js, accanto a questo file, come JSON."""
+    t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sessioni.js"), encoding="utf-8").read()
+    i = t.index("export const TETTI = ")
+    return json.loads(t[t.index("{", i):t.index("\n};", i) + 2])
+
+
+TETTI = leggi_tetti()
+FASI = TETTI["fasi"]
 # Le attese di una nascita (#5214): ogni fase ha il suo tetto, e dati.js (nasciSu) aspetta la somma più
 # un margine. Il servizio si ferma al suo tetto prima di far nascere la sessione, così una nascita già
 # partita non si taglia a metà: tagliata, nascerebbe lo stesso mentre Volta dice "non risponde".
-ATTESA_MACCHINE = 15
-ATTESA_SERVIZIO = 120
-ATTESA_NASCITA = 180
+ATTESA_MACCHINE = FASI["macchine"]
+ATTESA_SERVIZIO = FASI["servizio"]
+ATTESA_NASCITA = FASI["nascita"]
 # Un gesto su una sessione (azione). Riavvia passa prima dal servizio: dati.js (azioneSessione) aspetta
 # ATTESA_SERVIZIO più ATTESA_AZIONE più il margine, gli altri gesti ATTESA_AZIONE più il margine.
-ATTESA_AZIONE = 60
+ATTESA_AZIONE = FASI["azione"]
 # Una lettura dell'elenco (volta): un tetto solo per tutto, diviso fra Herdr e le macchine, che si leggono
 # insieme. Sta sotto i 60 s che volta.js (aggiorna) aspetta: prima ogni macchina aveva i suoi 90 s per
 # tentativo, e una sola macchina lenta lasciava l'elenco fermo all'ultima lettura (revisione dell'11/11/2026).
-ATTESA_LETTURA = 45
-MARGINE_LETTURA = 3  # per scrivere il documento dopo l'ultima macchina
+ATTESA_LETTURA = FASI["lettura"]
+MARGINE_LETTURA = FASI["margine_lettura"]  # per scrivere il documento dopo l'ultima macchina
+# La scadenza del comando (time.time()), da --entro di Volta: nessun figlio la supera (lancia, #5581).
+SCADENZA = None
 
 LAVORA = {"busy", "working", "running", "starting"}
 ASPETTA = {"waiting", "blocked"}
@@ -1110,16 +1214,45 @@ def evento_hc(argv):
     return "hc %s%s" % (verbo, prog), macchina
 
 
-def lancia(argv, timeout=60, prova=False):
-    # stdin chiuso: senza, ssh.exe e hc su Windows restano appesi
+def resta_al_comando():
+    """I secondi che restano al comando (--entro di Volta), o None se Volta non ha dato una scadenza."""
+    return SCADENZA - time.time() if SCADENZA is not None else None
+
+
+def togli_entro(argv):
+    """Toglie `--entro SECONDI` dalla testa di argv e fissa SCADENZA (#5581). Volta (tetti.js) lo mette
+    subito dopo lo script: allo scadere del suo exec Herdr uccide solo Python, e hc, ssh e claude restavano
+    orfani. Con la scadenza ogni figlio di lancia() finisce prima. Solo in testa: dopo `--` c'è testo
+    libero (un prompt, un nome) che può dire anche "--entro". La scadenza resta in questo processo: un
+    figlio staccato (lo spostamento) o una sessione nata qui non la ereditano."""
+    global SCADENZA
+    argv = list(argv)
+    if argv[:1] == ["--entro"]:
+        try:
+            secondi = float(argv[1])
+        except (IndexError, ValueError):
+            secondi = 0
+        del argv[:2]
+        if secondi > 0:
+            SCADENZA = time.time() + secondi
+    return argv
+
+
+def lancia(argv, timeout=60, prova=False, entrata=None):
+    # stdin chiuso: senza, ssh.exe e hc su Windows restano appesi. `entrata`: il testo per stdin (hc exec -i).
     # `prova`: un tentativo con un ripiego dopo (claude_remoto, #5758). Se il programma non parte, nel
     # registro va "ripiego", non un errore: sui Mac `claude` nudo non parte mai con il PATH di hc exec, e
     # il registro del 15/11 lo contava come guasto mentre python3 lo trovava 26 ms dopo.
+    # Mai oltre la scadenza del comando (--entro, #5581): fuori tempo è TimeoutExpired, come il tetto proprio.
+    resta = resta_al_comando()
+    if resta is not None and resta < timeout:
+        timeout = max(0.1, resta)
     ev = evento_hc(argv)
     t = time.monotonic()
     try:
         r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           stdin=subprocess.DEVNULL, timeout=timeout, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+                           stdin=subprocess.DEVNULL if entrata is None else None, input=entrata,
+                           timeout=timeout, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
     except subprocess.TimeoutExpired:
         if ev:  # il registro (#5549): le chiamate a hc che scadono
             registro.registra(ev[0], macchina=ev[1], ms=(time.monotonic() - t) * 1000, esito="tetto",
@@ -1212,41 +1345,193 @@ def sonda_locale(entro=None):
     return risposta(leggi_json(out))
 
 
+# --- il lancio su un'altra macchina (#5580, 17/11/2026) ---------------------------------------------
+# Prima c'erano dieci copie di "python3, poi python" (sonda, servizio, nascita, gesti, cambi, spostamento,
+# note, carte, capo, registro), e ognuna decideva a modo suo quando riprovare: lo stesso guasto dava
+# messaggi diversi. Adesso passano tutte da remoto().
+
 PYTHON = ("python3", "python")
+_memoria = {}  # la memoria delle macchine nelle prove (VOLTA_HC senza VOLTA_REMOTI)
+_chiave = threading.Lock()
 
 
-def sonda_remota(nome, entro=None, primo=None):
-    """La sonda su un'altra macchina via herdr-core: prima python3, poi python (Windows, dove python3
-    può essere lo stub dello Store, che esce 9009). I due tentativi e l'elenco nudo dividono lo stesso
-    tetto (`entro`), che vale anche per hc exec e per claude agents dentro la sonda.
-    `primo`: il Python che ha risposto all'ultima lettura di quella macchina, provato per primo (17/11/2026).
-    Un errore che non è "programma assente" (macchina che dorme, rete giù, hc unavailable) ferma subito:
-    il secondo Python non lo aggiusta, e prima costava altri 10-30 s del tetto del giro."""
-    # compressa: con terminale_di la sonda in base64 supererebbe gli 8191 caratteri di una riga di cmd.exe
-    compressa = base64.b64encode(zlib.compress(senza_commenti(SONDA_REMOTA).encode(), 9)).decode()
-    ultimo, senza = "nessun Python", 0
-    for py in ((primo,) + tuple(p for p in PYTHON if p != primo)) if primo in PYTHON else PYTHON:
-        rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",
-                                                        "T=%d;import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % (max(2, t - 3), compressa)],
-                                      entro, 1)
-        if rc == 0:
+class NonRisponde(RuntimeError):
+    """La macchina non risponde: tempo scaduto, linea persa, irraggiungibile. Un altro Python non aiuta."""
+
+
+def file_remoti():
+    """La memoria delle macchine: il Python buono e da quando non rispondono. Sta accanto al registro,
+    fuori dalla cartella che volta.js sorveglia (ogni file scritto là gli fa rileggere l'elenco). Nelle
+    prove (VOLTA_HC) resta nel processo, così un banco non segna giù le macchine vere; VOLTA_REMOTI la
+    sceglie."""
+    if os.environ.get("VOLTA_REMOTI"):
+        return os.environ["VOLTA_REMOTI"]
+    if os.environ.get("VOLTA_HC"):
+        return None
+    return str(registro.cartella() / "remoti.json")
+
+
+def memoria(nome=None):
+    """{macchina: {python, giu, piena}}, oppure la voce di `nome` ({} se non c'è)."""
+    f = file_remoti()
+    if f is None:
+        d = dict(_memoria)
+    else:
+        try:
+            with open(f, encoding="utf-8") as fh:
+                d = json.load(fh)
+        except (OSError, ValueError):
+            d = {}
+    d = d if isinstance(d, dict) else {}
+    if nome is None:
+        return d
+    v = d.get(nome)
+    return v if isinstance(v, dict) else {}
+
+
+def ricorda(nome, **campi):
+    """Aggiorna la memoria di `nome`; un campo None si toglie. Scrive solo se qualcosa cambia: una
+    macchina che risponde sempre col suo Python non tocca il file."""
+    with _chiave:
+        d = memoria()
+        prima = d.get(nome) if isinstance(d.get(nome), dict) else {}
+        dopo = {k: v for k, v in dict(prima, **campi).items() if v is not None}
+        if dopo == prima:
+            return
+        if dopo:
+            d[nome] = dopo
+        else:
+            d.pop(nome, None)
+        f = file_remoti()
+        if f is None:
+            _memoria.clear()
+            _memoria.update(d)
+            return
+        try:
+            scrivi_atomico(f, d)
+        except OSError:
+            pass
+
+
+def caduta(nome):
+    """`nome` non ha risposto: `giu` è l'ora della prima volta, `piena` quella della prova col tetto pieno."""
+    v, ora = memoria(nome), time.time()
+    ricorda(nome, giu=v.get("giu") or ora, piena=v.get("piena") or ora)
+
+
+def dorme(nome):
+    """Vero se `nome` non ha risposto e l'ultima prova col tetto pieno è più giovane di FASI["riprova"]:
+    il giro la legge col tetto corto FASI["dorme"]. Prima un Mac che dorme teneva il giro 40 s (17/11/2026)."""
+    v = memoria(nome)
+    return bool(v.get("giu")) and time.time() - (v.get("piena") or 0) < FASI["riprova"]
+
+
+def errore_di_hc(out, err):
+    """La riga d'errore di hc ({"error": {...}}: macchina irraggiungibile, linea persa), oppure None."""
+    for testo in (err, out):
+        righe = (testo or "").strip().splitlines()
+        if righe and righe[-1].strip().startswith("{"):
             try:
-                return dict(risposta(leggi_json(out)), python=py)
-            except ValueError:
-                ultimo = "risposta senza JSON"
-                continue
-        if non_parte(out, err) or rc == 9009:
-            senza += 1
+                if isinstance(json.loads(righe[-1]).get("error"), dict):
+                    return righe[-1]
+            except (ValueError, AttributeError):
+                pass
+    return None
+
+
+def remoto(nome, codice, args=(), attesa=None, entro=None, entrata=None, nudo=None):
+    """`codice` con Python su `nome` via hc exec: l'unico lancio su un'altra macchina di Volta (#5580).
+
+    Prova per primo il Python che ha risposto l'ultima volta da `nome` (memoria), poi l'altro, e passa al
+    secondo solo se il primo non è partito: spawn_failed di hc, o 9009 dello stub dello Store su Windows.
+    Un Python partito può aver già fatto il lavoro (una nascita), e ripetere lo farebbe due volte.
+    Un errore di hc (macchina che dorme, linea persa) o il tempo scaduto fermano subito con NonRisponde:
+    il secondo Python non lo aggiusta, e prima costava altri 10-30 s.
+
+    `codice`: testo, o una funzione dei secondi di hc exec che lo dà (la SONDA porta dentro il suo tetto);
+    None per il solo `nudo`. `nudo`: un programma provato prima dei Python, con `args` (claude, #5555).
+    `entrata`: il testo per stdin (hc exec -i). Tetto: `attesa` secondi, oppure fino a `entro`
+    (time.monotonic), mai oltre la scadenza del comando. Torna (rc, out, err, py): `py` è il programma
+    partito, None se non è partito niente (allora rc, out, err sono del primo tentativo)."""
+    buono = memoria(nome).get("python")
+    ordine = ([buono] + [p for p in PYTHON if p != buono]) if buono in PYTHON else list(PYTHON)
+    progs = ([nudo] if nudo else []) + (ordine if codice is not None else [])
+    fermo = None  # il primo tentativo che non è partito
+    for n, prog in enumerate(progs):
+        t = attesa if attesa is not None else FASI["remoto"]
+        if entro is not None:
+            t = min(t, entro - time.monotonic())
+        resta = resta_al_comando()
+        if resta is not None:
+            t = min(t, resta - 1)
+        if t < 1.5:
+            raise NonRisponde("%s non ha risposto in tempo" % chi(nome))
+        th = max(1, round(t) - (5 if t >= 30 else 1))
+        corpo = [prog] if prog == nudo else [prog, "-c", codice(th) if callable(codice) else codice]
+        argv = hc() + ["exec", "--on", nome, "--timeout", str(th)] + (["-i"] if entrata is not None else []) \
+            + corpo + list(args)
+        try:
+            rc, out, err = lancia(argv, timeout=t, prova=n < len(progs) - 1, entrata=entrata)
+        except subprocess.TimeoutExpired:
+            caduta(nome)
+            raise NonRisponde("%s non ha risposto in %d s" % (chi(nome), t)) from None
+        except OSError as e:
+            raise NonRisponde("%s non risponde: %s" % (chi(nome), str(e)[:160])) from None
+        if rc != 0 and (rc == 9009 or non_parte(out, err)):
+            fermo = fermo or (rc, out, err)
             continue
-        raise RuntimeError(errore_hc((err or out).strip().splitlines()[-1]) if (err or out).strip() else "rc %d" % rc)
-    if senza < 2:
-        raise RuntimeError(ultimo)
-    # senza Python: l'elenco nudo di claude agents, senza progetto né ultime parole
-    rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), "claude", "agents", "--json"], entro, 1)
-    if rc != 0 and non_parte(out, err):
+        riga = errore_di_hc(out, err) if rc != 0 else None
+        if riga:
+            caduta(nome)
+            raise NonRisponde("%s non risponde: %s" % (chi(nome), errore_hc(riga)))
+        ricorda(nome, giu=None, piena=None, **({"python": prog} if prog in PYTHON else {}))
+        return rc, out, err, prog
+    rc, out, err = fermo or (1, "", "nessun Python")
+    return rc, out, err, None
+
+
+def ultima_riga(out, err, rc):
+    """L'ultima riga d'errore di un comando per le persone, oppure "rc N"."""
+    testo = (err or out or "").strip()
+    return errore_hc(testo.splitlines()[-1]) if testo else "rc %d" % rc
+
+
+# L'età in secondi di una lettura che il giro di un'altra Volta accetta (step 6, #5583): la Volta della macchina
+# la rifà ogni 10 s (OGNI di volta.js), e con 12 s le altre la trovano quasi sempre fatta.
+LETTURA_S = 12
+
+
+def sonda_remota(nome, entro=None, fresca=False):
+    """La sonda su un'altra macchina, con remoto(). Python e l'elenco nudo di claude agents dividono lo
+    stesso tetto (`entro`), che vale anche per hc exec e per claude agents dentro la sonda. Senza `fresca`
+    la macchina può rispondere con una lettura di meno di LETTURA_S secondi (C nella SONDA); un gesto
+    vuole una lettura nuova."""
+    if entro is None:
+        entro = time.monotonic() + resta(None)
+    # La sonda viaggia su stdin (hc exec -i, come le note e Sposta), compressa; nella riga resta l'avvio. Nella
+    # riga la sonda era arrivata a 7940 caratteri dei 8191 di cmd.exe, e la lettura condivisa la portava a
+    # 8316 (step 6, 18/11/2026): neanche lzma la teneva sotto 8000.
+    compressa = base64.b64encode(zlib.compress(senza_commenti(SONDA_REMOTA).encode(), 9)).decode()
+    eta = 0 if fresca else LETTURA_S
+    sonda = lambda t: ("T=%d;C=%d;import sys,base64,zlib;exec(zlib.decompress(base64.b64decode(sys.stdin.read())))"  # noqa: E731
+                       % (max(2, t - 3), eta))
+    try:
+        rc, out, err, py = remoto(nome, sonda, entro=entro, attesa=ATTESA_LETTURA, entrata=compressa)
+        if py:
+            if rc != 0:
+                raise RuntimeError(ultima_riga(out, err, rc))
+            try:
+                return risposta(leggi_json(out))
+            except ValueError:
+                raise RuntimeError("risposta senza JSON") from None
+        # senza Python: l'elenco nudo di claude agents, senza progetto né ultime parole
+        rc, out, err, py = remoto(nome, None, ["agents", "--json"], entro=entro, attesa=ATTESA_LETTURA, nudo="claude")
+    except NonRisponde as e:
+        raise RuntimeError(str(e)) from None
+    if py is None:
         return {"claude": None, "sessioni": []}  # né Python né Claude: non è una macchina di Volta
     if rc != 0:
-        raise RuntimeError(errore_hc(((err or out).strip().splitlines() or ["rc %d" % rc])[-1]))
+        raise RuntimeError(ultima_riga(out, err, rc))
     sessioni = elenco(out) if (out or "").strip() else []  # noqa: F821 (elenco viene da ELENCO)
     if sessioni is None:
         raise RuntimeError("claude agents: risposta senza elenco")
@@ -1283,13 +1568,14 @@ def argv_attach(voce, corto):
     return [ssh_bin(), "-t", voce["target"], voce["claude"], "attach", corto]
 
 
-def raccogli(viste=None, prima=None, entro=None):
+def raccogli(viste=None, prima=None, entro=None, fresca=False):
     """Le voci per macchina, interrogate in parallelo: questa per prima, poi quelle di Herdr.
     `viste`: gli host in cui Volta ha già visto Claude (dal documento di prima). Una macchina che non
     risponde e dove Claude non si è mai visto resta fuori: può essere un server senza Claude.
     `prima`: le macchine del documento di prima. Se Herdr non dice le macchine restano quelle,
     irraggiungibili, con le righe dell'ultima lettura: prima sparivano tutte, sessioni comprese.
-    `entro`: la scadenza della lettura (time.monotonic), la stessa per Herdr e per ogni macchina."""
+    `entro`: la scadenza della lettura (time.monotonic), la stessa per Herdr e per ogni macchina.
+    `fresca`: un giro chiesto da un gesto, che non accetta le letture già fatte sulle altre macchine."""
     if entro is None:
         entro = time.monotonic() + attesa_lettura() - MARGINE_LETTURA
     qui = {"macchina": nome_qui(), "host": "qui", "questa": True, "target": None}
@@ -1303,26 +1589,31 @@ def raccogli(viste=None, prima=None, entro=None):
         altre = [{"macchina": m["nome"], "host": m["nome"], "questa": False, "target": m["target"],
                   "stato_hc": m["stato"], "perche": m["perche"]} for m in note]
 
-    # il Python che ha risposto all'ultima lettura di ogni macchina (sonda_remota lo prova per primo)
-    python_di = {m["host"]: m.get("python") for m in (prima or []) if isinstance(m, dict) and isinstance(m.get("host"), str)}
-
     def una(v):
         if "irraggiungibile" in v:
             return v
         if not v["questa"] and v.get("stato_hc") not in (None, "connected"):
             v["irraggiungibile"] = (v.get("perche") or "Herdr non la raggiunge")[:200]
             return v
+        fine = entro
+        if not v["questa"]:
+            # una macchina che non ha risposto (un Mac che dorme) col tetto corto, e col pieno ogni
+            # FASI["riprova"] secondi: il giro non la aspetta 40 s a ogni lettura (#5580)
+            if dorme(v["host"]):
+                fine = min(entro, time.monotonic() + FASI["dorme"] + 0.5)
+            elif memoria(v["host"]).get("giu"):
+                ricorda(v["host"], piena=time.time())
         with registro.Durata("lettura", macchina="qui" if v["questa"] else v["host"]) as dura:
             try:
-                d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], entro, python_di.get(v["host"]))
+                d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], fine, fresca)
             except Exception as e:  # spenta, in stop, rete giù: lo si dice e si va avanti
                 v["irraggiungibile"] = str(e)[:200]
                 dura.esito, dura.errore = "irraggiungibile", v["irraggiungibile"]
                 return v
+            # nel registro: la macchina ha dato una lettura già fatta (condivisa) o l'ha rifatta (nuova)
+            dura.campi["come"] = "condivisa" if d.get("condivisa") is True else "nuova"
         v["claude"] = d.get("claude")
         v["sessioni"] = d.get("sessioni") or []
-        if d.get("python") in PYTHON:
-            v["python"] = d["python"]
         if isinstance(d.get("nascita"), dict):
             v["nascita"] = d["nascita"]
         return v
@@ -1523,11 +1814,6 @@ def documento(voci, precedente=None, adesso=None):
     elenco = []
     for v in voci:
         voce = {"macchina": v["macchina"], "host": v["host"], "questa": v["questa"]}
-        # il Python buono di quella macchina, per il giro dopo; senza lettura resta quello dell'ultima buona
-        py = v.get("python") or next((m.get("python") for m in (precedente or {}).get("macchine", [])
-                                      if isinstance(m, dict) and m.get("host") == v["host"]), None)
-        if py in PYTHON:
-            voce["python"] = py
         if isinstance(v.get("nascita"), dict):
             voce["nascita"] = v["nascita"]
         if "irraggiungibile" in v:
@@ -1536,6 +1822,26 @@ def documento(voci, precedente=None, adesso=None):
                          if r.get("host") == v["host"]]
         elenco.append(voce)
     return {"letto": adesso, "macchine": elenco, "sessioni": sessioni}
+
+
+# sessioni.json si riscrive solo se cambia qualcosa oltre a `letto` (step 5 del piano di revisione, 17/11/2026):
+# ogni scrittura fa rileggere e ridisegnare l'elenco a ogni Volta della macchina, e col giro a 10 s quasi
+# tutti i giri non cambiano niente. Almeno ogni RISCRIVI_S si riscrive lo stesso: `letto` e l'ora del file
+# restano freschi per chi li guarda (il capo rilegge con la sonda un file più vecchio di 15 minuti).
+RISCRIVI_S = 300
+
+
+def da_riscrivere(percorso, dati, precedente, adesso=None):
+    """Vero se sessioni.json va riscritto: senza file, con un contenuto diverso a parte `letto`, o vecchio."""
+    if not isinstance(precedente, dict):
+        return True
+    togli = lambda d: {k: v for k, v in d.items() if k != "letto"}  # noqa: E731
+    if json.dumps(togli(dati), sort_keys=True) != json.dumps(togli(precedente), sort_keys=True):
+        return True
+    try:
+        return (adesso or time.time()) - os.path.getmtime(os.path.expanduser(percorso)) >= RISCRIVI_S
+    except OSError:
+        return True
 
 
 def scrivi_atomico(percorso, dati):
@@ -1561,36 +1867,33 @@ def claude_per_hc_run(d):
 def servizio(nome):
     """Il servizio di Claude acceso su `nome` ("qui" o vuoto = questa macchina), con SERVIZIO (#5208).
 
-    Su un'altra macchina gira con hc exec, python3 e poi python. Se la macchina risponde "hc-run"
+    Su un'altra macchina gira con remoto(). Se la macchina risponde "hc-run"
     (Windows senza l'attività di servizio-claude.ps1, Mac senza il LaunchAgent), il servizio nasce in un terminale di herdr-core
     con hc run: vive nella sessione grafica e non muore con chi lo chiede. Mai da ssh.
     Tutto entro ATTESA_SERVIZIO secondi (#5214). Torna {"come"} oppure {"errore"}."""
     codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SERVIZIO.encode()).decode()
     entro = time.monotonic() + ATTESA_SERVIZIO
-    if nome in (None, "", "qui"):
-        tentativi = [lambda t: [sys.executable, "-c", codice, "qui"]]
-    else:
-        tentativi = [lambda t, py=py: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c", codice, "remoto"]
-                     for py in ("python3", "python")]
+    qui = nome in (None, "", "qui")
 
     def chiedi():
-        ultimo = "nessun Python"
-        for argv in tentativi:
-            t = min(90, int(entro - time.monotonic()))
-            if t < 5:
-                return {"errore": "nessuna risposta in %d s" % ATTESA_SERVIZIO}
-            try:
-                rc, out, err = lancia(argv(t), timeout=t + 5)
-            except (OSError, subprocess.SubprocessError) as e:
-                return {"errore": str(e)[:160]}
-            if rc != 0 and (non_parte(out, err) or rc == 9009):
-                continue
-            try:
-                return leggi_json(out)
-            except ValueError:
-                testo = (err or out).strip()
-                ultimo = errore_hc(testo.splitlines()[-1]) if testo else "rc %d" % rc
-        return {"errore": ultimo}
+        t = min(90, int(entro - time.monotonic()))
+        if t < 5:
+            return {"errore": "nessuna risposta in %d s" % ATTESA_SERVIZIO}
+        try:
+            if qui:
+                rc, out, err = lancia([sys.executable, "-c", codice, "qui"], timeout=t + 5)
+            else:
+                rc, out, err, py = remoto(nome, codice, ["remoto"], attesa=t + 5)
+                if py is None:
+                    return {"errore": "nessun Python"}
+        except NonRisponde as e:
+            return {"errore": str(e)[:200]}
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"errore": str(e)[:160]}
+        try:
+            return leggi_json(out)
+        except ValueError:
+            return {"errore": ultima_riga(out, err, rc)}
 
     d = chiedi()
     if d.get("serve") == "hc-run":
@@ -1623,7 +1926,7 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
     Duplica e Fork (#5291) passano da qui: `cartella` è quella della sessione di partenza, `riprendi`
     il sessionId di cui la nuova è una copia (fork), `titolo` il nome della copia in Claude Code.
 
-    Su un'altra macchina prova python3, poi python; passa al secondo solo se il primo non è partito
+    Su un'altra macchina passa da remoto(), che prova il secondo Python solo se il primo non è partito
     (spawn_failed, o 9009 dello stub dello Store su Windows): un Python partito può aver già fatto
     nascere la sessione, e ripetere ne farebbe due."""
     questa = nome in (None, "", "qui")
@@ -1637,7 +1940,6 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
     arg = base64.b64encode(json.dumps(dati).encode()).decode()
     if questa:
         voce = {"questa": True, "target": None}
-        tentativi = [[sys.executable, "-c", NASCI, arg]]
     else:
         note = macchine()
         if note is None:
@@ -1650,36 +1952,35 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
         voce = {"questa": False, "target": m["target"]}
         # compressa come la SONDA: senza, NASCI in base64 supera gli 8191 caratteri di una riga di cmd.exe
         codice = "import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % base64.b64encode(zlib.compress(senza_commenti(NASCI).encode(), 9)).decode()
-        tentativi = [hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_NASCITA - 30), py, "-c", codice, arg]
-                     for py in ("python3", "python")]
     # prima il servizio, acceso dove sopravvive: un claude --bg senza servizio lo farebbe nascere a
     # tempo dentro hc exec, e la sessione morirebbe con lui (#5208)
     s = servizio(nome)
     if s.get("errore"):
         return {"errore": "il servizio di Claude non parte su %s: %s" % (chi(nome), s["errore"])}
-    ultimo = "nessun Python"
-    for argv in tentativi:
-        try:
-            rc, out, err = lancia(argv, timeout=ATTESA_NASCITA)
-        except (OSError, subprocess.SubprocessError) as e:
-            return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
-        # hc dice spawn_failed (anche lui in JSON) se il programma non c'è: prima di leggere la risposta
-        if rc != 0 and (non_parte(out, err) or rc == 9009):
-            continue
-        try:
-            d = leggi_json(out)
-        except ValueError:
-            d = {}
-        if d.get("errore"):
-            return {"errore": d["errore"]}
-        if not d.get("id") or not d.get("claude"):
-            testo = (err or out).strip()
-            ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
-            break
-        voce["claude"] = d["claude"]
-        return {"id": d["id"], "sessionId": d["sessionId"], "attach": argv_attach(voce, d["id"]),
-                "macchina": "qui" if questa else nome, "progetto": progetto, "cartella": d.get("cartella")}
-    return {"errore": "non parte su %s: %s" % (chi(nome), ultimo)}
+    try:
+        if questa:
+            rc, out, err = lancia([sys.executable, "-c", NASCI, arg], timeout=ATTESA_NASCITA)
+        else:
+            # remoto() passa al secondo Python solo se il primo non è partito: ripetere farebbe due sessioni
+            rc, out, err, py = remoto(nome, codice, [arg], attesa=ATTESA_NASCITA)
+            if py is None:
+                return {"errore": "non parte su %s: nessun Python" % chi(nome)}
+    except NonRisponde as e:
+        return {"errore": str(e)[:200]}
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
+    try:
+        d = leggi_json(out)
+    except ValueError:
+        d = {}
+    if d.get("errore"):
+        return {"errore": d["errore"]}
+    if not d.get("id") or not d.get("claude"):
+        testo = (err or out).strip()
+        return {"errore": "non parte su %s: %s" % (chi(nome), testo.splitlines()[-1][:200] if testo else "rc %d" % rc)}
+    voce["claude"] = d["claude"]
+    return {"id": d["id"], "sessionId": d["sessionId"], "attach": argv_attach(voce, d["id"]),
+            "macchina": "qui" if questa else nome, "progetto": progetto, "cartella": d.get("cartella")}
 
 
 SEQ = re.compile(r"\x1b\[([0-9;?]*)[ -/]*([@-~])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>78DEM]")
@@ -1910,25 +2211,12 @@ def claude_remoto(nome, args, entro, prima=None):
     """claude con `args` su `nome` via hc exec, entro l'istante `entro`. Prima claude nudo, come lo trova
     il PATH di hc exec (Windows); se non parte, python3 e poi python con CLAUDE_FUORI_PATH (i Mac, #5555).
     Se non parte niente, resta l'errore di claude nudo, che dice cosa manca. Con `prima` (una regola di
-    PRIMA) il gesto passa dal controllo fresco: solo python3 e python, che lo portano."""
+    PRIMA) il gesto passa dal controllo fresco: solo python3 e python, che lo portano.
+    Passa da remoto(): una macchina che non risponde solleva NonRisponde."""
     codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode((PRIMA if prima else CLAUDE_FUORI_PATH).encode()).decode()
-    progs = [["python3", "-c", codice], ["python", "-c", codice]]
-    if prima:
-        args = [prima] + list(args)
-    else:
-        progs.insert(0, ["claude"])
-    primo = None
-    for n, prog in enumerate(progs):
-        t = round(entro - time.monotonic())
-        if t < 10:
-            break
-        rc, out, err = lancia(hc() + ["exec", "--on", nome, "--timeout", str(t - 5)] + prog + args, timeout=t,
-                              prova=n < len(progs) - 1)
-        if rc != 0 and (rc == 9009 or non_parte(out, err)):  # il programma non è partito: il prossimo
-            primo = primo or (rc, out, err)
-            continue
-        return rc, out, err
-    return primo or (1, "", "nessuna risposta in %d s" % ATTESA_AZIONE)
+    rc, out, err, _ = remoto(nome, codice, ([prima] if prima else []) + list(args), entro=entro,
+                             attesa=ATTESA_AZIONE, nudo=None if prima else "claude")
+    return rc, out, err
 
 
 def azione(nome, verbo, sid, congedo=False, regola=None):
@@ -1961,6 +2249,8 @@ def azione(nome, verbo, sid, congedo=False, regola=None):
             rc, out, err = lancia([trova_claude(), verbo, sid], timeout=ATTESA_AZIONE)
         else:
             rc, out, err = claude_remoto(nome, [verbo, sid], time.monotonic() + ATTESA_AZIONE, regola)
+    except NonRisponde as e:
+        return {"errore": str(e)[:200]}
     except (OSError, subprocess.SubprocessError) as e:
         return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
     no = rifiuto(rc, out, err) if regola else None
@@ -2070,7 +2360,7 @@ def cambia(nome, verbo, sid, valore="", portato=False):
     """Rinomina e Cambia progetto (#5292): il nome o il progetto di `sid` scritti sulla macchina `nome`
     ("qui" = questa), con SCRIVI. `sid` è il sessionId intero: i due file della cache portano quello.
 
-    Su un'altra macchina prova python3, poi python: scrivere due volte lo stesso file non fa danni."""
+    Su un'altra macchina passa da remoto()."""
     if verbo not in CAMBI:
         return {"errore": "cambio sconosciuto: %s" % verbo}
     if not ID.fullmatch(sid or ""):
@@ -2088,28 +2378,24 @@ def cambia(nome, verbo, sid, valore="", portato=False):
 
 def python_su(nome, script, dati):
     """`script` con `dati` (JSON in base64 come argomento) sulla macchina `nome` ("qui" = questa): la sua
-    risposta JSON, oppure {errore}. Su un'altra macchina prova python3, poi python."""
+    risposta JSON, oppure {errore}. Su un'altra macchina passa da remoto() (#5580)."""
     arg = base64.b64encode(json.dumps(dati).encode()).decode()
-    if nome in (None, "", "qui"):
-        tentativi = [[sys.executable, "-c", script, arg]]
-    else:
-        codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(script.encode()).decode()
-        tentativi = [hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), py, "-c", codice, arg]
-                     for py in ("python3", "python")]
-    ultimo = "nessun Python"
-    for argv in tentativi:
-        try:
-            rc, out, err = lancia(argv, timeout=ATTESA_AZIONE)
-        except (OSError, subprocess.SubprocessError) as e:
-            return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
-        if rc != 0 and (rc == 9009 or non_parte(out, err)):  # il Python non è partito: si prova l'altro
-            continue
-        try:
-            return leggi_json(out)
-        except ValueError:
-            testo = (err or out).strip()
-            ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
-    return {"errore": ultimo}
+    try:
+        if nome in (None, "", "qui"):
+            rc, out, err = lancia([sys.executable, "-c", script, arg], timeout=ATTESA_AZIONE)
+        else:
+            codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(script.encode()).decode()
+            rc, out, err, py = remoto(nome, codice, [arg], attesa=ATTESA_AZIONE)
+            if py is None:
+                return {"errore": "nessun Python su %s" % chi(nome)}
+    except NonRisponde as e:
+        return {"errore": str(e)[:200]}
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"errore": "%s non risponde: %s" % (chi(nome), str(e)[:160])}
+    try:
+        return leggi_json(out)
+    except ValueError:
+        return {"errore": ultima_riga(out, err, rc)}
 
 
 def ripresa(nome, session_id, errore, tipo, riuscita=""):
@@ -2310,12 +2596,13 @@ def main(argv):
         precedente = None
     entro = time.monotonic() + attesa_lettura() - MARGINE_LETTURA
     with registro.Durata("giro") as dura:
-        dati = documento(raccogli(gia_viste(precedente), (precedente or {}).get("macchine"), entro), precedente)
+        dati = documento(raccogli(gia_viste(precedente), (precedente or {}).get("macchine"), entro, "--fresca" in argv), precedente)
         giu = [m["macchina"] for m in dati["macchine"] if "irraggiungibile" in m]
         if giu:
             dura.esito, dura.errore = "parziale", "non rispondono: " + ", ".join(giu)
     if percorso:
-        scrivi_atomico(percorso, dati)
+        if da_riscrivere(percorso, dati, precedente):
+            scrivi_atomico(percorso, dati)
         giu = [m["macchina"] for m in dati["macchine"] if "irraggiungibile" in m]
         print("volta: %d sessioni%s" % (len(dati["sessioni"]), (", non rispondono: " + ", ".join(giu)) if giu else ""))
     else:
@@ -2324,4 +2611,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main(togli_entro(sys.argv[1:])))

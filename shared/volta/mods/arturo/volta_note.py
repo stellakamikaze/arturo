@@ -4,7 +4,8 @@ Una nota (⌘⇧N) è una cartella ~/.claude/data/note-finestra/<data-ora>/ con 
 macchina dove nasce. Questo script la porta sulle altre macchine di `hc machine ls` e riporta qui le loro:
 così Claude la trova con `arturo note` dovunque lavori, e la finestra di ogni macchina la mostra.
 
-  python3 volta_note.py sincronizza [--scrivi FILE]   un giro con ogni macchina collegata
+  python3 volta_note.py sincronizza [--scrivi FILE]   un giro con ogni macchina collegata, tutte insieme,
+                                                   col tempo di ognuna nel registro (evento "note")
 
 Un giro, per ogni macchina: legge i nota.json di là (LEGGI), scarica le note che mancano qui (png prima,
 nota.json per ultimo), spinge le note che mancano di là, e per le note che stanno da tutte e due le parti
@@ -25,6 +26,7 @@ import subprocess
 import sys
 import time
 import zlib
+from concurrent.futures import ThreadPoolExecutor
 # Niente .pyc nella cartella del mod: Herdr ricarica il mod a ogni file nuovo che vi compare, anche in
 # __pycache__, e la ricarica ferma per sempre le attese di Volta (cx.sleep di Sposta, #5556, 13/11/2026).
 # La variabile vale per i Python figli (lo spostamento staccato, il microfono).
@@ -32,7 +34,8 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from volta_sonda import errore_hc, hc, leggi_json, macchine, non_parte, scrivi_atomico  # noqa: E402
+from volta_sonda import FASI, leggi_json, macchine, remoto, scrivi_atomico, togli_entro, ultima_riga  # noqa: E402
+import volta_registro as registro  # noqa: E402
 
 # Il codice che gira da tutte e due le parti: qui con exec(), di là compresso dentro hc exec. Legge e
 # scrive solo la cartella delle note; MODO e il pacco arrivano dal chiamante.
@@ -115,8 +118,8 @@ def esegui(modo, arg):
     return {"errore": "modo sconosciuto: %s" % modo}
 '''
 
-ATTESA_GIRO = 50      # tutto il giro: sta sotto i 60 s che volta.js aspetta
-ATTESA_CHIAMATA = 25  # una chiamata a un'altra macchina
+ATTESA_GIRO = FASI["giro_note"]  # tutto il giro: sta sotto il tetto "note" di tetti.js
+ATTESA_CHIAMATA = FASI["chiamata_note"]  # una chiamata a un'altra macchina
 RANGO = {"aperta": 0, "presa": 1, "risolta": 2, "scartata": 2}
 CHIUSURA = ("stato", "chiusa_quando", "riassunto", "motivo")
 
@@ -178,41 +181,24 @@ def testo(d):
 
 
 class Remota:
-    """Le tre chiamate a un'altra macchina, con python3 e poi python (Windows: python3 può essere lo stub
-    dello Store). Il primo Python che parte resta per il giro."""
+    """Le tre chiamate a un'altra macchina, con remoto() di volta_sonda.py: il Python buono lo ricorda lui."""
 
     def __init__(self, nome, entro):
-        self.nome, self.entro, self.py = nome, entro, None
+        self.nome, self.entro = nome, entro
         self.compresso = base64.b64encode(zlib.compress(CODICE.encode(), 9)).decode()
 
     def chiama(self, modo, arg="", stdin=None):
-        ultimo = "nessun Python"
-        for py in ([self.py] if self.py else ["python3", "python"]):
-            t = int(min(ATTESA_CHIAMATA, self.entro - time.monotonic()))
-            if t < 2:
-                raise RuntimeError("non ha risposto in tempo")
-            codice = ("import base64,zlib,json;exec(zlib.decompress(base64.b64decode('%s')));"
-                      "print(json.dumps(esegui(%r,%r)))" % (self.compresso, modo, arg))
-            argv = hc() + ["exec", "--on", self.nome, "--timeout", str(t)] + (["-i"] if stdin is not None else []) \
-                + [py, "-c", codice]
-            try:
-                r = subprocess.run(argv, input=stdin if stdin is not None else "", capture_output=True, text=True,
-                                   encoding="utf-8", errors="replace", timeout=t + 2,
-                                   env=dict(os.environ, PYTHONIOENCODING="utf-8"))
-            except subprocess.TimeoutExpired:
-                raise RuntimeError("non ha risposto in %d s" % t) from None
-            if r.returncode == 0:
-                self.py = py
-                d = leggi_json(r.stdout)
-                if d.get("errore"):
-                    raise RuntimeError(str(d["errore"])[:200])
-                return d
-            if non_parte(r.stdout, r.stderr):
-                continue
-            righe = (r.stderr or r.stdout).strip().splitlines()
-            ultimo = errore_hc(righe[-1]) if righe else "rc %d" % r.returncode
-            break
-        raise RuntimeError(ultimo)
+        codice = ("import base64,zlib,json;exec(zlib.decompress(base64.b64decode('%s')));"
+                  "print(json.dumps(esegui(%r,%r)))" % (self.compresso, modo, arg))
+        rc, out, err, py = remoto(self.nome, codice, attesa=ATTESA_CHIAMATA, entro=self.entro, entrata=stdin)
+        if py is None:
+            raise RuntimeError("nessun Python")
+        if rc != 0:
+            raise RuntimeError(ultima_riga(out, err, rc))
+        d = leggi_json(out)
+        if d.get("errore"):
+            raise RuntimeError(str(d["errore"])[:200])
+        return d
 
 
 def giro(qui, remota):
@@ -254,22 +240,30 @@ def giro(qui, remota):
     return conto
 
 
+def una(qui, m, entro):
+    """Il giro con la macchina `m`, col suo tempo nel registro (evento "note"): {esito, ...}."""
+    if m.get("stato") not in (None, "connected"):
+        return {"esito": "salta", "perche": m.get("perche") or m.get("stato")}
+    with registro.Durata("note", fonte="note", macchina=m["nome"]) as dura:
+        try:
+            return {"esito": "ok", **giro(qui, Remota(m["nome"], entro))}
+        except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as e:
+            dura.esito, dura.errore = "errore", str(e)[:200]
+            return {"esito": "errore", "errore": str(e)[:200]}
+
+
 def sincronizza():
+    """Un giro con tutte le macchine insieme (step 6, #5583): prima una dopo l'altra, e una macchina lenta
+    teneva ferme le altre. Le scritture qui restano compare-and-swap: due giri sulla stessa nota non si
+    cancellano, il secondo salta e il giro dopo rifà l'unione."""
     entro = time.monotonic() + ATTESA_GIRO
     qui = locale()
     lista = macchine()
     if lista is None:
         return {"esito": "errore", "errore": "Herdr non risponde", "macchine": {}}
-    esiti, errori = {}, 0
-    for m in lista:
-        if m.get("stato") not in (None, "connected"):
-            esiti[m["nome"]] = {"esito": "salta", "perche": m.get("perche") or m.get("stato")}
-            continue
-        try:
-            esiti[m["nome"]] = {"esito": "ok", **giro(qui, Remota(m["nome"], entro))}
-        except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as e:
-            errori += 1
-            esiti[m["nome"]] = {"esito": "errore", "errore": str(e)[:200]}
+    with ThreadPoolExecutor(max_workers=max(1, len(lista))) as ex:
+        esiti = dict(zip([m["nome"] for m in lista], ex.map(lambda m: una(qui, m, entro), lista)))
+    errori = sum(1 for e in esiti.values() if e["esito"] == "errore")
     return {"esito": "errore" if errori else "ok", "quando": time.time(), "macchine": esiti}
 
 
@@ -286,4 +280,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main(togli_entro(sys.argv[1:])))

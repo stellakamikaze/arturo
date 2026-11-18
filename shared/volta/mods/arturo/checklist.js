@@ -10,6 +10,8 @@
 //   ripartenza  blocco sovrapposto alla sessione davanti (floating del blocco "main" in layouts/arturo.json,
 //               in basso a destra). Chiuso è una barra "Su cosa lavoro adesso? · N · Apri"; dopo /inizio si
 //               apre da solo. Lo stato aperto o chiuso resta per sessione (shared arturo.checklist.aperte).
+//               Dal 17/11 sera il layout non lo mostra più (Federico: "teniamolo solo in alto a dx"): resta
+//               la parte, per chi ha un layout suo che la nomina.
 //   checklist   lo stesso elenco come dialogo: ⌘⇧S, il pulsante della testata, la carta della Coda.
 //
 // Una riga: casella "lavoraci adesso" (casella, numero e testo sono un bersaglio solo), poi i gesti Già fatto,

@@ -21,7 +21,6 @@ import json
 import math
 import os
 import re
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -29,7 +28,10 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # come gli altri script del mod: niente __pycache__ nella cartella (#5556)
 
 TENUTA = 14
-CAMPI = {"ora": 32, "fonte": 20, "evento": 40, "macchina": 60, "sid": 12, "esito": 20, "errore": 160}
+# come e servizio dell'evento apri (step 5 del piano, 17/11/2026): com'è andato il clic e se prepara è servito
+CAMPI = {"ora": 32, "fonte": 20, "evento": 40, "macchina": 60, "sid": 12, "esito": 20, "errore": 160, "come": 20, "servizio": 20}
+# i campi in millisecondi: ms (la durata) e visibile (dal clic a Claude nella scheda, evento apri)
+DURATE = ("ms", "visibile")
 ID = re.compile(r"[^0-9A-Za-z-]")
 
 
@@ -58,9 +60,10 @@ def pulisci(d) -> dict | None:
         if k == "sid":
             v = ID.sub("", v)
         r[k] = v[:n]
-    ms = d.get("ms")
-    if isinstance(ms, (int, float)) and not isinstance(ms, bool) and ms >= 0:
-        r["ms"] = int(ms)
+    for k in DURATE:
+        ms = d.get(k)
+        if isinstance(ms, (int, float)) and not isinstance(ms, bool) and ms >= 0:
+            r[k] = int(ms)
     quando = d.get("t")  # dal JS: millisecondi dall'epoca; l'ora si scrive qui, nell'ora locale
     if isinstance(quando, (int, float)) and not isinstance(quando, bool) and quando > 0:
         r["ora"] = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(quando / 1000))
@@ -196,7 +199,7 @@ def stampa(r: dict, ore: float, qui: bool = True) -> str:
 
 def altre_macchine(ore: float) -> list:
     """[(nome, riassunto o {"errore"})] delle macchine collegate di Herdr: questo file gira là con hc exec
-    (python3, poi python), così non serve che il mod di là sia aggiornato."""
+    (remoto() di volta_sonda.py), così non serve che il mod di là sia aggiornato."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import base64  # noqa: PLC0415
     import volta_sonda as vs  # noqa: PLC0415
@@ -208,20 +211,13 @@ def altre_macchine(ore: float) -> list:
         if m.get("stato") != "connected":
             out.append((m["nome"], {"errore": m.get("perche") or "Herdr non la raggiunge"}))
             continue
-        d = {"errore": "nessun Python"}
-        for py in ("python3", "python"):
-            try:
-                rc, so, se = vs.lancia(vs.hc() + ["exec", "--on", m["nome"], "--timeout", "40", py, "-c", codice], timeout=45)
-            except (OSError, subprocess.SubprocessError) as e:
-                d = {"errore": str(e)[:160]}
-                break
-            if rc != 0 and vs.non_parte(so, se):
-                continue
-            try:
-                d = json.loads(so.strip().splitlines()[-1])
-            except (ValueError, IndexError):
-                d = {"errore": ((se or so).strip().splitlines() or ["rc %d" % rc])[-1][:160]}
-            break
+        try:
+            rc, so, se, py = vs.remoto(m["nome"], codice)
+            d = {"errore": "nessun Python"} if py is None else json.loads(so.strip().splitlines()[-1])
+        except vs.NonRisponde as e:
+            d = {"errore": str(e)[:160]}
+        except (ValueError, IndexError):
+            d = {"errore": vs.ultima_riga(so, se, rc)[:160]}
         out.append((m["nome"], d))
     return out
 

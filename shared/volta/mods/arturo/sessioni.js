@@ -690,7 +690,8 @@ export function gruppi(dati, modo = "macchina", ora = Date.now()) {
       const q = daQuanto(new Date(dati.giuDa[m.host]).toISOString(), ora);
       g.nota = `Non risponde${q ? ` ${q}` : ""}: ${g.sessioni.length === 1 ? "una sessione salvata" : `${g.sessioni.length} sessioni salvate`}, da riprendere su un'altra macchina`;
     } else if (m.irraggiungibile) g.nota = g.sessioni.length ? "Non risponde: mostro l'ultima lettura" : "Non risponde";
-    else if (m.nascita?.rotta === true) g.nota = "Non fa partire sessioni nuove";
+    else if (m.nascita?.rotta === true)
+      g.nota = m.nascita.permesso === true ? "Un permesso di macOS aspetta una risposta sullo schermo" : "Non fa partire sessioni nuove";
     if (g.sessioni.length || g.nota) out.push(g);
     per.delete(m.host);
   }
@@ -972,6 +973,9 @@ const oraCorta = (iso) => {
 export function avvisoNascita(n) {
   if (!n) return null;
   const m = n.macchina ?? "quella macchina", da = oraCorta(n.da);
+  // Documenti appeso (18/11/2026): la sonda ha visto che la cartella non si legge
+  if (n.permesso === true)
+    return `Su ${m} un permesso di macOS aspetta una risposta sullo schermo${da ? ` dalle ${da}` : ""}: Documenti non si legge e le sessioni non partono. Rispondi lì, o riavvia ${m}.`;
   const volte = Number.isInteger(n.quante) && n.quante > 0 ? `${n.quante} volte` : "più volte";
   return `Su ${m} le sessioni non partono${da ? ` dalle ${da}` : ""}: Claude esce prima di iniziare (${volte}). Spesso macOS aspetta un permesso sullo schermo di ${m}: rispondi lì, o riavvia ${m}.`;
 }
@@ -982,6 +986,27 @@ export function riparteAlClic(s, dati) {
   const n = nascitaDi(dati, s.host);
   return n ? { riparte: false, errore: avvisoNascita(n) } : { riparte: true };
 }
+// Il clic svelto (step 5 del piano di revisione, 17/11/2026): prima di ogni aggancio prepara chiedeva alla
+// macchina se il servizio di Claude era acceso, e su un'altra macchina costava un giro di hc exec (1-2 s).
+// Il servizio risulta acceso su `host` se prepara o una nascita l'hanno trovato acceso da meno di
+// SERVIZIO_VISTO_MS (`visti`: { host: ms }), o se nell'elenco una sessione in background di quella macchina,
+// letta da una macchina che risponde, lavora o aspetta: gira dentro il servizio. Allora il clic salta prepara;
+// se il servizio fosse caduto nel frattempo, la veglia trova la scheda nuda e lo riaccende.
+export const SERVIZIO_VISTO_MS = 5 * 60 * 1000;
+export function servizioAcceso(dati, host, visti = {}, ora = Date.now()) {
+  const h = host ?? "qui";
+  if (ora - (Number(visti?.[h]) || 0) < SERVIZIO_VISTO_MS) return true;
+  return (dati?.sessioni ?? []).some((s) => (s?.host ?? "qui") === h && s.tipo === "background" && !s.vecchia
+    && !s.dorme && !s.chiusa && (s.stato === "lavora" || s.stato === "aspetta"));
+}
+// Claude è davanti nella scheda (l'evento apri, step 5): `t` è la voce di terminals() di Herdr, come la dà
+// hc ls --json. Vale quando Herdr riconosce Claude Code nel programma della scheda (agent, app o program),
+// anche su Windows, dove il primo piano resta pwsh.
+export function claudeDavanti(t) {
+  if (!t || t.state !== "live") return false;
+  return t.agent === "claude-code" || t.app === "claude-code" || t.program?.key === "claude";
+}
+
 // Gli avvisi da dare: una macchina che ha appena smesso di far partire sessioni. `viste`: le macchine già
 // avvisate in questo episodio ({ host: true }); torna anche le viste nuove, senza quelle tornate a posto.
 export function nascitePerAvviso(dati, viste = {}) {
@@ -1888,3 +1913,64 @@ export function leggiProvaChecklist(hex) {
 // Il comando che apre la checklist: senza chiave quella della sessione davanti, con la chiave (dalla Coda)
 // quella della sessione macchina:id.
 export const comandoChecklist = (k = null) => (k ? `arturo.checklist-${k}` : "arturo.checklist");
+
+// I tetti di tempo di Volta, in secondi: una tabella sola per il mod JS e per gli script Python (#5581,
+// 17/11/2026). Sta qui perché sessioni.js lo caricano tutti, banchi compresi. volta_sonda.py legge
+// l'oggetto TETTI di questo file come JSON: fra le due graffe di TETTI
+// solo JSON, chiavi fra virgolette e niente commenti.
+//
+// `comandi`: quanto Volta aspetta un comando Python (exec di Herdr). Allo scadere Herdr uccide solo il
+// figlio diretto (src/mods.rs): hc, ssh e claude lanciati da Python restavano orfani e si accumulavano.
+// Per questo Volta passa a ogni comando `--entro`, il tetto meno `margine`: Python si ferma prima e
+// chiude da sé i suoi figli.
+// `fasi`: i tetti dentro Python. Le somme stanno sotto i comandi (il banco HZ42 tiene i conti):
+// nasci aspetta macchine + servizio + nascita, Riavvia servizio + azione, gli altri gesti azione.
+// `dorme` e `riprova`: una macchina che non ha risposto all'ultima lettura si legge col tetto corto
+// `dorme` (il giro non aspetta 40 s un Mac che dorme), e col tetto pieno solo ogni `riprova` secondi.
+export const TETTI = {
+  "margine": 5,
+  "fasi": {
+    "macchine": 15,
+    "servizio": 120,
+    "nascita": 180,
+    "azione": 60,
+    "lettura": 45,
+    "margine_lettura": 3,
+    "chiamata_note": 25,
+    "giro_note": 50,
+    "giro_davanti": 40,
+    "remoto": 40,
+    "pacco": 300,
+    "dorme": 2,
+    "riprova": 600
+  },
+  "comandi": {
+    "volta": 60,
+    "note": 60,
+    "davanti": 60,
+    "prova": 60,
+    "capo": 60,
+    "apri": 150,
+    "apri_riavvia": 210,
+    "azione": 90,
+    "respawn": 210,
+    "cambia": 90,
+    "ripresa": 90,
+    "nasci": 360,
+    "sposta": 60,
+    "congeda": 400,
+    "rispondi": 400,
+    "inizia": 400
+  }
+};
+
+// Il tetto di un comando in millisecondi, per exec.
+export function tettoDi(nome) {
+  return TETTI.comandi[nome] * 1000;
+}
+
+// Gli argomenti `--entro` per lo script: il tetto del comando meno il margine, in secondi. Vanno subito
+// dopo il percorso dello script, prima del sottocomando.
+export function entroDi(nome) {
+  return ["--entro", String(TETTI.comandi[nome] - TETTI.margine)];
+}

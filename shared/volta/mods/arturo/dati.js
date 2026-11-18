@@ -3,6 +3,7 @@
 
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale } from "./sessioni.js";
+import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -358,7 +359,7 @@ export function statoSpazio(s) {
 }
 
 // Le sessioni di tutte le macchine come le elenca Volta (sessioni.json in cacheVolta(), scritto da
-// volta_sonda.py ogni 30 s), chiuse comprese: la ricerca di ⌘K (apri.js) le legge da qui, perché la
+// volta_sonda.py ogni 10 s), chiuse comprese: la ricerca di ⌘K (apri.js) le legge da qui, perché la
 // finestra è un'altra copia del mod e non vede l'elenco della barra. Senza file: [].
 export async function sessioniVolta() {
   return (await elencoVolta()).sessioni;
@@ -721,7 +722,7 @@ export function schedeAgganciate(sessioni) {
 export async function congedaSessione(c) {
   const cfg = await config();
   try {
-    const r = await exec(cfg.arturo[0], [cfg.volta, "congeda", c.host ?? "qui", c.id, c.sessionId, ...(c.cartella ? ["--cartella", c.cartella] : []), ...(c.auto ? ["--auto"] : [])], { timeout: 400000 });
+    const r = await exec(cfg.arturo[0], [cfg.volta, ...entroDi("congeda"), "congeda", c.host ?? "qui", c.id, c.sessionId, ...(c.cartella ? ["--cartella", c.cartella] : []), ...(c.auto ? ["--auto"] : [])], { timeout: tettoDi("congeda") });
     return esito(r);
   } catch (e) {
     return { errore: `${c.macchina ?? nomeMacchina(c.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
@@ -824,11 +825,21 @@ export async function pausa(ms) {
 export async function prepara(s, riavvia = false) {
   const c = await config();
   try {
-    const r = await exec(c.arturo[0], [c.volta, "apri", s.host ?? "qui", s.id, ...(riavvia ? ["--riavvia"] : [])], { timeout: riavvia ? 210000 : 150000 });
-    return esito(r);
+    const r = await exec(c.arturo[0], [c.volta, ...entroDi(riavvia ? "apri_riavvia" : "apri"), "apri", s.host ?? "qui", s.id, ...(riavvia ? ["--riavvia"] : [])], { timeout: tettoDi(riavvia ? "apri_riavvia" : "apri") });
+    const e = esito(r);
+    if (!e.errore) servizioVisto(s.host);
+    return e;
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
   }
+}
+
+// Il servizio di Claude trovato acceso su `host` adesso (prepara, una nascita): per SERVIZIO_VISTO_MS il clic
+// su una sessione di quella macchina salta prepara (servizioAcceso di sessioni.js). In shared, così vale per
+// tutte le copie del mod della finestra e resta dopo una ricarica.
+export function servizioVisto(host, ora = Date.now()) {
+  const v = shared("arturo.volta.servizio") ?? {};
+  setShared("arturo.volta.servizio", { ...v, [host ?? "qui"]: ora });
 }
 
 // La scheda nuova che aggancia una sessione: nello spazio del progetto (lo stesso della barra) o nello
@@ -869,6 +880,11 @@ const argvPer = (indirizzo, argv) => (macchinaIndirizzo(indirizzo) ? attachLocal
 
 // Quanto si aspetta prima di guardare se claude attach è rimasto in piedi nella scheda (veglia).
 const VEGLIA = 6000;
+// La ricerca della scheda appena chiesta a Herdr (step 5, 17/11/2026): ogni CERCA_OGNI ms, fino a CERCA_ENTRO.
+// Con 400 ms il clic aspettava in media 200 ms di troppo; il tetto resta quello di prima (20 giri da 400).
+const CERCA_OGNI = 120, CERCA_ENTRO = 8000;
+// Quanto la veglia guarda la scheda per dire quando Claude è davanti (l'evento apri): ogni VISIBILE_OGNI ms.
+const VISIBILE_OGNI = 250;
 
 // Apre una sessione in una scheda con Claude dentro (#5290). La usano il clic di Volta, la sessione
 // spostata da un Terminale e quella appena nata (`pronta`: il servizio è già acceso, niente prepara).
@@ -886,14 +902,18 @@ export async function apriSessione(s, argv, pronta = false) {
   if (scheda) {
     await etichetta(scheda, s);
     mostra(scheda.address);
-    return { come: "davanti" };
+    return { come: "davanti", indirizzo: scheda.address };
   }
   if (schede.length) { scheda = schede[0]; rilancia = true; }
   let riavviata = false;
+  const elenco = await elencoVolta();
   // in errore su una macchina che non fa partire sessioni: niente respawn, cadrebbe ancora (13/11/2026)
-  const rc = s.stato === "errore" ? riparteAlClic(s, await elencoVolta()) : { riparte: false };
+  const rc = s.stato === "errore" ? riparteAlClic(s, elenco) : { riparte: false };
   if (rc.errore) return { errore: rc.errore };
-  if (!pronta) {
+  // il servizio già acceso su quella macchina (servizioAcceso di sessioni.js): niente prepara, che su un'altra
+  // macchina costava un giro di hc exec prima della scheda (step 5). Una sessione in errore riparte sempre da lì.
+  const servizio = pronta ? "pronta" : s.stato !== "errore" && servizioAcceso(elenco, s.host, shared("arturo.volta.servizio") ?? {}) ? "acceso" : "chiesto";
+  if (servizio === "chiesto") {
     const a = await prepara(s, s.stato === "errore");
     if (a.errore) return { errore: `Non la apro: ${a.errore}.` };
     // conta il riavvio chiesto, non la risposta: la veglia non deve mai riavviare due volte
@@ -908,13 +928,38 @@ export async function apriSessione(s, argv, pronta = false) {
     aggancia(s, argv);
     // run() non dice quale terminale ha creato: lo si cerca per argv appena Herdr lo elenca. Una scheda
     // nel core di un'altra macchina compare quando quella macchina risponde: l'attesa è più lunga.
-    for (let i = 0; i < 20 && !scheda; i++) { scheda = schedeDi(s)[0] ?? null; if (!scheda) await pausa(400); }
+    // a giri contati, non a orologio: una pausa che torna subito (l'orologio caduto, il banco) non gira a vuoto
+    for (let i = 0; i <= CERCA_ENTRO / CERCA_OGNI && !scheda; i++) {
+      scheda = schedeDi(s)[0] ?? null;
+      if (!scheda) await pausa(CERCA_OGNI);
+    }
     // run() non dice gli errori di Herdr: senza scheda dopo l'attesa il clic lo dice, non finisce in silenzio (#5669)
     if (!scheda) return { errore: "Herdr non ha aperto la scheda: riprova fra poco." };
     await etichetta(scheda, s);
   }
   const a = argvPer(scheda.address, argv);
-  return { come: rilancia ? "rilanciata" : "nuova", riavviata, veglia: scheda ? veglia(s, a, scheda.address, riavviata) : Promise.resolve({}) };
+  return { come: rilancia ? "rilanciata" : "nuova", servizio, riavviata, indirizzo: scheda.address, veglia: veglia(s, a, scheda.address, riavviata) };
+}
+
+// Aspetta `ms` guardando la scheda ogni VISIBILE_OGNI ms finché Claude non compare davanti (claudeDavanti di
+// sessioni.js): torna l'istante in cui l'ha visto, o null. Legge terminals() di Herdr, in memoria: niente
+// processi. Il giudizio su una scheda nuda resta a veglia, dopo tutta l'attesa: all'avvio la shell cambia
+// argv (sh -c, poi zsh -lic) e una lettura presto la darebbe nuda con claude attach in arrivo.
+async function aspettaClaude(indirizzo, ms) {
+  // a giri contati, come la ricerca della scheda: con una pausa che torna subito il ciclo finisce lo stesso
+  const giri = Math.ceil(ms / VISIBILE_OGNI);
+  for (let i = 0; i < giri; i++) {
+    let t = null;
+    try { t = terminals().find((x) => x.address === indirizzo) ?? null; } catch { t = null; }
+    if (claudeDavanti(t)) {
+      const visto = Date.now();
+      // il resto dell'attesa in una pausa sola: la veglia guarda dopo `ms`, come prima
+      if (giri - i > 0) await pausa((giri - i) * VISIBILE_OGNI);
+      return visto;
+    }
+    await pausa(VISIBILE_OGNI);
+  }
+  return null;
 }
 
 // Il rilancio dell'aggancio nella shell rimasta in una scheda (#5637): prima pulisce la riga (un mouse
@@ -943,8 +988,9 @@ async function perche(s, indirizzo, argv) {
 // La veglia non riavvia la sessione (#5636): da un elenco vecchio riavviava anche una sessione che
 // lavorava. Rilancia solo l'aggancio, una volta, col servizio acceso; Riavvia resta un gesto del menu.
 async function veglia(s, argv, indirizzo, riavviata) {
-  await pausa(VEGLIA);
-  if (!(await nuda(indirizzo))) return {};
+  // `visto`: quando Claude è comparso nella scheda, per l'evento apri (step 5)
+  const visto = await aspettaClaude(indirizzo, VEGLIA);
+  if (!(await nuda(indirizzo))) return visto ? { visto } : {};
   const fallita = (m) => ({ errore: m?.testo ?? "Claude non resta aperto in questa sessione: riprova, oppure eliminala da Altro." });
   const m = await perche(s, indirizzo, argv);
   if (riavviata || m?.fermo) return fallita(m);
@@ -988,21 +1034,23 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
   setShared("arturo.nascita", { macchina, da });
   try {
     const c = await config();
-    const args = [c.volta, copia ? copia.verbo : "nasci", macchina, ...(copia?.verbo === "fork" ? [copia.sessionId] : []),
+    const args = [c.volta, ...entroDi("nasci"), copia ? copia.verbo : "nasci", macchina, ...(copia?.verbo === "fork" ? [copia.sessionId] : []),
       ...(progetto ? ["--progetto", progetto] : []), ...(copia?.cartella ? ["--cartella", copia.cartella] : []),
       ...(copia?.titolo ? ["--titolo", copia.titolo] : []), ...(prompt ? ["--", prompt] : [])];
     let nata = {};
     const t0 = Date.now();
     try {
-      // 6 minuti: le attese di volta_sonda.py (macchine 15 s, servizio 120 s, nascita 180 s) più un margine,
-      // così Volta non dice "non risponde" mentre la sessione sta ancora nascendo (#5214)
-      nata = esito(await exec(c.arturo[0], args, { timeout: 360000 }));
+      // TETTI.comandi.nasci (sessioni.js): le attese di volta_sonda.py (macchine, servizio, nascita) più un
+      // margine, così Volta non dice "non risponde" mentre la sessione sta ancora nascendo (#5214)
+      nata = esito(await exec(c.arturo[0], args, { timeout: tettoDi("nasci") }));
     } catch (e) {
       registra("nascita", { macchina, ms: Date.now() - t0, esito: "eccezione", errore: String(e?.message ?? e) });
       nata = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
     }
     registra("nascita", { macchina, sid: nata.id, ms: Date.now() - t0, esito: nata.errore ? "errore" : "ok", errore: nata.errore });
     if (nata.attach?.length) {
+      // la nascita accende il servizio di Claude su quella macchina: il clic dopo salta prepara (step 5)
+      servizioVisto(macchina);
       const nome = nomeScheda ?? progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
       // La scheda parte dalla home anche qui: claude attach non ha bisogno della cartella della sessione.
       const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);
@@ -1051,12 +1099,12 @@ export async function spostaSessione(s, macchina, dormi = null) {
   const c = await config();
   const file = `${cacheVolta()}/sposta/${nomeSposta(s)}.json`;
   const traccia = (passo, dati) => tracciaSposta(s, passo, dati);
-  const argv = [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId, "--cartella", s.cartella || ""];
+  const argv = [c.volta, ...entroDi("sposta"), "sposta", s.host ?? "qui", macchina, s.id, s.sessionId, "--cartella", s.cartella || ""];
   // Prima di chiudere le schede, la macchina della sessione dice se ha appena cominciato un turno (#5635):
   // lo spostamento aspetta il turno finito, e la scheda resta aperta. Una macchina che non risponde non
   // ferma niente: volta_sposta.py lo ricontrolla prima di claude stop.
   let prima = null;
-  try { prima = esito(await exec(c.arturo[0], [...argv, "--controlla"], { timeout: 60000 })); } catch { prima = null; }
+  try { prima = esito(await exec(c.arturo[0], [...argv, "--controlla"], { timeout: tettoDi("sposta") })); } catch { prima = null; }
   if (prima?.lavora) {
     await traccia("lavora", { da: s.host ?? "qui", a: macchina, id: s.id });
     return { errore: prima.errore || "sta lavorando: la sposto a turno finito", lavora: true };
@@ -1073,7 +1121,7 @@ export async function spostaSessione(s, macchina, dormi = null) {
   let r;
   try {
     r = esito(await exec(c.arturo[0], [...argv, ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
-      "--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: 60000 }));
+      "--titolo", titolo(s).slice(0, 60), "--esito", file], { timeout: tettoDi("sposta") }));
   } catch (e) {
     // exec è caduto dopo aver forse lanciato lo spostamento: non si sa dove sia la sessione (nonSiSa)
     return fineSposta(s, macchina, { errore: `non riesco a far partire lo spostamento su ${nomeMacchina(macchina)} (${String(e?.message ?? e).slice(0, 80)})`, nonSiSa: true }, chiuse);
@@ -1239,8 +1287,8 @@ export function chiudiAltrui(s) {
 export async function cambiaSessione(s, cosa, valore, opzioni = []) {
   const c = await config();
   try {
-    const r = await exec(c.arturo[0], [c.volta, cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,
-      ...(valore ? ["--", valore] : [])], { timeout: 90000 });
+    const r = await exec(c.arturo[0], [c.volta, ...entroDi("cambia"), cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,
+      ...(valore ? ["--", valore] : [])], { timeout: tettoDi("cambia") });
     return esito(r);
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
@@ -1336,8 +1384,8 @@ export async function rispondiSessione(s, testo, canale) {
   if (canale !== "background") return { errore: `canale ${canale}: la risposta non parte da qui` };
   const cfg = await config();
   try {
-    const r = await exec(cfg.arturo[0], [cfg.volta, "rispondi", s.host ?? "qui", s.id, s.sessionId,
-      ...(s.cartella ? ["--cartella", s.cartella] : []), "--", testo], { timeout: 400000 });
+    const r = await exec(cfg.arturo[0], [cfg.volta, ...entroDi("rispondi"), "rispondi", s.host ?? "qui", s.id, s.sessionId,
+      ...(s.cartella ? ["--cartella", s.cartella] : []), "--", testo], { timeout: tettoDi("rispondi") });
     return esito(r);
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
@@ -1355,8 +1403,8 @@ export async function riprendiDaSola(s, testo) {
   const cfg = await config();
   let r;
   try {
-    r = esito(await exec(cfg.arturo[0], [cfg.volta, "ripresa", s.host ?? "qui", s.sessionId, "--errore", s.errore.quando,
-      "--tipo", s.errore.tipo, ...(s.riuscita ? ["--riuscita", s.riuscita] : [])], { timeout: 90000 }));
+    r = esito(await exec(cfg.arturo[0], [cfg.volta, ...entroDi("ripresa"), "ripresa", s.host ?? "qui", s.sessionId, "--errore", s.errore.quando,
+      "--tipo", s.errore.tipo, ...(s.riuscita ? ["--riuscita", s.riuscita] : [])], { timeout: tettoDi("ripresa") }));
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
   }
@@ -1426,7 +1474,7 @@ const iniziati = new Map(); // sessionId → { slug, quando, come }
 export async function iniziaSessione(s, slug) {
   const cfg = await config();
   try {
-    const r = await exec(cfg.arturo[0], [cfg.volta, "inizia", s.host ?? "qui", s.id, s.sessionId, slug, ...(s.cartella ? ["--cartella", s.cartella] : [])], { timeout: 400000 });
+    const r = await exec(cfg.arturo[0], [cfg.volta, ...entroDi("inizia"), "inizia", s.host ?? "qui", s.id, s.sessionId, slug, ...(s.cartella ? ["--cartella", s.cartella] : [])], { timeout: tettoDi("inizia") });
     return esito(r);
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
@@ -1503,7 +1551,7 @@ export async function cartelle() {
 export async function azioneSessione(s, verbo, { congedo = false } = {}) {
   const c = await config();
   try {
-    const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id, ...(congedo ? ["--congedo"] : [])], { timeout: verbo === "respawn" ? 210000 : 90000 });
+    const r = await exec(c.arturo[0], [c.volta, ...entroDi(verbo === "respawn" ? "respawn" : "azione"), "azione", s.host, verbo, s.id, ...(congedo ? ["--congedo"] : [])], { timeout: tettoDi(verbo === "respawn" ? "respawn" : "azione") });
     return esito(r);
   } catch (e) {
     return { errore: `${s.macchina} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
@@ -1523,7 +1571,7 @@ export async function contestoProgetto(progetto) {
 export async function prendiCarteUf() {
   try {
     const c = await config();
-    const r = await exec(c.arturo[0], [`${appHome()}/mods/arturo/volta_capo.py`, "prendi", c.capo], { timeout: 60000 });
+    const r = await exec(c.arturo[0], [`${appHome()}/mods/arturo/volta_capo.py`, ...entroDi("capo"), "prendi", c.capo], { timeout: tettoDi("capo") });
     const d = JSON.parse(String(r.stdout ?? "").trim().split("\n").pop() || "null");
     return d && Array.isArray(d.carte) ? d : null;
   } catch {

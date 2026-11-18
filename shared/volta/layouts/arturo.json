@@ -152,17 +152,6 @@
                       },
                       "edge": "top",
                       "align": "center"
-                    },
-                    {
-                      "id": "ripartenza",
-                      "content": {
-                        "mod": "arturo",
-                        "props": {
-                          "parte": "ripartenza"
-                        }
-                      },
-                      "edge": "bottom",
-                      "align": "end"
                     }
                   ]
                 },

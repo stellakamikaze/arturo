@@ -1,5 +1,5 @@
 // Volta nella barra: tutte le sessioni di Claude di tutte le macchine, per macchina o per
-// progetto. L'elenco lo scrive volta_sonda.py (accanto a questo file) in ~/.cache/volta/sessioni.json ogni 30 s
+// progetto. L'elenco lo scrive volta_sonda.py (accanto a questo file) in ~/.cache/volta/sessioni.json ogni 10 s
 // (una finestra di prova nella sua cartella di Herdr: cacheVolta() di dati.js, #5449),
 // con le macchine aggiunte a Herdr (#5172); un
 // clic aggancia la sessione in una scheda (claude attach, via ssh se è su un'altra macchina), o la
@@ -48,8 +48,19 @@ import { leggiRecenti, riprendiDaSola } from "./dati.js";
 import { daRiprendere, testoRipresa } from "./sessioni.js";
 import { gestoUf } from "./azioni.js";
 import { terminale } from "./casa.js";
+import { tettoDi, entroDi } from "./sessioni.js";
 
-const OGNI = 30000;
+// Il giro dell'elenco (step 5 del piano di revisione, 17/11/2026): ogni 10 s, e subito dopo un gesto (aggiorna
+// chiesto durante un giro ne fa partire un altro alla fine). Con 30 s un cambio arrivava fino a 30 s dopo.
+const OGNI = 10000;
+// La scrittura del registro resta ogni 30 s: col giro a 10 s sarebbero tre volte tanti processi. Le note
+// ogni 2 minuti (step 6, #5583): volta_note.py va su tutte le macchine insieme, e una nota nuova non ha fretta.
+const NOTE_MS = 120000, REGISTRO_MS = 30000;
+// L'ora di adesso come la scrive la sonda in `letto` (ora locale, "AAAA-MM-GGTHH:MM:SS").
+const oraQui = (d = new Date()) => {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+};
 // Ogni quanto il mod chiede a volta_mod.py se nel repository c'è un mod nuovo (anche all'apertura).
 const OGNI_MOD = 3600000;
 // Ogni quanto si guarda se la scheda in primo piano aggancia una sessione di un'altra macchina (microfono.js).
@@ -199,7 +210,8 @@ export class Volta {
         for (;;) { if (tocca(await watchFolder(this.cartella), this.cartella, this.file)) { await this.leggiSenzaFermarsi(cx); cx.notify(); } }
       } catch { /* senza cartella resta il timer */ }
     });
-    cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
+    // il timer non mette in coda: con un giro più lungo di OGNI i giri andrebbero di fila
+    cx.timer.every(OGNI, (cx) => this.aggiorna(cx, false));
     cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
     cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));
     cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));
@@ -610,7 +622,7 @@ export class Volta {
         if (s) voci.push({ indirizzo, s, spazio: dove ? { nome: dove.name, libero: libero(dove.name) } : null });
       }
       this.allineati = this.allineati ?? new Set();
-      const r = daAllineare(voci, { prima: this.visteProgetti, letto: this.dati.letto, davanti: focused()?.terminal ?? null, fatti: this.allineati });
+      const r = daAllineare(voci, { prima: this.visteProgetti, letto: this.giroBuono ?? this.dati.letto, davanti: focused()?.terminal ?? null, fatti: this.allineati });
       this.visteProgetti = r.visti;
       for (const { indirizzo, s, progetto } of r.sposta) {
         this.allineati.add(`${chiave(s)}|${progettoDi(progetto).chiave}`);
@@ -793,16 +805,24 @@ export class Volta {
   }
 
   // Un giro di volta_sonda.py volta, mai due insieme: con una macchina lenta un giro dura qualche secondo.
-  aggiorna(cx) {
-    if (!this.script || this.inCorso) return;
+  aggiorna(cx, gesto = true) {
+    if (!this.script) return;
+    // un gesto durante un giro (apri, Riavvia, Sposta): il giro dopo parte appena questo finisce, non fra 10 s
+    if (this.inCorso) { if (gesto) this.ancora = true; return; }
     this.inCorso = true;
+    this.ancora = false;
     cx.spawn(async (cx) => {
       // inCorso torna falso in ogni caso: un errore nella lettura dell'elenco fermava il giro per sempre (#5550)
       const t0 = Date.now();
       try {
         try {
-          const r = await exec(this.py, [this.script, "volta", "--scrivi", this.file], { timeout: 60000 });
+          // un giro chiesto da un gesto vuole le altre macchine lette adesso; quello del timer accetta la loro
+          // lettura di pochi secondi fa (step 6, #5583): con tre Volta aperte ogni macchina si legge una volta
+          const r = await exec(this.py, [this.script, ...entroDi("volta"), "volta", ...(gesto ? ["--fresca"] : []), "--scrivi", this.file], { timeout: tettoDi("volta") });
           this.errore = r.code === 0 ? null : (r.stderr || r.stdout || "").trim().split("\n").pop();
+          // l'ora dell'ultimo giro riuscito: la sonda riscrive sessioni.json solo se cambia qualcosa (step 5),
+          // quindi `letto` del file può essere più vecchio del giro
+          if (r.code === 0) this.giroBuono = oraQui();
         } catch (e) {
           this.errore = String(e?.message ?? e);
         }
@@ -812,13 +832,14 @@ export class Volta {
       }
       // il giro visto dalla finestra (#5549): la sonda registra il suo, qui anche l'attesa di exec
       registra("giro", { ms: Date.now() - t0, esito: this.errore ? "errore" : "ok", errore: this.errore });
-      svuotaRegistro(this.py);
+      if (Date.now() - (this.registroUltimo ?? 0) >= REGISTRO_MS) { this.registroUltimo = Date.now(); svuotaRegistro(this.py); }
       this.passiCongedo(cx);
       this.giraCoda(cx);
       this.riprendiFerme(cx);
       cx.notify();
       this.sincronizzaNote(cx);
       this.giraDavanti(cx);
+      if (this.ancora) this.aggiorna(cx);
     });
   }
 
@@ -827,11 +848,12 @@ export class Volta {
   // che questa finestra guarda: scriverci farebbe rileggere l'elenco a ogni giro. testata.js vede le note
   // nuove da solo, perché guarda la cartella delle note.
   sincronizzaNote(cx) {
-    if (!this.noteScript || this.noteInCorso) return;
+    if (!this.noteScript || this.noteInCorso || Date.now() - (this.noteUltimo ?? 0) < NOTE_MS) return;
     this.noteInCorso = true;
+    this.noteUltimo = Date.now();
     cx.spawn(async () => {
       try {
-        await exec(this.py, [this.noteScript, "sincronizza", "--scrivi", `${cacheVolta("volta-note")}/stato.json`], { timeout: 60000 });
+        await exec(this.py, [this.noteScript, ...entroDi("note"), "sincronizza", "--scrivi", `${cacheVolta("volta-note")}/stato.json`], { timeout: tettoDi("note") });
       } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
       this.noteInCorso = false;
     });
@@ -846,7 +868,7 @@ export class Volta {
     this.davantiUltimo = Date.now();
     cx.spawn(async () => {
       try {
-        await exec(this.py, [this.davantiScript, "giro", "--scrivi", `${cacheVolta("volta-davanti")}/stato.json`], { timeout: 60000 });
+        await exec(this.py, [this.davantiScript, ...entroDi("davanti"), "giro", "--scrivi", `${cacheVolta("volta-davanti")}/stato.json`], { timeout: tettoDi("davanti") });
       } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
       this.davantiInCorso = false;
     });
@@ -874,7 +896,9 @@ export class Volta {
   // Il clic su una sessione: aggancia, sposta e poi aggancia, oppure dice perché no.
   premi(s, cx) {
     // un secondo clic mentre il primo lavora non lancia un secondo aggancio nella stessa scheda
-    if (this.sposto[chiave(s)] || this.apro[chiave(s)] || this.veglio[chiave(s)]) return;
+    if (this.sposto[chiave(s)] || this.apro[chiave(s)]) return;
+    // Durante la veglia la scheda c'è già: il clic la porta davanti (prima si perdeva in silenzio per 6 s)
+    if (this.veglio[chiave(s)]) { if (typeof this.veglio[chiave(s)] === "string") mostra(this.veglio[chiave(s)]); return; }
     // Durante uno Sposta l'aggancio riaccenderebbe la copia di partenza dopo claude stop: la stessa
     // conversazione resterebbe viva su due macchine (#5635). La scheda d'arrivo la apre la fine di Sposta.
     if (this.faccio[chiave(s)] === "sposta") return this.avvisa(s, `La sposto su ${nomeMacchina(this.spostoSu?.[chiave(s)] ?? "qui")}…`, cx);
@@ -927,14 +951,19 @@ export class Volta {
       let r;
       const t0 = Date.now();
       try { r = await apriSessione(s, argv, pronta); } catch (e) { r = { errore: `Non la apro: ${String(e?.message ?? e).slice(0, 120)}.` }; }
-      registra("apri", { macchina: s.host, sid: s.id, ms: Date.now() - t0, esito: r.errore ? "errore" : "ok", errore: r.errore });
+      // l'evento apri (step 5): `ms` dal clic alla scheda davanti, `visibile` dal clic a Claude nella scheda
+      // (letto dalla veglia; subito se la scheda c'era già), `servizio` se prepara è servito
+      const apri = { macchina: s.host, sid: s.id, ms: Date.now() - t0, come: r.come, servizio: r.servizio, esito: r.errore ? "errore" : "ok", errore: r.errore };
+      if (!r.veglia) registra("apri", { ...apri, visibile: r.come === "davanti" ? apri.ms : null });
       delete this.apro[k];
       if (r.errore) this.nonApre(s, r.errore, cx);
-      if (r.riavviata) this.aggiorna(cx);
-      if (r.veglia) this.veglio[k] = true;
+      // un'apertura cambia lo stato della sessione (dorme, ferma): l'elenco si rilegge subito
+      if (!r.errore) this.aggiorna(cx);
+      if (r.veglia) this.veglio[k] = r.indirizzo || true;
       cx.notify();
       let v = null;
       try { v = r.veglia ? await r.veglia : null; } catch { /* senza veglia la scheda resta com'è */ }
+      if (r.veglia) registra("apri", { ...apri, visibile: v?.visto ? v.visto - t0 : null });
       if (v?.errore) registra("scheda vuota", { macchina: s.host, sid: s.id, ms: Date.now() - t0, esito: "errore", errore: v.errore });
       delete this.veglio[k];
       if (v?.errore) this.nonApre(s, v.errore, cx);
@@ -1707,7 +1736,8 @@ export class Volta {
       .on_mouse_up("left", (_e, cx) => { if (this.trascino) this.finisciTrascino(null, modo, cx); })
       .on_hover((h, cx) => { if (!h && this.trascino) this.finisciTrascino(null, modo, cx); })
       .children(lista.map((g) => this.gruppo(t, g, modo, cx, aperto)));
-    const vecchio = this.dati && guasto && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
+    const ultima = this.giroBuono ?? this.dati?.letto;
+    const vecchio = this.dati && guasto && ultima ? `Non riesco ad aggiornare: lettura delle ${String(ultima).slice(11, 16)}.` : null;
     const gesti = this.pannello(t);
     return v_flex().id("volta").flex_1().min_h(0).gap(6)
       .child(this.interruttore(t))

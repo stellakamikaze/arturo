@@ -69,9 +69,12 @@ export class Testata {
           .when(Boolean(sintesi), (e) => e.child(div().id("testata-sintesi").flex_none().text_size(TESTO.etichetta).text_color(t.foreground).child(sintesi)))
           .child(div().id("testata-dove").min_w(0).truncate().text_size(TESTO.etichetta).text_color(t.dim)
             .child(rigaDove(Boolean(sintesi), macchina ? macchinaBreve(macchina) : null, f ? f.testo : null))))))
-      // La checklist della ripartenza (checklist.js, 17/11/2026): c'è finché la scelta non è partita.
-      .when(Boolean(davanti?.checklist), (el) => el.child(div().flex_none().pr(SPAZIO.s)
-        .child(pulsante("checklist", "circle-check", `Su cosa lavorare · ${davanti.checklist}`, () => run("arturo.checklist"), true, "piccolo"))))
+      // La checklist (checklist.js, 17/11/2026): per ogni sessione con un progetto, perché il blocco in basso a
+      // destra non c'è più (Federico, 17/11 sera: "teniamolo solo in alto a dx"). Col numero e acceso finché una
+      // ripartenza di /inizio aspetta la scelta; senza, apre i task del progetto della sessione.
+      .when(Boolean(davanti?.checklist) || Boolean(davanti?.progetto), (el) => el.child(div().flex_none().pr(SPAZIO.s)
+        .child(pulsante("checklist", "circle-check", davanti.checklist ? `Su cosa lavorare · ${davanti.checklist}` : "Su cosa lavorare",
+          () => run("arturo.checklist"), Boolean(davanti.checklist), "piccolo"))))
       // "Sposta su un'altra macchina" (sposta.js): per la sessione in background della scheda in primo
       // piano, quando Volta conosce un'altra macchina. Durante lo spostamento resta acceso e non riapre.
       .when(Boolean(davanti) && davanti.tipo === "background" && vociMacchina().length > 1, (el) => el.child(davanti.sposto

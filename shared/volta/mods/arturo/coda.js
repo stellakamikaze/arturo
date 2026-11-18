@@ -17,6 +17,7 @@ import { config, apriFile, nomeMacchina } from "./dati.js";
 import { tastoCoda, passoCoda, cartaDavanti, raccomandata, tipoProva, copiaProva, comandoRisposta, daQuanto, nomeProgetto, testoPiano, etichettaOpzione, CODA_OPZIONI } from "./sessioni.js";
 import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE } from "./sessioni.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
+import { tettoDi, entroDi } from "./sessioni.js";
 
 // Altezza massima di uno screenshot nella carta: il resto della carta deve restare in vista.
 const PROVA_H = 300;
@@ -117,7 +118,7 @@ export class Coda {
       cx.spawn(async (cx) => {
         let esito;
         try {
-          const r = await exec(this.py, [this.script, "prova", c.host ?? "qui", String(p), `${appHome()}/${dest}`], { timeout: 60000 });
+          const r = await exec(this.py, [this.script, ...entroDi("prova"), "prova", c.host ?? "qui", String(p), `${appHome()}/${dest}`], { timeout: tettoDi("prova") });
           const d = JSON.parse(String(r.stdout ?? "").trim().split("\n").pop() || "{}");
           esito = d.ok ? "ok" : d.errore || "la copia non è riuscita";
         } catch (e) {

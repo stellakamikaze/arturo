@@ -16,13 +16,12 @@ Stampa una riga JSON: {"ok": true, "byte": N} oppure {"errore": "..."}. Una copi
 la misura delle raccomandazioni accettate (step 6). Il file sta in ~/.cache/volta-carte/ per la finestra
 vera, in <HERDR_APP_HOME>/cache/volta-carte/ per una finestra di prova, in VOLTA_CARTE_REGISTRO per i
 banchi. Una riga tiene solo i campi di CAMPI_RISPOSTA, tagliati, più `quando`. Stampa {"ok": true}.
-Le altre macchine passano da herdr-core (hc exec --on, come volta_note.py), con python3 e poi python.
+Le altre macchine passano da herdr-core con remoto() di volta_sonda.py, come volta_note.py.
 Tetto MAX_BYTE: una prova più grande resta dov'è, e la carta mostra il percorso.
 """
 import base64
 import json
 import os
-import subprocess
 import sys
 import time
 from datetime import datetime
@@ -31,10 +30,10 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from volta_sonda import errore_hc, hc, non_parte  # noqa: E402
+from volta_sonda import FASI, NonRisponde, remoto, togli_entro, ultima_riga  # noqa: E402
 
 MAX_BYTE = 8 * 1024 * 1024
-ATTESA = 40
+ATTESA = FASI["remoto"]
 ESTENSIONI = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov")
 # Il codice che gira sull'altra macchina: legge il file in base64, entro il tetto.
 LEGGI = ("import base64,json,os,sys;p=sys.argv[1];n=os.path.getsize(p) if os.path.isfile(p) else -1;"
@@ -62,34 +61,27 @@ def da_qui(percorso):
 
 
 def da_la(macchina, percorso):
-    ultimo = "nessun Python"
-    for py in ("python3", "python"):
-        argv = hc() + ["exec", "--on", macchina, "--timeout", str(ATTESA), py, "-c", LEGGI, percorso]
-        try:
-            r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               timeout=ATTESA + 5, stdin=subprocess.DEVNULL)
-        except (OSError, subprocess.TimeoutExpired):
-            return None, "%s non ha risposto in tempo" % macchina
-        if non_parte(r.stdout, r.stderr):
-            ultimo = "%s non ha %s" % (macchina, py)
-            continue
-        riga = (r.stdout.strip().splitlines() or [""])[-1]
-        try:
-            d = json.loads(riga)
-        except ValueError:
-            d = None
-        # hc scrive i suoi errori come {"error": {...}} sulla stessa uscita: non è una prova vuota
-        if not isinstance(d, dict) or not ({"manca", "grande", "b64"} & set(d)):
-            return None, errore_hc(riga or r.stderr) or "%s non risponde" % macchina
-        if d.get("manca"):
-            return None, "la prova non c'è più su %s" % macchina
-        if d.get("grande"):
-            return None, "la prova è più grande di 8 MB"
-        try:
-            return base64.b64decode(d.get("b64") or ""), None
-        except ValueError:
-            return None, "la prova è arrivata a metà"
-    return None, ultimo
+    try:
+        rc, out, err, py = remoto(macchina, LEGGI, [percorso], attesa=ATTESA)
+    except NonRisponde as e:
+        return None, str(e)[:200]
+    if py is None:
+        return None, "%s non ha Python" % macchina
+    riga = (out.strip().splitlines() or [""])[-1]
+    try:
+        d = json.loads(riga)
+    except ValueError:
+        d = None
+    if not isinstance(d, dict) or not ({"manca", "grande", "b64"} & set(d)):
+        return None, ultima_riga(out, err, rc) if rc else "%s non risponde" % macchina
+    if d.get("manca"):
+        return None, "la prova non c'è più su %s" % macchina
+    if d.get("grande"):
+        return None, "la prova è più grande di 8 MB"
+    try:
+        return base64.b64decode(d.get("b64") or ""), None
+    except ValueError:
+        return None, "la prova è arrivata a metà"
 
 
 def prova(macchina, percorso, dest):
@@ -248,4 +240,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main(togli_entro(sys.argv[1:])))
