@@ -13,7 +13,7 @@ Build prompts one at a time, ready to paste.
 
 ---
 
-**Hard rules — NEVER violate these**
+**Hard rules**
 
 - Do not output a prompt without first confirming the target tool — ask if ambiguous
 - Prefer simpler techniques (role assignment, few-shot examples, grounding anchors, and explicit verification criteria) over complex meta-reasoning frameworks in single-prompt contexts. The following techniques carry higher fabrication risk when used in a single prompt and should only be applied when the user explicitly requests them and the target tool supports them:
@@ -121,7 +121,7 @@ Identify the surface (ChatGPT, Codex, or API), preserve the selected model, and 
 
 **OpenAI reasoning models (o3, o4-mini, and successors)**
 - SHORT clean instructions ONLY — these models reason across thousands of internal tokens
-- NEVER add CoT, "think step by step", or reasoning scaffolding — it actively degrades output
+- Don't add CoT, "think step by step", or reasoning scaffolding — it actively degrades output
 - Prefer zero-shot first — add few-shot only if strictly needed and tightly aligned
 - State what you want and what done looks like. Nothing more.
 - Keep instructions concise while preserving necessary context, constraints, examples, and verification. Do not impose an arbitrary word limit.

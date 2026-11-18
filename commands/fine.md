@@ -108,12 +108,12 @@ sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
 - **Completezza.** Confronta l'obiettivo della sessione con i deliverable. Se la sessione ha toccato
   codice, lancia l'agente `structural-completeness-reviewer`. Ogni gap diventa un todo.
 - **Validate.** Applica `~/.claude/shared/validation-gate.md` con **mode=quick** (tsc, test, console.log).
-  Verde: commit. Rosso: il codice toccato resta fuori e l'errore esatto diventa un todo. **NON committare**
+  Verde: commit. Rosso: il codice toccato resta fuori e l'errore esatto diventa un todo. Non committare
   il codice rosso e non correggerlo qui. Un esito inconclusivo non è verde.
 - **Commit per pathspec.** Se il progetto non ha un git, crealo nella sua cartella, mai nella HOME
   (`git -C <cartella> init -b main`, un `CLAUDE.md` breve, un `.gitignore` per i binari). Staging file per
   file (`git add -- <file>`), mai `git add .` o `-A`; fuori restano `.env`, credenziali e file temporanei.
-  **NON usare Co-Authored-By.**
+  Niente riga Co-Authored-By.
 
 ```bash
 git diff --cached | grep -qE '^\+(<<<<<<< |=======$|>>>>>>> )' && echo "MARCATORE DI CONFLITTO: fermati e risolvi prima del commit"
