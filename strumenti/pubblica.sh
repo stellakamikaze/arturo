@@ -75,6 +75,10 @@ case "$passo" in
     echo "Pubblicato $commit: $n file con gli hash giusti nel container. Backup in $BASE/$backup, $arrivo tolta."
     # Dal 19/11/2026 Cloudflare tiene in cache anche le pagine (Cache Rule, #6124): dopo la copia si svuota la
     # cache del nome della landing. Token con il permesso Cache Purge in un file 600, mai nella riga di comando.
+    # Zona e percorso del token stanno in ~/.config/arturo/cf-purge.env (600) sulla macchina che pubblica.
+    if [[ -z "${ARTURO_CF_ZONA:-}" && -r "$HOME/.config/arturo/cf-purge.env" ]]; then
+      set -a; . "$HOME/.config/arturo/cf-purge.env"; set +a
+    fi
     if [[ -n "${ARTURO_CF_ZONA:-}" && -r "${ARTURO_CF_PURGE_TOKEN_FILE:-}" ]]; then
       intestazione=$(mktemp)
       chmod 600 "$intestazione"
