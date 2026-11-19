@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-19 — Un progetto cambia nome con un comando solo
+
+**Cosa cambia**: `arturo progetti rinomina VECCHIO NUOVO` cambia il nome di un progetto in tutto Arturo: todo, riga di stato, handoff, indice e scheda della memoria, coi link delle altre note. Il nome vecchio resta valido: `/inizio` col nome vecchio apre il progetto nuovo e te lo dice. Con `--prova` vedi cosa cambierebbe senza toccare niente, e per tornare indietro basta il comando al contrario. Un progetto con una sua cartella si rinomina dopo aver rinominato la cartella. Nasce dalla proposta n. 90.
+
+**Il principio**: un nome si cambia in un punto solo, e quello vecchio non rompe niente.
+
+**A chi serve**: a chi ha aperto un progetto con un nome provvisorio e lo vuole cambiare senza perdere todo e appunti.
+
+---
+
 ## 2026-11-18 — Colori e barra a modo tuo, senza perderli a ogni aggiornamento
 
 **Cosa cambia**: i colori del pannello /dafare, i colori della scheda del terminale e i pezzi della barra in basso si cambiano in un file tuo, `~/.claude/personale/aspetto.json`. Gli aggiornamenti non lo toccano, quindi non devi più rimettere a mano le tue modifiche dopo ogni rilascio. Puoi spegnere un pezzo della barra, come la quota, e aggiungerne uno tuo con un piccolo file JavaScript. `arturo aspetto esempio` ti dà un file da copiare, e `arturo aspetto controlla` ti dice se un valore è scritto male. Un valore sbagliato non rompe niente: vale quello di Arturo. Nasce dalla proposta n. 73.
