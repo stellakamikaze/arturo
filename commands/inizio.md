@@ -1,12 +1,8 @@
 ---
 description: >-
-  Apre la sessione su un progetto: sync della config (con --tutti anche dei progetti), contesto in una
-  chiamata con arturo contesto (git, handoff recenti, todo con chi agisce, scadenze), le altre sessioni
-  sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Le parole
-  dopo il nome, o dopo " -- ", sono il compito e la sessione parte subito lì; una frase senza nome di
-  progetto è tutta compito. Progetto non trovato: propone i nomi simili e non crea niente senza un sì.
-  La chiusura è /fine. Con " -- --rotazione <compito>" (lo scrive solo il mod rotazione) riparte in una
-  riga sul passo dopo.
+  Apre la sessione su un progetto: sync, contesto (git, handoff, todo con chi agisce, scadenze) e la
+  ripartenza per filone. Le parole dopo il nome, o dopo " -- ", sono il compito. Un nome non trovato
+  porta i nomi simili. Con " -- --rotazione <compito>" (lo scrive il mod rotazione) riparte in una riga.
 argument-hint: "<nome-progetto> [--tutti] [<compito>]"
 ---
 

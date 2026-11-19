@@ -73,7 +73,7 @@ name: <nome>
 description: >-
   <cosa fa, in una frase>
 when_to_use: >-
-  Usa quando la persona dice "<frase 1>", "<frase 2>", "<frase 3>". NON per <il lavoro simile
+  Usa quando la persona dice "<frase 1>", "<frase 2>", "<frase 3>". Non per <il lavoro simile
   che è un altro>.
 ---
 

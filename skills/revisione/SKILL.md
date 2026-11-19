@@ -7,8 +7,8 @@ description: >-
   sull'anteprima. Per chi mantiene Arturo rivede prima le segnalazioni ricevute e aggiunge le funzioni nuove.
 when_to_use: >-
   Usa con /revisione, o quando la persona chiede "rivedi come uso Arturo", "cosa posso migliorare",
-  "cosa non funziona nel mio modo di lavorare con te", "fai una revisione generale". NON per la review del
-  codice di un progetto (/code-review), NON per controllare la config (/system-audit), NON per mandare
+  "cosa non funziona nel mio modo di lavorare con te", "fai una revisione generale". Non per la review del
+  codice di un progetto (/code-review), non per controllare la config (/system-audit), non per mandare
   un problema singolo (/segnala).
 argument-hint: "[giorni, di default 30]"
 ---

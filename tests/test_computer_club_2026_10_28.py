@@ -165,8 +165,10 @@ def test_cc05(repo: Path) -> None:
 
 def test_cc06(repo: Path) -> None:
     pm = repo / "skills" / "prompt-master" / "SKILL.md"
-    testo = read(pm)
-    assert "l'intervista a giri" in testo, "CC06 prompt-master non fa l'intervista a giri sulle idee da decidere"
+    assert "l'intervista a giri" in read(pm) and "references/intervista.md" in read(pm), \
+        "CC06 prompt-master non fa l'intervista a giri sulle idee da decidere"
+    # Dal 19/11/2026 l'intervista sta in references/intervista.md: si carica solo per un'idea da decidere.
+    testo = read(repo / "skills" / "prompt-master" / "references" / "intervista.md")
     for parola in ("Consiglio:", "sì a tutto", "subagent", "aspetta il sì"):
         assert parola in testo, f"CC06 l'intervista di prompt-master non dice {parola!r}"
     guidami = read(repo / "commands" / "guidami.md")

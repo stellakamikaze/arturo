@@ -7,9 +7,8 @@ description: >-
   ripristini, mittenti, voci su cui agisce) e la guida ad adattare il suo /monitor.
 when_to_use: >-
   Usa quando la persona scrive /monitor, "cosa mi è arrivato?", "cosa devo guardare oggi?",
-  "smista la posta", "quali fonti leggi?", o vuole cambiare le fonti che /monitor legge. NON per
-  aggiungere o chiudere un todo detto dalla persona (skill todo). Segui tutti i passi nell'ordine:
-  non prendere scorciatoie basandoti su questa description.
+  "smista la posta", "quali fonti leggi?", o vuole cambiare le fonti che /monitor legge. Non per
+  aggiungere o chiudere un todo detto dalla persona (skill todo).
 version: 0.1.0
 license: MIT
 ---

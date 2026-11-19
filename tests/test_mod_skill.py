@@ -25,6 +25,9 @@ Q10 Hallmark è un rimando all'upstream come Impeccable (30/10/2026): la nota in
 Q11 shared/regole-interfaccia.md (6/11/2026): tre parti, chi vince, ogni regola col tipo e con una fonte
     che ha un URL, virgolette dritte, e chi fa design ci arriva da agente, metodo e docs (/setup porta a docs/hallmark.md: è al tetto di SR08).
 
+Q12 le description di skill e comandi dicono cosa fanno e quando, senza la chiusa "Segui tutti i passi
+    nell'ordine" e sotto i 1024 caratteri del limite delle Agent Skills (guide Anthropic, 19/11/2026).
+
 Il banco richiede il binario `claude`. Sulla base cbd8305 ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.
 """
@@ -306,10 +309,27 @@ def test_q11(repo: Path) -> None:
         assert "regole-interfaccia.md" in read(repo / lettore), f"Q11 {lettore} non porta alle regole"
 
 
+def test_q12(repo: Path) -> None:
+    # Guida delle Agent Skills e best-practices di Claude Code (19/11/2026): la description dice cosa fa la skill
+    # e quando usarla; i passi obbligati stanno nel corpo. Il limite delle Agent Skills è 1024 caratteri.
+    file = sorted(repo.glob("skills/*/SKILL.md")) + sorted(repo.glob("commands/*.md"))
+    assert file, "Q12 nessuna skill e nessun comando"
+    for f in file:
+        testo = read(f)
+        if not testo.startswith("---"):
+            continue
+        testa = testo[3:testo.index("\n---", 3)]
+        porta = " ".join(re.sub(r"(?m)^(description|when_to_use): >-$", "", testa).split())
+        assert "Segui tutti i passi" not in porta, f"Q12 {f.relative_to(repo)} chiude la description con l'ordine dei passi"
+        parti = re.findall(r"(?ms)^(?:description|when_to_use):(.*?)(?=^[a-z_-]+:|\Z)", testa)
+        lunghezza = sum(len(" ".join(x.replace(">-", "").split())) for x in parti)
+        assert lunghezza <= 1024, f"Q12 {f.relative_to(repo)}: description e when_to_use fanno {lunghezza} caratteri"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
     "Q05": test_q05, "Q06": test_q06, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
-    "Q10": test_q10, "Q11": test_q11,
+    "Q10": test_q10, "Q11": test_q11, "Q12": test_q12,
 }
 
 

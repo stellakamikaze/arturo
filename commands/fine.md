@@ -1,10 +1,7 @@
 ---
 description: >-
-  Chiude la sessione in dieci fasi: inventario e destino dei file, validate e commit per pathspec, handoff
-  con i todo e chi agisce, gate, retention, CLAUDE.md, memoria, sync della config, una domanda per Arturo.
-  A sessione vuota fa solo il sync. /fine [--full] [salva] [--rotazione] [note], rilanciabile. Con
-  --rotazione è il fine leggero che Claude lancia a ogni passo chiuso, seguito dal tool ruota del mod
-  rotazione (/clear e /inizio da soli). Non apre sessioni (/inizio).
+  Chiude la sessione: destino dei file, commit, handoff coi todo e chi agisce, memoria e sync della config.
+  Si può rilanciare. Con --rotazione è il fine leggero a ogni passo chiuso, seguito dal tool ruota.
 argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
 ---
 

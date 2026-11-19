@@ -8,7 +8,7 @@ description: >-
 when_to_use: >-
   Usa quando la persona chiede "cos'è…" (anche "cos'è un harness"), "che differenza c'è tra…",
   "perché…" su uno di questi concetti, o quando una sua frase mostra che li confonde ("la quota della settimana è all'84%"
-  mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear), o chiede "cosa ricordi di me?". NON per spiegare il codice di un
+  mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear), o chiede "cosa ricordi di me?". Non per spiegare il codice di un
   progetto, NON come lezione non richiesta.
 ---
 

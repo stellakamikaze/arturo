@@ -10,8 +10,7 @@ when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
   comandi, o quando "qualcosa sembra rotto" (una guardia che non scatta, un comando che non compare).
   Su "revisione completa della config" lancia la revisione con più agenti (sezione dedicata).
-  NON per controllare il codice di un progetto: per quello ci sono validate e la review. Segui tutti i
-  passi nell'ordine: non prendere scorciatoie basandoti su questa description.
+  Non per controllare il codice di un progetto: per quello c'è /code-review.
 ---
 
 # System Audit
