@@ -101,7 +101,8 @@ def test_cc03(repo: Path) -> None:
         "CC03 il frontmatter della skill concetti non è valido"
     voci = re.findall(r"^\*\*(.+?)\*\*", testo[m.end():], re.M)
     attese = ["Harness.", "Contesto e memoria.", "Git e GitHub.", "Branch e fork.", "Le tue modifiche e gli aggiornamenti.",
-              "Subagent e modelli più economici.", "Ultracode.", "Le due finestre della quota.", "Dire sì a una conferma."]
+              "Subagent e modelli più economici.", "Ultracode.", "Le due finestre della quota.", "Dire sì a una conferma.",
+              "La sandbox."]
     assert voci == attese, f"CC03 le voci della skill concetti sono {voci}"
     assert len(re.findall(r"^In Arturo:", testo, re.M)) == len(attese), "CC03 una voce non dice dove trovi la cosa in Arturo"
     skill = len(list((repo / "skills").glob("*/SKILL.md")))

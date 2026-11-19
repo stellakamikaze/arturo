@@ -556,7 +556,8 @@ COMANDI = {
     "ripartenza": ("ripartenza", "la ripartenza di /inizio come dati, per la checklist di Volta: scrivi (JSON su stdin)"),
     "progetti": ("progetti", "tutti i progetti che segui, letti dalla memoria che c'è già: cartelle, handoff, stato, fonte dei task (Volta); rinomina VECCHIO NUOVO"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
-    "impostazioni": ("impostazioni", "col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica, adotta"),
+    "sandbox": ("sandbox", "la sandbox di Claude Code, spenta di default: i comandi leggono e scrivono solo dove serve, le chiavi restano fuori: stato, accendi, spegni"),
+    "impostazioni": ("impostazioni","col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica, adotta"),
     "migra": ("migra", "porta Arturo dal clone in ~/.claude al plugin: --prova (il rapporto), la migrazione, indietro"),
     "aggiornamenti": ("aggiornamenti", "Arturo si aggiorna da solo alla chiusura, solo coi rilasci firmati: stato, controlla, applica, manuali, automatici"),
 }
