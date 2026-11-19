@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ168: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ170: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -780,6 +780,9 @@ HZ169 Documenti appeso col blocco vero di isdir (#6111, 19/11/2026): con un dial
      dentro Documenti esce con permesso=True, senza nascere nella casa; righe() non aspetta le cartelle delle
      sessioni oltre un tetto solo per il giro e segna la macchina col permesso; con il permesso già noto non
      le tocca.
+HZ170 lead e alias dei progetti (#6132, 19/11/2026): il capo legge slug e alias da arturo progetti e non fa nascere
+     un lead su "ariaperta" accanto a una sessione accesa su "tuttovero", né su "volta" accanto a "arturo-herdr";
+     un progetto senza sessione lo riceve.
 """
 from __future__ import annotations
 
@@ -795,7 +798,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -13633,7 +13636,44 @@ def hz168(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169}
+def hz170(repo: Path, casa: Path) -> str | None:
+    """Il capo riconosce una sessione accesa sotto un alias del progetto (#6132): niente lead doppi."""
+    from datetime import datetime as _dt  # noqa: PLC0415
+    script = repo / "shared/volta/mods/arturo/volta_capo.py"
+
+    def t(i):
+        return {"id": i, "titolo": f"Task {i}", "progetto": "x", "giorni": None, "quando": "settimana", "chi": "io",
+                "gruppo": "io", "priorita": "media"}
+    # la fonte dei task dice "ariaperta" e "volta"; le sessioni accese dicono "tuttovero" e "arturo-herdr"
+    vista = {"gruppi": [{"tipo": "io", "todo": [t(1), t(2), t(3)]}],
+             "progetti": [{"slug": "ariaperta", "nome": "ariaperta", "da_dove": {"id": 1}},
+                          {"slug": "volta", "nome": "volta", "da_dove": {"id": 2}},
+                          {"slug": "libero", "nome": "libero", "da_dove": {"id": 3}}]}
+    (casa / "todo.json").write_text(json.dumps(vista), encoding="utf-8")
+    (casa / "bozze").mkdir()
+    memoria = {"versione": 1, "progetti": [{"slug": "tuttovero", "nome": "tuttovero", "alias": ["ariaperta", "tutto-vero"]},
+                                           {"slug": "volta", "nome": "volta", "alias": ["arturo-herdr"]}, "storta"]}
+    (casa / "progetti.json").write_text(json.dumps(memoria), encoding="utf-8")
+    elenco = {"sessioni": [{"progetto": "TuttoVero", "stato": "lavora", "id": "a1", "questa": False},
+                           {"progetto": "arturo-herdr", "stato": "ferma", "id": "a2", "questa": True}], "macchine": []}
+    (casa / "sessioni.json").write_text(json.dumps(elenco), encoding="utf-8")
+    nasci = casa / "nasci.json"
+    env = {**os.environ, "VOLTA_CACHE": str(casa / "cache"), "VOLTA_CAPO_TODO": str(casa / "todo.json"), "VOLTA_CAPO_BOZZE": str(casa / "bozze"),
+           "VOLTA_CAPO_GMAIL": str(casa / "gmail.json"), "VOLTA_CAPO_SESSIONI": str(casa / "sessioni.json"), "VOLTA_CAPO_MODELLO": "spento",
+           "VOLTA_CARTE_REGISTRO": str(casa / "registro.jsonl"), "VOLTA_CAPO_REPORT": str(casa / "report"),
+           "VOLTA_CAPO_NASCI": str(nasci), "VOLTA_CAPO_LEAD": "1", "VOLTA_CAPO_PROGETTI": str(casa / "progetti.json"),
+           "VOLTA_CAPO_ORA": str(int(_dt(2026, 11, 19, 10, 0).timestamp() * 1000))}
+    r = subprocess.run([sys.executable, str(script), "giro"], capture_output=True, text=True, encoding="utf-8", timeout=120, env=env)
+    try:
+        g = json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return f"il giro non esce: {(r.stderr or r.stdout)[-300:]}"
+    if g.get("lead") != ["libero"]:
+        return f"un lead nasce accanto a una sessione accesa sotto un alias del progetto, o il progetto libero resta senza: {g.get('lead')}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13684,6 +13724,7 @@ VELENI = [
     ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', "                if appesa:\n                    segna_permesso(", "                if False:\n                    segna_permesso("),
     ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', '            if not (isinstance(v.get("nascita"), dict) and v["nascita"].get("permesso") is True):', '            if True:'),
     ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', "        f.join(max(0, fine - time.monotonic()))", "        f.join()"),
+    ('HZ170', 'shared/volta/mods/arturo/volta_capo.py', "        return capo.get(k, k)", "        return k"),
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', 'if pr.get("appesa"):\n    rotta =', 'if False:\n    rotta ='),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "  if (n.permesso === true)\n", "  if (false)\n"),
     ('HZ167', 'shared/volta/mods/arturo/azioni.js', ',\n    poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };', ' };'),
@@ -13840,7 +13881,7 @@ VELENI = [
     ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '        slug = p.get("slug") if isinstance(p.get("slug"), str) and re.fullmatch(r"[0-9a-z][0-9a-z._-]*", p.get("slug") or "") else None', '        slug = p.get("slug") or p.get("nome")'),
     ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '                if len(vivi) >= LEAD_MAX:', '                if len(vivi) >= 99:'),
     ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '        if LEAD_DALLE <= ore < LEAD_ALLE:', '        if True:'),
-    ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '        if not t or not slug or {chiave_progetto(slug), chiave_progetto(p.get("nome"))} & accesi:', '        if not t or not slug:'),
+    ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '        if not t or not slug or {chiave(slug), chiave(p.get("nome"))} & accesi:', '        if not t or not slug:'),
     ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '    if not lead_acceso() or vista is None:', '    if vista is None:'),
     ('HZ145', 'shared/volta/mods/arturo/volta_capo.py', '            time.sleep(RILETTURA_ATTESA_S)', '            break'),
     ('HZ145', 'shared/volta/mods/arturo/volta_carte.py', '        ms = int(q * 1000) + (RIMANDA_MS if k.startswith("bozza:") and d.get("scelta") == "Rimanda" else 0)', '        ms = int(q * 1000)'),

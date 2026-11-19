@@ -714,11 +714,48 @@ def lead_possibile(t):
             and t.get("stato") != "fermo" and not t.get("attende"))
 
 
-def candidati_lead(vista, elenco):
+def leggi_progetti(avvisi):
+    """I progetti della memoria di Arturo (`arturo progetti --json`), con slug e alias, o [] (#6132)."""
+    finto = os.environ.get("VOLTA_CAPO_PROGETTI")
+    if finto:
+        d = leggi_json(finto, {}) or {}
+    else:
+        try:
+            r = corri(argv_arturo() + ["progetti", "--json"], ATTESA_TODO, env=con_path())
+            d = json.loads(r.stdout) if r.returncode == 0 else None
+        except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+            d = None
+            r = subprocess.CompletedProcess([], 1, "", str(e))
+        if d is None:
+            avvisi.append("gli alias dei progetti non si leggono: %s" % taglia(r.stderr or "uscita %d" % r.returncode, 120))
+    ps = d.get("progetti") if isinstance(d, dict) else None
+    return [m for m in ps if isinstance(m, dict)] if isinstance(ps, list) else []
+
+
+def gruppi_progetti(memoria):
+    """Ogni nome di un progetto della memoria (slug, nome, alias) porta allo slug del progetto (#6132): la fonte
+    dei task dice "ariaperta", la sessione accesa dice "tuttovero", ed è lo stesso progetto."""
+    capo = {}
+    for m in memoria or []:
+        k = chiave_progetto(m.get("slug"))
+        if not k:
+            continue
+        for a in [m.get("slug"), m.get("nome"), *(m.get("alias") if isinstance(m.get("alias"), list) else [])]:
+            if isinstance(a, str) and a.strip():
+                capo.setdefault(chiave_progetto(a), k)
+    return capo
+
+
+def candidati_lead(vista, elenco, memoria=None):
     """I progetti dove un lead serve, nell'ordine: a rischio prima, poi scadenza più vicina, poi priorità."""
     io = {t["id"]: t for g in (vista or {}).get("gruppi") or [] if isinstance(g, dict) and g.get("tipo") == "io"
           for t in g.get("todo") or [] if lead_possibile(t)}
-    accesi = {chiave_progetto(s.get("progetto")) for s in (elenco or {}).get("sessioni") or []
+    capo = gruppi_progetti(memoria)
+
+    def chiave(x):
+        k = chiave_progetto(x)
+        return capo.get(k, k)
+    accesi = {chiave(s.get("progetto")) for s in (elenco or {}).get("sessioni") or []
               if isinstance(s, dict) and s.get("progetto") and not s.get("chiusa")}
     fuori = []
     for p in (vista or {}).get("progetti") or []:
@@ -727,7 +764,7 @@ def candidati_lead(vista, elenco):
         t = io.get(((p.get("da_dove") or {}).get("id")))
         # solo i progetti con lo slug: un nome con gli spazi ("Gara Fondazione Torino Musei") non è una cartella
         slug = p.get("slug") if isinstance(p.get("slug"), str) and re.fullmatch(r"[0-9a-z][0-9a-z._-]*", p.get("slug") or "") else None
-        if not t or not slug or {chiave_progetto(slug), chiave_progetto(p.get("nome"))} & accesi:
+        if not t or not slug or {chiave(slug), chiave(p.get("nome"))} & accesi:
             continue
         if p.get("parola") == "fermo":  # progetto in pausa o fermo (#5788): nessun lead
             continue
@@ -825,7 +862,7 @@ def lead(vista, elenco, avvisi, ora):
         ore = datetime.fromtimestamp(ora / 1000).hour
         fatti = []
         if LEAD_DALLE <= ore < LEAD_ALLE:
-            for slug, t in candidati_lead(vista, elenco):
+            for slug, t in candidati_lead(vista, elenco, leggi_progetti(avvisi)):
                 if len(vivi) >= LEAD_MAX:
                     break
                 if slug in vivi or chiave_lead(t) in storia:
