@@ -76,6 +76,14 @@ file.
 
 Un plugin di Claude Code vive in `~/.claude/plugins/`, fuori dai file della persona. L'aggiornamento sostituisce la sua cartella e non tocca l'Orsa: la separazione la garantisce Claude Code. Un plugin però non porta permessi, `autoMode`, `env`, `statusLine`, lo stile di base e il `CLAUDE.md`. Queste voci le scrive `/setup` nei settings della persona, con il file di blocco; il metodo arriva con l'hook di avvio. Pacchetto e prove: [`prove-plugin.md`](prove-plugin.md).
 
+## Nei thread cloud dei progetti di Claude Code
+
+I progetti di Claude Code (in beta) aprono un thread per compito, di solito in una sessione cloud. Un thread
+carica il `CLAUDE.md` della radice del repository, ma non skill, `.mcp.json` e `.claude/settings.json`
+(documentazione di Claude Code, claude-projects). Lì le guardie, le skill, lo stile e il metodo di Arturo non
+girano: valgono solo le regole del `CLAUDE.md` del repository e le impostazioni del progetto. Per un lavoro
+con invii, cancellazioni o segreti usa una sessione locale con Arturo.
+
 ## Dove sta il codice
 
 - I comandi di Arturo diventano skill (`skills/<nome>/SKILL.md` con `name:`), così `/inizio` resta senza prefisso anche nel plugin.

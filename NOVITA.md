@@ -13,6 +13,33 @@ modo di lavorare.
 
 ---
 
+## 2026-11-19 — Istruzioni più corte e una sandbox da accendere
+
+**Cosa cambia**: le istruzioni che Arturo dà a Claude seguono le guide di Anthropic per i modelli di oggi.
+Il promemoria del brief a ogni messaggio è scritto come un fatto, senza "REGOLA FISSA". Le description
+delle skill dicono cosa fanno e quando, senza "Segui tutti i passi nell'ordine". Humanizer,
+italiano-semplificato e prompt-master tengono in testa le regole che contano e spostano cataloghi ed
+esempi in `references/`: humanizer passa da 548 a 200 righe. In `/inizio` il modo rotazione sta in cima,
+in `/aggiorna` i Freni. Metodo e stile Conciso non si contraddicono più sull'ultima riga, sul brief e
+sulle segnalazioni. Le guardie e i freni sono gli stessi di prima.
+
+C'è anche un comando nuovo, `arturo sandbox accendi`. La sandbox di Claude Code chiude i comandi in un
+recinto del sistema: leggono e scrivono solo dove serve, e le chiavi SSH, AWS, GPG, gh e Bitwarden
+restano fuori. Git in rete, ssh, gh, gws e bw girano fuori dal recinto, come oggi. È spenta di default,
+`/setup` la propone nella fase 8d, e `arturo sandbox spegni` toglie solo le voci che Arturo ha messo.
+
+**Il principio**: un modello recente segue alla lettera quello che legge. Un "mai" senza motivo, una
+maiuscola o un ordine ripetuto gli fanno applicare troppo una regola. Le garanzie vere stanno negli hook
+e nelle regole di blocco. Il testo spiega cosa fare e perché. Fonti: code.claude.com/docs (best-practices,
+skills, hooks, sandboxing, context-window) e le guide di prompting di Opus 5.5 e Fable 5.2 su
+platform.claude.com.
+
+**A chi serve**: a tutti, senza fare niente. La sandbox serve a chi lancia script o installa pacchetti e
+tiene chiavi sul computer: le guardie vedono il comando, la sandbox vede anche quello che il comando lancia.
+Un plugin non può accendere la sandbox da solo: la scelta resta tua.
+
+---
+
 ## 2026-11-19 — I dati d'uso partono solo dopo la tua risposta
 
 **Cosa cambia**: dopo l'installazione Arturo non manda più niente finché `/setup` non ti ha chiesto della telemetria. Fino alla tua risposta gli eventi restano in coda sul tuo computer, e `arturo telemetria mostra` te li fa vedere. Con un sì partono, con un no si cancellano. Se avevi già fatto `/setup`, per te non cambia niente: la risposta c'era già.
