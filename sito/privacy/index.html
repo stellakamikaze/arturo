@@ -119,6 +119,8 @@ ul,ol{margin:0;padding:0}
 }
 </style>
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<!-- Banner cookie e registrazione delle sessioni solo col consenso (repo consenso, 17/11/2026). -->
+<script type="module" src="/js/consenso/consenso-PWSUFHMK.js" data-consenso data-progetto="vQagmdXBqYm9EFynRiRe" data-privacy="/privacy/" data-lingua="it"></script>
 <script defer src="../traccia.js"></script>
 </head>
 <body>
@@ -150,7 +152,7 @@ ul,ol{margin:0;padding:0}
 
 <section class="breve" aria-label="In breve">
   <div class="dentro breve__righe">
-    <div><h2>Niente cookie</h2><p>Il sito non ne mette. Il conteggio delle visite non riconosce chi torna da un giorno all'altro.</p></div>
+    <div><h2>Un cookie solo</h2><p>Tiene la tua scelta sul banner. Il conteggio delle visite non riconosce chi torna da un giorno all'altro.</p></div>
     <div><h2>Niente terzi</h2><p>Nessun tracker esterno, nessuna pubblicità, nessun font da altri server. Il sito passa da Cloudflare, che vede l'indirizzo IP di ogni visita per consegnare le pagine.</p></div>
     <div><h2>Il feedback lo scegli tu</h2><p>Esce solo quello che scrivi, e solo quando premi "Invia".</p></div>
     <div><h2>Arturo si spegne</h2><p>La telemetria di Arturo è accesa di default e si spegne con un comando.</p></div>
@@ -178,6 +180,13 @@ ul,ol{margin:0;padding:0}
             </tbody>
           </table>
           <p>Quando qualcuno scarica Arturo, il server di Arturo avvisa Federico su Telegram con la pagina e il computer scelto, al massimo 60 volte al giorno. Non salva altro che il conteggio del giorno.</p>
+          <h3 id="registrazioni">Registrazione delle sessioni, solo se accetti</h3>
+          <p>Se accetti nel banner, il sito registra come usi le pagine: clic, movimenti del mouse, scorrimento, struttura della pagina, errori, tempi di caricamento, browser e dispositivo, paese e città ricavati dall'indirizzo IP, che non viene salvato. Le registrazioni servono a vedere dove ci si blocca e cosa non funziona, e a correggerlo.</p>
+          <p>Non registra mai quello che scrivi nei campi, gli indirizzi email e i numeri che compaiono nella pagina, la console del browser o il contenuto delle richieste di rete.</p>
+          <p>Lo strumento è <a href="https://openreplay.com/">OpenReplay</a>, installato sullo stesso server di Plausible: le registrazioni non vanno a terzi. Per tenere insieme le pagine di una visita, OpenReplay salva un codice nella memoria della scheda, che si cancella quando chiudi la scheda. Le registrazioni restano 30 giorni, poi si cancellano da sole. La base giuridica è il tuo consenso (art. 6, par. 1, lett. a GDPR).</p>
+          <p><strong>Come togliere il consenso:</strong> apri <a href="#cookie" data-cc="show-preferencesModal">Preferenze cookie</a>, il link che trovi anche in fondo a ogni pagina. Da quel momento il sito non registra più; le registrazioni già fatte si cancellano comunque dopo 30 giorni.</p>
+          <h3 id="cookie">Il cookie</h3>
+          <p>Il sito usa un solo cookie, "consenso", che tiene la tua scelta sul banner per sei mesi: passati i sei mesi, il banner torna. È un cookie tecnico, quindi non serve il consenso per salvarlo. Il sito non usa cookie di profilazione, di pubblicità o di terze parti.</p>
           <div class="mai"><p>I campi che compili nella guida (il tuo nome, le tue regole) restano nel tuo browser. Servono a comporre i comandi da copiare, e non partono mai.</p></div>
         </div>
       </article>
@@ -250,7 +259,7 @@ ul,ol{margin:0;padding:0}
 <footer class="piede">
   <div class="dentro">
     <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
-    <p><a href="../feedback/">Dimmi com'è andata</a></p>
+    <p><a href="../feedback/">Dimmi com'è andata</a> · <a href="/privacy/#cookie" data-cc="show-preferencesModal">Preferenze cookie</a></p>
   </div>
 </footer>
 
