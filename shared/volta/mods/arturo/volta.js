@@ -173,7 +173,7 @@ export class Volta {
     this.anteprime = {};   // chiave -> true (risposta e azione lette dalla riga) o righe di claude logs
     this.chiedo = {};      // chiave -> verbo che aspetta la conferma
     this.faccio = {};      // chiave -> verbo in corso
-    this.codaSposta = {};  // chiave -> { macchina, id, da, dopo }: Sposta su e Sposta tutto, una alla volta
+    this.codaSposta = {};  // chiave -> { macchina, id, da, dopo, nonLetti }: Sposta su e Sposta tutto, una alla volta
     this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
     this.porto = {};       // chiave -> ora di partenza mentre il nome scritto dalla persona va in Claude Code
     this.inizio = {};      // chiave -> ora di partenza mentre la sessione spostata riparte da /inizio (#5465)
@@ -1140,7 +1140,8 @@ export class Volta {
   // git pull e worktree add insieme. Una che lavora aspetta il giro dell'elenco in cui il turno è finito:
   // lo spostamento ferma la sessione, e a metà turno il lavoro si interromperebbe. Se volta_sposta.py
   // trova che un turno è appena partito (`lavora`), la sessione resta in coda e si riprova dopo un giro.
-  // Una sessione sparita dall'elenco, chiusa o già altrove esce dalla coda. La coda vive in questa
+  // Un turno che non si legge (`nonLetto`, #6110) si riprova ogni minuto, al più SPOSTA_NON_LETTO_MAX volte
+  // (riprovaSposta di sessioni.js), dal primo controllo e dal secondo (#6126). Una sessione sparita dall'elenco, chiusa o già altrove esce dalla coda. La coda vive in questa
   // finestra: chiudere Volta la svuota, e le sessioni restano dove sono.
   giraCoda(cx) {
     this.pubblicaSposto();
@@ -1180,7 +1181,8 @@ export class Volta {
   }
 
   // Dopo uno spostamento (dalla coda o ripreso): libera la coda, dice com'è andata e passa al prossimo.
-  // `v` = { macchina, id, da }. Una sessione che ha cominciato un turno (`lavora`) torna in coda.
+  // `v` = { macchina, id, da, nonLetti }. Una sessione che ha cominciato un turno (`lavora`) torna in coda;
+  // una con il turno non letto (`nonLetto`) ci torna per un numero limitato di volte (riprovaSposta).
   finitoSposta(s, v, r, cx, mio) {
     const k = chiave(s);
     // uno Sposta appeso e già lasciato andare (sciogliAppese) non tocca quello partito dopo

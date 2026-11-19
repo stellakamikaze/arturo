@@ -708,9 +708,11 @@ def main(argv):
         print("uso: volta_sonda.py sposta <da> <a> <id> <sessionId> --cartella <dir> [--progetto <slug>] [--titolo <nome>] [--esito <file>] [--controlla]")
         return 2
     if opz.get("controlla"):
-        # Solo il controllo del turno, prima che Volta chiuda le schede (#5635): {"lavora"} o {"ok"}.
+        # Solo il controllo del turno, prima che Volta chiuda le schede (#5635): {"ok"}, {"lavora"} per un turno
+        # in corso, {"lavora", "nonLetto"} per un turno che non si legge (#6110), {"errore", "certo"} per un
+        # errore che un nuovo tentativo non cambia: Volta non lo rimette in coda (#6126).
         if not vs.ID.fullmatch(resto[3] or ""):
-            print(json.dumps({"errore": "id di sessione non valido"}))
+            print(json.dumps({"errore": "id di sessione non valido", "certo": True}))
             return 1
         print(json.dumps(lavora(resto[0], resto[3]) or {"ok": True}, ensure_ascii=True))
         return 0

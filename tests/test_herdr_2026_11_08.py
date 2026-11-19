@@ -772,7 +772,9 @@ HZ168 "Non letto" vale "occupato", non "libero" (#6110, 19/11/2026): TROVA di vo
      una partenza che non risponde rifiuta con lavora e nonLetto, anche da --controlla, e spegni_partenza lo
      dice come avviso; riprovaSposta tiene in coda un turno in corso senza limite e uno non letto al più
      SPOSTA_NON_LETTO_MAX volte; il capo con l'elenco delle sessioni che non si legge, o con questa macchina
-     irraggiungibile, non fa nascere lead e lascia capo-lead.json com'è.
+     irraggiungibile, non fa nascere lead e lascia capo-lead.json com'è. Dal 19/11 (#6126) --controlla con
+     un id non valido dice {errore, certo}, e HZ122 prova che fineSposta porta nonLetto alla coda e che un
+     errore certo esce subito.
 """
 from __future__ import annotations
 
@@ -11427,6 +11429,8 @@ if (caso === "shell") {
   writeFileSync(`${dir}/volo.json`, JSON.stringify({ s1: v }), "utf-8");
   if (caso === "avviso") writeFileSync(file, JSON.stringify({ id: "n1", sessionId: "s1", attach: ["ssh", "-t", "studio", "claude", "attach", "n1"],
     macchina: "studio", avviso: "su Qui la copia ferma non è segnata come spostata", finito: true }), "utf-8");
+  if (caso === "nonletto") writeFileSync(file, JSON.stringify({ errore: "non so se lavora su Qui (tempo scaduto): riprovo", lavora: true,
+    nonLetto: true, finito: true }), "utf-8");
   out = { r: await riprendiSposta(v, async () => {}), traccia: leggi(`${dir}/s1.traccia.json`) };
 }
 console.log(JSON.stringify({ ...out, lanciati, eseguiti, avvisi }));
@@ -11619,6 +11623,15 @@ def hz122(repo: Path, casa: Path) -> str | None:
     g = volta("avviso", HZ_NASCE="t9")
     if g["r"] != {"ok": True, "avviso": "su Qui la copia ferma non è segnata come spostata"}:
         return f"l'avviso di un segno mancato si perde alla fine di Sposta: {g['r']}"
+    # #6126: il secondo controllo, dopo la preparazione della cartella, porta "non letto" fino alla coda
+    g = volta("nonletto")
+    if (g["r"] or {}).get("lavora") is not True or (g["r"] or {}).get("nonLetto") is not True:
+        return f"il 'non letto' del secondo controllo si perde in fineSposta, e la coda riprova senza limite: {g['r']}"
+    # #6126: un errore certo del primo controllo (id non valido) esce subito, senza tornare in coda
+    g = volta("lavora", herdr=scheda, HZ_EXEC=json.dumps({"errore": "id di sessione non valido", "certo": True}))
+    chiusi = [x for x in g["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
+    if (g["r"] or {}).get("lavora") or (g["r"] or {}).get("nonLetto") or "id di sessione non valido" not in ((g["r"] or {}).get("errore") or "") or chiusi:
+        return f"un errore certo del controllo torna in coda come un turno non letto, o chiude le schede: {g['r']}, {chiusi}"
     return None
 
 
@@ -13386,7 +13399,11 @@ r = v.sposta("torre", "qui", "abcd1234", "abcd1234-0000", "/x")
 f = io.StringIO()
 with contextlib.redirect_stdout(f):
     rc = v.main(["torre", "qui", "abcd1234", "abcd1234-0000", "--cartella", "/x", "--controlla"])
+g = io.StringIO()
+with contextlib.redirect_stdout(g):
+    rc_certo = v.main(["torre", "qui", "abcd1234", "non valido!", "--cartella", "/x", "--controlla"])
 print(json.dumps({"sposta": r, "chiamate": chiamate, "controlla": [rc, json.loads(f.getvalue().strip().splitlines()[-1])],
+                  "certo": [rc_certo, json.loads(g.getvalue().strip().splitlines()[-1])],
                   "spegni": v.spegni_partenza("torre", "abcd1234", "abcd1234-0000")}))
 """
 
@@ -13447,6 +13464,8 @@ def hz168(repo: Path, casa: Path) -> str | None:
     c = d["controlla"]
     if c[0] != 0 or c[1].get("lavora") is not True or c[1].get("nonLetto") is not True:
         return f"--controlla con la partenza muta dice via libera: {c}"
+    if d["certo"][0] != 1 or d["certo"][1].get("certo") is not True or d["certo"][1].get("lavora"):
+        return f"--controlla con un id non valido non dice che l'errore è certo (#6126): {d['certo']}"
     if "non so se la copia di partenza è spenta" not in (d["spegni"] or ""):
         return f"spegni_partenza conta spenta una partenza che non risponde: {d['spegni']}"
     # 3. la coda di volta.js
@@ -13777,6 +13796,9 @@ VELENI = [
     ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '    if ora.get("errore"):\n        return {"errore": "non so se lavora', '    if False:\n        return {"errore": "non so se lavora'),
     ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '        if ora.get("errore"):\n            return "su %s non so', '        if False:\n            return "su %s non so'),
     ('HZ168', 'shared/volta/mods/arturo/sessioni.js', '  return n >= SPOSTA_NON_LETTO_MAX ? null :', '  return false ? null :'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '"id di sessione non valido", "certo": True}', '"id di sessione non valido"}'),
+    ('HZ122', 'shared/volta/mods/arturo/dati.js', '      ...(lavora && r?.nonLetto === true ? { nonLetto: true } : {}) };', '      };'),
+    ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (prima?.certo === true && prima.errore && !prima.lavora) {', '  if (false) {'),
     ('HZ168', 'shared/volta/mods/arturo/sessioni.js', '  if (!r.nonLetto) return { ...v, dopo: ora + ogni, nonLetti: 0 };', '  if (!r.nonLetto) return null;'),
     ('HZ168', 'shared/volta/mods/arturo/volta_capo.py', '        if not isinstance(elenco, dict) or muta:', '        if not isinstance(elenco, dict):'),
     ('HZ168', 'shared/volta/mods/arturo/volta_capo.py', '        if not isinstance(elenco, dict) or muta:', '        if muta:'),

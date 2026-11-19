@@ -1107,9 +1107,14 @@ export async function spostaSessione(s, macchina, dormi = null) {
   // lo spostamento aspetta il turno finito, e la scheda resta aperta. Un controllo che non torna (exec
   // caduto, uscita storta, macchina che non risponde) vale come un turno in corso, `nonLetto` (#6110): prima
   // valeva come via libera, e le schede si chiudevano su una sessione forse a metà turno.
+  // Un errore certo (`certo`: l'id non valido, #6126) non si riprova: ogni tentativo darebbe lo stesso.
   let prima;
   try { prima = esito(await exec(c.arturo[0], [...argv, "--controlla"], { timeout: tettoDi("sposta") })); } catch (e) {
     prima = { errore: String(e?.message ?? e).slice(0, 120) };
+  }
+  if (prima?.certo === true && prima.errore && !prima.lavora) {
+    await traccia("rifiuto", { da: s.host ?? "qui", a: macchina, id: s.id, errore: prima.errore });
+    return { errore: String(prima.errore) };
   }
   if (prima?.lavora || prima?.errore) {
     const nonLetto = !prima.lavora || prima.nonLetto === true;
@@ -1204,9 +1209,14 @@ async function attendiSposta(v, dormi) {
 // la riaccenderebbe anche qui (#5635), e la scheda resta chiusa. `avviso`: spostata, con un segno non scritto.
 async function fineSposta(s, macchina, r, chiuse) {
   // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
+  // `nonLetto`: il secondo controllo, dopo la preparazione della cartella, non ha letto il turno (#6110):
+  // passa alla coda, che lo riprova al più SPOSTA_NON_LETTO_MAX volte (#6126). Senza, la coda riprovava
+  // senza limite e riapriva ogni volta la scheda.
   if (!r?.attach?.length) {
     const nonSiSa = r?.nonSiSa === true;
-    const x = { errore: (r?.errore ?? "nessuna risposta") + (nonSiSa && chiuse ? "; non riapro la scheda di partenza" : ""), lavora: r?.lavora === true };
+    const lavora = r?.lavora === true;
+    const x = { errore: (r?.errore ?? "nessuna risposta") + (nonSiSa && chiuse ? "; non riapro la scheda di partenza" : ""), lavora,
+      ...(lavora && r?.nonLetto === true ? { nonLetto: true } : {}) };
     let riaperta = null;
     if (chiuse && !nonSiSa && Array.isArray(s.attach) && s.attach.length) riaperta = await apriSessione(s, s.attach).catch((e) => ({ errore: String(e?.message ?? e) }));
     await tracciaSposta(s, "male", { esito: x, riaperta: riaperta && { come: riaperta.come, errore: riaperta.errore } });

@@ -1,5 +1,5 @@
 {
- "albero": "9de53fa5eb465786da4dc820151966f647a9e251",
+ "albero": "1e15c92538bfb7696256ee547be7e33aab909ace",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -25,7 +25,7 @@
   "mods/arturo/comuni.js": "9fbaecaeb054919637bed84a1554cffb10f90b0028ab6e99b6f708bc563d3fb2",
   "mods/arturo/contesto.js": "4b89d87f2a4e56ded2e807556e264db2596c87c62f9eadd25126fc0a6cc7b362",
   "mods/arturo/contestoui.js": "b34addd6ed1140ec4f3ed9a42992d2315256223f8fe246f4451cbdf9d4c9a9ce",
-  "mods/arturo/dati.js": "2b6ad4dffd21d370238bd120d456da51c7775a7b71023d6ce3f02ce9eb9b0f92",
+  "mods/arturo/dati.js": "6f132644f95b1659c55ed82cf7c66614fd87b2aa6454db03f078340c2a42030c",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -62,7 +62,7 @@
   "mods/arturo/tessere.js": "18363ab3887fcbfa6ed6b474dabf232efd05c3d35f1532a88d2441c6a0539a5f",
   "mods/arturo/testata.js": "8c7722531eb810c99d9650e80abe52e5bbf4bfe819af0edcfdcc91bec4e53e13",
   "mods/arturo/todo.js": "f3a99f727feb65d4bc159855842780cb2454a3e0ac4b8bd505f5ab545d36e636",
-  "mods/arturo/volta.js": "e55d2de2523428f356ff3249f1ba3a469b47da2865ace2c11d334cdd3bf49aec",
+  "mods/arturo/volta.js": "1fa0a8160af264a8ecb67c824813cc24d2241728293d1add6c3399ca4b4ce3a4",
   "mods/arturo/volta_capo.py": "6240e35d869e3a64e416d62276761a2e745031dd92507fa757ec8355ce0ae48b",
   "mods/arturo/volta_carte.py": "765eb89941fbba5b6290801ea08410795be141b5ba3abf537e0fc3aae5668e5d",
   "mods/arturo/volta_davanti.py": "6aa142b0f498b8fd8cb9ce46a2520fbd64eca4e837b47d3b07076a7617d5e5e3",
@@ -70,7 +70,7 @@
   "mods/arturo/volta_note.py": "238b224f7495414478cae7c72a75cde38ac506c66f6361dc4fb5fcca1f1d2f87",
   "mods/arturo/volta_registro.py": "6b32aacdb5027f8543b8a6bdc23722be41951d60952ae19d14770c25a112c9bc",
   "mods/arturo/volta_sonda.py": "71b3ebb6c1fa10787a8054c6c1c8ae60cacfae8da823ca953e5f8e5e684d1c93",
-  "mods/arturo/volta_sposta.py": "75218c24225a406f9f80da5bb3a1390ea0ef02d7e5c2e4db26b0d01d591691a1",
+  "mods/arturo/volta_sposta.py": "a940578d9671dc5fcb9ecb4ad7ec81cdbf2a24349a0ceb0c2c7addcc94077a00",
   "nascita.sh": "4a757a34f4199688ac33c2752da07f81bfd23bd6446fa40178a4fb6ed8e94349",
   "servizi-gui.sh": "a3eaeb26e61f1143781e17ff282bc2b06a4598814d48dde22842769e95e7f7c7",
   "servizio-claude.ps1": "11b379c862c59b6f97ce28964df31414a0641cbf498640aef6c0f14f07743960",
