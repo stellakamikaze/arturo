@@ -73,6 +73,24 @@ case "$passo" in
     [[ "$arrivo" =~ ^$BASE/_arrivo-[0-9a-f]{7,40}$ ]] || { echo "Percorso inatteso: $arrivo" >&2; exit 1; }
     ssh "$HOST" "rm -rf '$arrivo'"
     echo "Pubblicato $commit: $n file con gli hash giusti nel container. Backup in $BASE/$backup, $arrivo tolta."
+    # Dal 19/11/2026 Cloudflare tiene in cache anche le pagine (Cache Rule, #6124): dopo la copia si svuota la
+    # cache del nome della landing. Token con il permesso Cache Purge in un file 600, mai nella riga di comando.
+    if [[ -n "${ARTURO_CF_ZONA:-}" && -r "${ARTURO_CF_PURGE_TOKEN_FILE:-}" ]]; then
+      intestazione=$(mktemp)
+      chmod 600 "$intestazione"
+      printf 'Authorization: Bearer %s\n' "$(tr -d '\n' < "$ARTURO_CF_PURGE_TOKEN_FILE")" > "$intestazione"
+      esito=$(curl -s -X POST -H @"$intestazione" -H "Content-Type: application/json" \
+        --data '{"hosts":["arturo.stellakamikaze.org"]}' \
+        "https://api.cloudflare.com/client/v4/zones/$ARTURO_CF_ZONA/purge_cache" || true)
+      rm -f "$intestazione"
+      if [[ "$esito" == *'"success":true'* ]]; then
+        echo "Cache di Cloudflare svuotata per arturo.stellakamikaze.org."
+      else
+        echo "Attenzione: la cache di Cloudflare non si è svuotata. Svuotala dal pannello (Caching, Purge, Hostname)." >&2
+      fi
+    else
+      echo "Attenzione: manca ARTURO_CF_ZONA o ARTURO_CF_PURGE_TOKEN_FILE, la cache di Cloudflare resta: le pagine nuove escono entro 5 minuti." >&2
+    fi
     # Il confronto di /inizia/, lo stesso che fa Claude: avvisa e non blocca, la pubblicazione è fatta.
     if curl -fsSL "$RAW_INSTALLA" | cmp -s - <(curl -fsSL "$SITO_INSTALLA"); then
       echo "installa.sh: il sito e GitHub danno lo stesso file (UGUALE)."

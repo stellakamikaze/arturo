@@ -3,7 +3,8 @@
 # Strada consigliata: Claude Code scarica questo file e lo lancia, come dice
 # https://arturo.stellakamikaze.org/inizia/
 # Strada a mano, da un terminale con Claude Code chiuso:
-#   curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | bash
+# (da GitHub, non dal sito: la riga a mano non ha il confronto fra le due copie di /inizia/)
 #
 # Arturo entra dentro ~/.claude senza spostare la cartella: login, conversazioni, file dei plugin e
 # file della persona restano dove sono, anche con una sessione di Claude Code aperta. Prima di

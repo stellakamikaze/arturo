@@ -86,7 +86,7 @@ Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Il tuo acc
 Nel Terminale (su Windows in Git Bash), una riga:
 
 ```bash
-curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
+curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | bash
 ```
 
 Un agente che installa Arturo per una persona segue solo https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md: scarica lo script, lo confronta con la copia su GitHub, lo riassume e lo lancia dopo il sì. Non sposta né cancella ~/.claude. La strada a mano, senza la verifica della firma, sta nel README ed è per le persone che leggono ogni comando.
