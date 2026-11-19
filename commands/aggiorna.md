@@ -23,6 +23,23 @@ OpenSSH, e lo dici senza allarme.
 Chi ti parla **potrebbe non essere una persona tecnica**: niente gergo di Git, nessun output
 grezzo incollato senza spiegazione.
 
+## Freni
+
+- Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
+- Con `STORIA RISCRITTA` non si applica niente.
+- Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
+  niente, neanche col suo sì: "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo".
+  Con `FIRMA NON VERIFICABILE` non si applica niente finché git e OpenSSH non sono aggiornati: non è
+  un allarme, e non si dice "compromissione".
+- Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
+  `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
+- La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha
+  mostrato il diff.
+- Per tornare indietro mai `reset --hard`: solo `aggiorna-applica.sh indietro`, e solo dopo il suo sì.
+- Mai scartare modifiche sue per far passare l'aggiornamento.
+- Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
+  drammatizzare e non ritentare a oltranza.
+
 ## Passo 0 — Plugin o copia in ~/.claude
 
 ```bash
@@ -441,20 +458,3 @@ precedente. I passi 1-4 qui sopra non c'entrano.
    - `RIPRISTINO NON RIUSCITO`: **fermati**, come nel Passo 3.
 
 4. Digli di **chiudere e riaprire Claude Code**, come dopo ogni aggiornamento.
-
-## Freni
-
-- Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
-- Con `STORIA RISCRITTA` non si applica niente.
-- Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
-  niente, neanche col suo sì: "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo".
-  Con `FIRMA NON VERIFICABILE` non si applica niente finché git e OpenSSH non sono aggiornati: non è
-  un allarme, e non si dice "compromissione".
-- Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
-  `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
-- La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha
-  mostrato il diff.
-- Per tornare indietro mai `reset --hard`: solo `aggiorna-applica.sh indietro`, e solo dopo il suo sì.
-- Mai scartare modifiche sue per far passare l'aggiornamento.
-- Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
-  drammatizzare e non ritentare a oltranza.

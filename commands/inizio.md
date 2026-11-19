@@ -9,8 +9,39 @@ argument-hint: "<nome-progetto> [--tutti] [<compito>]"
 # Inizio sessione
 
 Argomenti: **$ARGUMENTS**. Le parole dopo il nome del progetto, o dopo " -- ", sono il compito della
-sessione (vedi "Con un compito" in fondo); una frase senza nome di progetto è tutta compito. `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
+sessione (vedi "Con un compito" qui sotto); una frase senza nome di progetto è tutta compito. `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
 usa la cartella in cui sei. Con `--tutti` e senza nome ti fermi dopo la FASE 0.
+
+## Con un compito
+
+Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
+frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
+partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Se la FASE 1 stampa
+FACCIO IO FERMI, aggiungi una riga: "Todo di Claude fermi da più di 3 giorni: #12 (7 g), #13 (5 g).
+Dopo il compito ne chiudo uno breve, o chiedo se toglierlo." A compito finito mantieni la promessa:
+riprendine uno, o chiedi alla persona se scartarlo o passarlo a lei. Poi carica
+`prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
+senza aspettare una scelta.
+
+## Modo rotazione
+
+Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotazione`, dopo un
+`/fine --rotazione`: la persona non ha scritto niente e il lavoro continua da solo.
+- FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
+- La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
+  elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
+  conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
+  anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
+  L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
+  Nemmeno la domanda dell'intervista o la proposta di uno spazio: in rotazione nessuno risponde, e
+  `arturo contesto` non le stampa.
+- Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
+- `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
+  brief pieno l'ha avuto lo step prima. Poi parti subito.
+- A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
+- Con la riga `in attesa: <domanda>` non parti: la sessione di prima ha fatto una domanda alla persona dopo
+  la rotazione, e la risposta non è arrivata (segnalazione n. 65). La ripartenza è la riga "Ripreso…" e
+  sotto la domanda, con le parole di risposta in grassetto. Aspetti la risposta prima di ogni lavoro.
 
 ## FASE -1: Onboarding speciali
 
@@ -436,36 +467,5 @@ Perché è fatta così:
   Da subito usalo quando parli di te.
 - **"qualcosa non torna".** Se la persona dice che Arturo o il progetto non funzionano come si
   aspetta, apri con Read `~/.claude/commands/diagnosi.md` e seguilo.
-
-## Con un compito
-
-Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
-frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
-partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Se la FASE 1 stampa
-FACCIO IO FERMI, aggiungi una riga: "Todo di Claude fermi da più di 3 giorni: #12 (7 g), #13 (5 g).
-Dopo il compito ne chiudo uno breve, o chiedo se toglierlo." A compito finito mantieni la promessa:
-riprendine uno, o chiedi alla persona se scartarlo o passarlo a lei. Poi carica
-`prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
-senza aspettare una scelta.
-
-## Modo rotazione
-
-Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotazione`, dopo un
-`/fine --rotazione`: la persona non ha scritto niente e il lavoro continua da solo.
-- FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
-- La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
-  elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
-  conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
-  anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
-  L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
-  Nemmeno la domanda dell'intervista o la proposta di uno spazio: in rotazione nessuno risponde, e
-  `arturo contesto` non le stampa.
-- Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
-- `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
-  brief pieno l'ha avuto lo step prima. Poi parti subito.
-- A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
-- Con la riga `in attesa: <domanda>` non parti: la sessione di prima ha fatto una domanda alla persona dopo
-  la rotazione, e la risposta non è arrivata (segnalazione n. 65). La ripartenza è la riga "Ripreso…" e
-  sotto la domanda, con le parole di risposta in grassetto. Aspetti la risposta prima di ogni lavoro.
 
 Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.
