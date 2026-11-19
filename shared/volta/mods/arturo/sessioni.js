@@ -1258,6 +1258,20 @@ export function sessioneDi(terminale, sessioni) {
     ?? l.find((s) => etichettaDice(e, s, doppio(l, s.id)) === null && agganciataDa(terminale.argv, s, terminale.address)) ?? null;
 }
 
+// La scheda che riceve il todo di Lavoraci (#5485, 19/11/2026). Lo spazio prende il nome del progetto, ma
+// una sua scheda può ospitare una sessione di un altro progetto: un todo di Post Office finiva nella
+// sessione che lavorava su Volta. `schede`: le schede di Claude dello spazio, in ordine di preferenza,
+// ognuna con `terminale` (di terminals()). Torna la prima la cui sessione (sessioneDi) ha la chiave di
+// `nome`, o null: una sessione di un altro progetto, o senza progetto, non riceve il todo.
+export function schedaDelProgetto(schede, nome, sessioni, noti = NOTI) {
+  const k = progettoDi(nome, noti).chiave;
+  if (!k) return null;
+  return (schede ?? []).find((x) => {
+    const s = sessioneDi(x?.terminale, sessioni);
+    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;
+  }) ?? null;
+}
+
 // Le schede nel core della macchina della sessione (#5802, 16/11/2026). Una sessione di un'altra macchina
 // si apriva in una scheda di qui con ssh -t <macchina> claude attach: a portatile chiuso la scheda spariva,
 // e il telefono, che parla col core di quella macchina, non vedeva la sessione. Ora la scheda nasce in uno

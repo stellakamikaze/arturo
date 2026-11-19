@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale } from "./sessioni.js";
+import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale, schedaDelProgetto } from "./sessioni.js";
 import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
@@ -321,6 +321,28 @@ export function schedaAgganciata(s) {
   return null;
 }
 
+// Le schede di uno spazio dove c'è Claude, l'attiva per prima (Lavoraci, #5485): { terminale, a } per un
+// agente di Herdr, { terminale, g } per una scheda che aggancia una sessione (g come schedaAgganciata).
+// Un agente che panes() non mostra (un core di un'altra macchina) va in fondo, col suo indirizzo.
+function schedeDiClaude(s) {
+  const tabs = new Set((s?.tabs ?? []).map((tb) => tb.id));
+  const attiva = s?.tabs?.find((tb) => tb.active)?.id;
+  const occupate = shared("arturo.volta.dove")?.occupate ?? {};
+  const qui = agents().filter((x) => x.space === s?.id);
+  const terminale = (ind) => terminals().find((x) => x.address === ind) ?? { address: ind };
+  const out = [];
+  for (const p of [...panes()].sort((x, y) => Number(y.tab === attiva) - Number(x.tab === attiva))) {
+    if (!tabs.has(p.tab)) continue;
+    const t = terminale(p.terminal);
+    const a = qui.find((x) => x.address === p.terminal);
+    const id = a ? null : occupate[p.terminal] ?? idAggancio(t.argv);
+    if (a) out.push({ terminale: t, a });
+    else if (id) out.push({ terminale: t, g: { terminal: p.terminal, tab: p.tab, id } });
+  }
+  for (const a of qui) if (!out.some((x) => x.a === a)) out.push({ terminale: terminale(a.address), a });
+  return out;
+}
+
 // Gli stati di Volta (aspetta, lavora, ferma, errore) nelle parole di Herdr, per la barra e la testata.
 // Un errore non ha una parola di Herdr: resta senza stato, e Volta lo mostra nel suo elenco.
 const DA_VOLTA = { aspetta: "blocked", lavora: "working", ferma: "idle" };
@@ -431,10 +453,14 @@ export async function apri(nome, todoScelto) {
     run("space.select", { id: s.id });
     if (!todoScelto) return;
     const testo = `Lavoriamo sul todo #${todoScelto.id}: ${todoScelto.titolo}`;
-    const a = agents().find((x) => x.space === s.id);
+    // Il todo va solo a una scheda la cui sessione lavora su questo progetto (#5485): Claude in una
+    // scheda (agente di Herdr) o la scheda che aggancia una sessione in background. Senza, nasce sotto.
+    const schede = schedeDiClaude(s);
+    const x = schedaDelProgetto(schede, nome, (await elencoVolta()).sessioni, shared("arturo.progetti"));
+    const a = x?.a ?? null;
     // Uno spazio nato su un'altra macchina: si scrive nella scheda che la aggancia. hc send non scrive
     // se il programma aspetta una risposta, e così non risponde al posto della persona.
-    const g = a ? null : schedaAgganciata(s);
+    const g = x?.g ?? null;
     if (g) {
       run("tab.select", { id: g.tab });
       if (statoAgganciata(g) === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella sessione, poi riprova.", level: "warning" });
@@ -443,11 +469,15 @@ export async function apri(nome, todoScelto) {
       if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr) || "Se Claude aspetta una tua risposta, rispondi nella sessione e riprova.", level: "warning" });
       return;
     }
-    if (!a) return notify({ title: "La sessione di questo progetto è chiusa", body: "Chiudi lo spazio e riaprilo dalla barra.", level: "warning" });
-    if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella sessione, poi riprova.", level: "warning" });
-    const r = await hc(["send", a.address, testo]);
-    if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
-    return;
+    if (a) {
+      if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella sessione, poi riprova.", level: "warning" });
+      const r = await hc(["send", a.address, testo]);
+      if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
+      return;
+    }
+    // Nessuna sessione dello spazio lavora su questo progetto: il todo non va a quella di un altro, e
+    // nasce una sessione nuova che parte da /inizio col todo, come per un progetto senza spazio.
+    if (schede.length) notify({ title: "Apro una sessione nuova per questo todo", body: "Le sessioni di questo spazio lavorano su un altro progetto.", level: "info", timeout: 5000 });
   }
   const prompt = todoScelto ? `/inizio ${nome} -- #${todoScelto.id} ${pulito(todoScelto.titolo)}` : `/inizio ${nome}`;
   // Con "Nasce su" su questa macchina, un progetto la cui cartella sta solo altrove nasce lì (campo

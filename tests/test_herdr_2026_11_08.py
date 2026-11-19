@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ170: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ172: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -786,6 +786,9 @@ HZ170 lead e alias dei progetti (#6132, 19/11/2026): il capo legge slug e alias 
 HZ171 la Coda riprova una copia delle prove fallita (#6112, 19/11/2026): daCopiare di sessioni.js dice sì a una
      prova mai copiata e a un errore dopo PROVA_RIPROVA_MS, al più PROVA_TENTATIVI volte; no a "copio" e "ok".
      coda.js lo usa, segna l'ora della ripresa prima di ridisegnare e si risveglia con cx.sleep.
+HZ172 Lavoraci e progetto della sessione (#5485, 19/11/2026): schedaDelProgetto di sessioni.js dà il todo solo alla
+     scheda la cui sessione ha la chiave del progetto (anche sotto un alias); un'altra sessione, una senza
+     progetto o una che Volta non elenca no. apri() di dati.js la usa e, senza scheda, fa nascere una sessione.
 """
 from __future__ import annotations
 
@@ -801,7 +804,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -2942,6 +2945,11 @@ def hz39(repo: Path, casa: Path) -> str | None:
         agganciato = {"spaces": [{"id": "s1", "name": "progetto-x", "tabs": [{"id": "tb0", "name": "Shell"}, {"id": "tb1", "name": "Progetto x"}]}],
                       "panes": [{"terminal": "t3", "tab": "tb0"}, {"terminal": "t7", "tab": "tb1"}],
                       "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]}]}
+        # Volta elenca la sessione della scheda col suo progetto: solo così riceve il todo (#5485)
+        (app / "cache/volta").mkdir(parents=True, exist_ok=True)
+        (app / "cache/volta/sessioni.json").write_text(json.dumps({"sessioni": [{"id": "ffff1111", "sessionId": "ffff1111-aaaa",
+            "host": "Torre", "macchina": "Torre", "questa": False, "progetto": "progetto-x", "stato": "ferma", "tipo": "background",
+            "attach": ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]}]}), encoding="utf-8")
         v = volta("lavoraci", "Torre", herdr=agganciato)
         invii = lambda v: [x for x in v["inviati"] if x[0] == "send"]  # noqa: E731 (prima c'è hc get, HZ65)
         if v["avvisi"] or invii(v) != [["send", "t7", "Lavoriamo sul todo #42: Prova"]]:
@@ -2950,8 +2958,10 @@ def hz39(repo: Path, casa: Path) -> str | None:
             return f"Lavoraci su uno spazio agganciato non porta alla sua scheda: {v['lanciati']}"
         senza = {**agganciato, "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": ["zsh"]}]}
         v = volta("lavoraci", "Torre", herdr=senza)
-        if v["inviati"] or not v["avvisi"] or "chiusa" not in v["avvisi"][0].get("title", ""):
-            return f"uno spazio senza sessione non dice che è chiusa: {v}"
+        # senza una scheda di Claude nello spazio nasce una sessione sul todo (#5485), non si dice "chiusa"
+        if invii(v) or any("chiusa" in x.get("title", "") for x in v["avvisi"]) or not v["eseguiti"] \
+                or v["eseguiti"][0][2:] != ["nasci", "Torre", "--progetto", "progetto-x", "--", "/inizio progetto-x -- #42 Prova"]:
+            return f"uno spazio senza sessione non fa nascere una sessione sul todo: {v}"
         # #5072: lo stato di una scheda agganciata viene dall'ultima lettura di Volta (arturo.volta.stati)
         stati = {"ffff1111": {"stato": "aspetta", "host": "qui"}, "aaaa2222": {"stato": "lavora", "host": "Torre"}}
         v = volta("stato", "qui", herdr=agganciato, stati=stati)
@@ -5269,10 +5279,15 @@ def hz65(repo: Path, casa: Path) -> str | None:
                 return f"{cosa}: la sessione riparte in una scheda nuova invece che nella sua: {v['lanciati']}"
         # Volta non elenca più la sessione: niente nella shell, e lo si dice
         v = volta("lavoraci", {"t7": [nuda]}, sessioni=json.dumps({"sessioni": [riga_s("aaaa2222", "Studio")]}))
-        if invii(v) or sonda(v) or len(v["avvisi"]) != 1 or "chiusa" not in v["avvisi"][0].get("title", ""):
+        # (#5485: senza la sessione nell'elenco non si sa il progetto, e nasce una sessione nuova sul todo)
+        if invii(v) or sonda(v) or not v["avvisi"] or "sessione nuova" not in v["avvisi"][0].get("title", ""):
             return f"una scheda tornata alla shell senza sessione nell'elenco: {invii(v)}, {sonda(v)}, {v['avvisi']}"
+        # Ricordami una cosa non guarda il progetto: con la sessione fuori elenco la scheda si dice chiusa
+        v = volta("ricorda", {"t7": [nuda]}, sessioni=json.dumps({"sessioni": [riga_s("aaaa2222", "Studio")]}))
+        if invii(v) or sonda(v) or len(v["avvisi"]) != 1 or "chiusa" not in v["avvisi"][0].get("title", ""):
+            return f"Ricordami una cosa con la scheda tornata alla shell e la sessione fuori elenco: {invii(v)}, {sonda(v)}, {v['avvisi']}"
         v = volta("lavoraci", {"t7": [nuda]}, sessioni="non è json")
-        if invii(v) or len(v["avvisi"]) != 1 or "chiusa" not in v["avvisi"][0].get("title", ""):
+        if invii(v) or not v["avvisi"] or "sessione nuova" not in v["avvisi"][0].get("title", ""):
             return f"con sessioni.json illeggibile il testo va nella shell, o non si dice niente: {invii(v)}, {v['avvisi']}"
         # il servizio non parte: niente nella shell, l'avviso porta il motivo
         v = volta("lavoraci", {"t7": [nuda]}, uscita=json.dumps({"errore": "il servizio di Claude non parte su Torre: spenta"}))
@@ -13665,6 +13680,55 @@ def hz168(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_LAVORACI = r"""
+import * as m from "./sessioni.mjs";
+const noti = { volta: { chiave: "volta" }, "volta-celeste": { chiave: "volta" }, "post-studio": { chiave: "post-studio" } };
+const sessioni = [
+  { questa: true, tipo: "interattiva", terminale: "t1", id: "aaaa1111", progetto: "volta" },
+  { questa: true, tipo: "interattiva", terminale: "t2", id: "bbbb2222", progetto: "post-studio" },
+  { questa: true, tipo: "interattiva", terminale: "t3", id: "cccc3333", progetto: null },
+];
+const sch = (ind) => ({ terminale: { address: ind }, a: { address: ind } });
+const dove = (x) => x?.terminale?.address ?? null;
+console.log(JSON.stringify({
+  altro: dove(m.schedaDelProgetto([sch("t1")], "post-studio", sessioni, noti)),
+  giusta: dove(m.schedaDelProgetto([sch("t1"), sch("t2")], "post-studio", sessioni, noti)),
+  alias: dove(m.schedaDelProgetto([sch("t1")], "volta-celeste", sessioni, noti)),
+  senza: dove(m.schedaDelProgetto([sch("t3")], "volta", sessioni, noti)),
+  ignota: dove(m.schedaDelProgetto([sch("t9")], "volta", sessioni, noti)),
+  vuoto: dove(m.schedaDelProgetto([sch("t1")], "", sessioni, noti)),
+}));
+"""
+
+
+def hz172(repo: Path, casa: Path) -> str | None:
+    """Lavoraci scrive il todo solo a una sessione dello stesso progetto (#5485): schedaDelProgetto con node, e apri()."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta/mods/arturo"
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    (casa / "prova.mjs").write_text(PROVA_LAVORACI, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    atteso = {"altro": None, "giusta": "t2", "alias": "t1", "senza": None, "ignota": None, "vuoto": None}
+    sbagli = {k: d[k] for k in atteso if d[k] != atteso[k]}
+    if sbagli:
+        return f"schedaDelProgetto sbaglia (altro progetto, scheda giusta, alias, senza progetto, ignota, nome vuoto): {sbagli}"
+    dati = (mod / "dati.js").read_text(encoding="utf-8")
+    i = dati.find("export async function apri(")
+    corpo = dati[i:dati.find("\nexport ", i + 10)] if i >= 0 else ""
+    if 'schedaDelProgetto(schede, nome, (await elencoVolta()).sessioni, shared("arturo.progetti"))' not in corpo:
+        return "apri() di dati.js non sceglie la scheda con schedaDelProgetto: il todo andrebbe al primo agente dello spazio"
+    if "agents().find((x) => x.space === s.id)" in corpo:
+        return "apri() di dati.js scrive ancora al primo agente dello spazio"
+    if corpo.find("if (schede.length) notify(") > corpo.find("nasciSu(sua ?? d, prompt, nome)"):
+        return "apri() di dati.js non fa nascere una sessione nuova quando nessuna scheda è del progetto"
+    return None
+
+
 PROVA_COPIE = r"""
 import * as m from "./sessioni.mjs";
 const ora = 1000000;
@@ -13748,7 +13812,7 @@ def hz170(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13793,6 +13857,9 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s);'),
+    ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s?.progetto) && s.progetto === nome;'),
+    ('HZ172', 'shared/volta/mods/arturo/dati.js', 'const x = schedaDelProgetto(schede, nome, (await elencoVolta()).sessioni, shared("arturo.progetti"));', 'const x = schede[0];'),
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', "    appesa = cartella_appesa(c)\n    if appesa:", "    appesa = None\n    if appesa:"),
     ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', 'if sys.platform != "darwin" or not cartella:', 'if sys.platform != "darwin" or not os.path.isdir(cartella):'),
     ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', "#PERMESSO#\nfor c in", "#PERMESSO#\nif not os.path.isdir(base):\n    base = casa\nfor c in"),
@@ -14779,7 +14846,7 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/barra.js", '`|${JSON.stringify(statiQui())}|', '`|'),
     ("HZ39", "shared/volta/mods/arturo/volta_sonda.py", 'app = os.environ.get("HERDR_APP_HOME") or ', "app = "),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const args = [c.volta, ...entroDi("nasci"), copia ? copia.verbo : "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, ...entroDi("nasci"), copia ? copia.verbo : "nasci", macchina,'),
-    ("HZ39", "shared/volta/mods/arturo/dati.js", "const g = a ? null : schedaAgganciata(s);", "const g = null;"),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", "const g = x?.g ?? null;", "const g = null;"),
     ("HZ39", "shared/volta/mods/arturo/dati.js", "if (id) return { terminal: p.terminal, tab: p.tab, id };", "if (false) return { terminal: p.terminal, tab: p.tab, id };"),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'if (sug.dove === "nuova") return nuova(prompt, true);', 'if (sug.dove === "nuova") return nuova(prompt);'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", "if (!a && !g) return nuova(prompt, true);", "if (!a && !g) return nuova(prompt);"),
