@@ -48,7 +48,7 @@ import { leggiRecenti, riprendiDaSola } from "./dati.js";
 import { daRiprendere, testoRipresa } from "./sessioni.js";
 import { gestoUf } from "./azioni.js";
 import { terminale } from "./casa.js";
-import { tettoDi, entroDi, appesa, liberaAppese, lascia, SPOSTA_MAX_MS } from "./sessioni.js";
+import { tettoDi, entroDi, appesa, liberaAppese, lascia, SPOSTA_MAX_MS, riprovaSposta } from "./sessioni.js";
 
 // Il giro dell'elenco (step 5 del piano di revisione, 17/11/2026): ogni 10 s, e subito dopo un gesto (aggiorna
 // chiesto durante un giro ne fa partire un altro alla fine). Con 30 s un cambio arrivava fino a 30 s dopo.
@@ -1187,7 +1187,8 @@ export class Volta {
     if (this.spostando !== mio) return;
     delete this.faccio[k];
     this.spostando = false;
-    if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };
+    const ancora = riprovaSposta(v, r, Date.now(), OGNI);
+    if (ancora) this.codaSposta[k] = ancora;
     else {
       delete this.codaSposta[k];
       if (r.errore) {

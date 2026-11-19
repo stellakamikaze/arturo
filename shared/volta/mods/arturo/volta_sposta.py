@@ -30,6 +30,7 @@ I passi, in quest'ordine:
 Su DA la trascrizione resta com'è. Mai claude rm.
 Prima del passo 1 e prima del 3 guarda se la sessione sta facendo un turno: se sì rifiuta con
 {errore, lavora: true}, e Volta riprova a turno finito. Lo spostamento non interrompe mai un turno.
+Un turno che non si legge vale come un turno in corso: {errore, lavora: true, nonLetto: true} (#6110).
 """
 from __future__ import annotations
 
@@ -381,9 +382,12 @@ esci(ok=True)
 
 # Su una macchina: il lavoro di claude agents che tiene la conversazione `sid`, e il percorso di claude.
 # {"id", "pid", "claude"} oppure {"nessuno": true}. Con "vivo" aspetta fino a 30 s che abbia un processo.
+# "nessuno" vale solo dopo un elenco letto davvero (uscita 0 e una lista JSON): claude agents che cade, scade
+# o stampa altro dà {"errore", "nonLetto": true}. Prima un elenco non letto valeva "nessuno", cioè libera:
+# Sposta fermava una sessione a metà turno (#6110, 19/11/2026).
 TROVA = COMUNE + "\n" + vs.ELENCO.strip() + "\n" + vs.CERCA_CLAUDE.strip() + r'''
 cl = trova_claude()
-visto = None
+visto, letto, guasto = None, False, None
 # `t`: una lettura di claude agents; `entro`: con `vivo`, quanto aspettare in tutto che la sessione riparta
 fine = time.monotonic() + (a.get("entro") or 0)
 while True:
@@ -391,18 +395,26 @@ while True:
         r = subprocess.run([cl, "agents", "--json", "--all"], capture_output=True, text=True, encoding="utf-8",
                            errors="replace", stdin=subprocess.DEVNULL,
                            timeout=max(1, min(a["t"], fine - time.monotonic()) if a.get("vivo") else a["t"]))
-        for s in elenco(r.stdout) or []:
+        lista = elenco(r.stdout) if r.returncode == 0 else None
+        if lista is None:
+            detto = [x.strip() for x in ((r.stderr or "") + "\n" + (r.stdout or "")).splitlines() if x.strip()]
+            guasto = (detto[-1] if detto else "uscita %d senza elenco" % r.returncode)[:160]
+        else:
+            letto = True
+        for s in lista or []:
             if s.get("sessionId") == a["sid"] and s.get("id"):
                 visto = s
                 if s.get("pid") or not a.get("vivo"):
                     esci(ok=True, id=s["id"], pid=s.get("pid"), claude=cl, stato=s.get("status") or s.get("state") or "")
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as e:
+        guasto = str(e)[:160]
     if not a.get("vivo") or time.monotonic() + 2 >= fine:
         break
     time.sleep(2)
 if visto:
     esci(errore="la sessione %s non riparte" % visto["id"])
+if not letto:
+    esci(errore="claude agents non dà l'elenco: %s" % (guasto or "nessuna risposta"), nonLetto=True)
 esci(ok=True, nessuno=True, claude=cl)
 '''
 
@@ -509,9 +521,14 @@ def riprendi_su(nome, sid, cartella, titolo):
 
 def lavora(da, sid):
     """Il rifiuto se la sessione `sid` su `da` sta facendo un turno, o None. Volta la sposta a turno finito
-    (coda di volta.js): fermarla adesso interromperebbe il lavoro a metà. `lavora` dice a Volta di riprovare."""
+    (coda di volta.js): fermarla adesso interromperebbe il lavoro a metà. `lavora` dice a Volta di riprovare.
+    Un turno che non si legge (la macchina non risponde, claude agents cade) vale come un turno in corso,
+    con `nonLetto`: Volta riprova, per un numero limitato di volte (#6110)."""
     ora = trova(da, sid)
-    if not ora.get("errore") and vs.stato({"status": ora.get("stato")}) == "lavora":
+    if ora.get("errore"):
+        return {"errore": "non so se lavora su %s (%s): riprovo" % (vs.chi(da), str(ora["errore"])[:140]),
+                "lavora": True, "nonLetto": True}
+    if vs.stato({"status": ora.get("stato")}) == "lavora":
         return {"errore": "sta lavorando: la sposto a turno finito", "lavora": True}
     return None
 
@@ -615,14 +632,19 @@ def spegni_partenza(da, id_lavoro, sid):
     Terminale) riaccende la sessione dopo claude stop, e la conversazione vivrebbe su due macchine. Qui si
     guarda GIRI_PARTENZA volte, a PAUSA_PARTENZA secondi, e una copia riaccesa si ferma di nuovo: il segno
     "spostata" appena scritto la fa chiudere alla sonda di ogni finestra, che stacca il suo aggancio.
-    None se la partenza è spenta (o non risponde), altrimenti l'avviso."""
+    None se la partenza è spenta, altrimenti l'avviso. Una partenza che non si legge non vale spenta (#6110):
+    l'avviso lo dice."""
     for giro in range(GIRI_PARTENZA):
         ora = trova(da, sid)
-        if ora.get("errore") or ora.get("nessuno") or not ora.get("pid"):
+        if ora.get("errore"):
+            return "su %s non so se la copia di partenza è spenta (%s): controlla da lì" % (vs.chi(da), str(ora["errore"])[:120])
+        if ora.get("nessuno") or not ora.get("pid"):
             return None
         vs.azione(da, "stop", ora.get("id") or id_lavoro)
         time.sleep(PAUSA_PARTENZA)
     ora = trova(da, sid)
+    if ora.get("errore"):
+        return "su %s non so se la copia di partenza è spenta (%s): controlla da lì" % (vs.chi(da), str(ora["errore"])[:120])
     if ora.get("pid"):
         return "su %s la copia di partenza si riaccende ancora (un aggancio aperto altrove?): chiudila da lì" % vs.chi(da)
     return None

@@ -349,11 +349,15 @@ def file_sessioni():
 
 def leggi_sessioni(avvisi):
     """L'elenco di Volta ({sessioni, macchine}): quello che la Volta di questa macchina ha scritto da poco, o
-    una lettura nuova della sonda se Volta è chiusa."""
+    una lettura nuova della sonda se Volta è chiusa. None se non si legge: un elenco vuoto direbbe "nessuna
+    sessione viva", e il giro farebbe nascere lead doppi (#6110)."""
     f = file_sessioni()
     d = leggi_json(f)
     if os.environ.get("VOLTA_CAPO_SESSIONI"):
-        return d if isinstance(d, dict) else {}
+        if not isinstance(d, dict):
+            avvisi.append("le sessioni non si leggono: %s non è un elenco" % taglia(f, 120))
+            return None
+        return d
     if isinstance(d, dict) and time.time() - os.path.getmtime(f) < SESSIONI_FRESCHE_S:
         return d
     sonda = os.path.join(os.path.dirname(os.path.abspath(__file__)), "volta_sonda.py")
@@ -365,8 +369,11 @@ def leggi_sessioni(avvisi):
         d = json.loads(r.stdout)
     except (OSError, ValueError, subprocess.TimeoutExpired) as e:
         avvisi.append("le sessioni non si leggono: %s" % taglia(e, 140))
-        return {}
-    return d if isinstance(d, dict) else {}
+        return None
+    if not isinstance(d, dict) or d.get("errore"):
+        avvisi.append("le sessioni non si leggono: %s" % taglia((d or {}).get("errore") if isinstance(d, dict) else "uscita storta", 140))
+        return None
+    return d
 
 
 def carte_sessioni(elenco):
@@ -799,8 +806,16 @@ def lead(vista, elenco, avvisi, ora):
         avvisi.append("un altro giro sta facendo nascere i lead: questo giro non ne fa nascere")
         return []
     try:
+        # Un elenco che non si legge, o questa macchina che non risponde alla sonda, non vale "nessuna sessione
+        # viva" (#6110): i lead vivi sparirebbero dal conto e nascerebbero doppi. Il giro non ne fa nascere e
+        # capo-lead.json resta com'è.
+        muta = next((m for m in (elenco or {}).get("macchine") or [] if isinstance(m, dict) and m.get("questa")
+                     and m.get("irraggiungibile") is not None), None) if isinstance(elenco, dict) else None
+        if not isinstance(elenco, dict) or muta:
+            avvisi.append("le sessioni di questa macchina non si leggono: in questo giro nessun lead nasce")
+            return []
         vivi, storia = leggi_lead(f)
-        sessioni = (elenco or {}).get("sessioni") or []
+        sessioni = elenco.get("sessioni") or []
         vive = {s.get("id") for s in sessioni
                 if isinstance(s, dict) and s.get("questa") and not s.get("chiusa") and s.get("stato") != "errore"}
         # un lead resta finché la sua sessione è viva; uno appena nato vale vivo per un giro anche se la sonda non lo vede

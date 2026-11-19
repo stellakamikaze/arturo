@@ -1056,6 +1056,18 @@ export const CONGEDO_ORFANO_MS = 10 * 60000;
 // `testo`: il file (o null), `dal`: quando è partito, `ora`. Torna { fatto } con l'esito finito, { attendi }
 // finché gira, { errore } oltre SPOSTA_MAX_MS: allora lo spostamento non si sa com'è andato.
 export const SPOSTA_MAX_MS = 25 * 60000, SPOSTA_OGNI_MS = 5000;
+
+// La coda di Sposta dopo un rifiuto `lavora` (finitoSposta di volta.js): la voce con il prossimo tentativo,
+// o null se esce dalla coda. Un turno in corso si riprova al giro dopo (`ogni`), senza limite. Un turno che
+// la macchina di partenza non dice (`nonLetto`, #6110) vale come in corso, ma si riprova ogni
+// SPOSTA_NON_LETTO_OGNI_MS e al più SPOSTA_NON_LETTO_MAX volte: poi esce con l'errore, che arriva alla persona.
+export const SPOSTA_NON_LETTO_MAX = 10, SPOSTA_NON_LETTO_OGNI_MS = 60000;
+export function riprovaSposta(v, r, ora, ogni) {
+  if (!r?.lavora) return null;
+  if (!r.nonLetto) return { ...v, dopo: ora + ogni, nonLetti: 0 };
+  const n = (v?.nonLetti ?? 0) + 1;
+  return n >= SPOSTA_NON_LETTO_MAX ? null : { ...v, dopo: ora + SPOSTA_NON_LETTO_OGNI_MS, nonLetti: n };
+}
 export function esitoSposta(testo, dal, ora, macchina = "l'altra macchina") {
   let d = null;
   try { d = testo ? JSON.parse(testo) : null; } catch { d = null; }

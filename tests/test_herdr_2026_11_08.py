@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ167: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ168: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -767,6 +767,12 @@ HZ167 La Coda come elenco e "A Claude" che parte (18/11/2026, Federico: "non mi 
      le cose pending" e "quando dò l'ok a far partire dei task non partono mai"): gruppiCoda e ordineVisto
      dividono le carte per chi agisce, nell'ordine della Coda, senza gruppi vuoti né chiusi; "A Claude" su un
      task porta `poi` col progetto e il todo, e volta.js dopo il todo riuscito porta Claude sul task.
+HZ168 "Non letto" vale "occupato", non "libero" (#6110, 19/11/2026): TROVA di volta_sposta.py con claude agents
+     che cade, scade o stampa altro dà {errore, nonLetto}, e "nessuno" solo con un elenco letto; Sposta su
+     una partenza che non risponde rifiuta con lavora e nonLetto, anche da --controlla, e spegni_partenza lo
+     dice come avviso; riprovaSposta tiene in coda un turno in corso senza limite e uno non letto al più
+     SPOSTA_NON_LETTO_MAX volte; il capo con l'elenco delle sessioni che non si legge, o con questa macchina
+     irraggiungibile, non fa nascere lead e lascia capo-lead.json com'è.
 """
 from __future__ import annotations
 
@@ -782,7 +788,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -6584,6 +6590,8 @@ def hz137(repo: Path, casa: Path) -> str | None:
     gm.write_text(json.dumps({"posta-lavoro": {"email": "f@uf.it", "bozze": [{"id": "d1", "message": {"id": "m1", "threadId": "aaa1"}},
                                                                        {"id": "d3", "message": {"id": "m3", "threadId": "ccc3"}}]}}), encoding="utf-8")
     capo_home = casa / "capo-home"
+    # un elenco letto e vuoto: un file che manca è un elenco che non si legge (#6110)
+    (casa / "nessuna.json").write_text(json.dumps({"sessioni": [], "macchine": []}), encoding="utf-8")
     env = {**os.environ, "VOLTA_CACHE": str(capo_home / ".cache/volta"), "VOLTA_CAPO_TODO": str(casa / "todo.json"),
            "VOLTA_CAPO_BOZZE": str(bozze), "VOLTA_CAPO_GMAIL": str(gm), "VOLTA_CAPO_ORA": str(ora),
            # il capo di gabinetto (HZ139) qui è spento: niente modello, sessioni e registri veri
@@ -9954,7 +9962,7 @@ def hz104(repo: Path, casa: Path) -> str | None:
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo, perche in (("      this.passiCongedo(cx);\n      this.giraCoda(cx);", "il giro dell'elenco non fa partire la coda di Sposta"),
                           ("if (aFineTurno(s) || v.dopo > ora || this.apro[k] || this.veglio[k] || this.sposto[k]) continue;", "la coda sposta una sessione a metà turno"),
-                          ("if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };", "un turno appena partito toglie la sessione dalla coda"),
+                          ("const ancora = riprovaSposta(v, r, Date.now(), OGNI);\n    if (ancora) this.codaSposta[k] = ancora;", "un turno appena partito toglie la sessione dalla coda"),
                           ('if (verbo === "sposta") return apriSposta(perSposta(this.vistaId(id) ?? s));', "Sposta su… del menu non apre il popup delle macchine")):
         if pezzo not in volta:
             return f"volta.js: {perche}"
@@ -11594,6 +11602,11 @@ def hz122(repo: Path, casa: Path) -> str | None:
     chiusi = [x for x in g["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
     if (g["r"] or {}).get("lavora") is not True or chiusi or len(g["eseguiti"]) != 1 or "--controlla" not in g["eseguiti"][0]:
         return f"Sposta chiude le schede di una sessione che ha appena cominciato un turno: {g['r']}, {chiusi}, {g['eseguiti']}"
+    # #6110: un --controlla che non torna (exec con uscita 1 e niente stdout) vale un turno in corso, non un via libera
+    g = volta("lavora", herdr=scheda)
+    chiusi = [x for x in g["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
+    if (g["r"] or {}).get("lavora") is not True or (g["r"] or {}).get("nonLetto") is not True or chiusi or len(g["eseguiti"]) != 1:
+        return f"Sposta chiude le schede quando il controllo del turno non torna: {g['r']}, {chiusi}, {g['eseguiti']}"
     g = volta("stacca", herdr=scheda, HZ_EXEC=json.dumps({"avviato": True}), HZ_CHIUDE="1")
     chiusi = [(x["cmd"], x.get("id") or x.get("terminal")) for x in g["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
     if chiusi != [("tab.close", "tb1"), ("terminal.kill", "t2")]:
@@ -13357,7 +13370,137 @@ def hz167(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167}
+# HZ168, la parte Python di Sposta (#6110): lavora() e spegni_partenza() con una partenza che non risponde.
+PROVA_NON_LETTO = r"""
+import contextlib, io, json, sys
+sys.path.insert(0, sys.argv[1])
+import volta_sposta as v
+v.PAUSA_PARTENZA = 0
+chiamate = []
+def finto(macchina, codice, dati, entrata=None, timeout=0):
+    chiamate.append("trova" if codice is v.TROVA else "altro")
+    return {"errore": "Torre non risponde: tempo scaduto"} if codice is v.TROVA else {"errore": "inatteso"}
+v.esegui = finto
+v.vs.azione = lambda m, verbo, i: chiamate.append(verbo) or {}
+r = v.sposta("torre", "qui", "abcd1234", "abcd1234-0000", "/x")
+f = io.StringIO()
+with contextlib.redirect_stdout(f):
+    rc = v.main(["torre", "qui", "abcd1234", "abcd1234-0000", "--cartella", "/x", "--controlla"])
+print(json.dumps({"sposta": r, "chiamate": chiamate, "controlla": [rc, json.loads(f.getvalue().strip().splitlines()[-1])],
+                  "spegni": v.spegni_partenza("torre", "abcd1234", "abcd1234-0000")}))
+"""
+
+# HZ168, riprovaSposta di sessioni.js (#6110).
+PROVA_RIPROVA = r"""
+import { riprovaSposta, SPOSTA_NON_LETTO_MAX, SPOSTA_NON_LETTO_OGNI_MS } from "./sessioni.mjs";
+const v0 = { macchina: "studio", id: "a1", da: "qui", dopo: 0 };
+let v = v0, giri = 0;
+while (v && giri < 50) { v = riprovaSposta(v, { lavora: true, nonLetto: true, errore: "non so" }, 1000, 10); giri++; }
+const turno = riprovaSposta({ ...v0, nonLetti: 7 }, { lavora: true }, 1000, 10);
+console.log(JSON.stringify({ giri, max: SPOSTA_NON_LETTO_MAX, primo: riprovaSposta(v0, { lavora: true, nonLetto: true }, 1000, 10),
+  ogni: SPOSTA_NON_LETTO_OGNI_MS, turno, fine: riprovaSposta(v0, { errore: "rotto" }, 1000, 10), ok: riprovaSposta(v0, { ok: true }, 1000, 10) }));
+"""
+
+
+def hz168(repo: Path, casa: Path) -> str | None:
+    """"Non letto" vale "occupato" in Sposta e nel capo (#6110)."""
+    mod = repo / "shared/volta/mods/arturo"
+    sys.path.insert(0, str(mod))
+    try:
+        import importlib  # noqa: PLC0415
+        vsp = importlib.import_module("volta_sposta")
+        trova_codice = vsp.TROVA
+    finally:
+        sys.path.remove(str(mod))
+    # 1. TROVA vero con un claude finto: solo un elenco letto vale "nessuno"
+    if os.name != "nt":
+        bin_ = casa / "bin"
+        bin_.mkdir()
+        finto = bin_ / "claude"
+        finto.write_text('#!/bin/sh\ncase "$HZ_AGENTI" in\n rotto) echo boom >&2; exit 1;;\n storto) echo ciao;;\n'
+                         ' lento) sleep 5;;\n vuoto) echo "[]";;\n sua) echo \'[{"id": "abcd1234", "sessionId": "s1", "status": "busy"}]\';;\nesac\n',
+                         encoding="utf-8")
+        finto.chmod(0o755)
+        import base64  # noqa: PLC0415
+        arg = base64.b64encode(json.dumps({"sid": "s1", "t": 1}).encode()).decode()
+        for caso, atteso in (("rotto", "boom"), ("storto", "ciao"), ("lento", "timed out"), ("vuoto", None), ("sua", None)):
+            env = {**os.environ, "PATH": f"{bin_}:/usr/bin:/bin", "HZ_AGENTI": caso, "HOME": str(casa), "HERDR_APP_HOME": str(casa / "app")}
+            r = subprocess.run([sys.executable, "-c", trova_codice, arg], capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+            try:
+                d = json.loads(r.stdout.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                return f"TROVA con claude agents {caso} non stampa JSON: {(r.stderr or r.stdout)[-200:]}"
+            if atteso is not None and (d.get("nonLetto") is not True or atteso not in (d.get("errore") or "") or d.get("nessuno")):
+                return f"TROVA con claude agents {caso} non dice 'non letto': {d}"
+            if caso == "vuoto" and d.get("nessuno") is not True:
+                return f"TROVA con un elenco vuoto letto non dice 'nessuno': {d}"
+            if caso == "sua" and (d.get("id") != "abcd1234" or d.get("stato") != "busy"):
+                return f"TROVA non trova più la sessione nell'elenco: {d}"
+    # 2. Sposta su una partenza che non risponde
+    r = subprocess.run([sys.executable, "-I", "-c", PROVA_NON_LETTO, str(mod)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    if r.returncode != 0:
+        return f"volta_sposta.py non gira con la partenza muta: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    sp = d["sposta"]
+    if sp.get("lavora") is not True or sp.get("nonLetto") is not True or d["chiamate"][0] != "trova" or {"stop", "altro"} & set(d["chiamate"]):
+        return f"Sposta va avanti su una partenza che non dice se la sessione lavora: {d}"
+    c = d["controlla"]
+    if c[0] != 0 or c[1].get("lavora") is not True or c[1].get("nonLetto") is not True:
+        return f"--controlla con la partenza muta dice via libera: {c}"
+    if "non so se la copia di partenza è spenta" not in (d["spegni"] or ""):
+        return f"spegni_partenza conta spenta una partenza che non risponde: {d['spegni']}"
+    # 3. la coda di volta.js
+    node = shutil.which("node")
+    if node:
+        shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_RIPROVA], capture_output=True, text=True, encoding="utf-8", timeout=30, cwd=casa)
+        if r.returncode != 0:
+            return f"riprovaSposta non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+        q = json.loads(r.stdout.strip().splitlines()[-1])
+        if q["giri"] != q["max"] or not q["primo"] or q["primo"]["dopo"] != 1000 + q["ogni"] or q["primo"]["nonLetti"] != 1:
+            return f"uno Sposta non letto non si riprova al più SPOSTA_NON_LETTO_MAX volte, a SPOSTA_NON_LETTO_OGNI_MS: {q}"
+        if not q["turno"] or q["turno"]["dopo"] != 1010 or q["turno"]["nonLetti"] != 0 or q["fine"] is not None or q["ok"] is not None:
+            return f"un turno in corso non resta in coda al giro dopo, o un errore resta in coda: {q}"
+    # 4. il capo: niente lead con l'elenco che non si legge
+    if os.name == "nt":
+        return None
+    from datetime import datetime as _dt  # noqa: PLC0415
+    script = mod / "volta_capo.py"
+    vista = {"gruppi": [{"tipo": "io", "todo": [{"id": 4, "titolo": "Task 4", "progetto": "s", "giorni": None, "quando": "settimana",
+                                                 "chi": "io", "gruppo": "io", "priorita": "media", "stato": "da fare", "attende": []}]}],
+             "progetti": [{"slug": "s", "nome": "s", "da_dove": {"id": 4}}]}
+    (casa / "todo.json").write_text(json.dumps(vista), encoding="utf-8")
+    (casa / "bozze").mkdir()
+    sess = casa / "sessioni.json"
+    cache_lead = casa / "cache/capo-lead.json"
+    cache_lead.parent.mkdir(parents=True)
+    prima = json.dumps({"vivi": {"z": {"id": "vivo1", "task": 9, "nato": 1}}, "storia": {}})
+    env = {**os.environ, "VOLTA_CACHE": str(casa / "cache"), "VOLTA_CAPO_TODO": str(casa / "todo.json"), "VOLTA_CAPO_BOZZE": str(casa / "bozze"),
+           "VOLTA_CAPO_GMAIL": str(casa / "gmail.json"), "VOLTA_CAPO_SESSIONI": str(sess), "VOLTA_CAPO_MODELLO": "spento",
+           "VOLTA_CARTE_REGISTRO": str(casa / "registro.jsonl"), "VOLTA_CAPO_REPORT": str(casa / "report"),
+           "VOLTA_CAPO_NASCI": str(casa / "nasci.json"), "VOLTA_CAPO_LEAD": "1",
+           "VOLTA_CAPO_ORA": str(int(_dt(2026, 11, 19, 10, 0).timestamp() * 1000))}
+    muta = {"macchine": [{"macchina": "Qui", "host": "qui", "questa": True, "irraggiungibile": "claude agents non risponde"}], "sessioni": []}
+    for nome, contenuto in (("illeggibile", "non è json"), ("muta", json.dumps(muta)), ("letta", json.dumps({"macchine": [], "sessioni": []}))):
+        sess.write_text(contenuto, encoding="utf-8")
+        cache_lead.write_text(prima, encoding="utf-8")
+        r = subprocess.run([sys.executable, str(script), "giro"], capture_output=True, text=True, encoding="utf-8", timeout=120, env=env)
+        try:
+            g = json.loads(r.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return f"il giro del capo con le sessioni {nome} non stampa JSON: {(r.stderr or r.stdout)[-300:]}"
+        if nome == "letta":
+            if g.get("lead") != ["s"]:
+                return f"con l'elenco letto il lead non nasce più: {g}"
+            continue
+        if g.get("lead") != [] or not any("nessun lead nasce" in a for a in g.get("avvisi") or []):
+            return f"con le sessioni {nome} il capo fa nascere un lead, o non lo dice: {g}"
+        if cache_lead.read_text(encoding="utf-8") != prima:
+            return f"con le sessioni {nome} il capo riscrive capo-lead.json e perde i lead vivi: {cache_lead.read_text(encoding='utf-8')[:200]}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13627,7 +13770,18 @@ VELENI = [
     ('HZ122', 'shared/volta/mods/arturo/volta.js', '|| this.apro[k] || this.veglio[k] || this.sposto[k]) continue;', ') continue;'),
     ('HZ122', 'shared/volta/mods/arturo/volta.js', 'setShared("arturo.volta.sposto", m)', 'void m'),
     ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (verso) {\n', '  if (false) {\n'),
-    ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (prima?.lavora) {\n', '  if (false) {\n'),
+    ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (prima?.lavora || prima?.errore) {\n', '  if (false) {\n'),
+    ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (prima?.lavora || prima?.errore) {\n', '  if (prima?.lavora) {\n'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', 'if not letto:\n    esci(', 'if False:\n    esci('),
+    ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '        lista = elenco(r.stdout) if r.returncode == 0 else None\n', '        lista = elenco(r.stdout)\n'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '    if ora.get("errore"):\n        return {"errore": "non so se lavora', '    if False:\n        return {"errore": "non so se lavora'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '        if ora.get("errore"):\n            return "su %s non so', '        if False:\n            return "su %s non so'),
+    ('HZ168', 'shared/volta/mods/arturo/sessioni.js', '  return n >= SPOSTA_NON_LETTO_MAX ? null :', '  return false ? null :'),
+    ('HZ168', 'shared/volta/mods/arturo/sessioni.js', '  if (!r.nonLetto) return { ...v, dopo: ora + ogni, nonLetti: 0 };', '  if (!r.nonLetto) return null;'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_capo.py', '        if not isinstance(elenco, dict) or muta:', '        if not isinstance(elenco, dict):'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_capo.py', '        if not isinstance(elenco, dict) or muta:', '        if muta:'),
+    ('HZ168', 'shared/volta/mods/arturo/volta_capo.py', '            avvisi.append("le sessioni non si leggono: %s non è un elenco" % taglia(f, 120))\n            return None', '            return {}'),
+
     ('HZ122', 'shared/volta/mods/arturo/dati.js', '  const staccati = stacca(s);', '  const staccati = 0;'),
     ('HZ122', 'shared/volta/mods/arturo/dati.js', 'if (chiuse && !nonSiSa && Array.isArray', 'if (chiuse && Array.isArray'),
     ('HZ122', 'shared/volta/mods/arturo/dati.js', '  return r.avviso ? { ok: true, avviso: String(r.avviso) } : { ok: true };', '  return { ok: true };'),

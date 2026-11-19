@@ -1104,13 +1104,18 @@ export async function spostaSessione(s, macchina, dormi = null) {
   const traccia = (passo, dati) => tracciaSposta(s, passo, dati);
   const argv = [c.volta, ...entroDi("sposta"), "sposta", s.host ?? "qui", macchina, s.id, s.sessionId, "--cartella", s.cartella || ""];
   // Prima di chiudere le schede, la macchina della sessione dice se ha appena cominciato un turno (#5635):
-  // lo spostamento aspetta il turno finito, e la scheda resta aperta. Una macchina che non risponde non
-  // ferma niente: volta_sposta.py lo ricontrolla prima di claude stop.
-  let prima = null;
-  try { prima = esito(await exec(c.arturo[0], [...argv, "--controlla"], { timeout: tettoDi("sposta") })); } catch { prima = null; }
-  if (prima?.lavora) {
-    await traccia("lavora", { da: s.host ?? "qui", a: macchina, id: s.id });
-    return { errore: prima.errore || "sta lavorando: la sposto a turno finito", lavora: true };
+  // lo spostamento aspetta il turno finito, e la scheda resta aperta. Un controllo che non torna (exec
+  // caduto, uscita storta, macchina che non risponde) vale come un turno in corso, `nonLetto` (#6110): prima
+  // valeva come via libera, e le schede si chiudevano su una sessione forse a metà turno.
+  let prima;
+  try { prima = esito(await exec(c.arturo[0], [...argv, "--controlla"], { timeout: tettoDi("sposta") })); } catch (e) {
+    prima = { errore: String(e?.message ?? e).slice(0, 120) };
+  }
+  if (prima?.lavora || prima?.errore) {
+    const nonLetto = !prima.lavora || prima.nonLetto === true;
+    await traccia("lavora", { da: s.host ?? "qui", a: macchina, id: s.id, ...(nonLetto ? { nonLetto: true } : {}) });
+    return { errore: prima.lavora ? prima.errore || "sta lavorando: la sposto a turno finito" : `non so se lavora (${prima.errore}): riprovo`,
+      lavora: true, ...(nonLetto ? { nonLetto: true } : {}) };
   }
   // Le schede che la agganciano si chiudono prima: un claude attach rimasto aperto riaccende la sessione
   // dopo claude stop, e la conversazione resta viva su tutte e due le macchine (#5537, 13/11/2026). Se lo
