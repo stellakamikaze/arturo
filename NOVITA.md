@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-19 — I dati d'uso partono solo dopo la tua risposta
+
+**Cosa cambia**: dopo l'installazione Arturo non manda più niente finché `/setup` non ti ha chiesto della telemetria. Fino alla tua risposta gli eventi restano in coda sul tuo computer, e `arturo telemetria mostra` te li fa vedere. Con un sì partono, con un no si cancellano. Se avevi già fatto `/setup`, per te non cambia niente: la risposta c'era già.
+
+**Il principio**: prima la domanda, poi i dati. Una scelta conta solo se arriva prima che qualcosa parta.
+
+**A chi serve**: a chi installa Arturo oggi e vuole decidere prima che un evento esca dal computer.
+
+---
+
 ## 2026-11-19 — Un progetto cambia nome con un comando solo
 
 **Cosa cambia**: `arturo progetti rinomina VECCHIO NUOVO` cambia il nome di un progetto in tutto Arturo: todo, riga di stato, handoff, indice e scheda della memoria, coi link delle altre note. Il nome vecchio resta valido: `/inizio` col nome vecchio apre il progetto nuovo e te lo dice. Con `--prova` vedi cosa cambierebbe senza toccare niente, e per tornare indietro basta il comando al contrario. Un progetto con una sua cartella si rinomina dopo aver rinominato la cartella. Nasce dalla proposta n. 90.
