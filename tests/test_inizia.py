@@ -28,7 +28,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-FRASE = "Installa Arturo: https://arturo.stellakamikaze.org/inizia/"
+FRASE = "Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md"
+# La copia di riferimento dei passi sta su GitHub (#6091, 19/11/2026): chi controlla il sito non riscrive la verifica.
+GITHUB = "https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md"
 # I comandi della pagina, alla lettera: uno per <pre>, ognuno su una riga.
 COMANDI = {
     "winget install --id Git.Git -e --source winget",
@@ -38,7 +40,7 @@ COMANDI = {
     'bash "$HOME/.arturo-installa.sh"',
     "! bash ~/.arturo-installa.sh",
 }
-MAX_PAROLE = 650
+MAX_PAROLE = 660  # 650 fino al 19/11/2026: +10 per il rimando a INIZIA.md su GitHub (#6091)
 CRONOLOGIA = ("Quello che leggo resta nella cronologia di questa conversazione, che Claude Code tiene sul tuo "
               "computer e cancella da sola dopo 90 giorni. Arturo non ne fa altre copie.")
 IMPOSTAZIONI_PRIMA = ("Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. "
@@ -60,7 +62,7 @@ RAGGIUNGIBILI = ("sito/index.html", "sito/inizia/index.html", "sito/roadmap/inde
 ASSORBITE = re.compile(r'(?:href="|https://arturo\.stellakamikaze\.org/)(?:\.\./|/)?'
                        r'(installa|novita|idee|mestieri|organizzazioni|finestra|confronto|claude-code-[a-z-]+)/')
 # I file che i casi leggono: --avvelena li copia, poi ne rompe uno.
-LETTI = tuple(dict.fromkeys(SENZA_VIRGOLETTE + RAGGIUNGIBILI + ("sito/sitemap.xml", "server/arturo-sito.conf")))
+LETTI = tuple(dict.fromkeys(SENZA_VIRGOLETTE + RAGGIUNGIBILI + ("sito/sitemap.xml", "server/arturo-sito.conf", "INIZIA.md")))
 VIRGOLETTE = re.compile("[«»“”„‘’]")
 
 
@@ -197,7 +199,16 @@ def caso_windows(repo):
 
 def caso_frase_ovunque(repo):
     for percorso in ("sito/index.html", "sito/installa/index.html", "sito/llms.txt", "sito/setup/index.html"):
-        assert FRASE in html.unescape(leggi(repo, percorso)).replace("<wbr>", ""), f"{percorso} non cita la frase con /inizia/"
+        assert FRASE in html.unescape(leggi(repo, percorso)).replace("<wbr>", ""), f"{percorso} non cita la frase con INIZIA.md su GitHub"
+
+
+def caso_inizia_github(repo):
+    """INIZIA.md su GitHub e /inizia/ danno gli stessi comandi, e /inizia/ rimanda a GitHub."""
+    md = leggi(repo, "INIZIA.md")
+    blocchi = [b.strip() for b in re.findall(r"```\n(.*?)```", md, re.S)]
+    assert set(blocchi) == COMANDI and len(blocchi) == len(COMANDI), \
+        f"INIZIA.md: in più {sorted(set(blocchi) - COMANDI)}, mancano {sorted(COMANDI - set(blocchi))}"
+    assert f'href="{GITHUB}"' in leggi(repo, "sito/inizia/index.html"), "/inizia/ non rimanda alla copia su GitHub"
 
 
 def caso_virgolette(repo):
@@ -333,7 +344,7 @@ def caso_pagina_sola(repo):
 CASI = [caso_niente_nascosto, caso_comandi_pagina, caso_niente_scorciatoie, caso_parole, caso_dopo,
         caso_impostazioni_prima, caso_ingresso_persone, caso_attesa_cache, caso_windows,
         caso_frase_ovunque, caso_virgolette, caso_guida_cinque, caso_a_mano, caso_faq_uguali, caso_carte,
-        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta, caso_pagina_sola]
+        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta, caso_pagina_sola, caso_inizia_github]
 
 INIZIA = "sito/inizia/index.html"
 
@@ -350,6 +361,10 @@ def sostituisci(vecchio, nuovo):
 # (nome, file rotto, come si rompe, caso, motivo atteso del rosso). I veleni F/R/I rimettono il testo
 # di prima della review dell'ingresso (1/11/2026).
 VELENI = [
+    ("INIZIA.md su GitHub con un comando diverso", "INIZIA.md", sostituisci("&& echo UGUALE", "; echo UGUALE"),
+     caso_inizia_github, "INIZIA.md"),
+    ("/inizia/ senza il rimando a GitHub", INIZIA, sostituisci("blob/landing-v2/INIZIA.md", "blob/main/INIZIA.md"),
+     caso_inizia_github, "non rimanda"),
     ("un comando in più", INIZIA, sostituisci(
         "<pre>! bash ~/.arturo-installa.sh</pre>", "<pre>! bash ~/.arturo-installa.sh</pre>\n<pre>sh ~/.arturo-installa.sh</pre>"),
      caso_comandi_pagina, "comandi diversi"),

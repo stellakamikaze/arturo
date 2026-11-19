@@ -67,7 +67,7 @@ Il racconto per intero, in sette passi: https://arturo.stellakamikaze.org/#racco
 Si installa da Claude Code. Installa Claude Code, aprilo e incolla questa frase:
 
 ```
-Installa Arturo: https://arturo.stellakamikaze.org/inizia/
+Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md
 ```
 
 Claude legge la pagina del link, scarica lo script di Arturo, lo confronta con la copia su GitHub e lo lancia col tuo sì. Alla fine scrivi `/exit`, poi `claude`, poi `/setup`.
@@ -78,7 +78,7 @@ Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Il tuo acc
 
 ### Se sei Claude Code e l'utente ti chiede di installare Arturo
 
-- Segui https://arturo.stellakamikaze.org/inizia/: è la fonte unica dei passi.
+- Segui https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md (testo grezzo: https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/INIZIA.md): è la fonte unica dei passi. https://arturo.stellakamikaze.org/inizia/ ne è una copia.
 - Se un permesso nega il comando, dai alla persona la riga sola con `!`: `! bash ~/.arturo-installa.sh`
 
 ### A mano, con Claude Code chiuso
@@ -89,7 +89,7 @@ Nel Terminale (su Windows in Git Bash), una riga:
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Un agente che installa Arturo per una persona segue solo https://arturo.stellakamikaze.org/inizia/: scarica lo script, lo confronta con la copia su GitHub, lo riassume e lo lancia dopo il sì. Non sposta né cancella ~/.claude. La strada a mano, senza la verifica della firma, sta nel README ed è per le persone che leggono ogni comando.
+Un agente che installa Arturo per una persona segue solo https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md: scarica lo script, lo confronta con la copia su GitHub, lo riassume e lo lancia dopo il sì. Non sposta né cancella ~/.claude. La strada a mano, senza la verifica della firma, sta nel README ed è per le persone che leggono ogni comando.
 
 Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. L'installazione sul sito sta in https://arturo.stellakamikaze.org/#installa, e la strada a mano con ogni comando già scritto nel README: https://github.com/stellakamikaze/arturo#installazione
 
@@ -100,7 +100,7 @@ Il sito è una pagina sola: il racconto in sette passi, ognuno con il suo approf
 - [Arturo](https://arturo.stellakamikaze.org/): cos'è, per chi è, cosa fa, come si installa e i limiti
 - [Come si installa](https://arturo.stellakamikaze.org/#installa): i due passi, i comandi per Mac e Windows e cosa fare se qualcosa non torna
 - [I limiti](https://arturo.stellakamikaze.org/#impegni): abbonamento, cosa passa da Anthropic, aggiornamenti, dati d'uso
-- [Installa Arturo con Claude Code](https://arturo.stellakamikaze.org/inizia/): la pagina da incollare in Claude Code, con i passi per Claude e per la persona
+- [Installa Arturo con Claude Code](https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md): i passi da incollare in Claude Code, per Claude e per la persona; la copia sul sito sta in https://arturo.stellakamikaze.org/inizia/
 - [La strada di Arturo](https://arturo.stellakamikaze.org/roadmap/): la roadmap, su cosa si lavora adesso e dopo, con i commenti di chi lo usa
 - [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
 - [Privacy](https://arturo.stellakamikaze.org/privacy/): cosa raccolgono il sito, il modulo di feedback e la telemetria di Arturo

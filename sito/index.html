@@ -888,7 +888,7 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-3"><span class="passo__n">3</span>Nel terminale, Arturo tiene le briglie.</h3>
           <p>Sono istruzioni pronte: dicono a Claude Code cosa fa da solo, cosa ti chiede, come chiude la sera e riparte la mattina. Prima di cancellare una cartella, mandare un'email o caricare un file su un sito, ti chiede un sì.</p>
-          <details class="piu"><summary>Cosa c'è dentro</summary><ul><li>Il modello risponde, Claude Code gli apre il tuo computer, Arturo gli mette le briglie: regole, comandi e abitudini in italiano.</li><li>Le guardie controllano i comandi di Claude prima che partano: quelle che non si annullano aspettano il tuo sì, quelle dannose si fermano.</li><li><code>/fine</code> salva il lavoro e scrive un appunto col prossimo passo; <code>/inizio</code> lo rilegge il giorno dopo.</li><li>Si aggiorna da solo a fine sessione, solo coi rilasci firmati. Se chiedi a Claude gli aggiornamenti manuali (<code>arturo aggiornamenti manuali</code>), li confermi uno per uno.</li></ul></details>
+          <details class="piu"><summary>Cosa c'è dentro</summary><ul><li>Il modello risponde, Claude Code gli apre il tuo computer, Arturo gli mette le briglie: regole, comandi e abitudini in italiano.</li><li>Le guardie controllano i comandi dell'IA prima che partano: quelle che non si annullano aspettano il tuo sì, quelle dannose si fermano.</li><li><code>/fine</code> salva il lavoro e scrive un appunto col prossimo passo; <code>/inizio</code> lo rilegge il giorno dopo.</li><li>Si aggiorna da solo a fine sessione, solo coi rilasci firmati. Se chiedi all'IA gli aggiornamenti manuali (<code>arturo aggiornamenti manuali</code>), li confermi uno per uno.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--verde">
           <div class="finestra" data-scena="guardia">
@@ -909,14 +909,14 @@ html{scroll-padding-top:64px}
         <div class="passo__testo">
           <h3 id="t-passo-4"><span class="passo__n">4</span>Il modello è dell'azienda, il contesto è tuo.</h3>
           <p>Documenti, decisioni e memoria restano file di testo sul tuo computer: li ordini come vuoi, li passi a un collega e non li perdi se cambi servizio.</p>
-          <details class="piu"><summary>Di chi sono i dati</summary><ul><li>In chat modello, conversazioni, file e memoria stanno tutti in casa dell'azienda che ti vende il servizio.</li><li>Il contesto (documenti, decisioni, errori già visti, il tuo modo di scrivere) è fatto di file tuoi: lo ordini e lo salvi dove vuoi.</li><li>Chiedi a Claude di esportare il fascicolo di un progetto (<code>arturo fascicolo esporta</code>): lo mette in una cartella da passare a un collega, senza segreti e senza le note su di te.</li><li>Quello che Claude legge passa da Anthropic, come in chat, ma non arriva a chi mantiene Arturo: a me arrivano solo i dati d'uso e le segnalazioni dei guasti.</li></ul></details>
+          <details class="piu"><summary>Di chi sono i dati</summary><ul><li>In chat modello, conversazioni, file e memoria stanno tutti in casa dell'azienda che ti vende il servizio.</li><li>Il contesto (documenti, decisioni, errori già visti, il tuo modo di scrivere) è fatto di file tuoi: lo ordini e lo salvi dove vuoi.</li><li>Chiedi all'IA di esportare il fascicolo di un progetto (<code>arturo fascicolo esporta</code>): lo mette in una cartella da passare a un collega, senza segreti e senza le note su di te.</li><li>Quello che Claude legge passa da Anthropic, come in chat, ma non arriva a chi mantiene Arturo: a me arrivano solo i dati d'uso e le segnalazioni dei guasti.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
           <div class="pila pila--scena" data-scena="strati">
             <button type="button" class="pila__strato pila__strato--loro" aria-pressed="false" data-cosa="Claude. Riceve quello che gli serve per rispondere, come in chat."><span class="pila__nome">Il modello</span><span class="pila__chi">di Anthropic</span></button>
             <button type="button" class="pila__strato pila__strato--loro" aria-pressed="false" data-cosa="Il programma che dà al modello il computer."><span class="pila__nome">Claude Code</span><span class="pila__chi">di Anthropic</span></button>
             <button type="button" class="pila__strato pila__strato--arturo" aria-pressed="false" data-cosa="Regole, comandi e guardie uguali per tutti. Si aggiorna da solo, solo coi rilasci firmati."><span class="pila__nome">Arturo</span><span class="pila__chi">lo mantengo io</span></button>
-            <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="false" data-cosa="Lo strato delle tue regole: il CLAUDE.md, cioè il file di istruzioni che Claude rilegge a ogni avvio, i tuoi comandi e come scrivi. Nessun aggiornamento la tocca."><span class="pila__nome">L'Orsa</span><span class="pila__chi">tua</span></button>
+            <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="false" data-cosa="Lo strato delle tue regole: il CLAUDE.md, cioè il file di istruzioni che l'IA rilegge a ogni avvio, i tuoi comandi e come scrivi. Nessun aggiornamento la tocca."><span class="pila__nome">L'Orsa</span><span class="pila__chi">tua</span></button>
             <button type="button" class="pila__strato pila__strato--tuo" aria-pressed="true" data-cosa="Progetti, appunti, note della memoria. File di testo sul tuo computer."><span class="pila__nome">I tuoi file e la memoria</span><span class="pila__chi">tuoi</span></button>
             <p class="pila__dettaglio" aria-live="polite">Progetti, appunti, note della memoria. File di testo sul tuo computer.</p>
           </div>
@@ -925,9 +925,9 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-5" aria-labelledby="t-passo-5">
         <div class="passo__testo">
-          <h3 id="t-passo-5"><span class="passo__n">5</span>Con Arturo, Claude impara come lavori.</h3>
+          <h3 id="t-passo-5"><span class="passo__n">5</span>Con Arturo, l'IA impara come lavori.</h3>
           <p>Se gli dai l'esportazione delle tue chat, al primo avvio la legge e ne ricava un indice dei lavori: tiene i lavori che approvi, non le conversazioni. Poi, per sei settimane, ti fa al massimo una domanda al giorno sul tuo mestiere. La lettura delle chat è nuova: la sto provando sulle prime esportazioni vere.</p>
-          <details class="piu"><summary>Le tue vecchie chat</summary><ul><li>L'esportazione la scarichi tu da ChatGPT, Claude.ai o Gemini: Arturo non entra nel tuo account.</li><li>La legge uno script sul tuo computer, che maschera password, IBAN, telefoni ed email di altri: a Claude arriva solo l'indice dei lavori.</li><li>Resta l'indice dei lavori che approvi; se chiedi a Claude di cancellarlo (<code>arturo storico cancella</code>), lo toglie.</li><li>Le domande dell'intervista cambiano col mestiere, e salva in memoria solo le risposte che approvi.</li></ul></details>
+          <details class="piu"><summary>Le tue vecchie chat</summary><ul><li>L'esportazione la scarichi tu da ChatGPT, Claude.ai o Gemini: Arturo non entra nel tuo account.</li><li>La legge uno script sul tuo computer, che maschera password, IBAN, telefoni ed email di altri: all'IA arriva solo l'indice dei lavori.</li><li>Resta l'indice dei lavori che approvi; se chiedi all'IA di cancellarlo (<code>arturo storico cancella</code>), lo toglie.</li><li>Le domande dell'intervista cambiano col mestiere, e salva in memoria solo le risposte che approvi.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--cielo">
           <div class="tabella-mock tabella-mock--larga" data-scena="storico">
@@ -950,7 +950,7 @@ html{scroll-padding-top:64px}
 
       <article class="passo" id="passo-6" aria-labelledby="t-passo-6">
         <div class="passo__testo">
-          <h3 id="t-passo-6"><span class="passo__n">6</span>Quando un lavoro torna, Claude te lo propone.</h3>
+          <h3 id="t-passo-6"><span class="passo__n">6</span>Quando un lavoro torna, l'IA te lo propone.</h3>
           <p>Se un lavoro torna, ti propone di automatizzarlo e ti mostra quando l'hai rifatto. Oppure una sintesi, o una pagina interattiva: la lezione con cui gli studenti giocano, il consuntivo dove il cliente sposta le cifre.</p>
           <details class="piu"><summary>Le proposte di Arturo</summary><ul><li>Arturo nota i lavori che ripeti: un file aggiornato a scadenza fissa, gli stessi campi riscritti, file che cambiano sempre insieme.</li><li>Al massimo una proposta per sessione e due a settimana; con un no non torna.</li><li>Una sintesi o una pagina te la mostra prima, e la salva solo col secondo sì.</li></ul></details>
         </div>
@@ -1000,8 +1000,8 @@ html{scroll-padding-top:64px}
       <article class="passo" id="passo-7" aria-labelledby="t-passo-7">
         <div class="passo__testo">
           <h3 id="t-passo-7"><span class="passo__n">7</span>Lo adatti a te, con ordine.</h3>
-          <p>Regole, comandi e perfino il suo nome stanno nell'Orsa, la memoria sta in Melchior: sono strati tuoi, che gli aggiornamenti non toccano. Se correggi Claude sulla stessa cosa in tre sessioni diverse, ti propone di farne una regola. Per chi non ama il terminale sto provando Volta, una finestra simile alla chat: arriverà con un prossimo rilascio.</p>
-          <details class="piu"><summary>L'Orsa e Melchior</summary><ul><li>L'Orsa tiene le tue personalizzazioni, comprese le skill che crei con <code>/creaskill</code>, al riparo dagli aggiornamenti di Arturo.</li><li>Melchior, la memoria, porta in ogni sessione solo le note utili quel giorno; chiedi "cosa ricordi di me?" per vederle.</li><li>Se gli chiedi di cambiare nome (<code>arturo nome</code>), Claude si presenta col nome che scegli, e comandi e file restano quelli di Arturo.</li></ul></details>
+          <p>Regole, comandi e perfino il suo nome stanno nell'Orsa, la memoria sta in Melchior: sono strati tuoi, che gli aggiornamenti non toccano. Se correggi l'IA sulla stessa cosa in tre sessioni diverse, ti propone di farne una regola. Per chi non ama il terminale sto provando Volta, una finestra simile alla chat: arriverà con un prossimo rilascio.</p>
+          <details class="piu"><summary>L'Orsa e Melchior</summary><ul><li>L'Orsa tiene le tue personalizzazioni, comprese le skill che crei con <code>/creaskill</code>, al riparo dagli aggiornamenti di Arturo.</li><li>Melchior, la memoria, porta in ogni sessione solo le note utili quel giorno; chiedi "cosa ricordi di me?" per vederle.</li><li>Se gli chiedi di cambiare nome (<code>arturo nome</code>), l'IA si presenta col nome che scegli, e comandi e file restano quelli di Arturo.</li></ul></details>
         </div>
         <div class="passo__scena lastra lastra--azzurro">
           <div class="finestra" data-scena="orsa">
@@ -1030,10 +1030,10 @@ html{scroll-padding-top:64px}
                 <li><strong>Windows:</strong> premi il tasto Windows, scrivi PowerShell e premi Invio. Incolla col tasto destro del mouse e premi Invio:<div class="comando comando--riga"><pre id="c-cc-win">irm https://claude.ai/install.ps1 | iex</pre><button type="button" data-copia="c-cc-win">Copia</button></div></li>
                 <li>L'installazione scarica circa 270 MB e per qualche minuto non scrive niente: aspetta. Poi scrivi <code>claude</code> nella stessa finestra e accedi al tuo account Anthropic.</li>
               </ul></details></div></li>
-            <li><span class="via__boa" aria-hidden="true">2</span><p><strong>In Claude Code incolla questa frase</strong> e premi Invio:</p><div class="comando comando--pila"><pre id="c-frase">Installa Arturo: https://arturo.stellakamikaze.org/<wbr>inizia/</pre><button type="button" data-copia="c-frase">Copia</button></div></li>
+            <li><span class="via__boa" aria-hidden="true">2</span><p><strong>In Claude Code incolla questa frase</strong> e premi Invio:</p><div class="comando comando--pila"><pre id="c-frase">Installa Arturo: https://github.com/<wbr>stellakamikaze/arturo/<wbr>blob/landing-v2/<wbr>INIZIA.md</pre><button type="button" data-copia="c-frase">Copia</button></div></li>
           </ol>
           <p class="via__poi">Claude fa il resto e ti chiede conferma a ogni passo. Su Windows può installare anche Git e Python, e chiederti di riaprire la finestra. Poi esci con <code>/exit</code>, riapri con <code>claude</code> e scrivi <code>/setup</code>.</p>
-          <p class="via__so"><code>/setup</code> ti fa poche domande: conversazioni, cartelle da guardare, la bozza del tuo CLAUDE.md. A ognuna puoi dire di no. I dati d'uso partono già dalla prima sessione: <code>/setup</code> te lo dice.</p>
+          <p class="via__so"><code>/setup</code> ti fa poche domande: conversazioni, cartelle da guardare, la bozza del tuo CLAUDE.md. A ognuna puoi dire di no. I dati d'uso partono solo dopo che <code>/setup</code> te l'ha chiesto.</p>
           <details class="piu"><summary>Se qualcosa non torna</summary><ul>
             <li><code>command not found</code>: chiudi il terminale, aprine uno nuovo e scrivi di nuovo <code>claude</code>.</li>
             <li>L'accesso rifiuta il piano gratuito: Claude Code chiede un piano a pagamento.</li>
@@ -1058,9 +1058,9 @@ html{scroll-padding-top:64px}
       <ul class="limiti">
         <li><strong>Claude Code è a pagamento.</strong> Serve un abbonamento Claude, e prezzi e limiti li decide Anthropic.</li>
         <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat. Lo stesso vale per i file che Claude legge, anche se restano nelle tue cartelle. Con Pro e Max scegli tu, nelle impostazioni della privacy di Claude, se Anthropic li usa per addestrare i modelli; con Team ed Enterprise non li usa.</li>
-        <li><strong>Lo mantiene una persona sola.</strong> Sono io, Federico Nejrotti. Per una redazione conviene confermare gli aggiornamenti uno per uno: lo chiedi a Claude. Come segnalare un problema di sicurezza sta in <a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">SECURITY.md</a>.</li>
+        <li><strong>Lo mantiene una persona sola.</strong> Sono io, Federico Nejrotti. Per una redazione conviene confermare gli aggiornamenti uno per uno: lo chiedi all'IA. Come segnalare un problema di sicurezza sta in <a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">SECURITY.md</a>.</li>
         <li><strong>Gli aggiornamenti sono codice che arriva da fuori.</strong> Si installano da soli soltanto se li ho firmati io, e puoi chiedere di confermarli uno per uno.</li>
-        <li id="telemetria"><strong>Arturo manda dati d'uso, attivi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Partono dalla prima sessione. Per spegnerli chiedilo a Claude, che lancia <code>arturo telemetria spegni</code>.</li>
+        <li id="telemetria"><strong>Arturo manda dati d'uso, attivi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Partono solo dopo che <code>/setup</code> te l'ha chiesto. Per spegnerli chiedilo all'IA, che lancia <code>arturo telemetria spegni</code>.</li>
         <li><strong>Per uno studio o una redazione, oggi ognuno lo installa per sé.</strong> Non ci sono ancora regole condivise fra colleghi. Uno strato comune, con la voce e le regole dell'organizzazione, tornerà più avanti.</li>
       </ul>
     </div>
