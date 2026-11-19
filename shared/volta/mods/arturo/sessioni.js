@@ -318,6 +318,17 @@ export function copiaProva(c, p) {
   if (!nome || !tipoProva(nome)) return null;
   return `carte/${pulito(c?.host ?? "qui")}/${pulito(String(c?.sessionId || c?.id || "").slice(0, 36))}/${pulito(nome)}`;
 }
+// Una copia delle prove fallita si riprova (#6112, 19/11/2026): prima l'errore restava per sempre, e la prova
+// non arrivava più finché Volta non ripartiva, anche dopo che la macchina era tornata. Al più PROVA_TENTATIVI
+// copie per prova, l'una PROVA_RIPROVA_MS dopo l'errore dell'altra. `esito` è "copio", "ok" o l'errore;
+// `giro` è { n, dopo }: le copie partite e l'ora da cui si può riprovare.
+export const PROVA_TENTATIVI = 3;
+export const PROVA_RIPROVA_MS = 30000;
+export function daCopiare(esito, giro, ora = Date.now()) {
+  if (!esito) return true;
+  if (esito === "copio" || esito === "ok") return false;
+  return (giro?.n ?? 0) < PROVA_TENTATIVI && ora >= (giro?.dopo ?? 0);
+}
 // La risposta della Coda torna alla barra come comando (lo stesso di herdr-app do), col testo in
 // esadecimale: "arturo.coda-rispondi-<chiave>-<esadecimale>". Al più TESTO_NUOVA_MAX caratteri.
 export const comandoRisposta = (chiaveCarta, testo, tetto = TESTO_NUOVA_MAX) => `arturo.coda-rispondi-${chiaveCarta}-${codifica(String(testo ?? "").trim().slice(0, tetto))}`;

@@ -753,9 +753,9 @@ HZ164 il clic svelto e l'elenco fresco (17/11/2026, step 5 del piano di revision
      un giro, porta davanti la scheda in veglia al clic e registra apri con `visibile`. La sonda riscrive
      sessioni.json solo se cambia qualcosa oltre a `letto`, o se il file ha più di RISCRIVI_S.
 HZ165 una lettura per macchina con tre Volta aperte (18/11/2026, step 6, #5583): la SONDA legge sotto un blocco
-     (volta-lettura.json.blocco) e lascia l'esito in volta-lettura.json; con C (l'età accettata) una lettura
+     (flock su volta-lettura.json.lock, dal 19/11 #6112) e lascia l'esito in volta-lettura.json; con C (l'età accettata) una lettura
      più giovane di C secondi vale senza claude agents, senza C si legge sempre. Tre sonde insieme fanno una
-     lettura; una sonda aspetta il blocco di un'altra e prende la sua lettura; un blocco morto si toglie; con
+     lettura; una sonda aspetta il blocco di un'altra e prende la sua lettura; dopo il kill di una sonda a metà lettura la sonda dopo legge subito; con
      claude agents rotto il blocco va via e niente si scrive. sonda_remota passa C=LETTURA_S, C=0 con fresca;
      il registro dice condivisa o nuova; volta.js chiede --fresca dopo un gesto. Le note vanno su tutte le
      macchine insieme, col tempo di ognuna nel registro, ogni 2 minuti.
@@ -783,6 +783,9 @@ HZ169 Documenti appeso col blocco vero di isdir (#6111, 19/11/2026): con un dial
 HZ170 lead e alias dei progetti (#6132, 19/11/2026): il capo legge slug e alias da arturo progetti e non fa nascere
      un lead su "ariaperta" accanto a una sessione accesa su "tuttovero", né su "volta" accanto a "arturo-herdr";
      un progetto senza sessione lo riceve.
+HZ171 la Coda riprova una copia delle prove fallita (#6112, 19/11/2026): daCopiare di sessioni.js dice sì a una
+     prova mai copiata e a un errore dopo PROVA_RIPROVA_MS, al più PROVA_TENTATIVI volte; no a "copio" e "ok".
+     coda.js lo usa, segna l'ora della ripresa prima di ridisegnare e si risveglia con cx.sleep.
 """
 from __future__ import annotations
 
@@ -798,7 +801,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -13101,10 +13104,22 @@ def hz165(repo: Path, casa: Path) -> str | None:
                   "exec(compile(src, 'sonda', 'exec'), g)\n")
         env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "CLAUDE_CONFIG_DIR": str(radice), "HERDR_APP_HOME": str(casa / "app")}
         flet = radice / "cache" / "volta-lettura.json"
-        blocco = radice / "cache" / "volta-lettura.json.blocco"
+        blocco = radice / "cache" / "volta-lettura.json.lock"
+        import fcntl
 
-        def lancia(c):
-            return subprocess.Popen([sys.executable, "-c", codice, str(sonda), str(finto), c], stdout=subprocess.PIPE,
+        def libero():
+            """Il lock del blocco si prende subito: nessuna sonda lo tiene."""
+            fd = os.open(blocco, os.O_CREAT | os.O_RDWR)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return True
+            except OSError:
+                return False
+            finally:
+                os.close(fd)
+
+        def lancia(c, cl=None):
+            return subprocess.Popen([sys.executable, "-c", codice, str(sonda), str(cl or finto), c], stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, text=True, env=env)
 
         def giro(c="12", insieme=1, prima=None):
@@ -13127,8 +13142,8 @@ def hz165(repo: Path, casa: Path) -> str | None:
             return u
         if n != 1 or u[0].get("condivisa") or u[0]["sessioni"][0]["id"] != "lav1":
             return f"primo giro: claude agents {n} volte, uscita {u}"
-        if not flet.exists() or blocco.exists():
-            return "dopo la lettura manca volta-lettura.json, o il blocco è rimasto"
+        if not flet.exists() or not libero():
+            return "dopo la lettura manca volta-lettura.json, o il blocco è rimasto preso"
         n, u = giro()
         if n != 0 or u[0].get("condivisa") is not True or u[0]["sessioni"][0]["id"] != "lav1":
             return f"con una lettura di pochi secondi fa e C=12 claude agents parte {n} volte: {u}"
@@ -13148,34 +13163,48 @@ def hz165(repo: Path, casa: Path) -> str | None:
         n, u = giro(insieme=3)
         if n != 1 or sorted(bool(x.get("condivisa")) for x in u) != [False, True, True]:
             return f"tre sonde insieme: claude agents {n} volte (attesa 1), condivise {[x.get('condivisa') for x in u]}"
-        if blocco.exists():
-            return "dopo tre sonde insieme il blocco è rimasto"
+        if not libero():
+            return "dopo tre sonde insieme il blocco è rimasto preso"
         # un blocco di un'altra sonda: si aspetta, e la lettura che arriva intanto vale
         d = json.loads(flet.read_text(encoding="utf-8"))
         d["inizio"] -= 20
         flet.write_text(json.dumps(d), encoding="utf-8")
-        blocco.mkdir()
+        tiene = os.open(blocco, os.O_CREAT | os.O_RDWR)
+        fcntl.flock(tiene, fcntl.LOCK_EX)
 
         def arriva():
             time.sleep(0.6)
             flet.write_text(json.dumps(dict(d, inizio=time.time())), encoding="utf-8")
         n, u = giro(prima=arriva)
+        os.close(tiene)
         if n != 0 or u[0].get("condivisa") is not True:
             return f"con un'altra lettura in corso la sonda non la aspetta: claude agents {n} volte, {u}"
-        if not blocco.exists():
-            return "la sonda ha tolto il blocco di un'altra sonda"
-        # un blocco di una sonda morta (più vecchio di BLOCCO_MAX) si toglie, e si legge
-        os.utime(blocco, (time.time() - 200, time.time() - 200))
+        # una sonda uccisa a metà lettura (#6112, 19/11/2026): il blocco si libera subito, la sonda dopo
+        # legge senza aspettare. Col blocco a cartella aspettava fino a 50 s, o fino al suo tetto.
         flet.unlink()
+        lento = casa / "claude-lento"
+        lento.write_text("#!/bin/sh\necho x >> '%s'\nexec sleep 8\n" % chiamate, encoding="utf-8")
+        lento.chmod(0o755)
+        n0 = len(chiamate.read_text().splitlines())
+        morta = lancia("12", lento)
+        fino = time.monotonic() + 10
+        while len(chiamate.read_text().splitlines()) == n0 and time.monotonic() < fino:
+            time.sleep(0.05)
+        morta.kill()
+        morta.communicate(timeout=10)
+        if len(chiamate.read_text().splitlines()) == n0:
+            return "banco: la sonda lenta non è arrivata a claude agents"
+        t0 = time.monotonic()
         n, u = giro()
-        if n != 1 or blocco.exists():
-            return f"un blocco vecchio ferma la lettura: claude agents {n} volte, blocco rimasto {blocco.exists()}"
+        dt = time.monotonic() - t0
+        if n != 1 or dt > 4:
+            return f"dopo il kill di una sonda la lettura dopo aspetta il blocco: {dt:.1f} s, claude agents {n} volte"
         # claude agents che non risponde: l'errore, e il blocco va via lo stesso
         flet.unlink()
         finto.write_text("#!/bin/sh\necho x >> '%s'\necho boom >&2\nexit 1\n" % chiamate, encoding="utf-8")
         n, u = giro()
-        if not u or not u[0].get("errore") or blocco.exists() or flet.exists():
-            return f"con claude agents rotto: {u}, blocco {blocco.exists()}, lettura scritta {flet.exists()}"
+        if not u or not u[0].get("errore") or not libero() or flet.exists():
+            return f"con claude agents rotto: {u}, blocco libero {libero()}, lettura scritta {flet.exists()}"
     # sonda_remota: C=LETTURA_S nel giro del timer, C=0 con fresca; il registro dice condivisa o nuova
     import importlib.util
     sp = importlib.util.spec_from_file_location("volta_sonda_hz165", sonda)
@@ -13636,6 +13665,52 @@ def hz168(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_COPIE = r"""
+import * as m from "./sessioni.mjs";
+const ora = 1000000;
+console.log(JSON.stringify({
+  mai: m.daCopiare(undefined, undefined, ora),
+  incorso: m.daCopiare("copio", { n: 1, dopo: 0 }, ora),
+  ok: m.daCopiare("ok", { n: 1, dopo: 0 }, ora),
+  presto: m.daCopiare("la copia non è riuscita", { n: 1, dopo: ora + 1 }, ora),
+  dopo: m.daCopiare("la copia non è riuscita", { n: 1, dopo: ora }, ora),
+  ultimo: m.daCopiare("la copia non è riuscita", { n: m.PROVA_TENTATIVI - 1, dopo: 0 }, ora),
+  basta: m.daCopiare("la copia non è riuscita", { n: m.PROVA_TENTATIVI, dopo: 0 }, ora),
+  tentativi: m.PROVA_TENTATIVI, attesa: m.PROVA_RIPROVA_MS,
+}));
+"""
+
+
+def hz171(repo: Path, casa: Path) -> str | None:
+    """La Coda riprova una copia delle prove fallita (#6112): daCopiare con node, e il collegamento in coda.js."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta/mods/arturo"
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    shutil.copyfile(mod / "comandi.js", casa / "comandi.mjs")
+    (casa / "prova.mjs").write_text(PROVA_COPIE, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if not (2 <= d["tentativi"] <= 5 and 10000 <= d["attesa"] <= 120000):
+        return f"PROVA_TENTATIVI {d['tentativi']} o PROVA_RIPROVA_MS {d['attesa']} fuori misura"
+    atteso = {"mai": True, "incorso": False, "ok": False, "presto": False, "dopo": True, "ultimo": True, "basta": False}
+    sbagli = {k: d[k] for k in atteso if d[k] != atteso[k]}
+    if sbagli:
+        return f"daCopiare sbaglia (mai, in corso, ok, prima dell'attesa, dopo, ultimo tentativo, oltre): {sbagli}"
+    coda = (mod / "coda.js").read_text(encoding="utf-8")
+    for pezzo in ("!daCopiare(this.copie[dest], this.giri[dest])", "n: (this.giri[dest]?.n ?? 0) + 1",
+                  "await cx.sleep(PROVA_RIPROVA_MS);"):
+        if pezzo not in coda:
+            return f"coda.js non riprova la copia delle prove: manca {pezzo}"
+    i_dopo, i_esito = coda.find("giro.dopo = Date.now() + PROVA_RIPROVA_MS"), coda.find("this.copie[dest] = esito;")
+    if i_dopo < 0 or i_dopo > i_esito:
+        return "coda.js scrive l'errore prima dell'ora della ripresa: il ridisegno riparte subito con la copia"
+    return None
+
+
 def hz170(repo: Path, casa: Path) -> str | None:
     """Il capo riconosce una sessione accesa sotto un alias del progetto (#6132): niente lead doppi."""
     from datetime import datetime as _dt  # noqa: PLC0415
@@ -13673,7 +13748,7 @@ def hz170(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13733,11 +13808,14 @@ VELENI = [
     ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '.filter((g) => g.carte.length);', ';'),
     ('HZ167', 'shared/volta/mods/arturo/volta.js', '      if (r.ok && g.poi) {', '      if (false) {'),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "m.nascita.permesso === true ?", "false ?"),
-    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        atexit.register(libera)\n        dalla_condivisa()", "        atexit.register(libera)"),
-    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        time.sleep(0.1)\n        dalla_condivisa()\n", "        time.sleep(0.1)\n"),
-    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        os.mkdir(fblocco)\n        preso = True", "        preso = True"),
-    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "            if time.time() - os.path.getmtime(fblocco) > BLOCCO_MAX:", "            if False:"),
-    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        atexit.register(libera)", "        pass"),
+    ('HZ171', 'shared/volta/mods/arturo/sessioni.js', "  return (giro?.n ?? 0) < PROVA_TENTATIVI && ora >= (giro?.dopo ?? 0);", "  return false;"),
+    ('HZ171', 'shared/volta/mods/arturo/sessioni.js', "  return (giro?.n ?? 0) < PROVA_TENTATIVI && ora >= (giro?.dopo ?? 0);", "  return ora >= (giro?.dopo ?? 0);"),
+    ('HZ171', 'shared/volta/mods/arturo/sessioni.js', "  if (esito === \"copio\" || esito === \"ok\") return false;\n", ""),
+    ('HZ171', 'shared/volta/mods/arturo/coda.js', "      if (!dest || !daCopiare(this.copie[dest], this.giri[dest])) continue;", "      if (!dest || this.copie[dest]) continue;"),
+    ('HZ171', 'shared/volta/mods/arturo/coda.js', "        await cx.sleep(PROVA_RIPROVA_MS);\n", ""),
+    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        time.sleep(0.1)\n    dalla_condivisa()", "        time.sleep(0.1)\n    pass"),
+    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        prendi(fd)\n        preso = True", "        preso = True"),
+    ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)", "        os.mkdir(fblocco + \".d\")"),
     ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', '<= time.time() - c["inizio"] <= eta', '<= time.time() - c["inizio"]'),
     ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "    eta = 0 if fresca else LETTURA_S", "    eta = LETTURA_S"),
     ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', 'sonda_remota(v["host"], fine, fresca)', 'sonda_remota(v["host"], fine)'),

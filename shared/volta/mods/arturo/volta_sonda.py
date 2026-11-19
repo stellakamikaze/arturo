@@ -249,15 +249,15 @@ if not os.path.exists(cl):
 radice = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
 # La lettura condivisa (step 6 del piano di revisione, #5583, 18/11/2026): con tre Volta aperte ogni macchina
 # era letta tre volte a giro, e tre sonde insieme riscrivevano volta-lavori, titolo e volta-letture.json.
-# Ora una lettura sola per volta, sotto il blocco (una cartella: os.mkdir è atomico anche su Windows), e
-# l'esito resta in volta-lettura.json. Chi lo chiama mette davanti C, l'età in secondi che accetta: il giro
-# di un'altra Volta accetta l'esito di un'altra lettura di meno di C secondi, e così la sonda non rilegge.
-# Senza C (la lettura di questa macchina, un gesto) si legge sempre; se un'altra lettura è in corso la si
-# aspetta, poi si legge. Un blocco più vecchio di BLOCCO_MAX è di una sonda morta e si toglie.
-import atexit
-BLOCCO_MAX = 50
+# Ora una lettura sola per volta, sotto il blocco, e l'esito resta in volta-lettura.json. Chi lo chiama
+# mette davanti C, l'età in secondi che accetta: il giro di un'altra Volta accetta l'esito di un'altra
+# lettura di meno di C secondi, e così la sonda non rilegge. Senza C (la lettura di questa macchina, un
+# gesto) si legge sempre; se un'altra lettura è in corso la si aspetta, poi si legge.
+# Il blocco è un lock del sistema su un file (flock, msvcrt.locking su Windows), dal 19/11/2026 (#6112):
+# prima era una cartella, e dopo il kill di una sonda restava fino a 50 s; il lock lo toglie il sistema
+# quando il processo muore. Il file resta: toglierlo farebbe prendere a due sonde due lock diversi.
 flet = os.path.join(radice, "cache", "volta-lettura.json")
-fblocco = flet + ".blocco"
+fblocco = flet + ".lock"
 eta = globals().get("C") or 0
 def condivisa():
     try:
@@ -270,32 +270,37 @@ def dalla_condivisa():
     u = condivisa() if eta else None
     if u:
         print(json.dumps(dict(u, condivisa=True))); raise SystemExit
+def prendi(fd):
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 def libera():
     try:
-        os.rmdir(fblocco)
+        if os.name == "nt":
+            import msvcrt
+            os.lseek(fd, 0, 0)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        os.close(fd)
     except OSError:
         pass
 preso = False
-while not preso:
+try:
+    os.makedirs(os.path.dirname(flet), exist_ok=True)
+    fd = os.open(fblocco, os.O_CREAT | os.O_RDWR, 0o600)
+except OSError:
+    fd = None  # una cartella che non si scrive: si legge senza blocco e senza esito condiviso
+while fd is not None and not preso:
     try:
-        os.makedirs(os.path.dirname(flet), exist_ok=True)
-        os.mkdir(fblocco)
+        prendi(fd)
         preso = True
-        atexit.register(libera)
-        dalla_condivisa()  # una lettura giovane, anche scritta mentre si aspettava il blocco
-    except FileExistsError:
-        try:
-            if time.time() - os.path.getmtime(fblocco) > BLOCCO_MAX:
-                os.rmdir(fblocco)
-                continue
-        except OSError:
-            continue
+    except OSError:
         if time.time() > scade - 3:
             break  # il blocco non si libera in tempo: si legge senza
         time.sleep(0.1)
-        dalla_condivisa()
-    except OSError:
-        break  # una cartella che non si scrive: si legge senza blocco e senza esito condiviso
+    dalla_condivisa()  # una lettura giovane, anche scritta mentre si aspettava il blocco
 inizio = time.time()
 # Senza --all claude agents nasconde le sessioni in background fermate (stopped) e quelle in errore
 # (failed): Volta non le mostrerebbe, e Riavvia non comparirebbe mai (#5203). Delle chiuse tiene quelle

@@ -1,5 +1,5 @@
 {
- "albero": "19744a9022b248a6949e8427ecfc166e523ca1cd",
+ "albero": "4eae81320931cbce7111d255dba0805c6f2a77a8",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -20,7 +20,7 @@
   "mods/arturo/casa.js": "009948c1e76de9e42a2001411e14300c6d23f08019bade67e2f38d4c44220645",
   "mods/arturo/checklist.js": "1b13751026a1f58732336d4b10e76ca98d27e70a45c97c91e7ba5dc0edd20fd7",
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
-  "mods/arturo/coda.js": "277aca528fc13f41b2edc821e92c718610980ef3adea376c8a55fc13f8d0b58f",
+  "mods/arturo/coda.js": "3dc6c1c653dc71851e8b5e6d5d619b69184a7a8acdb429ec6627eb67f83fa5fa",
   "mods/arturo/comandi.js": "ce59d877192ecbf1c59e205d43304bb1863f7e061f96872e5174c9e2cad35a15",
   "mods/arturo/comuni.js": "9fbaecaeb054919637bed84a1554cffb10f90b0028ab6e99b6f708bc563d3fb2",
   "mods/arturo/contesto.js": "4b89d87f2a4e56ded2e807556e264db2596c87c62f9eadd25126fc0a6cc7b362",
@@ -51,7 +51,7 @@
   "mods/arturo/noteui.js": "37be03a37e0ceb685789053454f0a5984cf62a1ea61b1e75d1825790ad3bdad5",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "f9c07fc4df1195adf4ea428f6e3ef4e153d1603c1aa24f59966ee6fb7aeacd8e",
+  "mods/arturo/sessioni.js": "e570345b492037343fb4e394747ae45a0338c33e2c51a568129cb35788e8ba6a",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/sposta.js": "00aab77501f01cd77134ddfce3b0024f3c31864937d4bed2ea5494416961192b",
@@ -69,7 +69,7 @@
   "mods/arturo/volta_microfono.py": "35398f95e7915a05bc0d0e8bd98789a215e93a2f34f95b668fff3626c9ad1c2c",
   "mods/arturo/volta_note.py": "238b224f7495414478cae7c72a75cde38ac506c66f6361dc4fb5fcca1f1d2f87",
   "mods/arturo/volta_registro.py": "6b32aacdb5027f8543b8a6bdc23722be41951d60952ae19d14770c25a112c9bc",
-  "mods/arturo/volta_sonda.py": "d2a44dfdc351c0c5224a255457c5ca4a42abe5328e97481051422f7aed44e764",
+  "mods/arturo/volta_sonda.py": "7d8808b6333516d862b5deaafe2a65018a83aa04281304484a1d765497be6453",
   "mods/arturo/volta_sposta.py": "a940578d9671dc5fcb9ecb4ad7ec81cdbf2a24349a0ceb0c2c7addcc94077a00",
   "nascita.sh": "4a757a34f4199688ac33c2752da07f81bfd23bd6446fa40178a4fb6ed8e94349",
   "servizi-gui.sh": "a3eaeb26e61f1143781e17ff282bc2b06a4598814d48dde22842769e95e7f7c7",

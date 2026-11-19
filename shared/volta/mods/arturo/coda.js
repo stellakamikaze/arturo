@@ -21,7 +21,7 @@ import { config, apriFile, nomeMacchina } from "./dati.js";
 import { tastoCoda, passoCoda, cartaDavanti, raccomandata, tipoProva, copiaProva, comandoRisposta, daQuanto, nomeProgetto, testoPiano, etichettaOpzione, CODA_OPZIONI } from "./sessioni.js";
 import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE, UMANI, gruppiCoda, ordineVisto } from "./sessioni.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
-import { tettoDi, entroDi } from "./sessioni.js";
+import { tettoDi, entroDi, daCopiare, PROVA_RIPROVA_MS } from "./sessioni.js";
 
 // Altezza massima di uno screenshot nella riga aperta: il resto della riga deve restare in vista.
 const PROVA_H = 300;
@@ -39,6 +39,7 @@ export class Coda {
     this.scrivo = null;   // il campo aperto: { gesto } (N apre la nota, C il commento del pulsante sotto il cursore)
     this.sopra = null;    // il gesto del pulsante sotto il cursore (on_hover), per C
     this.copie = {};      // destinazione -> "copio" | "ok" | messaggio d'errore
+    this.giri = {};       // destinazione -> { n, dopo }: le copie partite e da quando si riprova (daCopiare)
     this.chiusi = new Set();   // i gruppi chiusi, per chiave
     this.scroll = ScrollHandle.new();
     this.py = "python3";
@@ -140,11 +141,13 @@ export class Coda {
     cx.notify();
   }
 
-  // Le prove della riga scelta, copiate una volta nella cartella dell'app.
+  // Le prove della riga scelta, copiate nella cartella dell'app. Una copia fallita riparte dopo
+  // PROVA_RIPROVA_MS, al più PROVA_TENTATIVI volte (daCopiare di sessioni.js, #6112).
   copiaProve(c, cx) {
     for (const p of (c?.prove ?? []).slice(0, 4)) {
       const dest = copiaProva(c, p);
-      if (!dest || this.copie[dest]) continue;
+      if (!dest || !daCopiare(this.copie[dest], this.giri[dest])) continue;
+      const giro = (this.giri[dest] = { n: (this.giri[dest]?.n ?? 0) + 1, dopo: 0 });
       this.copie[dest] = "copio";
       cx.spawn(async (cx) => {
         let esito;
@@ -155,7 +158,12 @@ export class Coda {
         } catch (e) {
           esito = `la copia non è riuscita: ${String(e?.message ?? e).slice(0, 80)}`;
         }
+        // l'errore resta scritto sulla riga; dopo l'attesa la vista si ridisegna e copiaProve riprova
+        if (esito !== "ok") giro.dopo = Date.now() + PROVA_RIPROVA_MS;
         this.copie[dest] = esito;
+        cx.notify();
+        if (esito === "ok") return;
+        await cx.sleep(PROVA_RIPROVA_MS);
         cx.notify();
       });
     }
