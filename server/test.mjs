@@ -439,7 +439,7 @@ const casi = {
     m.append("testo", "ciao");
     assert.equal((await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, adesso, limite: fermo })).status, 429,
       "V25 il limite per IP non ferma il feedback");
-    assert.deepEqual(chiesti, ["eventi", "moduli", "moduli", "moduli"], "V25 il limite usa il secchio sbagliato");
+    assert.deepEqual(chiesti, ["eventi", "moduli", "sito", "moduli"], "V25 il limite usa il secchio sbagliato");
     // Id inventati: oltre il tetto le installazioni nuove si contano ma non mandano messaggi.
     const g = finti();
     for (let i = 0; i < LIMITI.avvisiInstallazioniPerGiorno + 5; i++) {
@@ -1166,6 +1166,24 @@ const casi = {
     assert.ok(f.stato.segnalazioni.every((x) => x.contatto_nome === "" && x.contatto_email === ""), "V63 un contatto rotto resta sul server");
     const solaEmail = await gestisci(post("/v1/segnalazioni", { ...s, contatto: { email: "a@b.it" } }), { ...f, adesso });
     assert.equal((await solaEmail.json()).contatto, "salvato", "V63 l'email senza nome non si salva");
+  },
+  // Revisione siti del 19/11/2026 (#6124): il tetto di leggiJson vale anche per un invio a pezzi, e le risposte
+  // portano nosniff e no-store.
+  async V65() {
+    const f = finti();
+    const pezzo = new TextEncoder().encode(" ".repeat(1024));
+    let mandati = 0;
+    const flusso = new ReadableStream({
+      pull(c) { mandati++; if (mandati > 8) c.close(); else c.enqueue(pezzo); },
+    });
+    const r = await gestisci(new Request("https://arturo.example/v1/sito", { method: "POST", body: flusso, duplex: "half",
+      headers: { "content-type": "application/json" } }), { ...f, adesso });
+    assert.equal(r.status, 413, "V65 un corpo a pezzi oltre il tetto passa leggiJson");
+    assert.ok(mandati < 8, `V65 leggiJson legge tutto il corpo prima del tetto (${mandati} pezzi letti)`);
+    const ok = await gestisci(post("/v1/sito", { tipo: "download", pagina: "/", sistema: "" }), { ...f, adesso });
+    assert.equal(ok.status, 202, "V65 un download valido non passa più");
+    assert.equal(ok.headers.get("x-content-type-options"), "nosniff", "V65 la risposta non ha nosniff");
+    assert.equal(ok.headers.get("cache-control"), "no-store", "V65 la risposta non ha no-store");
   },
   // M7 della memoria (15/11/2026): i quattro eventi nuovi passano coi soli valori a fasce, e un nome di nota non passa.
   async V64() {

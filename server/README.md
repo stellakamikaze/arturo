@@ -103,7 +103,7 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   non suona, dal 8/11/2026). Gli eventi hanno 50 installazioni nuove al giorno, e l'email di una config rotta
   parte prima del tetto totale degli eventi. Oltre, il dato si salva e il messaggio
   no. Il limite per IP sta nei binding `LIMITE_EVENTI` (60 al minuto) e `LIMITE_MODULI` (10 al
-  minuto) di `wrangler.toml`; l'IP non si salva. Il modulo e i download rifiutano un invio da un
+  minuto) di `wrangler.toml`, con `LIMITE_SITO` (30 al minuto) per i soli download dal sito; l'IP non si salva. Il modulo e i download rifiutano un invio da un
   altro sito (`Sec-Fetch-Site: cross-site`).
 - **Ogni mattina alle 7 ora italiana** (06:00 UTC, alle 8 con l'ora legale) arriva il recap del giorno prima, solo se
   quel giorno ci sono stati eventi, segnalazioni, feedback o download dal sito. Ha anche le config rotte e la deriva cambiata.

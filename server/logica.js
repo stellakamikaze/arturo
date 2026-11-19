@@ -288,18 +288,21 @@ export function calcolaIndietro(attive, versioni, al, giorni = LIMITI.fermaGiorn
   return fuori.sort((x, y) => (x.dal < y.dal ? -1 : x.dal > y.dal ? 1 : 0));
 }
 
+// nosniff e no-store su ogni risposta (revisione siti del 19/11/2026, #6124): sono dati di una persona o
+// di un modulo, non pagine da tenere in cache.
 function risposta(status, dati) {
   return new Response(JSON.stringify(dati), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff", "cache-control": "no-store" },
   });
 }
 
+// Il tetto vale mentre si legge, anche senza content-length (invio a pezzi): prima leggeva tutto il corpo (#6124).
 async function leggiJson(request, limite) {
-  const testo = await request.text();
-  if (new TextEncoder().encode(testo).length > limite) return { errore: risposta(413, { errore: "troppo grande" }) };
+  const corpo = await corpoLimitato(request, limite);
+  if (corpo === null) return { errore: risposta(413, { errore: "troppo grande" }) };
   try {
-    return { dati: JSON.parse(testo) };
+    return { dati: JSON.parse(new TextDecoder().decode(corpo)) };
   } catch {
     return { errore: risposta(400, { errore: "JSON non valido" }) };
   }
@@ -1156,7 +1159,8 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
   // I download dal sito: il comando di installazione copiato, o il repository aperto.
   if (url.pathname === "/v1/sito") {
     if (daFuori) return risposta(403, { errore: "invio da un altro sito" });
-    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
+    // Secchio suo (#6124): i download arrivano tutti con l'IP del server della landing, e prima chiudevano il modulo a tutti.
+    if (!await limite("sito", request)) return risposta(429, { errore: "troppe richieste" });
     const { dati, errore } = await leggiJson(request, 2048);
     if (errore) return errore;
     const { evento, motivo } = validaSito(dati);
