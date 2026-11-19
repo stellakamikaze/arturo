@@ -4,15 +4,15 @@
 La revisione di fine sessione del 23/10 ha trovato due copie rimaste indietro: la cancellazione dei
 dati di un'installazione aveva tre righe in docs/manutenzione.md e una sola in server/README.md.
 La lista del ripristino aveva cinque copie scritte a mano, e quelle della landing le vedeva solo il gate
-della landing. Dal 9/11/2026 sono tre: README, guida e llms.txt della landing.
+della landing. Dal 9/11/2026 erano tre: README, guida e llms.txt della landing; dal 19/11/2026 sono due, README e guida.
 
 CP01 la cancellazione di un'installazione ha le stesse istruzioni DELETE in docs/manutenzione.md e
      in server/README.md, e tocca eventi, segnalazioni e contatori.
 CP02 la lista del ripristino ha le stesse voci nel README e nella landing. Dal 9/11/2026 commands/setup.md
      non ne ha una copia sua: rimanda al blocco della guida (#a-mano-esteso), perché il ripristino dopo un
      clone fallito non stava nel suo tetto di byte (review del 7/11, L10). Se il repository ha
-     il ramo della landing (origin/landing-v2 o landing-v2), anche guida e llms.txt della landing hanno
-     le stesse voci. Dal 1/11/2026 sito/installa.sh innesta Arturo dentro ~/.claude senza spostarla:
+     il ramo della landing (origin/landing-v2 o landing-v2), anche la guida della landing ha le stesse voci
+     (llms.txt no dal 19/11/2026: manda gli agenti solo all'installazione verificata). Dal 1/11/2026 sito/installa.sh innesta Arturo dentro ~/.claude senza spostarla:
      non ha più il ciclo del ripristino, e CP02 controlla che non sposti più tutta la cartella
      (mv "$dest"). Senza quel ramo (un clone di chi usa Arturo) la parte della landing si salta e lo
      dice. ARTURO_LANDING_DIR legge la landing da una cartella (un worktree) invece che dal ramo.
@@ -62,7 +62,9 @@ CICLO = re.compile(r"for x in (.*?); do", re.S)
 DELETE = re.compile(r"DELETE FROM (\w+) WHERE (.+?) = '")
 RAMI_LANDING = ("origin/landing-v2", "landing-v2")
 # Le copie del ciclo del ripristino nella landing: dal 1/11/2026 installa.sh non ne ha più una.
-LANDING = ("sito/installa/index.html", "sito/llms.txt")
+# Dal 19/11/2026 llms.txt non ha più la strada a mano (mv di ~/.claude, rm -rf): manda gli agenti solo a
+# INIZIA.md e a /inizia/, che verificano lo script prima di lanciarlo (revisione della landing, rilievo 16, #6092).
+LANDING = ("sito/installa/index.html",)
 INSTALLATORE = "sito/installa.sh"
 # Spostare tutta la config: la sorgente di mv è la cartella intera, non un file dentro.
 # Il ripristino dopo un clone fallito: il ramo elif del blocco a mano, fino al fi.
@@ -289,8 +291,8 @@ CASI = [
     ("installa.sh senza FIRMA_SBAGLIATA", INNESTA, None, "FIRMA_SBAGLIATA 'assente'"),
     ("guida senza il ripristino dopo un clone fallito", 'FIRMA\n' + INNESTA,
      ("sito/installa/index.html", lambda b: RIPRISTINO.sub("fi", b)), "senza il ripristino"),
-    ("llms.txt con un ripristino che non cancella il clone a metà", 'FIRMA\n' + INNESTA,
-     ("sito/llms.txt", lambda b: b.replace('rm -rf "$HOME/.claude" && ', "")), "diverso dal README in"),
+    ("guida con un ripristino che non cancella il clone a metà", 'FIRMA\n' + INNESTA,
+     ("sito/installa/index.html", lambda b: b.replace('rm -rf "$HOME/.claude" && ', "")), "diverso dal README in"),
 ]
 BLOCCO = re.compile(r'^B="\$HOME/\.claude-backup.*?^fi\b', re.S | re.M)
 
