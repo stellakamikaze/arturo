@@ -118,6 +118,30 @@ def esegui(modo, arg):
     return {"errore": "modo sconosciuto: %s" % modo}
 '''
 
+# hc exec -i accetta al più 8 MB su stdin: oltre risponde "at most 8 MB piped in" (rc 6). Il 18/11/2026 le nove
+# note del MacBook, coi loro screenshot, facevano 11 MB, e ogni giro verso una macchina senza note falliva.
+# Le note si spingono a lotti sotto PACCO_MAX; una nota che da sola non ci sta parte senza screenshot.
+PACCO_MAX = int(os.environ.get("VOLTA_PACCO_MAX") or 6 * 1024 * 1024)
+
+
+def lotti(pacco, limite=None):
+    """Il pacco diviso in lotti il cui JSON sta sotto `limite` byte."""
+    limite = limite or PACCO_MAX
+    lotto, peso = [], 2
+    for v in pacco:
+        n = len(json.dumps(v)) + 2
+        if n > limite and v.get("png"):
+            v = dict(v, png=None)
+            n = len(json.dumps(v)) + 2
+        if lotto and peso + n > limite:
+            yield lotto
+            lotto, peso = [], 2
+        lotto.append(v)
+        peso += n
+    if lotto:
+        yield lotto
+
+
 ATTESA_GIRO = FASI["giro_note"]  # tutto il giro: sta sotto il tetto "note" di TETTI (sessioni.js)
 ATTESA_CHIAMATA = FASI["chiamata_note"]  # una chiamata a un'altra macchina
 RANGO = {"aperta": 0, "presa": 1, "risolta": 2, "scartata": 2}
@@ -236,7 +260,8 @@ def giro(qui, remota):
     if pacco_qua:
         conto["saltate"] += len(qui["scrivi"](pacco_qua)["saltate"])
     if pacco_la:
-        conto["saltate"] += len(remota.chiama("scrivi", stdin=json.dumps(pacco_la))["saltate"])
+        for lotto in lotti(pacco_la):
+            conto["saltate"] += len(remota.chiama("scrivi", stdin=json.dumps(lotto))["saltate"])
     return conto
 
 

@@ -891,6 +891,10 @@ def copia_arturo() -> dict:
         return {"esito": "assente", "motivo": "arturo.json non nomina la copia di Arturo"}
     if radice.resolve() == (Path.home() / ".claude").resolve():
         return {"esito": "assente", "motivo": "~/.claude si aggiorna da sé"}
+    if os.environ.get("VOLTA_SANDBOX") and in_protetta(radice):
+        # il controllo orario gira in sandbox e lì non entra: una copia in Documenti la porta avanti il giro
+        # lanciato dalla finestra, o si sposta fuori (~/src/arturo-herdr, 19/11/2026)
+        return {"esito": "ferma", "motivo": "%s sta in una cartella protetta di macOS: il controllo orario non ci entra" % radice}
     if not radice.is_dir():
         return {"esito": "assente", "motivo": "%s non c'è" % radice}
     rc, cima = git(["rev-parse", "--show-toplevel"], cwd=radice, timeout=20)
@@ -1237,6 +1241,30 @@ def programmi(forza: bool = False) -> dict:
             pass
 
 
+PROTETTE = ("Documents", "Desktop", "Downloads")
+
+
+def profilo_sandbox() -> str:
+    """Il profilo di sandbox-exec del controllo orario: Documenti, Scrivania e Download negati (19/11/2026).
+    Da launchd un programma non di sistema che tocca Documenti apre il dialogo dei permessi di macOS su uno
+    schermo spesso vuoto, e finché nessuno risponde Documenti resta bloccato per tutta la macchina (Amaltea,
+    18 e 19/11). Negato dalla sandbox, lo stesso accesso fallisce subito e nessun dialogo si apre. La casa
+    va col percorso reale: la sandbox confronta quello."""
+    case = {str(Path.home()), os.path.realpath(str(Path.home()))}
+    vie = " ".join('(subpath "%s/%s")' % (c, d) for c in sorted(case) for d in PROTETTE)
+    return "(version 1)(allow default)(deny file-read* file-write* %s)" % vie
+
+
+def in_protetta(p: Path) -> bool:
+    """Vero se `p` sta in Documenti, Scrivania o Download della casa (senza entrarci: niente resolve)."""
+    casa = os.path.realpath(str(Path.home()))
+    q = os.path.abspath(os.path.expanduser(str(p)))
+    for c in {str(Path.home()), casa}:
+        if any(q == os.path.join(c, d) or q.startswith(os.path.join(c, d) + os.sep) for d in PROTETTE):
+            return True
+    return False
+
+
 def plist_agente(script: str) -> str:
     """Il LaunchAgent. Parte con `/usr/bin/env python3` e non col Python di chi l'ha acceso: un percorso
     con la versione dentro (python@3.14) sparisce al primo aggiornamento di Homebrew, e il controllo
@@ -1247,14 +1275,14 @@ def plist_agente(script: str) -> str:
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>%s</string>
-<key>ProgramArguments</key><array><string>/usr/bin/env</string><string>python3</string><string>%s</string><string>controlla</string></array>
-<key>EnvironmentVariables</key><dict><key>PATH</key><string>%s</string></dict>
+<key>ProgramArguments</key><array><string>/usr/bin/sandbox-exec</string><string>-p</string><string>%s</string><string>/usr/bin/env</string><string>python3</string><string>%s</string><string>controlla</string></array>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>%s</string><key>VOLTA_SANDBOX</key><string>1</string></dict>
 <key>StartInterval</key><integer>3600</integer>
 <key>RunAtLoad</key><true/>
 <key>StandardOutPath</key><string>%s</string>
 <key>StandardErrorPath</key><string>%s</string>
 </dict></plist>
-""" % (ETICHETTA, script, percorso, registro, registro)
+""" % (ETICHETTA, profilo_sandbox(), script, percorso, registro, registro)
 
 
 def agente_aggiorna() -> None:
@@ -1276,7 +1304,8 @@ def agente_aggiorna() -> None:
         return
     plist = Path.home() / "Library" / "LaunchAgents" / (ETICHETTA + ".plist")
     try:
-        if not plist.is_file() or "<string>/usr/bin/env</string>" in plist.read_text(encoding="utf-8"):
+        # si riscrive anche quello senza sandbox (19/11/2026)
+        if not plist.is_file() or "<string>/usr/bin/sandbox-exec</string>" in plist.read_text(encoding="utf-8"):
             return
         if os.environ.get("XPC_SERVICE_NAME") == ETICHETTA:
             tmp = plist.with_name(plist.name + ".nuovo")

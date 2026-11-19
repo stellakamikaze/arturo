@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ166: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ167: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -763,6 +763,10 @@ HZ166 Documenti appeso da un permesso di macOS senza risposta (18/11/2026, Amalt
      con un tetto di 5 s ed esce subito con permesso=True, senza lanciare claude; il giro della SONDA prova
      ~/Documents al più una volta al minuto e segna la macchina (nascita.permesso); avviso e nota della barra
      dicono del permesso in attesa.
+HZ167 La Coda come elenco e "A Claude" che parte (18/11/2026, Federico: "non mi permette di capire quali sono
+     le cose pending" e "quando dò l'ok a far partire dei task non partono mai"): gruppiCoda e ordineVisto
+     dividono le carte per chi agisce, nell'ordine della Coda, senza gruppi vuoti né chiusi; "A Claude" su un
+     task porta `poi` col progetto e il todo, e volta.js dopo il todo riuscito porta Claude sul task.
 """
 from __future__ import annotations
 
@@ -778,7 +782,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -3908,7 +3912,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
     except RuntimeError as e:
         return f"dati.js non gira: {e}"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("this.apro[k] = true;", "if (r.errore) this.nonApre(s, r.errore, cx);", "if (v?.errore) this.nonApre(s, v.errore, cx);",
+    for pezzo in ("const mio = (this.apro[k] = Date.now());", "if (r.errore) this.nonApre(s, r.errore, cx);", "if (v?.errore) this.nonApre(s, v.errore, cx);",
                   "this.apri({ ...s, id: portata.id ?? s.id }, portata.attach, true, cx);", '{ testo: "La apro…", colore: "working" }'):
         if pezzo not in vj:
             return f"volta.js senza {pezzo}"
@@ -4239,7 +4243,7 @@ def hz57(repo: Path, casa: Path) -> str | None:
     vc = repo / "shared/volta"
     mod = vc / "mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("const script = `${appHome()}/volta_mod.py`;", "if (controlloMod || !(await esiste(script))) return;",
+    for pezzo in ("const script = `${appHome()}/volta_mod.py`;", "if ((controlloMod && !appesa(controlloMod, TETTO_MOD)) || !(await esiste(script))) return;",
                   'await exec(py, [script, "controlla"], { timeout: 300000 });', 'setShared("arturo.mod", {',
                   "      controllaMod(this.py);\n      const sc = await script(c);",
                   "cx.timer.every(OGNI_MOD, () => controllaMod(this.py));"):
@@ -7280,7 +7284,7 @@ def hz147(repo: Path, casa: Path) -> str | None:
     """Una sessione chiusa non riappare mentre fa il /fine di chiusura (16/11/2026, Federico)."""
     mod = repo / "shared/volta/mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    i, j = vj.find('      if (p.fai === "fine") scrivi({ fase: "fine", dal: Date.now() });'), vj.find("      this.congedo[kc] = true;")
+    i, j = vj.find('      if (p.fai === "fine") scrivi({ fase: "fine", dal: Date.now() });'), vj.find("      const mio = (this.congedo[kc] = Date.now());")
     if i < 0 or j < 0 or i > j:
         return "volta.js non segna la ripresa con /fine prima di lanciarla: una ricarica del mod la perde"
     node = shutil.which("node")
@@ -7364,7 +7368,7 @@ def hz148(repo: Path, casa: Path) -> str | None:
         return "un congedo che finisce senza claude rm non segna la sessione fra le chiuse: l'elenco la rimostra"
     if "...(c.copiaDi ? [{ host: c.host, id: c.copiaDi }] : [])" not in vj:
         return "a congedo finito l'originale di un congedo passato alla copia torna nell'elenco"
-    if "    this.riapri(s);\n    this.apro[k] = true;" not in vj:
+    if "    this.riapri(s);\n    const mio = (this.apro[k] = Date.now());" not in vj:
         return "una sessione chiusa riaperta col clic o con ⌘K resta fuori dall'elenco"
     # vis(), visGiro() e visLista() (l'elenco disegnato, #5883): tutte e tre col registro delle chiuse
     for pezzo in ("return visibili(this.dati, this.congedi(), this.chiuse());",
@@ -10259,6 +10263,7 @@ console.log(JSON.stringify({
   niente: S.voloArturo(undefined, ora, T), gira: S.voloArturo({ da: ora - 1000, p: 1 }, ora, T),
   oltre: S.voloArturo({ da: ora - 50000, p: 1 }, ora, T), appeso: S.voloArturo({ da: 0, appeso: ora - 60000 }, ora, T),
   riprova: S.voloArturo({ da: 0, appeso: ora - S.ARTURO_PAUSA_MS - 1 }, ora, T),
+  mai: S.voloArturo({ da: ora - T - S.ARTURO_PAUSA_MS - 1, p: 1 }, ora, T),
   win: S.tocca([String.raw`C:\Users\f\.cache\volta\sessioni.json`], "C:/Users/f/.cache/volta", "C:/Users/f/.cache/volta/sessioni.json"),
   mic: S.tocca(["/h/.cache/volta/microfono-rinnovo", "/h/.cache/volta/mod-git/arturo/volta.js"], "/h/.cache/volta", "/h/.cache/volta/sessioni.json"),
   radice: S.tocca(["/h/.cache/volta/"], "/h/.cache/volta", "/h/.cache/volta/sessioni.json"),
@@ -10291,9 +10296,18 @@ def hz110(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
     g = json.loads(r.stdout.strip().splitlines()[-1])
-    passi = [g[k]["fai"] for k in ("niente", "gira", "oltre", "appeso", "riprova")]
-    if passi != ["lancia", "aspetta", "appeso", "appeso", "lancia"]:
-        return f"voloArturo sbaglia: {passi}, atteso lancia aspetta appeso appeso lancia"
+    passi = [g[k]["fai"] for k in ("niente", "gira", "oltre", "appeso", "riprova", "mai")]
+    # "mai": una promessa che non torna più (19/11/2026) non blocca il comando per sempre
+    if passi != ["lancia", "aspetta", "appeso", "appeso", "lancia", "lancia"]:
+        return f"voloArturo sbaglia: {passi}, atteso lancia aspetta appeso appeso lancia lancia"
+    # le guardie del 19/11/2026 sui passi che non tornano: congedo e registro
+    for pezzo, perche in (('if (this.congedo[kc] && Date.now() - this.congedo[kc] < 2 * tettoDi("congeda")) continue;', "un congedo appeso ferma la sessione per sempre"),
+                          ("if (this.congedo[kc] !== mio) return;", "un congedo lasciato andare cancella il passo nuovo"),
+                          ("cx.timer.every(REGISTRO_MS, () => svuotaRegistro(this.py));", "il registro si scrive solo a giro finito")):
+        if pezzo not in vj:
+            return f"volta.js: {perche}"
+    if 'if (registroInCorso && Date.now() - registroInCorso < 2 * tettoDi("registro")) return;' not in dj:
+        return "dati.js: una scrittura del registro appesa lo ferma per sempre"
     if [g["win"], g["mic"], g["radice"], g["vuoto"]] != [True, False, True, False]:
         return f"tocca sbaglia: windows {g['win']}, microfono {g['mic']}, cartella {g['radice']}, vuoto {g['vuoto']}"
     return None
@@ -13276,7 +13290,74 @@ def hz166(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166}
+PROVA_CODA_ELENCO = r"""
+import * as m from %s;
+import * as a from %s;
+const gesti = ["Fatto", "Rimanda", "A Claude", "Scarta", "Apri"];
+const l = [
+  { chiave: "amaltea:s1", origine: "sessione", tipo: "scelta" },
+  { chiave: "bozza:b1", origine: "uf", fonte: "bozza", gruppo: "tu" },
+  { chiave: "uf:1", origine: "uf", fonte: "task", gruppo: "tu" },
+  { chiave: "uf:2", origine: "uf", fonte: "task", gruppo: "decidi" },
+  { chiave: "amaltea:s2", origine: "sessione", tipo: "invio" },
+  { chiave: "uf:3", origine: "uf", fonte: "task", gruppo: "tu" },
+  null,
+];
+const gg = m.gruppiCoda(l);
+const t = { chiave: "uf:9", origine: "uf", fonte: "task", gruppo: "tu", opzioni: gesti, progetto: "uf", todo: { id: 9, titolo: "Mandare X" } };
+console.log(JSON.stringify({
+  gruppi: gg.map((g) => [g.chiave, g.nome, g.carte.map((c) => c.chiave)]),
+  soloUf: m.gruppiCoda(l.filter((c) => c?.origine === "uf")).map((g) => g.chiave),
+  vuota: m.gruppiCoda(null).length,
+  visto: m.ordineVisto(gg).map((c) => c.chiave),
+  chiuso: m.ordineVisto(gg, new Set(["sessioni", "tu"])).map((c) => c.chiave),
+  aClaude: a.gestoUf(t, "A Claude"),
+  aClaudeSenza: a.gestoUf({ ...t, progetto: null }, "A Claude").poi,
+  fatto: a.gestoUf(t, "Fatto").poi ?? null,
+}));
+"""
+
+
+def hz167(repo: Path, casa: Path) -> str | None:
+    """La Coda come elenco per chi agisce e "A Claude" che porta Claude sul task (18/11/2026)."""
+    mod = repo / "shared/volta/mods/arturo"
+    coda = (mod / "coda.js").read_text(encoding="utf-8")
+    for pezzo in ("ordineVisto(gruppiCoda(Array.isArray(l) ? l : []), this.chiusi)", "this.scroll.scroll_to_item(scelta)",
+                  "figli.push(this.intestazione(t, g));", ".track_scroll(this.scroll)"):
+        if pezzo not in coda:
+            return f"coda.js non mostra l'elenco per gruppi o non segue la riga scelta: manca {pezzo[:70]}"
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("if (r.ok && g.poi) {", "if (g.poi.progetto) await apriProgetto(g.poi.progetto, g.poi.todo);",
+                  "else await nuova(`Lavoriamo sul todo #${g.poi.todo.id}: ${g.poi.todo.titolo}`);"):
+        if pezzo not in volta:
+            return f"volta.js non porta Claude sul task dopo A Claude: manca {pezzo[:70]}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    shutil.copyfile(mod / "azioni.js", casa / "azioni.mjs")
+    prova = PROVA_CODA_ELENCO % (json.dumps((casa / "sessioni.mjs").as_uri()), json.dumps((casa / "azioni.mjs").as_uri()))
+    r = subprocess.run([node, "--input-type=module", "-e", prova], capture_output=True, text=True, encoding="utf-8", timeout=30, cwd=casa)
+    if r.returncode != 0:
+        return f"sessioni.js o azioni.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["gruppi"] != [["sessioni", "Sessioni che ti aspettano", ["amaltea:s1", "amaltea:s2"]], ["bozze", "Bozze da mandare", ["bozza:b1"]],
+                       ["tu", "Tocca a te", ["uf:1", "uf:3"]], ["decidi", "Decidi tu", ["uf:2"]]]:
+        return f"i gruppi della Coda non seguono chi agisce o perdono l'ordine: {d['gruppi']}"
+    if d["soloUf"] != ["bozze", "tu", "decidi"] or d["vuota"] != 0:
+        return f"un gruppo vuoto resta nell'elenco: {d['soloUf']}, {d['vuota']}"
+    if d["visto"] != ["amaltea:s1", "amaltea:s2", "bozza:b1", "uf:1", "uf:3", "uf:2"] or d["chiuso"] != ["bozza:b1", "uf:2"]:
+        return f"le frecce non seguono l'ordine dell'elenco o entrano nei gruppi chiusi: {d['visto']}, {d['chiuso']}"
+    ac = d["aClaude"]
+    if ac.get("argv") != ["modifica", "9", "--titolo-atteso=Mandare X", "--chi", "io"] or ac.get("esito") != "Claude ci lavora" \
+            or ac.get("poi") != {"progetto": "uf", "todo": {"id": 9, "titolo": "Mandare X"}}:
+        return f"A Claude cambia solo chi lo fa e non porta Claude sul task: {ac}"
+    if d["aClaudeSenza"] != {"progetto": None, "todo": {"id": 9, "titolo": "Mandare X"}} or d["fatto"] is not None:
+        return f"poi senza progetto o su un gesto che non è A Claude: {d['aClaudeSenza']}, {d['fatto']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13324,6 +13405,11 @@ VELENI = [
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', "appesa = cartella_appesa(base)\nif appesa:", "appesa = None\nif appesa:"),
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', 'if pr.get("appesa"):\n    rotta =', 'if False:\n    rotta ='),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "  if (n.permesso === true)\n", "  if (false)\n"),
+    ('HZ167', 'shared/volta/mods/arturo/azioni.js', ',\n    poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };', ' };'),
+    ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '  if (c.fonte === "bozza") return "bozze";\n', ''),
+    ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '(chiusi.has(g.chiave) ? [] : g.carte)', '(g.carte)'),
+    ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '.filter((g) => g.carte.length);', ';'),
+    ('HZ167', 'shared/volta/mods/arturo/volta.js', '      if (r.ok && g.poi) {', '      if (false) {'),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "m.nascita.permesso === true ?", "false ?"),
     ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        atexit.register(libera)\n        dalla_condivisa()", "        atexit.register(libera)"),
     ('HZ165', 'shared/volta/mods/arturo/volta_sonda.py', "        time.sleep(0.1)\n        dalla_condivisa()\n", "        time.sleep(0.1)\n"),
@@ -13446,7 +13532,7 @@ VELENI = [
     ('HZ148', 'shared/volta/mods/arturo/sessioni.js', '.filter(([, v]) => ora - (Number(v?.da) || 0) < CHIUSE_TENUTA_MS)', ''),
     ('HZ148', 'shared/volta/mods/arturo/volta.js', '      if (p.fai === "togli") { scrivi(null); this.ricorda(c); continue; }', '      if (p.fai === "togli") { scrivi(null); continue; }'),
     ('HZ148', 'shared/volta/mods/arturo/volta.js', ', ...(c.copiaDi ? [{ host: c.host, id: c.copiaDi }] : [])', ''),
-    ('HZ148', 'shared/volta/mods/arturo/volta.js', '    this.riapri(s);\n    this.apro[k] = true;', '    this.apro[k] = true;'),
+    ('HZ148', 'shared/volta/mods/arturo/volta.js', '    this.riapri(s);\n    const mio = (this.apro[k] = Date.now());', '    const mio = (this.apro[k] = Date.now());'),
     ('HZ148', 'shared/volta/mods/arturo/volta.js', 'visibili(this.dati, this.congedi(), this.chiuse())', 'visibili(this.dati, this.congedi())'),
     ('HZ148', 'shared/volta/mods/arturo/volta.js', 'visibili(this.dati, senzaAnnullo(tutti, ora), this.chiuse())', 'visibili(this.dati, senzaAnnullo(tutti, ora))'),
     ('HZ149', 'shared/volta/mods/arturo/dati.js', '  const remoto = !s.questa && altreMacchine().some((m) => m.host === s.host && !m.giu) ? argvRemoto(argv, ioQui()) : null;', '  const remoto = null;'),
@@ -13674,7 +13760,8 @@ VELENI = [
     ('HZ111', 'shared/volta/mods/arturo/volta.js', 'r = await spostaSessione(s, v.macchina, (ms) => cx.sleep(ms));', 'r = await spostaSessione(s, v.macchina);'),
     ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  return (percorsi ?? []).some((p) => { const x = n(p); return x === c || x === f; });', '  return (percorsi ?? []).length > 0;'),
     ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  if (v.appeso) return ora - v.appeso < ARTURO_PAUSA_MS ? { fai: "appeso" } : { fai: "lancia" };', '  if (v.appeso) return { fai: "lancia" };'),
-    ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  return ora - v.da < tetto ? { fai: "aspetta" } : { fai: "appeso" };', '  return { fai: "lancia" };'),
+    ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  if (ora - v.da < tetto) return { fai: "aspetta" };', '  return { fai: "lancia" };'),
+    ('HZ110', 'shared/volta/mods/arturo/sessioni.js', '  return ora - v.da < tetto + ARTURO_PAUSA_MS ? { fai: "appeso" } : { fai: "lancia" };', '  return { fai: "appeso" };'),
     ('HZ110', 'shared/volta/mods/arturo/dati.js', '  if (passo.fai === "aspetta") return voli[chiave].p;\n', ''),
     ('HZ108', 'shared/volta/mods/arturo/sessioni.js', '    else if (s.stato === "errore") out.push({ s, fai: "rm", avviso:', '    else out.push({ s, fai: "rm", avviso:'),
     ('HZ106', 'shared/volta/mods/arturo/volta_sonda.py', '    if any(x > crash[-1][0] for x in nati):\n        return None', '    if False:\n        return None'),
@@ -14104,7 +14191,7 @@ VELENI = [
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", '                if riga.startswith("HC_TERMINAL_ID="):', '                if riga.startswith("HC_TERMINALE="):', "windows"),
     ("HZ60", "shared/volta/mods/arturo/volta_sonda.py", "            blocco = numero(parametri + 0x80) if parametri else 0", "            blocco = numero(parametri + 0x70) if parametri else 0", "windows"),
     ("HZ56", "shared/volta/keys.json", '"cmd-o": "arturo.apri",', '"cmd-o":  "arturo.apri",'),
-    ("HZ57", "shared/volta/mods/arturo/volta.js", "  if (controlloMod || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
+    ("HZ57", "shared/volta/mods/arturo/volta.js", "  if ((controlloMod && !appesa(controlloMod, TETTO_MOD)) || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
     ("HZ57", "shared/volta/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", "adesso / 1000 - m.giu_da > 86400", "adesso / 1000 - m.giu_da > 0"),
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", "d.toDateString() === oggi.toDateString() ? \"\" :", "true ? \"\" :"),

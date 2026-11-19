@@ -789,14 +789,16 @@ export function lottiRegistro(coda, tetto = REGISTRO_LOTTO) {
   return lotti;
 }
 export async function svuotaRegistro(py) {
-  if (registroInCorso || !codaRegistro.length) return;
-  registroInCorso = true;
+  // una scrittura che non torna non ferma il registro per sempre: dopo due tetti si riparte (19/11/2026)
+  if (registroInCorso && Date.now() - registroInCorso < 2 * tettoDi("registro")) return;
+  if (!codaRegistro.length) return;
+  const mio = (registroInCorso = Date.now());
   const coda = codaRegistro.splice(0, codaRegistro.length);
   try {
     for (const lotto of lottiRegistro(coda))
       await exec(py, [`${appHome()}/mods/arturo/volta_registro.py`, ...entroDi("registro"), "scrivi", "--righe", JSON.stringify(lotto)], { timeout: tettoDi("registro") });
   } catch { /* il registro non ferma Volta */ } finally {
-    registroInCorso = false;
+    if (registroInCorso === mio) registroInCorso = false;
   }
 }
 

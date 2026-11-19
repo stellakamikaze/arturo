@@ -1,34 +1,46 @@
 // La Coda delle decisioni (#5720, step 3 del piano della Coda di Volta, 15/11/2026): al posto del
-// terminale, una carta per volta di tutto ciò che le sessioni aspettano dalla persona, di ogni macchina.
-// Le carte le mette in ordine la barra (volta.js, shared arturo.coda, carte() e ordineCoda() di
-// sessioni.js); ⌘⇧J scrive il segno arturo.coda.apri (barra.js) e la vista riparte dalla prima carta.
-// Tasti: 1-6 scelgono un'opzione, Invio accetta la raccomandazione, → salta, ← torna indietro, T apre la
-// sessione, F Già fatto, X Scarta, N (o R) Note, C il commento sul pulsante sotto il cursore (16/11/2026:
-// Tab lo prende il motore per il fuoco), Esc torna al terminale. Le decisioni dei tasti stanno in
-// sessioni.js (tastoCoda), senza Herdr. Le prove (screenshot, video) arrivano qui con volta_carte.py:
-// Herdr mostra solo le immagini dentro la cartella dell'app.
+// terminale, tutto ciò che le sessioni e i task aspettano dalla persona, di ogni macchina.
+// Dal 18/11/2026 è un elenco e non più una carta per volta (Federico: "non mi permette di capire chiaramente
+// quali sono le cose pending, come nella schermata Su cosa lavorare"): i gruppi per chi agisce come nella
+// checklist (gruppiCoda di sessioni.js), una riga per carta con le opzioni in pulsanti piccoli, e la riga
+// scelta aperta con la domanda intera, le prove e i gesti. Le carte le mette in ordine la barra (volta.js,
+// shared arturo.coda, carte() e ordineCoda() di sessioni.js); ⌘⇧J scrive il segno arturo.coda.apri
+// (barra.js) e la vista riparte dalla prima riga.
+// Tasti sulla riga scelta: ↑↓ scelgono la riga, 1-6 un'opzione, Invio la raccomandata, T apre la sessione,
+// F Già fatto, X Scarta, N (o R) Note, C il commento sul pulsante sotto il cursore (16/11/2026: Tab lo prende
+// il motore per il fuoco), Esc torna al terminale. Le decisioni dei tasti stanno in sessioni.js (tastoCoda),
+// senza Herdr. Le prove (screenshot, video) arrivano qui con volta_carte.py: Herdr mostra solo le immagini
+// dentro la cartella dell'app.
 
 import { div, image, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { v_flex, h_flex, InputState, Input, ScrollHandle } from "gpui-base";
 import { theme, shared, run, exec, appHome } from "herdr";
 import { ICONA, punto, tasti } from "./comuni.js";
 import { terminale } from "./casa.js";
 import { config, apriFile, nomeMacchina } from "./dati.js";
 import { tastoCoda, passoCoda, cartaDavanti, raccomandata, tipoProva, copiaProva, comandoRisposta, daQuanto, nomeProgetto, testoPiano, etichettaOpzione, CODA_OPZIONI } from "./sessioni.js";
-import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE } from "./sessioni.js";
+import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE, UMANI, gruppiCoda, ordineVisto } from "./sessioni.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
 import { tettoDi, entroDi } from "./sessioni.js";
 
-// Altezza massima di uno screenshot nella carta: il resto della carta deve restare in vista.
+// Altezza massima di uno screenshot nella riga aperta: il resto della riga deve restare in vista.
 const PROVA_H = 300;
+// Il pallino della riga, come quello delle sessioni (PALLINO di DESIGN.md).
+const PALLINO = 7;
+// Il rientro di tutto ciò che sta sotto il titolo: pallino più il suo spazio.
+const RIENTRO = PALLINO + SPAZIO.m + 2;
+// I pulsanti dentro una riga: più bassi del piccolo, come quelli della checklist (piccolo() di checklist.js).
+const CHIP = 24;
 
 export class Coda {
   init(_p, cx) {
     this.at = 0;
-    this.chiave = null;   // la carta davanti, per chiave: l'elenco cambia sotto, la carta resta
+    this.chiave = null;   // la riga scelta, per chiave: l'elenco cambia sotto, la scelta resta
     this.scrivo = null;   // il campo aperto: { gesto } (N apre la nota, C il commento del pulsante sotto il cursore)
     this.sopra = null;    // il gesto del pulsante sotto il cursore (on_hover), per C
     this.copie = {};      // destinazione -> "copio" | "ok" | messaggio d'errore
+    this.chiusi = new Set();   // i gruppi chiusi, per chiave
+    this.scroll = ScrollHandle.new();
     this.py = "python3";
     this.script = `${appHome()}/mods/arturo/volta_carte.py`;
     this.aperta = shared("arturo.coda.apri") ?? 0;
@@ -41,9 +53,9 @@ export class Coda {
     });
     this.handle = cx.focus_handle();
     cx.spawn(async () => { try { this.py = (await config()).arturo[0]; } catch { /* resta python3 */ } });
-    // La parte nasce la prima volta che si mostra, cioè al primo ⌘⇧J: la tastiera va subito alla carta.
+    // La parte nasce la prima volta che si mostra, cioè al primo ⌘⇧J: la tastiera va subito all'elenco.
     cx.timer.after(150, () => this.handle.focus());
-    // ⌘⇧J scrive arturo.coda.apri: prima carta, niente risposta libera, tastiera sulla carta. La parte
+    // ⌘⇧J scrive arturo.coda.apri: prima riga, niente risposta libera, tastiera sull'elenco. La parte
     // resta viva anche nascosta (figlio di uno stack), come la casa: basta guardare il segno.
     cx.timer.every(200, (cx) => {
       const a = shared("arturo.coda.apri") ?? 0;
@@ -54,13 +66,15 @@ export class Coda {
       this.scrivo = null;
       this.input.set_value("");
       this.handle.focus();
+      this.scroll.scroll_to_item(0);
       cx.notify();
     });
   }
 
+  // Le carte nell'ordine dell'elenco: per gruppo, senza i gruppi chiusi.
   elenco() {
     const l = shared("arturo.coda");
-    return Array.isArray(l) ? l : [];
+    return ordineVisto(gruppiCoda(Array.isArray(l) ? l : []), this.chiusi);
   }
 
   davanti() {
@@ -71,8 +85,18 @@ export class Coda {
     return c;
   }
 
-  // La risposta va alla barra, che la porta alla sessione (volta.js rispondiCoda). La carta dopo la
-  // prende il suo posto: la carta risposta sparisce quando la sessione riparte.
+  // Sceglie una riga col clic: la riga si apre, la tastiera resta sull'elenco.
+  scegli(c, cx) {
+    if (this.chiave === c.chiave) return;
+    this.chiave = c.chiave;
+    this.scrivo = null;
+    this.input.set_value("");
+    this.handle.focus();
+    cx.notify();
+  }
+
+  // La risposta va alla barra, che la porta alla sessione (volta.js rispondiCoda). La riga dopo prende il
+  // suo posto: la carta risposta sparisce quando la sessione riparte.
   rispondi(c, testo) {
     this.scrivo = null;
     this.input.set_value("");
@@ -109,7 +133,14 @@ export class Coda {
     run(`arturo.volta-${c.chiave}`);
   }
 
-  // Le prove della carta davanti, copiate una volta nella cartella dell'app.
+  // Apre o chiude un gruppo.
+  giraGruppo(k, cx) {
+    if (this.chiusi.has(k)) this.chiusi.delete(k);
+    else this.chiusi.add(k);
+    cx.notify();
+  }
+
+  // Le prove della riga scelta, copiate una volta nella cartella dell'app.
   copiaProve(c, cx) {
     for (const p of (c?.prove ?? []).slice(0, 4)) {
       const dest = copiaProva(c, p);
@@ -153,35 +184,55 @@ export class Coda {
     if (a.azione === "salta" || a.azione === "indietro") {
       this.at = passoCoda(this.at, a.azione === "salta" ? 1 : -1, n);
       this.chiave = this.elenco()[this.at]?.chiave ?? null;
+      this.seguiScelta = true;
       cx.notify();
     }
   }
 
   render(cx) {
     const t = theme();
-    const l = this.elenco();
+    const tutte = shared("arturo.coda");
+    const gruppi = gruppiCoda(Array.isArray(tutte) ? tutte : []);
+    const l = ordineVisto(gruppi, this.chiusi);
     const c = this.davanti();
     if (c) this.copiaProve(c, cx);
+    // L'elenco ha figli piatti (intestazioni e righe), così scroll_to_item porta in vista la riga scelta.
+    const figli = [];
+    let scelta = -1;
+    for (const g of gruppi) {
+      figli.push(this.intestazione(t, g));
+      if (this.chiusi.has(g.chiave)) continue;
+      for (const x of g.carte) {
+        if (c && x.chiave === c.chiave) scelta = figli.length;
+        figli.push(this.riga(t, x, Boolean(c) && x.chiave === c.chiave));
+      }
+    }
+    if (this.seguiScelta && scelta >= 0) { this.seguiScelta = false; this.scroll.scroll_to_item(scelta); }
+    const quante = Array.isArray(tutte) ? tutte.length : 0;
     return v_flex().id("coda").track_focus(this.handle).size_full().bg(t.background).rounded(RAGGIO.riquadro)
       .border_1().border_color(t.border).overflow_hidden()
       .on_key_down((e, cx) => this.tasto(e, c, l.length, cx))
-      .child(this.testa(t, l))
-      .child(div().id("coda-corpo").flex_1().overflow_y_scroll().px(SPAZIO.xxl).pb(SPAZIO.xxl)
-        .child(c ? this.carta(t, c) : this.vuota(t)));
+      .child(this.testa(t, gruppi, quante))
+      .child(quante
+        ? v_flex().id("coda-corpo").flex_1().overflow_y_scroll().track_scroll(this.scroll)
+          .px(SPAZIO.xxl - SPAZIO.m).pb(SPAZIO.xxl).gap(SPAZIO.xs).children(figli)
+        : div().id("coda-corpo").flex_1().child(this.vuota(t)));
   }
 
-  // La testata: il conteggio e, se il capo l'ha contata (#5723), la quota di raccomandazioni accettate.
-  testa(t, l) {
-    const quante = l.length;
+  // La testata: il titolo, il conto per gruppo e, se il capo l'ha contata (#5723), la quota di raccomandazioni
+  // accettate. I tasti in una riga sola, i principali.
+  testa(t, gruppi, quante) {
     const misura = shared("arturo.coda.misura");
-    return h_flex().flex_none().px(SPAZIO.xxl).pt(SPAZIO.xxl).pb(SPAZIO.xl).gap(SPAZIO.l).items_center()
-      .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Coda"))
-      .when(quante > 0, (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.muted)
-        .child(`${this.at + 1} di ${quante}`)))
-      .when(typeof misura === "string" && misura.length > 0, (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.dim).child(misura)))
-      .child(div().flex_1())
-      .child(div().text_size(TESTO.etichetta).text_color(t.dim)
-        .child(quante ? "1-6 scegli · Invio accetta · C commento sul pulsante · → salta · Esc torna" : "Esc torna alla sessione"));
+    const conti = gruppi.map((g) => `${g.carte.length} ${g.nome.toLowerCase()}`).join(" · ");
+    return v_flex().flex_none().px(SPAZIO.xxl).pt(SPAZIO.xxl).pb(SPAZIO.l).gap(SPAZIO.xs + 1)
+      .child(h_flex().gap(SPAZIO.l).items_baseline()
+        .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Coda"))
+        .when(quante > 0, (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.muted).child(String(quante))))
+        .child(div().flex_1())
+        .child(div().text_size(TESTO.nota).text_color(t.dim)
+          .child(quante ? "↑↓ scegli · 1-6 o Invio rispondono · T apre · Esc torna" : "Esc torna alla sessione")))
+      .when(quante > 0, (el) => el.child(div().truncate().text_size(TESTO.etichetta).text_color(t.muted).child(conti)))
+      .when(typeof misura === "string" && misura.length > 0, (el) => el.child(div().text_size(TESTO.nota).text_color(t.dim).child(misura)));
   }
 
   vuota(t) {
@@ -192,36 +243,83 @@ export class Coda {
         .child(`Quando una sessione chiede qualcosa, la carta arriva qui. ${tasti().coda} la riapre.`));
   }
 
-  carta(t, c) {
+  // L'intestazione di un gruppo: apre e chiude, col conto. Come filone() della checklist.
+  intestazione(t, g) {
+    const chiuso = this.chiusi.has(g.chiave);
+    return h_flex().id(`coda-g-${g.chiave}`).px(SPAZIO.m).pt(SPAZIO.l).pb(SPAZIO.xs).gap(SPAZIO.s + 2).items_center().cursor_pointer()
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => this.giraGruppo(g.chiave, cx))
+      .child(svg(ICONA(chiuso ? "chevron-right" : "chevron-down")).size(12).text_color(t.dim))
+      .child(div().text_size(TESTO.etichetta).font_semibold().text_color(g.chiave === "sessioni" ? t.blocked : t.muted).child(g.nome))
+      .child(div().text_size(TESTO.nota).text_color(t.dim).child(String(g.carte.length)));
+  }
+
+  // Cosa dice una riga: il titolo, la riga sotto e dove viene. Su un task UF il titolo è il task (domanda):
+  // il titolo della carta ("Task #5256 · Decidi tu") è solo il gruppo, che l'intestazione dice già.
+  testi(c) {
+    const uf = c.origine === "uf";
+    const bozza = uf && c.fonte === "bozza";
+    const quando = c.quando ? daQuanto(new Date(c.quando).toISOString()) : "";
+    if (uf && !bozza) {
+      return { titolo: testoPiano(c.domanda) || c.titolo || "",
+        sotto: "",
+        dove: [c.progetto ? nomeProgetto(c.progetto) : "", c.todo?.id ? `#${c.todo.id}` : "", c.esito, c.vecchia ? "il capo non risponde, lettura vecchia" : ""].filter(Boolean).join(" · ") };
+    }
+    if (bozza) {
+      return { titolo: c.titolo ?? "", sotto: testoPiano(c.domanda),
+        dove: ["Gmail", c.esito, c.vecchia ? "il capo non risponde, lettura vecchia" : ""].filter(Boolean).join(" · ") };
+    }
+    return { titolo: c.titolo ?? "", sotto: testoPiano(c.riassunto || c.domanda),
+      dove: [c.progetto ? nomeProgetto(c.progetto) : "Senza progetto", nomeMacchina(c.host), quando].filter(Boolean).join(" · ") };
+  }
+
+  // Una riga: pallino, titolo, dove viene, la riga sotto e le opzioni in pulsanti piccoli. La riga scelta
+  // ha il fondo selected e si apre col dettaglio (dettaglio()).
+  riga(t, c, scelta) {
+    const umano = UMANI.includes(c.tipo);
+    const { titolo, sotto, dove } = this.testi(c);
     const oo = (c.opzioni ?? []).slice(0, CODA_OPZIONI);
     const ri = raccomandata(c);
-    const quando = c.quando ? daQuanto(new Date(c.quando).toISOString()) : "";
-    // una carta UF dice da dove viene (Da fare o Gmail) al posto della macchina, e se il capo non risponde
-    const uf = c.origine === "uf";
-    const dove = [c.progetto ? nomeProgetto(c.progetto) : uf ? "Posta" : "Senza progetto",
-      uf ? (c.fonte === "bozza" ? "Gmail" : "Da fare") : nomeMacchina(c.host), quando,
-      uf && c.vecchia ? "il capo non risponde, lettura vecchia" : ""].filter(Boolean).join(" · ");
-    const umano = ["invio", "pagamento", "segreto", "otp", "oauth", "gesto"].includes(c.tipo);
     const r = String(c.raccomandazione ?? "").trim();
-    return v_flex().id(`coda-carta-${c.chiave}`).w_full().max_w(760).gap(SPAZIO.xl)
-      .child(v_flex().gap(SPAZIO.s)
-        .child(h_flex().gap(SPAZIO.m).items_center()
-          .child(punto(c.blocco || umano ? t.blocked : t.accent, 8))
-          .child(div().text_size(TESTO.etichetta).text_color(t.muted).child(dove))
-          .when(umano, (el) => el.child(div().px(SPAZIO.m).py(SPAZIO.xs).rounded(RAGGIO.controllo).border_1().border_color(t.blocked)
+    return v_flex().id(`coda-r-${c.chiave}`).w_full().px(SPAZIO.m).py(SPAZIO.s + 2).gap(SPAZIO.xs + 2).rounded(RAGGIO.riga)
+      .when(scelta, (el) => el.bg(t.selected))
+      .when(!scelta, (el) => el.hover((s) => s.bg(t.hover)))
+      // pallino, titolo e dove: un bersaglio solo, sceglie la riga
+      .child(v_flex().id(`coda-rt-${c.chiave}`).w_full().gap(SPAZIO.xs).cursor_pointer()
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click((_e, cx) => this.scegli(c, cx))
+        .child(h_flex().w_full().gap(SPAZIO.m + 2).items_center()
+          .child(punto(c.blocco || umano ? t.blocked : t.accent, PALLINO))
+          .child(div().flex_1().min_w(0).when(!scelta, (el) => el.truncate()).when(scelta, (el) => el.whitespace_normal())
+            .text_size(TESTO.corpo).text_color(t.foreground).child(titolo))
+          .when(umano, (el) => el.child(div().flex_none().px(SPAZIO.s + 2).rounded(RAGGIO.controllo).border_1().border_color(t.blocked)
             .text_size(TESTO.nota).text_color(t.blocked).child(`Solo tu: ${c.tipo}`))))
-        .child(div().text_size(TESTO.riga).text_color(t.foreground).child(c.titolo ?? "")))
+        .child(div().pl(RIENTRO).truncate().text_size(TESTO.nota).text_color(t.muted).child(dove))
+        .when(Boolean(sotto) && !scelta, (el) => el.child(div().pl(RIENTRO).truncate().text_size(TESTO.etichetta).text_color(t.muted).child(sotto))))
+      .when(scelta, (el) => el.child(this.dettaglio(t, c, sotto)))
+      // le opzioni: il numero è il tasto sulla riga scelta; la raccomandata ha il bordo accent
+      .when(oo.length > 0, (el) => el.child(h_flex().pl(RIENTRO).gap(SPAZIO.s + 2).items_center().flex_wrap()
+        .children(oo.map((o, i) => this.opzione(t, c, o, i, i === ri, scelta)))))
+      .when(Boolean(r) && ri < 0, (el) => el.child(h_flex().id(`coda-rac-${c.chiave}`).pl(RIENTRO).gap(SPAZIO.m).items_center().cursor_pointer()
+        .on_hover((h, cx) => this.passa(r, h, cx))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click(() => this.rispondi(c, r))
+        .child(div().flex_none().text_size(TESTO.nota).text_color(t.accent).child(scelta ? "Invio" : "Raccomandata"))
+        .child(div().flex_1().min_w(0).when(!scelta, (e) => e.truncate()).text_size(TESTO.etichetta).text_color(t.foreground)
+          .child(`${c.capoRac ? "Raccomandata dal capo" : "Raccomandata"}: ${testoPiano(r)}`))))
+      .when(scelta, (el) => el.child(this.gesti(t, c)));
+  }
+
+  // La riga scelta, aperta: la domanda intera, il riassunto, le doppie, le prove, il campo della nota.
+  dettaglio(t, c, sotto) {
+    const uf = c.origine === "uf";
+    const domanda = testoPiano(c.domanda);
+    return v_flex().pl(RIENTRO).gap(SPAZIO.m).pt(SPAZIO.xs)
+      .when(!uf && Boolean(domanda) && domanda !== sotto, (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.riga).text_color(t.foreground).child(domanda)))
       .when(Boolean(c.riassunto || c.esito), (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.corpo).text_color(t.muted).child(testoPiano(c.riassunto || c.esito))))
       .when((c.doppie ?? []).length > 0, (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.etichetta).text_color(t.dim)
         .child(`Chiede la stessa cosa anche: ${c.doppie.join(" · ")}`)))
-      .child(div().w_full().whitespace_normal().text_size(TESTO.testata).text_color(t.foreground).child(testoPiano(c.domanda) || "Ti aspetta"))
-      .when(oo.length > 0, (el) => el.child(v_flex().gap(SPAZIO.m).children(oo.map((o, i) => this.opzione(t, c, o, i, i === ri)))))
-      .when(Boolean(r) && ri < 0, (el) => el.child(h_flex().id("coda-raccomandata").gap(SPAZIO.m).items_center().cursor_pointer()
-        .on_hover((h, cx) => this.passa(r, h, cx))
-        .on_click(() => this.rispondi(c, r))
-        .child(div().text_size(TESTO.etichetta).text_color(t.accent).child("Invio"))
-        .child(div().flex_1().whitespace_normal().text_size(TESTO.corpo).text_color(t.foreground).child(`${c.capoRac ? "Raccomandata dal capo" : "Raccomandata"}: ${testoPiano(r)}`))))
-      .when(!oo.length && !r, (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.muted)
+      .when(!(c.opzioni ?? []).length && !String(c.raccomandazione ?? "").trim(), (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.muted)
         .child("Nessuna opzione: N per scrivere la risposta, T per aprire la sessione.")))
       .when((c.prove ?? []).length > 0, (el) => el.child(this.prove(t, c)))
       .when(Boolean(this.scrivo), (el) => el.child(v_flex().gap(SPAZIO.xs)
@@ -231,37 +329,39 @@ export class Coda {
         .child(h_flex().h(PULSANTE.grande).px(SPAZIO.l).gap(SPAZIO.m).items_center()
           .rounded(RAGGIO.riga).border_1().border_color(t.accent).bg(t.raised)
           .child(svg(ICONA("square-pen")).size(ICONA_MISURA.grande).text_color(t.muted))
-          .child(Input.new(this.input).flex_1().h_full().text_size(TESTO.riga).text_color(t.foreground)))))
-      .child(h_flex().gap(SPAZIO.m).pt(SPAZIO.s).flex_wrap()
-        .child(this.gesto(t, "coda-fatto", "circle-check", "Già fatto · F", () => this.esegui(c, GIA_FATTO), GIA_FATTO))
-        .child(this.gesto(t, "coda-scarta", "x", "Scarta · X", () => this.esegui(c, SCARTA), SCARTA))
-        .child(this.gesto(t, "coda-note", "square-pen", "Note · N", () => this.apriCampo(NOTE), NOTE))
-        // la ripartenza di /inizio ancora da mandare: la checklist con le note (checklist.js)
-        .when(c.checklist > 0 && shared("arturo.checklist.mandate")?.[c.sessionId] !== c.ripQuando, (el) => el.child(this.gesto(t, "coda-checklist", "circle-check",
-          `Su cosa lavorare · ${c.checklist}`, () => run(comandoChecklist(c.chiave)))))
-        .child(this.gesto(t, "coda-apri", "terminal", uf ? "Apri · T" : "Apri la sessione · T", () => this.apri(c)))
-        .child(this.gesto(t, "coda-salta", "chevron-right", "Salta · →", () => {
-          this.at = passoCoda(this.at, 1, this.elenco().length);
-          this.chiave = this.elenco()[this.at]?.chiave ?? null;
-        })));
+          .child(Input.new(this.input).flex_1().h_full().text_size(TESTO.riga).text_color(t.foreground)))));
   }
 
-  // Un'opzione numerata: il numero è il tasto. La raccomandata ha il bordo e l'etichetta in accent.
-  opzione(t, c, o, i, consigliata) {
-    return h_flex().id(`coda-opzione-${i + 1}`).w_full().min_h(PULSANTE.grande).px(SPAZIO.l).py(SPAZIO.m).gap(SPAZIO.l).items_center()
-      .rounded(RAGGIO.riga).cursor_pointer().border_1().border_color(consigliata ? t.accent : t.border)
-      .bg(consigliata ? t.raised : t.background).hover((s) => s.border_color(consigliata ? t.accent : t.muted))
+  // I gesti della riga scelta: Già fatto, Scarta, Note, la checklist della ripartenza, Apri.
+  gesti(t, c) {
+    const uf = c.origine === "uf";
+    return h_flex().pl(RIENTRO).gap(SPAZIO.m).pt(SPAZIO.xs).flex_wrap()
+      .child(this.gesto(t, "coda-fatto", "circle-check", "Già fatto · F", () => this.esegui(c, GIA_FATTO), GIA_FATTO))
+      .child(this.gesto(t, "coda-scarta", "x", "Scarta · X", () => this.esegui(c, SCARTA), SCARTA))
+      .child(this.gesto(t, "coda-note", "square-pen", "Note · N", () => this.apriCampo(NOTE), NOTE))
+      // la ripartenza di /inizio ancora da mandare: la checklist con le note (checklist.js)
+      .when(c.checklist > 0 && shared("arturo.checklist.mandate")?.[c.sessionId] !== c.ripQuando, (el) => el.child(this.gesto(t, "coda-checklist", "circle-check",
+        `Su cosa lavorare · ${c.checklist}`, () => run(comandoChecklist(c.chiave)))))
+      .child(this.gesto(t, "coda-apri", "terminal", uf ? "Apri · T" : "Apri la sessione · T", () => this.apri(c)));
+  }
+
+  // Un'opzione: pulsante piccolo col numero, che sulla riga scelta è il tasto. La raccomandata ha il bordo
+  // accent; sulla riga scelta dice anche "Invio".
+  opzione(t, c, o, i, consigliata, scelta) {
+    return h_flex().id(`coda-o-${c.chiave}-${i + 1}`).flex_none().h(CHIP).px(SPAZIO.m).gap(SPAZIO.s + 2).items_center()
+      .rounded(RAGGIO.controllo).cursor_pointer().border_1().border_color(consigliata ? t.accent : t.border)
+      .bg(t.background).hover((s) => s.border_color(t.accent))
       .on_hover((h, cx) => this.passa(o, h, cx))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
       .on_click(() => this.rispondi(c, String(o)))
-      .child(div().w(22).h(22).flex_none().rounded(RAGGIO.controllo).bg(consigliata ? t.accent : t.raised)
-        .items_center().justify_center().flex()
-        .text_size(TESTO.etichetta).text_color(consigliata ? t.accent_foreground : t.muted).child(String(i + 1)))
-      .child(div().flex_1().whitespace_normal().text_size(TESTO.riga).text_color(t.foreground).child(etichettaOpzione(o, i)))
-      .when(consigliata, (el) => el.child(div().text_size(TESTO.nota).text_color(t.accent).child(c.capoRac ? "Raccomandata dal capo · Invio" : "Raccomandata · Invio")))
-      .when(this.sopra === String(o), (el) => el.child(div().text_size(TESTO.nota).text_color(t.dim).child("C commento")));
+      .when(scelta, (el) => el.child(div().text_size(TESTO.nota).text_color(t.dim).child(String(i + 1))))
+      .child(div().text_size(TESTO.etichetta).text_color(t.foreground).child(etichettaOpzione(o, i)))
+      .when(consigliata, (el) => el.child(div().text_size(TESTO.nota).text_color(t.accent)
+        .child(scelta ? (c.capoRac ? "Raccomandata dal capo · Invio" : "Raccomandata · Invio") : "raccomandata")))
+      .when(scelta && this.sopra === String(o), (el) => el.child(div().text_size(TESTO.nota).text_color(t.dim).child("C commento")));
   }
 
-  // Un gesto della riga in basso. Con `nome` (Già fatto, Scarta, Note) il cursore sopra più C apre il commento.
+  // Un gesto della riga scelta. Con `nome` (Già fatto, Scarta, Note) il cursore sopra più C apre il commento.
   gesto(t, id, icona, testo, azione, nome = null) {
     return h_flex().id(id).h(PULSANTE.piccolo).px(SPAZIO.m + 2).gap(7).items_center().rounded(RAGGIO.controllo)
       .cursor_pointer().border_1().border_color(t.border).text_color(t.foreground).hover((s) => s.bg(t.hover))

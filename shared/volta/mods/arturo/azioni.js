@@ -89,7 +89,10 @@ export function gestoUf(c, testo, extra = {}) {
 function gestoTask(t, r, nota, c) {
   if (r === "Fatto") return { azione: "todo", ...fatto(t) };
   if (r === "Rimanda") return { azione: "todo", argv: ["modifica", String(t.id), atteso(t), "--quando", "più avanti"], esito: "Spostato a più avanti" };
-  if (r === "A Claude") return { azione: "todo", argv: ["modifica", String(t.id), atteso(t), "--chi", "io"], esito: "Ora lo fa: Claude" };
+  // "A Claude" fa partire il lavoro (18/11/2026, Federico: "quando dò l'ok a far partire dei task non partono
+  // mai"): prima chi = io, poi `poi` porta Claude sul task (rispondiUf di volta.js, apri() di dati.js).
+  if (r === "A Claude") return { azione: "todo", argv: ["modifica", String(t.id), atteso(t), "--chi", "io"], esito: "Claude ci lavora",
+    poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };
   if (r === "Scarta") return { azione: "todo", argv: ["scarta", String(t.id), atteso(t), "--", nota || SCARTATA_DALLA_CODA], esito: "Scartato" };
   if (r === "Apri") return { azione: "apri", progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } };
   return { azione: "todo", argv: ["nota", String(t.id), atteso(t), "--", r], esito: "Nota aggiunta" };

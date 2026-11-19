@@ -11,11 +11,14 @@ import { ICONA, punto, pulsante, pulsanteIcona, colore, apriElenco, tasti, nasce
 import { apriSposta, ICONA_SPOSTA } from "./sposta.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { leggiTutte } from "./notaui.js";
-import { macchinaBreve, sintesiTestata, titoloTestata, rigaCoda } from "./sessioni.js";
+import { macchinaBreve, sintesiTestata, titoloTestata, rigaCoda, appesa } from "./sessioni.js";
+import { registra } from "./dati.js";
 import { apriContesto } from "./contestoui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
 
 const ARANCIO = "#f2a24a";
+// il tetto di una lettura delle note (leggiTutte di notaui.js aspetta 10 s), con margine per il ciclo
+const LETTURA_NOTE_MS = 30000;
 // Le carte della Coda (#5720), come le pubblica la barra (volta.js).
 const carteInCoda = () => (Array.isArray(shared("arturo.coda")) ? shared("arturo.coda").length : 0);
 
@@ -202,10 +205,12 @@ export class Stato {
     });
   }
 
-  // Una lettura alla volta; un cambio arrivato durante la lettura ne chiede un'altra subito dopo.
+  // Una lettura alla volta; un cambio arrivato durante la lettura ne chiede un'altra subito dopo. Una lettura
+  // che non torna si lascia andare dopo due volte LETTURA_NOTE_MS (#6109): prima le note restavano ferme.
   async leggi() {
-    if (this.leggo) { this.ancora = true; return; }
-    this.leggo = true;
+    if (this.leggo && !appesa(this.leggo, LETTURA_NOTE_MS)) { this.ancora = true; return; }
+    if (this.leggo) registra("attesa appesa", { attesa: "note della testata", ms: Date.now() - this.leggo });
+    const mio = (this.leggo = Date.now());
     try {
       do {
         this.ancora = false;
@@ -222,9 +227,9 @@ export class Stato {
           notify({ title: numero ? `Claude ha risposto alla nota ${numero}` : "Claude ha risposto a una nota",
             body: ultima?.testo ?? n.testo, level: "info", timeout: 8000, action: { name: "arturo.note" } });
         }
-      } while (this.ancora);
+      } while (this.ancora && this.leggo === mio);
     } finally {
-      this.leggo = false;
+      if (this.leggo === mio) this.leggo = false;
     }
   }
 

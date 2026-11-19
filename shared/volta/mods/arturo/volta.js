@@ -48,7 +48,7 @@ import { leggiRecenti, riprendiDaSola } from "./dati.js";
 import { daRiprendere, testoRipresa } from "./sessioni.js";
 import { gestoUf } from "./azioni.js";
 import { terminale } from "./casa.js";
-import { tettoDi, entroDi } from "./sessioni.js";
+import { tettoDi, entroDi, appesa, liberaAppese, lascia, SPOSTA_MAX_MS } from "./sessioni.js";
 
 // Il giro dell'elenco (step 5 del piano di revisione, 17/11/2026): ogni 10 s, e subito dopo un gesto (aggiorna
 // chiesto durante un giro ne fa partire un altro alla fine). Con 30 s un cambio arrivava fino a 30 s dopo.
@@ -87,6 +87,16 @@ const DAVANTI_MS = 60000;
 // quanto resta sulla riga. Finché c'è, il clic dopo stacca quel Terminale e apre la scheda qui.
 const ALTROVE = "È aperta in un Terminale. Un altro clic la porta qui.";
 const ALTROVE_MS = 20000;
+// Il tetto di ogni attesa del mod (#6109, liberaAppese di sessioni.js): il tetto del comando che l'attesa
+// aspetta, o il più lungo se ne aspetta più d'uno. Dopo due tetti l'attesa si spegne e il registro lo dice.
+// Uno Sposta aspetta l'esito fino a SPOSTA_MAX_MS. Il giro dell'elenco (inCorso) e il congedo hanno la
+// loro guardia, con giroN e this.congedo.
+const TETTI_ATTESE = () => ({ noteInCorso: tettoDi("note"), davantiInCorso: tettoDi("davanti"), micLavora: tettoDi("microfono"),
+  leggoUf: tettoDi("capo"), autoLavora: tettoDi("azione"), riprendoDaSola: tettoDi("ripresa"), handoffLavora: tettoDi("azione"),
+  staccoLavora: tettoDi("congeda"), allineaLavora: tettoDi("congeda"), orfaniLavora: tettoDi("respawn"), spostando: SPOSTA_MAX_MS,
+  apro: tettoDi("nasci"), sposto: tettoDi("porta"), porto: tettoDi("cambia"), inizio: tettoDi("inizia") });
+// il controllo del mod: volta_mod.py controlla (300 s) più stato (20 s)
+const TETTO_MOD = 320000;
 
 // Il mod si aggiorna da solo: volta_mod.py (fuori dalla cartella del mod, così un mod rotto non lo
 // ferma) scarica, controlla con herdr-app check e scambia; Herdr ricarica il mod a file cambiati.
@@ -95,8 +105,10 @@ const ALTROVE_MS = 20000;
 let controlloMod = false;
 export async function controllaMod(py) {
   const script = `${appHome()}/volta_mod.py`;
-  if (controlloMod || !(await esiste(script))) return;
-  controlloMod = true;
+  // un controllo che non torna non ferma l'aggiornamento del mod per sempre (#6109)
+  if ((controlloMod && !appesa(controlloMod, TETTO_MOD)) || !(await esiste(script))) return;
+  if (controlloMod) registra("attesa appesa", { attesa: "controlloMod", ms: Date.now() - controlloMod });
+  const mio = (controlloMod = Date.now());
   try {
     await exec(py, [script, "controlla"], { timeout: 300000 });
   } catch { /* l'esito sta in mod-stato.json */ }
@@ -108,7 +120,7 @@ export async function controllaMod(py) {
       esito: d.esito ?? null, giu_da: d.giu_da ?? null, motivo: d.motivo ?? null, modo: d.modo ?? null,
       programmi: d.programmi ?? null });
   } catch { /* resta l'ultimo stato letto */ }
-  controlloMod = false;
+  if (controlloMod === mio) controlloMod = false;
 }
 
 // La frase della riga mentre un gesto del menu lavora, e quella che resta qualche secondo a gesto fatto.
@@ -152,7 +164,7 @@ export class Volta {
     this.dati = null;
     this.avvisi = {};
     this.sposto = {};
-    this.apro = {};        // chiave -> true mentre il clic prepara la scheda (servizio, respawn)
+    this.apro = {};        // chiave -> ora di partenza mentre il clic prepara la scheda (servizio, respawn)
     this.veglio = {};      // chiave -> true mentre si guarda se Claude resta nella scheda appena aperta
     this.aperti = {};
     this.menu = null;      // la chiave della sessione con i gesti aperti
@@ -163,8 +175,8 @@ export class Volta {
     this.faccio = {};      // chiave -> verbo in corso
     this.codaSposta = {};  // chiave -> { macchina, id, da, dopo }: Sposta su e Sposta tutto, una alla volta
     this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
-    this.porto = {};       // chiave -> true mentre il nome scritto dalla persona va in Claude Code
-    this.inizio = {};      // chiave -> true mentre la sessione spostata riparte da /inizio (#5465)
+    this.porto = {};       // chiave -> ora di partenza mentre il nome scritto dalla persona va in Claude Code
+    this.inizio = {};      // chiave -> ora di partenza mentre la sessione spostata riparte da /inizio (#5465)
     this.trascino = null;  // { s, da, mosso, sopra }: la sessione che la persona sta trascinando su un progetto
     this.trascinata = 0;   // quando è finito l'ultimo trascinamento: il rilascio sulla riga non è un clic
     this.spostate = {};    // chiave -> slug: spostate da questa finestra, che sola può riprenderle
@@ -182,10 +194,10 @@ export class Volta {
     this.davantiScript = null; // volta_davanti.py, se c'è: la macchina davanti alla persona (#5881)
     this.davantiInCorso = false;
     this.davantiUltimo = 0;
-    this.autoLavora = false;   // true mentre congedaFerme lavora: un giro alla volta
-    this.staccoLavora = false; // true mentre staccaFerme lavora
+    this.autoLavora = false;   // l'ora di partenza mentre congedaFerme lavora: un giro alla volta
+    this.staccoLavora = false; // l'ora di partenza mentre staccaFerme lavora
     this.noStacco = new Set(); // indirizzi delle schede che non si sono staccate: non si riprovano fino al ricarico
-    this.allineaLavora = false; // true mentre allineaSpazi lavora
+    this.allineaLavora = false; // l'ora di partenza mentre allineaSpazi lavora
     this.allineati = new Set(); // "chiave|progetto" degli spostamenti già fatti: non si ripetono fino al ricarico
     // "Riduci movimento" del sistema: sul Mac subito, su Windows col Python di arturo.json (sotto)
     cx.spawn(async (cx) => {
@@ -217,6 +229,9 @@ export class Volta {
     });
     // il timer non mette in coda: con un giro più lungo di OGNI i giri andrebbero di fila
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx, false));
+    // il registro su disco anche quando il giro dell'elenco resta appeso (19/11/2026): prima si scriveva solo
+    // a giro finito, e nelle 9 ore del giro appeso del 18/11 non ha scritto niente
+    cx.timer.every(REGISTRO_MS, () => svuotaRegistro(this.py));
     cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
     cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));
     cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));
@@ -258,7 +273,7 @@ export class Volta {
     this.orfaniNo = this.orfaniNo ?? new Set();
     const p = congediOrfani(this.dati, this.congedi(), Date.now(), conScheda).find((x) => !this.orfaniNo.has(chiave(x.s)));
     if (!p) return;
-    this.orfaniLavora = true;
+    const mio = (this.orfaniLavora = Date.now());
     try {
       // lo stesso controllo fresco del congedo (#5636): rm e stop si rifiutano se la sessione gira o è agganciata
       const r = await azioneSessione(p.s, p.fai, { congedo: true }).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 160) }));
@@ -268,7 +283,7 @@ export class Volta {
       } else if (p.fai === "rm" && p.avviso) notify({ title: `${titolo(p.s)}: chiusa`, body: p.avviso, level: "info" });
       this.aggiorna(cx);
       cx.notify();
-    } finally { this.orfaniLavora = false; }
+    } finally { lascia(this, "orfaniLavora", mio); }
   }
 
   // Le sessioni in congedo (shared, così restano anche se il mod si ricarica): { chiave: c }. Una voce
@@ -444,7 +459,10 @@ export class Volta {
   passiCongedo(cx) {
     const tutti = this.congedi();
     for (const [kc, c] of Object.entries(tutti)) {
-      if (this.congedo[kc]) continue;
+      // un congedo che non torna (19/11/2026) si lascia andare dopo due tetti: prima la sessione restava
+      // fuori dall'elenco e accesa sulla sua macchina, senza /fine, fino al ricarico del mod
+      if (this.congedo[kc] && Date.now() - this.congedo[kc] < 2 * tettoDi("congeda")) continue;
+      if (this.congedo[kc]) registra("congedo appeso", { sid: c.id, ms: Date.now() - this.congedo[kc] });
       // la riga della stessa macchina e dello stesso id: prima bastava il sessionId o l'id, e dopo Sposta su
       // il congedo prendeva la copia ferma (#5634)
       const s = trova(this.dati?.sessioni, c) ?? undefined;
@@ -471,12 +489,13 @@ export class Volta {
       // ripresa perdeva this.congedo, e la copia nuova del mod trovava ancora "attende". Toglieva il congedo
       // della sessione ferma (la ripresa poi la riaccendeva fuori dal registro, visibile) o rifaceva /fine.
       if (p.fai === "fine") scrivi({ fase: "fine", dal: Date.now() });
-      this.congedo[kc] = true;
+      const mio = (this.congedo[kc] = Date.now());
       cx.spawn(async (cx) => {
         let r;
         try {
           r = p.fai === "fine" ? await congedaSessione({ ...c, id: s?.id ?? c.id }) : await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, p.fai === "rm" ? "rm" : "stop", { congedo: true });
         } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
+        if (this.congedo[kc] !== mio) return;  // lasciato andare per appeso: un altro passo l'ha già ripreso
         delete this.congedo[kc];
         if (r?.rifiutata && p.fai !== "rm") {
           // il controllo fresco sulla macchina (#5636): un'altra scheda la aggancia ancora, o l'hai riaperta
@@ -523,7 +542,7 @@ export class Volta {
     this.provate = Object.fromEntries(Object.entries(this.provate ?? {}).filter(([, t]) => adesso - t < RIPROVA_MS));
     const s = daRiprendere(this.dati, adesso, { congedi: this.congedi() }).find((x) => !(chiave(x) in this.provate));
     if (!s) return;
-    this.riprendoDaSola = true;
+    const mio = (this.riprendoDaSola = adesso);
     this.provate[chiave(s)] = adesso;
     cx.spawn(async (cx) => {
       try {
@@ -536,7 +555,7 @@ export class Volta {
         if (!r.ok) return;
         notify({ title: `${titolo(s)} è ripartita da sola`, body: s.errore?.tipo === "limite" ? "Il limite d'uso si è sbloccato." : "La connessione è tornata.", level: "info", timeout: 6000 });
         this.aggiorna(cx);
-      } finally { this.riprendoDaSola = false; }
+      } finally { lascia(this, "riprendoDaSola", mio); }
     });
   }
 
@@ -548,7 +567,7 @@ export class Volta {
   // macchina non chiudono la stessa sessione e non sforano i tetti.
   async congedaFerme(cx) {
     if (this.autoLavora || !this.dati) return;
-    this.autoLavora = true;
+    const mio = (this.autoLavora = Date.now());
     try {
       const cfg = (await config()).congedo;
       if (cfg.modo === "spento") return;
@@ -575,7 +594,7 @@ export class Volta {
       notify({ title: `${titolo(s)}: la chiudo`, body: `Aspettava un comando ${daQuanto(s.interazione || s.ultimo, adesso)}: ${diProva(s) ? "è una prova, la elimino." : "faccio /fine e la fermo."}`, level: "info" });
       this.congeda({ sessionId: s.sessionId, id: s.id, host: s.host ?? "qui", auto: true }, cx);
     } catch { /* un registro scritto da un'altra finestra nel frattempo: si riprova al giro dopo */ }
-    finally { this.autoLavora = false; }
+    finally { lascia(this, "autoLavora", mio); }
   }
 
   // Lo stacco delle schede ferme (F3.2 di #5587, daStaccare di sessioni.js): ogni minuto, le schede che
@@ -586,7 +605,7 @@ export class Volta {
   // si riprova finché il mod non si ricarica, e lo dice il registro.
   async staccaFerme(cx) {
     if (this.staccoLavora || !this.dati || !this.schede) return;
-    this.staccoLavora = true;
+    const mio = (this.staccoLavora = Date.now());
     try {
       const prima = shared("arturo.volta.staccate") ?? {};
       // via le schede chiuse e quelle riagganciate da un'altra strada (il clic sulla riga)
@@ -604,7 +623,7 @@ export class Volta {
         else if (r.ok) tieni[indirizzo] = { id: s.id, host: s.host, da: Date.now() };
       }
       if (JSON.stringify(tieni) !== JSON.stringify(prima)) setShared("arturo.volta.staccate", tieni);
-    } finally { this.staccoLavora = false; }
+    } finally { lascia(this, "staccoLavora", mio); }
   }
 
   // Lo spazio della scheda segue il progetto della sessione (daAllineare di sessioni.js, 14/11/2026): ogni
@@ -614,7 +633,7 @@ export class Volta {
   // mod non si ricarica, anche se non riesce: lo dice il registro.
   async allineaSpazi(cx) {
     if (this.allineaLavora || !this.dati || !this.schede) return;
-    this.allineaLavora = true;
+    const mio = (this.allineaLavora = Date.now());
     try {
       const sp = spaces();
       const voci = [];
@@ -633,7 +652,7 @@ export class Volta {
         registra("allinea", { macchina: s.host, sid: s.id, terminale: indirizzo, progetto, esito: esito.errore ? "errore" : esito.spostata ? "ok" : "niente", errore: esito.errore });
       }
       if (r.sposta.length) cx.notify();
-    } finally { this.allineaLavora = false; }
+    } finally { lascia(this, "allineaLavora", mio); }
   }
 
   // Una scheda staccata da staccaFerme torna in primo piano (un clic sulla scheda, ⌘⇧↓, ⌘↓ e ⌘↑): l'aggancio
@@ -663,7 +682,7 @@ export class Volta {
     const { st, azione } = passo(this.mic, spento ? null : bersaglio(t, this.dati?.sessioni), Date.now(), spento);
     this.mic = st;
     if (!azione) return this.dicoMicrofono(spento, cx);
-    this.micLavora = true;
+    const mio = (this.micLavora = Date.now());
     let risposta = null;
     try {
       const r = await exec(this.py, [this.micScript, ...entroDi("microfono"), azione.verbo, ...(azione.target ? [azione.target] : [])], { timeout: tettoDi("microfono") });
@@ -671,7 +690,7 @@ export class Volta {
       const d = esito(r);
       risposta = d.errore && !d.stato ? { stato: "errore", motivo: d.errore } : d;
     } catch { risposta = { stato: "errore", motivo: "non riesco a lanciare il ponte" }; }
-    this.micLavora = false;
+    lascia(this, "micLavora", mio);
     if (this.mic && azione.verbo === "accendi") this.mic = { ...this.mic, stato: risposta.stato ?? "avvio", motivo: risposta.motivo ?? null };
     this.dicoMicrofono(spento, cx);
   }
@@ -690,7 +709,7 @@ export class Volta {
     if (!s) return;
     const k = chiave(s);
     if (this.apro[k]) return;
-    this.apro[k] = true;
+    const mio = (this.apro[k] = Date.now());
     cx.notify();
     cx.spawn(async (cx) => {
       let r;
@@ -699,7 +718,7 @@ export class Volta {
         const prompt = promptRipresa(s, testoHandoff(s, this.dati?.giuDa?.[s.host]), conArturo(c));
         r = await riprendiSu(macchina, prompt, s.progetto ?? null, `Ripresa: ${titolo(s)}`);
       } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
-      delete this.apro[k];
+      lascia(this, "apro", mio, k);
       registra("riprendi", { macchina, sid: s.id, esito: r?.errore ? "errore" : "ok", errore: r?.errore });
       if (r?.errore) this.avvisa(s, `Non riprende: ${r.errore}`, cx);
       else this.avvisa(s, `Ripresa su ${nomeMacchina(macchina)}: la conversazione di qui resta com'è.`, cx, 600000);
@@ -713,7 +732,7 @@ export class Volta {
   // file nuovo fa rileggere l'elenco. Un handoff della stessa caduta (riga "Giù da") non si riscrive.
   async salvaHandoff() {
     if (this.handoffLavora || !this.dati?.giuDa) return;
-    this.handoffLavora = true;
+    const mio = (this.handoffLavora = Date.now());
     try {
       const ora = Date.now();
       for (const [host, da] of Object.entries(this.dati.giuDa)) {
@@ -731,7 +750,7 @@ export class Volta {
           catch (e) { registra("handoff", { macchina: host, sid: s.id, esito: "errore", errore: String(e?.message ?? e).slice(0, 120) }); }
         }
       }
-    } finally { this.handoffLavora = false; }
+    } finally { lascia(this, "handoffLavora", mio); }
   }
 
   async leggi(cx) {
@@ -784,8 +803,8 @@ export class Volta {
     for (const s of this.dati?.sessioni ?? []) {
       const k = chiave(s);
       if (!daPortare(s) || this.porto[k]) continue;
-      this.porto[k] = true;
-      portaNome(s).catch(() => false).then(() => { delete this.porto[k]; });
+      const mio = (this.porto[k] = Date.now());
+      portaNome(s).catch(() => false).then(() => lascia(this, "porto", mio, k));
     }
   }
 
@@ -796,9 +815,9 @@ export class Volta {
     for (const s of this.vis()?.sessioni ?? []) {
       const k = chiave(s);
       if (!daIniziare(s) || this.inizio[k]) continue;
-      this.inizio[k] = true;
+      const mio = (this.inizio[k] = Date.now());
       portaInizio(s, this.spostate[k] === s.daIniziare).catch(() => ({ fatto: false })).then((r) => {
-        delete this.inizio[k];
+        lascia(this, "inizio", mio, k);
         if (!r.fatto) return;
         delete this.spostate[k];
         if (r.come === "terminale")
@@ -807,12 +826,34 @@ export class Volta {
     }
   }
 
+  // Le attese appese del mod (#6109, liberaAppese di sessioni.js): a ogni giro si spengono quelle accese da
+  // due tetti, e il registro scrive "attesa appesa". Uno Sposta appeso libera anche la sua sessione
+  // (faccio), che altrimenti non si apriva più, e la toglie dalla coda: dopo due volte SPOSTA_MAX_MS lo
+  // spostamento staccato è finito da sé, e la coda non deve farne partire un secondo.
+  sciogliAppese() {
+    const via = liberaAppese(this, TETTI_ATTESE());
+    for (const a of via) registra("attesa appesa", a);
+    if (!via.some((a) => a.attesa === "spostando")) return;
+    for (const [k, v] of Object.entries(this.faccio ?? {})) if (v === "sposta") { delete this.faccio[k]; delete this.codaSposta?.[k]; }
+    this.pubblicaSposto();
+  }
+
   // Un giro di volta_sonda.py volta, mai due insieme: con una macchina lenta un giro dura qualche secondo.
   aggiorna(cx, gesto = true) {
+    this.sciogliAppese();
     if (!this.script) return;
+    // Un giro appeso si lascia andare dopo due tetti (19/11/2026): il 18/11 alle 23:00 un giro non è più
+    // tornato, nonostante il timeout di exec, e la barra è rimasta ferma sull'elenco della sera fino al
+    // mattino dopo. Il giro vecchio, se torna, non tocca più inCorso (giroN).
+    if (this.inCorso && Date.now() - (this.inCorsoDa ?? 0) > 2 * tettoDi("volta")) {
+      registra("giro appeso", { ms: Date.now() - (this.inCorsoDa ?? 0) });
+      this.inCorso = false;
+    }
     // un gesto durante un giro (apri, Riavvia, Sposta): il giro dopo parte appena questo finisce, non fra 10 s
     if (this.inCorso) { if (gesto) this.ancora = true; return; }
     this.inCorso = true;
+    this.inCorsoDa = Date.now();
+    const giro = (this.giroN = (this.giroN ?? 0) + 1);
     this.ancora = false;
     cx.spawn(async (cx) => {
       // inCorso torna falso in ogni caso: un errore nella lettura dell'elenco fermava il giro per sempre (#5550)
@@ -831,7 +872,7 @@ export class Volta {
         }
         await this.leggiSenzaFermarsi(cx);
       } finally {
-        this.inCorso = false;
+        if (this.giroN === giro) this.inCorso = false;
       }
       // il giro visto dalla finestra (#5549): la sonda registra il suo, qui anche l'attesa di exec
       registra("giro", { ms: Date.now() - t0, esito: this.errore ? "errore" : "ok", errore: this.errore });
@@ -852,13 +893,13 @@ export class Volta {
   // nuove da solo, perché guarda la cartella delle note.
   sincronizzaNote(cx) {
     if (!this.noteScript || this.noteInCorso || Date.now() - (this.noteUltimo ?? 0) < NOTE_MS) return;
-    this.noteInCorso = true;
-    this.noteUltimo = Date.now();
+    const mio = (this.noteInCorso = Date.now());
+    this.noteUltimo = mio;
     cx.spawn(async () => {
       try {
         await exec(this.py, [this.noteScript, ...entroDi("note"), "sincronizza", "--scrivi", `${cacheVolta("volta-note")}/stato.json`], { timeout: tettoDi("note") });
       } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
-      this.noteInCorso = false;
+      lascia(this, "noteInCorso", mio);
     });
   }
 
@@ -867,13 +908,13 @@ export class Volta {
   // ogni DAVANTI_MS, mai due insieme. Il tocco vale 15 minuti, quindi un minuto di ritardo non sposta niente.
   giraDavanti(cx) {
     if (!this.davantiScript || this.davantiInCorso || Date.now() - this.davantiUltimo < DAVANTI_MS) return;
-    this.davantiInCorso = true;
-    this.davantiUltimo = Date.now();
+    const mio = (this.davantiInCorso = Date.now());
+    this.davantiUltimo = mio;
     cx.spawn(async () => {
       try {
         await exec(this.py, [this.davantiScript, ...entroDi("davanti"), "giro", "--scrivi", `${cacheVolta("volta-davanti")}/stato.json`], { timeout: tettoDi("davanti") });
       } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
-      this.davantiInCorso = false;
+      lascia(this, "davantiInCorso", mio);
     });
   }
 
@@ -915,7 +956,7 @@ export class Volta {
     if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);
     // senza teletrasporto.py nessuno sa scrivere /bg nel Terminale di quella sessione
     if (!this.sposta) return this.avvisa(s, "È aperta in un Terminale: aprila da lì.", cx);
-    this.sposto[chiave(s)] = true;
+    const mioSposto = (this.sposto[chiave(s)] = Date.now());
     cx.notify();
     cx.spawn(async (cx) => {
       let portata = null;
@@ -924,7 +965,7 @@ export class Volta {
       } catch (e) {
         portata = { errore: `${s.macchina} non risponde` };
       }
-      delete this.sposto[chiave(s)];
+      lascia(this, "sposto", mioSposto, chiave(s));
       if (portata?.attach?.length) {
         this.apri({ ...s, id: portata.id ?? s.id }, portata.attach, true, cx);
         this.aggiorna(cx);
@@ -948,7 +989,7 @@ export class Volta {
   apri(s, argv, pronta, cx) {
     const k = chiave(s);
     this.riapri(s);
-    this.apro[k] = true;
+    const mio = (this.apro[k] = Date.now());
     cx.notify();
     cx.spawn(async (cx) => {
       let r;
@@ -958,7 +999,7 @@ export class Volta {
       // (letto dalla veglia; subito se la scheda c'era già), `servizio` se prepara è servito
       const apri = { macchina: s.host, sid: s.id, ms: Date.now() - t0, come: r.come, servizio: r.servizio, esito: r.errore ? "errore" : "ok", errore: r.errore };
       if (!r.veglia) registra("apri", { ...apri, visibile: r.come === "davanti" ? apri.ms : null });
-      delete this.apro[k];
+      lascia(this, "apro", mio, k);
       if (r.errore) this.nonApre(s, r.errore, cx);
       // un'apertura cambia lo stato della sessione (dorme, ferma): l'elenco si rilegge subito
       if (!r.errore) this.aggiorna(cx);
@@ -1112,7 +1153,7 @@ export class Volta {
       // un aggancio che si sta aprendo (clic in coda, veglia) non ha ancora la scheda che Sposta chiude:
       // partirebbe dopo claude stop e riaccenderebbe la copia di partenza (#5635). Si aspetta il giro dopo.
       if (aFineTurno(s) || v.dopo > ora || this.apro[k] || this.veglio[k] || this.sposto[k]) continue;
-      this.spostando = true;
+      const mio = (this.spostando = Date.now());
       this.faccio[k] = "sposta";
       this.pubblicaSposto();
       cx.notify();
@@ -1123,7 +1164,7 @@ export class Volta {
           await tracciaSposta(s, "caduto", { errore: r.errore });
         }
         await tracciaSposta(s, "fine", { esito: r });
-        this.finitoSposta(s, v, r, cx);
+        this.finitoSposta(s, v, r, cx, mio);
       });
       return;
     }
@@ -1140,8 +1181,10 @@ export class Volta {
 
   // Dopo uno spostamento (dalla coda o ripreso): libera la coda, dice com'è andata e passa al prossimo.
   // `v` = { macchina, id, da }. Una sessione che ha cominciato un turno (`lavora`) torna in coda.
-  finitoSposta(s, v, r, cx) {
+  finitoSposta(s, v, r, cx, mio) {
     const k = chiave(s);
+    // uno Sposta appeso e già lasciato andare (sciogliAppese) non tocca quello partito dopo
+    if (this.spostando !== mio) return;
     delete this.faccio[k];
     this.spostando = false;
     if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };
@@ -1174,7 +1217,7 @@ export class Volta {
             if (che === "altrui" || this.faccio[chiave(v.s)]) { altrui = true; continue; }
             while (this.spostando) await cx.sleep(1000);
             const s = v.s, k2 = chiave(s);
-            this.spostando = true;
+            const mio = (this.spostando = Date.now());
             this.faccio[k2] = "sposta";
             this.spostoSu = { ...(this.spostoSu ?? {}), [k2]: v.macchina };
             this.pubblicaSposto();
@@ -1185,7 +1228,7 @@ export class Volta {
               await tracciaSposta(s, "caduto", { errore: r.errore });
             }
             await tracciaSposta(s, "fine", { esito: r, ripreso: true });
-            this.finitoSposta(s, { macchina: v.macchina, id: s.id, da: s.host ?? "qui" }, r, cx);
+            this.finitoSposta(s, { macchina: v.macchina, id: s.id, da: s.host ?? "qui" }, r, cx, mio);
           }
           if (!altrui) break;
           await cx.sleep(VOLO_FRESCO_MS);
@@ -1293,12 +1336,12 @@ export class Volta {
   // segnate vecchie dallo script; uno script che non risponde lascia le carte com'erano.
   leggiUf(cx) {
     if (this.leggoUf) return;
-    this.leggoUf = true;
+    const mio = (this.leggoUf = Date.now());
     cx.spawn(async (cx) => {
       try {
         const d = await prendiCarteUf();
         if (d) { this.uf = d; this.aggiornaCoda(); cx.notify(); }
-      } finally { this.leggoUf = false; }
+      } finally { lascia(this, "leggoUf", mio); }
     });
   }
 
@@ -1337,6 +1380,14 @@ export class Volta {
       }
       const r = await todo(g.argv);
       setShared("arturo.scritto", Date.now());
+      // "A Claude": il task passa a Claude e Claude ci lavora subito, nella sessione del progetto se c'è,
+      // altrimenti in una nuova con /inizio. Federico resta nella Coda.
+      if (r.ok && g.poi) {
+        notify({ title: g.esito, body: c.domanda, level: "success", timeout: 5000 });
+        if (g.poi.progetto) await apriProgetto(g.poi.progetto, g.poi.todo);
+        else await nuova(`Lavoriamo sul todo #${g.poi.todo.id}: ${g.poi.todo.titolo}`);
+        return;
+      }
       if (r.ok) return notify({ title: g.esito, body: c.domanda, level: "success", timeout: 4000 });
       torna(r.codice === 2 ? "Questo task è cambiato nel frattempo" : "Non sono riuscito a scrivere il task",
         r.codice === 2 ? "La carta torna in Coda: riprova dopo il giro del capo." : r.errore);

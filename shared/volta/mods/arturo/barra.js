@@ -14,7 +14,7 @@ import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
-import { rigaMod, decodifica, leggiProvaChecklist } from "./sessioni.js";
+import { rigaMod, decodifica, leggiProvaChecklist, appesa } from "./sessioni.js";
 import { leggiGesto } from "./sessioni.js";
 import { instrada } from "./comandi.js";
 import { pastigliaTutto } from "./sposta.js";
@@ -128,20 +128,30 @@ export class Barra {
     else if (c === "volta") this.volta.premiId(arg, cx);
   }
 
+  // Una lettura alla volta. Una che non torna si lascia andare dopo due volte LETTURA_MS (#6109): prima la
+  // barra dei progetti restava ferma fino al ricarico del mod. Solo l'ultima partita spegne inCorso.
   carica(cx) {
-    if (this.inCorso) return;
-    this.inCorso = true;
+    if (this.inCorso && !appesa(this.inCorso, LETTURA_MS)) return;
+    const mio = (this.inCorso = this.ultimaCarica = Date.now());
     cx.spawn(async (cx) => {
-      const r = await todo(["--json"]);
-      // I progetti dalla memoria di Arturo. Con un Arturo che non ha ancora il comando: le cartelle dei
-      // progetti e le righe di stato del suo archivio, come prima (una fonte esterna può non averle).
-      this.memoria = await progettiMemoria();
-      if (!this.memoria) {
-        this.cartelle = await cartelle();
-        const st = await todo(["progetti", "--json"]);
-        this.stati = st.ok ? st.json?.stati ?? {} : {};
+      let r = { ok: false, errore: "la lettura dei todo non è riuscita" };
+      try {
+        r = await todo(["--json"]);
+        // I progetti dalla memoria di Arturo. Con un Arturo che non ha ancora il comando: le cartelle dei
+        // progetti e le righe di stato del suo archivio, come prima (una fonte esterna può non averle).
+        this.memoria = await progettiMemoria();
+        if (!this.memoria) {
+          this.cartelle = await cartelle();
+          const st = await todo(["progetti", "--json"]);
+          this.stati = st.ok ? st.json?.stati ?? {} : {};
+        }
+      } catch (e) {
+        r = { ok: false, errore: String(e?.message ?? e).slice(0, 160) };
+      } finally {
+        if (this.inCorso === mio) this.inCorso = false;
       }
-      this.inCorso = false;
+      // una lettura lasciata andare e tornata tardi non scrive sopra quella partita dopo
+      if (this.ultimaCarica !== mio) return;
       if (r.ok) {
         this.vista = r.json;
         this.errore = null;
@@ -229,6 +239,8 @@ export class Barra {
 }
 
 // Le note ancora da guardare (aperte o prese da Claude), da shared arturo.note della barra di stato.
+// il tetto di una lettura della barra: tre comandi di Arturo (ARTURO_MAX_MS di dati.js, 45 s) e le cartelle
+const LETTURA_MS = 150000;
 const aperteNote = () => (shared("arturo.note") ?? []).filter((n) => APERTE.has(n?.stato)).length;
 
 export class Piede {

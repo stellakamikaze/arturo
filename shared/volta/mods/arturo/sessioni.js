@@ -278,8 +278,29 @@ export function tastoCoda(k, c) {
   if (k === "escape") return { azione: "esci" };
   return null;
 }
+// La Coda come elenco (18/11/2026, Federico: "non mi permette di capire chiaramente quali sono le cose
+// pending, come nella schermata Su cosa lavorare"): i gruppi per chi agisce, come la checklist, e dentro
+// l'ordine di ordineCoda. Un gruppo vuoto non c'è. Torna [{ chiave, nome, carte }].
+export const GRUPPI_CODA = [
+  ["sessioni", "Sessioni che ti aspettano"],
+  ["bozze", "Bozze da mandare"],
+  ["tu", "Tocca a te"],
+  ["decidi", "Decidi tu"],
+];
+export function gruppoCarta(c) {
+  if (c?.origine !== "uf") return "sessioni";
+  if (c.fonte === "bozza") return "bozze";
+  return c.gruppo === "tu" ? "tu" : "decidi";
+}
+export function gruppiCoda(lista) {
+  const per = new Map(GRUPPI_CODA.map(([k]) => [k, []]));
+  for (const c of lista ?? []) if (c) per.get(gruppoCarta(c)).push(c);
+  return GRUPPI_CODA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) })).filter((g) => g.carte.length);
+}
+// Le carte nell'ordine in cui l'elenco le mostra, senza i gruppi chiusi: è l'ordine delle frecce.
+export const ordineVisto = (gruppi, chiusi = new Set()) => (gruppi ?? []).flatMap((g) => (chiusi.has(g.chiave) ? [] : g.carte));
 // La carta davanti dopo un salto: in giro, così dall'ultima si torna alla prima.
-export const passoCoda = (at, verso, n) => (n > 0 ? (((Number(at) || 0) + verso) % n + n) % n : 0);
+export const passoCoda =(at, verso, n) => (n > 0 ? (((Number(at) || 0) + verso) % n + n) % n : 0);
 // La carta da mostrare: la stessa di prima se c'è ancora (per chiave), altrimenti quella al suo posto.
 export function cartaDavanti(lista, chiavePrima, at) {
   const l = lista ?? [];
@@ -1067,7 +1088,10 @@ export const ARTURO_PAUSA_MS = 5 * 60000;
 export function voloArturo(v, ora, tetto) {
   if (!v) return { fai: "lancia" };
   if (v.appeso) return ora - v.appeso < ARTURO_PAUSA_MS ? { fai: "appeso" } : { fai: "lancia" };
-  return ora - v.da < tetto ? { fai: "aspetta" } : { fai: "appeso" };
+  if (ora - v.da < tetto) return { fai: "aspetta" };
+  // una promessa che non torna mai (19/11/2026): la voce resta {da, p} per sempre e rispondeva "appeso" a
+  // vita, con i todo e la barra dei progetti fermi fino al ricarico. Oltre tetto + pausa si rilancia.
+  return ora - v.da < tetto + ARTURO_PAUSA_MS ? { fai: "appeso" } : { fai: "lancia" };
 }
 
 // Un lotto di watchFolder tocca l'elenco se contiene il file (o la cartella intera: rileggi tutto).
@@ -2000,4 +2024,34 @@ export function tettoDi(nome) {
 // dopo il percorso dello script, prima del sottocomando.
 export function entroDi(nome) {
   return ["--entro", String(TETTI.comandi[nome] - TETTI.margine)];
+}
+
+// Le attese del mod (#6109, 19/11/2026). Un lavoro "in corso" (un exec, una lettura, uno Sposta) tiene un
+// campo acceso finché non torna. Se non torna mai (un exec appeso, un cx.sleep cancellato da un ricarico) il
+// campo restava acceso, e quel lavoro non ripartiva più fino al ricarico del mod: è successo il 18/11 al giro
+// della barra (VM48). Ogni attesa vale l'ora di partenza: un campo (`this.x = ora`) o una mappa
+// (`this.x[k] = ora`). liberaAppese spegne quelle accese da due tetti o più e le elenca per il registro.
+// lascia spegne un'attesa solo se è ancora la sua: un'attesa vecchia che torna tardi non spegne la nuova.
+// Un valore che non è un numero (true, un indirizzo) non scade mai.
+export const appesa = (da, tetto, ora = Date.now()) => typeof da === "number" && ora - da >= 2 * tetto;
+
+// `tetti`: { campo: ms } con il tetto di ogni attesa. Torna [{ attesa, chiave?, ms }] delle attese spente.
+export function liberaAppese(o, tetti, ora = Date.now()) {
+  const via = [];
+  for (const [campo, tetto] of Object.entries(tetti)) {
+    const v = o?.[campo];
+    if (v && typeof v === "object") {
+      for (const [k, da] of Object.entries(v)) if (appesa(da, tetto, ora)) { delete v[k]; via.push({ attesa: campo, chiave: k, ms: ora - da }); }
+    } else if (appesa(v, tetto, ora)) {
+      o[campo] = false;
+      via.push({ attesa: campo, ms: ora - v });
+    }
+  }
+  return via;
+}
+
+// Spegne l'attesa `campo` (o la voce `k` della mappa `campo`) se vale ancora `mio`, l'ora con cui è partita.
+export function lascia(o, campo, mio, k = undefined) {
+  if (k === undefined) { if (o[campo] === mio) o[campo] = false; }
+  else if (o[campo]?.[k] === mio) delete o[campo][k];
 }
