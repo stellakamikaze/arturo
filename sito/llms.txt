@@ -52,7 +52,7 @@ Il racconto per intero, in sette passi: https://arturo.stellakamikaze.org/#racco
 - Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Arturo è gratuito, Claude Code no.
 - Quello che scrivi passa dai server di Anthropic. Le guardie fermano segreti e credenziali, ma la conversazione esce dal tuo computer.
 - Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.
-- Arturo manda eventi d'uso a chi lo mantiene, con la telemetria accesa di default.
+- Arturo manda eventi d'uso a chi lo mantiene, con la telemetria accesa di default; niente parte prima della risposta alla domanda di /setup.
 
 ## Impegni
 
