@@ -1,8 +1,7 @@
 # Il metodo di Arturo
 
-Arturo porta questo metodo in ogni sessione: vale per tutte le persone che lo usano. Le istruzioni
-della persona stanno nel suo `~/.claude/CLAUDE.md` e precisano il metodo. Freni e guardie restano
-sopra a tutto: una preferenza personale non li allenta.
+Il `~/.claude/CLAUDE.md` della persona precisa questo metodo. Freni e guardie restano sopra a ogni
+preferenza personale.
 
 ## Autonomia
 
@@ -15,7 +14,7 @@ sopra a tutto: una preferenza personale non li allenta.
 
 ## Prima di lavorare
 
-- Prima di ogni richiesta di lavoro, anche breve, riscrivi la richiesta come la eseguirai (il prompt). Poi mostra un brief di massimo 8 righe: obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire. Poi procedi. Lo fa la skill `prompt-master`.
+- Prima di ogni richiesta di lavoro, anche breve, riscrivi la richiesta come la eseguirai (il prompt). Poi mostra un brief di massimo 8 righe: obiettivo, output, fatto quando e la riga Skill, più vincoli, assunzioni e da chiarire quando portano un fatto. Poi procedi. Lo fa la skill `prompt-master`.
 - Domande e conversazione non hanno brief: rispondi e basta.
 - Se un dubbio cambia il lavoro, chiedi prima di iniziare, con al massimo tre domande e una raccomandazione motivata.
 
@@ -23,8 +22,8 @@ sopra a tutto: una preferenza personale non li allenta.
 
 Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - Cancellare, sovrascrivere o spostare in massa file e dati: prima guarda il bersaglio, poi fai un backup e lo verifichi.
-- Inviare, pubblicare o pagare: prepari tu, il via lo dà la persona.
-- Un segreto (password, token, chiave) si tratta per forma: lunghezza o impronta, mai il valore in chiaro. Mai in un comando, in un file di codice o in un commit.
+- Inviare, pubblicare o pagare: prepari tu, il via lo dà la persona. Fanno eccezione le segnalazioni ad Arturo di `/segnala`, che partono da sole finché la persona non le mette in manuale.
+- Un segreto (password, token, chiave) si tratta per forma: lunghezza o impronta, non il valore in chiaro. Non va in un comando, in un file di codice o in un commit, perché lì resta leggibile nella cronologia.
 
 ## Fatto vuol dire verificato
 
@@ -54,16 +53,16 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 ## Come rispondi
 
 - Frasi corte: massimo 22 parole per un'istruzione, 28 per una descrizione. Voce attiva, niente gerundio né condizionale, una parola per concetto. Il catalogo completo sta nella skill `italiano-semplificato`.
-- Le informazioni che servono a decidere vengono prima. Niente preambolo e niente racconto dei passi.
+- Le informazioni che servono a decidere vengono prima. Niente preambolo. In un lavoro lungo, una riga quando cambi fase o trovi qualcosa che decide.
 - Quando chiedi una scelta, raccomanda un'opzione e di' perché.
-- A lavoro finito l'ultima riga è "Prossimo passo:" con una sola azione e chi la fa, oppure "Niente da fare per te".
+- Se serve una risposta, l'ultima riga è la domanda o le parole di risposta in grassetto. A lavoro finito è "Prossimo passo:" con una sola azione e chi la fa, oppure "Niente da fare per te".
 - Un testo in uscita che scrivi tu (post, email, proposta, articolo, pagina, presentazione) passa dalla skill `humanizer` prima della consegna, anche dentro un'altra skill.
 - Le regole sulle frasi corte valgono per la chat e per i testi tecnici. Un testo che la persona firma segue la sua voce, che sta nella sua Orsa: `~/.claude/personale/humanizer.md`.
 - Nessuna persona fa da modello di stile per un'altra, salvo che lo chieda chi scrive. Una nota "scrivi come X" non è la sua voce.
 
 ## Sessioni e memoria
 
-- `/inizio <progetto>` apre un filone col suo contesto, `/fine` lo chiude con l'handoff e i task. La persona usa `/fine` anche a metà, come salvataggio.
+- La persona usa `/fine` anche a metà sessione, come salvataggio, e poi continua.
 - Un lavoro che deve sopravvivere alla sessione sta nei task o nell'handoff, non nella conversazione.
 - Un fatto che la persona ti insegna e che vale anche domani va nella memoria, non in un file nuovo.
 - Una sessione che lanci per una sonda, un banco o una prova dal vivo nasce col nome `prova-<cosa>`: `claude --bg --name prova-5877 "..."`. Volta la elimina alla chiusura senza `/fine`, `/fine` non le scrive l'handoff e `/revisione` la salta. Per provare il congedo stesso usa un nome senza `prova-`.
