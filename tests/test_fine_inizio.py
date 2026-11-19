@@ -1443,6 +1443,18 @@ def test_f30(repo: Path) -> None:
         out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
         assert re.search(rf"{re.escape(ramo)} · 1 commit · ultimo \S+ · worktree \S+ · chiuso da /fine il 2026-11-19, "
                          r"da riportare", out), f"F30 arturo contesto non mostra il ramo chiuso da /fine: {out}"
+        # Un ramo senza segno che viene prima in ordine alfabetico: il ramo chiuso resta in cima, perché
+        # l'elenco si taglia a 15 righe (32 rami in un repository vero, 19/11/2026).
+        lab.git(progetto, "checkout", "-q", "-b", "aaa-prova")
+        (progetto / "c.md").write_text("c\n", encoding="utf-8")
+        lab.git(progetto, "add", "c.md")
+        lab.git(progetto, "commit", "-qm", "prova")
+        lab.git(progetto, "checkout", "-q", "main")
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        elenco = out[out.index("RAMI CON COMMIT"):].splitlines()
+        assert len(elenco) > 2 and "chiuso da /fine" in elenco[1] and "aaa-prova" in elenco[2], \
+            f"F30 il ramo chiuso da /fine non sta in cima all'elenco, che si taglia: {elenco[:3]}"
+        lab.git(progetto, "branch", "-D", "aaa-prova")
         # Il riporto di /inizio dal tree principale: merge, rimozione, branch -d, e il segno sparisce.
         lab.git(progetto, "merge", "--ff-only", ramo)
         lab.git(progetto, "worktree", "remove", str(albero))

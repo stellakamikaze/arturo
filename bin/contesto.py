@@ -284,6 +284,12 @@ def rami_non_riportati(cartella: Path) -> list:
             percorso = r[len("worktree "):]
         elif r.startswith("branch refs/heads/"):
             worktree[r[len("branch refs/heads/"):]] = percorso
+    # Il segno di shared/fine-worktree.md: la sessione ha chiuso il ramo ma non poteva toccare il
+    # tree principale (#4007, 19/11/2026). Manca solo il merge, e lo fa /inizio.
+    segnati = {}
+    for r in git(cartella, "config", "--get-regexp", r"^branch\..*\.arturo-riporta$").splitlines():
+        chiave, _, valore = r.partition(" ")
+        segnati[chiave[len("branch."):-len(".arturo-riporta")]] = valore
     righe = []
     elenco = git(cartella, "for-each-ref", "refs/heads", "--no-merged=HEAD",
                  "--format=%(refname:short)\t%(committerdate:short)")
@@ -297,12 +303,12 @@ def rami_non_riportati(cartella: Path) -> list:
             continue
         quanti = len(mancanti)
         dove = f" · worktree {worktree[ramo]}" if ramo in worktree else ""
-        # Il segno di shared/fine-worktree.md: la sessione ha chiuso il ramo ma non poteva toccare il
-        # tree principale (#4007, 19/11/2026). Manca solo il merge, e lo fa /inizio.
-        chiuso = git(cartella, "config", "--get", f"branch.{ramo}.arturo-riporta")
+        chiuso = segnati.get(ramo, "")
         segno = f" · chiuso da /fine il {chiuso}, da riportare" if chiuso else ""
-        righe.append(f"{ramo} · {quanti} commit · ultimo {data}{dove}{segno}")
-    return righe
+        righe.append((not chiuso, f"{ramo} · {quanti} commit · ultimo {data}{dove}{segno}"))
+    # I rami chiusi da /fine vanno in cima: l'elenco si taglia a MAX_STATUS, e con 32 rami un repository vero
+    # perdeva proprio quello da riportare (prova dal vivo del 19/11/2026).
+    return [r for _, r in sorted(righe, key=lambda x: x[0])]
 
 
 def sezione_handoff(elenco: list, giorni: int, ir) -> list:
