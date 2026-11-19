@@ -267,9 +267,9 @@ def test_rl09(repo: Path) -> None:
             if r.stdout.strip():
                 avvisi.append(json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"])
         assert len(avvisi) == 2, f"RL09 attesi due avvisi in sette giri, arrivati {len(avvisi)}: {avvisi}"
-        assert all("/fine" in a for a in avvisi) and "/clear" in avvisi[0] and "do not repeat" not in avvisi[0], \
+        assert all("/fine" in a for a in avvisi) and "/clear" in avvisi[0] and "non ripeterli" not in avvisi[0], \
             f"RL09 il primo avviso non propone /fine con /clear e /inizio: {avvisi[0]!r}"
-        assert "do not repeat" in avvisi[1] and "propose /fine" in avvisi[1], \
+        assert "non ripeterli" in avvisi[1] and "proponi /fine" in avvisi[1], \
             f"RL09 il secondo avviso ripropone /clear e /inizio: {avvisi[1]!r}"
 
 

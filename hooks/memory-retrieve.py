@@ -170,7 +170,7 @@ def main():
     if any_old:
         print(f"Le note marcate VECCHIA hanno fatti non verificati da >{VERIFY_AGE_DAYS}gg: se ne leggi")
         print("una, trattane i fatti deperibili (IP, stati, cifre) come ipotesi da verificare prima")
-        print("di agirci; se un fatto è contraddetto dalla realtà osservata, correggi SUBITO nella nota:")
+        print("di agirci. Se la realtà osservata contraddice un fatto, la nota si corregge subito.")
     for s, p, fm in fresh:
         entity = mm.tipo(fm)
         cut = DESC_LEN_ERRORI if "errori" in p.parts else DESC_LEN
