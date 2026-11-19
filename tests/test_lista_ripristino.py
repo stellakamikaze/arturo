@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Banco della lista del ripristino: le tre copie scritte a mano devono dire le stesse voci (#3844).
+"""Banco della lista del ripristino: le copie scritte a mano devono dire le stesse voci (#3844).
 
 La lista dice cosa torna dalla cartella messa da parte quando si installa Arturo a mano (strada
-"A mano, con Claude Code chiuso"). Due copie stanno qui sulla landing (guida e llms.txt), una sul
-ramo che ricevono gli utenti (README), letta con git dal ramo main. Dal 9/11/2026 /setup non ha più
+"A mano, con Claude Code chiuso"). Una copia sta qui sulla landing (la guida), una sul ramo che
+ricevono gli utenti (README), letta con git dal ramo main. Dal 19/11/2026 llms.txt non ha più la
+strada a mano: manda gli agenti solo all'installazione verificata (rilievo 16 della revisione, #6092),
+come CP02 di dev, e il banco controlla che il ciclo non ci torni. Dal 9/11/2026 /setup non ha più
 una sua copia: rimanda al blocco della guida (review del 7/11, L10), e i suoi 64 byte di margine non
 reggevano il ripristino dopo un clone fallito. Una voce che manca in
 una copia vuol dire una persona che perde memoria, todo o scelte solo perché ha seguito la strada
@@ -12,7 +14,7 @@ sbagliata.
 Dal 1/11/2026 sito/installa.sh innesta Arturo sul posto e non sposta più ~/.claude: il ciclo è uscito
 dallo script, e il banco controlla che non ci torni come quinta copia da allineare.
 
---avvelena toglie l'ultima voce dalla copia di llms.txt e vuole il rosso "mancano".
+--avvelena toglie l'ultima voce dalla copia della guida e vuole il rosso "mancano".
 """
 import argparse
 import html
@@ -47,13 +49,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=str(Path(__file__).resolve().parent.parent))
     ap.add_argument("--ramo", action="append", help="ramo dove leggere il README (default origin/main, poi main)")
-    ap.add_argument("--avvelena", action="store_true", help="toglie una voce da llms.txt: deve dare rosso")
+    ap.add_argument("--avvelena", action="store_true", help="toglie una voce dalla guida: deve dare rosso")
     a = ap.parse_args()
     repo = Path(a.repo)
     rami = a.ramo or ["origin/main", "main"]
 
     copie = {}
-    for percorso in ("sito/installa/index.html", "sito/llms.txt"):
+    for percorso in ("sito/installa/index.html",):
         f = repo / percorso
         copie[percorso] = f.read_text(encoding="utf-8") if f.is_file() else None
     for percorso in ("README.md",):
@@ -61,13 +63,17 @@ def main():
         copie[nome] = testo
 
     errori = []
-    if a.avvelena and copie["sito/llms.txt"]:
-        v = voci(copie["sito/llms.txt"])
+    guida = "sito/installa/index.html"
+    if a.avvelena and copie[guida]:
+        v = voci(copie[guida])
         if v:
-            copie["sito/llms.txt"] = re.sub(r"\s" + re.escape(v[-1]) + r";", ";", html.unescape(copie["sito/llms.txt"]), 1)
+            copie[guida] = re.sub(r"\s" + re.escape(v[-1]) + r";", ";", html.unescape(copie[guida]), count=1)
     installatore = repo / "sito" / "installa.sh"
     if installatore.is_file() and voci(installatore.read_text(encoding="utf-8")) is not None:
         errori.append("sito/installa.sh: è tornato il ciclo `for x in …; do` con CLAUDE.md, ma lo script innesta sul posto")
+    agenti = repo / "sito" / "llms.txt"
+    if agenti.is_file() and voci(agenti.read_text(encoding="utf-8")) is not None:
+        errori.append("sito/llms.txt: è tornato il ciclo `for x in …; do` con CLAUDE.md, ma llms.txt manda solo all'installazione verificata")
     liste = {}
     for nome, testo in copie.items():
         if testo is None:
