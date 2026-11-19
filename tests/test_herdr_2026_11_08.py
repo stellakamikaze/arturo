@@ -775,6 +775,11 @@ HZ168 "Non letto" vale "occupato", non "libero" (#6110, 19/11/2026): TROVA di vo
      irraggiungibile, non fa nascere lead e lascia capo-lead.json com'è. Dal 19/11 (#6126) --controlla con
      un id non valido dice {errore, certo}, e HZ122 prova che fineSposta porta nonLetto alla coda e che un
      errore certo esce subito.
+HZ169 Documenti appeso col blocco vero di isdir (#6111, 19/11/2026): con un dialogo dei permessi senza risposta
+     os.path.isdir su una cartella dentro Documenti aspetta e poi dà False. La nascita con la base dei progetti
+     dentro Documenti esce con permesso=True, senza nascere nella casa; righe() non aspetta le cartelle delle
+     sessioni oltre un tetto solo per il giro e segna la macchina col permesso; con il permesso già noto non
+     le tocca.
 """
 from __future__ import annotations
 
@@ -790,7 +795,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -13316,6 +13321,115 @@ def hz166(repo: Path, casa: Path) -> str | None:
     return None
 
 
+# isdir appeso come su Amaltea il 18/11: os.stat di una cartella dentro $HZ_APPESA aspetta, poi EINTR.
+APPESO_SITE = r"""
+import errno, os, time
+_stat = os.stat
+_dentro = os.environ.get("HZ_APPESA", "")
+def _appeso(p, *a, **k):
+    s = os.fspath(p) if not isinstance(p, int) else ""
+    if _dentro and isinstance(s, str) and s.startswith(_dentro + os.sep):
+        time.sleep(float(os.environ.get("HZ_APPESA_S", "20")))
+        raise OSError(errno.EINTR, "Interrupted system call", s)
+    return _stat(p, *a, **k)
+os.stat = _appeso
+"""
+
+PROVA_RIGHE_APPESE = r"""
+import importlib.util, json, sys, time
+sp = importlib.util.spec_from_file_location("vs", sys.argv[1]); m = importlib.util.module_from_spec(sp); sp.loader.exec_module(m)
+doc = sys.argv[2]
+sess = [{"sessionId": "aaaa%d111-ffff" % i, "id": "aaaa%d111" % i, "kind": "background", "state": "working",
+         "status": "busy", "cwd": doc + "/ClaudeCode/p%d" % i} for i in range(4)]
+qui = {"macchina": "Questa", "host": "qui", "questa": True, "target": None, "claude": "/c", "sessioni": sess}
+if sys.argv[3] == "nota":
+    qui["nascita"] = {"rotta": True, "permesso": True, "da": "2026-11-19T12:00:00", "motivo": "Documenti non si legge: oltre 5 s"}
+t0 = time.monotonic()
+d = m.documento([qui])
+print(json.dumps({"s": time.monotonic() - t0, "nascita": d["macchine"][0].get("nascita"),
+                  "vive": [r.get("cartellaViva") for r in d["sessioni"]], "cartelle": [r.get("cartella") for r in d["sessioni"]]}))
+"""
+
+
+def hz169(repo: Path, casa: Path) -> str | None:
+    """Documenti appeso col blocco vero di isdir (#6111): la nascita non nasce nella casa, l'elenco non aspetta."""
+    if sys.platform != "darwin":
+        return None
+    mod = repo / "shared/volta/mods/arturo"
+    vs = importlib_spec("volta_sonda_hz169", mod / "volta_sonda.py")
+    bindir = casa / "bin"
+    claude_finto_ovunque(bindir, CLAUDE_FINTO_NASCITE + "if sys.argv[1:2] != ['agents']:\n    open(os.environ['HZ_NATA'], 'a').write(os.getcwd())\n    print('claude attach ab12')\n")
+    doc = casa / "Documents"
+    (doc / "ClaudeCode").mkdir(parents=True)
+    site = casa / "site"
+    site.mkdir()
+    (site / "sitecustomize.py").write_text(APPESO_SITE, encoding="utf-8")
+    # ls appeso solo dentro Documenti, come readdir dietro il dialogo
+    ls = bindir / "ls"
+    ls.write_text(f'#!/bin/sh\nfor a in "$@"; do case "$a" in "{doc}"*) sleep 30;; esac; done\nexec /bin/ls "$@"\n', encoding="utf-8")
+    os.chmod(ls, 0o755)
+    app = casa / ".config" / "herdr-app"
+    app.mkdir(parents=True)
+    (app / "arturo.json").write_text(json.dumps({"base": str(doc / "ClaudeCode")}), encoding="utf-8")
+    nata = casa / "nata"
+    env = {"HOME": str(casa), "PATH": f"{bindir}{os.pathsep}/usr/bin:/bin", "PYTHONIOENCODING": "utf-8", "HZ_NATA": str(nata),
+           "PYTHONPATH": str(site), "HZ_APPESA": str(doc), "HZ_APPESA_S": "3"}
+    for dati in ({"prompt": "ciao"}, {"prompt": "ciao", "cartella": str(doc / "ClaudeCode" / "volta")}):
+        arg = base64_json(dati)
+        t0 = time.monotonic()
+        try:
+            r = subprocess.run([sys.executable, "-c", vs.NASCI, arg], capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
+        except subprocess.TimeoutExpired:
+            return f"con Documenti appeso la nascita {dati} non torna in 60 s"
+        dt = time.monotonic() - t0
+        try:
+            out = json.loads(r.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return f"la nascita non risponde in JSON: {(r.stdout + r.stderr).strip()[-200:]}"
+        if nata.exists():
+            return f"con la base dei progetti in Documenti appeso la nascita nasce in {nata.read_text()!r}: {out}"
+        if out.get("permesso") is not True:
+            return f"con la base dei progetti in Documenti appeso la nascita non dice del permesso: {out}"
+        if dt > 20:
+            return f"con Documenti appeso la nascita aspetta {dt:.0f} s"
+    # l'elenco: quattro sessioni con la cartella in Documenti, isdir che aspetta 20 s ciascuno
+    env["HZ_APPESA_S"] = "20"
+    for caso in ("ignota", "nota"):
+        try:
+            r = subprocess.run([sys.executable, "-c", PROVA_RIGHE_APPESE, str(mod / "volta_sonda.py"), str(doc), caso],
+                               capture_output=True, text=True, encoding="utf-8", timeout=40, env=env)
+        except subprocess.TimeoutExpired:
+            return f"righe() con Documenti appeso ({caso}) aspetta le cartelle delle sessioni oltre 40 s"
+        try:
+            g = json.loads(r.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return f"righe() con Documenti appeso non gira: {(r.stdout + r.stderr).strip()[-300:]}"
+        if g["s"] > (1.5 if caso == "nota" else 8):
+            return f"righe() con Documenti appeso ({caso}) aspetta {g['s']:.1f} s"
+        n = g["nascita"] or {}
+        if n.get("permesso") is not True:
+            return f"righe() con Documenti appeso ({caso}) non segna la macchina col permesso: {g}"
+        if caso == "nota" and n.get("da") != "2026-11-19T12:00:00":
+            return f"righe() cambia l'ora del permesso già noto: {n}"
+        if any(g["vive"]) or g["cartelle"] != [str(doc / "ClaudeCode" / f"p{i}") for i in range(4)]:
+            return f"righe() con Documenti appeso dà cartelle sbagliate: {g}"
+    # Documenti che risponde: righe() dà la cartella e non segna niente
+    env.pop("HZ_APPESA")
+    for i in range(4):
+        (doc / "ClaudeCode" / f"p{i}").mkdir()
+    r = subprocess.run([sys.executable, "-c", PROVA_RIGHE_APPESE, str(mod / "volta_sonda.py"), str(doc), "ignota"],
+                       capture_output=True, text=True, encoding="utf-8", timeout=40, env=env)
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["nascita"] or g["vive"] != [str(doc / "ClaudeCode" / f"p{i}") for i in range(4)]:
+        return f"righe() con Documenti che risponde segna la macchina o perde le cartelle: {g}"
+    return None
+
+
+def base64_json(d: dict) -> str:
+    import base64  # noqa: PLC0415
+    return base64.b64encode(json.dumps(d).encode()).decode()
+
+
 PROVA_CODA_ELENCO = r"""
 import * as m from %s;
 import * as a from %s;
@@ -13519,7 +13633,7 @@ def hz168(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13564,7 +13678,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
-    ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', "appesa = cartella_appesa(base)\nif appesa:", "appesa = None\nif appesa:"),
+    ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', "    appesa = cartella_appesa(c)\n    if appesa:", "    appesa = None\n    if appesa:"),
+    ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', 'if sys.platform != "darwin" or not cartella:', 'if sys.platform != "darwin" or not os.path.isdir(cartella):'),
+    ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', "#PERMESSO#\nfor c in", "#PERMESSO#\nif not os.path.isdir(base):\n    base = casa\nfor c in"),
+    ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', "                if appesa:\n                    segna_permesso(", "                if False:\n                    segna_permesso("),
+    ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', '            if not (isinstance(v.get("nascita"), dict) and v["nascita"].get("permesso") is True):', '            if True:'),
+    ('HZ169', 'shared/volta/mods/arturo/volta_sonda.py', "        f.join(max(0, fine - time.monotonic()))", "        f.join()"),
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', 'if pr.get("appesa"):\n    rotta =', 'if False:\n    rotta ='),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "  if (n.permesso === true)\n", "  if (false)\n"),
     ('HZ167', 'shared/volta/mods/arturo/azioni.js', ',\n    poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };', ' };'),
@@ -13889,7 +14008,7 @@ VELENI = [
     ('HZ134', 'shared/volta/mods/arturo/volta_carte.py', '    if os.path.getsize(p) > MAX_BYTE:\n', '    if False:\n'),
     ('HZ115', 'shared/volta/mods/arturo/volta_carte.py', 'sys.dont_write_bytecode = True\n', ''),
     ('HZ129', 'shared/volta/mods/arturo/volta_sonda.py', '        p = q\n    return p', '        p = q\n    return c'),
-    ('HZ129', 'shared/volta/mods/arturo/volta_sonda.py', '"cartellaViva": cartella_viva(s.get("cwd")) if v["questa"] else None,', '"cartellaViva": cartella_viva(s.get("cwd")),'),
+    ('HZ129', 'shared/volta/mods/arturo/volta_sonda.py', '"cartellaViva": vive.get(s.get("cwd")) if v["questa"] else None,', '"cartellaViva": cartelle_vive([s.get("cwd")])[0].get(s.get("cwd")),'),
     ('HZ129', 'shared/volta/mods/arturo/dati.js', '(s.cartellaViva || s.cartella)', 's.cartella'),
     ('HZ129', 'shared/volta/mods/arturo/dati.js', '    if (!scheda) return { errore: "Herdr non ha aperto la scheda', '    if (false) return { errore: "Herdr non ha aperto la scheda'),
     ('HZ124', 'shared/volta/mods/arturo/sessioni.js', '    if (nomina && !dopo.some((r) => re.test(r) && r.toLowerCase().includes(claude))) continue;\n', ''),

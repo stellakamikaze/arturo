@@ -222,9 +222,11 @@ exec(CERCA_CLAUDE)
 # accesso a Documenti dopo circa 20-40 s con EINTR ("Interrupted system call"), ssh compreso. Una nascita
 # aspettava 42 s e poi falliva con "Can't read the current directory". La prova legge la cartella con un
 # tetto: torna il motivo se è appesa, None se risponde (o se non è macOS, o se la cartella non c'è).
+# Niente os.path.isdir prima (#6111, 19/11/2026): su una cartella dentro Documenti appeso aspetta come ls,
+# poi dà False, e la prova diceva "risponde". La cartella che non c'è la dice ls, con un errore che non è EINTR.
 PERMESSO = r'''
 def cartella_appesa(cartella, tetto=5):
-    if sys.platform != "darwin" or not os.path.isdir(cartella):
+    if sys.platform != "darwin" or not cartella:
         return None
     try:
         r = subprocess.run(["ls", "-A", cartella], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
@@ -802,21 +804,24 @@ try:
         base = json.load(fh).get("base") or casa
 except (OSError, ValueError, AttributeError):
     pass
+cartella = a.get("cartella")
+# Documenti appeso (18/11/2026): esce subito col motivo, invece di 42 s e "Can't read the current directory".
+# La prova viene prima di os.path.isdir (#6111, 19/11/2026): isdir su Documenti appeso aspetta e dà False, la
+# base diventava la casa, la prova guardava la casa e la sessione nasceva lì.
+#PERMESSO#
+for c in dict.fromkeys(x for x in (cartella, base) if isinstance(x, str) and x and x != casa):
+    appesa = cartella_appesa(c)
+    if appesa:
+        esci(errore="un permesso di macOS aspetta una risposta sullo schermo di questa macchina: %s non si legge (%s)"
+             % (c, appesa), permesso=True)
 if not os.path.isdir(base):
     base = casa
-cartella = a.get("cartella")
 qui = bool(cartella) and os.path.isdir(cartella)
 if a.get("riprendi") and not qui:
     # claude --resume cerca la conversazione fra quelle della cartella da cui parte
     esci(errore="la cartella della sessione non c'è più: " + str(cartella or "sconosciuta")[:120])
 if qui:
     base = cartella
-# Documenti appeso (18/11/2026): esce subito col motivo, invece di 42 s e "Can't read the current directory"
-#PERMESSO#
-appesa = cartella_appesa(base)
-if appesa:
-    esci(errore="un permesso di macOS aspetta una risposta sullo schermo di questa macchina: %s non si legge (%s)"
-         % (base, appesa), permesso=True)
 argv = [cl, "--bg"]
 if a.get("riprendi"):
     # "stessa": la ripresa della stessa conversazione (il congedo, /fine), senza copia
@@ -1644,6 +1649,39 @@ def nascita(s):
         return ""
 
 
+# Il tetto delle cartelle delle sessioni in un giro (#6111, 19/11/2026): con Documenti appeso ogni isdir
+# aspettava 20-40 s, il giro passava il suo tetto e l'avviso del permesso non arrivava mai.
+CARTELLE_S = 3
+
+
+def cartelle_vive(cartelle, tetto=CARTELLE_S):
+    """cartella_viva per ogni cartella, tutte insieme entro `tetto` secondi. Torna (vive, appesa): vive ha
+    None per una cartella non finita in tempo; appesa dice se qualcuna non è finita. I fili rimasti fermi
+    in isdir sono demoni: il giro non li aspetta per uscire."""
+    vive = {}
+
+    def una(c):
+        vive[c] = cartella_viva(c)
+
+    fili = []
+    for c in dict.fromkeys(x for x in cartelle if isinstance(x, str) and x):
+        f = threading.Thread(target=una, args=(c,), daemon=True)
+        f.start()
+        fili.append(f)
+    fine = time.monotonic() + tetto
+    for f in fili:
+        f.join(max(0, fine - time.monotonic()))
+    return dict(vive), any(f.is_alive() for f in fili)
+
+
+def segna_permesso(v, motivo):
+    """Segna la macchina `v` col permesso di macOS in attesa; l'ora di un permesso già noto resta."""
+    n = v.get("nascita") if isinstance(v.get("nascita"), dict) else {}
+    if n.get("permesso") is True:
+        return
+    v["nascita"] = {"rotta": True, "permesso": True, "da": time.strftime("%Y-%m-%dT%H:%M:%S"), "motivo": motivo}
+
+
 def cartella_viva(c):
     """La cartella in cui aprire la scheda di una sessione di questa macchina: la sua, oppure, se non c'è più
     (un worktree tolto), la madre più vicina che c'è. Herdr non apre una scheda in una cartella che manca,
@@ -1746,9 +1784,18 @@ def tentativi_riga(r):
 
 
 def righe(voci):
-    """Da raccogli() all'elenco piatto: una riga per sessione."""
+    """Da raccogli() all'elenco piatto: una riga per sessione. Segna la voce di questa macchina col permesso
+    se le cartelle delle sessioni non rispondono entro CARTELLE_S."""
     out = []
     for v in voci:
+        vive = {}
+        if v.get("questa"):
+            # con il permesso già noto (la SONDA ha provato Documenti) le cartelle non si guardano: dati.js
+            # apre la scheda nella cartella della sessione
+            if not (isinstance(v.get("nascita"), dict) and v["nascita"].get("permesso") is True):
+                vive, appesa = cartelle_vive([s.get("cwd") for s in v.get("sessioni") or []])
+                if appesa:
+                    segna_permesso(v, "la cartella di una sessione non si legge: oltre %d s" % CARTELLE_S)
         for s in v.get("sessioni") or []:
             sid = s.get("sessionId") or ""
             if not sid:
@@ -1772,7 +1819,7 @@ def righe(voci):
                 "terminale": ospite if isinstance(ospite, str) and re.fullmatch(r"t[0-9a-z]{1,12}", ospite) else None,
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or nascita(s),
                 # dove si apre la scheda (cartella_viva): solo qui, la cartella di un'altra macchina non si guarda
-                "cartellaViva": cartella_viva(s.get("cwd")) if v["questa"] else None,
+                "cartellaViva": vive.get(s.get("cwd")) if v["questa"] else None,
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
                 # le fasi di Volta (#5366): ultimo messaggio vero, fine dell'ultimo testo, chi ha parlato
                 "interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],
