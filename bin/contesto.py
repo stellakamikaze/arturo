@@ -297,7 +297,11 @@ def rami_non_riportati(cartella: Path) -> list:
             continue
         quanti = len(mancanti)
         dove = f" · worktree {worktree[ramo]}" if ramo in worktree else ""
-        righe.append(f"{ramo} · {quanti} commit · ultimo {data}{dove}")
+        # Il segno di shared/fine-worktree.md: la sessione ha chiuso il ramo ma non poteva toccare il
+        # tree principale (#4007, 19/11/2026). Manca solo il merge, e lo fa /inizio.
+        chiuso = git(cartella, "config", "--get", f"branch.{ramo}.arturo-riporta")
+        segno = f" · chiuso da /fine il {chiuso}, da riportare" if chiuso else ""
+        righe.append(f"{ramo} · {quanti} commit · ultimo {data}{dove}{segno}")
     return righe
 
 

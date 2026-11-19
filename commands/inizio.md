@@ -186,8 +186,9 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   errori da non ripetere. Manca a memoria spenta o senza scheda. La cartella scritta nella scheda vale
   anche fuori dalla base dei progetti, e la scheda da sola basta a trovare il progetto;
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
-  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
-  commit già arrivati con un cherry-pick o un rebase non compare);
+  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno e con "chiuso da
+  /fine" se la sessione l'ha segnato (un ramo coi commit già arrivati con un cherry-pick o un rebase
+  non compare);
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
   quando c'è, e il percorso dell'ultimo handoff da leggere per intero. La riga `SALVATO IN AUTOMATICO`
   dice che l'ultima sessione si è chiusa senza `/fine`: l'handoff l'ha scritto Arturo dal transcript,
@@ -233,6 +234,10 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
   basta e la cartella principale non ha modifiche, `git merge --no-edit <ramo>`, con `git merge
   --abort` al primo conflitto. Un conflitto lo dici alla persona e non lo risolvi da solo. Gli altri
   rami (prove, vecchie versioni) restano una riga col conteggio (segnalazione n. 20, 27/10/2026).
+  Un ramo "chiuso da /fine, da riportare" viene da una sessione che non poteva toccare il tree
+  principale (riporto differito di `~/.claude/shared/fine-worktree.md`, #4007). Non serve proporlo:
+  dal tree principale, fuori da un worktree, lo riporti tu coi passi 5-8 di quel file, prima del
+  lavoro. Da dentro un worktree non lo tocchi: lo fa il prossimo `/inizio` nel tree principale.
 - **Altre sessioni.** Lancia `ListAgents`. Un'altra sessione di Claude Code sullo stesso progetto va
   in cima alla ripartenza, con quello che sta facendo.
 - **Terza sessione aperta.** Il limite delle 5 ore è uno solo per tutte le sessioni dell'account, anche

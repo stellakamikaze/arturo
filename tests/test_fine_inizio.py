@@ -65,6 +65,10 @@ F29 note salvate e annunciate (M5, 15/11/2026, #5672): la FASE 8 salva con artur
 chiedere, la chiusura annuncia con ricordate --annuncia e "togli N" archivia; una nota salvata in un giro
 di rotazione si annuncia nella chiusura dopo; il gate accetta l'idea "→ memoria" con la nota salvata e
 la rifiuta dopo "togli"; l'igiene settimanale sta nel fine completo.
+F30 il riporto differito (#4007, 19/11/2026): da una sessione fissata al worktree la guardia rifiuta
+ogni git sul tree principale. shared/fine-worktree.md segna il ramo con la config comune
+(branch.<ramo>.arturo-riporta) e non usa mai git -C; arturo contesto mostra il ramo "chiuso da /fine";
+/inizio lo riporta da solo dal tree principale; il segno sparisce con git branch -d.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1042,7 +1046,7 @@ def test_f19(repo: Path) -> None:
         fine = passo_worktree(repo, fine, "F19")  # dal 3/11/2026 il controllo sta in shared/fine-worktree.md
     assert "**Rami non riportati.**" in inizio and "--abort" in inizio, "F19 /inizio non dice cosa fare di un ramo non riportato"
     assert "merge --no-edit" in fine, "F19 /fine non prova il merge quando il fast-forward non basta"
-    assert re.search(r"cherry HEAD\s+<branch>", fine) and "righe con `+`" in fine, \
+    assert re.search(r"cherry (HEAD|<branch principale>)\s+<branch>", fine) and "righe con `+`" in fine, \
         "F19 /fine controlla il ramo con branch --no-merged e non con git cherry, come arturo contesto"
 
 
@@ -1401,13 +1405,62 @@ def test_f29(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f30(repo: Path) -> None:
+    """Il riporto differito (#4007, 19/11/2026): una sessione che non può uscire dal worktree segna il
+    ramo da dentro, e /inizio lo riporta dal tree principale."""
+    fine = read(repo / "commands" / "fine.md")
+    inizio = read(repo / "commands" / "inizio.md")
+    assert "**Sessione in un worktree**" in fine and "## FASE 4" in fine, "F30 /fine non ha il passo del worktree"
+    passo = passo_worktree(repo, fine, "F30")
+    assert "## Riporto differito" in passo, "F30 /fine non dice cosa fare se la sessione non può uscire dal worktree"
+    assert "git config branch.<branch>.arturo-riporta" in passo, "F30 /fine non segna il ramo chiuso da dentro il worktree"
+    assert "git -C" not in passo, "F30 /fine usa git -C, che una sessione nel worktree si vede rifiutare"
+    assert passo.index("arturo-riporta") < passo.index("ExitWorktree") < passo.index("merge --ff-only"), \
+        "F30 /fine segna il ramo dopo l'uscita: se l'uscita fallisce, il ramo resta senza segno"
+    assert "chiuso da /fine, da riportare" in inizio and "lo riporti tu" in inizio, \
+        "F30 /inizio non riporta da solo il ramo chiuso da /fine"
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "tavole"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q", "-b", "main")
+        (progetto / "a.md").write_text("a\n", encoding="utf-8")
+        lab.git(progetto, "add", "a.md")
+        lab.git(progetto, "commit", "-qm", "primo")
+        ramo = "tavole-20261119-1800"
+        albero = progetto / ".claude" / "worktrees" / ramo
+        lab.git(progetto, "worktree", "add", "-q", "-b", ramo, str(albero))
+        (albero / "b.md").write_text("b\n", encoding="utf-8")
+        lab.git(albero, "add", "b.md")
+        lab.git(albero, "commit", "-qm", "tavola nel worktree")
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert f"{ramo} · 1 commit" in out and "chiuso da /fine" not in out, \
+            f"F30 un ramo senza segno risulta chiuso da /fine: {out}"
+        # Il segno e il controllo si fanno da dentro il worktree: config e rami sono comuni.
+        lab.git(albero, "config", f"branch.{ramo}.arturo-riporta", "2026-11-19")
+        piu = [c for c in lab.git(albero, "cherry", "main", ramo).splitlines() if c.startswith("+")]
+        assert len(piu) == 1, f"F30 git cherry dal worktree non vede il commit da riportare: {piu}"
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert re.search(rf"{re.escape(ramo)} · 1 commit · ultimo \S+ · worktree \S+ · chiuso da /fine il 2026-11-19, "
+                         r"da riportare", out), f"F30 arturo contesto non mostra il ramo chiuso da /fine: {out}"
+        # Il riporto di /inizio dal tree principale: merge, rimozione, branch -d, e il segno sparisce.
+        lab.git(progetto, "merge", "--ff-only", ramo)
+        lab.git(progetto, "worktree", "remove", str(albero))
+        lab.git(progetto, "branch", "-d", ramo)
+        r = lab.run(["git", "-C", str(progetto), "config", "--get", f"branch.{ramo}.arturo-riporta"])
+        assert r.returncode == 1 and not r.stdout, f"F30 il segno resta dopo git branch -d: {r.stdout}"
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert "RAMI CON COMMIT" not in out, f"F30 il ramo riportato resta in elenco: {out}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
-         "F29": test_f29}
+         "F29": test_f29, "F30": test_f30}
 
 
 def main() -> int:

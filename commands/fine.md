@@ -124,8 +124,10 @@ bash ~/.claude/bin/identita-git.sh .
 
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
 - **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
-  progetto): leggi `~/.claude/shared/fine-worktree.md` e seguilo prima dell'handoff. Riporta il lavoro
-  nel tree principale senza perdere i file ignorati e controlla che il ramo sia arrivato.
+  progetto, o da sola in background): leggi `~/.claude/shared/fine-worktree.md` e seguilo prima
+  dell'handoff. Riporta il lavoro nel tree principale senza perdere i file ignorati e controlla che il
+  ramo sia arrivato. Se la sessione non può uscire dal worktree, il ramo resta segnato e lo riporta il
+  prossimo `/inizio`.
 
 ## FASE 4 · Handoff e todo
 
