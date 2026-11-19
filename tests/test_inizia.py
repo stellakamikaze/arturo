@@ -32,8 +32,9 @@ FRASE = "Installa Arturo: https://arturo.stellakamikaze.org/inizia/"
 # I comandi della pagina, alla lettera: uno per <pre>, ognuno su una riga.
 COMANDI = {
     "winget install --id Git.Git -e --source winget",
-    'curl -fsSL https://arturo.stellakamikaze.org/installa.sh -o "$HOME/.arturo-installa.sh"',
-    'curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | cmp - "$HOME/.arturo-installa.sh" && echo UGUALE',
+    'curl -fsSL https://arturo.stellakamikaze.org/installa.sh -o "$HOME/.arturo-installa.da-verificare"',
+    # Dal 18/11/2026 lo script nasce solo se le due copie sono uguali; altrimenti il file provvisorio si cancella.
+    'curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | cmp - "$HOME/.arturo-installa.da-verificare" && mv "$HOME/.arturo-installa.da-verificare" "$HOME/.arturo-installa.sh" && echo UGUALE || rm -f "$HOME/.arturo-installa.da-verificare"',
     'bash "$HOME/.arturo-installa.sh"',
     "! bash ~/.arturo-installa.sh",
 }

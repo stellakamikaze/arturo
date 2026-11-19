@@ -28,11 +28,11 @@
     var el = e.target.closest ? e.target.closest("[data-copia], [data-fatta], a[href]") : null;
     if (!el) return;
 
-    // I comandi da copiare. Il comando che scarica Arturo (git clone) è il download.
+    // I comandi da copiare. Il download è la frase da incollare in Claude Code (dal 18/11/2026) o il git clone.
     if (el.hasAttribute("data-copia")) {
       var id = el.getAttribute("data-copia");
       var pre = d.getElementById(id);
-      var download = !!(pre && /git clone https:\/\/github\.com\/stellakamikaze\/arturo/.test(pre.textContent));
+      var download = !!(pre && /git clone https:\/\/github\.com\/stellakamikaze\/arturo|arturo\.stellakamikaze\.org\/inizia\//.test(pre.textContent));
       evento("Copia comando", { comando: id, pagina: pagina(), sistema: sistema() || "?" });
       if (download) { evento("Download", { come: "comando", pagina: pagina(), sistema: sistema() || "?" }); segnala("download"); }
       return;

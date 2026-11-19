@@ -45,6 +45,10 @@ case "$passo" in
     git -C "$RADICE" -c core.autocrlf=false archive "$commit" sito | ssh "$HOST" "rm -rf '$arrivo' && mkdir -p '$arrivo' && tar -x -C '$arrivo'"
     echo "Caricato in $arrivo. Cosa cambia rispetto al servito (i *.json del server restano):"
     ssh "$HOST" "cd '$BASE' && diff -rq -x '*.json' html '_arrivo-$commit/sito'" || true
+    # installa.sh è il file che le persone eseguono: si legge riga per riga, non solo come nome (18/11/2026).
+    # Un push su landing-v2 con un token rubato passerebbe il confronto di /inizia/, che guarda lo stesso ramo.
+    echo "installa.sh, righe cambiate rispetto al servito (niente sotto = uguale):"
+    ssh "$HOST" "cd '$BASE' && diff -u html/installa.sh '_arrivo-$commit/sito/installa.sh'" || true
     echo "Se l'elenco è quello atteso: $0 applica $commit"
     echo "Fallo subito se cambia installa.sh: finché il sito e GitHub danno due file diversi, /inizia/ ferma le installazioni."
     ;;

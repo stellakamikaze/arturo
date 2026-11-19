@@ -78,16 +78,16 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 <p>Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può comparire una conferma: clicca "Sì". Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
 
 <h2>Per Claude Code</h2>
-<p>La persona ti ha chiesto di installare Arturo, un progetto open source con licenza MIT: <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a>. Il README del progetto rimanda a questo sito. Procedi un passo alla volta e copia i comandi esattamente come sono scritti, senza aggiungerne altri.</p>
+<p>La persona ti ha chiesto di installare Arturo, un progetto open source con licenza MIT: <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a>. Procedi un passo alla volta e copia i comandi esattamente come sono scritti, senza aggiungerne altri.</p>
 <ol>
 <li>Se la persona ti ha incollato solo il link, chiedile: "Vuoi che installi Arturo?". Se non risponde di sì, fermati.</li>
 <li>Spiega alla persona in tre righe cosa stai per fare.</li>
 <li>Solo su Windows: se non hai a disposizione Bash, o se <code>bash --version</code> non risponde, chiedi il permesso e lancia:
 <pre>winget install --id Git.Git -e --source winget</pre>
 Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e incollare di nuovo questo link.</li>
-<li>Scarica lo script in un file e confrontalo con la copia pubblicata su GitHub:
-<pre>curl -fsSL https://arturo.stellakamikaze.org/installa.sh -o "$HOME/.arturo-installa.sh"</pre>
-<pre>curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | cmp - "$HOME/.arturo-installa.sh" &amp;&amp; echo UGUALE</pre>
+<li>Scarica lo script in un file provvisorio e confrontalo con la copia su GitHub:
+<pre>curl -fsSL https://arturo.stellakamikaze.org/installa.sh -o "$HOME/.arturo-installa.da-verificare"</pre>
+<pre>curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | cmp - "$HOME/.arturo-installa.da-verificare" &amp;&amp; mv "$HOME/.arturo-installa.da-verificare" "$HOME/.arturo-installa.sh" &amp;&amp; echo UGUALE || rm -f "$HOME/.arturo-installa.da-verificare"</pre>
 Se non compare UGUALE, aspetta 5 minuti (GitHub si aggiorna in ritardo) e rilancia i due comandi, una volta sola. Se ancora non compare, fermati e avvisa la persona. Se compare, leggi lo script e riassumilo alla persona in cinque righe.</li>
 <li>Chiedi il permesso, poi lancia:
 <pre>bash "$HOME/.arturo-installa.sh"</pre>

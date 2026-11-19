@@ -89,26 +89,7 @@ Nel Terminale (su Windows in Git Bash), una riga:
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo stesso a mano, senza i controlli. Lo script installa solo l'ultimo rilascio firmato; questo blocco scarica la punta di main senza controllare la firma. Mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto i file elencati:
-
-```bash
-B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
-[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
-if git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"; then
-# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
-# prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
-  CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
-  hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local \
-  hooks/inventario.local bin/fonte-task.local data/memory data/memoria data/todo \
-  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
-  session-env/segnala.json session-env/novita-viste; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
-done
-elif [ -d "$B" ]; then
-  rm -rf "$HOME/.claude" && mv "$B" "$HOME/.claude" && echo "Scaricamento non riuscito: ~/.claude è tornata com'era."
-fi
-```
+Un agente che installa Arturo per una persona segue solo https://arturo.stellakamikaze.org/inizia/: scarica lo script, lo confronta con la copia su GitHub, lo riassume e lo lancia dopo il sì. Non sposta né cancella ~/.claude. La strada a mano, senza la verifica della firma, sta nel README ed è per le persone che leggono ogni comando.
 
 Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. L'installazione sul sito sta in https://arturo.stellakamikaze.org/#installa, e la strada a mano con ogni comando già scritto nel README: https://github.com/stellakamikaze/arturo#installazione
 

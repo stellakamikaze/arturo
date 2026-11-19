@@ -198,7 +198,7 @@
   }
 
   var CONSIGLI={
-    'r-azioni':"Le azioni tecniche le esegui tu: comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso.",
+    'r-azioni':"Le azioni tecniche le esegui tu: comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via consentita o chiedimi di allargare il permesso. Un blocco di sicurezza non si aggira mai.",
     'r-brief':"Prima di ogni richiesta di lavoro riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe: obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire. Poi procedi.",
     'r-forma':"Frasi corte: 22 parole per un'istruzione, 28 per una descrizione. Voce attiva, niente gerundio né condizionale, una parola per concetto.",
     'r-passo':"A lavoro finito l'ultima riga è \"Prossimo passo:\" con una sola azione e chi la fa, oppure \"Niente da fare per te\".",

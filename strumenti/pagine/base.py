@@ -268,6 +268,9 @@ def head(p) -> str:
     t = html.escape(p["title"], quote=True)
     d = html.escape(p["desc"], quote=True)
     locale = "it_IT" if p["lang"] == "it" else "en_US"
+    # Dal 18/11/2026 la home è una pagina sola: le pagine generate qui, tranne en, sono scollegate e non
+    # vanno indicizzate (#6072).
+    robots = "" if p["slug"] == "en" else '<meta name="robots" content="noindex">\n'
     alterne = ""
     if p["lang"] == "en":
         alterne = ('<link rel="alternate" hreflang="it" href="' + SITO + '/">\n'
@@ -279,7 +282,7 @@ def head(p) -> str:
 <html lang="{p['lang']}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+{robots}<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{t}</title>
 <meta name="description" content="{d}">
 <link rel="canonical" href="{url}">

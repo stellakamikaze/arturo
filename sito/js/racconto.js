@@ -18,6 +18,11 @@
     elenco.addEventListener('scroll',bordi,{passive:true});
     window.addEventListener('resize',bordi);
     bordi();
+    /* finito l'ultimo passo l'indice esce: sopra installazione e limiti restava acceso il 7 (18/11/2026) */
+    var indice=d.querySelector('.indice-passi'), passi=tutti('.passo'), ultimo=passi[passi.length-1];
+    var oltre=function(){indice.classList.toggle('fuori',ultimo.getBoundingClientRect().bottom<indice.offsetHeight)};
+    window.addEventListener('scroll',oltre,{passive:true});
+    oltre();
     var segna=function(id){voci.forEach(function(a){
       if(a.getAttribute('href')!=='#'+id){a.removeAttribute('aria-current');return}
       a.setAttribute('aria-current','step');
