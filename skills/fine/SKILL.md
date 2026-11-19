@@ -109,12 +109,12 @@ sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
 - **Completezza.** Confronta l'obiettivo della sessione con i deliverable. Se la sessione ha toccato
   codice, lancia l'agente `structural-completeness-reviewer`. Ogni gap diventa un todo.
 - **Validate.** Applica `${CLAUDE_PLUGIN_ROOT}/shared/validation-gate.md` con **mode=quick** (tsc, test, console.log).
-  Verde: commit. Rosso: il codice toccato resta fuori e l'errore esatto diventa un todo. **NON committare**
+  Verde: commit. Rosso: il codice toccato resta fuori e l'errore esatto diventa un todo. Non committare
   il codice rosso e non correggerlo qui. Un esito inconclusivo non è verde.
 - **Commit per pathspec.** Se il progetto non ha un git, crealo nella sua cartella, mai nella HOME
   (`git -C <cartella> init -b main`, un `CLAUDE.md` breve, un `.gitignore` per i binari). Staging file per
   file (`git add -- <file>`), mai `git add .` o `-A`; fuori restano `.env`, credenziali e file temporanei.
-  **NON usare Co-Authored-By.**
+  Niente riga Co-Authored-By.
 
 ```bash
 git diff --cached | grep -qE '^\+(<<<<<<< |=======$|>>>>>>> )' && echo "MARCATORE DI CONFLITTO: fermati e risolvi prima del commit"
@@ -268,7 +268,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo memoria scheda <slug> --cosa "<cos'è, 
 
 La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripresentarsi?**
 - Vale per questo progetto: due righe nel `CLAUDE.md` del progetto (FASE 7).
-- Vale per ogni progetto: una nota nella memoria di Claude Code. Prima cerca se esiste già
+- Vale per ogni progetto: una nota nella memoria di Arturo (`~/.claude/data/memory`). Prima cerca se esiste già
   (`python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo memoria cerca "parole"`) e aggiorna quella. Un fatto, un file.
 - Vale in ogni sessione: una regola nel `CLAUDE.md` personale (opzionale A). Altrimenti muore con l'handoff.
   Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.

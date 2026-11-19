@@ -14,7 +14,8 @@ pubblico, e solo per un file versionato di Arturo (percorso_pubblico): un file d
 file della persona, percorsi del suo computer, nomi, risposte o testi. Il server non salva l'IP e
 tiene gli eventi 12 mesi. Il suo codice è in server/.
 
-Accesa di default. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
+Accesa di default, ma la coda parte solo dopo la risposta alla domanda della FASE 0 di /setup
+(risposta_setup, dal 18/11/2026): `accendi` è il sì, `spegni` il no. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
 standard DO_NOT_TRACK=1. `arturo telemetria mostra` fa vedere l'id e la coda, così si vede
 esattamente cosa parte.
 
@@ -158,6 +159,7 @@ CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la 
 # tetto a 500, un lotto rifiutato fermava la coda per tutto il giorno (#5996, 17/11/2026).
 LOTTO = 100
 SPENTI = {"0", "no", "off", "false", "spenta"}
+ASPETTA = "non parte niente finché la persona non risponde alla domanda di /setup (FASE 0)"
 # I tag dei rilasci di Arturo: v0.2.0, v0.2.1 dal 3/11/2026. Prima erano date (v2026-10-19, v2026-10-19.2), e il
 # server le traduce nel loro numero. La stessa forma di rilascio() in server/logica.js.
 RILASCIO = re.compile(r"v\d{1,4}\.\d{1,4}\.\d{1,6}|v\d{4}-\d{2}-\d{2}(\.\d+)?")
@@ -168,11 +170,13 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
 
   stato          accesa o spenta, e perché
   mostra         l'id di questa installazione e gli eventi in coda, così come partono
-  spegni         la spegne e svuota la coda
-  accendi        la riaccende
+  spegni         la spegne e svuota la coda (anche il no alla domanda di /setup)
+  accendi        la riaccende (anche il sì alla domanda di /setup)
   invia          manda adesso la coda e le segnalazioni in attesa
   segnalazioni   manda adesso solo le segnalazioni in attesa
 
+Finché non rispondi alla domanda di /setup (FASE 0) non parte niente: gli eventi restano nella coda
+sul tuo computer, e "mostra" li fa vedere. Con un sì partono, con un no la coda si cancella.
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
 Dei file di Arturo modificati o in conflitto solo la posizione nel repository di Arturo, che è
 pubblica; un file tuo esce come "file:altro". Delle guardie, dei comandi e delle skill solo i nomi
@@ -275,6 +279,65 @@ def perche_spenta(stato: dict | None = None):
     if (stato if stato is not None else leggi_stato()).get("spenta"):
         return "arturo telemetria spegni"
     return None
+
+
+# Prima della risposta di /setup non parte niente (18/11/2026, #6090). L'avvio mandava la coda già alla prima
+# sessione dopo l'installazione, e la domanda arriva dopo, nella FASE 0 di /setup: gli eventi partivano prima che
+# la persona potesse dire no. Ora la FASE 0 registra la risposta con `accendi` o `spegni`, e fino ad allora gli
+# eventi restano nella coda sul computer: `mostra` li fa vedere, un sì li manda, un no (spegni) li cancella.
+# Le installazioni di prima hanno già avuto la domanda: si riconoscono una volta sola, alla prima sessione con
+# questa versione, dai segni che /setup lascia (dedotta, in RISPOSTA_CERCATA). Una volta sola perché due segni
+# cambiano col tempo: il reflog scade dopo 90 giorni, e da vuoto farebbe "nata prima del 16/10" un'installazione
+# nuova che non ha mai risposto.
+NATA_CON_IL_SEGNO = "2026-10-16"  # da qui /setup scrive data/setup-fatto (hooks/session-start.sh, invito a /setup)
+
+
+def _setup_di_prima():
+    """Perché questa installazione ha già passato la domanda di /setup prima del 18/11/2026, o None.
+    - data/setup-fatto: una FASE 9 riuscita, quindi anche la FASE 0;
+    - session-env/setup-fase: /setup ha finito almeno la FASE 0, dove la domanda c'era già;
+    - un clone nato prima del 16/10/2026 (reflog di ~/.claude, o reflog vuoto perché scaduto): allora il segno
+      non c'era, e l'avvio non lo invita più a /setup. È la stessa regola dell'invito in hooks/session-start.sh."""
+    orsa = radice_orsa()
+    if (orsa / "data" / "setup-fatto").is_file():
+        return "data/setup-fatto"
+    try:
+        if (orsa / "session-env" / "setup-fase").read_text(encoding="utf-8").strip():
+            return "session-env/setup-fase"
+    except (OSError, UnicodeDecodeError):
+        pass
+    if not (orsa / ".git").exists():
+        return None
+    try:
+        r = subprocess.run(["git", "-C", str(orsa), "reflog", "show", "--date=short", "--format=%gd", "HEAD"],
+                           capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    righe = r.stdout.split()
+    nata = righe[-1][len("HEAD@{"):-1] if righe and righe[-1].startswith("HEAD@{") else ""
+    return "clone nato prima del 16/10/2026" if nata < NATA_CON_IL_SEGNO else None
+
+
+def risposta_setup(stato: dict | None = None):
+    """La risposta alla domanda di /setup sulla telemetria, come "<giorno> <da dove>", o None se manca.
+    Senza risposta la coda non parte. `accendi` e `spegni` la scrivono; un `spenta` di prima conta come risposta."""
+    stato = stato if stato is not None else leggi_stato()
+    if isinstance(stato.get("risposta"), str) and stato["risposta"]:
+        return stato["risposta"]
+    if "spenta" in stato:
+        motivo = "accendi o spegni di prima"
+    elif stato.get("risposta_cercata"):
+        return None
+    else:
+        motivo = _setup_di_prima()
+
+    def segna(s):
+        s["risposta_cercata"] = True
+        if motivo and not s.get("risposta"):
+            s["risposta"] = f"{ts.oggi().isoformat()} dedotta da {motivo}"
+    return cambia_stato(segna).get("risposta")
 
 
 def installazione() -> str:
@@ -861,7 +924,7 @@ def _invia(zitto: bool) -> tuple:
     cambia_stato(lambda s: s.__setitem__("ultimo_tentativo", int(time.time())))
     segnalazioni = invia_segnalazioni_in_attesa()
     controlla_risposte()
-    if perche_spenta():
+    if perche_spenta() or not risposta_setup():
         return 0, segnalazioni
     if zitto:
         segna_claude()
@@ -1066,7 +1129,9 @@ def stato_memoria():
         import melchior_match as mm
         if not mm.memoria_accesa():
             return False, 0
-        return True, conta_note(mm.MEMORY_DIR) if mm.MEMORY_DIR.is_dir() else 0
+        # Tutte le radici (data/memory, projects/*/memory, cartelle aggiunte): per una persona nuova le note
+        # stanno quasi tutte in projects/*/memory, e la sola data/memory dava 0 (18/11/2026).
+        return True, len(mm.elenco_note())
     except Exception:  # noqa: BLE001 - un modulo della memoria rotto non ferma la telemetria
         return None
 
@@ -1110,9 +1175,12 @@ def avvio() -> int:
             cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
         # Una segnalazione in attesa parte alla sessione dopo, come promette /segnala, senza aspettare le 6 ore
         # dell'invio degli eventi (27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
-        # da docs/privacy.md (#4073).
+        # da docs/privacy.md (#4073), e prima della risposta di /setup non partono (#6090).
         ultimo = stato.get("ultimo_tentativo")
-        if not isinstance(ultimo, int) or time.time() - ultimo > OGNI:
+        if not risposta_setup():
+            if any(cartella_attesa().glob("*.attesa.json")):
+                _invio_in_background(solo_segnalazioni=True)
+        elif not isinstance(ultimo, int) or time.time() - ultimo > OGNI:
             _invio_in_background()
         elif any(cartella_attesa().glob("*.attesa.json")):
             _invio_in_background(solo_segnalazioni=True)
@@ -1169,7 +1237,8 @@ def main(argv: list) -> int:
         partiti, segnalazioni = invia(zitto=bool(resto))
         if not resto:
             spenta = perche_spenta()
-            print(f"Eventi partiti: {partiti}" + (f" (telemetria spenta: {spenta})" if spenta else "")
+            attesa = "" if spenta or risposta_setup() else f" ({ASPETTA})"
+            print(f"Eventi partiti: {partiti}" + (f" (telemetria spenta: {spenta})" if spenta else attesa)
                   + f". Segnalazioni partite: {segnalazioni}.")
         return 0
     if comando == "segnalazioni" and not resto:
@@ -1178,19 +1247,23 @@ def main(argv: list) -> int:
         return 0
     if comando == "stato" and not resto:
         spenta = perche_spenta()
-        print(f"Telemetria {'spenta (' + spenta + ')' if spenta else 'accesa'}. Server: {url()}")
+        attesa = "" if spenta or risposta_setup() else f", ma {ASPETTA}"
+        print(f"Telemetria {'spenta (' + spenta + ')' if spenta else 'accesa' + attesa}. Server: {url()}")
         return 0
     if comando == "mostra" and not resto:
         stato = leggi_stato()
         print(f"Id di questa installazione: {stato.get('id', '(non ancora creato)')}")
         print(f"Versione: {versione()} · Sistema: {sistema()}")
         eventi = leggi_coda()
+        if not perche_spenta(stato) and not risposta_setup(stato):
+            print(f"In attesa: {ASPETTA}.")
         print(f"Eventi in coda: {len(eventi)}")
         for e in eventi:
             print(f"  {e['giorno']}  {e['evento']}" + (f"  {e['valore']}" if e["valore"] else ""))
         return 0
     if comando == "spegni" and not resto:
-        cambia_stato(lambda s: s.__setitem__("spenta", True))
+        # Anche il no alla domanda di /setup (FASE 0): la risposta resta, e la coda si cancella senza partire.
+        cambia_stato(lambda s: s.update(spenta=True, risposta=f"{ts.oggi().isoformat()} spegni"))
         for f in (file_coda(), file_attese()):
             try:
                 f.unlink()
@@ -1200,7 +1273,8 @@ def main(argv: list) -> int:
               "/segnala continua a funzionare: con la telemetria spenta ogni segnalazione parte solo con il tuo sì.")
         return 0
     if comando == "accendi" and not resto:
-        cambia_stato(lambda s: s.__setitem__("spenta", False))
+        # Anche il sì alla domanda di /setup (FASE 0): da qui la coda parte (#6090).
+        cambia_stato(lambda s: s.update(spenta=False, risposta=f"{ts.oggi().isoformat()} accendi"))
         spenta = perche_spenta()
         print("Telemetria accesa." + (f" Però resta spenta da {spenta}." if spenta else ""))
         return 0

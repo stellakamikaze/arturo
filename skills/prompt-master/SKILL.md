@@ -83,6 +83,7 @@ Da chiarire: [max 3 punti]
   cose. Per un lavoro che sai fare la riga si omette.
 - Il brief mostrato è la punta dell'arricchimento, non tutto: il contesto recuperato resta nel tuo ragionamento e nel lavoro che ne segue. Non trascriverlo per intero, e non trasformare il brief in un rapporto di ricerca.
 - Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con una raccomandazione motivata. Max 3 punti. Il menu AskUserQuestion vale solo se il testo prima sta in una o due righe: dopo un brief di più righe, chiudi con l'elenco numerato e le parole di risposta in grassetto.
+- **Un foglio da riempire per conto di un altro chiede una riga d'esempio.** Se la richiesta arriva da un terzo (l'email o la chat di un collega) e le colonne del foglio si possono leggere in più modi, la riga `Da chiarire:` chiede una riga d'esempio compilata prima della ricerca. Una tabella piena di dati deboli costa più di una domanda: il 16/11/2026 una ricerca sui padiglioni è stata rifatta tre volte prima di capire che servivano i produttori, non gli architetti (proposta n. 82).
 - In plan mode il brief precede il piano e ne è il cappello.
 
 ### 3. Quando la richiesta è un'idea ancora da decidere: l'intervista a giri

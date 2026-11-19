@@ -12,7 +12,7 @@ Scrivi a questo indirizzo per ogni domanda o richiesta su questa pagina.
 ## Base giuridica
 
 La base giuridica è il legittimo interesse (art. 6.1.f del GDPR) di chi mantiene Arturo a migliorare uno strumento che usi.
-Per questo la telemetria è accesa di default, raccoglie solo eventi da un elenco chiuso e mai contenuti, e la spegni in un comando (vedi "I tuoi diritti").
+Per questo la telemetria è accesa di default, raccoglie solo eventi da un elenco chiuso e mai contenuti, e la spegni in un comando (vedi "I tuoi diritti"). Gli eventi partono solo dopo la tua risposta alla domanda di `/setup`: fino ad allora restano in coda sul tuo computer, e col no si cancellano (dal 19/11/2026).
 Quando cambia cosa esce, Arturo te lo dice alla prima sessione dopo l'aggiornamento, prima di mandare i dati nuovi.
 
 ## Non sono dati anonimi

@@ -172,6 +172,24 @@ def nomi_noti() -> set:
     return nomi
 
 
+def nomi_vecchi() -> dict:
+    """{nome vecchio: progetto} dagli alias delle schede della memoria: dopo arturo progetti rinomina il nome
+    vecchio apre il progetto nuovo (proposta n. 90, 19/11/2026). Un alias che è ancora un progetto vero non
+    conta. Senza memoria: {}."""
+    try:
+        import progetti as _pg
+        schede = _pg.schede()
+    except Exception:  # noqa: BLE001 - la memoria è facoltativa: /inizio non si ferma per lei
+        return {}
+    veri = {slug(n) for n in nomi_noti()}
+    fuori = {}
+    for s, v in schede.items():
+        for a in v.get("alias") or []:
+            if a and a != s and a not in veri:
+                fuori.setdefault(a, s)
+    return fuori
+
+
 def forti(pref: str, nomi) -> list:
     """I nomi che contengono il prefisso intero, o tutte le sue parole di 3 lettere o più. Un prefisso di una
     o due lettere non somiglia a niente: "ti ricordi…" sceglieva un progetto con "ti" nel nome (segnalazione
@@ -191,6 +209,10 @@ def risolvi_nome(nome: str) -> tuple:
     for pref, resto in prefissi:
         if slug(pref) and (trova_cartella(pref)[0] or e_cartella(handoff_dir() / slug(pref))):
             return pref, resto, None
+    nuovi = nomi_vecchi()
+    for pref, resto in prefissi:
+        if slug(pref) in nuovi:
+            return nuovi[slug(pref)], resto, f'il nome vecchio "{pref}" ora è {nuovi[slug(pref)]}'
     nomi = nomi_noti()
     for pref, resto in prefissi:
         f = forti(slug(pref), nomi) if slug(pref) else []

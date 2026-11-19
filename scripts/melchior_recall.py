@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Recall profondo Melchior: BM25 in stdlib sul frontmatter+corpo delle note.
-Uso: python3 ~/.claude/scripts/melchior_recall.py "testo" [-n 8] [--json] [--memory-dir DIR]
+Uso: arturo memoria cerca "testo" (oppure: python3 melchior_recall.py "testo" [-n 8] [--json] [--memory-dir DIR])
 Lo lancia Claude per giudizio quando l'hook memory-retrieve tace; non è un hook, non ha soglie.
 Legge tutte le radici della memoria (hooks/melchior_match.py: data/memory, projects/*/memory,
 cartelle aggiunte), oppure la sola --memory-dir. Gira anche a memoria spenta: è un comando a mano.
@@ -156,7 +156,7 @@ def main(argv=None):
     archiviate = []
     if args.archivio and memory_dir is None:
         # v3-9 (24/10/2026): una nota archiviata che torna utile si ripristina invece di
-        # ri-derivare la lezione (caso AirPlay: archiviata il 6/9, ri-derivata il 16/10).
+        # ri-derivare la lezione (una nota archiviata a settembre e ri-derivata a ottobre).
         arch = mm.MEMORY_DIR / "_archive"
         if arch.is_dir():
             archiviate = build(arch).rank(args.testo, n=3)
@@ -175,7 +175,7 @@ def main(argv=None):
         print(f"    {_rel(path, memory_dir)}")
 
     if archiviate:
-        print("  archiviate (se valgono ancora, ripristinale con git mv fuori da _archive):")
+        print("  archiviate (se valgono ancora, spostale fuori da _archive):")
         for score, path, fm, matched in archiviate:
             name = str(mm.campo(fm, "name") or path.stem)
             desc = str(mm.campo(fm, "description") or "")[:80]

@@ -328,6 +328,13 @@ def elenco() -> int:
         print("Senza comando (Arturo non ha più /" + ", /".join(f.stem for f in orfani) + "): "
               + ", ".join(f"personale/{f.name}" for f in orfani)
               + ". Nessuno li legge più: rileggili con la persona, e lei decide se tenerli altrove o cancellarli.")
+    # L'aspetto della persona (proposta n. 73, 18/11/2026): colori e pezzi della barra in personale/aspetto.json.
+    if (r / "personale" / "aspetto.json").exists():
+        sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+        import aspetto_valori
+        _, errori = aspetto_valori.leggi(r / "personale" / "aspetto.json")
+        print("Aspetto: personale/aspetto.json, " + (f"{len(errori)} valori sbagliati, che non contano "
+              "(arturo aspetto controlla)" if errori else "tutto valido"))
     b = base(r)
     cambiati = modificati(r, b) if b else []
     print("Comandi di Arturo modificati in ~/.claude: " + (", ".join(cambiati) if cambiati else "nessuno"))

@@ -59,7 +59,7 @@ cp ~/Downloads/client_secret_progetto_lavoro.json    ~/.config/gws-lavoro/client
 cp ~/Downloads/client_secret_progetto_personale.json ~/.config/gws-personale/client_secret.json
 ```
 
-**MAI committare i `client_secret.json`** (il `.gitignore` di questo repo li esclude, e `commit-secret-gate.py` li blocca comunque).
+Non committare mai i `client_secret.json` (il `.gitignore` di questo repo li esclude, e `commit-secret-gate.py` li blocca comunque).
 
 ## 4. Login (una volta per macchina)
 
@@ -91,7 +91,7 @@ La env var per-comando è il modo affidabile di scegliere l'account in uno scrip
 
 ## Gotcha noti
 
-- **NON usare** `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` (legacy): entra in conflitto col multi-account. Se è nel tuo ambiente: `unset GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`.
+- Non usare `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` (legacy): entra in conflitto col multi-account. Se è nel tuo ambiente: `unset GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`.
 - Errore 403 "permission denied" su un account: verifica che quell'account abbia accesso al progetto GCP (invito IAM accettato) e che l'API sia abilitata.
 - Login che fallisce su @gmail.com con client aziendale → è il blocco org sugli scope restricted: usa il progetto GCP personale (punto 2).
 - Aggiungere scope dopo il primo login richiede un nuovo `gws auth login` con la lista completa.

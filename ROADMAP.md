@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-15
+Aggiornata il 2026-11-18
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (`docs/strati.md`).
 
@@ -72,13 +72,13 @@ Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti in
 
 ### Le vostre segnalazioni {#segnalazioni}
 
-Stato: in corso. Tre correzioni escono con il prossimo rilascio.
+Stato: in corso. Col prossimo rilascio escono quattro proposte: colori e barra in un file tuo che gli aggiornamenti non toccano, la sessione chiusa in viola, gli elenchi lunghi in un file e la riga d'esempio nel brief.
 
 Strato: Misura.
 
 Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli ancora aperti: comandi che si fermano, testi poco chiari, passi di installazione che non tornano.
 
-<!-- task: #4068 #4071 #4074 #4099 #4102 #3842 #3845 #4103 #4187 #4545 #4190 -->
+<!-- task: #4068 #4071 #4074 #4099 #4102 #3842 #3845 #4103 #4187 #4545 #4190 #5432 #5378 #5693 #5836 -->
 
 ## Prossimo (versione 0.4)
 

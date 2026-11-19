@@ -46,6 +46,7 @@ Col plugin il codice di Arturo sta due cartelle sopra `audit.sh`, non in `~/.cla
 9. **Comandi fantasma** — `CLAUDE.md`, `README.md`, `commands/`, `skills/*/SKILL.md`, `agents/` e `shared/` non citano come vivo uno slash-comando che nessuna skill, nessun comando e nessun mod registra (i comandi di Claude Code contano come vivi). Le righe di storia ("rimosso", "archiviata", "ha assorbito") non contano. Non contano neanche le righe con un endpoint o un indirizzo web (endpoint, API, GET, POST, `http://`, una porta come `:9773`). Un percorso preceduto da vista, pagina, rotta, indirizzo, url o sezione è una pagina web e non conta. L'audit guarda solo la parola subito prima: un comando vero più avanti nella stessa riga resta controllato. Un comando di Claude Code nuovo che l'audit non conosce va aggiunto a `NATIVE` in `audit.sh`.
 10. **Peso dei corpi** — WARN se un `SKILL.md` o un comando supera 30 KB: il corpo entra intero nel contesto a ogni uso, e le parti lette solo in un caso vanno in un file a parte.
 11. **Plugin** — WARN se un plugin è installato ma non attivo in `settings.json`, con il comando per toglierlo (`bash ${CLAUDE_PLUGIN_ROOT}/bin/cleanup-stale-plugins.sh --yes`). Succede dopo una sincronizzazione fra macchine.
+12. **Aspetto** — WARN per ogni valore sbagliato in `~/.claude/personale/aspetto.json` (`arturo aspetto controlla`): un colore o un pezzo della barra scritto male non conta, e vale quello di Arturo.
 
 ## Banco
 

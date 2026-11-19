@@ -252,6 +252,120 @@ function aggiornamentoSegmento(sessione) {
   return '';
 }
 
+// --- Sessione chiusa con /fine (proposta n. 71, 18/11/2026) ----------------
+// La stessa regola di sessione_chiusa in hooks/scheda-terminale.py: un handoff degli ultimi 7 giorni con la riga
+// "- Sessione: <id>", e nessun messaggio della persona dopo. La scheda diventa viola, la barra lo dice in fondo.
+const CHIUSA_GIORNI = 7;
+
+function ultimoMessaggio(transcript) {
+  try {
+    const fd = fs.openSync(transcript, 'r');
+    let testo = '';
+    try {
+      const dim = fs.fstatSync(fd).size;
+      const quanto = Math.min(dim, 262144);
+      const buf = Buffer.alloc(quanto);
+      fs.readSync(fd, buf, 0, quanto, dim - quanto);
+      testo = buf.toString('utf8');
+    } finally { fs.closeSync(fd); }
+    const righe = testo.split('\n');
+    for (let i = righe.length - 1; i >= 0; i--) {
+      if (!righe[i].replace(/ /g, '').includes('"type":"user"')) continue;
+      let voce;
+      try { voce = JSON.parse(righe[i]); } catch (e) { continue; }
+      if (voce.type !== 'user' || voce.isMeta) continue;
+      const c = voce.message && voce.message.content;
+      if (Array.isArray(c) && c.some(x => x && x.type === 'tool_result')) continue;
+      const t = Date.parse(voce.timestamp || '');
+      return Number.isFinite(t) ? t / 1000 : 0;
+    }
+  } catch (e) {}
+  return 0;
+}
+
+// La ricerca legge ogni handoff della settimana (56 ms con 720 handoff, 18/11/2026): il risultato si tiene in
+// cache/statusline/chiusa-<sessione>.json finché nessuna cartella degli handoff cambia. Un handoff nuovo cambia la
+// sua cartella; /fine rilanciato riscrive lo stesso file, che porta già la riga della sessione.
+function sessioneChiusa(sessione, transcript, adesso) {
+  if (!/^[\w-]{8,64}$/.test(sessione || '')) return '';
+  const riga = `- Sessione: ${sessione}`;
+  const ora = (adesso === undefined ? Date.now() : adesso) / 1000;
+  const base = path.join(CLAUDE_DIR, 'data', 'handoffs');
+  const memo = path.join(GIT_CACHE_DIR, `chiusa-${sessione}.json`);
+  let firma = '';
+  try {
+    firma = fs.readdirSync(base).map(c => { try { return `${c}:${fs.statSync(path.join(base, c)).mtimeMs}`; } catch (e) { return c; } }).join('|');
+    const visto = JSON.parse(fs.readFileSync(memo, 'utf8'));
+    if (visto.firma === firma && (!visto.progetto || visto.migliore >= ora - CHIUSA_GIORNI * 86400)) {
+      return visto.progetto && transcript && ultimoMessaggio(transcript) > visto.migliore ? '' : (visto.progetto || '');
+    }
+  } catch (e) {}
+  let migliore = 0, progetto = '';
+  try {
+    for (const cartella of fs.readdirSync(base)) {
+      let nomi = [];
+      try { nomi = fs.readdirSync(path.join(base, cartella)); } catch (e) { continue; }
+      for (const nome of nomi) {
+        if (!/^HANDOFF_.*\.md$/.test(nome)) continue;
+        const f = path.join(base, cartella, nome);
+        try {
+          const quando = fs.statSync(f).mtimeMs / 1000;
+          if (quando < ora - CHIUSA_GIORNI * 86400 || quando <= migliore) continue;
+          if (fs.readFileSync(f, 'utf8').split(/\r?\n/).includes(riga)) { migliore = quando; progetto = cartella; }
+        } catch (e) {}
+      }
+    }
+  } catch (e) { return ''; }
+  try {
+    fs.mkdirSync(GIT_CACHE_DIR, { recursive: true });
+    const tmp = `${memo}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ firma, progetto, migliore }));
+    fs.renameSync(tmp, memo);
+  } catch (e) {}
+  if (progetto && transcript && ultimoMessaggio(transcript) > migliore) return '';
+  return progetto;
+}
+
+function chiusuraSegmento(sessione, transcript) {
+  const progetto = sessioneChiusa(sessione, transcript).replace(/[^\w.-]/g, '').slice(0, 40);
+  return progetto ? ` │ \x1b[48;5;98;97;1m ✓ chiusa · /inizio ${progetto} \x1b[0m` : '';
+}
+
+// --- L'aspetto della persona (proposta n. 73, 18/11/2026) ------------------
+// ~/.claude/personale/aspetto.json, fuori da git: i pezzi spenti e un file suo che accoda un testo. Gli stessi nomi
+// di hooks/aspetto_valori.py, che lo legge per la scheda e per `arturo aspetto`. Un valore sbagliato non conta.
+const PEZZI_BARRA = ['contesto', 'quota', 'aggiornamento', 'chiusa', 'task'];
+
+function aspettoBarra() {
+  try {
+    const dati = JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, 'personale', 'aspetto.json'), 'utf8'));
+    const barra = dati && typeof dati.barra === 'object' && dati.barra ? dati.barra : {};
+    const spenti = new Set((Array.isArray(barra.spenti) ? barra.spenti : []).filter(x => PEZZI_BARRA.includes(x)));
+    const aggiunta = typeof barra.aggiunta === 'string' && /^[A-Za-z0-9_-]{1,40}\.js$/.test(barra.aggiunta) ? barra.aggiunta : '';
+    return { spenti, aggiunta };
+  } catch (e) {
+    return { spenti: new Set(), aggiunta: '' };
+  }
+}
+
+// Il file della persona gira con la sua fiducia, come personale/session-start.sh. Un errore, o un testo che non
+// è testo, non rompe la barra: si tolgono i caratteri di controllo tranne i colori SGR, e il testo si ferma a 60.
+function aggiuntaPersona(nome, dati) {
+  if (!nome) return '';
+  try {
+    const modulo = require(path.join(CLAUDE_DIR, 'personale', nome));
+    const funzione = typeof modulo === 'function' ? modulo : modulo && modulo.default;
+    if (typeof funzione !== 'function') return '';
+    const testo = String(funzione(dati) || '');
+    const pulito = testo.replace(/\x1b\[[0-9;]*m|[\x00-\x1f\x7f-\x9f]/g, m => (m.length > 1 ? m : ''));
+    const visibile = pulito.replace(/\x1b\[[0-9;]*m/g, '');
+    if (!visibile.trim()) return '';
+    return ` │ ${visibile.length > 60 ? visibile.slice(0, 59) + '…' : pulito}\x1b[0m`;
+  } catch (e) {
+    return '';
+  }
+}
+
 // --- Quota dell'abbonamento ------------------------------------------------
 // Arriva già su stdin (`rate_limits`): nessuna lettura, nessun processo.
 // Chiavi assenti (prima della prima risposta, o piano senza limiti dichiarati,
@@ -450,9 +564,13 @@ process.stdin.on('end', () => {
       : accorcia(progetto, PROGETTO_MAX);
 
     // Output
-    const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento(session);
+    const aspetto = aspettoBarra();
+    const pezzo = (nome, fai) => (aspetto.spenti.has(nome) ? '' : fai());
+    if (aspetto.spenti.has('contesto')) ctx = '';
+    const quota = pezzo('quota', () => quotaSegmento(data.rate_limits)) + pezzo('aggiornamento', () => aggiornamentoSegmento(session))
+      + pezzo('chiusa', () => chiusuraSegmento(session, data.transcript_path || '')) + aggiuntaPersona(aspetto.aggiunta, data);
     const sigla = abbreviaModello(model);
-    task = accorcia(task, TASK_MAX);
+    task = aspetto.spenti.has('task') ? '' : accorcia(task, TASK_MAX);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     } else {

@@ -39,8 +39,8 @@ cat "$G.out"; cat "$G.rc"
 | Exit | Significato | Cosa fai |
 |------|-------------|----------|
 | `0` | VERDE: validatori core eseguiti e passati | procedi |
-| `1` | ROSSO: un validatore ha fallito | **STOP**, mostra gli errori. In `/fine` chiedi se correggere ora o scrivere l'errore nell'handoff. Prima di una consegna: STOP assoluto, non consegnare codice rotto. |
-| `2` | INCONCLUSIVO: prosa, configurazione o strumenti assenti | NON è verde. Controlla a mano i testi destinati a persone reali: contenuto non vuoto, ogni cifra con la sua fonte, la chiusura è un fatto e non una metafora. Se mancano pytest, npm, swift o dotnet, dillo alla persona. |
+| `1` | ROSSO: un validatore ha fallito | Fermati e mostra gli errori. In `/fine` chiedi se correggere ora o scrivere l'errore nell'handoff. Prima di una consegna non consegnare codice rotto. |
+| `2` | INCONCLUSIVO: prosa, configurazione o strumenti assenti | Non vale come verde. Controlla a mano i testi destinati a persone reali: contenuto non vuoto, ogni cifra con la sua fonte, la chiusura è un fatto e non una metafora. Se mancano pytest, npm, swift o dotnet, dillo alla persona. |
 
 Un `[WARN] console.log` non blocca: va letto e deciso.
 

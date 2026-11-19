@@ -345,7 +345,7 @@ Le tue preferenze, i file `.local`, stanno in `~/.claude/arturo/`. Un file `.loc
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se tu, o un'app, e l'aggiornamento cambiate `settings.json` in punti diversi, l'aggiornamento unisce le due versioni come impostazioni e va avanti da solo. Resta un conflitto solo quando avete cambiato la stessa impostazione in modo diverso. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
-**Arturo convive con la tua config.** Le tue regole, i tuoi comandi e i tuoi permessi restano tuoi. Se vuoi cambiare un comando di Arturo, scrivi le tue aggiunte in `~/.claude/personale/<comando>.md`: quando lanci il comando Claude le legge, e nessun aggiornamento le tocca. Se hai già modificato un comando di Arturo e un aggiornamento lo cambia, `/aggiorna` sposta da solo le tue modifiche lì: non devi fare niente (con un tuo repository della config, solo se è privato). Lo stesso vale per le righe aggiunte a `hooks/session-start.sh` e `hooks/session-end.sh`: finiscono in `personale/session-start.sh` (o `session-end.sh`), commentate finché non le rileggi con Claude, e l'hook di Arturo le esegue alla fine. L'avvio ti avvisa con una riga `DERIVA` quando la distanza dalla config di Arturo rischia di rompere qualcosa: un comando di Arturo modificato che andrà in conflitto, un hook di Arturo tolto o spento, una guardia di sicurezza modificata (Claude ti mostra cosa cambia e, se vuoi, la rimette com'è con `arturo personale ripristina`).
+**Arturo convive con la tua config.** Le tue regole, i tuoi comandi e i tuoi permessi restano tuoi. Se vuoi cambiare un comando di Arturo, scrivi le tue aggiunte in `~/.claude/personale/<comando>.md`: quando lanci il comando Claude le legge, e nessun aggiornamento le tocca. Se hai già modificato un comando di Arturo e un aggiornamento lo cambia, `/aggiorna` sposta da solo le tue modifiche lì: non devi fare niente (con un tuo repository della config, solo se è privato). Lo stesso vale per le righe aggiunte a `hooks/session-start.sh` e `hooks/session-end.sh`: finiscono in `personale/session-start.sh` (o `session-end.sh`), commentate finché non le rileggi con Claude, e l'hook di Arturo le esegue alla fine. I colori di /dafare e della scheda del terminale e i pezzi della barra in basso stanno in `~/.claude/personale/aspetto.json` (`arturo aspetto esempio`, spiegato in `docs/strati.md`). L'avvio ti avvisa con una riga `DERIVA` quando la distanza dalla config di Arturo rischia di rompere qualcosa: un comando di Arturo modificato che andrà in conflitto, un hook di Arturo tolto o spento, una guardia di sicurezza modificata (Claude ti mostra cosa cambia e, se vuoi, la rimette com'è con `arturo personale ripristina`).
 
 > Se `/aggiorna` o `/novita` rispondono "comando sconosciuto", la tua copia è precedente a quei
 > comandi: fai l'aggiornamento a mano con i comandi qui sopra e riapri Claude Code. Da lì in poi bastano gli slash.
@@ -406,7 +406,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 In tutto, Arturo porta:
 
-- **32 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **33 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
@@ -417,7 +417,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               32 guardie e automazioni, più 7 strumenti che usano
+hooks/               33 guardie e automazioni, più 8 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -469,7 +469,7 @@ Fuori dal dispatcher:
 - `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
-- `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria, accesa di default: vedi "La memoria".
+- `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `memory-firma.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria, accesa di default: vedi "La memoria".
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`; un rosso non ti interrompe: i banchi ripartono dopo 30 minuti e il nome del banco rosso arriva a chi mantiene Arturo con l'evento `banchi` della telemetria; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), riga `SPORTELLO` quando chi mantiene Arturo ha risposto a una tua segnalazione, invito a `/segnala` (si spegne con `arturo segnala basta`), riga `SETUP` una volta al giorno se la prima configurazione non è finita (solo per le installazioni nate dal 16/10), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
@@ -592,7 +592,8 @@ Quando è accesa:
 - a ogni tuo messaggio `memory-retrieve.py` cerca le note che parlano della stessa cosa e ne dà a
   Claude il percorso. Claude apre una nota solo se gli serve. Sotto una soglia di pertinenza tace;
 - all'avvio `memory-autoload.py` indica la scheda del progetto (`progetto-<cartella>.md`), se c'è;
-- `subagent-memory-context.py` dice ai subagenti che la memoria esiste e come cercarla (le correzioni della sessione le porta anche a memoria spenta);
+- quando un comando fallisce, `memory-firma.py` cerca le note con quel testo d'errore nel campo `firma:` e ne dà a Claude il percorso, una volta per sessione;
+- `subagent-memory-context.py` dice ai subagenti che la memoria esiste e come cercarla, se ci sono note (le correzioni della sessione le porta anche a memoria spenta);
 - `melchior-postwrite.py` tiene in ordine solo `~/.claude/data/memory/`: date nel frontmatter e
   cartella del suo `type` per una nota nuova. Le note di Claude Code e le tue cartelle non le tocca mai.
 
@@ -600,7 +601,7 @@ Quando è accesa:
 trova note senza descrizione, frontmatter illeggibili e link rotti. `arturo memoria cartella aggiungi
 <cartella>` aggiunge una tua cartella di note markdown (con `name`, `description` e `type` in testa).
 `arturo memoria spegni` la spegne: le note restano dove sono. Le note stanno su questo computer, e
-niente della memoria entra nella telemetria. Quelle che Claude apre passano ad Anthropic con la
+il nome e il testo delle note non entrano mai nella telemetria, che ne conta solo il numero in fasce. Quelle che Claude apre passano ad Anthropic con la
 conversazione; con un remote privato, `/fine` le salva anche lì.
 L'interruttore sta in `~/.claude/data/memoria/`, fuori da git; `ARTURO_MEMORIA=0` lo scavalca.
 

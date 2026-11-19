@@ -15,7 +15,8 @@ Le note sono quelle che Claude Code scrive da solo (~/.claude/projects/*/memory/
 ~/.claude/data/memory/, più le cartelle che aggiungi tu. Lo schema è uno, in docs/memoria.md:
 name, description e type. Le note stanno su questo computer. Il richiamo ne tiene una copia del
 testo in ~/.claude/cache/melchior-notes.json, per leggerle in fretta. Le note che Claude apre
-passano ad Anthropic come il resto della conversazione. Niente della memoria entra nella telemetria.
+passano ad Anthropic come il resto della conversazione. Il nome e il testo delle note non entrano mai nella
+telemetria, che ne conta solo il numero in fasce (docs/memoria.md, "Cosa esce dal computer").
 
   (senza comando) [--tutti] [--json]
                                  cosa ricorda: per progetto quante note e le ultime decisioni, le
@@ -56,6 +57,7 @@ sys.path.insert(0, str(QUI.parent / "scripts"))
 sys.path.insert(0, str(QUI.parent / "hooks"))
 import melchior_match as mm  # noqa: E402
 import melchior_recall as mr  # noqa: E402
+from radici import radice_arturo  # noqa: E402
 
 AIUTO = __doc__.split("\n\n")[3] if __doc__ else ""
 
@@ -235,7 +237,8 @@ def stato() -> int:
         for d in mie:
             print(f"  - {breve(d)} ({len(file_note([d]))} note)")
     print("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione.")
-    print("Niente della memoria entra nella telemetria. Cosa ricorda e dove: docs/memoria.md.")
+    print("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce.")
+    print(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}.")
     print('Accendi con "arturo memoria accendi", spegni con "arturo memoria spegni".')
     return 0
 

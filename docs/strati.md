@@ -46,6 +46,32 @@ Se una persona vuole cambiare una skill di Arturo, scrive `~/.claude/personale/<
 
 Se una persona vuole sostituire una skill, scrive una skill con lo stesso nome nell'Orsa. Il nome senza prefisso va alla sua, quella di Arturo resta raggiungibile come `arturo:<nome>`. La sostituzione si dichiara in `personale/sostituzioni.txt`: un nome per riga (skill, comando o `name:` di uno stile), col motivo dopo `#`. `arturo personale omonimi` e `system-audit` nominano ogni omonimo non dichiarato e ogni riga che non ha più un omonimo (banco `tests/test_sostituzioni_2026_11_05.py`, SO01-SO05). Senza dichiarazione, una skill nuova di Arturo con un nome che la persona usa già non si vedrebbe mai.
 
+## Cambiare l'aspetto
+
+I colori del pannello /dafare, i colori della scheda del terminale e i pezzi della barra in basso si cambiano in
+`~/.claude/personale/aspetto.json`. Il file sta fuori da git, e gli aggiornamenti non lo toccano (proposta n. 73).
+`arturo aspetto esempio` stampa un file da copiare:
+
+```json
+{
+  "dafare": { "colori": { "tela": "#1e1e1e", "inchiostro": "#f0f0f0" } },
+  "scheda": { "colori": { "chiusa": [135, 95, 215] }, "decac": { "chiusa": 5 } },
+  "barra":  { "spenti": ["aggiornamento"], "aggiunta": "barra.js" }
+}
+```
+
+- `dafare.colori`: tela, inchiostro, cenere, sera, passa, blocca, arturo, come `#rrggbb`.
+- `scheda.colori`: nuova, fermo, attende, lavoro, problema, chiusa, come tre numeri da 0 a 255 (iTerm2).
+  `scheda.decac` dà gli stessi stati come indice da 0 a 15 della tavolozza di Windows Terminal.
+- `barra.spenti`: i pezzi da togliere, fra contesto, quota, aggiornamento, chiusa e task.
+- `barra.aggiunta`: un file JavaScript in `personale/` che esporta una funzione. La funzione riceve i dati della
+  sessione e rende un testo, che la barra accoda dopo i suoi pezzi. Il file gira con la tua fiducia, come
+  `personale/session-start.sh`; un suo errore non ferma la barra.
+
+Un valore scritto male non conta e vale quello di Arturo: `arturo aspetto controlla` dice quali sono, e
+`/system-audit` li segnala. La riga DERIVA, quando trova cambiati la barra, la scheda o il pannello, indica questo
+file.
+
 ## Perché un plugin
 
 Un plugin di Claude Code vive in `~/.claude/plugins/`, fuori dai file della persona. L'aggiornamento sostituisce la sua cartella e non tocca l'Orsa: la separazione la garantisce Claude Code. Un plugin però non porta permessi, `autoMode`, `env`, `statusLine`, lo stile di base e il `CLAUDE.md`. Queste voci le scrive `/setup` nei settings della persona, con il file di blocco; il metodo arriva con l'hook di avvio. Pacchetto e prove: [`prove-plugin.md`](prove-plugin.md).

@@ -208,7 +208,7 @@ def trova_scheda(name):
     """La scheda progetto-<nome>.md di un progetto, o None: prima il filename esatto, poi il catalogo del
     frontmatter. Il catalogo (revisione Melchior, 13/11/2026): una scheda vale per una cartella anche se si
     chiama in un altro modo, quando la cartella è fra i suoi `alias:` o è il nome della sua `cartella:`.
-    Così volta-celeste trova progetto-herdr-arturo. La usano memory-autoload.py, arturo contesto (/inizio)
+    Così la cartella romanzo-bozza trova progetto-romanzo, se è fra i suoi alias. La usano memory-autoload.py, arturo contesto (/inizio)
     e arturo memoria scheda (/fine), dal 14/11/2026 (M3 del piano della memoria)."""
     if not name:
         return None
@@ -521,7 +521,7 @@ def score_detail(fm, tokens, body=""):
 
     trigger-word +3 · name (substring) +2 · description +1 · answers +1 · body +1
     Il set di token distinti serve a distinguere "1 token che colpisce piu' campi"
-    (score alto ma segnale debole, es. `rassegna`) da "piu' token che convergono"
+    (score alto ma segnale debole, es. una parola comune) da "piu' token che convergono"
     (segnale forte). memory-retrieve richiede >=2 token distinti.
     """
     if not isinstance(fm, dict):

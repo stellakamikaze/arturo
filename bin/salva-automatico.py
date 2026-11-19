@@ -273,6 +273,21 @@ def nome_libero(cartella: Path, quando: dt.datetime) -> Path:
     return cartella / f"HANDOFF_{quando + dt.timedelta(minutes=10):%Y-%m-%d_%H-%M}.md"
 
 
+def slug_del_progetto(cartella: Path) -> str:
+    """Lo slug della scheda del progetto se una scheda vale per questa cartella (nome, `alias:` o `cartella:`),
+    altrimenti il nome della cartella. Fino al 18/11/2026 valeva sempre il nome della cartella: una cartella
+    rinominata o diversa dal progetto apriva una seconda cartella di handoff accanto a quella di /fine."""
+    nome = slug(cartella.name)
+    try:
+        import melchior_match as mm
+        scheda = mm.trova_scheda(nome) if mm.memoria_accesa() else None
+    except Exception:  # noqa: BLE001 - una memoria rotta non ferma il salvataggio
+        scheda = None
+    if scheda is not None and scheda.stem.startswith("progetto-") and slug(scheda.stem[len("progetto-"):]):
+        return slug(scheda.stem[len("progetto-"):])
+    return nome
+
+
 def scegli_progetto(cwd: Path, richieste: list) -> tuple:
     """(slug, cartella) o ("", None)."""
     home = Path.home().resolve()
@@ -280,7 +295,7 @@ def scegli_progetto(cwd: Path, richieste: list) -> tuple:
     contenitore = cwd in (home, pb.resolve() if pb.exists() else pb)
     cartella = None if contenitore else cartella_progetto(cwd)
     if cartella and cartella.resolve() != home:
-        return slug(cartella.name), cartella
+        return slug_del_progetto(cartella), cartella
     # Dalla home o dalla cartella dei progetti vale l'ultimo /inizio <nome> che porta a un progetto noto.
     for r in reversed(richieste):
         m = re.match(r"^/(?:[\w-]+:)?inizio\s+([^\s]+)", r)

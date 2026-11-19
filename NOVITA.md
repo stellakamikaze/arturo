@@ -13,6 +13,53 @@ modo di lavorare.
 
 ---
 
+## 2026-11-19 — I dati d'uso partono solo dopo la tua risposta
+
+**Cosa cambia**: dopo l'installazione Arturo non manda più niente finché `/setup` non ti ha chiesto della telemetria. Fino alla tua risposta gli eventi restano in coda sul tuo computer, e `arturo telemetria mostra` te li fa vedere. Con un sì partono, con un no si cancellano. Se avevi già fatto `/setup`, per te non cambia niente: la risposta c'era già.
+
+**Il principio**: prima la domanda, poi i dati. Una scelta conta solo se arriva prima che qualcosa parta.
+
+**A chi serve**: a chi installa Arturo oggi e vuole decidere prima che un evento esca dal computer.
+
+---
+
+## 2026-11-19 — Un progetto cambia nome con un comando solo
+
+**Cosa cambia**: `arturo progetti rinomina VECCHIO NUOVO` cambia il nome di un progetto in tutto Arturo: todo, riga di stato, handoff, indice e scheda della memoria, coi link delle altre note. Il nome vecchio resta valido: `/inizio` col nome vecchio apre il progetto nuovo e te lo dice. Con `--prova` vedi cosa cambierebbe senza toccare niente, e per tornare indietro basta il comando al contrario. Un progetto con una sua cartella si rinomina dopo aver rinominato la cartella. Nasce dalla proposta n. 90.
+
+**Il principio**: un nome si cambia in un punto solo, e quello vecchio non rompe niente.
+
+**A chi serve**: a chi ha aperto un progetto con un nome provvisorio e lo vuole cambiare senza perdere todo e appunti.
+
+---
+
+## 2026-11-18 — Colori e barra a modo tuo, senza perderli a ogni aggiornamento
+
+**Cosa cambia**: i colori del pannello /dafare, i colori della scheda del terminale e i pezzi della barra in basso si cambiano in un file tuo, `~/.claude/personale/aspetto.json`. Gli aggiornamenti non lo toccano, quindi non devi più rimettere a mano le tue modifiche dopo ogni rilascio. Puoi spegnere un pezzo della barra, come la quota, e aggiungerne uno tuo con un piccolo file JavaScript. `arturo aspetto esempio` ti dà un file da copiare, e `arturo aspetto controlla` ti dice se un valore è scritto male. Un valore sbagliato non rompe niente: vale quello di Arturo. Nasce dalla proposta n. 73.
+
+**Il principio**: quello che cambi tu sta in un posto tuo. Arturo si aggiorna senza toccarlo, e tu non scegli più fra le tue modifiche e l'ultima versione.
+
+**A chi serve**: a chi ha cambiato un colore o un pezzo della barra e lo perdeva a ogni aggiornamento.
+
+---
+
+## 2026-11-18 — Una sessione chiusa con /fine diventa viola
+
+**Cosa cambia**: dopo un /fine la scheda del terminale diventa viola, in iTerm2 e in Windows Terminal, e in fondo alla barra compare "✓ chiusa · /inizio <progetto>". Con molte sessioni aperte vedi subito quali hai già chiuso e come riprenderle. Se scrivi di nuovo nella sessione, al turno dopo torna verde come prima. Il viola vale per una settimana dall'ultimo /fine. Nasce dalla proposta n. 71, che l'aveva già provato su un Mac.
+
+**Il principio**: lo stato di una sessione si legge a colpo d'occhio, senza aprirla. Chiusa è uno stato come gli altri, con un colore suo.
+
+**A chi serve**: a chi tiene aperte più sessioni insieme.
+## 2026-11-18 — Un elenco lungo arriva in un file, e un foglio ambiguo parte da una riga d'esempio
+
+**Cosa cambia**: quando Claude deve mostrarti un elenco di più di 30 righe, come i tuoi todo o i risultati di una ricerca, lo scrive in un file numerato e te lo apre. In chat restano il conteggio e le voci che servono a decidere, e tu rispondi coi numeri del file. Dove c'è un pannello o la checklist di Volta, l'elenco va lì. Poi il brief: se una richiesta arriva da un collega e chiede di riempire un foglio con colonne poco chiare, Claude ti chiede prima una riga d'esempio compilata, invece di riempire tutte le colonne con dati deboli. Nascono dalle proposte n. 76 e n. 82.
+
+**Il principio**: un elenco che non si legge tutto non serve a decidere. E una domanda prima della ricerca costa meno di una tabella da rifare tre volte.
+
+**A chi serve**: a chi lavora con molti todo, e a chi riceve ricerche da fare per conto di altri.
+
+---
+
 ## 2026-11-18 — I tasti di /dafare si leggono anche col tema scuro
 
 **Cosa cambia**: nel pannello /dafare i nomi dei progetti, i numeri dei todo e i tasti in basso hanno sempre il colore scuro del pannello. Prima prendevano il colore del tema del terminale: col tema scuro erano bianchi sul fondo chiaro, e si vedevano solo le lettere dei tasti. La correzione l'ha scritta una persona che usa Arturo, con la pull request n. 4, e risponde alla segnalazione n. 86. Un banco nuovo controlla che ogni tasto del pannello resti colorato.

@@ -273,6 +273,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/bin/telemetria-esito.sh\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/memory-firma.py\"",
+            "timeout": 5
           }
         ]
       },

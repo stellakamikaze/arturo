@@ -112,6 +112,11 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
 
   on('process.run', async (_$, e) => {
     const argv = [...e.argv]
+    // `arturo aspetto mostra dafare` (proposta n. 73): la palette della persona, letta una volta. Non entra fra le
+    // chiamate dei todo che i test confrontano.
+    if (argv.some(x => x.endsWith('/bin/arturo')) && argv[argv.findIndex(x => x.endsWith('/bin/arturo')) + 1] === 'aspetto') {
+      return { value: { exitCode: 0, stdout: '{"colori": {}}\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     chiamate.push(argv)
     if (argv[1] === '-c' || argv[2] === '-c') {
       const stato = python[argv[0]!] ?? 'rifiuta'

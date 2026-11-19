@@ -40,7 +40,7 @@ Arturo sceglie il secondo posto, per le ragioni del capitolo 00.
   aggiungi: non le copia e non le sposta.
 
 Tutto questo è testo semplice dentro `~/.claude`, una cartella sul tuo computer. Niente sta su
-un server, e niente della memoria entra nella telemetria. Se la cartella va in un tuo
+un server: nella telemetria entra solo il numero delle note, in fasce, mai il loro nome o testo. Se la cartella va in un tuo
 repository privato, la ritrovi uguale su un altro computer.
 
 ## Una memoria che si controlla

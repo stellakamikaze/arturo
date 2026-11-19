@@ -12,7 +12,8 @@ StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
     CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1. Su Terminal di Apple il profilo deve avere spenti
     "Nome processo attivo" nella scheda (ShowActiveProcessInTabTitle), altrimenti accoda "— caffeinate ◂ claude";
   - il colore della scheda, dove il terminale lo sa fare: verde attende, giallo al lavoro,
-    rosso se il turno si è fermato per un errore (StopFailure). Windows Terminal con DECAC,
+    rosso se il turno si è fermato per un errore (StopFailure), viola a turno finito se la sessione è già
+    chiusa con /fine e la persona non ha più scritto (proposta n. 71). Windows Terminal con DECAC,
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
 Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CONTESTO <slug>" di
 contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
@@ -46,6 +47,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_orsa  # noqa: E402
+import aspetto_valori as aspetto  # noqa: E402
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
           "Notification": "attende", "Stop": "fermo", "StopFailure": "problema", "SessionEnd": "fine"}
@@ -55,12 +57,14 @@ CHIEDONO = {"permission_prompt", "idle_prompt", "elicitation_dialog", "elicitati
 # Il titolo è il progetto; lo stato gli va davanti, senza nasconderlo (29/10/2026).
 # Una sessione appena aperta, o col turno finito, non ha niente da sbloccare: mostra il progetto.
 TITOLO = {"nuova": "{p}", "fermo": "{p}", "attende": "SBLOCCA · {p}", "lavoro": "LAVORANDO · {p}",
-          "problema": "SBLOCCA · {p}"}
+          "problema": "SBLOCCA · {p}", "chiusa": "{p}"}
 # Gli eventi che passano la mano alla persona: solo questi suonano la campanella.
 FERMANO = {"Notification", "StopFailure"}
-DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1}  # tavolozza: verde, giallo, rosso
+# tavolozza: verde, giallo, rosso; viola (magenta) per la sessione chiusa con /fine (proposta n. 71, 18/11/2026)
+DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1, "chiusa": 5}
 RGB = {"nuova": (40, 167, 69), "fermo": (40, 167, 69), "attende": (40, 167, 69), "lavoro": (230, 180, 0),
-       "problema": (200, 40, 40)}
+       "problema": (200, 40, 40), "chiusa": (135, 95, 215)}
+CHIUSA_GIORNI = 7  # un handoff più vecchio non segna più la sessione come chiusa
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
 # Il comando deve eseguire il risolutore (un grep che lo nomina non conta), e la sua prima riga
 # d'intestazione c'è solo se ha trovato il progetto.
@@ -238,6 +242,55 @@ def job_in_corso(transcript: str, adesso: float) -> bool:
     return any(scade > adesso for scade in aperti.values())
 
 
+def ultimo_messaggio(transcript: str) -> float:
+    """L'istante dell'ultimo messaggio scritto dalla persona, dalla coda del transcript: non i risultati degli
+    strumenti, non i promemoria di sistema. 0 se non c'è o non si legge."""
+    try:
+        with open(transcript, "rb") as t:
+            t.seek(0, 2)
+            t.seek(max(0, t.tell() - 262144))
+            righe = t.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return 0.0
+    for riga in reversed(righe):
+        if '"type":"user"' not in riga.replace(" ", ""):
+            continue
+        try:
+            voce = json.loads(riga)
+        except ValueError:
+            continue
+        if voce.get("type") != "user" or voce.get("isMeta"):
+            continue
+        contenuto = (voce.get("message") or {}).get("content")
+        if isinstance(contenuto, list) and any(isinstance(c, dict) and c.get("type") == "tool_result" for c in contenuto):
+            continue
+        return istante(voce["timestamp"]) if voce.get("timestamp") else 0.0
+    return 0.0
+
+
+def sessione_chiusa(sessione: str, transcript: str, adesso: float) -> str:
+    """Lo slug dell'handoff che /fine ha scritto per questa sessione ("- Sessione: <id>"), se c'è, è degli ultimi
+    CHIUSA_GIORNI giorni e la persona non ha più scritto dopo. Altrimenti "". Proposta n. 71 (18/11/2026)."""
+    if not re.match(r"^[\w-]{8,64}$", sessione):
+        return ""
+    riga, migliore, slug = f"- Sessione: {sessione}", 0.0, ""
+    try:
+        for f in (radice_orsa() / "data" / "handoffs").glob("*/HANDOFF_*.md"):
+            try:
+                quando = f.stat().st_mtime
+                if quando < adesso - CHIUSA_GIORNI * 86400 or quando <= migliore:
+                    continue
+                if riga in f.read_text(encoding="utf-8", errors="replace").splitlines():
+                    migliore, slug = quando, f.parent.name
+            except OSError:
+                continue
+    except OSError:
+        return ""
+    if slug and transcript and ultimo_messaggio(transcript) > migliore:
+        return ""  # riaperta: la persona ha scritto dopo il /fine
+    return slug
+
+
 def dentro(percorso: Path, radice: Path):
     """Le parti di percorso sotto radice, o None se sta fuori (Path.is_relative_to è solo dal 3.9)."""
     try:
@@ -255,10 +308,15 @@ def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
             testo += "\x1b]6;1;bg;*;default\x07"
         return testo
     testo = f"\x1b]0;{TITOLO[stato].format(p=pulito)}\x07"
+    # I colori scelti dalla persona in personale/aspetto.json vincono su quelli di serie (proposta n. 73).
+    try:
+        suoi = (aspetto.leggi()[0].get("scheda") or {})
+    except Exception:
+        suoi = {}
     if os.environ.get("WT_SESSION"):
-        return testo + f"\x1b[2;15;{DECAC[stato]},|"
+        return testo + f"\x1b[2;15;{(suoi.get('decac') or {}).get(stato, DECAC[stato])},|"
     if os.environ.get("TERM_PROGRAM") == "iTerm.app":
-        r, g, b = RGB[stato]
+        r, g, b = (suoi.get("colori") or {}).get(stato, RGB[stato])
         return (testo + f"\x1b]6;1;bg;red;brightness;{r}\x07"
                 f"\x1b]6;1;bg;green;brightness;{g}\x07\x1b]6;1;bg;blue;brightness;{b}\x07")
     # Terminal di Apple non colora la scheda, ma segna con una campanella la scheda in secondo
@@ -379,6 +437,10 @@ def main() -> int:
     if evento == "Stop" or dati.get("notification_type") == "idle_prompt":
         if job_in_corso(str(dati.get("transcript_path") or ""), adesso):
             stato = "lavoro"
+    # A turno finito, una sessione già chiusa con /fine diventa viola (proposta n. 71).
+    if stato == "fermo" and sessione_chiusa(re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64],
+                                            str(dati.get("transcript_path") or ""), adesso):
+        stato = "chiusa"
     sessione = re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64] or "nessuna"
     f = cache_dir() / f"{sessione}.json"
     if dati.get("hook_event_name") == "SessionStart":
