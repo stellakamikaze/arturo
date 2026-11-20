@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — le guardie vedono git e gpatch anche attraverso un link
+
+**Cosa cambia**: un `git checkout`, `git restore` o `git reset --hard` che riscrive la config passando da
+un link verso `~/.claude` adesso chiede conferma. Lo stesso vale per `gpatch` e `chgrp`. Prima la guardia
+sapeva giudicarli, ma il filtro davanti a lei non la chiamava, perché nel comando non c'era scritto `.claude`.
+Il README e le note delle guardie dicono adesso il vero su cosa è protetto: tutta la cartella `bin/` e i
+due elenchi dei plugin.
+
+**Il principio**: il filtro che decide se una guardia parte non è mai più stretto della guardia.
+
+**A chi serve**: a tutti, senza fare niente. Un `git checkout main` nei tuoi progetti continua a non chiedere.
+
+---
+
 ## 2026-11-20 — ogni lavoro che torna ha la sua lista "Finito quando" e i suoi attrezzi
 
 **Cosa cambia**: `/creaskill` ti fa una quinta domanda: "come capisci che è venuto bene?". Le tue

@@ -161,7 +161,9 @@ PERCORSI_PROTETTI = (
     ("config", "albero-claude", "plugins/cache", "~/.claude/plugins/cache/arturo/hooks/x.py", False),
     ("config", "albero-claude", "plugins/marketplaces", "~/.claude/plugins/marketplaces/arturo/x", False),
     # L'aggiornamento automatico: la chiave dei rilasci e i due script che la verificano e installano.
-    # Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482).
+    # Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482). Dal #5262 la voce `bin` qui
+    # sotto copre anche i due script: le due righe restano perché nominano il motivo più grave e perché in
+    # protect_claude_md.py gli stessi due file sono `ancore`, che il .local della persona non apre (#5361, rilievo 9).
     ("config", "albero-claude", "firme", "~/.claude/firme/rilasci.pub", False),
     ("config", "file-claude", "bin/aggiornamenti.py", "~/.claude/bin/aggiornamenti.py", False),
     ("config", "file-claude", "bin/aggiorna-applica.sh", "~/.claude/bin/aggiorna-applica.sh", False),

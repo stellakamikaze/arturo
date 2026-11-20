@@ -56,6 +56,10 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    controllo saltato non è provato: il gate del rilascio gira su un Mac, dove resta solo il veleno di
    RT23, che vale solo su Windows (`salti=1`).
    Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
+   Un commit che insegna a una guardia un programma o un percorso nuovo aggiorna, nello stesso commit, il
+   `PATTERN_*` del dispatcher che la chiama, il docstring della guardia e la sua riga nel README. Il ritardo si
+   era ripetuto su due commit di fila (#5261 e #5262); GC08 e GC10 di `test_guardie_cieche_2026_11_11.py`
+   controllano la parte che si può controllare (#5361).
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
 3. **Prova su un clone pulito**: clona il repo in una cartella temporanea e verifica che i

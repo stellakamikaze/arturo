@@ -34,6 +34,9 @@ LETTORI = frozenset("cat tee grep rg jq sort head tail wc diff git cut tr uniq l
 # Interpreti che eseguono il corpo come codice loro, non come shell.
 INTERPRETI = frozenset("python python3 node ruby perl php".split())
 # Parole che stanno davanti al programma senza esserlo, e involucri che eseguono il comando dopo.
+# Di proposito più corta di forma_comando._DAVANTI: qui decide chi consuma un heredoc, e in
+# `done <<'EOF'` o `} <<'EOF'` il corpo va al ciclo o al gruppo intero, non a un lettore. Con `done`
+# e `}` nella lista il consumatore resta vuoto. Il banco GC09 controlla che resti un sottoinsieme (#5361).
 _DAVANTI = frozenset("! { then do else elif if while until time".split())
 _INVOLUCRI = frozenset("command builtin exec nohup nice env caffeinate".split())
 # Codice di un interprete che lancia programmi: quel corpo resta visibile.

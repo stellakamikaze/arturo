@@ -24,6 +24,11 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     installati, col plugin anche le guardie di Arturo)
     ~/.claude/firme/**, bin/aggiornamenti.py, bin/aggiorna-applica.sh (l'aggiornamento automatico:
     chi li cambia fa installare da solo codice non firmato)
+    ~/.claude/bin/** (gli hook eseguono telemetria.py, telemetria-esito.sh, correzioni.py: 11/11/2026, #5262)
+    ~/.claude/plugins/installed_plugins.json e plugins/known_marketplaces.json (dicono a Claude Code da
+    quale cartella caricare il codice di un plugin, guardie di Arturo comprese)
+    ~/.claude/arturo/rilasci.allowed_signers (l'ancora dei rilasci: fiducia.py verifica ogni aggiornamento
+    con questa chiave)
     ~/.claude/arturo/radice (col plugin, la barra in basso esegue il codice della cartella che nomina;
     lo scrive solo l'avvio, 4/11/2026, #4567)
     ~/.claude/arturo/*.local (le preferenze della persona, comprese quelle delle guardie: strati F1, #4531)
@@ -50,7 +55,8 @@ block-dangerous.py.
 ~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di sei categorie: i due
 CLAUDE.md, i settings della radice, la config, il resto di ~/.claude (dot-claude) e le cartelle .claude dei
 progetti (dot-claude-progetto). Persistenza,
-file di unlock, firme/, gli script dell'aggiornamento e i .local restano col default. Il vocabolario
+file di unlock, firme/, gli script dell'aggiornamento, il puntatore arturo/radice, i due elenchi dei plugin e
+i .local restano col default. Il resto di bin/ segue la categoria config, come hooks/. Il vocabolario
 sta accanto a _locale().
 
 Fail-closed: errore di parsing = blocca per sicurezza.

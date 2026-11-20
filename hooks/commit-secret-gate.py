@@ -184,8 +184,10 @@ def _expand(word: str, variables: dict):
     return _UNRESOLVED if "$" in expanded else expanded
 
 
-# Parole della shell che stanno davanti a un programma senza esserlo.
-_PAROLE_DAVANTI = frozenset("! { } then do else elif if while until time".split())
+# Parole della shell che stanno davanti a un programma senza esserlo. È la stessa lista di
+# forma_comando._DAVANTI, copiata qui perché il gate gira senza caricare forma_comando; il banco GC09
+# (tests/test_guardie_cieche_2026_11_11.py) controlla che le due restino uguali (#5361, rilievo 8).
+_PAROLE_DAVANTI = frozenset("! { } then do else elif if while until time fi done esac".split())
 
 
 def _segments(command: str):

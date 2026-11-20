@@ -15,8 +15,11 @@ GC04 scritture sulla config: glob, link, cd nelle sue forme, dd, archivi, patch,
 GC05 `bin` e l'elenco dei plugin sono protetti, dalla shell e da Write; ogni script di settings.json è in tabella.
 GC06 heredoc eseguiti per vie indirette restano visibili; quelli scritti e basta restano inerti.
 GC07 (15/11/2026, #5713 #5714) rsync verso un altro computer e un for su parole fisse non chiedono.
+GC08 (20/11/2026, #5361) il pre-filtro chiama la guardia su gpatch, chgrp e git checkout/restore/reset da un link.
+GC09 (#5361) le parole davanti al programma: gate dei commit uguale a forma_comando, heredoc.py più corta.
+GC10 (#5361) docstring di protect_claude_md.py e README nominano ogni percorso protetto della config.
 
-Sulla base b68e732 (GC07 sulla d0fcf5e, in BASI) ogni gruppo fallisce con un AssertionError che comincia col suo codice. Con --avvelena il
+Sulla base b68e732 (GC07 sulla d0fcf5e, GC08-GC10 sulla 2376c80, in BASI) ogni gruppo fallisce con un AssertionError che comincia col suo codice. Con --avvelena il
 banco lo prova da solo, come test_guardie_memoria_sblocco_2026_11_11.py, da cui prende il Banco.
 """
 from __future__ import annotations
@@ -266,10 +269,74 @@ def test_gc07(b: Banco):
     return verifica("GC07", casi)
 
 
+@gruppo
+def test_gc08(b: Banco):
+    """Il pre-filtro chiama block-dangerous su gpatch, chgrp e git checkout, restore e reset anche senza
+    `.claude` nel testo; il `cd` dentro ~/.claude chiede senza PATTERN_CD_CLAUDE (#5361, rilievi 1 e 3)."""
+    (b.claude / "settings.json").write_text("{}\n", encoding="utf-8")
+    progetto = b.home / "progetto"
+    casi = []
+    try:
+        os.symlink(b.claude, progetto / "lnk")
+    except (OSError, NotImplementedError):
+        print("GC08 (link): saltato, qui i link simbolici non si creano")
+    else:
+        chiede = [
+            ("checkout di un file dal link", "git -C lnk checkout HEAD~5 -- settings.json"),
+            ("restore dal link", "git -C lnk restore settings.json"),
+            ("reset --hard dal link", "git -C lnk reset --hard HEAD~5"),
+            ("gpatch sul link", "gpatch lnk/settings.json < /tmp/p.diff"),
+            ("chgrp sul link", "chgrp staff lnk/settings.json"),
+        ]
+        casi += [(nome, due(b, c, progetto), "ask/ask") for nome, c in chiede]
+    casi.append(("cd dentro ~/.claude", due(b, "cd ~/.claude && echo x > settings.json", progetto), "ask/ask"))
+    casi.append(("pushd dentro ~/.claude", due(b, "pushd ~/.claude/hooks; cp /tmp/x a.py", progetto), "ask/ask"))
+    tace = [
+        ("checkout in un progetto", "git checkout main"),
+        ("reset in un progetto", "git reset --hard HEAD~1"),
+        ("chgrp in un progetto", "chgrp staff scripts/run.sh"),
+        ("log che cita reset", "git log --oneline --grep reset"),
+    ]
+    casi += [(nome, due(b, c, progetto), "silent/silent") for nome, c in tace]
+    return verifica("GC08", casi)
+
+
+@gruppo
+def test_gc09(b: Banco):
+    """Le parole davanti al programma: il gate dei commit ha la lista di forma_comando, heredoc.py una più
+    corta di proposito (#5361, rilievo 8)."""
+    forma = b.modulo("forma_comando.py")
+    gate = b.modulo("commit-secret-gate.py")
+    hd = b.modulo("heredoc.py")
+    casi = [
+        ("gate uguale a forma_comando", sorted(gate._PAROLE_DAVANTI ^ forma._DAVANTI), []),
+        ("heredoc dentro forma_comando", sorted(hd._DAVANTI - forma._DAVANTI), []),
+        ("heredoc senza done e }", sorted(hd._DAVANTI & {"done", "}"}), []),
+    ]
+    return verifica("GC09", casi)
+
+
+@gruppo
+def test_gc10(b: Banco):
+    """Il docstring di protect_claude_md.py nomina ogni voce `config` di PERCORSI_PROTETTI, e la riga del README
+    nomina `bin/` e i due elenchi dei plugin (#5361, rilievi 4 e 5)."""
+    bd = b.modulo(BD)
+    doc = (b.modulo("protect_claude_md.py").__doc__ or "").replace("*", "")
+    voci = [v[2] for v in bd.PERCORSI_PROTETTI if v[0] == "config"]
+    casi = [(f"docstring nomina {v}", v.replace("*", "") in doc, True) for v in voci]
+    readme = b.hooks.parent / "README.md"
+    assert readme.is_file(), f"GC10 manca {readme}"
+    riga = next((r for r in readme.read_text(encoding="utf-8").splitlines()
+                 if r.startswith("- `protect_claude_md.py`")), "")
+    for pezzo in ("`bin/`", "plugins/installed_plugins.json", "plugins/known_marketplaces.json"):
+        casi.append((f"README nomina {pezzo}", pezzo in riga, True))
+    return verifica("GC10", casi)
+
+
 TESTS = {"GC01": test_gc01, "GC02": test_gc02, "GC03": test_gc03, "GC04": test_gc04, "GC05": test_gc05,
-         "GC06": test_gc06, "GC07": test_gc07}
+         "GC06": test_gc06, "GC07": test_gc07, "GC08": test_gc08, "GC09": test_gc09, "GC10": test_gc10}
 # La base del veleno per i gruppi nati dopo b68e732: le guardie del giorno prima della correzione.
-BASI = {"GC07": "d0fcf5e"}
+BASI = {"GC07": "d0fcf5e", "GC08": "2376c80", "GC09": "2376c80", "GC10": "2376c80"}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "forma_comando.py", "protect_claude_md.py", "heredoc.py",
            "commit-secret-gate.py")
 
@@ -287,6 +354,11 @@ def avvelena(repo: Path, ref: str, forzata: bool = False) -> int:
         try:
             shutil.copytree(repo / "hooks", copia / "hooks", ignore=shutil.ignore_patterns("__pycache__", "*.local"))
             shutil.copy2(repo / "settings.json", copia / "settings.json")
+            # Il README della base, per GC10 (#5361).
+            readme = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:README.md"], capture_output=True,
+                                    check=False)
+            if readme.returncode == 0:
+                (copia / "README.md").write_bytes(readme.stdout)
             for nome in GUARDIE:
                 vecchio = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:hooks/{nome}"], capture_output=True,
                                          check=False)
