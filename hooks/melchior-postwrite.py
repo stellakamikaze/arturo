@@ -3,17 +3,20 @@
 
 Intercetta Write/Edit/MultiEdit su ~/.claude/data/memory/*.md e:
 1. Auto-aggiorna campo `updated:` a oggi
-2. Valida frontmatter v2 (log WARN se campi mancanti non-critici)
-2b. Valida che il frontmatter sia YAML PARSABILE — un ': ' in uno scalare non
-   quotato o un '#' in una flow sequence lo rendono illeggibile a ogni tool che
-   usa PyYAML, senza che nulla se ne accorga (3 occorrenze fra il 18 e il 19/8).
+2. Confronta il frontmatter con lo schema di docs/memoria.md (name, description, type, anche
+   dentro `metadata:`) e logga i campi che mancano. Non blocca niente.
+2b. Valida che il frontmatter sia YAML PARSABILE con melchior_match.problemi_frontmatter, l'unico
+   controllo della forma — un ': ' in uno scalare non quotato o un '#' in una flow sequence lo
+   rendono illeggibile a ogni tool che usa PyYAML (3 occorrenze fra il 18 e il 19/8/2026).
    L'hook e' asincrono: exit 2 e stderr non arrivano a Claude. Il motivo va in
    additionalContext (JSON su stdout), che arriva al turno dopo (review 7/11/2026).
 3. Scrive audit entry in ~/.claude/data/memory/.melchior-log.jsonl
 4. Smista nella cartella giusta una nota NUOVA scritta nella radice della memoria
-   (Write, non Edit), secondo il prefisso del nome (SMISTAMENTO). L'auto-memory
-   nativa di Claude Code scrive nella radice: il 19/10/2026 c'erano 22 note sciolte.
-   Prefisso sconosciuto o destinazione già occupata: la nota resta dov'è e si logga.
+   (Write, non Edit), secondo il suo `type` (melchior_match.cartella_nuova: user in profilo/,
+   feedback in feedback/, project in progetti/, reference in reference/). Un prefisso del nome
+   della memoria di chi mantiene Arturo (`errore-`, `persona-`, ...) vale prima del type.
+   L'auto-memory nativa di Claude Code scrive nella radice: il 19/10/2026 c'erano 22 note sciolte.
+   Né type né prefisso, o destinazione già occupata: la nota resta dov'è e si logga.
    Claude riceve il percorso nuovo, o l'invito a fondere le due note omonime.
 
 Agisce SOLO dentro ~/.claude/data/memory (percorso reale). Le note delle altre radici di
@@ -44,34 +47,22 @@ except ImportError:
 
 MEMORY_DIR = radice_orsa() / "data" / "memory"
 LOG_FILE = MEMORY_DIR / ".melchior-log.jsonl"
-V2_CORE = {"name", "description", "type", "entity_type", "updated"}
-V2_FULL = V2_CORE | {"answers", "triggers", "sources"}
+FACOLTATIVI = ("alias", "cartella", "triggers")
 TODAY = date.today().isoformat()
-# prefisso del nome file -> cartella (il primo che combacia vince)
-SMISTAMENTO = (
-    ("errore-", "errori"),
-    ("feedback-", "feedback"),
-    ("reference-", "reference"),
-    ("progetto-", "progetti"),
-    ("persona-", "persone"),
-    ("pattern-", "pattern"),
-    ("sistema-", "sistemi"),
-    ("incidente-", "sistemi"),
-)
 
 
-def smista_nota_radice(path: Path, tool_name: str) -> dict | None:
-    """Sposta una nota appena creata nella radice della memoria nella cartella del
-    suo prefisso. Ritorna l'evento da loggare, None se non c'è niente da fare."""
+def smista_nota_radice(path: Path, tool_name: str, fm: dict | None) -> dict | None:
+    """Sposta una nota appena creata nella radice della memoria nella cartella del suo type
+    (o del suo prefisso). Ritorna l'evento da loggare, None se non c'è niente da fare."""
     try:
-        if tool_name != "Write" or path.parent.resolve() != MEMORY_DIR.resolve():
+        if _mm is None or tool_name != "Write" or path.parent.resolve() != MEMORY_DIR.resolve():
             return None
         if path.name in ("MEMORY.md", "index.md") or path.name.startswith(("_", ".")):
             return None
-        cartella = next((c for pref, c in SMISTAMENTO if path.name.startswith(pref)), None)
+        cartella = _mm.cartella_nuova(path.name, fm)
         if cartella is None:
             return {"action": "melchior-smistamento-saltato", "file": path.name,
-                    "motivo": "prefisso senza cartella"}
+                    "motivo": "né type né prefisso dicono la cartella"}
         dest = MEMORY_DIR / cartella / path.name
         if dest.exists():
             return {"action": "melchior-smistamento-saltato", "file": path.name,
@@ -165,47 +156,13 @@ def ensure_created_field(text: str) -> tuple[str, bool]:
 
 
 def frontmatter_parse_error(text: str) -> str | None:
-    """None se il frontmatter e' YAML valido, altrimenti il motivo in una riga.
-
-    Il parser interno di questo hook e' regex riga-per-riga: legge i campi ma NON
-    si accorge se il blocco e' YAML invalido. Chi legge le note dopo (/system-audit memoria,
-    autoload, qualunque script con PyYAML) invece non le vede affatto. Quindi qui
-    si valida davvero: PyYAML se c'e', altrimenti i due pattern noti che rompono.
-    """
-    m = re.match(r"^(---[ \t]*\n)(.*?)(\n---[ \t]*\n?)", text, re.DOTALL)
-    if not m:
-        return None  # nessun frontmatter: non e' il caso di questo check
-    raw = m.group(2)
-    try:
-        import yaml  # presente sul Mac; se manca si cade sull'euristica
-    except Exception:
-        yaml = None
-    if yaml is not None:
-        try:
-            loaded = yaml.safe_load(raw)
-        except Exception as e:
-            first = str(e).split("\n")[0].strip()
-            return f"YAML non parsabile: {first}"
-        if not isinstance(loaded, dict):
-            return "il frontmatter non e' una mappa YAML"
+    """None se il frontmatter si legge come YAML, altrimenti il primo motivo grave in una riga.
+    Il controllo è uno solo, melchior_match.problemi_frontmatter: lo stesso di
+    `arturo memoria controlla`. Chi legge le note con PyYAML non vede una nota rotta."""
+    if _mm is None:
         return None
-    # --- fallback stdlib: i due pattern misurati in errore-comune-yaml-frontmatter-flow-sequence
-    for i, line in enumerate(raw.split("\n"), 2):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        mk = re.match(r"^\s*(?:-\s+)?([a-zA-Z_]\w*):\s*(.*)$", line)
-        value = mk.group(2) if mk else (stripped[2:] if stripped.startswith("- ") else None)
-        if value is None:
-            continue
-        v = value.strip()
-        if v.startswith("[") and not v.endswith("]"):
-            return f"riga {i}: flow sequence aperta e non chiusa"
-        if v.startswith("[") and "#" in v:
-            return f"riga {i}: '#' dentro una flow sequence commenta il resto della riga"
-        if v and v[0] not in "\"'[{|>" and ": " in v:
-            return f"riga {i}: ': ' in uno scalare non quotato -> YAML lo legge come mappa"
-    return None
+    gravi = [motivo for grave, motivo in _mm.problemi_frontmatter(text) if grave]
+    return gravi[0] if gravi else None
 
 
 def main() -> int:
@@ -262,13 +219,16 @@ def main() -> int:
         })
         avvisi.append(
             f"[melchior] il frontmatter di {path.name} non è YAML valido: {parse_err}. La nota è scritta, "
-            f"ma /system-audit memoria la segna come YAML rotto. Quota lo scalare (o chiudi la flow sequence) "
-            f"e riscrivila."
+            f"ma chi legge il frontmatter come YAML non la vede. Metti lo scalare fra virgolette "
+            f"(o chiudi la lista fra quadre) e riscrivila."
         )
 
-    fm, _, _ = parse_frontmatter(new_text)
-    missing_core = sorted(V2_CORE - set((fm or {}).keys()))
-    missing_optional = sorted((V2_FULL - V2_CORE) - set((fm or {}).keys()))
+    fm = _mm.frontmatter(new_text)[0] if _mm is not None else None
+    if _mm is not None:
+        missing_core = [k for k in _mm.CAMPI_RICHIESTI if not _mm.campo(fm, k)]
+        missing_optional = [k for k in FACOLTATIVI if not _mm.campo(fm, k)]
+    else:
+        missing_core, missing_optional = [], []
 
     if actions or missing_core or missing_optional:
         log_event({
@@ -281,7 +241,7 @@ def main() -> int:
             "action": "melchior-auto-postwrite",
         })
 
-    smistata = smista_nota_radice(path, tool_name)
+    smistata = smista_nota_radice(path, tool_name, fm)
     if smistata:
         log_event({"ts": TODAY, "tool": tool_name, **smistata})
         avviso = avviso_smistamento(path, smistata)

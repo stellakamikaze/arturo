@@ -4,10 +4,12 @@
 handoff delle sessioni, memoria. Ogni fonte arriva da un **ponte**. Questa pagina dice quali ponti
 ha Arturo, come aggiungerne uno tuo e cosa un ponte non deve mai fare.
 
-Stato: primo avvio (3/11/2026). Esistono la scoperta dei ponti (`bin/monitor/ponti.py`), la scelta
-delle fonti al primo avvio della skill `monitor` (`bin/monitor/fonti.py`), lo schema delle righe
-(`bin/monitor/schema.md`, validato da `righe.py`), il fingerprint e i cursori per fonte. Il giro
-quotidiano, che legge le fonti scelte e scrive il report, arriva con la fase successiva.
+Stato: giro quotidiano (20/11/2026). Esistono la scoperta dei ponti (`bin/monitor/ponti.py`), la
+scelta delle fonti al primo avvio della skill `monitor` (`bin/monitor/fonti.py`), lo schema delle righe
+(`bin/monitor/schema.md`, validato da `righe.py`), il fingerprint e i cursori per fonte, e il giro
+quotidiano (`bin/monitor/giro.py`): legge le fonti scelte, toglie i doppioni coi todo che ha già
+creato, crea da solo solo i todo dei mittenti che hai accolto, e avanza i cursori delle fonti lette per
+intero. La posta e il calendario li legge l'agente `monitor-lettore`, che ha solo strumenti di lettura.
 
 ## Cosa vede /monitor oggi
 
@@ -41,6 +43,10 @@ non li toccano. Si dichiarano in `ponti.json`:
 
 - `comando` e `prova` sono liste: niente shell. `~` vale la tua cartella home.
 - `prova` è facoltativa: esce con 0 se il ponte risponde. Non deve stampare segreti.
+- Il giro lancia `comando` con la finestra nell'ambiente: `MONITOR_GIORNI` (i giorni da leggere) e
+  `MONITOR_DAL` (`AAAA-MM-GG`). Ha cinque minuti; oltre, la fonte vale "non letta".
+- Le righe portano come `fonte` il nome del ponte. Una riga a nome di un'altra fonte si scarta, e la
+  copertura del ponte diventa troncata: un ponte non parla a nome di un altro.
 - Il programma consegna righe JSON nello schema di /monitor (`bin/monitor/schema.md`): una riga
   per cosa da fare, più una riga di copertura che dice quanto ha letto. Un ponte che non risponde dà "non letta" e le altre
   fonti vanno avanti.

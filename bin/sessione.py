@@ -36,7 +36,8 @@ AIUTO = """arturo sessione: una finestra nuova del terminale con Claude già par
   --titolo-atteso=TESTO                  con --todo: si ferma se il todo ha un altro titolo
   --stampa                               scrive il comando senza aprire niente
 
-Lo usa il pannello /dafare (tasto o)."""
+Lo usa il pannello /dafare (tasto o). Sul Mac apre la finestra in iTerm2 se il comando parte da iTerm2,
+altrimenti in Terminale; ARTURO_TERMINALE=iterm oppure ARTURO_TERMINALE=terminal sceglie a mano."""
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 # Caratteri che cmd di Windows legge anche dentro le virgolette, e le virgolette stesse: dal titolo
@@ -69,7 +70,7 @@ def todo_dalla_fonte(esterna: list, numero: str, titolo: str | None) -> tuple:
         r = subprocess.run([*esterna, "mostra", str(numero), "--json"], capture_output=True, timeout=30,
                            env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     except (OSError, subprocess.SubprocessError) as e:
-        return None, f"la fonte dei task di fonte-task.local non risponde ({e})"
+        return None, f"la fonte dei task di {ts.nome_fonte()} non risponde ({e})"
     if r.returncode != 0:
         prima = next((x.strip() for x in r.stderr.decode("utf-8", "replace").splitlines() if x.strip()), "")
         return None, f"la fonte dei task non trova il todo #{numero}" + (f": {prima}" if prima else "")
@@ -91,12 +92,29 @@ def cartella() -> Path:
     return base if base.is_dir() else Path.home()
 
 
+def terminale_mac(env=None) -> str:
+    """Il terminale del Mac in cui aprire la sessione: "iterm" o "terminal". Vale ARTURO_TERMINALE, se c'è;
+    altrimenti il terminale da cui parte il comando (TERM_PROGRAM=iTerm.app dentro iTerm2). Segnalazione n. 80."""
+    env = os.environ if env is None else env
+    scelta = str(env.get("ARTURO_TERMINALE") or "").strip().lower()
+    if scelta in ("iterm", "iterm2", "iterm.app"):
+        return "iterm"
+    if scelta in ("terminal", "terminale", "terminal.app"):
+        return "terminal"
+    return "iterm" if env.get("TERM_PROGRAM") == "iTerm.app" else "terminal"
+
+
 def comando(sis: str, dove: Path, prompt: str) -> tuple:
     """(argv da lanciare, riga da scrivere a mano). argv vuoto: nessun terminale trovato."""
     a_mano = f"cd {shlex.quote(str(dove))} && claude {shlex.quote(prompt)}"
     if sis == "darwin":
-        script = ["on run argv", 'tell application "Terminal"', "do script (item 1 of argv)", "activate",
-                  "end tell", "end run"]
+        if terminale_mac() == "iterm":
+            script = ["on run argv", 'tell application "iTerm"', "activate",
+                      "set finestra to (create window with default profile)",
+                      "tell current session of finestra to write text (item 1 of argv)", "end tell", "end run"]
+        else:
+            script = ["on run argv", 'tell application "Terminal"', "do script (item 1 of argv)", "activate",
+                      "end tell", "end run"]
         argv = ["osascript"]
         for riga in script:
             argv += ["-e", riga]

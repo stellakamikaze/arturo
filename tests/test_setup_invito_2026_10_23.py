@@ -10,6 +10,9 @@ SI02 col segno data/setup-fatto la riga non torna, nemmeno il giorno dopo.
 SI03 un'installazione nata prima del 16/10 non la riceve: poteva aver finito /setup senza segno.
 SI04 (1/11/2026) con session-env/setup-fase la riga dice "ultima fase finita: N", per ripartire da lì.
      Entra solo un numero di fase valido: un testo qualunque nel file non arriva nel contesto.
+SI05 (12/11/2026, #5266) col plugin, senza data/arturo-impostazioni.lock, la riga SETUP propone /setup e dice
+     che un plugin non porta permessi e regole di blocco; una volta al giorno. Prima col plugin non usciva mai.
+SI06 col plugin e il file di blocco (o setup-fatto) la riga non esce: le impostazioni ci sono già.
 
 Sulla base f4ae0aa ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -98,7 +101,54 @@ def test_si04(repo: Path) -> None:
         f"SI04 un testo qualunque in setup-fase arriva nella riga SETUP: {estraneo!r}"
 
 
-TESTS = {"SI01": test_si01, "SI02": test_si02, "SI03": test_si03, "SI04": test_si04}
+def plugin(repo: Path, radice: Path) -> tuple:
+    """Una HOME con ~/.claude senza git e il codice di Arturo in una cartella di plugin a parte."""
+    home = radice / "home"
+    (home / ".claude").mkdir(parents=True)
+    codice = radice / "plugin"
+    codice.mkdir()
+    for voce in repo.iterdir():
+        if voce.name not in (".git", "data", "session-env", ".claude-plugin"):
+            link(codice / voce.name, voce, cartella=voce.is_dir())
+    (codice / ".claude-plugin").mkdir()
+    (codice / ".claude-plugin" / "plugin.json").write_text('{"name": "arturo", "version": "0.0.0"}', encoding="utf-8")
+    return home, codice
+
+
+def avvio_plugin(home: Path, codice: Path, radice: Path) -> list:
+    env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ["PATH"], "ARTURO_BANCHI_AVVIO": "0",
+           "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice)}
+    p = subprocess.run(["bash", str(codice / "hooks" / "session-start.sh")], input="{}", env=env,
+                       cwd=radice, capture_output=True, text=True, timeout=60)
+    return [r for r in p.stdout.splitlines() if r.startswith("SETUP:")]
+
+
+def test_si05(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        radice = Path(t)
+        home, codice = plugin(repo, radice)
+        prima = avvio_plugin(home, codice, radice)
+        assert len(prima) == 1 and "/setup" in prima[0] and "plugin" in prima[0], \
+            f"SI05 col plugin senza impostazioni l'avvio non propone /setup: {prima!r}"
+        seconda = avvio_plugin(home, codice, radice)
+        assert seconda == [], f"SI05 col plugin l'invito torna nello stesso giorno: {seconda!r}"
+
+
+def test_si06(repo: Path) -> None:
+    for segno in ("arturo-impostazioni.lock", "setup-fatto"):
+        with tempfile.TemporaryDirectory() as t:
+            radice = Path(t)
+            home, codice = plugin(repo, radice)
+            assert avvio_plugin(home, codice, radice), "SI06 col plugin senza impostazioni l'avvio non propone /setup"
+            (home / ".claude" / "data").mkdir(exist_ok=True)
+            (home / ".claude" / "data" / segno).write_text("{}\n", encoding="utf-8")
+            (home / ".claude" / "session-env" / "setup-invito").write_text("2026-01-01\n", encoding="utf-8")
+            dopo = avvio_plugin(home, codice, radice)
+            assert dopo == [], f"SI06 col plugin e data/{segno} l'invito esce ancora: {dopo!r}"
+
+
+TESTS = {"SI01": test_si01, "SI02": test_si02, "SI03": test_si03, "SI04": test_si04, "SI05": test_si05,
+         "SI06": test_si06}
 
 
 def main() -> int:

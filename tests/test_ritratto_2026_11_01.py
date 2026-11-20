@@ -47,6 +47,10 @@ Dalla review del 7/11/2026 (lotto L8):
 RT25 (finding 101) maschera() toglie pw, passphrase, chiave del wifi e cvv, il numero dopo pin e pass anche
      con una parola in mezzo ("Pin bancomat 4821"), e l'IBAN in minuscolo.
 
+Dalla segnalazione n. 84 (16/11/2026):
+RT26 cartelle propone Dropbox in ~/Library/CloudStorage e iCloud Drive, e scan le legge, anche via il link
+     ~/Dropbox come base dei progetti; il resto di ~/Library resta rifiutato.
+
 Con --avvelena il banco lancia ritratto.py senza esclusioni e vuole RT01 rosso col motivo ".env in uscita".
 Poi, per RT16-RT23, rompe una copia di bin/ritratto.py nel punto corretto e vuole il caso rosso col
 suo motivo (VELENI).
@@ -783,11 +787,55 @@ def caso_rt25(b: Banco) -> None:
     assert usciti[4].startswith("Nome utente: mario  Pin bancomat ["), f"RT25 la parola dopo pin sparisce: {usciti[4]!r}"
 
 
+def caso_rt26(b: Banco) -> None:
+    """Segnalazione 84: Dropbox e iCloud Drive sotto ~/Library sono proposte e lette, anche via ~/Dropbox."""
+    home = b.radice / "rt26" / "home"
+    shutil.copytree(b.home / ".claude" / "bin", home / ".claude" / "bin")
+    shutil.copytree(b.home / ".claude" / "hooks", home / ".claude" / "hooks")
+    libreria = home / "Library"
+    dropbox = libreria / "CloudStorage" / "Dropbox"
+    icloud = libreria / "Mobile Documents" / "com~apple~CloudDocs"
+    _scrivi(dropbox / "lavoro" / "brief.md", "MARCATORE-RT26-DROPBOX il brief del cliente\n")
+    _scrivi(icloud / "idee.md", "MARCATORE-RT26-ICLOUD le idee del mese\n")
+    _scrivi(libreria / "Preferences" / "nota.md", "MARCATORE-RT26-LIBRARY\n")
+    _scrivi(libreria / "Mobile Documents" / "altra~app" / "nota.md", "MARCATORE-RT26-APP\n")
+    env = dict(b.env(), HOME=str(home), USERPROFILE=str(home), PROJECTS_BASE=str(home / "Progetti"))
+
+    def corri(*argomenti: str) -> tuple:
+        p = subprocess.run([sys.executable, "-B", str(home / ".claude" / "bin" / "ritratto.py"), *argomenti], env=env,
+                           cwd=str(b.temp), capture_output=True, timeout=120, check=False)
+        return p.returncode, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
+
+    def stampate(out: str) -> set:
+        return {os.path.normcase(os.path.normpath(r)) for r in out.splitlines() if r.strip()}
+    rc, out, err = corri("cartelle")
+    attese = {os.path.normcase(str(dropbox)), os.path.normcase(str(icloud))}
+    assert rc == 0 and stampate(out) == attese, \
+        f"RT26 cartelle cloud non proposte: codice {rc}, stampate {sorted(b.anonimo(p) for p in stampate(out))} " \
+        f"{err[-200:]!r}"
+    rc, out, err = corri("scan", "--radici", str(dropbox), str(icloud))
+    assert rc == 0 and "MARCATORE-RT26-DROPBOX" in out and "MARCATORE-RT26-ICLOUD" in out, \
+        f"RT26 scan delle cartelle cloud: codice {rc} {out[-300:]!r} {err[-200:]!r}"
+    for chiusa in (libreria, libreria / "CloudStorage", libreria / "Mobile Documents" / "altra~app"):
+        rc, out, _ = corri("scan", "--radici", str(chiusa))
+        assert rc == 2 and "radice rifiutata" in out and "MARCATORE" not in out, \
+            f"RT26 il resto di Library si apre: {b.anonimo(str(chiusa))} codice {rc}"
+    # ~/Dropbox è un link alla cartella vera sotto Library: vale come base dei progetti.
+    link(home / "Dropbox", dropbox, cartella=True)
+    env["PROJECTS_BASE"] = str(home / "Dropbox")
+    rc, out, err = corri("cartelle")
+    assert rc == 0 and os.path.normcase(str(home / "Dropbox")) in stampate(out), \
+        f"RT26 cartelle cloud non proposte via ~/Dropbox: codice {rc} {b.anonimo(out)!r} {err[-200:]!r}"
+    rc, out, err = corri("scan", "--radici", str(home / "Dropbox"))
+    assert rc == 0 and "MARCATORE-RT26-DROPBOX" in out, \
+        f"RT26 scan di ~/Dropbox: codice {rc} {out[-300:]!r} {err[-200:]!r}"
+
+
 CASI = [("RT01", caso_rt01), ("RT02", caso_rt02), ("RT03", caso_rt03), ("RT04", caso_rt04), ("RT05", caso_rt05),
         ("RT06", caso_rt06), ("RT07", caso_rt07), ("RT08", caso_rt08), ("RT09", caso_rt09), ("RT10", caso_rt10),
         ("RT11", caso_rt11), ("RT14", caso_rt14), ("RT15", caso_rt15), ("RT16", caso_rt16), ("RT17", caso_rt17),
         ("RT18", caso_rt18), ("RT19", caso_rt19), ("RT20", caso_rt20), ("RT21", caso_rt21), ("RT22", caso_rt22),
-        ("RT23", caso_rt23), ("RT24", caso_rt24), ("RT25", caso_rt25)]
+        ("RT23", caso_rt23), ("RT24", caso_rt24), ("RT25", caso_rt25), ("RT26", caso_rt26)]
 if os.name == "nt":
     CASI += [("RT12", caso_rt12), ("RT13", caso_rt13)]
 
@@ -828,6 +876,7 @@ VELENI = (
              "                                      os.path.realpath(str(claude)))", "(p, str(home), str(claude))",
      "link verso ~/.claude", False),
     ("RT23", '        print(p.replace(os.sep, "/"))\n', "        print(p)\n", "barre rovesciate", True),
+    ("RT26", "        if dentro:\n            parti = _senza_cloud(parti)\n", "", "cartelle cloud non proposte", False),
 )
 
 

@@ -134,6 +134,7 @@ def _senza_heredoc(command: str) -> str:
                           or (h.consumatore == "git" and h.quotato))
 
 
+_COMMIT_NEL_CORPO = re.compile(r"\bgit\b[^\n]*\bcommit\b|\bcommit\b[^\n]*-[am]\b", re.IGNORECASE)
 _MKTEMP = re.compile(r"^\$\(\s*mktemp\b[^()`$;|&]*\)$")
 _NUOVA = "<cartella nuova di mktemp>"
 # Nel commit in una cartella di mktemp: i soli programmi di cui si sa cosa portano nella cartella.
@@ -226,7 +227,15 @@ def _repo_for_command(command: str, cwd: str):
     try:
         segments = list(_segments(_senza_heredoc(command)))
     except ValueError:
-        return None
+        # Un apostrofo nel corpo di un heredoc quotato (`cat >> $F <<'EOF'` con "d'importo", il body di
+        # `gh pr create --body-file -`) rompe shlex, e il gate chiedeva "repository non risolvibile" su comandi
+        # senza commit (20/11/2026). Si riprova senza i corpi quotati che non contengono un git … commit:
+        # togliendoli non si perde nessun commit. Un corpo con un commit dentro lascia la conferma.
+        try:
+            segments = list(_segments(_togli_heredoc(
+                command, lambda h: h.quotato and not _COMMIT_NEL_CORPO.search("\n".join(h.corpo)))))
+        except ValueError:
+            return None
     nuove = {nome for nome, valore in re.findall(r"(?<![\w$])([A-Za-z_]\w*)=\"?(\$\(\s*mktemp\b[^()`$;|&]*\))",
                                                  command) if _mktemp_nuova(valore)}
     pila = []
@@ -712,7 +721,9 @@ def main() -> int:
 
     added = "\n".join(
         ln[1:] for ln in out.splitlines()
-        if ln.startswith("+") and not ln.startswith("+++")
+        # Solo l'intestazione del file è `+++ b/…` o `+++ /dev/null`: una riga del file che comincia con `++`
+        # diventa `+++…` nel diff, e scartarla nascondeva la chiave (review del 10/11/2026, problema 12).
+        if ln.startswith("+") and not re.match(r"^\+\+\+ (?:b/|/dev/null|\"b/)", ln)
     )
     if add_prima:
         # Un file scritto nello stesso comando prima di `git add` non esiste ancora quando la guardia legge il

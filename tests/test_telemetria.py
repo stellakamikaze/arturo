@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M20, M26-M28: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M20, M26-M29: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -10,6 +10,11 @@ segnalazione che parte si porta dietro quelle in attesa (27/10/2026).
 
 M28 (review del 7/11/2026, finding 89): una segnalazione rifiutata dal server (400 o 413) diventa .rifiutata.json e
 non ferma quella dopo; un lotto di eventi rifiutato esce dalla coda.
+
+M29 (18/11/2026, #6090): prima della risposta alla domanda della FASE 0 di /setup non parte niente. Gli eventi
+restano in coda, il sì (accendi) li manda, il no (spegni) li cancella; le segnalazioni in attesa partono come prima.
+Le installazioni di prima (setup finito o a metà, una scelta di accendi o spegni, un clone nato prima del 16/10)
+continuano a mandare, e si riconoscono una volta sola.
 
 M26 e M27 (review del 7/11/2026, finding 43 e 47): un invio alla volta, senza eventi doppi né persi; lo sportello parte
 dalla segnalazione più nuova, si ferma al 429 e salta per qualche giorno quelle che il server non ha più.
@@ -59,13 +64,21 @@ class Server:
         atexit.register(self.http.shutdown)
 
 
+# Il sì alla domanda di /setup (FASE 0), come lo scrive `arturo telemetria accendi`: senza, la coda non parte (M29).
+SI = {"risposta": "2026-11-18 accendi"}
+
+
 class Lab:
-    def __init__(self, repo: Path, server: Server | None = None, **env):
+    def __init__(self, repo: Path, server: Server | None = None, risposta: bool = True, **env):
         self.repo = repo
         self.dir = Path(tempfile.mkdtemp(prefix="arturo-m."))
         atexit.register(shutil.rmtree, self.dir, True)
         self.home = self.dir / "home"
         (self.home / ".claude").mkdir(parents=True)
+        # I casi provano un'installazione che ha già risposto sì in /setup; M29 prova quella che non ha risposto.
+        if risposta:
+            (self.home / ".claude" / "session-env").mkdir()
+            (self.home / ".claude" / "session-env" / "telemetria.json").write_text(json.dumps(SI), encoding="utf-8")
         # Gli hook leggono ~/.claude: bin, hooks e commands del repo, come in un'installazione vera.
         for nome in ("bin", "hooks", "commands"):
             try:
@@ -247,7 +260,7 @@ def test_m08(repo: Path) -> None:
 
 # Gli eventi che il client non manda più e il server accetta ancora, per non rifiutare i lotti dei
 # client non aggiornati. In coda all'elenco del server; si tolgono da qui e da logica.js insieme.
-EVENTI_VECCHI = ["tappa"]  # tolta dal client il 16/10/2026
+EVENTI_VECCHI: list = []  # tappa tolta anche dal server il 18/11/2026 (#3435)
 
 
 def test_m09(repo: Path) -> None:
@@ -291,9 +304,8 @@ def test_m11(repo: Path) -> None:
     # Una config rotta spegne le guardie: parte all'avvio, senza aspettare le 6 ore dell'ultimo invio.
     srv = Server()
     lab = Lab(repo, srv)
-    (lab.home / ".claude" / "session-env").mkdir(parents=True)
     (lab.home / ".claude" / "session-env" / "telemetria.json").write_text(
-        json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
+        json.dumps(dict(SI, avviso="2026-10-14", ultimo_tentativo=int(time.time()))), encoding="utf-8")
     (lab.home / ".claude" / "settings.json").write_text("{ rotto", encoding="utf-8")
     lab.hook("session-start.sh")
     # L'invio parte in background: su Windows arriva anche dopo più di 5 secondi (gate del 17/10/2026,
@@ -377,9 +389,8 @@ def test_m13(repo: Path) -> None:
 def test_m14(repo: Path) -> None:
     # Chi ha letto la promessa vecchia legge la nuova una volta; chi ha letto la nuova non la rilegge.
     lab = Lab(repo)
-    (lab.home / ".claude" / "session-env").mkdir(parents=True)
     (lab.home / ".claude" / "session-env" / "telemetria.json").write_text(
-        json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
+        json.dumps(dict(SI, avviso="2026-10-14", ultimo_tentativo=int(time.time()))), encoding="utf-8")
     primo = lab.hook("session-start.sh").stdout
     assert "TELEMETRIA:" in primo and "cambiato" in primo and "tappe" not in primo, \
         f"M14 la promessa nuova non arriva a chi ha letto la vecchia: {primo[-400:]}"
@@ -498,8 +509,7 @@ def test_m20(repo: Path) -> None:
     srv = Server()
     lab = Lab(repo, srv)
     stato = lab.home / ".claude" / "session-env" / "telemetria.json"
-    stato.parent.mkdir(parents=True)
-    stato.write_text(json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
+    stato.write_text(json.dumps(dict(SI, avviso="2026-10-14", ultimo_tentativo=int(time.time()))), encoding="utf-8")
     attesa = lab.home / ".claude" / "data" / "segnalazioni"
     attesa.mkdir(parents=True)
     vecchia = {"tipo": "proposta", "titolo": "[proposta] fine più corto", "testo": "Il testo di /fine è lungo."}
@@ -605,11 +615,99 @@ def test_m28(repo: Path) -> None:
         assert lotto.coda() == [], f"M28 un lotto rifiutato con {rifiuto} resta in coda: {lotto.coda()}"
 
 
+def _eventi_partiti(srv: Server) -> list:
+    return [(e["evento"], e["valore"]) for p, d in srv.richieste if p == "/v1/eventi" for e in d["eventi"]]
+
+
+def _aspetta_eventi(srv: Server, secondi: float) -> list:
+    """L'invio dell'avvio parte in background: aspetta il primo lotto, al massimo `secondi`."""
+    fine = time.monotonic() + secondi
+    while time.monotonic() < fine and not _eventi_partiti(srv):
+        time.sleep(0.1)
+    return _eventi_partiti(srv)
+
+
+def _clone(lab: Lab, nata: str | None = None) -> None:
+    """~/.claude come repository git, col reflog nato oggi o nel giorno `nata` (come test_setup_invito)."""
+    env = dict(lab.env, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+    if nata:
+        env["GIT_COMMITTER_DATE"] = env["GIT_AUTHOR_DATE"] = f"{nata}T10:00:00"
+    claude = str(lab.home / ".claude")
+    subprocess.run(["git", "init", "-q", claude], check=True, env=env, capture_output=True)
+    subprocess.run(["git", "-C", claude, "commit", "-q", "--allow-empty", "-m", "clone"], check=True, env=env,
+                   capture_output=True)
+
+
+def test_m29(repo: Path) -> None:
+    # 18/11/2026 (#6090): l'avvio mandava la coda già alla prima sessione dopo l'installazione, prima che la
+    # FASE 0 di /setup chiedesse se va bene. Finché non c'è la risposta non parte niente: gli eventi restano
+    # in coda, il sì (accendi) li manda, il no (spegni) li cancella senza mandarli.
+    srv = Server()
+    nuova = Lab(repo, srv, risposta=False)
+    nuova.arturo("telemetria", "avvio")
+    nuova.arturo("telemetria", "registra", "setup", "fase:0")
+    assert _aspetta_eventi(srv, 4) == [], f"M29 l'avvio manda la coda prima della risposta di /setup: {_eventi_partiti(srv)}"
+    # Nemmeno il tentativo: l'avvio non lancia l'invio degli eventi (il freno di _invia è il secondo).
+    assert "ultimo_tentativo" not in nuova.stato(), f"M29 l'avvio lancia l'invio prima della risposta: {nuova.stato()}"
+    r = nuova.arturo("telemetria", "invia")
+    assert _eventi_partiti(srv) == [] and "Eventi partiti: 0" in r.stdout and "/setup" in r.stdout, \
+        f"M29 invia manda la coda prima della risposta di /setup: {r.stdout!r} {_eventi_partiti(srv)}"
+    assert [e["evento"] for e in nuova.coda()] == ["sessione", "setup"], f"M29 prima della risposta la coda si perde: {nuova.coda()}"
+    assert "/setup" in nuova.arturo("telemetria", "stato").stdout, "M29 stato non dice che aspetta la risposta di /setup"
+    # Una segnalazione in attesa segue le sue regole: parte anche prima della risposta.
+    attesa = nuova.home / ".claude" / "data" / "segnalazioni"
+    attesa.mkdir(parents=True)
+    (attesa / "2026-11-18_090000_problema.attesa.json").write_text(
+        json.dumps({"tipo": "problema", "titolo": "[problema] prova", "testo": "testo"}), encoding="utf-8")
+    nuova.arturo("telemetria", "invia")
+    assert any(p == "/v1/segnalazioni" for p, _d in srv.richieste) and _eventi_partiti(srv) == [], \
+        f"M29 prima della risposta la segnalazione in attesa non parte, o partono gli eventi: {srv.richieste}"
+    # Il sì: partono anche gli eventi di prima della risposta.
+    nuova.arturo("telemetria", "accendi")
+    nuova.arturo("telemetria", "invia")
+    assert ("sessione", "clone") in _eventi_partiti(srv) and ("setup", "fase:0") in _eventi_partiti(srv) \
+        and nuova.coda() == [], f"M29 dopo il sì la coda non parte: {_eventi_partiti(srv)} {nuova.coda()}"
+    # Il no: la coda si cancella senza partire.
+    srv.richieste.clear()
+    no = Lab(repo, srv, risposta=False)
+    no.arturo("telemetria", "avvio")
+    no.arturo("telemetria", "spegni")
+    no.arturo("telemetria", "invia")
+    assert no.coda() == [] and _eventi_partiti(srv) == [], f"M29 dopo il no qualcosa parte o resta: {no.coda()} {srv.richieste}"
+    # Le installazioni di prima, che hanno già avuto la domanda, continuano a mandare: setup finito, setup a metà,
+    # una scelta di accendi o spegni, un clone nato prima del 16/10/2026, quando il segno di setup non c'era.
+    for nome, prepara in (
+            ("data/setup-fatto", lambda lab: ((lab.home / ".claude" / "data").mkdir(),
+                                              (lab.home / ".claude" / "data" / "setup-fatto").write_text("2026-11-02\n"))),
+            ("session-env/setup-fase", lambda lab: ((lab.home / ".claude" / "session-env").mkdir(),
+                                                    (lab.home / ".claude" / "session-env" / "setup-fase").write_text("3\n"))),
+            ("accendi di prima", lambda lab: ((lab.home / ".claude" / "session-env").mkdir(),
+                                              (lab.home / ".claude" / "session-env" / "telemetria.json").write_text(
+                                                  json.dumps({"spenta": False, "avviso": "2026-10-14"})))),
+            ("clone del 12/10", lambda lab: _clone(lab, "2026-10-12"))):
+        srv.richieste.clear()
+        vecchia = Lab(repo, srv, risposta=False)
+        prepara(vecchia)
+        vecchia.arturo("telemetria", "avvio")
+        assert ("sessione", "clone") in _aspetta_eventi(srv, 30), \
+            f"M29 un'installazione di prima ({nome}) smette di mandare: {_eventi_partiti(srv)} {vecchia.stato()}"
+    # Il riconoscimento vale una volta sola: il reflog di un clone nuovo che scade non lo fa diventare di prima.
+    srv.richieste.clear()
+    recente = Lab(repo, srv, risposta=False)
+    _clone(recente)
+    recente.arturo("telemetria", "avvio")
+    subprocess.run(["git", "-C", str(recente.home / ".claude"), "reflog", "expire", "--expire=now", "--all"],
+                   check=True, capture_output=True)
+    recente.arturo("telemetria", "invia")
+    assert _eventi_partiti(srv) == [] and len(recente.coda()) == 1, \
+        f"M29 un clone nuovo col reflog scaduto manda senza risposta: {_eventi_partiti(srv)} {recente.coda()}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
          "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19, "M20": test_m20,
-         "M26": test_m26, "M27": test_m27, "M28": test_m28}
+         "M26": test_m26, "M27": test_m27, "M28": test_m28, "M29": test_m29}
 
 
 def main() -> int:

@@ -6,9 +6,8 @@ description: >-
 when_to_use: >-
   Usa quando la persona dice "ricordami di…", "segnati che…", "mettilo tra le cose da fare",
   "cosa c'è da fare?", "cosa scade questa settimana?", o chiede di chiudere, spostare o fermare
-  un todo. Usa anche quando la persona chiede di vedere i todo in una pagina del browser. NON per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
-  alla chiusura). Segui tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa
-  description.
+  un todo. Usa anche quando la persona chiede di vedere i todo in una pagina del browser. Non per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
+  alla chiusura).
 version: 1.0.0
 license: MIT
 ---

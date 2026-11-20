@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+"""salva-automatico.py: l'handoff minimo di una sessione chiusa senza /fine (M4 del piano della memoria, 15/11/2026).
+
+Lo lancia hooks/session-end.sh alla chiusura, in background e senza modello, col JSON dell'hook su stdin
+(session_id, transcript_path, cwd, reason). Se la sessione non ha fatto /fine, legge il transcript e scrive
+in ~/.claude/data/handoffs/<slug>/ un handoff col nome solito (HANDOFF_<AAAA-MM-GG>_<HH-MM>.md) e la riga
+"- Salvato: in automatico". Il nome solito serve: /inizio, la retention e l'indice lo contano come un handoff
+normale, e il primo /fine vero lo riscrive al posto suo (commands/fine.md, FASE 4).
+
+Cosa entra: le ultime richieste della persona, i file scritti (come inventario-sessione.py), il lavoro aperto
+della sessione (TodoWrite, TaskCreate e TaskUpdate), branch e ultimo commit. Una richiesta con un possibile
+segreto o una frase da injection non entra: lo dice lo scanner della memoria (hooks/memory-write-scanner.py).
+La tabella Task Pendenti dice "Nessun task pendente nuovo": il gate dell'handoff resta verde, e i todo veri
+restano nell'archivio.
+
+Non scrive niente quando:
+  - la sessione ha già il suo handoff di /fine (la riga "- Sessione: <id>" in un handoff non automatico);
+  - il transcript non ha né una richiesta scritta dalla persona né un file scritto;
+  - la sessione è headless (claude -p: entrypoint sdk-*);
+  - la memoria è spenta (ARTURO_MEMORIA=0 o "accesa": false nelle impostazioni);
+  - la cartella non è un progetto (né git né CLAUDE.md), o è la home o la cartella dei progetti, senza un
+    /inizio <nome> nella sessione che porti a un progetto con handoff.
+Un secondo giro della stessa sessione riscrive il suo handoff automatico: nessun doppione.
+
+USO
+  salva-automatico.py < json-dell-hook
+  Solo per i banchi: --projects DIR (dove cercare il transcript se il JSON non lo dice).
+
+USCITA
+  una riga: "SALVATO: <percorso>" oppure "NIENTE: <motivo>". Exit 0 sempre, salvo uso sbagliato (2).
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import glob
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+QUI = Path(os.path.realpath(__file__)).parent
+sys.path.insert(0, str(QUI))
+sys.path.append(str(QUI.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
+
+MARCA = "- Salvato: in automatico"
+MAX_RICHIESTE = 5
+MAX_RICHIESTA = 240
+MAX_FILE = 30
+# I comandi che non dicono cosa stavi facendo.
+COMANDI_MUTI = {"/clear", "/fine", "/exit", "/quit", "/compact", "/resume", "/model", "/config", "/status",
+                "/cost", "/help", "/login", "/logout", "/doctor", "/memory", "/permissions", "/context"}
+TAG_VIA = re.compile(r"<(system-reminder|local-command-caveat|local-command-stdout|local-command-stderr|"
+                     r"task-notification|bash-stdout|bash-stderr)>.*?</\1>", re.S)
+
+
+def carica(nome: str, percorso: Path):
+    try:
+        spec = importlib.util.spec_from_file_location(nome, str(percorso))
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo
+    except Exception:  # noqa: BLE001 - senza il modulo la parte che ne dipende salta
+        return None
+
+
+def slug(nome: str) -> str:
+    """Lo stesso slug di /inizio, /fine e arturo todo (bin/contesto.py)."""
+    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower()))
+
+
+def git(cartella: Path, *argomenti: str) -> str:
+    try:
+        r = subprocess.run(["git", "-c", "core.fsmonitor=false", "-C", str(cartella), *argomenti],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
+                           env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def base_progetti() -> Path:
+    pb = os.environ.get("PROJECTS_BASE") or str(Path.home() / "Documents" / "ClaudeCode")
+    return Path(os.path.expanduser(pb))
+
+
+def cartella_progetto(cwd: Path) -> Path | None:
+    """La cartella del progetto: la cima di git, e per un worktree il repository che lo ospita (lo slug di
+    .claude/worktrees/<nome> sarebbe il nome del worktree, non del progetto)."""
+    comune = git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if comune:
+        p = Path(comune)
+        if p.name == ".git":
+            return p.parent
+        cima = git(cwd, "rev-parse", "--show-toplevel")
+        return Path(cima) if cima else None
+    if (cwd / "CLAUDE.md").is_file():
+        return cwd
+    return None
+
+
+# --- lettura del transcript ----------------------------------------------------------------------------
+
+def righe(path: Path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for riga in f:
+                try:
+                    r = json.loads(riga)
+                except ValueError:
+                    continue
+                if isinstance(r, dict):
+                    yield r
+    except OSError:
+        return
+
+
+def testo_utente(r: dict) -> str:
+    """Il testo scritto dalla persona in un record, o "" per tool_result, iniezioni e messaggi meta."""
+    if r.get("type") != "user" or r.get("isMeta") or r.get("toolUseResult") is not None:
+        return ""
+    m = r.get("message")
+    if not isinstance(m, dict):
+        return ""
+    c = m.get("content")
+    if isinstance(c, list):
+        if any(isinstance(x, dict) and x.get("type") == "tool_result" for x in c):
+            return ""
+        c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text")
+    if not isinstance(c, str):
+        return ""
+    comando = re.search(r"<command-name>\s*(/?[\w:.-]+)\s*</command-name>", c)
+    if comando:
+        nome = "/" + comando.group(1).lstrip("/")
+        if nome in COMANDI_MUTI:
+            return ""
+        arg = re.search(r"<command-args>(.*?)</command-args>", c, re.S)
+        return f"{nome} {arg.group(1).strip() if arg else ''}".strip()
+    c = TAG_VIA.sub("", c).strip()
+    if not c or c.startswith("[Request interrupted") or c.startswith("<"):
+        return ""
+    return c
+
+
+def leggi_transcript(path: Path) -> dict:
+    richieste, todo, task, attesi, headless, sid = [], {}, {}, {}, False, ""
+    for r in righe(path):
+        if str(r.get("entrypoint", "")).startswith("sdk"):
+            headless = True
+        sid = sid or str(r.get("sessionId") or "")
+        t = testo_utente(r)
+        if t:
+            richieste.append(t)
+        m = r.get("message")
+        if not isinstance(m, dict) or not isinstance(m.get("content"), list):
+            continue
+        for c in m["content"]:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") == "tool_use":
+                nome, inp = c.get("name", ""), c.get("input") or {}
+                if nome == "TodoWrite" and isinstance(inp.get("todos"), list):
+                    todo = {str(i): (str(x.get("content") or ""), str(x.get("status") or ""))
+                            for i, x in enumerate(inp["todos"]) if isinstance(x, dict)}
+                elif nome == "TaskCreate":
+                    attesi[c.get("id")] = str(inp.get("subject") or inp.get("description") or "")
+                elif nome == "TaskUpdate" and inp.get("taskId") is not None:
+                    tid = str(inp["taskId"]).lstrip("#")
+                    if tid in task and inp.get("status"):
+                        task[tid] = (task[tid][0], str(inp["status"]))
+            elif c.get("type") == "tool_result" and c.get("tool_use_id") in attesi:
+                titolo = attesi.pop(c["tool_use_id"])
+                cont = c.get("content")
+                testo = cont if isinstance(cont, str) else " ".join(
+                    x.get("text", "") for x in cont or [] if isinstance(x, dict))
+                n = re.search(r"#(\d+)", testo or "")
+                if n and titolo:
+                    task[n.group(1)] = (titolo, "pending")
+    aperti = [f"{t} ({s.replace('_', ' ')})" for t, s in list(todo.values()) + list(task.values())
+              if t and s not in ("completed", "deleted")]
+    return {"richieste": richieste, "aperti": aperti, "headless": headless, "sid": sid}
+
+
+def file_scritti(sid: str, projects: str, home: str) -> list:
+    """I file della sessione, con lo stesso inventario di /fine (bin/inventario-sessione.py)."""
+    inv = carica("inventario_sessione", QUI / "inventario-sessione.py")
+    if inv is None:
+        return []
+    try:
+        dati = inv.raccogli(sid, projects, home)
+    except Exception:  # noqa: BLE001 - un inventario che si rompe non ferma il salvataggio
+        return []
+    out = []
+    for f in (dati or {}).get("file", []):
+        stato = f.get("git") or ("fuori da git" if not f.get("repo") else "")
+        out.append(f"{f['path']}" + (f" ({stato})" if stato else ""))
+    return out
+
+
+# --- handoff -----------------------------------------------------------------------------------------------
+
+def handoff_della_sessione(sid: str) -> Path | None:
+    radice = radice_orsa() / "data" / "handoffs"
+    riga = f"- Sessione: {sid}"
+    for p in sorted(radice.glob("*/HANDOFF_*.md"), reverse=True):
+        try:
+            if riga in p.read_text(encoding="utf-8", errors="replace").splitlines():
+                return p
+        except OSError:
+            continue
+    return None
+
+
+def sicura(testo: str, scanner) -> str:
+    una = " ".join(testo.split())
+    if scanner is not None:
+        try:
+            if scanner.trova(una):
+                return "(richiesta non copiata: lo scanner della memoria vi ha trovato un possibile segreto o un'istruzione nascosta)"
+        except Exception:  # noqa: BLE001
+            pass
+    return una if len(una) <= MAX_RICHIESTA else una[:MAX_RICHIESTA - 1].rstrip() + "…"
+
+
+def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richieste: list, file: list,
+            aperti: list) -> str:
+    branch = git(cartella, "rev-parse", "--abbrev-ref", "HEAD") if cartella else ""
+    commit = git(cartella, "log", "-1", "--format=%h - %s") if cartella else ""
+    testa = [f"# Session Handoff - {quando:%Y-%m-%d %H:%M}", "## Progetto",
+             f"- Nome: {s}" + (f" / Branch: {branch}" if branch else "") + " / Status: salvato in automatico",
+             f"- Sessione: {sid}", MARCA]
+    if commit:
+        testa.append(f"- Ultimo commit: {commit}")
+    ultima = richieste[-1] if richieste else ""
+    corpo = ("La sessione si è chiusa senza /fine. Arturo ha salvato da solo cosa stavi facendo, senza "
+             "giudicare: niente decisioni, niente todo nuovi.")
+    if ultima:
+        corpo += f" L'ultima richiesta: \"{ultima}\"."
+    if file:
+        corpo += f" File scritti: {len(file)}."
+    out = testa + ["## Ripartenza", corpo,
+                   "Prossimo passo: riprendere da qui e chiudere con /fine, che completa questo salvataggio."]
+    if richieste:
+        out += ["## Ultime richieste"] + [f"{n}. {r}" for n, r in enumerate(richieste, 1)]
+    if file:
+        out += ["## File e materiali"] + [f"- {f}" for f in file[:MAX_FILE]]
+        if len(file) > MAX_FILE:
+            out.append(f"- … e altri {len(file) - MAX_FILE} file")
+    if aperti:
+        out += ["## Lavoro aperto nella sessione"] + [f"- {a}" for a in aperti]
+    out += ["## Task Pendenti",
+            "Nessun task pendente nuovo: il salvataggio automatico non crea todo. I todo aperti restano "
+            "nell'archivio, e il prossimo /fine li riporta qui."]
+    return "\n".join(out) + "\n"
+
+
+def scrivi(percorso: Path, testo: str) -> None:
+    percorso.parent.mkdir(parents=True, exist_ok=True)
+    tmp = percorso.with_name(f".{percorso.name}.tmp-{os.getpid()}")
+    tmp.write_text(testo, encoding="utf-8")
+    os.replace(str(tmp), str(percorso))
+
+
+def nome_libero(cartella: Path, quando: dt.datetime) -> Path:
+    for minuti in range(10):
+        p = cartella / f"HANDOFF_{quando + dt.timedelta(minutes=minuti):%Y-%m-%d_%H-%M}.md"
+        if not p.exists():
+            return p
+    return cartella / f"HANDOFF_{quando + dt.timedelta(minutes=10):%Y-%m-%d_%H-%M}.md"
+
+
+def slug_del_progetto(cartella: Path) -> str:
+    """Lo slug della scheda del progetto se una scheda vale per questa cartella (nome, `alias:` o `cartella:`),
+    altrimenti il nome della cartella. Fino al 18/11/2026 valeva sempre il nome della cartella: una cartella
+    rinominata o diversa dal progetto apriva una seconda cartella di handoff accanto a quella di /fine."""
+    nome = slug(cartella.name)
+    try:
+        import melchior_match as mm
+        scheda = mm.trova_scheda(nome) if mm.memoria_accesa() else None
+    except Exception:  # noqa: BLE001 - una memoria rotta non ferma il salvataggio
+        scheda = None
+    if scheda is not None and scheda.stem.startswith("progetto-") and slug(scheda.stem[len("progetto-"):]):
+        return slug(scheda.stem[len("progetto-"):])
+    return nome
+
+
+def scegli_progetto(cwd: Path, richieste: list) -> tuple:
+    """(slug, cartella) o ("", None)."""
+    home = Path.home().resolve()
+    pb = base_progetti()
+    contenitore = cwd in (home, pb.resolve() if pb.exists() else pb)
+    cartella = None if contenitore else cartella_progetto(cwd)
+    if cartella and cartella.resolve() != home:
+        return slug_del_progetto(cartella), cartella
+    # Dalla home o dalla cartella dei progetti vale l'ultimo /inizio <nome> che porta a un progetto noto.
+    for r in reversed(richieste):
+        m = re.match(r"^/(?:[\w-]+:)?inizio\s+([^\s]+)", r)
+        if m and slug(m.group(1)) and (radice_orsa() / "data" / "handoffs" / slug(m.group(1))).is_dir():
+            return slug(m.group(1)), None
+    return "", None
+
+
+def main(argv: list) -> int:
+    for flusso in (sys.stdout, sys.stderr):
+        try:
+            flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--projects", default=str(radice_orsa() / "projects"))
+    parser.add_argument("-h", "--help", action="store_true")
+    a, resto = parser.parse_known_args(argv)
+    if a.help:
+        print(__doc__.strip())
+        return 0
+    if resto:
+        print(f"salva-automatico: argomento sconosciuto: {resto[0]}", file=sys.stderr)
+        return 2
+    try:
+        dati = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        dati = {}
+    if not isinstance(dati, dict):
+        dati = {}
+
+    mm = carica("melchior_match", QUI.parent / "hooks" / "melchior_match.py")
+    if mm is not None and hasattr(mm, "memoria_accesa") and not mm.memoria_accesa():
+        print("NIENTE: memoria spenta")
+        return 0
+    sid = str(dati.get("session_id") or "")
+    transcript = Path(str(dati.get("transcript_path") or ""))
+    if sid and not transcript.is_file():
+        trovati = sorted(glob.glob(os.path.join(a.projects, "*", f"{sid}.jsonl")))
+        transcript = Path(trovati[0]) if trovati else transcript
+    if not sid or not transcript.is_file():
+        print("NIENTE: id di sessione o transcript assente")
+        return 0
+    gia = handoff_della_sessione(sid)
+    if gia is not None and MARCA not in gia.read_text(encoding="utf-8", errors="replace").splitlines():
+        print(f"NIENTE: la sessione ha chiuso con /fine ({gia.name})")
+        return 0
+
+    letto = leggi_transcript(transcript)
+    if letto["headless"]:
+        print("NIENTE: sessione headless")
+        return 0
+    cwd = Path(str(dati.get("cwd") or os.getcwd())).expanduser()
+    try:
+        cwd = cwd.resolve()
+    except OSError:
+        pass
+    s, cartella = scegli_progetto(cwd, letto["richieste"])
+    if not s:
+        print("NIENTE: la sessione non sta in un progetto")
+        return 0
+    progetti = str(transcript.parent.parent)
+    file = file_scritti(sid, progetti, str(Path.home()))
+    richieste_vere = [r for r in letto["richieste"] if not re.match(r"^/(?:[\w-]+:)?inizio(\s|$)", r)]
+    if not richieste_vere and not file:
+        print("NIENTE: transcript senza richieste e senza file scritti")
+        return 0
+
+    scanner = carica("memory_write_scanner", QUI.parent / "hooks" / "memory-write-scanner.py")
+    richieste = [sicura(r, scanner) for r in letto["richieste"][-MAX_RICHIESTE:]]
+    adesso = dt.datetime.now().replace(second=0, microsecond=0)
+    cartella_h = radice_orsa() / "data" / "handoffs" / s
+    percorso = gia if gia is not None else nome_libero(cartella_h, adesso)
+    scrivi(percorso, componi(s, cartella, sid, adesso, richieste, file, letto["aperti"]))
+    if gia is None:  # M7 della memoria: un evento per sessione salvata, non uno per giro della stessa
+        telemetria = carica("telemetria", QUI / "telemetria.py")
+        if telemetria is not None and hasattr(telemetria, "registra"):
+            telemetria.registra("salvataggio", "automatico")
+    print(f"SALVATO: {percorso}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

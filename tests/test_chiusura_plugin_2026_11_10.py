@@ -39,6 +39,9 @@ PC23 col plugin disattivato e la cartella della copia di prima sparita, la barra
 PC24 un catalogo che non si scarica non rinnova l'ultimo controllo riuscito: dopo 7 giorni l'avvio lo dice, e
      un controllo riuscito toglie l'avviso;
 PC25 la barra dice "riapri Claude Code" solo alla sessione rimasta sulla copia di prima.
+Dal 14/11/2026 (#5610):
+PC26 un'installazione riuscita alla chiusura manda l'evento aggiorna "automatico", una volta per versione; un
+     rilascio che non si scarica manda "non-partito": prima col plugin non partiva nessuno dei due.
 
 Rilasci, catalogo, chiavi e CLI finta sono quelli di test_fiducia_2026_11_05.py: niente rete, niente CLI vera.
 Sulla base 62786fd sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -56,7 +59,7 @@ import time
 from pathlib import Path
 
 CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13",
-        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25"]
+        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "PC26"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -574,7 +577,36 @@ def caso_pc25(repo, tmp, chiavi) -> list:
     return []
 
 
-GRUPPI = [(("PC24",), caso_pc24), (("PC25",), caso_pc25), (("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
+def _spia_telemetria(s) -> Path:
+    """Una telemetria finta nell'Orsa: _segnala_ostacolo la cerca lì prima che accanto a sé, e qui annota gli eventi."""
+    (s.orsa / "bin").mkdir(exist_ok=True)
+    annotati = s.orsa / "eventi-annotati.txt"
+    (s.orsa / "bin" / "telemetria.py").write_text(
+        "import sys\n"
+        f"open({str(annotati)!r}, 'a', encoding='utf-8').write(' '.join(sys.argv[1:]) + '\\n')\n", encoding="utf-8")
+    return annotati
+
+
+def caso_pc26(repo, tmp, chiavi) -> list:
+    rossi = []
+    s = Scena(repo, tmp / "pc26", chiavi)
+    annotati = _spia_telemetria(s)
+    s.agg("applica")
+    s.agg("applica")
+    riuscita = annotati.read_text(encoding="utf-8").splitlines() if annotati.exists() else []
+    if riuscita != ["registra aggiorna automatico"]:
+        rossi.append(f"PC26 installazione riuscita alla chiusura: eventi {riuscita}, esito {leggi(s.file_esito)}")
+    f = Scena(repo, tmp / "pc26b", chiavi, pubblica=False)
+    annotati = _spia_telemetria(f)
+    f.agg("controlla", "--subito")
+    f.agg("applica")
+    ferma = annotati.read_text(encoding="utf-8").splitlines() if annotati.exists() else []
+    if ferma != ["registra aggiorna non-partito"]:
+        rossi.append(f"PC26 rilascio che non si scarica: eventi {ferma}, esito {leggi(f.file_esito)}")
+    return rossi
+
+
+GRUPPI = [(("PC26",), caso_pc26), (("PC24",), caso_pc24), (("PC25",), caso_pc25), (("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
           (("PC06",), caso_pc06), (("PC07",), caso_pc07), (("PC08",), caso_pc08), (("PC09",), caso_pc09),
           (("PC10",), caso_pc10), (("PC11",), caso_pc11), (("PC12",), caso_pc12), (("PC13",), caso_pc13),
           (("PC14",), caso_pc14), (("PC15",), caso_pc15), (("PC16",), caso_pc16), (("PC17",), caso_pc17),
@@ -648,6 +680,8 @@ VELENI = [
     ("PC24", AGG, 'and time.time() - riuscito > SENZA_CONTROLLO:', 'and False:'),
     ("PC25", "hooks/statusline.js", "  const riapri = daRiaprire(sessione);", "  const riapri = '';"),
     ("PC25", AGG, '        (cartella / sessione).write_text(in_uso, encoding="utf-8")', '        pass'),
+    ("PC26", AGG, '        _segnala_ostacolo(r, {"versione": versione}, "automatico")\n', ''),
+    ("PC26", AGG, '        _segnala_ostacolo(r, {"versione": versione}, "non-partito")\n', '        pass\n'),
 ]
 
 

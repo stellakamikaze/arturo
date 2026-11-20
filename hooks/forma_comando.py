@@ -338,7 +338,9 @@ _DAVANTI = frozenset("! { } then do else elif if while until time fi done esac".
 _INTESTAZIONI = frozenset("for case select".split())
 # Wrapper che eseguono il comando che segue; le loro opzioni si saltano. timeout ha anche la durata
 # (`timeout 30 rm`, `timeout -s KILL 5s cat .env`: review del 7/11/2026, finding 2).
-_WRAPPER = frozenset("command builtin exec nohup nice env sudo doas caffeinate timeout".split())
+# Su Windows `wsl` lancia nel Linux il comando che segue, anche dopo -e, --exec o `--` (`wsl rm -rf ~/x`:
+# revisione del 10/11/2026, HK-5).
+_WRAPPER = frozenset("command builtin exec nohup nice env sudo doas caffeinate timeout wsl".split())
 _TIMEOUT_CON_VALORE = frozenset(("-s", "--signal", "-k", "--kill-after"))
 # Le opzioni dei wrapper che prendono un valore: lettere corte e forme lunghe col valore staccato. Senza,
 # `sudo -u root rm` dava il programma `root` e `env -u X gh` dava `X` (review del 9/11/2026, #5097).
@@ -350,6 +352,7 @@ _WRAPPER_CON_VALORE = {
     "exec": ("a", frozenset()),
     "nice": ("n", frozenset(("--adjustment",))),
     "timeout": ("sk", _TIMEOUT_CON_VALORE),
+    "wsl": ("du", frozenset(("--distribution", "--user", "--cd", "--shell-type"))),
 }
 # Programmi che lanciano il comando scritto nei loro argomenti: find con -exec e i lanciatori di pacchetti.
 # Il programma esterno resta nell'elenco, e quello dentro si aggiunge (#5097).
@@ -1070,7 +1073,8 @@ def script_claude_non_tracciati(cmd: str, cwd: str):
 # La shell riscriveva settings, hook e skill senza conferma. Dal 18/10/2026 una scrittura
 # su questi path chiede, ma conta solo la DESTINAZIONE: il falso positivo di prima era un
 # `cp` che leggeva settings.json e scriveva altrove.
-CONFIG_DIR = frozenset(("hooks", "mods", "scripts", "skills", "agents", "commands", "output-styles"))
+# pm: il motore dei task e /dafare, spostati lì il 29/10/2026 (#4177, 20/11/2026).
+CONFIG_DIR = frozenset(("hooks", "mods", "scripts", "skills", "agents", "commands", "output-styles", "pm"))
 CONFIG_FILE = frozenset(("CLAUDE.md", "INSTANCE.md"))
 _SETTINGS = re.compile(r"^settings[^/]*\.json$")
 # ditto scrive l'ultimo argomento come cp. Il contenuto che ci mette dentro lo conta
@@ -1084,7 +1088,7 @@ _SCRITTURA_INLINE = re.compile(
 _MENZIONE = re.compile(
     r"(?:~|\$HOME|\$\{HOME\}|/Users/[^/\s\x27\x22]+)/\.claude/[\w./-]+"
     r"|(?<![\w/.~-])(?:settings[\w.-]*\.json|CLAUDE\.md|INSTANCE\.md"
-    r"|(?:hooks|mods|scripts|skills|agents|commands|output-styles)/[\w./-]+)")
+    r"|(?:hooks|mods|scripts|skills|agents|commands|output-styles|pm)/[\w./-]+)")
 
 
 def _codice_inline(cmd: str, progs):

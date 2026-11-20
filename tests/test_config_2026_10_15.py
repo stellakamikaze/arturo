@@ -27,6 +27,8 @@ K15 i deny coprono le chiavi in ~/.ssh e non config o known_hosts, git -c solo n
     quando lancia rm; git branch -D e git stash drop passano alla guardia (31/10/2026).
 K16 autoMode del 31/10/2026: le regole sul lavoro proprio, le voci dell'ambiente senza doppioni degli
     slot di serie, $defaults in testa a ogni lista, e /setup che scrive le macchine della persona.
+K17 la cartella pm (motore dei task) conta come config: rm, mv e scritture su ~/.claude/pm sono
+    scritture sulla config, e un file sotto data/ no (20/11/2026, #4177).
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -419,9 +421,42 @@ def test_k16(repo: Path) -> None:
         "K16 /setup non scrive le macchine della persona in autoMode.environment"
 
 
+def test_k17(repo: Path) -> None:
+    # 20/11/2026, #4177: dal 29/10 il motore dei task sta in ~/.claude/pm, e rm e mv su
+    # pm/tasks/tasks.py non contavano come scritture sulla config. pm conta come le altre cartelle.
+    # La regola la usano protect_claude_md.py e il dispatcher della config dell'autore.
+    sonda = (
+        "import json, os, sys\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "import forma_comando as fc\n"
+        "h = os.path.expanduser('~/.claude')\n"
+        "comandi = ['rm ~/.claude/pm/tasks/tasks.py', 'mv ~/.claude/pm/tasks/tasks.py /tmp/t.py',\n"
+        "           'rm -rf ~/.claude/pm', 'echo x > ~/.claude/pm/tasks/tasks.py', 'rm pm/tasks/tasks.py',\n"
+        "           'cat ~/.claude/pm/tasks/tasks.py', 'rm ~/.claude/data/pm/x']\n"
+        "print(json.dumps({'config': fc.e_config(os.path.join(h, 'pm', 'tasks', 'tasks.py')),\n"
+        "                  'dati': fc.e_config(os.path.join(h, 'data', 'pm', 'x')),\n"
+        "                  'scritture': {c: bool(fc.scritture_config(c, h)) for c in comandi}}))\n")
+    with tempfile.TemporaryDirectory() as d:
+        home = Path(d) / "home"
+        (home / ".claude" / "pm" / "tasks").mkdir(parents=True)
+        (home / ".claude" / "pm" / "tasks" / "tasks.py").write_text("print('ok')\n", encoding="utf-8")
+        proc = subprocess.run([sys.executable, "-B", "-c", sonda, str(repo / "hooks")], text=True,
+                              capture_output=True, env=env_di(home), timeout=30, check=False)
+        assert proc.returncode == 0, f"K17 la sonda di forma_comando non gira: {proc.stderr[-400:]}"
+        esito = json.loads(proc.stdout)
+    assert esito["config"], "K17 ~/.claude/pm/tasks/tasks.py non conta come config"
+    assert not esito["dati"], "K17 un file sotto data/ conta come config"
+    s = esito["scritture"]
+    for comando in ("rm ~/.claude/pm/tasks/tasks.py", "mv ~/.claude/pm/tasks/tasks.py /tmp/t.py",
+                    "rm -rf ~/.claude/pm", "echo x > ~/.claude/pm/tasks/tasks.py", "rm pm/tasks/tasks.py"):
+        assert s[comando], f"K17 la scrittura sulla cartella pm non conta come config: {comando!r}"
+    for comando in ("cat ~/.claude/pm/tasks/tasks.py", "rm ~/.claude/data/pm/x"):
+        assert not s[comando], f"K17 conta come scrittura sulla config: {comando!r}"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
          "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12,
-         "K13": test_k13, "K14": test_k14, "K15": test_k15, "K16": test_k16}
+         "K13": test_k13, "K14": test_k14, "K15": test_k15, "K16": test_k16, "K17": test_k17}
 
 
 def main() -> int:

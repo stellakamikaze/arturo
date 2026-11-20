@@ -43,6 +43,17 @@ export TMPDIR="$LAVORO"
 
 rossi=""
 n=0
+# Una config che non porta i banchi di Arturo (il plugin non li installa, una config personale ha il suo tests/)
+# non ha niente da provare qui: l'esito è SALTATO, non ROSSO, e non parte telemetria (20/11/2026: ROSSO a ogni
+# avvio su una config senza i banchi). Se ne manca solo una parte resta ROSSO, come voleva il finding 92.
+presenti=0
+for banco in $BANCHI; do
+  [ -f "$COPIA/tests/$banco" ] && presenti=$((presenti + 1))
+done
+if [ "$presenti" -eq 0 ]; then
+  printf 'SALTATO\nnessun banco delle guardie in questa installazione (%s)\n' "$(date '+%Y-%m-%d %H:%M')" > "$ESITO"
+  exit 0
+fi
 for banco in $BANCHI; do
   n=$((n + 1))
   # Un banco dell'elenco che manca nella copia è rosso col suo nome: saltato, il controllo delle guardie si

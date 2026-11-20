@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
-import { settimanale, giornaliero, pulizia, gestisci, testoUso } from "./logica.js";
+import { recapSettimana } from "./recap.js";
+import { settimanale, giornaliero, pulizia, gestisci, testoUso, testoMigliorare } from "./logica.js";
 
 function d1(sql = readFileSync(new URL("./schema.sql", import.meta.url), "utf8")) {
   const db = new DatabaseSync(":memory:");
@@ -192,6 +193,21 @@ const casi = {
     assert.equal(await a.ultimoAvviso("indietro:carl0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");
     assert.deepEqual((await a.miglioramento("2026-10-23")).indietro, fuori, "Q13 il riepilogo non porta chi è indietro");
   },
+  // Perché un'installazione è ferma (14/11/2026, #5610): l'ultimo esito dell'aggiornamento e la forma, plugin o clone.
+  async Q23() {
+    const a = await con([
+      ["2026-10-18", "anna0000", "sessione", "plugin", "v2026-10-19.3"], ["2026-10-22", "anna0000", "sessione", "plugin", "v2026-10-22.2"],
+      ["2026-10-19", "carl0000", "sessione", "clone", "v2026-10-19.2"], ["2026-10-20", "carl0000", "aggiorna", "rinviato", "v2026-10-19.2"],
+      ["2026-10-21", "carl0000", "aggiorna", "bloccato-modifiche", "v2026-10-19.2"],
+      ["2026-10-23", "carl0000", "sessione", "", "v2026-10-19.2"],
+      ["2026-10-19", "dora0000", "sessione", "", "v2026-10-19.2"], ["2026-10-23", "dora0000", "sessione", "", "v2026-10-19.2"],
+    ]);
+    const fuori = await a.indietro("2026-10-23");
+    assert.deepEqual(fuori.map((x) => [x.installazione, x.esito, x.forma]),
+      [["carl0000", "bloccato-modifiche", "clone"], ["dora0000", "", ""]], "Q23 l'installazione ferma non dice esito e forma");
+    const testo = [].concat(testoMigliorare(await a.miglioramento("2026-10-23"))).join("\n");
+    assert.ok(testo.includes("clone, ultimo esito bloccato-modifiche"), `Q23 il riepilogo non dice perché è ferma: ${testo}`);
+  },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   async Q06() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);
@@ -312,33 +328,45 @@ const casi = {
     ], "QB1 i banchi rossi del riepilogo");
     assert.deepEqual((await a.riepilogo("2026-10-01", "2026-10-10")).banchi, [], "QB1 un banco fuori finestra entra nel riepilogo");
   },
-  // Lancillotto (25/10/2026): la tabella nasce dal Worker, il riepilogo conta installazioni, la pulizia regge
-  // anche su un database dove la tabella non c'era ancora.
+  // Q25 (20/11/2026, #4793): dimentica cancella eventi, segnalazioni e contatori con l'id, e lascia quelli degli altri.
+  async Q25() {
+    const db = d1();
+    const a = archivio(db);
+    const io = "aaaaaaaa-1111", altro = "bbbbbbbb-2222";
+    await a.scriviEventi([{ giorno: AL, installazione: io, versione: "v1", sistema: "Darwin", evento: "sessione", valore: "" },
+      { giorno: AL, installazione: io, versione: "v1", sistema: "Darwin", evento: "comando", valore: "fine" },
+      { giorno: AL, installazione: altro, versione: "v1", sistema: "Darwin", evento: "sessione", valore: "" }], `${AL}T10:00:00Z`);
+    const s = (installazione) => ({ tipo: "problema", titolo: "t", testo: "x", versione: "v1", sistema: "Darwin", installazione });
+    await a.salvaSegnalazione(s(altro), `${AL}T10:00:00Z`);
+    const mia = await a.salvaSegnalazione(s(io), `${AL}T10:00:00Z`);
+    await a.primaVolta("sempre", `setup-fine:${io}`);
+    await a.primaVolta(AL, `rotta:${io}`);
+    await a.primaVolta("sempre", `setup-fine:${altro}`);
+    await a.incrementa(AL, "eventi", 3);
+    assert.deepEqual(await a.dimentica(io), { eventi: 2, segnalazioni: [mia] }, "Q25 dimentica non conta i dati dell'id");
+    const conta = async (sql, ...v) => (await db.prepare(sql).bind(...v).first()).n;
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ?", io), 0, "Q25 restano eventi");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM segnalazioni WHERE installazione = ?", io), 0, "Q25 restano segnalazioni");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM contatori WHERE chiave LIKE ?", `%${io}`), 0, "Q25 restano contatori con l'id");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ?", altro), 1, "Q25 via gli eventi di un altro");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM segnalazioni WHERE installazione = ?", altro), 1, "Q25 via la segnalazione di un altro");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM contatori WHERE chiave = ? OR chiave = 'eventi'", `setup-fine:${altro}`), 2,
+      "Q25 via i contatori di un altro o i totali del giorno");
+  },
+  // Lancillotto è dismesso dal 14/11/2026 (#5617). Il Worker non crea più la sua tabella e il riepilogo non la
+  // legge. La tabella è cancellata da D1: una copia rimasta in un database vecchio non rompe la pulizia.
   async QL1() {
     const db = d1();
     const a = archivio(db);
     await a.pulisci("2025-10-13");
-    const corpo = (id, eventi) => JSON.stringify({ installazione: id, versione: "0.2.0", sistema: "macos-26", eventi });
-    for (const [id, eventi] of [
-      ["aaaa1111-l", [{ evento: "guida", valore: "accessibilita:ok" }, { evento: "permesso", valore: "schermo:no" },
-        { evento: "url_assente", valore: "org.mozilla.firefox" }, { evento: "riavvio", valore: "2" }]],
-      ["bbbb2222-l", [{ evento: "guida", valore: "accessibilita:ok" }, { evento: "permesso", valore: "ax:si" },
-        { evento: "riavvio", valore: "1" }]]]) {
-      const r = await gestisci(new Request("https://x/v1/lancillotto/eventi", { method: "POST", body: corpo(id, eventi) }),
-        { archivio: a, posta: async () => {}, adesso: new Date("2026-10-12T10:00:00Z") });
-      assert.equal(r.status, 200, "QL1 lotto rifiutato");
-    }
-    const r = await a.riepilogoLancillotto("2026-10-11", "2026-10-12");
-    assert.equal(r.installazioni, 2, "QL1 installazioni");
-    assert.deepEqual(r.guida, [{ valore: "accessibilita:ok", n: 2 }], "QL1 guida");
-    assert.deepEqual(r.permessiMancanti, [{ valore: "schermo:no", n: 1 }], "QL1 permessi mancanti");
-    assert.equal(r.riavvii, 3, "QL1 riavvii");
-    const arturo = (await db.prepare("SELECT COUNT(*) AS n FROM eventi").first()).n;
-    assert.equal(arturo, 0, "QL1 eventi di Lancillotto tra quelli di Arturo");
-    const tutto = await a.riepilogo("2026-10-11", "2026-10-12");
-    assert.equal(tutto.lancillotto.installazioni, 2, "QL1 il riepilogo di Arturo non porta Lancillotto");
+    const tabella = async () => (await db.prepare(
+      "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'eventi_lancillotto'").first()).n;
+    assert.equal(await tabella(), 0, "QL1 il Worker crea ancora eventi_lancillotto");
+    await db.prepare(`CREATE TABLE eventi_lancillotto (giorno TEXT NOT NULL, ricevuto_giorno TEXT NOT NULL,
+      installazione TEXT NOT NULL, versione TEXT NOT NULL, sistema TEXT NOT NULL, evento TEXT NOT NULL, valore TEXT NOT NULL DEFAULT '')`).run();
+    await db.prepare("INSERT INTO eventi_lancillotto VALUES ('2025-01-01', '2025-01-01', 'aaaa1111-l', '0.2.0', 'macos-26', 'installa', 'nuova')").run();
+    assert.equal("lancillotto" in await a.riepilogo("2026-10-11", "2026-10-12"), false, "QL1 il riepilogo porta ancora Lancillotto");
     await a.pulisci("2026-10-13");
-    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM eventi_lancillotto").first()).n, 0, "QL1 la pulizia non tocca Lancillotto");
   },
   // Le segnalazioni per la pagina privata (27/10/2026): l'elenco dal più recente, senza testo, col tetto;
   // la segnalazione intera col testo; null per un numero che non c'è.
@@ -476,6 +504,34 @@ const casi = {
     assert.ok(!d.some((x) => x.installazione === "ferma-0001"), "Q22 un'installazione ferma da oltre 30 giorni resta nella settimana");
     assert.ok(!JSON.stringify(d).includes("preventivo"), "Q22 la deriva rilegge un valore con la radice aperta");
     assert.equal(d[0].installazione, "vera-0001", "Q22 le installazioni viste non vengono prima");
+  },
+  // M7 della memoria (15/11/2026): le due misure del piano e lo stato della memoria, nella finestra di 30 giorni.
+  // aaaa: nata il 1/10, primo /fine il 4/10, due /inizio suoi e una rotazione. bbbb: nata il 10/10, mai /fine,
+  // memoria spenta. cccc: nata ad agosto, fuori dalle nate della finestra. Tutte viste in due giorni (VISTE).
+  async Q24() {
+    const a = await con([
+      ["2026-10-01", "aaaaaaaa", "sessione"], ["2026-10-01", "aaaaaaaa", "inizio", "persona"],
+      ["2026-10-04", "aaaaaaaa", "comando", "fine"], ["2026-10-04", "aaaaaaaa", "sessione"],
+      ["2026-10-05", "aaaaaaaa", "sessione"], ["2026-10-05", "aaaaaaaa", "inizio", "rotazione"],
+      ["2026-10-06", "aaaaaaaa", "sessione"], ["2026-10-06", "aaaaaaaa", "inizio", "persona"],
+      ["2026-10-04", "aaaaaaaa", "memoria", "accesa:1-10"], ["2026-10-06", "aaaaaaaa", "memoria", "accesa:11-50"],
+      ["2026-10-04", "aaaaaaaa", "richiamo", "2-5/1"], ["2026-10-06", "aaaaaaaa", "richiamo", "1/0"],
+      ["2026-10-06", "aaaaaaaa", "richiamo", "0/0"], ["2026-10-05", "aaaaaaaa", "salvataggio", "automatico"],
+      ["2026-10-10", "bbbbbbbb", "sessione"], ["2026-10-11", "bbbbbbbb", "sessione"], ["2026-10-11", "bbbbbbbb", "memoria", "spenta"],
+      ["2026-08-01", "cccccccc", "sessione"], ["2026-10-02", "cccccccc", "comando", "fine"],
+    ]);
+    const mem = (await a.miglioramento(AL)).memoria;
+    assert.deepEqual(mem.inizio, [{ valore: "persona", n: 2 }, { valore: "rotazione", n: 1 }], "Q24 /inizio per origine");
+    assert.equal(mem.sessioni, 6, "Q24 sessioni nella finestra");
+    assert.deepEqual(mem.primoFine, { nate: 2, conFine: 1, mediana: 3 }, "Q24 tempo al primo /fine");
+    assert.deepEqual(mem.stato, [{ valore: "accesa:11-50", n: 1 }, { valore: "spenta", n: 1 }], "Q24 l'ultimo stato della memoria");
+    assert.deepEqual(mem.salvataggi, { n: 1, installazioni: 1 }, "Q24 salvataggi automatici");
+    const testo = testoMigliorare(await a.miglioramento(AL)).join("\n");
+    assert.match(testo, /\/inizio scritto dalla persona: 2 su 5 sessioni non aperte dalla rotazione \(40%\)/, "Q24 la quota di /inizio nel riepilogo");
+    assert.match(testo, /Primo \/fine: 1 su 2 installazioni nate negli ultimi 30 giorni, dopo 3 giorni \(mediana\)/, "Q24 il primo /fine nel riepilogo");
+    assert.match(testo, /Richiamo: 2 sessioni su 3 con note proposte \(67%\), 1 con almeno una nota aperta \(50%/, "Q24 il richiamo nel riepilogo");
+    const r = await a.riepilogo("2026-10-06", AL, { settimana: true });
+    assert.match(recapSettimana(r, { lunedi: "2026-10-07", domenica: AL }).html, />Memoria</, "Q24 il riepilogo HTML non ha la sezione Memoria");
   },
   // La migrazione dello sportello porta la tabella di prima alle stesse colonne, coi default, di schema.sql.
   async QM1() {

@@ -35,7 +35,8 @@ Da `arturo todo --progetto .`: tutti i todo aperti del progetto.
 ## In sospeso
 - <decisione rimandata o dubbio>
 ## Note in attesa del sì
-- <solo nel Modo rotazione: percorso della nota → testo da scrivere, per il prossimo /fine della persona>
+- <solo nel Modo rotazione: riga del CLAUDE.md personale → testo, per il prossimo /fine della persona.
+  Le note nuove non stanno qui: si salvano con arturo memoria nota e si annunciano nella chiusura>
 ## Idee
 - <idea> → #ID | → memoria [[nome-della-nota]] | → scartata: <motivo>
 ```

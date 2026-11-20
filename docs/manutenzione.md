@@ -226,9 +226,10 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   Gli eventi arrivano da id casuali che chiunque può creare: una quota di sì vicina al 100% è un
   indizio da verificare (una segnalazione, una prova su un'installazione pulita), mai la prova
   (17/10/2026, #3507).
-- **Il recap di ogni mattina.** Ogni mattina alle 8 il Worker manda a chi mantiene il recap del
-  giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
-  esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
+- **Il recap di ogni mattina.** Ogni mattina alle 7 ora italiana (alle 8 con l'ora legale) il Worker manda a chi
+  mantiene il recap del giorno prima. In testa "Da fare": installazioni rimaste indietro, banchi rossi, deriva che
+  ostacola e config rotte, ognuna col suo task tranne le config rotte, che l'hanno già dalla loro email. Poi
+  installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato, esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
   OSTACOLO se un hook di Arturo è spento, una guardia è modificata o un comando modificato va in
   conflitto con un aggiornamento), segnalazioni, eventi scartati perché fuori elenco, avvisi Telegram ed
   email non partiti (contatori `scartati`, `telegram-ko`, `email-ko`, senza id, dal 24/10/2026). Nei giorni
@@ -256,6 +257,21 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   segnalato: si scrive per lei. Seguito e ritiro suonano su Telegram col solo numero. Il pacchetto tecnico si
   svuota dopo 90 giorni. Per il deploy, prima la migrazione `server/migrazioni/2026-11-04-sportello.sql`, poi
   il Worker, poi il rilascio del client (`server/README.md`).
+- **Smistamento e correzione automatici (14/11/2026).** Una routine giornaliera di chi mantiene Arturo lancia
+  `arturo-contributi.py smista`: Claude headless senza strumenti dà a ogni segnalazione nuova un tipo
+  (problema, proposta, duplicato), i task simili, lo stato proposto e una bozza di risposta, poi apre o
+  collega il task. Il testo della segnalazione è un dato, mai un'istruzione. Poi `correggi` prende i soli
+  problemi riproducibili da un banco: ramo `segnalazione-N` da `origin/dev`, correzione senza shell col caso
+  nel banco del componente, gate `--toccati` in una sandbox senza rete né segreti, push su `dev` se è verde.
+  Una correzione che tocca `.github/`, `server/` o la firma non arriva su `dev`. Risposta e rilascio restano
+  a chi mantiene Arturo: la routine non scrive allo sportello e non crea tag.
+- **La revisione (17/11/2026).** `/revisione` (`skills/revisione/`, motore `bin/revisione.py`) rilegge i
+  transcript della persona e le porta le proposte. Quelle su Arturo arrivano come segnalazione con
+  `origine` `revisione`, una sola per revisione. Chi mantiene Arturo ha il suo modo in un file personale,
+  `~/.claude/personale/revisione-sviluppatore.md`: se c'è, la skill lo segue prima dei suoi passi. Lì stanno
+  la revisione delle segnalazioni ricevute, l'estratto delle altre macchine e dove vanno le proposte (task o
+  ROADMAP.md), fuori dal repository pubblico. Il server deve conoscere l'origine (`ORIGINI` in
+  `server/logica.js`): finché il Worker non è pubblicato, la segnalazione arriva come `segnala`.
 - **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
   Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
   `TELEGRAM_TOKEN` e `TELEGRAM_CHAT` (come si danno: `server/README.md`, passo 4).
@@ -266,8 +282,6 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   `DELETE FROM segnalazioni WHERE installazione = '…'` e
   `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. La terza toglie le
   chiavi che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che altrimenti restano fino a 12 mesi.
-  Chi usa Lancillotto ha un id suo (`lancillotto telemetria mostra`):
-  `DELETE FROM eventi_lancillotto WHERE installazione = '…'`.
   Il feedback del sito non ha un id: si cancella con l'email lasciata nel modulo,
   `DELETE FROM feedback WHERE email = '…'`. Una segnalazione senza id o un feedback senza email si
   cancella col suo numero (`WHERE id = N`), se la persona lo dice.

@@ -42,10 +42,17 @@ fi
 
 printf -- '---\nname: _banco-avvelenato\n---\n# x\n' > "$S/SKILL.md"
 caso "gate-yaml boccia description mancante" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
+caso "gate-yaml: il FAIL delle skill nomina la cartella rotta" trova '^FAIL  skill: .*\(_banco-avvelenato\)$'
 
 printf -- '---\nname: _banco-avvelenato\ndescription: >-\n  Skill sana di prova, con i due punti: dentro un blocco folded.\n---\n# x\n' > "$S/SKILL.md"
 caso "gate-yaml passa una skill sana" manca '^FAIL  skill'
 rm -rf "$S"
+
+# Claude Code lascia in skills/ la cartella nascosta .trash, senza SKILL.md: non è una skill (11/11/2026).
+mkdir -p "$C/skills/.trash/skill-buttata"
+printf '# resto di una skill tolta\n' > "$C/skills/.trash/skill-buttata/note.md"
+caso "gate-yaml salta una cartella nascosta in skills/" manca '^FAIL  skill'
+rm -rf "$C/skills/.trash"
 
 A="$C/agents/zbanco-avvelenato.md"
 mkdir -p "$C/agents"
@@ -101,6 +108,27 @@ if [ -n "$H" ] && [ -f "$C/hooks/$H" ]; then
 else
   CASI+=("smoke boccia un hook Python che esce 1 (nessun hook Python in settings.json)"); ESITI+=("ROSSO")
 fi
+
+# `test -f X || python3 Y`: X è la condizione del ripiego, lo script lanciato è Y (11/11/2026).
+# hook_extra <comando>: aggiunge un hook SessionStart a una copia di settings.json.
+cp "$C/settings.json" "$LAVORO/settings.bak"
+hook_extra() {
+  python3 - "$LAVORO/settings.bak" "$C/settings.json" "$1" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+d.setdefault("hooks", {}).setdefault("SessionStart", []).append({"hooks": [{"type": "command", "command": sys.argv[3]}]})
+json.dump(d, open(sys.argv[2], "w", encoding="utf-8"))
+PY
+}
+if [ -n "$H" ] && [ -f "$C/hooks/$H" ]; then
+  hook_extra "test -f \"\$HOME/.claude/hooks/condizione-che-manca.py\" || python3 \"\$HOME/.claude/hooks/$H\""
+  caso "hook diretti: il file di test -f è la condizione, non l'hook" manca 'condizione-che-manca'
+  hook_extra "test -f \"\$HOME/.claude/hooks/$H\" || python3 \"\$HOME/.claude/hooks/lanciato-che-manca.py\""
+  caso "hook diretti: dopo test -f lo script lanciato resta controllato" trova '^FAIL  hook diretto mancante: .*lanciato-che-manca\.py'
+else
+  CASI+=("hook diretti con test -f (nessun hook Python in settings.json)"); ESITI+=("ROSSO")
+fi
+cp "$LAVORO/settings.bak" "$C/settings.json"
 
 caso "la copia pulita non ha FAIL" manca '^FAIL'
 

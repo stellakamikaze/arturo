@@ -13,6 +13,753 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — ogni lavoro che torna ha la sua lista "Finito quando" e i suoi attrezzi
+
+**Cosa cambia**: `/creaskill` ti fa una quinta domanda: "come capisci che è venuto bene?". Le tue
+risposte diventano la sezione "Finito quando" della skill, e Claude le controlla una per una prima di
+consegnarti il lavoro. Se dopo cinque risposte Claude non sa ancora fare il lavoro da solo, continua a
+chiedere, una domanda per volta. La skill nasce anche con la sezione "Attrezzi": uno script o un
+modello che Claude costruisce per quel lavoro resta nella cartella della skill, e la volta dopo lo
+riusa. Con `/fine`, una tua correzione su un lavoro che ha una skill tua finisce in quella skill, dopo
+il tuo sì, e non più solo in memoria.
+
+**Il principio**: un errore si corregge nelle istruzioni del lavoro, non nella chat. E il controllo
+finale lo fa Claude, su una lista che hai scritto tu.
+
+**A chi serve**: a chi ha skill sue o fa spesso lo stesso lavoro. Le skill che hai già non cambiano:
+se vuoi le due sezioni nuove, chiedi a Claude di aggiungerle.
+
+---
+
+## 2026-11-20 — anche /inizio ti dice che l'identità di Git è automatica
+
+**Cosa cambia**: quando `/inizio` crea un progetto nuovo, fa il primo commit. Se non hai scelto un nome
+per i commit, Git ne usa uno ricavato dal tuo utente e dal computer. Prima `/inizio` lo faceva in
+silenzio; ora te lo dice nella ripartenza e ti indica `/setup`, FASE 1, come fa già `/fine`
+(segnalazione n. 67).
+
+**Il principio**: due comandi che fanno lo stesso passo raccontano la stessa cosa.
+
+**A chi serve**: a chi non ha ancora scelto un nome per i commit in `/setup`.
+
+---
+
+## 2026-11-20 — /monitor vede la tua fonte dei task come arturo todo
+
+**Cosa cambia**: se tieni i task in un altro strumento (`fonte-task.local`, `docs/fonte-task.md`), l'inventario
+di `/monitor` adesso lo dice, col percorso del file. Prima cercava il file accanto al codice di Arturo: con
+Arturo installato come plugin non lo trovava e diceva "arturo todo, ancora vuoto", mentre i tuoi todo
+andavano già nel tuo strumento. Anche i messaggi di `arturo web`, `arturo sessione` e `arturo contesto`
+dicono ora il percorso vero del file.
+
+**Il principio**: un file di preferenza si legge da un punto solo. Se due parti di Arturo lo cercano in
+posti diversi, prima o poi raccontano due storie diverse sugli stessi todo.
+
+**A chi serve**: a chi ha collegato una fonte esterna dei task, soprattutto se l'ha scritta nel vecchio
+posto `~/.claude/bin/fonte-task.local`.
+
+---
+
+## 2026-11-20 — I tuoi dati d'uso li cancelli da solo
+
+**Cosa cambia**: `arturo telemetria dimentica` cancella dal server i tuoi eventi d'uso e le segnalazioni
+collegate al tuo id, senza scrivere a nessuno. Poi Arturo riparte con un id nuovo. Con la variabile
+`ARTURO_TELEMETRIA=log` non parte niente: ogni lotto finisce sullo schermo e in
+`~/.claude/data/telemetria/lotti/`, così vedi cosa uscirebbe. In quella cartella restano anche gli ultimi
+10 lotti partiti davvero.
+
+**Il principio**: un diritto che passa da un'email a una persona è un diritto lento. Cancellare deve
+costare quanto spegnere: un comando. Le copie che il server non raggiunge (Telegram, Gmail) restano a chi
+mantiene Arturo, e il server gli dice quali sono.
+
+**A chi serve**: a chi vuole sapere cosa esce prima di dire sì, e a chi vuole andarsene senza lasciare
+tracce. Chiedi a Claude "cancella i miei dati d'uso dal server".
+
+---
+
+## 2026-11-20 — /monitor fa il giro quotidiano
+
+**Cosa cambia**: dopo la scelta delle fonti, /monitor fa il giro quotidiano. Legge i tuoi todo, le sessioni con Claude, la posta e il calendario, e ti dice cosa chiede la giornata:
+le riunioni di oggi, le promesse che hai fatto, le email che aspettano te, i lavori aperti e chi fa il
+passo dopo. Una cosa letta in due giri diventa un todo solo, perché il todo porta l'impronta di quello
+che l'ha fatto nascere (`arturo todo aggiungi --chiave`). Una proposta che hai lasciato cadere non
+torna il giorno dopo, salvo che abbia una scadenza vicina. Una fonte letta a metà resta indietro e il
+giro dopo la rilegge.
+
+**Il principio**: chi legge il testo di altri non deve poter scrivere. La posta la legge un agente,
+`monitor-lettore`, che ha solo strumenti di lettura: un'email con istruzioni dentro non trova niente con
+cui eseguirle. I todo li scrive il giro dopo, su campi controllati. Al primo giro non nasce nessun todo
+senza il tuo sì: lo diventano da soli solo quelli dei mittenti che hai già accolto.
+
+**A chi serve**: a chi apre la giornata con /monitor. Con `gws` la posta si scarica dal terminale, anche
+da più account, e il testo nascosto delle email HTML resta fuori. Se tieni i todo in un tuo strumento
+(`fonte-task.local`) e quello non conosce `--chiave`, il giro tiene lui l'elenco dei todo che ha creato.
+
+---
+
+## 2026-11-19 — Istruzioni più corte e una sandbox da accendere
+
+**Cosa cambia**: le istruzioni che Arturo dà a Claude seguono le guide di Anthropic per i modelli di oggi.
+Il promemoria del brief a ogni messaggio è scritto come un fatto, senza "REGOLA FISSA". Le description
+delle skill dicono cosa fanno e quando, senza "Segui tutti i passi nell'ordine". Humanizer,
+italiano-semplificato e prompt-master tengono in testa le regole che contano e spostano cataloghi ed
+esempi in `references/`: humanizer passa da 548 a 200 righe. In `/inizio` il modo rotazione sta in cima,
+in `/aggiorna` i Freni. Metodo e stile Conciso non si contraddicono più sull'ultima riga, sul brief e
+sulle segnalazioni. Le guardie e i freni sono gli stessi di prima.
+
+C'è anche un comando nuovo, `arturo sandbox accendi`. La sandbox di Claude Code chiude i comandi in un
+recinto del sistema: leggono e scrivono solo dove serve, e le chiavi SSH, AWS, GPG, gh e Bitwarden
+restano fuori. Git in rete, ssh, gh, gws e bw girano fuori dal recinto, come oggi. È spenta di default,
+`/setup` la propone nella fase 8d, e `arturo sandbox spegni` toglie solo le voci che Arturo ha messo.
+
+**Il principio**: un modello recente segue alla lettera quello che legge. Un "mai" senza motivo, una
+maiuscola o un ordine ripetuto gli fanno applicare troppo una regola. Le garanzie vere stanno negli hook
+e nelle regole di blocco. Il testo spiega cosa fare e perché. Fonti: code.claude.com/docs (best-practices,
+skills, hooks, sandboxing, context-window) e le guide di prompting di Opus 5.5 e Fable 5.2 su
+platform.claude.com.
+
+**A chi serve**: a tutti, senza fare niente. La sandbox serve a chi lancia script o installa pacchetti e
+tiene chiavi sul computer: le guardie vedono il comando, la sandbox vede anche quello che il comando lancia.
+Un plugin non può accendere la sandbox da solo: la scelta resta tua.
+
+---
+
+## 2026-11-19 — I dati d'uso partono solo dopo la tua risposta
+
+**Cosa cambia**: dopo l'installazione Arturo non manda più niente finché `/setup` non ti ha chiesto della telemetria. Fino alla tua risposta gli eventi restano in coda sul tuo computer, e `arturo telemetria mostra` te li fa vedere. Con un sì partono, con un no si cancellano. Se avevi già fatto `/setup`, per te non cambia niente: la risposta c'era già.
+
+**Il principio**: prima la domanda, poi i dati. Una scelta conta solo se arriva prima che qualcosa parta.
+
+**A chi serve**: a chi installa Arturo oggi e vuole decidere prima che un evento esca dal computer.
+
+---
+
+## 2026-11-19 — Un progetto cambia nome con un comando solo
+
+**Cosa cambia**: `arturo progetti rinomina VECCHIO NUOVO` cambia il nome di un progetto in tutto Arturo: todo, riga di stato, handoff, indice e scheda della memoria, coi link delle altre note. Il nome vecchio resta valido: `/inizio` col nome vecchio apre il progetto nuovo e te lo dice. Con `--prova` vedi cosa cambierebbe senza toccare niente, e per tornare indietro basta il comando al contrario. Un progetto con una sua cartella si rinomina dopo aver rinominato la cartella. Nasce dalla proposta n. 90.
+
+**Il principio**: un nome si cambia in un punto solo, e quello vecchio non rompe niente.
+
+**A chi serve**: a chi ha aperto un progetto con un nome provvisorio e lo vuole cambiare senza perdere todo e appunti.
+
+---
+
+## 2026-11-18 — Colori e barra a modo tuo, senza perderli a ogni aggiornamento
+
+**Cosa cambia**: i colori del pannello /dafare, i colori della scheda del terminale e i pezzi della barra in basso si cambiano in un file tuo, `~/.claude/personale/aspetto.json`. Gli aggiornamenti non lo toccano, quindi non devi più rimettere a mano le tue modifiche dopo ogni rilascio. Puoi spegnere un pezzo della barra, come la quota, e aggiungerne uno tuo con un piccolo file JavaScript. `arturo aspetto esempio` ti dà un file da copiare, e `arturo aspetto controlla` ti dice se un valore è scritto male. Un valore sbagliato non rompe niente: vale quello di Arturo. Nasce dalla proposta n. 73.
+
+**Il principio**: quello che cambi tu sta in un posto tuo. Arturo si aggiorna senza toccarlo, e tu non scegli più fra le tue modifiche e l'ultima versione.
+
+**A chi serve**: a chi ha cambiato un colore o un pezzo della barra e lo perdeva a ogni aggiornamento.
+
+---
+
+## 2026-11-18 — Una sessione chiusa con /fine diventa viola
+
+**Cosa cambia**: dopo un /fine la scheda del terminale diventa viola, in iTerm2 e in Windows Terminal, e in fondo alla barra compare "✓ chiusa · /inizio <progetto>". Con molte sessioni aperte vedi subito quali hai già chiuso e come riprenderle. Se scrivi di nuovo nella sessione, al turno dopo torna verde come prima. Il viola vale per una settimana dall'ultimo /fine. Nasce dalla proposta n. 71, che l'aveva già provato su un Mac.
+
+**Il principio**: lo stato di una sessione si legge a colpo d'occhio, senza aprirla. Chiusa è uno stato come gli altri, con un colore suo.
+
+**A chi serve**: a chi tiene aperte più sessioni insieme.
+## 2026-11-18 — Un elenco lungo arriva in un file, e un foglio ambiguo parte da una riga d'esempio
+
+**Cosa cambia**: quando Claude deve mostrarti un elenco di più di 30 righe, come i tuoi todo o i risultati di una ricerca, lo scrive in un file numerato e te lo apre. In chat restano il conteggio e le voci che servono a decidere, e tu rispondi coi numeri del file. Dove c'è un pannello o la checklist di Volta, l'elenco va lì. Poi il brief: se una richiesta arriva da un collega e chiede di riempire un foglio con colonne poco chiare, Claude ti chiede prima una riga d'esempio compilata, invece di riempire tutte le colonne con dati deboli. Nascono dalle proposte n. 76 e n. 82.
+
+**Il principio**: un elenco che non si legge tutto non serve a decidere. E una domanda prima della ricerca costa meno di una tabella da rifare tre volte.
+
+**A chi serve**: a chi lavora con molti todo, e a chi riceve ricerche da fare per conto di altri.
+
+---
+
+## 2026-11-18 — I tasti di /dafare si leggono anche col tema scuro
+
+**Cosa cambia**: nel pannello /dafare i nomi dei progetti, i numeri dei todo e i tasti in basso hanno sempre il colore scuro del pannello. Prima prendevano il colore del tema del terminale: col tema scuro erano bianchi sul fondo chiaro, e si vedevano solo le lettere dei tasti. La correzione l'ha scritta una persona che usa Arturo, con la pull request n. 4, e risponde alla segnalazione n. 86. Un banco nuovo controlla che ogni tasto del pannello resti colorato.
+
+**Il principio**: il pannello porta il suo fondo, e allora porta anche i suoi colori. Niente del testo deve dipendere dal tema scelto da chi lo guarda.
+
+**A chi serve**: a chi usa /dafare con un tema scuro.
+
+---
+
+## 2026-11-18 — Claude usa il browser che nomini e dice con quale account lavora
+
+**Cosa cambia**: se scrivi "via Chrome" o "su Firefox", Claude usa quel browser. Se gli strumenti di quel browser non sono pronti, li carica prima di provare altre vie, e un altro browser lo usa solo col tuo sì. Prima di cercare o cambiare i dati di un account, come un Drive, un foglio o una casella, Claude scrive in una riga quale account è collegato. Se è quello sbagliato, cambia browser prima di agire. Nasce dalla segnalazione n. 74: Claude aveva ignorato il browser nominato e poi aveva lavorato nel profilo Chrome sbagliato.
+
+**Il principio**: il browser e l'account sono una scelta tua. Claude te li dice prima di toccare dei dati, così un errore si vede prima che faccia danni.
+
+**A chi serve**: a chi ha più browser o più account Google collegati.
+
+---
+
+## 2026-11-18 — Le correzioni si registrano anche col sandbox dei comandi acceso
+
+**Cosa cambia**: quando correggi Claude, la regola che scrive con `arturo correzione aggiungi` si salva anche col sandbox dei comandi acceso. Prima il sandbox fermava il comando con `Operation not permitted`, Claude doveva rilanciarlo senza protezioni e la regola arrivava in ritardo. Le correzioni adesso stanno in `~/.claude/data/correzioni/`, l'unica cartella che il sandbox lascia scrivere. Quelle scritte prima nella cartella vecchia valgono ancora per la sessione in corso. Nasce dalla segnalazione n. 88, lo stesso guasto della n. 81 su un altro comando.
+
+**Il principio**: una protezione accesa non deve far perdere una regola che hai appena dato.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
+## 2026-11-18 — Claude non cattura più lo schermo del Mac senza dirtelo
+
+**Cosa cambia**: per dire "fatto" su un file che si legge con uno script, come un foglio Excel, un documento Word o un CSV, a Claude basta controllarne il contenuto. Non apre il file per fotografare lo schermo. Per guardare un documento usa prima l'anteprima di Quick Look (`qlmanage -t`) o il PDF, che non chiedono permessi. Se una cattura dello schermo serve davvero, Claude te lo dice prima in una riga: perché la fa, e che macOS ti chiederà il permesso di registrare schermo e audio. Nasce dalla segnalazione n. 89: il Mac aveva chiesto quel permesso senza alcun avviso, per un file già controllato.
+
+**Il principio**: verificare non vuol dire spaventare. Una richiesta di sistema che arriva senza spiegazione sembra un problema di sicurezza, anche quando non lo è.
+
+**A chi serve**: a chi usa Arturo su un Mac e chiede fogli, documenti o file da scaricare.
+
+---
+
+## 2026-11-17 — In Volta una sessione ferma per il limite o per la rete riparte da sola
+
+**Cosa cambia**: se usi Volta, una sessione che si è fermata per il limite d'uso del modello o per la connessione persa riparte da sola, senza che tu scriva "riprendi". Dopo il limite riparte un minuto dopo l'ora di sblocco; dopo una connessione persa, anche col Mac andato in stop, riparte quando la rete torna. Nell'elenco la riga dice "Limite d'uso: riparte da sola alle 16:01", e dopo "ripresa da sola alle 16:01". Volta ci prova al massimo due volte per ogni fermata: se si ferma di nuovo, la riga dice "riprendila tu". Non riparte mai una sessione che ti ha chiesto qualcosa, che ha un dialogo aperto o che stai chiudendo, e lascia stare gli altri errori, come il login scaduto. Chi non la vuole scrive `"ripresa": "spenta"` in `~/.config/herdr-app/arturo.json`. Nasce dalla proposta 12 della prima revisione: fra l'11 e il 17 novembre almeno nove sessioni sono rimaste ferme finché qualcuno non ha scritto "Riprendi".
+
+**Il principio**: quando una sessione si ferma per un motivo che non dipende da te, la ripresa non deve aspettare te. Le decisioni invece restano tue: dove serve una tua risposta, Volta non scrive niente.
+
+**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo.
+
+---
+
+## 2026-11-17 — In Volta una chiusura con ⌘W si annulla per dieci secondi
+
+**Cosa cambia**: quando chiudi una sessione in Volta con ⌘W, con la X o con Chiudi, la scheda sparisce subito, ma Claude aspetta dieci secondi prima di salvare con /fine e di fermarla. Intanto la sua riga resta nell'elenco a sinistra e dice "Si chiude fra 10 s · Annulla", con i secondi che scendono. Un clic sulla riga, o ⌘Z (Ctrl+Alt+Z su Windows), annulla la chiusura e riapre la sessione. Passati i dieci secondi la chiusura va avanti come prima. La chiusura automatica delle sessioni ferme da un'ora non aspetta. Nasce dalla proposta 13 della prima revisione: il 14/11 una sessione era stata chiusa per sbaglio e ripresa a mano.
+
+**Il principio**: un gesto veloce ogni tanto si sbaglia. Una conferma a ogni chiusura rallenta tutte le altre; dieci secondi per tornare indietro non chiedono niente a nessuno.
+
+**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W.
+
+---
+
+## 2026-11-17 — La ripartenza di /inizio diventa una checklist in Volta
+
+**Cosa cambia**: se usi Volta, dopo `/inizio` la lista dei todo compare anche nella finestra, con una casella e uno spazio per una nota su ogni riga. Spunti i todo da cui partire, segni quelli già fatti, da scartare o da rimandare, passi un todo a Claude o a te, e premi Manda: la scelta arriva alla sessione come un tuo messaggio, e Claude aggiorna i todo e parte da quelli spuntati. Chi non usa Volta vede la ripartenza di sempre. Il nuovo comando `arturo ripartenza scrivi` salva la lista, e una lista più vecchia di due giorni si cancella da sola.
+
+**Il principio**: la ripartenza era già un elenco numerato da leggere. Spuntarlo e annotarlo costa meno che riscrivere i numeri a mano, e le parole restano le stesse del terminale.
+
+**A chi serve**: a chi lavora con Volta e apre più progetti al giorno.
+
+---
+
+## 2026-11-17 — Claude apre le cose sulla macchina che hai davanti
+
+**Cosa cambia**: se usi Arturo su più computer con Volta, Claude sa quale hai davanti. Volta chiede a ogni macchina da quanto nessuno tocca tastiera o mouse, e scrive su tutte quale hai toccato per ultima. Prima di aprirti una pagina, un documento o un'app, una sessione in background o agganciata da un altro computer legge quel segnale e apre lì. Prima di aprire scrive una riga, per esempio "Apro sul MacBook, in Firefox", così correggi subito se sbaglia. Se non tocchi niente da più di 15 minuti, o non usi Volta, Claude ti chiede una volta dove sei e se lo ricorda per la sessione. Chi usa un solo computer non vede differenze (proposta 11 della prima revisione).
+
+**Il principio**: un computer acceso per un lavoro non vuol dire che tu sia lì. Il segnale resta sulle tue macchine: non entra nel repository, nella telemetria o nelle segnalazioni.
+
+**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background.
+
+---
+
+## 2026-11-17 — /monitor impara dalle tue correzioni
+
+**Cosa cambia**: /monitor tiene conto di come lo correggi. Quando scarti un todo che ti ha proposto, ne rimetti in piedi uno, accogli o rifiuti la proposta di un mittente nuovo, o agisci su una voce del report, Arturo lo registra. Da lì impara tre cose: quali mittenti vanno da soli nei todo e quali non riproporti, quali regole di scarto sbagliano e vanno sospese, quali sezioni del report non apri mai e si possono ridurre a una riga. Ogni modifica compare in testa al report col comando per annullarla. Di serie è una proposta e entra col tuo sì; se preferisci, la fa da solo. Una nuova pagina, `docs/monitor-adattare.md`, spiega come adattare /monitor al tuo lavoro senza perdere gli aggiornamenti.
+
+**Il principio**: le tue correzioni sono già una spiegazione di cosa ti serve. Non vanno ripetute ogni volta. Arturo non nasconde mai una cifra, una scadenza vicina o una domanda diretta, e ogni cosa imparata si annulla.
+
+**A chi serve**: a chi usa /monitor tutti i giorni, e a chi ha un /monitor suo e vuole che impari come quello di serie.
+
+---
+
+## 2026-11-17 — Le sessioni di prova si riconoscono dal nome e spariscono da sole
+
+**Cosa cambia**: quando Claude lancia una sessione per una sonda, un banco o una prova dal vivo, adesso le dà un nome che comincia con `prova-`, per esempio `claude --bg --name prova-5877 "Rispondi solo: ok"`. Da quel nome Arturo la riconosce. `/fine` in una sessione di prova non scrive handoff, todo né memoria, e la elimina con `claude rm`. Volta, quando la chiudi, non le manda `/fine`: la ferma e la elimina. `/revisione` la lascia fuori dall'estratto e dice quante ne ha saltate; quelle nate prima del nome le riconosce dal primo messaggio ("Rispondi solo: ok"). Sul MacBook erano circa 30 sessioni su 143 in una settimana (settima proposta della prima revisione).
+
+**Il principio**: una prova non è lavoro. Non lascia tracce da salvare, non chiede una chiusura e non entra nel racconto di come usi Arturo.
+
+**A chi serve**: a chi usa Volta e `/revisione`, e a chi prova Arturo dal vivo con sessioni usa e getta.
+
+---
+
+## 2026-11-17 — /revisione distingue il classificatore giù da un hook che cambia il comando
+
+**Cosa cambia**: in modalità auto un comando può tornare indietro "senza verdetto" per due motivi. Il primo è un hook che riscrive il comando dopo il controllo del classificatore: era il caso delle segnalazioni n. 56, n. 57 e n. 58, col `setopt nonomatch` aggiunto in testa. Dalla 0.2.0 Arturo imposta zsh all'avvio della sessione e non tocca più il comando, e nei transcript dal 5 novembre questo caso non compare più. Il secondo è il classificatore che non risponde per un guasto del server, come il 16 novembre fra le 8:33 e le 8:43, quando si sono fermate insieme le sessioni di due computer. `/revisione` li contava insieme e li attribuiva a un hook. Adesso li separa, e un guasto del server non diventa una proposta.
+
+**Il principio**: una proposta deve puntare alla causa vera. Un guasto del server passa da solo: Claude riprova il comando una volta e nel frattempo continua con le letture, che non passano dal classificatore.
+
+**A chi serve**: a chi lancia `/revisione` e a chi aveva segnalato i comandi da rilanciare due volte.
+
+---
+
+## 2026-11-17 — /aggiorna installa senza fermarsi, anche senza chiave SSH
+
+**Cosa cambia**: quando scrivi `/aggiorna` e c'è un rilascio firmato, Arturo lo installa subito, senza chiederti un altro sì. In modalità auto il classificatore lo lasciava fermo, e dovevi lanciare tu il comando con `!`: adesso una regola `autoMode` copre lo script di aggiornamento di Arturo, e solo quello. Se il tuo computer non ha una chiave SSH riconosciuta da GitHub, l'installazione riprova da sola via HTTPS, e usa `gh` se c'è. Prima dovevi aggiungere a mano una riga a `~/.gitconfig`.
+
+**Il principio**: una richiesta fatta una volta non si chiede due volte. La sicurezza resta nella firma: si installa solo un rilascio con il tag firmato e i file uguali al MANIFEST.
+
+**A chi serve**: a chi usa Arturo in modalità auto, e a chi lo usa da un computer senza chiave SSH su GitHub. La regola arriva nei tuoi settings con `/setup`.
+
+---
+
+## 2026-11-17 — /revisione: Arturo rilegge come lo usi e ti propone cosa migliorare
+
+**Cosa cambia**: con `/revisione` Arturo rilegge le tue sessioni di Claude Code degli ultimi 30 giorni, o dei giorni che scegli (`/revisione 7`). Cerca quattro cose: lavori che chiedi più volte con le stesse spiegazioni e che nessuna skill copre, intoppi che tornano (Claude fermato, un no ripetuto, un blocco su un lavoro normale), igiene (note doppie, todo fermi, avvisi del controllo della config) e cose da unire, come due regole che dicono lo stesso. Ti mostra al massimo sette proposte, ognuna con le prove: le date e le tue parole. Tu scegli. Le proposte sulla tua config le applica Claude con te. Quelle che riguardano Arturo partono verso chi lo mantiene in una segnalazione sola, dopo che hai visto l'anteprima e detto **mando**. Un registro sul tuo computer ricorda le risposte, così la revisione dopo non ti ripropone un no.
+
+**Il principio**: chi usa Arturo vede dove si inceppa meglio di chi lo mantiene, ma raramente ha il tempo di scriverlo. Le prove vengono dalle sessioni vere, e le decisioni restano a te. Gli errori di Claude non te li attribuisce: li conta a parte.
+
+**A chi serve**: a chi usa Arturo da qualche settimana e vuole lavorare con meno intoppi, e a chi vuole aiutare a migliorarlo senza scrivere una segnalazione da zero.
+
+---
+
+## 2026-11-16 — /fine salva todo e handoff anche col sandbox dei comandi acceso
+
+**Cosa cambia**: se hai acceso il sandbox dei comandi di Claude Code, `/fine` non si inceppa più quando salva un todo o scrive l'handoff. Il sandbox adesso lascia scrivere la cartella `~/.claude/data`, dove Arturo tiene todo, handoff e memoria. Il resto della config resta protetto. La coda di `/fine`, che fa commit e push della config, gira fuori dal sandbox, e `/fine` lo dice a Claude. Se il sandbox è spento non cambia niente. Nasce dalla segnalazione n. 81.
+
+**Il principio**: una protezione accesa dalla persona non deve rompere la chiusura della sessione. La scrittura si apre solo dove stanno i dati di lavoro, non dove sta il codice che gira.
+
+**A chi serve**: a chi lavora col sandbox dei comandi acceso.
+
+---
+
+## 2026-11-16 — Da /dafare la sessione si apre in iTerm2, se lavori in iTerm2
+
+**Cosa cambia**: sul Mac il tasto **o** di `/dafare`, cioè `arturo sessione`, apriva la sessione nuova sempre in Terminale. Adesso la apre in iTerm2 se il comando parte da iTerm2, e in Terminale negli altri casi. Per scegliere a mano scrivi `ARTURO_TERMINALE=iterm` oppure `ARTURO_TERMINALE=terminal` nell'ambiente. Nasce dalla segnalazione n. 80.
+
+**Il principio**: la sessione nuova nasce nel terminale che usi già, non in un'app che non apri mai.
+
+**A chi serve**: a chi lavora in iTerm2 sul Mac.
+
+---
+
+## 2026-11-16 — La tua voce sta nella tua Orsa
+
+**Cosa cambia**: i testi che firmi tu, come una lettera, un'email o un post, seguono la tua voce, scritta nel file `~/.claude/personale/humanizer.md` della tua Orsa. Le regole del metodo di Arturo sulle frasi corte restano per la chat e per i testi tecnici. Nessun'altra persona fa da modello di stile. Una nota di memoria che dice "scrivi come X" non si salva più con `arturo memoria nota`, e se Claude la scrive in un altro modo riceve un avviso. Le note di questo tipo che hai già te le mostra la pulizia settimanale della memoria dentro `/fine`, e si tolgono solo col tuo sì. Se il file della voce manca, la prima volta che Claude riscrive un testo che firmi ti chiede due o tre testi tuoi, ti mostra cosa ci trova (lunghezza delle frasi, connettivi, registro, cosa eviti) e scrive solo quello che confermi. Nasce dalla proposta n. 78.
+
+**Il principio**: la voce di una persona si ricava dai testi che firma, perciò la conferma lei. Una nota che Claude deduce da una sessione vecchia, senza che nessuno l'abbia decisa, può spostare tutte le lettere verso lo stile di un'altra persona.
+
+**A chi serve**: a chi fa scrivere a Claude testi che poi firma.
+
+---
+
+## 2026-11-16 — La Scoperta propone anche sintesi e pagine
+
+**Cosa cambia**: fino a oggi la Scoperta ti proponeva solo una skill, quando vedeva un file cambiare con un ritmo. Adesso una proposta può avere tre forme: un'automazione, come prima; una sintesi, cioè un documento in quattro parti su un lavoro lungo (cosa è, cosa hai deciso, i materiali, cosa resta aperto); oppure una pagina web locale, un solo file .html che si apre anche senza rete, costruita su un modello di mestiere come la lezione interattiva per chi insegna, il simulatore di spesa per chi produce eventi o il calendario editoriale per chi scrive una newsletter. I modelli sono sei, uno per famiglia di [`docs/mestieri.md`](docs/mestieri.md): Arturo prende quello della tua famiglia se i titoli e i temi del lavoro lo chiamano, altrimenti quello che chiamano di più. Se hai fatto l'indice dello storico delle chat con `/setup`, anche un lavoro con almeno cinque conversazioni, la prima e l'ultima in due mesi diversi, diventa una proposta subito, senza aspettare che i file cambino tre volte. Se rispondi sì, Claude scrive la sintesi o la pagina dalla bozza, te la mostra (la pagina si apre nel browser) e la salva solo dopo un secondo sì; condividerla resta a te. `arturo scoperta annulla` la toglie e la tiene da parte. `arturo scoperta mappa` dice per ogni progetto cosa Arturo può proporti e in che forma. I limiti restano quelli di prima: al massimo una proposta per sessione e due a settimana.
+
+**Il principio**: un lavoro che torna non sempre si risolve con una skill. Un lavoro lungo seguito in chat ha bisogno di un posto dove ritrovare le decisioni e i materiali, e un foglio di spese che cambia ogni settimana si legge meglio in una pagina che mostra il totale che riga per riga.
+
+**A chi serve**: a chi segue lo stesso lavoro in chat per più mesi, o aggiorna lo stesso foglio di dati con un ritmo, in qualunque delle sei famiglie di mestieri.
+
+---
+
+## 2026-11-16 — Arturo ti propone uno spazio, e Claude può presentarsi col nome che scegli
+
+**Cosa cambia**: Arturo ha due spazi, cioè parti che si accendono o si riempiono a parte: l'Orsa, il tuo CLAUDE.md, e Melchior, la memoria. Quando nel tuo lavoro vede un segnale, `/inizio` ti propone lo spazio che ti manca e ti dice quale segnale ha visto. Se hai corretto la stessa cosa in tre sessioni diverse, ti propone di scrivere la regola nel tuo CLAUDE.md, cioè nell'Orsa, dove vale sempre e gli aggiornamenti non la toccano. Se la memoria è spenta e hai almeno 15 handoff, o un CLAUDE.md di almeno 250 righe, ti propone di accendere Melchior. Ogni spazio te lo propone una volta sola, al massimo uno a settimana. Se rispondi **no** quello spazio non torna, e `arturo spazi spegni` ferma tutte le proposte. Poi c'è `arturo nome`: con `arturo nome Bruno` Claude si presenta come Bruno in ogni sessione. Comandi e file restano quelli di Arturo. Cosa legge e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Gli spazi che Arturo ti propone".
+
+**Il principio**: una parte di Arturo che non usi ancora te la propone Arturo, quando nel tuo lavoro c'è un segnale che si può contare, e ti mostra il segnale così puoi verificarlo. Se dici no, la proposta non torna.
+
+**A chi serve**: a chi corregge Claude sempre sulla stessa cosa, a chi ha spento la memoria e ha accumulato molti handoff, a chi vuole che Claude si presenti con un altro nome.
+
+---
+
+## 2026-11-15 — Passare un progetto a un collega
+
+**Cosa cambia**: `arturo fascicolo esporta <progetto>` mette il contesto di un progetto in una cartella di file di testo: la scheda, le note della memoria, lo stato coi todo aperti, i lavori dello storico che scegli e i materiali di testo che indichi. Un file con un possibile segreto, come una password, resta fuori, e le note che parlano di te non escono. Il collega lo importa con `arturo fascicolo importa <cartella>`. Entra solo quello che l'elenco del fascicolo prevede, e Arturo rifiuta un file con un segreto o con un'istruzione nascosta. Niente sovrascrive i file del collega, e ogni nota porta in testa chi l'ha scritta. I file `.md` della cartella si caricano anche in un progetto di Claude.ai o di ChatGPT. Come funziona: [`docs/memoria.md`](docs/memoria.md), sezione "Passare un progetto a un collega".
+
+**Il principio**: il contesto di un progetto sta sul tuo computer, quindi decidi tu quanto passarne e a chi. Un testo che arriva da un'altra persona può contenere ordini nascosti per Claude, perciò Arturo lo tratta come un testo da leggere e non come un'istruzione.
+
+**A chi serve**: a chi passa un lavoro a un collega, o vuole continuarlo in un altro strumento di IA.
+
+---
+
+## 2026-11-15 — L'intervista che continua
+
+**Cosa cambia**: dopo `/setup` Arturo continua a farti domande sul tuo lavoro. Nelle prime sei settimane `/inizio` te ne fa al massimo una al giorno, su quello che non sa ancora: per esempio per chi lavori o quale lavoro rifai ogni mese. Le domande cambiano col mestiere e stanno in [`docs/mestieri.md`](docs/mestieri.md). Claude riscrive la tua risposta in una o due frasi e la salva nella memoria solo col tuo sì. `arturo intervista salta` toglie una domanda, `arturo intervista spegni` le ferma tutte.
+
+**Il principio**: una domanda al giorno pesa meno di venti domande il primo giorno, e in memoria entra solo una frase che hai letto e approvato.
+
+**A chi serve**: a chi ha appena fatto `/setup` e non vuole rispondere a tutto il primo giorno.
+
+---
+
+## 2026-11-15 — Arturo parte dalle chat che hai già fatto
+
+**Cosa cambia**: se prima di Arturo usavi Claude, ChatGPT o Gemini in chat, `/setup` ti propone una fase nuova, la 2a. Scarichi l'esportazione delle tue conversazioni, e uno script sul tuo computer la legge senza estrarla e la divide per lavoro. Claude ti mostra i lavori uno per uno, e resta solo quello a cui dici sì: titolo, periodo, temi e nomi dei file allegati, mai il testo delle chat. L'indice sta in `~/.claude/data/storico/`, fuori dalla copia Git di `~/.claude`, e si guarda e si cancella con `arturo storico`. Cosa legge, dove va e cosa resta: [`docs/privacy.md`](docs/privacy.md), sezione "Lo storico delle chat".
+
+**Il principio**: chi arriva dalla chat ha già mesi di lavoro alle spalle, e Arturo parte da lì invece che da zero.
+
+**A chi serve**: a chi passa dalla chat a Claude Code e non vuole rispiegare da capo i lavori che ha già fatto.
+
+---
+
+## 2026-11-15 — Per chi è Arturo, mestiere per mestiere
+
+**Cosa cambia**: il README ha una sezione nuova, "Per chi è", e c'è una pagina nuova, [`docs/mestieri.md`](docs/mestieri.md). Dividono il lavoro della conoscenza in sei famiglie di mestieri: la parola, l'immagine, l'insegnamento e la ricerca, la produzione, la consulenza, l'archivio e la cura. Per ognuna dicono cosa Claude fa già oggi, se glielo chiedi. La roadmap ha cinque voci nuove sulla strada che parte dalla chat: lo storico delle tue chat come punto di partenza, l'intervista che continua, l'esportazione di un progetto, gli spazi che Arturo ti propone (Melchior e l'Orsa) e le forme nuove della Scoperta. Le scelte ancora aperte stanno fra le voci da decidere.
+
+**Il principio**: il racconto promette solo quello che Arturo fa oggi; il resto sta nella roadmap col suo stato.
+
+**A chi serve**: a chi vuole capire se Arturo fa per il suo mestiere, e a chi lo presenta a un collega.
+
+---
+
+## 2026-11-16 — L'avviso sul contesto anche nelle sessioni in background
+
+**Cosa cambia**: l'avviso che ti dice quando il contesto si sta riempiendo trova node anche in una sessione aperta
+in background o da un'altra macchina. Prima partiva con un PATH senza Homebrew e senza `~/.local/bin`, non trovava
+node e restava muto: la sessione arrivava al limite senza che Claude chiudesse il passo in tempo.
+
+**Il principio**: un avviso che tace per un guasto sembra un via libera.
+
+**A chi serve**: a chi apre sessioni con `claude --bg` o da Volta.
+
+---
+
+## 2026-11-15 — La barra torna nelle sessioni aperte su un'altra macchina
+
+**Cosa cambia**: quando Volta apre una sessione di un altro computer, il comando nasce dalla connessione ssh, che
+non conosce le cartelle dove hai installato node. La barra con contesto e quota spariva, o diceva "manca node"
+anche con node installato. Adesso la barra cerca node anche nelle cartelle di Homebrew e in `~/.local/bin`.
+
+**Il principio**: un avviso che dice "manca" deve essere vero anche quando la sessione arriva da un'altra macchina.
+
+**A chi serve**: a chi apre da Volta le sessioni di un secondo computer.
+
+---
+
+## 2026-11-15 — La memoria lavora da sola
+
+**Cosa cambia**: ogni progetto ha una scheda con cos'è, dove sta la cartella, le decisioni prese e gli errori
+da non ripetere. La scrive `/fine` e la rilegge `/inizio`, anche quando apri Claude dalla tua cartella personale
+invece che da quella del progetto. Se chiudi una sessione senza `/fine`, Arturo salva da solo cosa stavi facendo:
+le ultime richieste, i file scritti e il lavoro rimasto aperto. Lo ritrovi in cima al prossimo `/inizio`, e il
+`/fine` di quella sessione aggiunge quello che manca.
+
+`/fine` salva anche le note nuove senza chiederti conferma, e poi te le elenca numerate: se una non ti serve,
+scrivi "togli" seguito dal suo numero e la nota passa nell'archivio. Una volta a settimana Arturo segna le note che
+non propone a Claude da 90 giorni, così vedi quali non servono più. Non ne cancella nessuna, e una nota segnata
+torna normale appena serve di nuovo. Per sapere cosa Arturo ricorda, progetto per progetto, chiedi a Claude "cosa
+ricordi di me?" oppure scrivi nel terminale `arturo memoria`. Il dettaglio sta in [`docs/memoria.md`](docs/memoria.md).
+
+**Il principio**: Arturo salva e ripropone le note senza chiederti niente, perché una memoria da aggiornare a mano
+resta indietro rispetto al lavoro appena salti qualche `/fine`.
+
+**A chi serve**: a chi lavora su più progetti e il giorno dopo vuole ripartire senza rispiegare a Claude dove era
+arrivato.
+
+---
+
+## 2026-11-15 — I dati d'uso dicono se la memoria serve
+
+**Cosa cambia**: se hai la telemetria accesa, cioè l'invio dei dati d'uso a chi mantiene Arturo, partono quattro
+dati nuovi. Sono solo conteggi, e non arriva il numero esatto ma la fascia in cui cade (nessuna, fino a 10, fino a
+50 e così via). Il nome e il testo delle note non escono mai.
+- **Stato della memoria**: se è accesa e quante note contiene, una volta al giorno;
+- **Note usate**: per ogni sessione, quante note Arturo propone e quante Claude ne apre;
+- **Salvataggi automatici**: quante sessioni chiuse senza `/fine` Arturo ha salvato al posto tuo;
+- **Chi lancia `/inizio`**: se l'hai scritto tu oppure l'ha lanciato Arturo per passare al passo dopo di un lavoro lungo.
+
+Siccome l'elenco dei dati è cambiato, alla prima sessione dopo l'aggiornamento Arturo ti avvisa di nuovo di cosa
+manda. La spegni come prima, con `arturo telemetria spegni`.
+
+**Il principio**: senza questi conteggi chi mantiene Arturo non sa se le note proposte vengono aperte, e quindi non
+può decidere se la memoria va migliorata o tolta.
+
+**A chi serve**: a chi vuole sapere cosa parte dal suo computer, e a chi mantiene Arturo, che da questi numeri vede
+se le note proposte vengono usate.
+
+---
+
+## 2026-11-15 — Humanizer su ogni testo in uscita, diagram-design per i diagrammi
+
+**Cosa cambia**: un testo in uscita che scrive Claude (post, email, proposta, articolo, pagina, presentazione)
+passa sempre dalla skill `humanizer` prima della consegna, anche quando lo scrive dentro un'altra skill. Prima
+ci passava solo se suonava da IA. Se hai installato `diagram-design`, Claude la usa per ogni diagramma dentro
+una pagina, un documento o una presentazione. La skill `prompt-master` segue l'origine fino al 22/10/2026: nomi
+dei modelli OpenAI e Gemini aggiornati e un modello di brief nuovo per ChatGPT e Codex.
+
+**Il principio**: le skill che migliorano un testo o un'immagine lavorano da sole, senza aspettare che tu le chiami.
+
+**A chi serve**: a chi fa scrivere a Claude testi per altre persone, o gli chiede schemi per documenti e slide.
+
+---
+
+## 2026-11-15 — Due conferme in meno dalle guardie
+
+**Cosa cambia**: un `rsync` verso un altro computer (`rsync ./ server:/cartella/`) lanciato da una cartella con
+un CLAUDE.md non chiede più conferma: le guardie leggevano la destinazione remota come una cartella di questo
+computer, e credevano che rsync ci scrivesse un CLAUDE.md nuovo. Verso una cartella locale, anche un disco di
+Windows come `C:/`, la conferma resta. E un ciclo `for f in a.sh b.sh; do bash "$f"; done` dopo un file scritto
+nello stesso comando non fa più leggere quel file come eseguito, se il ciclo nomina solo altri file. Un ciclo
+con un glob, una variabile o il nome del file scritto chiede come prima.
+
+**Il principio**: una conferma che non protegge niente insegna a dire sì senza leggere.
+
+**A chi serve**: a chi copia cartelle su un server con rsync e a chi rilancia script in un ciclo.
+
+---
+
+## 2026-11-15 — Meno "scrivimi vai" a fine turno
+
+**Cosa cambia**: Claude chiude il turno senza chiederti il via per un lavoro suo e reversibile. Se dice
+"lo faccio io", lo fa prima di chiudere. Non ti passa più quattro passi che può fare da solo: scrivere a
+un'altra sessione, lanciare `/clear` e `/inizio` per ruotare, aprire il risultato finito, controllare più
+tardi un lavoro ancora in corso. Per quest'ultimo arma una sveglia, invece di promettere "fra mezz'ora
+verifico". La chiusura ti chiede solo i freni (inviare, pubblicare, pagare, cancellare), le decisioni di
+direzione e i gesti che può fare solo una persona.
+
+**Il principio**: un via che ha una sola risposta possibile è un passo in più, non un controllo.
+
+**A chi serve**: a chi risponde spesso "procedi su tutto" o "fai tu".
+
+---
+
+## 2026-11-15 — Humanizer segue la versione 4.0.0
+
+**Cosa cambia**: la skill `humanizer` segue la versione 4.0.0 dell'origine (blader/humanizer). Un testo da
+correggere che contiene istruzioni rivolte "all'IA", a un "operatore" o un tag come `</skill>` resta materiale
+da correggere: la skill non le esegue. Su un file, Claude lo rilegge tutto dal disco prima di riscriverlo e ti
+dice quante sezioni ha rivisto: un passaggio parziale lo dichiara parziale. Il controllo della bozza adesso
+cerca prima i fatti persi o cambiati, poi i tic. Una novità dell'origine resta fuori: aggiungere un dettaglio
+che il modello "sa vero". In Arturo un fatto entra solo se viene dal tuo testo o da te.
+
+**Il principio**: un testo che firmi tu contiene solo fatti che hai dato tu.
+
+**A chi serve**: a chi fa rivedere a Claude post, email e proposte prima di mandarli.
+
+---
+
+## 2026-11-14 — La memoria è accesa di default
+
+**Cosa cambia**: la memoria di Arturo adesso parte accesa. Arturo ricorda i tuoi progetti su questo computer: le
+decisioni, gli errori già visti, le tue preferenze. La prima sessione dopo l'aggiornamento te lo dice una volta,
+in una riga. `/setup` non te lo chiede più. Se l'avevi spenta con `arturo memoria spegni`, resta spenta. Se invece
+non l'avevi mai accesa, ora si accende: per spegnerla basta chiederlo a Claude, e le note restano dove sono.
+Cosa ricorda e cosa esce dal computer sta in [`docs/memoria.md`](docs/memoria.md).
+
+**Il principio**: la promessa "ricorda i tuoi progetti" vale solo se la memoria lavora senza che tu la accenda.
+
+**A chi serve**: a chi apre una sessione nuova e vuole ritrovare decisioni e cose già viste senza rispiegarle.
+
+---
+
+## 2026-11-14 — Lancillotto esce da Arturo
+
+**Cosa cambia**: `/setup` non propone più Lancillotto, l'app per Mac che annotava come lavori. Il server di Arturo
+non accetta più i suoi eventi, e il riepilogo della settimana non ha più il blocco "Dove migliorare Lancillotto".
+`/sparring` parte dai candidati della Scoperta invece che dai numeri di Lancillotto. Se Lancillotto è già sul tuo
+Mac, resta lì finché non lo togli tu, e il server rifiuta quello che prova a mandare. Le righe arrivate al server fino a oggi
+sono già cancellate.
+
+**Il principio**: per capire cosa ripeti basta guardare come cambiano i tuoi file, senza un'app che registra tutto quello che fai al Mac.
+
+**A chi serve**: a chi ha installato Lancillotto con `/setup`; per gli altri non cambia niente.
+
+---
+
+## 2026-11-14 — La Scoperta: Arturo ti propone cosa automatizzare
+
+**Cosa cambia**: Claude Code tiene una copia di ogni versione dei file che modifichi con lui. Adesso Arturo le legge
+e cerca tre tipi di ripetizione: lo stesso file, o la stessa serie di file, cambiato almeno tre volte a intervalli regolari; gli
+stessi campi o paragrafi cambiati ogni volta; gli stessi file cambiati insieme in almeno tre sessioni. Le modifiche
+che fai a mano le vede confrontando i file fra `/inizio` e `/fine`. Quando trova una ripetizione, alla chiusura con
+`/fine` ti propone una skill e ti mostra le date, le parti cambiate e una bozza da leggere.
+
+Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza passa a `/creaskill`; se dici
+no, quella proposta non torna più. `arturo scoperta annulla ID` toglie la skill creata e la tiene da parte, e `arturo
+scoperta escludi` toglie una cartella dalla ricerca delle ripetizioni. Le copie di Claude Code e quelle dell'impronta di `/inizio` restano sul
+tuo computer, e l'indice di Arturo tiene i nomi dei file e dei campi cambiati, mai il testo. Per ora alla
+telemetria non arriva niente, neanche i conteggi.
+
+**Il principio**: ogni proposta arriva con le date e le modifiche che la giustificano, così decidi tu guardando le prove; senza il tuo sì Arturo non crea niente.
+
+**A chi serve**: a chi aggiorna gli stessi documenti ogni settimana o ogni mese, come un report, una fattura o
+un calendario, e lo fa ogni volta da capo.
+
+---
+
+## 2026-11-14 — Il README parte da cosa fa Arturo, e gli strati hanno nomi nuovi
+
+**Cosa cambia**: il README parte dalle tre promesse di Arturo: si configura con te senza codice, ricorda i
+progetti fra una sessione e l'altra e ti propone cosa automatizzare. Poi spiega come installarlo, quali sono i sei
+strati e come funziona il ciclo dell'Orsa. Il riferimento tecnico viene dopo, per chi lo cerca. I guardiani, la rotta e l'equipaggio ora si chiamano guardie, comandi e subagent.
+
+Le parti di Arturo si ordinano in due modi. Per proprietà: la tua (l'Orsa), quella di Arturo e quella di
+Anthropic. Per funzione: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, più l'ingresso e la misura, che
+servono a tutti. L'Orsa sta su tutti e due i piani, perché è tua ed è anche quello che Arturo fa crescere. Il
+disegno è uno solo, in `docs/come-e-fatto.md`:
+
+```diagramma
+  tu
+   │  chiedi, correggi, scrivi come scrivi
+   ▼
+┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
+│  6 Orsa: CLAUDE.md · personale/<skill>.md · memoria · todo · handoff      │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
+│  cresce con le correzioni e con le proposte della Scoperta, col tuo sì    │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ Arturo la legge e la rispetta
+┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
+│  cosa fa per te, dalle fondamenta alla crescita:                          │
+│    1 Protezione .......... guardie che chiedono un sì, segreti fermati    │
+│    2 Metodo .............. brief, freni, fatto vuol dire verificato       │
+│    3 Memoria ............. /inizio, /fine, handoff, todo, Melchior        │
+│    4 Collegamenti ........ posta, agenda, documenti, pagine web           │
+│    5 Scoperta ............ ti propone cosa automatizzare, con le prove    │
+│    sempre: Ingresso (/setup, aggiornamenti) · Misura (banchi, /segnala)   │
+│                                                                           │
+│  adattati da progetti aperti, dentro Arturo:                              │
+│    humanizer ............. ◄── blader/humanizer (MIT)                     │
+│    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
+│    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
+│                                                                           │
+│  consigliati, li installi dalla loro fonte:                               │
+│    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
+│    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
+│    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │
+│    scrape ................ ◄── D4Vinci/Scrapling (BSD-3)                  │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ hook, skill, comandi, permessi
+┌─ Claude Code ───────────────────────────────── di Anthropic, a pagamento ─┐
+│  il programma nel terminale: legge e scrive i file, lancia i comandi      │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ la conversazione esce dal tuo computer
+                       il modello (Claude, sui server di Anthropic)
+```
+
+- `docs/strati.md` è il contratto dei due assi, per chi sviluppa Arturo. Le parti tecniche del plugin stanno in tre
+  pagine sue: `docs/prove-plugin.md`, `docs/fiducia.md` e `docs/migrazione.md`.
+- Ogni voce della roadmap dice il suo strato. È nata la voce "Arturo ti propone cosa automatizzare", la Scoperta:
+  la terza promessa. Il progetto è scritto, e il codice è in fila nella roadmap.
+
+**Il principio**: chi arriva su Arturo vuole sapere prima cosa fa per sé; come è fatto dentro serve a chi lo
+sviluppa, e sta più sotto.
+
+---
+
+## 2026-11-14 — Gli aggiornamenti che restavano fermi ora arrivano
+
+**Cosa cambia**: tre casi frequenti fermavano un rilascio nuovo per giorni. Adesso non lo fermano più, o te lo
+dicono con le parole giuste.
+- Claude Code riscrive `settings.json` da solo, per esempio quando dici "sempre" a un permesso. Se è l'unico file
+  non salvato, la chiusura della sessione lo salva con un commit suo e l'aggiornamento lo unisce alla versione
+  nuova. Con un segreto nelle righe nuove non lo salva, e resta l'avviso di prima.
+- Se lavori solo con `/clear` o con la rotazione automatica, Claude Code non si chiude mai, e il rilascio non si
+  installava. Dopo 24 ore l'avvio e la barra in basso ti dicono "chiudi e riapri Claude Code: /clear non basta".
+  Anche `/fine --rotazione`, con un rilascio pronto, ti chiede di riaprire invece di ripartire con `/clear`.
+- Il controllo che decide se un rilascio si installa ora è quello del rilascio nuovo, dopo la verifica della firma.
+  Prima un difetto del controllo installato fermava anche la versione che lo correggeva.
+
+Chi usa il clone e ha una versione ferma da prima di oggi deve lanciare `/aggiorna` una volta: le correzioni
+arrivano con la versione che le porta.
+
+---
+
+## 2026-11-14 — Perché un aggiornamento non arriva, detto a chi mantiene Arturo
+
+**Cosa cambia**: quando un rilascio nuovo non si installa da solo, adesso chi mantiene Arturo sa perché. Prima i
+casi più frequenti non lasciavano traccia, e un'installazione poteva restare indietro per settimane senza che
+nessuno lo sapesse.
+- Se l'aggiornamento si ferma per file non salvati, per esempio un `settings.json` riscritto da Claude Code, parte
+  l'evento `bloccato-modifiche`.
+- Se una copia di prova con un conflitto aspetta, parte `bloccato-attesa`.
+- Se la procedura non parte, parte `non-partito`.
+- Col plugin parte anche `automatico`, quando la chiusura della sessione installa il rilascio. Col clone partiva
+  già.
+- L'evento della sessione dice se Arturo è installato come plugin o come clone: le due forme si aggiornano per
+  strade diverse.
+
+Ogni esito parte una volta per versione. Il testo del motivo non esce mai, solo la sua categoria.
+
+**Il principio**: un aggiornamento che si ferma in silenzio lascia la persona con le guardie vecchie, e chi
+mantiene Arturo non può correggere quello che non vede.
+
+**Da sapere**: cosa esce è cambiato, quindi la prima sessione dopo l'aggiornamento te lo dice di nuovo. Lo vedi
+con `arturo telemetria mostra`, lo spegni con `arturo telemetria spegni`.
+
+---
+
+## 2026-11-13 — Guardie su Windows: robocopy, registro, PowerShell, wsl, node e avvio automatico
+
+**Cosa cambia**: su Windows alcuni comandi che cancellano o eseguono codice passavano senza nessuna conferma.
+Adesso le guardie li vedono.
+- `robocopy` con `/MIR` o `/PURGE` chiede conferma: cancella nella destinazione tutto quello che la sorgente non
+  ha. Con `/L`, che elenca e basta, tace.
+- `reg delete` chiede conferma, e il messaggio ricorda di salvare prima la chiave con `reg export`.
+- PowerShell che scarica uno script e lo esegue con `iex` (`irm ... | iex`, `DownloadString`) si blocca, anche
+  quando il codice è nascosto in `-EncodedCommand`. Si blocca anche `curl ... | powershell`, come `curl ... | bash`.
+- `wsl rm -rf` passa dalle stesse guardie di `rm -rf`.
+- `rmSync`, `rmdirSync` e `fs.rm` di node, bun e deno con `recursive: true` chiedono conferma come `shutil.rmtree`
+  di Python. Su `node_modules` tacciono.
+- L'avvio automatico di Windows è protetto come i LaunchAgents del Mac. Scrivere nella cartella Esecuzione
+  automatica (`Start Menu/Programs/Startup`) o in un profilo di PowerShell vuole lo sblocco di sistema. Chiedono
+  conferma `schtasks /create`, `reg add` sulle chiavi `Run`, `Winlogon` e `Image File Execution Options`,
+  `reg import`, `sc create`, `Register-ScheduledTask` e `New-Service`. `schtasks /query` e `reg query` tacciono.
+- Il codice Python e node che scrive la config chiede conferma come la shell: `open()` di `expanduser`,
+  `shutil.copy`, `os.replace`, `Path.home() / '.claude'`, `write_text`, `writeFileSync`, anche dentro un heredoc
+  e con le barre rovesciate. Chiedono anche `extractall`, `python -m zipfile -e` e `7z x -o` verso `~/.claude`.
+  Leggere la config e copiarla altrove tacciono.
+
+**Il principio**: una guardia vale quanto la forma più semplice che la aggira.
+
+**Da sapere**: riguarda solo Windows, salvo `rmSync`, `curl ... | powershell` e il codice che scrive la config,
+che valgono ovunque.
+
+---
+
+## 2026-11-13 — Col plugin /aggiorna rimette una copia cambiata
+
+**Cosa cambia**: se un file nella copia del plugin viene modificato, all'avvio la riga `DERIVA` lo segnala e ti
+manda a `/aggiorna`. Finora `/aggiorna` rispondeva "già aggiornato" e non rimetteva niente, perché controllava la
+versione, che era giusta, e non i file, che erano diversi.
+
+- Adesso `/aggiorna` se ne accorge e risponde `DA RIMETTERE`. Col tuo sì reinstalla lo stesso rilascio firmato,
+  controlla la copia nuova col suo elenco firmato dei file e risponde `RIMESSO`.
+- I dati del plugin restano, e un plugin che avevi spento resta spento.
+- Se il file l'hai cambiato tu, la modifica si perde: mettila prima in `~/.claude/personale/`.
+
+**Da sapere**: la riga `DERIVA` e `/diagnosi` adesso spiegano che `/aggiorna` rimette la copia del plugin
+com'era. Se il file non l'hai cambiato tu, può essere una compromissione: segnalalo a chi mantiene Arturo prima
+di lanciare `/aggiorna`, come dice `SECURITY.md`, perché la reinstallazione cancella la copia cambiata.
+
+**Il principio**: un avviso che ti manda a `/aggiorna`, dove poi leggi "già aggiornato", ti lascia con il file
+cambiato e senza una strada per rimetterlo.
+
+---
+
+## 2026-11-12 — Col plugin i testi di Arturo dicono il vero
+
+**Cosa cambia**: da quando Arturo si installa anche come plugin, alcuni testi descrivevano solo la copia dentro
+`~/.claude`. Chi aveva il plugin trovava comandi che non partivano e risposte che mancavano.
+
+- I comandi `arturo …` del README e della pagina della privacy, compreso quello che spegne la telemetria, in un
+  terminale col plugin non partivano. Adesso le due pagine danno una riga che vale in tutte e due le
+  installazioni, e ricordano che basta chiedere a Claude: "spegni la telemetria".
+- Col plugin nessuno proponeva `/setup`. Un plugin non porta permessi, regole di blocco e barra in basso: li
+  aggiunge `/setup`. Adesso l'avvio te lo ricorda una volta al giorno, finché non lo fai.
+- `/aggiorna indietro` col plugin non rispondeva niente. Adesso dice che col plugin una versione di prima non si
+  reinstalla, e ti propone di segnalare il problema della versione nuova.
+- `/diagnosi` chiamava "non un errore" anche una copia del plugin cambiata da qualcuno. Adesso dice per prima
+  una possibile compromissione e ti chiede se il file l'hai cambiato tu.
+- `/novita` diceva che solo `/aggiorna` installa le versioni nuove, e più sotto che si installano da sole. Vale
+  la seconda: `/aggiorna` serve per averle subito o quando l'avvio lo chiede.
+
+**Da sapere**: se hai il plugin e non hai mai lanciato `/setup`, lancialo alla prossima sessione.
+
+**Il principio**: un testo che descrive un'altra installazione dalla tua ti lascia davanti a un comando che non
+parte, proprio nel momento in cui volevi toglierti un dubbio.
+
+---
+
+## 2026-11-12 — Il controllo della configurazione non dà più errori falsi
+
+**Cosa cambia**: `/system-audit`, che gira anche dentro `/diagnosi`, segnava errori su configurazioni che
+funzionavano: su un Mac con tutte le guardie accese ne ha dati tre, e adesso quei casi passano.
+
+- Alcuni hook partono con un ripiego: `test -f X || python3 Y`, cioè "se X manca, lancia Y". Il controllo
+  cercava anche X, che manca apposta, e lo dava per un hook perso. Adesso controlla solo Y, lo script che parte
+  davvero.
+- Claude Code lascia in `skills/` una cartella nascosta, `.trash`, con le skill tolte. Il controllo la leggeva
+  come una skill rotta; adesso la salta, e quando una skill è rotta sul serio l'errore ne dice il nome.
+- Un indirizzo di pagina scritto fra apici, come la vista `/gare` della dashboard, il controllo lo prendeva per
+  un comando che non esiste. Adesso lo riconosce dalla parola che lo precede (vista, pagina, rotta, indirizzo),
+  e un comando vero scritto più avanti nella stessa riga resta controllato.
+- Il controllo segnava come inesistente `/bg`, che è un comando di Claude Code; adesso lo conosce.
+
+**Da sapere**: non devi fare niente. La correzione arriva con l'aggiornamento, e al prossimo `/diagnosi`
+quegli errori non compaiono più.
+
+**Il principio**: un controllo che segna errori su una configurazione sana ti abitua a non leggerlo, e il
+giorno che l'errore è vero passa inosservato.
+
+---
+
 ## 2026-11-11 — `arturo progetti`: tutti i progetti che segui, dalla memoria che hai già
 
 **Cosa cambia**: `arturo progetti` elenca i progetti leggendo quello che Arturo ha già su disco: le cartelle
@@ -1759,7 +2506,8 @@ nel repository c'è solo il codice.
 
 **Da sapere**: niente da fare. `arturo memoria stato` dice dove cerca e quante note trova, e
 `arturo memoria accendi` la accende. Se ci sono parole che il richiamo deve ignorare, scrivile una
-per riga in `hooks/melchior-stopword.local`.
+per riga in `~/.claude/arturo/melchior-stopword.local` (il file di prima, nella cartella `hooks/`,
+vale ancora se c'è).
 
 ---
 

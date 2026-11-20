@@ -148,7 +148,7 @@ def test_m08(repo: Path) -> None:
     fine = read(repo / "commands" / "fine.md")
     # 20/10/2026: il validate sta nella FASE 3, insieme a completezza e commit, come nella config dell'autore.
     validate = fine[fine.find("## FASE 3"):fine.find("## FASE 4")]
-    assert "NON committare" in validate, "M08 /fine arriva al commit anche con il validate rosso"
+    assert "non committare" in validate.lower(), "M08 /fine arriva al commit anche con il validate rosso"
 
 
 def test_m10(repo: Path) -> None:

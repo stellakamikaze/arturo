@@ -37,15 +37,16 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   `ricevuta`); `POST /v1/contributi/<n>/ritira` cancella titolo, testo, pacchetto, seguiti e id e lascia numero,
   tipo e data. Un codice sbagliato e un numero inesistente danno lo stesso `404`, col corpo uguale (caso V36).
   Seguito e ritiro suonano su Telegram col solo numero.
+- `POST /v1/dimentica` (20/11/2026, #4793): la persona cancella da sola i suoi dati, con `arturo telemetria
+  dimentica`. Il corpo porta solo `installazione`. Il server cancella gli eventi di quell'id, le segnalazioni
+  collegate e i contatori con l'id nella chiave (`rotta:<id>`, `setup-fine:<id>`), e risponde `200` con quanti
+  eventi e quante segnalazioni. Un id mai visto ha la stessa risposta, con zero: non dice se un'installazione
+  esiste. Telegram avvisa coi primi 8 caratteri dell'id e i numeri delle segnalazioni, perché chi mantiene Arturo
+  tolga a mano le copie su Telegram e Gmail. Stesso limite per IP dei moduli (casi V66 e Q25).
 - `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
   Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Solo testo scritto: un modulo
   con il campo `voce` torna `400` con il motivo, un corpo oltre 64 KB torna `413`. Al massimo 100 al
   giorno. Cosa ne sa chi usa il sito sta in `docs/privacy.md`, l'unica fonte delle frasi sui dati.
-- `POST /v1/lancillotto/eventi`: gli eventi d'uso di Lancillotto (dal 25/10/2026), con un id casuale suo, la versione
-  `x.y.z` e `macos-NN`. Elenco chiuso in `server/lancillotto.js`, uguale a `lancillotto/telemetria.py` (caso L03).
-  Vanno nella tabella `eventi_lancillotto`, che il Worker crea da solo alla prima richiesta: i numeri di Arturo non
-  cambiano. Una nuova installazione suona su Telegram; il riepilogo e l'email del lunedì hanno il blocco "Dove
-  migliorare Lancillotto".
 - `POST /v1/sito`: un download dal sito, servito come `/api/sito`: il comando di installazione
   copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
   avvisa fino a 60 volte al giorno.
@@ -76,10 +77,14 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
 
 | File | Cosa fa |
 |------|---------|
-| `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo, ritenzione. Niente Cloudflare dentro. |
+| `logica.js` | Validazione, tetti, testo delle email di segnalazione e config rotta, cron, ritenzione. Niente Cloudflare dentro. |
+| `recap.js` | Il recap di ogni mattina e il riepilogo del lunedì, con le righe "Da fare" e i loro task. |
+| `email.js` | L'impaginazione HTML delle email: pagina, sezioni, tabelle, accanto al testo semplice. |
+| `versioni.js` | La tabella che traduce i rilasci a data (12/10-3/11/2026) nel loro numero. |
 | `archivio.js` | Le query su D1, compresa "Dove migliorare Arturo". |
 | `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`), all'invio email (`env.POSTA`) e a Telegram. |
 | `schema.sql` | Le quattro tabelle: `eventi`, `segnalazioni`, `contatori`, `feedback`. |
+| `migrazioni/` | Le modifiche allo schema di un archivio già in uso, una per file con la data. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
 | `test.mjs` | Il banco: `node server/test.mjs` prova `logica.js` con un archivio e una posta finti. |
 | `test-sql.mjs` | Il banco delle query: `node server/test-sql.mjs` prova `archivio.js` su SQLite in memoria (Node 22). |
@@ -108,7 +113,7 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   non suona, dal 8/11/2026). Gli eventi hanno 50 installazioni nuove al giorno, e l'email di una config rotta
   parte prima del tetto totale degli eventi. Oltre, il dato si salva e il messaggio
   no. Il limite per IP sta nei binding `LIMITE_EVENTI` (60 al minuto) e `LIMITE_MODULI` (10 al
-  minuto) di `wrangler.toml`; l'IP non si salva. Il modulo e i download rifiutano un invio da un
+  minuto) di `wrangler.toml`, con `LIMITE_SITO` (30 al minuto) per i soli download dal sito; l'IP non si salva. Il modulo e i download rifiutano un invio da un
   altro sito (`Sec-Fetch-Site: cross-site`).
 - **Ogni mattina alle 7 ora italiana** (06:00 UTC, alle 8 con l'ora legale) arriva il recap del giorno prima, solo se
   quel giorno ci sono stati eventi, segnalazioni, feedback o download dal sito. Ha anche le config rotte e la deriva cambiata.
@@ -173,7 +178,7 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
 3. Prepara la config fuori dal repository, così i tuoi indirizzi non finiscono in un commit:
 
    ```bash
-   mkdir -p ~/arturo-deploy && cp logica.js archivio.js worker.js email.js recap.js lancillotto.js versioni.js schema.sql ~/arturo-deploy/
+   mkdir -p ~/arturo-deploy && cp logica.js archivio.js worker.js email.js recap.js versioni.js schema.sql ~/arturo-deploy/
    sed -e 's/DOMINIO_DEL_SERVER/dati.tuodominio.org/' \
        -e 's/ID_DEL_DATABASE/<database_id>/' \
        -e 's/DESTINATARIO_VERIFICATO/tu@esempio.org/g' \
@@ -244,15 +249,13 @@ npx wrangler@4 d1 execute arturo --remote --command "SELECT testo FROM segnalazi
 ```
 
 Per cancellare i dati di un'installazione che lo chiede, serve il suo id. La persona lo legge
-con `python3 ~/.claude/bin/arturo telemetria mostra`, e quello di Lancillotto, un id diverso, con
-`lancillotto telemetria mostra`. Il feedback del sito non ha un id: si
+con `python3 ~/.claude/bin/arturo telemetria mostra`. Il feedback del sito non ha un id: si
 cancella con l'email che la persona ha lasciato nel modulo:
 
 ```bash
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM segnalazioni WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '<id>'"
-npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi_lancillotto WHERE installazione = '<id di Lancillotto>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM feedback WHERE email = '<email>'"
 ```
 

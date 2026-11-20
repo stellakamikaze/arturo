@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MG01-MG18: arturo migra, dal clone in ~/.claude al plugin (strati F4, #4534, docs/strati.md).
+"""MG01-MG18: arturo migra, dal clone in ~/.claude al plugin (strati F4, #4534, docs/migrazione.md).
 
 Un clone di prova con le modifiche tipiche di chi usa Arturo da settimane: una riga aggiunta a /inizio,
 una guardia cambiata, un hook e un permesso suoi in settings.json, CLAUDE.md, todo e una skill sua.

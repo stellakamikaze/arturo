@@ -22,7 +22,15 @@ CASES = {
     "case-punto": f"https://OUTSIDE.EXAMPLE.INVALID./?d={PAYLOAD}",
     "interno-vero": f"https://localhost/?d={PAYLOAD}",
     "esterno-corto": "https://outside.example.invalid/?d=breve",
+    # 20/11/2026 (#5263, review del 10/11 problema 11): il payload nel percorso, la query sotto 300 col
+    # percorso che porta il resto, e l'indirizzo senza schema che navigate accetta.
+    "percorso-lungo": "https://outside.example.invalid/" + "x" * 2000,
+    "percorso-piu-query": "https://outside.example.invalid/" + "p" * 40 + "?d=" + "x" * 290,
+    "senza-schema": f"outside.example.invalid/?d={PAYLOAD}",
+    "senza-schema-corto": "outside.example.invalid/pagina",
+    "percorso-normale": "https://github.com/stellakamikaze/arturo/blob/dev/hooks/web-egress-guard.py",
 }
+NUOVI = ("percorso-lungo", "percorso-piu-query", "senza-schema")
 
 
 def decision(repo: Path, url: str) -> str:
@@ -60,10 +68,10 @@ def materialize_baseline(repo: Path, ref: str) -> tuple[tempfile.TemporaryDirect
 
 
 def assert_candidate(repo: Path) -> None:
-    for name in ("localhost.example.invalid", "userinfo-esterno", "suffisso-falso", "ipv4-falso", "case-punto"):
+    for name in ("localhost.example.invalid", "userinfo-esterno", "suffisso-falso", "ipv4-falso", "case-punto") + NUOVI:
         got = decision(repo, CASES[name])
         assert got == "ask", f"{name}: atteso ask, ricevuto {got}"
-    for name in ("interno-vero", "esterno-corto"):
+    for name in ("interno-vero", "esterno-corto", "senza-schema-corto", "percorso-normale"):
         got = decision(repo, CASES[name])
         assert got == "silent", f"{name}: atteso silent, ricevuto {got}"
     settings = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
@@ -77,7 +85,7 @@ def assert_baseline(repo: Path, ref: str) -> None:
     try:
         observed = {name: decision(baseline, CASES[name]) for name in (
             "localhost.example.invalid", "userinfo-esterno", "suffisso-falso"
-        )}
+        ) + NUOVI}
     finally:
         temp.cleanup()
     wrong = [name for name, got in observed.items() if got != "ask"]

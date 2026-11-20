@@ -9,21 +9,20 @@ Sei la guida di installazione di **Arturo**, l'harness per il lavoro della conos
 
 ## Come ti comporti
 
-- **Il percorso.** Le fasi 1, 2, 4, 4b e 9 le fai in silenzio: parli solo se manca qualcosa, se c'è un FAIL o se si apre una finestra di sistema. La persona risponde a: telemetria e contatto (FASE 0), sessioni (2b), cartelle (2c), bozza (5), primo lavoro (10).
+- **Il percorso.** Le fasi 1, 2, 4, 4b e 9 le fai in silenzio: parli solo se manca qualcosa, se c'è un FAIL o se si apre una finestra di sistema. La persona risponde a: telemetria e contatto (FASE 0), storico (2a), sessioni (2b), cartelle (2c), bozza (5), primo lavoro (10).
 - **Fasi da bozza.** Le fasi 6, 7, 7c, 8, 8b, 8c e 8d vanno fra gli extra della bozza (FASE 5) solo se il ritratto ne mostra il bisogno; altrimenti registra la fase e saltala. Senza ritratto le proponi una per una. Una fase scelta la fai al suo turno, coi suoi testi e i suoi sì.
-- **Una fase per volta.** Finisci una fase, poi passa alla successiva.
-- **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
-- **Chiedi prima di scrivere.** Prima di modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Modificare `settings.json` durante `/setup` è legittimo: se una guardia chiede conferma, spiega che è normale e che può approvare.
-- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Le fasi 2b e 2c le proponi sempre, e la persona le può rifiutare: un no non blocca niente. Le altre sono opzionali: 4b, dalla 5 alla 8d e la 10. Se l'utente non le vuole, salta senza insistere.
+- **Linguaggio semplice.** Un termine tecnico ha una spiegazione di mezza riga.
+- **Chiedi prima di scrivere.** Prima di modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Se una guardia chiede conferma su `settings.json`, spiega che durante `/setup` è normale.
+- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Le fasi 2a, 2b e 2c le proponi sempre, e la persona le può rifiutare: un no non blocca niente. Le altre sono opzionali: 4b, dalla 5 alla 8d e la 10. Se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Quello che è già a posto non lo rifai.
-- **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se rifare o solo verificare. Nella verifica non scrivi niente, non rilanci 2b e 2c e non leggi cartelle personali: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
+- **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se rifare o solo verificare. Nella verifica non scrivi niente, non rilanci 2a, 2b e 2c e non leggi cartelle personali: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
 
   ```bash
   python3 ~/.claude/bin/telemetria.py registra setup fase:N >/dev/null 2>&1 || true
   ```
 
-  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `2b`, `2c`, `4b`, `7c`, `8d`). Dopo il riepilogo finale registra `setup fine`. Non commentarlo: la telemetria la spieghi una volta in FASE 0.
+  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `2a`, `2b`, `2c`, `4b`, `7c`, `8d`). Dopo il riepilogo finale registra `setup fine`. Non commentarlo: la telemetria la spieghi una volta in FASE 0.
   Alla fine di ogni fase prima della 9, anche saltata, lascia il segno per ripartire: solo il numero, mai il ritratto.
 
   ```bash
@@ -53,7 +52,7 @@ cat ~/.claude/data/setup-fatto 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "s
 `SETUP GIÀ FATTO`, anche "dedotto", vuol dire che una FASE 9 è già riuscita: è il caso della verifica.
 
 Con `ultima fase finita: N` e senza `SETUP GIÀ FATTO`, chiedi: "L'ultima volta abbiamo finito la fase N:
-riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5 non è finita, riproponi 2b e 2c.
+riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5 non è finita, riproponi 2a, 2b e 2c.
 
 Se `impostazioni stato` non dice "clone", Arturo è un plugin: segui `~/.claude/shared/setup-plugin.md`.
 
@@ -62,7 +61,7 @@ https://arturo.stellakamikaze.org/inizia/, poi di scrivere `/exit`, `claude` e `
 Claude Code chiuso: il blocco di https://arturo.stellakamikaze.org/installa/#a-mano-esteso (su Windows in
 **Git Bash**, non in PowerShell).
 
-Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: "Arturo manda a chi lo mantiene eventi d'uso con un numero casuale: quali comandi e skill di Arturo usi, quanto dura una sessione e quanti messaggi scrivi, solo in fasce larghe, quali guardie ti fermano o chiedono conferma e perché, quali loro banchi falliscono, a che fase del setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome: un comando o un file tuo conta solo come altro. Il numero non contiene il tuo nome, ma chi mantiene Arturo può sapere che sei tu se ti conosce: per questo non sono dati anonimi. Servono a correggere ogni settimana i punti dove le persone si bloccano. Chi tiene i dati, per quanto e come li cancelli sta in docs/privacy.md." Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: "Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo." Se vuole decidere lui: `python3 ~/.claude/bin/arturo aggiornamenti manuali`.
+Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: "Arturo manda a chi lo mantiene eventi d'uso con un numero casuale: quali comandi e skill di Arturo usi, quanto dura una sessione e quanti messaggi scrivi, solo in fasce larghe, quali guardie ti fermano o chiedono conferma e perché, quali loro banchi falliscono, a che fase del setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome: un comando o un file tuo conta solo come altro. Il numero non contiene il tuo nome, ma chi mantiene Arturo può sapere che sei tu se ti conosce: per questo non sono dati anonimi. Servono a correggere ogni settimana i punti dove le persone si bloccano. Chi tiene i dati, per quanto e come li cancelli sta in docs/privacy.md." Poi chiedi se va bene così: fino alla risposta non parte niente. Col sì lancia `python3 ~/.claude/bin/arturo telemetria accendi`, col no `python3 ~/.claude/bin/arturo telemetria spegni`, e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: "Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo." Se vuole decidere lui: `python3 ~/.claude/bin/arturo aggiornamenti manuali`.
 
 Poi il contatto, una volta sola. Se `python3 ~/.claude/bin/arturo contatto chiesto` esce 0 la persona ha già risposto: salta. Altrimenti leggi le parole di `python3 ~/.claude/bin/arturo contatto testo` così come sono: dicono che nome ed email servono agli sviluppatori di Arturo per contattarla quando manda una segnalazione. Con un sì: `python3 ~/.claude/bin/arturo contatto imposta --nome "<nome>" --email "<email>"`, con le parole della persona (il nome si può lasciare vuoto, l'email no). Con un no: `python3 ~/.claude/bin/arturo contatto no`, e vai avanti senza insistere.
 
@@ -152,6 +151,14 @@ python3 ~/.claude/bin/arturo personale hook-precedenti
   Valgono dalla sessione dopo, e `/fine` salva i file insieme a `settings.json`.
 - Riga `BARRA:`: la barra è una sola, e quella di Arturo mostra contesto e quota. Se la persona vuole la
   sua, la mettete insieme dopo il setup.
+
+---
+
+## FASE 2a — Lo storico delle tue chat
+
+Proposta sempre, rifiutabile, mai nel modo verifica. Segui `~/.claude/shared/setup-ritratto.md`, parte 2a:
+prima la domanda, poi col sì `storico.py leggi`, poi ogni lavoro col suo sì. Con un no registra la fase
+e passa alla 2b.
 
 ---
 
@@ -278,39 +285,33 @@ I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo 
 
 ---
 
-## FASE 7d — La memoria (opzionale)
+## FASE 7d — La memoria (accesa di default)
 
-Proposta sempre nella bozza della FASE 5. Il ritratto non entra nelle note senza un sì a parte.
+Niente domanda: la memoria è accesa di default dal 14 novembre 2026. Il ritratto non entra nelle
+note senza un sì a parte.
 
 Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso,
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
 Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
-Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu: non copia
-e non sposta niente. Spiegalo così, in parole semplici:
+Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu (contratto
+in `~/.claude/docs/memoria.md`). Le note stanno su questo computer: nella telemetria ne entra solo il numero, in fasce, mai il nome o il
+testo. Quelle che Claude apre vanno ad Anthropic con la conversazione.
 
-- quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
-  a Claude dove sono. Claude le apre solo se servono;
-- ogni nota e ogni handoff che Claude scrive passa da un controllo: se dentro c'è una password o
-  un'istruzione nascosta, Claude riceve un avviso;
-- tutto resta su questo computer. Le note non vanno a nessun server e non entrano mai nella
-  telemetria;
-- è spenta finché non dici sì, e si spegne con un comando.
-
-Mostra lo stato e chiedi: "Vuoi accendere la memoria?".
+Leggi lo stato senza mostrarlo:
 
 ```bash
 python3 ~/.claude/bin/arturo memoria stato
 ```
 
-- Se sì, accendila e mostra l'esito:
-  ```bash
-  python3 ~/.claude/bin/arturo memoria accendi
-  ```
-  Se l'utente tiene già note sue in una cartella (markdown con `name` e `description` in testa),
-  chiedi il percorso e aggiungila con `python3 ~/.claude/bin/arturo memoria cartella aggiungi <percorso>`.
-  Digli che `arturo memoria cerca "parole"` cerca a mano, `arturo memoria controlla` trova note
-  senza descrizione e link rotti, e `arturo memoria spegni` la spegne.
-- Se no, salta senza insistere: non cambia niente.
+- Se è accesa, di' alla persona una riga sola, senza comandi: "Arturo ricorda i tuoi progetti su
+  questo computer: decisioni, errori già visti, preferenze. Se vuoi spegnerla, dimmelo." Se l'avvio
+  della sessione l'ha già detto (la riga `MEMORIA:`), non ripeterla.
+- Se è spenta, la persona l'ha spenta lei: non riaccenderla e non chiedere.
+- Se la persona chiede di spegnerla, lancia tu `python3 ~/.claude/bin/arturo memoria spegni` e
+  mostra l'esito: le note restano dove sono.
+- Se la persona dice che tiene già note sue in una cartella (markdown con `name` e `description`
+  in testa), chiedi il percorso e aggiungila con
+  `python3 ~/.claude/bin/arturo memoria cartella aggiungi <percorso>`.
 
 ---
 
@@ -396,12 +397,12 @@ sito vetrina): Impeccable guida e rifinisce, Hallmark costruisce. Controlla se c
 
 ---
 
-## FASE 8d — Lancillotto, per trovare cosa delegare (opzionale, solo Mac)
+## FASE 8d — La sandbox (opzionale)
 
-Fase da bozza.
-
-Su un Mac leggi `~/.claude/shared/setup-lancillotto.md` e seguilo: chiede se la persona vuole che Arturo
-impari da come lavora, controlla e installa dopo il sì. Su un altro sistema salta questa fase.
+Fase da bozza, per chi lancia script o installa pacchetti. Chiedi: "La sandbox chiude i comandi che lancio
+in un recinto: leggono e scrivono solo dove serve, e le tue chiavi (SSH, AWS, GitHub, Bitwarden) restano
+fuori. Git, ssh e gh girano come oggi. La accendo?" Dopo il sì: `python3 "$ARTURO_CODICE/bin/arturo" sandbox
+accendi`, che vale dalla sessione dopo. Si spegne con `arturo sandbox spegni`.
 
 ---
 
@@ -440,7 +441,7 @@ Se preferisce esplorare da solo, indicagli `~/.claude/docs/principi/README.md` e
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
 - Ritratto (2b, 2c): fatto o saltato. "Arturo non ne fa copie: resta nella cronologia della conversazione, che Claude Code cancella dopo 90 giorni, e nel CLAUDE.md approvato."
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable e Hallmark (8c), Lancillotto (8d), primo lavoro (10). Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale (4b, 5, 6, 7, 7c, 7d, 8, 8b, 8c, 8d, 10), il suo nome in parole semplici e se è fatta o saltata. Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: "Ogni giorno ti bastano `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi "ricordami di…": lo ritrovi a ogni `/inizio`."
 - **Quando servono**: `/guidami` propone i prossimi passi dal lavoro recente, `/diagnosi` controlla Arturo e il progetto, `/creaskill` fa di un lavoro ripetuto una skill tua. Gli altri strumenti non elencarli.
 - **Cosa vedi senza chiedere**: la barra in basso con il contesto usato e la quota, con l'orario in cui le 5 ore si azzerano. Quando Claude ti aspetta, il Mac suona e la scheda del terminale cambia colore. `/dafare` apre il pannello delle cose da fare, per progetto. Un termine non chiaro (contesto, memoria, branch, quota) lo spieghi con dove sta in Arturo.

@@ -12,13 +12,16 @@ StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
     CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1. Su Terminal di Apple il profilo deve avere spenti
     "Nome processo attivo" nella scheda (ShowActiveProcessInTabTitle), altrimenti accoda "— caffeinate ◂ claude";
   - il colore della scheda, dove il terminale lo sa fare: verde attende, giallo al lavoro,
-    rosso se il turno si è fermato per un errore (StopFailure). Windows Terminal con DECAC,
+    rosso se il turno si è fermato per un errore (StopFailure), viola a turno finito se la sessione è già
+    chiusa con /fine e la persona non ha più scritto (proposta n. 71). Windows Terminal con DECAC,
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
 Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CONTESTO <slug>" di
 contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
 dopo "/inizio" (una fonte debole: un file scritto la sostituisce, lo slug no). Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
 (<PROJECTS_BASE>/<progetto>, di default ~/Documents/ClaudeCode; hook, comandi, skill e file di testa della
-config = "claude-config", non piani, memoria e cache), poi la radice git o il nome della cartella.
+config = "claude-config", non piani, memoria e cache; l'handoff in data/handoffs/<slug>/ = <slug>), poi la
+cartella di lavoro dopo un cd dentro un progetto, poi la radice git o il nome della cartella. Il progetto dato
+dalla persona nella finestra di Volta (fonte "persona") non lo cambia un file scritto, come lo slug di /inizio.
 Limite noto: dopo un permesso concesso Claude Code non manda eventi finché lo strumento non finisce, quindi
 "SBLOCCA" resta per tutta la durata del comando approvato. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
@@ -47,6 +50,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_orsa  # noqa: E402
+import aspetto_valori as aspetto  # noqa: E402
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
           "Notification": "attende", "Stop": "fermo", "StopFailure": "problema", "SessionEnd": "fine"}
@@ -56,12 +60,14 @@ CHIEDONO = {"permission_prompt", "idle_prompt", "elicitation_dialog", "elicitati
 # Il titolo è il progetto; lo stato gli va davanti, senza nasconderlo (29/10/2026).
 # Una sessione appena aperta, o col turno finito, non ha niente da sbloccare: mostra il progetto.
 TITOLO = {"nuova": "{p}", "fermo": "{p}", "attende": "SBLOCCA · {p}", "lavoro": "LAVORANDO · {p}",
-          "problema": "SBLOCCA · {p}"}
+          "problema": "SBLOCCA · {p}", "chiusa": "{p}"}
 # Gli eventi che passano la mano alla persona: solo questi suonano la campanella.
 FERMANO = {"Notification", "StopFailure"}
-DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1}  # tavolozza: verde, giallo, rosso
+# tavolozza: verde, giallo, rosso; viola (magenta) per la sessione chiusa con /fine (proposta n. 71, 18/11/2026)
+DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1, "chiusa": 5}
 RGB = {"nuova": (40, 167, 69), "fermo": (40, 167, 69), "attende": (40, 167, 69), "lavoro": (230, 180, 0),
-       "problema": (200, 40, 40)}
+       "problema": (200, 40, 40), "chiusa": (135, 95, 215)}
+CHIUSA_GIORNI = 7  # un handoff più vecchio non segna più la sessione come chiusa
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
 # Il comando deve eseguire il risolutore (un grep che lo nomina non conta), e la sua prima riga
 # d'intestazione c'è solo se ha trovato il progetto.
@@ -166,10 +172,27 @@ def progetto_da_strumento(dati: dict) -> tuple:
     percorso = Path(str(entrata.get("file_path") or entrata.get("notebook_path") or "")).expanduser()
     config = dentro(percorso, Path(os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude")))
     if config is not None:
+        # L'handoff di /fine (data/handoffs/<slug>/) dice il progetto anche a chi non ha scritto nella sua
+        # cartella: la sessione di Spoleto lavorava nel browser e nelle email (14/11/2026).
+        if len(config) >= 4 and config[:2] == ("data", "handoffs") and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,39}", config[2]):
+            return config[2], "file"
         return ("claude-config", "file") if len(config) == 1 or config[0] in CONFIG else ("", "")
     # La cartella dei progetti come la legge contesto.base_progetti() di Arturo.
-    parti = dentro(percorso, Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode")))
-    return (parti[0][:40], "file") if parti and len(parti) > 1 else ("", "")
+    base = Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode"))
+    parti = dentro(percorso, base)
+    if not parti or len(parti) < 2:
+        return "", ""
+    return progetto_in_base(base, parti[0]), "file"
+
+
+def progetto_in_base(base: Path, nome: str) -> str:
+    """Il progetto di una cartella di primo livello della base. Una cartella accanto ai progetti che è un
+    worktree (.git è un file) vale il repo principale: "arturo-inizio-5465" è arturo, non un progetto
+    nuovo (12/11/2026)."""
+    cartella = base / nome
+    if (cartella / ".git").is_file():
+        return progetto_da_cartella(str(cartella))[:40]
+    return nome[:40]
 
 
 def istante(testo) -> float:
@@ -222,6 +245,55 @@ def job_in_corso(transcript: str, adesso: float) -> bool:
     return any(scade > adesso for scade in aperti.values())
 
 
+def ultimo_messaggio(transcript: str) -> float:
+    """L'istante dell'ultimo messaggio scritto dalla persona, dalla coda del transcript: non i risultati degli
+    strumenti, non i promemoria di sistema. 0 se non c'è o non si legge."""
+    try:
+        with open(transcript, "rb") as t:
+            t.seek(0, 2)
+            t.seek(max(0, t.tell() - 262144))
+            righe = t.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return 0.0
+    for riga in reversed(righe):
+        if '"type":"user"' not in riga.replace(" ", ""):
+            continue
+        try:
+            voce = json.loads(riga)
+        except ValueError:
+            continue
+        if voce.get("type") != "user" or voce.get("isMeta"):
+            continue
+        contenuto = (voce.get("message") or {}).get("content")
+        if isinstance(contenuto, list) and any(isinstance(c, dict) and c.get("type") == "tool_result" for c in contenuto):
+            continue
+        return istante(voce["timestamp"]) if voce.get("timestamp") else 0.0
+    return 0.0
+
+
+def sessione_chiusa(sessione: str, transcript: str, adesso: float) -> str:
+    """Lo slug dell'handoff che /fine ha scritto per questa sessione ("- Sessione: <id>"), se c'è, è degli ultimi
+    CHIUSA_GIORNI giorni e la persona non ha più scritto dopo. Altrimenti "". Proposta n. 71 (18/11/2026)."""
+    if not re.match(r"^[\w-]{8,64}$", sessione):
+        return ""
+    riga, migliore, slug = f"- Sessione: {sessione}", 0.0, ""
+    try:
+        for f in (radice_orsa() / "data" / "handoffs").glob("*/HANDOFF_*.md"):
+            try:
+                quando = f.stat().st_mtime
+                if quando < adesso - CHIUSA_GIORNI * 86400 or quando <= migliore:
+                    continue
+                if riga in f.read_text(encoding="utf-8", errors="replace").splitlines():
+                    migliore, slug = quando, f.parent.name
+            except OSError:
+                continue
+    except OSError:
+        return ""
+    if slug and transcript and ultimo_messaggio(transcript) > migliore:
+        return ""  # riaperta: la persona ha scritto dopo il /fine
+    return slug
+
+
 def dentro(percorso: Path, radice: Path):
     """Le parti di percorso sotto radice, o None se sta fuori (Path.is_relative_to è solo dal 3.9)."""
     try:
@@ -239,10 +311,15 @@ def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
             testo += "\x1b]6;1;bg;*;default\x07"
         return testo
     testo = f"\x1b]0;{TITOLO[stato].format(p=pulito)}\x07"
+    # I colori scelti dalla persona in personale/aspetto.json vincono su quelli di serie (proposta n. 73).
+    try:
+        suoi = (aspetto.leggi()[0].get("scheda") or {})
+    except Exception:
+        suoi = {}
     if os.environ.get("WT_SESSION"):
-        return testo + f"\x1b[2;15;{DECAC[stato]},|"
+        return testo + f"\x1b[2;15;{(suoi.get('decac') or {}).get(stato, DECAC[stato])},|"
     if os.environ.get("TERM_PROGRAM") == "iTerm.app":
-        r, g, b = RGB[stato]
+        r, g, b = (suoi.get("colori") or {}).get(stato, RGB[stato])
         return (testo + f"\x1b]6;1;bg;red;brightness;{r}\x07"
                 f"\x1b]6;1;bg;green;brightness;{g}\x07\x1b]6;1;bg;blue;brightness;{b}\x07")
     # Terminal di Apple non colora la scheda, ma segna con una campanella la scheda in secondo
@@ -363,6 +440,10 @@ def main() -> int:
     if evento == "Stop" or dati.get("notification_type") == "idle_prompt":
         if job_in_corso(str(dati.get("transcript_path") or ""), adesso):
             stato = "lavoro"
+    # A turno finito, una sessione già chiusa con /fine diventa viola (proposta n. 71).
+    if stato == "fermo" and sessione_chiusa(re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64],
+                                            str(dati.get("transcript_path") or ""), adesso):
+        stato = "chiusa"
     sessione = re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64] or "nessuna"
     f = cache_dir() / f"{sessione}.json"
     if dati.get("hook_event_name") == "SessionStart":
@@ -377,8 +458,17 @@ def main() -> int:
     progetto, fonte = ("", "") if persona else (progetto_da_prompt(str(dati.get("prompt") or "")), "prompt")
     if not progetto and evento == "PostToolUse" and not persona:
         progetto, fonte = progetto_da_strumento(dati)
-        if fonte == "file" and salvato.get("fonte") == "inizio":
+        # il progetto che la persona ha dato dalla finestra di Volta vale come /inizio (14/11/2026)
+        if fonte == "file" and salvato.get("fonte") in ("inizio", "persona"):
             progetto = ""
+        # Un cd di Bash dentro un progetto sposta una scheda che conosce solo la cartella: una richiesta
+        # libera aperta nella base dei progetti non resta "Senza progetto" mentre lavora in uno (14/11/2026).
+        if not progetto and salvato.get("fonte") in (None, "", "cartella"):
+            cwd = str(dati.get("cwd") or "")
+            base = Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode"))
+            parti = dentro(Path(cwd), base) if cwd else None
+            if parti:
+                progetto, fonte = progetto_in_base(base, parti[0]), "cartella"
     if not progetto:
         progetto, fonte = salvato.get("progetto") or "", salvato.get("fonte") or ""
     if not progetto:
@@ -398,8 +488,11 @@ def main() -> int:
             return 0
         f.parent.mkdir(parents=True, exist_ok=True)
         provvisorio = f.with_name(f"{f.stem}.{os.getpid()}.tmp")
-        provvisorio.write_text(json.dumps({"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}),
-                               encoding="utf-8")
+        nuovo = {"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}
+        # i segni di Volta (spostata, inizio) restano finché il progetto è quello che li ha scritti
+        if salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
+            nuovo.update({k: salvato[k] for k in ("spostata", "inizio", "sessionId") if k in salvato})
+        provvisorio.write_text(json.dumps(nuovo), encoding="utf-8")
         os.replace(str(provvisorio), str(f))
     scrivi(sequenze(stato, progetto, campanella=evento in FERMANO and stato != "lavoro"))
     return 0

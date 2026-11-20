@@ -13,11 +13,11 @@ function posta(env) {
   };
 }
 
-// Il limite per IP: binding Rate Limiting LIMITE_EVENTI e LIMITE_MODULI (wrangler.toml). La chiave è
-// l'IP di chi chiama, che il Worker non salva. Senza binding lascia passare.
+// Il limite per IP: binding Rate Limiting LIMITE_EVENTI, LIMITE_MODULI e LIMITE_SITO (wrangler.toml). La chiave è
+// l'IP di chi chiama, che il Worker non salva. Senza binding lascia passare; senza LIMITE_SITO i download usano LIMITE_MODULI.
 function limite(env) {
   return async (tipo, request) => {
-    const binding = tipo === "eventi" ? env.LIMITE_EVENTI : env.LIMITE_MODULI;
+    const binding = tipo === "eventi" ? env.LIMITE_EVENTI : tipo === "sito" ? (env.LIMITE_SITO || env.LIMITE_MODULI) : env.LIMITE_MODULI;
     if (!binding) return true;
     const { success } = await binding.limit({ key: request.headers.get("cf-connecting-ip") || "senza-ip" });
     return success;

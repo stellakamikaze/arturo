@@ -2,8 +2,7 @@
 // Federico: il recap "deve far capire quanto e come Arturo è usato". Prima era il muro di testo di testoRiepilogo, con
 // le righe a zero ("nessuna") più numerose di quelle piene. Qui una riga a zero sparisce, e il suo nome va nel piede.
 // Il testo semplice resta in logica.js (testoRiepilogo), con in testa le righe di righeGiorno.
-import { LIMITI, task, idCorto, derivaPubblica, derivaInBreve } from "./logica.js";
-import { testoLancillotto } from "./lancillotto.js";
+import { LIMITI, task, idCorto, derivaPubblica, derivaInBreve, misureMemoria } from "./logica.js";
 import { pagina, sezione, tabella, cifre, elenco, paragrafo, codice, crudo, esc } from "./email.js";
 
 const corto = (id) => (id || "").slice(0, 8);
@@ -30,7 +29,7 @@ const chi = (installazione) => codice(idCorto(installazione));
 
 // Le installazioni con una deriva che ostacola: hook spenti, guardie modificate, aggiornamento in conflitto. I valori
 // passano dagli elenchi chiusi anche qui: le righe salvate prima del 8/11/2026 avevano le radici aperte (finding 37).
-export function ostacoli(deriva) {
+function ostacoli(deriva) {
   const fuori = [];
   for (const d of deriva || []) {
     const valori = (d.valori || []).map(derivaPubblica);
@@ -44,8 +43,8 @@ export function ostacoli(deriva) {
   return fuori;
 }
 
-// Le righe da fare, ognuna con il suo task. Le config rotte hanno già il task dalla loro email: qui si ripetono con
-// la stessa impronta, così un recap riletto non fa doppioni.
+// Le righe da fare, ognuna con il suo task. Le config rotte hanno già il task dalla loro email (taskRotta in
+// logica.js): qui hanno una riga senza task, così il recap non ne fa un secondo.
 function daFare({ indietro = [], banchi = [], deriva = [], config = [] }, giorno) {
   const righe = [];
   for (const x of indietro) {
@@ -117,11 +116,6 @@ function tabellaGuardie(g) {
 const sezioneDaFare = (righe) => sezione("Da fare", elenco(righe.map((r) => r.testo)),
   { evidenza: true, nota: "Ogni riga è già un task, tranne le config rotte, che lo hanno dalla loro email, e la riga della deriva senza task." });
 
-function lancillotto(r) {
-  const t = testoLancillotto(r);
-  return t ? sezione("Lancillotto", elenco(t.split("\n").slice(1).map((x) => x.replace(/^- /, "")))) : "";
-}
-
 // Le righe di testo che il recap del mattino mette in testa, sotto il titolo.
 export function righeGiorno(r, g, { giorno } = {}) {
   if (!g) return [];
@@ -187,7 +181,6 @@ export function recapGiorno(r, g, { giorno, leggi = "" } = {}) {
     se((r.banchi || []).length, "banchi rossi", () => sezione("Banchi delle guardie rossi", tabella(["Banco", "Dove", "Dal"],
       r.banchi.map((x) => [codice(x.valore), `${idCorto(x.installazione)} · ${x.versione}`, breve(x.dal)])))),
     se(versioni, "versioni", () => sezione("Versioni e sistemi", paragrafo(versioni))),
-    lancillotto(r.lancillotto),
   ];
   const conti = `Eventi scartati perché fuori elenco: ${r.scartati || 0} · avvisi non partiti: Telegram ${r.telegramKo || 0}, email ${r.emailKo || 0}.`;
   if (!(r.deriva || []).length) vuote.push("deriva");
@@ -249,6 +242,22 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
     se(rit.soglie.length, "ritenzione", () => sezione("Ritenzione", tabella(["Viva dopo", "Vive", "Su", "Quota"],
       rit.soglie.map((s) => [`${s.giorni} giorni`, s.vive, s.idonee, per(s.vive, s.idonee)]), { numeriche: [1, 2, 3] }),
     { nota: `${uno(rit.nuove, "installazione nuova", "installazioni nuove")} negli ultimi 7 giorni.` })),
+    se(m.memoria, "memoria", () => {
+      // M7 della memoria (15/11/2026): le due misure del piano in cima, poi stato, richiamo e salvataggi.
+      const x = misureMemoria(m.memoria);
+      const f = x.primoFine;
+      return sezione("Memoria", tabella(["Misura", "Quante", "Su", "Quota"], [
+        ["/inizio scritto dalla persona", x.persona, x.sessioni, per(x.persona, x.sessioni)],
+        ["Nate che hanno lanciato /fine", f.conFine, f.nate, per(f.conFine, f.nate)],
+        ["Sessioni con note proposte", x.richiamo.conProposte, x.richiamo.sessioni, per(x.richiamo.conProposte, x.richiamo.sessioni)],
+        ["Sessioni con una nota aperta", x.richiamo.conAperte, x.richiamo.conProposte, per(x.richiamo.conAperte, x.richiamo.conProposte)],
+        ["Salvataggi automatici", x.salvataggi.n, x.salvataggi.installazioni, "-"],
+      ], { numeriche: [1, 2, 3] }), {
+        nota: `${f.mediana === null ? "Nessun primo /fine ancora." : `Primo /fine dopo ${f.mediana} giorni (mediana).`} ` +
+          `Dalla rotazione: ${x.rotazione} /inizio, fuori dal conto. "Su" dei salvataggi conta le installazioni. ` +
+          `Stato: ${x.stato.length ? x.stato.map((s) => `${s.valore} ${s.n}`).join(", ") : "nessun dato"}.`,
+      });
+    }),
     se((m.claude || []).length, "versioni di Claude Code", () => sezione("Versioni di Claude Code", paragrafo((m.claude || []).map((x) => `${x.valore} (${x.n})`).join(", ")))),
     se((r.comandi || []).length, "comandi", () => sezione("Comandi della settimana", tabella(["Comando", "Volte"],
       r.comandi.slice(0, DIECI).map((x) => [codice(`/${x.valore}`), x.n]), { numeriche: [1] }))),
@@ -261,7 +270,6 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
     se((r.banchi || []).length, "banchi rossi", () => sezione("Banchi delle guardie rossi", tabella(["Banco", "Dove", "Dal"],
       (r.banchi || []).map((x) => [codice(x.valore), `${idCorto(x.installazione)} · ${x.versione}`, breve(x.dal)])))),
     se(versioni, "versioni", () => sezione("Versioni e sistemi", paragrafo(versioni))),
-    lancillotto(r.lancillotto),
   ];
   if (!(r.deriva || []).length) vuote.push("deriva");
   if (!(r.config || []).length) vuote.push("config rotte");

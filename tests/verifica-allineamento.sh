@@ -199,8 +199,52 @@ BANCHI=(
   test_guardie_memoria_sblocco_2026_11_11.py
   # Le guardie vedono scritture sulla config, heredoc eseguiti e comandi fra virgolette (11/11/2026, #5262).
   test_guardie_cieche_2026_11_11.py
+  # Le conferme che non proteggono niente, dal ripasso dei transcript dei 7 giorni (20/11/2026).
+  test_attrito_2026_11_20.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
+  # /revisione: estratto dei transcript senza l'uscita dei comandi, attriti separati, bozza e registro (17/11/2026).
+  test_revisione_2026_11_17.py
+  # Le sessioni di prova marcate dal nome prova-: /fine non salva e le elimina (17/11/2026, #5877).
+  test_prova_2026_11_17.py
+  # La Scoperta v1 dalle versioni dei file (14/11/2026, passo S7, #5615).
+  test_scoperta_2026_11_14.py
+  # Lo storico delle chat: zip letto senza estrarlo, filtri del ritratto, solo l'indice su disco (15/11/2026, #5700).
+  test_storico_2026_11_15.py
+  # L'intervista che continua: una domanda al giorno da /inizio, la risposta in memoria col sì (15/11/2026, #5709).
+  test_intervista_2026_11_15.py
+  # Il fascicolo di un progetto: esporta senza segreti, importa coi testi altrui come dati (15/11/2026, #5710).
+  test_fascicolo_2026_11_15.py
+  # Gli spazi proposti col segnale, una volta sola, e il nome scelto per Arturo (16/11/2026, Fase F1 e F3, #5711).
+  test_spazi_2026_11_16.py
+  # Le forme della Scoperta (automazione, sintesi, pagina) e i lavori dello storico che tornano (16/11/2026, Fase D, #5702).
+  test_scoperta_forme_2026_11_16.py
+  # arturo progetti, portato da herdr: l'elenco dei progetti dalla memoria, per Volta (M3, #5672).
+  test_progetti_memoria_2026_11_11.py
+  # arturo progetti rinomina: un progetto cambia nome in un passo, il nome vecchio resta valido (proposta n. 90, #6095).
+  test_rinomina_2026_11_19.py
+  # arturo progetti unisci: due progetti doppioni diventano uno, con copia di sicurezza prima (#6187).
+  test_unisci_2026_11_20.py
+  # Il salvataggio automatico di una sessione chiusa senza /fine (M4, #5672).
+  test_salva_automatico.py
+  # Gli eventi della memoria nella telemetria: memoria, richiamo, salvataggio, inizio (M7, #5672).
+  test_telemetria_memoria_2026_11_15.py
+  # La barra trova node col PATH minimo di ssh, come nelle sessioni che Volta apre su un'altra macchina (15/11/2026).
+  test_statusline_path_2026_11_15.py
+  # /monitor impara dalle correzioni: segnali, mittenti, regole, sezioni, annullo (17/11/2026).
+  test_monitor_impara_2026_11_17.py
+  # Il giro quotidiano di /monitor: impronta dei todo, raccolta senza doppioni, cursori, lettore (20/11/2026, #4538).
+  test_monitor_giorno_2026_11_20.py
+  # La ripartenza di /inizio come dati per la checklist di Volta (17/11/2026, #5910).
+  test_ripartenza_2026_11_17.py
+  # L'aspetto della persona in personale/aspetto.json: scheda, barra, /dafare, DERIVA (proposta n. 73, #5432).
+  test_aspetto_2026_11_18.py
+  # La sandbox di Claude Code come opzione della persona, spenta di default (19/11/2026, #6098).
+  test_sandbox_2026_11_19.py
+  # Le skill di ruolo (20/11/2026, strati F6, #4536): aggiunte personali col tool Skill e mappa dei ruoli.
+  test_ruoli_2026_11_20.py
+  # Lo sportello lato client (20/11/2026, #4793): modo log, copie degli ultimi lotti, arturo telemetria dimentica.
+  test_telemetria_log_dimentica_2026_11_20.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -223,13 +267,15 @@ IN_FILA=(
   test_avviso_plugin_2026_11_06.py
   # Col plugin la chiusura installa il rilascio firmato (10/11/2026): misura un'attesa, gira in fila.
   test_chiusura_plugin_2026_11_10.py
+  # #5880 (17/11/2026): senza chiave SSH su GitHub install e update ripiegano su HTTPS; la regola autoMode.
+  test_aggiorna_https_2026_11_17.py
   # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
   test_revisione_2026_11_07.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_progetti_memoria_2026_11_11.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -444,14 +490,36 @@ BASELINE=(
   "test_migra_2026_11_05.py 53450c6"
   # Strati F5 (5/11/2026, #4535): il comando omonimi non c'è. e87ce62, il dev prima.
   "test_sostituzioni_2026_11_05.py e87ce62"
+  # La barra col PATH di ssh (15/11/2026): il comando non allarga il PATH. 8f62532, il dev prima.
+  "test_statusline_path_2026_11_15.py 8f62532"
   # #4874 (6/11/2026): il comando regole-doppie non c'è. 3b5e6c3, il dev prima.
   "test_regole_doppie_2026_11_06.py 3b5e6c3"
   # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
   "test_avviso_plugin_2026_11_06.py 3b5e6c3"
   # Col plugin la chiusura non lancia niente e applica non fa niente (10/11/2026). 62786fd, il dev prima.
   "test_chiusura_plugin_2026_11_10.py 62786fd"
+  # #5880 (17/11/2026): niente ripiego HTTPS e niente regola sull'aggiornatore. 8e287e4, il dev prima.
+  "test_aggiorna_https_2026_11_17.py 8e287e4"
   # #5102 (10/11/2026): i quattro difetti minori su Windows. 3f12336, il dev prima.
   "test_windows_minori_2026_11_10.py 3f12336"
+  # /revisione (17/11/2026): 8117411, il dev prima.
+  "test_revisione_2026_11_17.py 8117411"
+  # #5877 (17/11/2026): le sessioni di prova. 22e5935, il dev prima.
+  "test_prova_2026_11_17.py 22e5935"
+  # /monitor impara (17/11/2026): impara.py non c'è. e0ec624, il dev prima.
+  "test_monitor_impara_2026_11_17.py e0ec624"
+  # Il giro di /monitor (20/11/2026, #4538): giro.py, posta_gws.py e --chiave non ci sono. fc03145, il dev prima.
+  "test_monitor_giorno_2026_11_20.py fc03145"
+  # La ripartenza per Volta (17/11/2026, #5910): il comando arturo ripartenza non c'è. b70d1d0, il dev prima.
+  "test_ripartenza_2026_11_17.py b70d1d0"
+  # L'aspetto (18/11/2026, proposta n. 73): aspetto_valori.py e arturo aspetto non ci sono. 58e0435, il dev prima.
+  "test_aspetto_2026_11_18.py 58e0435"
+  # La sandbox opzionale (19/11/2026): bin/sandbox.py e arturo sandbox non ci sono. f500fc1, il dev prima.
+  "test_sandbox_2026_11_19.py f500fc1"
+  # Le skill di ruolo (20/11/2026): estensione-skill.py e bin/ruoli.py non ci sono. 0c1daea, il dev prima.
+  "test_ruoli_2026_11_20.py 0c1daea"
+  # Lo sportello lato client (20/11/2026, #4793): modo log e dimentica non ci sono. 0cc681e, il dev prima.
+  "test_telemetria_log_dimentica_2026_11_20.py 0cc681e"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -493,6 +561,8 @@ VELENI=(
   test_avviso_plugin_2026_11_06.py
   # Chiusura col plugin (10/11/2026): senza il ramo plugin di session-end.sh la chiusura non installa niente (PC03).
   test_chiusura_plugin_2026_11_10.py
+  # #5880 (17/11/2026): un ripiego solo sul catalogo lascia install senza chiave SSH fallito (AH01).
+  test_aggiorna_https_2026_11_17.py
   # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.
   test_revisione_2026_11_07.py
   # Review del 7/11/2026, lotto L9: una radice in più in deriva.py fa rosso A02 (finding 94).
@@ -507,6 +577,8 @@ VELENI=(
   test_guardie_memoria_sblocco_2026_11_11.py
   # #5262 (11/11/2026): con le guardie di b68e732 ogni gruppo GC è rosso.
   test_guardie_cieche_2026_11_11.py
+  # Ripasso dei permessi (20/11/2026): con le guardie di 0c1daea ogni gruppo AT è rosso.
+  test_attrito_2026_11_20.py
   # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
   test_windows_minori_2026_11_10.py
   # Herdr (8/11/2026, ramo herdr): installazione, hook dello stato, invito, mod, Da dove partire, La settimana, azioni sui todo, Arturo.app, note sulla finestra e gitignore di data/ (HZ01-HZ15).
@@ -515,12 +587,46 @@ VELENI=(
   test_herdr_firma_invito_2026_11_20.py
   # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
+  # /revisione (17/11/2026): ogni riga tolta fa rosso il suo caso RV.
+  test_revisione_2026_11_17.py
+  # #5877 (17/11/2026): ogni riga tolta fa rosso il suo caso PV.
+  test_prova_2026_11_17.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
   test_contatto_2026_11_10.py
   # Le segnalazioni automatiche (11/11/2026): ogni filtro tolto da manda fa rosso il suo caso SA.
   test_segnala_auto_2026_11_11.py
   # n. 68: il heredoc rimesso dentro <(...) fa rossi BS01 e, sul Mac, BS02.
   test_bash32_2026_11_10.py
+  # La Scoperta (14/11/2026): ogni veleno di scoperta.py e dell'hook fa rosso il suo caso SC.
+  test_scoperta_2026_11_14.py
+  # Lo storico delle chat (15/11/2026): ogni rottura di storico.py, del comando o dei testi fa rosso il suo caso ST.
+  test_storico_2026_11_15.py
+  # L'intervista (15/11/2026): ogni rottura di intervista.py, di contesto.py o dei testi fa rosso il suo caso IV.
+  test_intervista_2026_11_15.py
+  # Il fascicolo (15/11/2026): ogni rottura di fascicolo.py, del comando o dei testi fa rosso il suo caso FA.
+  test_fascicolo_2026_11_15.py
+  # Gli spazi e il nome (16/11/2026): ogni rottura di spazi.py, nome.py, contesto.py, dell'avvio o dei testi fa rosso il suo caso SP.
+  test_spazi_2026_11_16.py
+  # Le forme della Scoperta (16/11/2026): ogni rottura di scoperta_forme.py, scoperta.py o /fine fa rosso il suo caso SF.
+  test_scoperta_forme_2026_11_16.py
+  # arturo progetti (M3, #5672): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
+  test_progetti_memoria_2026_11_11.py
+  # arturo progetti rinomina (#6095): ogni rottura di rinomina.py o di contesto.py fa rosso il suo caso RN.
+  test_rinomina_2026_11_19.py
+  # arturo progetti unisci (#6187): ogni rottura di unisci.py fa rosso il suo caso UN.
+  test_unisci_2026_11_20.py
+  # Il salvataggio automatico (M4, #5672): ogni rottura di salva-automatico.py, dell'hook o di contesto.py fa rosso il suo caso SV.
+  test_salva_automatico.py
+  # La telemetria della memoria (M7, #5672): ogni rottura di telemetria.py, inject-now.sh o salva-automatico.py fa rosso il suo caso TM.
+  test_telemetria_memoria_2026_11_15.py
+  # /monitor impara (17/11/2026): ogni rottura di impara.py (soglie, sempre, modo proposta, annullo) fa rosso il suo caso IM.
+  test_monitor_impara_2026_11_17.py
+  # Il giro di /monitor (#4538): impronta doppia, ponte a nome d'altri, visto ignorato, cursore su fonte troncata, testo nascosto.
+  test_monitor_giorno_2026_11_20.py
+  # La ripartenza (17/11/2026, #5910): ogni rottura di ripartenza.py o del passo di /inizio fa rosso il suo caso RP.
+  test_ripartenza_2026_11_17.py
+  # Lo sportello (#4793): un modo log che manda, una cartella che non si pota, un id che resta dopo dimentica.
+  test_telemetria_log_dimentica_2026_11_20.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

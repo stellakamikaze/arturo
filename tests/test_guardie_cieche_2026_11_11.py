@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GC01-GC06: le guardie vedono le scritture sulla config, gli heredoc eseguiti e i comandi fra virgolette (#5262).
+"""GC01-GC07: le guardie vedono le scritture sulla config, gli heredoc eseguiti e i comandi fra virgolette (#5262).
 
 La review del 10/11/2026 ha trovato cinque problemi alti o medi nelle guardie della 0.2.10 (n. 4, 5, 6, 7 e 9).
 Il pre-filtro del dispatcher non chiamava le guardie su forme che loro sanno leggere (`'rm' -rf`, `git "push"`,
@@ -14,8 +14,9 @@ GC03 un comando lunghissimo o con un byte non valido chiede conferma, e in frett
 GC04 scritture sulla config: glob, link, cd nelle sue forme, dd, archivi, patch, git, mv e chmod di cartelle.
 GC05 `bin` e l'elenco dei plugin sono protetti, dalla shell e da Write; ogni script di settings.json è in tabella.
 GC06 heredoc eseguiti per vie indirette restano visibili; quelli scritti e basta restano inerti.
+GC07 (15/11/2026, #5713 #5714) rsync verso un altro computer e un for su parole fisse non chiedono.
 
-Sulla base b68e732 ogni gruppo fallisce con un AssertionError che comincia col suo codice. Con --avvelena il
+Sulla base b68e732 (GC07 sulla d0fcf5e, in BASI) ogni gruppo fallisce con un AssertionError che comincia col suo codice. Con --avvelena il
 banco lo prova da solo, come test_guardie_memoria_sblocco_2026_11_11.py, da cui prende il Banco.
 """
 from __future__ import annotations
@@ -123,7 +124,12 @@ def test_gc03(b: Banco):
                            "hook_event_name": "PreToolUse", "session_id": "gc"}).encode("utf-8")
 
     lungo, tempo = grezzo(b, evento(f"rm -rf {lavoro} # " + "A" * 1_100_000))
-    sporco, _ = grezzo(b, evento(f"rm -rf {lavoro} # X").replace(b"X", b"\xff"))
+    # Solo il segnaposto diventa il byte non valido. Un replace su ogni "X" toccava anche il percorso: il mktemp
+    # del gate scrive lettere maiuscole (`gate-fixture.5QX3AP`), rm puntava a una cartella che non esiste e la
+    # guardia taceva a ragione. Il caso usciva silent in circa un gate su dieci (#5676, 17/11/2026).
+    con_segnaposto = evento(f"rm -rf {lavoro} # @SPORCO@")
+    assert con_segnaposto.count(b"@SPORCO@") == 1, "GC03 il segnaposto del byte non valido compare nel percorso"
+    sporco, _ = grezzo(b, con_segnaposto.replace(b"@SPORCO@", b"\xff"))
     dati, _ = grezzo(b, evento("cat > f.txt <<'EOF'\n" + "riga di dati\n" * 100_000 + "EOF"))
     casi = [("comando da 1,1 MB", lungo, "ask"), ("in meno di 20 secondi", tempo < 20, True),
             ("byte non valido", sporco, "ask"), ("heredoc grande di soli dati", dati, "silent")]
@@ -232,19 +238,51 @@ def test_gc06(b: Banco):
     return verifica("GC06", casi)
 
 
+@gruppo
+def test_gc07(b: Banco):
+    """Due falsi allarmi del 15/11/2026: rsync verso un altro computer (#5713) e un for su parole fisse (#5714)."""
+    lavoro = b.home / "Documents" / "lavoro"
+    lavoro.mkdir(parents=True, exist_ok=True)
+    progetto = b.home / "progetto"
+    progetto.mkdir(exist_ok=True)
+    (progetto / "CLAUDE.md").write_text("istruzioni\n", encoding="utf-8")
+    corpo = f"<<'FINE'\nrm -rf {lavoro}\nFINE"
+    tace = [
+        ("rsync verso host:percorso", "rsync -azn ./ utente@server:/tmp/x/"),
+        ("rsync verso un modulo", "rsync -a ./ server::copie/x/"),
+        ("rsync verso rsync://", "rsync -a ./ rsync://server/copie/"),
+        ("file scritto, poi un for su un altro script", f"cat > nota.txt {corpo}\nfor f in build.sh; do bash \"$f\"; done"),
+        ("file scritto, poi un for su due parole fisse", f"cat > nota.txt {corpo}\nfor f in a.sh b.sh; do sh $f; done"),
+    ]
+    casi = [(nome, due(b, c, progetto), "silent/silent") for nome, c in tace]
+    chiede = [
+        ("rsync in locale crea un CLAUDE.md", f"rsync -a ./ {b.home}/altrove/"),
+        ("rsync verso un disco di Windows", "rsync -a ./ C:/altrove/"),
+        ("for che esegue il file scritto", f"cat > pulisci.sh {corpo}\nfor f in pulisci.sh; do bash \"$f\"; done"),
+        ("for con un glob", f"cat > pulisci.sh {corpo}\nfor f in *.sh; do bash \"$f\"; done"),
+        ("for con una variabile", f"cat > pulisci.sh {corpo}\nfor f in $L; do bash \"$f\"; done"),
+    ]
+    casi += [(nome, due(b, c, progetto), "ask/ask") for nome, c in chiede]
+    return verifica("GC07", casi)
+
+
 TESTS = {"GC01": test_gc01, "GC02": test_gc02, "GC03": test_gc03, "GC04": test_gc04, "GC05": test_gc05,
-         "GC06": test_gc06}
+         "GC06": test_gc06, "GC07": test_gc07}
+# La base del veleno per i gruppi nati dopo b68e732: le guardie del giorno prima della correzione.
+BASI = {"GC07": "d0fcf5e"}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "forma_comando.py", "protect_claude_md.py", "heredoc.py",
            "commit-secret-gate.py")
 
 
-def avvelena(repo: Path, ref: str) -> int:
-    """Ogni gruppo, con le guardie com'erano su `ref`, deve fallire col suo codice."""
-    elenco = subprocess.run(["git", "-C", str(repo), "ls-tree", "--name-only", f"{ref}:hooks"], capture_output=True,
-                            text=True, encoding="utf-8", check=False)
-    assert elenco.returncode == 0, f"veleno: la base {ref} non si legge da {repo}: {elenco.stderr.strip()}"
+def avvelena(repo: Path, ref: str, forzata: bool = False) -> int:
+    """Ogni gruppo, con le guardie com'erano su `ref` (o sulla sua base in BASI), deve fallire col suo codice."""
     inerti, rossi = [], []
+    base_comune = ref
     for codice, test in TESTS.items():
+        ref = base_comune if forzata else BASI.get(codice, base_comune)
+        elenco = subprocess.run(["git", "-C", str(repo), "ls-tree", "--name-only", f"{ref}:hooks"], capture_output=True,
+                                text=True, encoding="utf-8", check=False)
+        assert elenco.returncode == 0, f"veleno: la base {ref} non si legge da {repo}: {elenco.stderr.strip()}"
         copia = Path(tempfile.mkdtemp(prefix="arturo-veleno."))
         try:
             shutil.copytree(repo / "hooks", copia / "hooks", ignore=shutil.ignore_patterns("__pycache__", "*.local"))
@@ -278,7 +316,7 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if args.avvelena or args.baseline_ref:
-        return avvelena(repo, args.baseline_ref or BASE)
+        return avvelena(repo, args.baseline_ref or BASE, forzata=bool(args.baseline_ref))
     totale, errori = 0, []
     for prova in TESTS.values():
         try:

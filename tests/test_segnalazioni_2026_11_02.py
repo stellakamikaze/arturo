@@ -14,6 +14,12 @@ SG03 un progetto fuori dalle cartelle della sessione fa tornare la shell alla ca
      Dopo /chrome a sessione aperta gli strumenti arrivano solo con claude --continue (n. 40).
 SG04 con due Chrome collegati Claude resta sul browser scelto per deviceId e, dopo una disconnessione,
      controlla inUse e lo dice (n. 44, 3/11/2026).
+SG05 prima di aprire per la persona Claude sceglie la macchina: quella nominata, questa se è interattiva,
+     altrimenti la macchina davanti di Volta (volta_davanti.py leggi) o una domanda (#5881, 17/11/2026).
+SG06 Claude usa il browser che la persona nomina, ne carica la skill prima di ripiegare su un altro server
+     MCP del browser, e prima di toccare i dati di un account dice quale account è collegato (n. 74, #5600).
+SG07 un elenco di più di 30 righe va in un file aperto alla persona, in chat il conteggio (proposta n. 76),
+     e il brief chiede una riga d'esempio per un foglio di un terzo con colonne ambigue (proposta n. 82).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -87,7 +93,34 @@ def test_sg04(repo: Path) -> None:
         assert pezzo in stile, f"SG04 lo stile non dice come restare sul Chrome scelto: manca {pezzo}"
 
 
-TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04}
+def test_sg05(repo: Path) -> None:
+    stile = read(repo / "output-styles" / "conciso.md")
+    for pezzo in ("scegli la macchina", "`python3 ~/.config/herdr-app/mods/arturo/volta_davanti.py leggi`",
+                  "Se dice \"ignota\", o lo script manca, chiedi una", "\"Apro sul MacBook, in"):
+        assert pezzo in stile, f"SG05 lo stile non dice come scegliere la macchina davanti: manca {pezzo}"
+
+
+def test_sg06(repo: Path) -> None:
+    stile = " ".join(read(repo / "output-styles" / "conciso.md").split())
+    for pezzo in ("Quando la persona nomina un browser", "carica la skill di quel browser prima di ogni altra via",
+                  "Un altro server MCP del browser vale solo col sì della persona", "`tabs_context_mcp`",
+                  "segnalazione n. 74", "Prima di cercare o modificare i dati di un account",
+                  "\"Uso il Chrome con l'account del lavoro\"", "Permission denied"):
+        assert pezzo in stile, f"SG06 lo stile non dice quale browser e quale account usare: manca {pezzo}"
+
+
+def test_sg07(repo: Path) -> None:
+    stile = " ".join(read(repo / "output-styles" / "conciso.md").split())
+    for pezzo in ("## Gli elenchi lunghi", "più di 30 righe", "apri il file alla persona", "In chat restano il conteggio",
+                  "proposta n. 76"):
+        assert pezzo in stile, f"SG07 lo stile non dice dove va un elenco lungo: manca {pezzo}"
+    brief = " ".join(read(repo / "skills" / "prompt-master" / "SKILL.md").split())
+    for pezzo in ("chiede una riga d'esempio", "arriva da un terzo", "proposta n. 82"):
+        assert pezzo in brief, f"SG07 il brief non chiede la riga d'esempio per un foglio ambiguo: manca {pezzo}"
+
+
+TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04, "SG05": test_sg05,
+         "SG06": test_sg06, "SG07": test_sg07}
 
 
 def main() -> int:

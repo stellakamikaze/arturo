@@ -208,6 +208,14 @@ function daRiaprire(sessione) {
   return '';
 }
 
+// Lo stesso conto di fermo_da_un_giorno in bin/aggiornamenti.py (14/11/2026, S2): pronta da più di 24 ore, e nessuna
+// chiusura vera di Claude Code nelle ultime 24. Chi lavora solo con /clear e la rotazione non la installava mai.
+function fermoDaUnGiorno(stato, adesso) {
+  if (!stato || stato.stato !== 'pronto' || !stato.pronto_da) return false;
+  const ultima = Math.max(Number(stato.pronto_da) || 0, Number(stato.chiusura_vera) || 0);
+  return ((adesso === undefined ? Date.now() : adesso) / 1000) - ultima > 86400;
+}
+
 function aggiornamentoSegmento(sessione) {
   let stato = {};
   try { stato = JSON.parse(fs.readFileSync(AGG_FILE, 'utf8')) || {}; } catch (e) { stato = {}; }
@@ -233,6 +241,7 @@ function aggiornamentoSegmento(sessione) {
   if (riapri && stato.compromesso !== true) return ` │ \x1b[36m↑ Arturo ${riapri} installata · riapri Claude Code\x1b[0m`;
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
   if (!versione) return '';
+  if (fermoDaUnGiorno(stato)) return ` │ \x1b[33m↑ Arturo ${versione} · chiudi e riapri Claude Code: /clear non basta\x1b[0m`;
   if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
   // Una firma che manca o non torna non si scavalca con /aggiorna (17/10/2026, #3504).
   // La copia non verificata è rimasta installata e la chiusura ha disattivato il plugin (11/11/2026).
@@ -241,6 +250,120 @@ function aggiornamentoSegmento(sessione) {
   if (stato.non_verificabile === true) return ` │ \x1b[33m↑ Arturo ${versione} · aggiorna git e OpenSSH per installarlo\x1b[0m`;
   if (stato.stato === 'manuale' || stato.stato === 'bloccato') return ` │ \x1b[33m↑ Arturo ${versione} · serve /aggiorna\x1b[0m`;
   return '';
+}
+
+// --- Sessione chiusa con /fine (proposta n. 71, 18/11/2026) ----------------
+// La stessa regola di sessione_chiusa in hooks/scheda-terminale.py: un handoff degli ultimi 7 giorni con la riga
+// "- Sessione: <id>", e nessun messaggio della persona dopo. La scheda diventa viola, la barra lo dice in fondo.
+const CHIUSA_GIORNI = 7;
+
+function ultimoMessaggio(transcript) {
+  try {
+    const fd = fs.openSync(transcript, 'r');
+    let testo = '';
+    try {
+      const dim = fs.fstatSync(fd).size;
+      const quanto = Math.min(dim, 262144);
+      const buf = Buffer.alloc(quanto);
+      fs.readSync(fd, buf, 0, quanto, dim - quanto);
+      testo = buf.toString('utf8');
+    } finally { fs.closeSync(fd); }
+    const righe = testo.split('\n');
+    for (let i = righe.length - 1; i >= 0; i--) {
+      if (!righe[i].replace(/ /g, '').includes('"type":"user"')) continue;
+      let voce;
+      try { voce = JSON.parse(righe[i]); } catch (e) { continue; }
+      if (voce.type !== 'user' || voce.isMeta) continue;
+      const c = voce.message && voce.message.content;
+      if (Array.isArray(c) && c.some(x => x && x.type === 'tool_result')) continue;
+      const t = Date.parse(voce.timestamp || '');
+      return Number.isFinite(t) ? t / 1000 : 0;
+    }
+  } catch (e) {}
+  return 0;
+}
+
+// La ricerca legge ogni handoff della settimana (56 ms con 720 handoff, 18/11/2026): il risultato si tiene in
+// cache/statusline/chiusa-<sessione>.json finché nessuna cartella degli handoff cambia. Un handoff nuovo cambia la
+// sua cartella; /fine rilanciato riscrive lo stesso file, che porta già la riga della sessione.
+function sessioneChiusa(sessione, transcript, adesso) {
+  if (!/^[\w-]{8,64}$/.test(sessione || '')) return '';
+  const riga = `- Sessione: ${sessione}`;
+  const ora = (adesso === undefined ? Date.now() : adesso) / 1000;
+  const base = path.join(CLAUDE_DIR, 'data', 'handoffs');
+  const memo = path.join(GIT_CACHE_DIR, `chiusa-${sessione}.json`);
+  let firma = '';
+  try {
+    firma = fs.readdirSync(base).map(c => { try { return `${c}:${fs.statSync(path.join(base, c)).mtimeMs}`; } catch (e) { return c; } }).join('|');
+    const visto = JSON.parse(fs.readFileSync(memo, 'utf8'));
+    if (visto.firma === firma && (!visto.progetto || visto.migliore >= ora - CHIUSA_GIORNI * 86400)) {
+      return visto.progetto && transcript && ultimoMessaggio(transcript) > visto.migliore ? '' : (visto.progetto || '');
+    }
+  } catch (e) {}
+  let migliore = 0, progetto = '';
+  try {
+    for (const cartella of fs.readdirSync(base)) {
+      let nomi = [];
+      try { nomi = fs.readdirSync(path.join(base, cartella)); } catch (e) { continue; }
+      for (const nome of nomi) {
+        if (!/^HANDOFF_.*\.md$/.test(nome)) continue;
+        const f = path.join(base, cartella, nome);
+        try {
+          const quando = fs.statSync(f).mtimeMs / 1000;
+          if (quando < ora - CHIUSA_GIORNI * 86400 || quando <= migliore) continue;
+          if (fs.readFileSync(f, 'utf8').split(/\r?\n/).includes(riga)) { migliore = quando; progetto = cartella; }
+        } catch (e) {}
+      }
+    }
+  } catch (e) { return ''; }
+  try {
+    fs.mkdirSync(GIT_CACHE_DIR, { recursive: true });
+    const tmp = `${memo}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ firma, progetto, migliore }));
+    fs.renameSync(tmp, memo);
+  } catch (e) {}
+  if (progetto && transcript && ultimoMessaggio(transcript) > migliore) return '';
+  return progetto;
+}
+
+function chiusuraSegmento(sessione, transcript) {
+  const progetto = sessioneChiusa(sessione, transcript).replace(/[^\w.-]/g, '').slice(0, 40);
+  return progetto ? ` │ \x1b[48;5;98;97;1m ✓ chiusa · /inizio ${progetto} \x1b[0m` : '';
+}
+
+// --- L'aspetto della persona (proposta n. 73, 18/11/2026) ------------------
+// ~/.claude/personale/aspetto.json, fuori da git: i pezzi spenti e un file suo che accoda un testo. Gli stessi nomi
+// di hooks/aspetto_valori.py, che lo legge per la scheda e per `arturo aspetto`. Un valore sbagliato non conta.
+const PEZZI_BARRA = ['contesto', 'quota', 'aggiornamento', 'chiusa', 'task'];
+
+function aspettoBarra() {
+  try {
+    const dati = JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, 'personale', 'aspetto.json'), 'utf8'));
+    const barra = dati && typeof dati.barra === 'object' && dati.barra ? dati.barra : {};
+    const spenti = new Set((Array.isArray(barra.spenti) ? barra.spenti : []).filter(x => PEZZI_BARRA.includes(x)));
+    const aggiunta = typeof barra.aggiunta === 'string' && /^[A-Za-z0-9_-]{1,40}\.js$/.test(barra.aggiunta) ? barra.aggiunta : '';
+    return { spenti, aggiunta };
+  } catch (e) {
+    return { spenti: new Set(), aggiunta: '' };
+  }
+}
+
+// Il file della persona gira con la sua fiducia, come personale/session-start.sh. Un errore, o un testo che non
+// è testo, non rompe la barra: si tolgono i caratteri di controllo tranne i colori SGR, e il testo si ferma a 60.
+function aggiuntaPersona(nome, dati) {
+  if (!nome) return '';
+  try {
+    const modulo = require(path.join(CLAUDE_DIR, 'personale', nome));
+    const funzione = typeof modulo === 'function' ? modulo : modulo && modulo.default;
+    if (typeof funzione !== 'function') return '';
+    const testo = String(funzione(dati) || '');
+    const pulito = testo.replace(/\x1b\[[0-9;]*m|[\x00-\x1f\x7f-\x9f]/g, m => (m.length > 1 ? m : ''));
+    const visibile = pulito.replace(/\x1b\[[0-9;]*m/g, '');
+    if (!visibile.trim()) return '';
+    return ` │ ${visibile.length > 60 ? visibile.slice(0, 59) + '…' : pulito}\x1b[0m`;
+  } catch (e) {
+    return '';
+  }
 }
 
 // --- Quota dell'abbonamento ------------------------------------------------
@@ -312,6 +435,13 @@ function quotaSegmento(rate) {
 
 
 // Lo slug di una cartella, come lo calcolano /inizio e /fine.
+// I tetti della riga: progetto, ramo e task lasciano posto a contesto e quota anche in un riquadro stretto.
+const PROGETTO_MAX = 24, RAMO_MAX = 16, TASK_MAX = 36;
+function accorcia(testo, max) {
+  const s = String(testo || '');
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
 function slug(nome) {
   return String(nome).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -425,13 +555,22 @@ process.stdin.on('end', () => {
     const scheda = progettoScheda(session);
     const progetto = scheda || daCartella;
     const slugRepo = git && path.resolve(git.principale) === path.resolve(CLAUDE_DIR) ? 'claude-config' : slug(daCartella);
-    const luogo = git && git.ramo && (!scheda || slugRepo === slug(scheda))
-      ? `${progetto}\x1b[0m\x1b[2m@${git.ramo}${git.sporco ? '*' : ''}`
-      : progetto;
+    // Tetti ai pezzi lunghi (14/11/2026, chi mantiene Arturo: "il nome progetto in basso non mi fa vedere le percentuali
+    // di utilizzo"): progetto, ramo e task senza tetto superavano la larghezza del riquadro, e Claude Code
+    // tagliava la riga in fondo, proprio su contesto e quota. Il ramo di un worktree perde "worktree-".
+    const ramo = git && git.ramo ? accorcia(git.ramo.replace(/^worktree-/, ''), RAMO_MAX) : '';
+    const luogo = ramo && (!scheda || slugRepo === slug(scheda))
+      ? `${accorcia(progetto, PROGETTO_MAX)}\x1b[0m\x1b[2m@${ramo}${git.sporco ? '*' : ''}`
+      : accorcia(progetto, PROGETTO_MAX);
 
     // Output
-    const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento(session);
+    const aspetto = aspettoBarra();
+    const pezzo = (nome, fai) => (aspetto.spenti.has(nome) ? '' : fai());
+    if (aspetto.spenti.has('contesto')) ctx = '';
+    const quota = pezzo('quota', () => quotaSegmento(data.rate_limits)) + pezzo('aggiornamento', () => aggiornamentoSegmento(session))
+      + pezzo('chiusa', () => chiusuraSegmento(session, data.transcript_path || '')) + aggiuntaPersona(aspetto.aggiunta, data);
     const sigla = abbreviaModello(model);
+    task = aspetto.spenti.has('task') ? '' : accorcia(task, TASK_MAX);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     } else {

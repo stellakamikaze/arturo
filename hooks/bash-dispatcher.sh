@@ -153,11 +153,23 @@ fi
 # stdout vuoto e la diagnosi finisce sul servizio sbagliato. Esclusi ssh, docker exec
 # e heredoc: li' `timeout` gira su una macchina Linux.
 _NL=$'\n'
+# La guardia può girare con un PATH più corto della shell di Claude, che legge il profilo della persona: lì
+# /opt/homebrew/bin c'è, qui a volte no, e `timeout` di coreutils veniva bloccato anche dove esiste
+# (20/11/2026, 11 blocchi in 7 giorni). Contano anche le cartelle di Homebrew; ARTURO_TIMEOUT_CARTELLE le
+# sostituisce, e vuota le spegne (i banchi del blocco).
+_timeout_c_e() {
+  command -v timeout &>/dev/null && return 0
+  local d
+  for d in ${ARTURO_TIMEOUT_CARTELLE-/opt/homebrew/bin /usr/local/bin}; do
+    [[ -x "$d/timeout" ]] && return 0
+  done
+  return 1
+}
 PATTERN_TIMEOUT="(^|[;&|(\`${_NL}])[[:space:]]*((sudo|env|command|exec)[[:space:]]+)?timeout[[:space:]]+(-[^[:space:]]+[[:space:]]+([A-Z]+[[:space:]]+)?)*[0-9]"
 PATTERN_REMOTE='(^|[[:space:];&|(])(ssh|docker[[:space:]]+exec|kubectl[[:space:]]+exec)[[:space:]]|<<'
 # Il match si ripete sul comando con le parti fra virgolette mascherate: un
 # `git commit -m "fix; timeout 30"` non e' un timeout. Se python fallisce resta il comando intero.
-if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
+if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! _timeout_c_e; then
     _SENZAQ=$(MSYS2_ARG_CONV_EXCL='*' python3 -c 'import sys
 c=sys.argv[1]; out=[]; q=None; i=0
 while i<len(c):
@@ -170,7 +182,7 @@ while i<len(c):
 print("".join(out))' "$COMMAND" 2>/dev/null) || _SENZAQ="$COMMAND"
     [[ -n "$_SENZAQ" ]] || _SENZAQ="$COMMAND"
 fi
-if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
+if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! _timeout_c_e; then
     echo "BLOCCATO: 'timeout' non esiste su questo sistema. Fallirebbe con 'command not found' e stdout vuoto. Usa il parametro timeout del tool Bash, 'curl --max-time N', oppure 'cmd & pid=\$!; sleep N; kill \$pid'." >&2
     exit 2
 fi
@@ -223,7 +235,9 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # 11/11/2026 (#5261): cp, mv, install, ln e rsync in un comando che nomina ~/.claude, prima o dopo (anche
 # `cd ~/.claude; cp x .`), e la parola unlock: il nome del file scritto (uno sblocco, settings.json) sta nella
 # sorgente e non dopo `.claude/`. Il pre-filtro risparmia un processo: un sì in più costa poco, un no è un buco.
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|&?[[:space:]]*(#.*)?([({][[:space:]]*([^|]*[;&[:cntrl:]][[:space:]]*)?)?((sudo|doas)[[:space:]][^|;&]*)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|(^|[^[:alnum:]_.-])(cp|mv|install|ln|rsync)[[:space:]].*\.claude|\.claude.*[^[:alnum:]_.-](cp|mv|install|ln|rsync)[[:space:]]|unlock|\.claude|(^|[;&|(){[:cntrl:]])[[:space:]]*\$[{A-Za-z_]|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
+# 13/11/2026 (HK-6): l'avvio automatico su Windows, la cartella Start Menu/Programs/Startup, i profili di
+# PowerShell, schtasks, reg add/import/restore/load, sc create, Register-ScheduledTask e New-Service.
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|&?[[:space:]]*(#.*)?([({][[:space:]]*([^|]*[;&[:cntrl:]][[:space:]]*)?)?((sudo|doas)[[:space:]][^|;&]*)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php|powershell|pwsh)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|(^|[^[:alnum:]_.-])(cp|mv|install|ln|rsync)[[:space:]].*\.claude|\.claude.*[^[:alnum:]_.-](cp|mv|install|ln|rsync)[[:space:]]|unlock|\.claude|(^|[;&|(){[:cntrl:]])[[:space:]]*\$[{A-Za-z_]|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|Start[[:space:]]+Menu|profile\.ps1|schtasks|(^|[^[:alnum:]_.-])reg(\.exe)?[[:space:]]+(add|import|restore|load)|(^|[^[:alnum:]_.-])sc(\.exe)?[[:space:]]+create|Register-ScheduledTask|New-Service|\.ssh([/[:space:]\"'"'"';&|)]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws([/[:space:]\"'"'"';&|)]|$)|\.gnupg([/[:space:]\"'"'"';&|)]|$)|\.secrets([/[:space:]\"'"'"';&|)]|$)|\.netrc|security[[:space:]]+(find-(generic|internet)-password|dump-keychain)|\.[^[:space:]/]*[]*?[][^[:space:]/]*/|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|rm(dir)?Sync|\.rm[[:space:]]*\(|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
 # 11/11/2026 (#5262, review n. 7): ogni comando che nomina `.claude` (`~/.claude//settings.json`, `H=~/.claude`,
 # `~/.claude.json`), e una variabile al posto del programma (`X=rm; $X -rf`): block-dangerous li risolve già.
 # 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
@@ -231,6 +245,8 @@ PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*77
 # 7/11/2026 (review, finding 1 8 9): l'interprete dopo la pipe chiuso da ; ) " o && e con sudo -E; ogni
 # sed (le regole sed-w e sed-e le giudica block-dangerous); rmtree anche senza il prefisso shutil.;
 # Remove-Item e powershell o pwsh, che su Windows cancellano cartelle.
+# 13/11/2026 (HK-5): powershell e pwsh dopo la pipe (`curl u | powershell -`), rmSync, rmdirSync e fs.rm( di
+# node, che block-dangerous giudica come shutil.rmtree.
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
 # Dal 15/10/2026 parte anche su un commit a capo, in una subshell o in $( ), dopo `env VAR=… `
 # o assegnazioni, e con opzioni di git prima di commit (-c k=v, -C dir, --no-pager).
@@ -250,7 +266,7 @@ _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
 # Qui il confronto resta esatto anche su macOS e Windows, perché le opzioni contano la maiuscola (`-T` carica
 # un file, `-t` no; `-F` è un form, `-f` no): senza, quasi ogni curl faceva partire due processi in più. Solo
 # i nomi dei due programmi sono scritti in ogni maiuscola (HK-1b).
-PATTERN_EXFIL='([cC][uU][rR][lL]|[wW][gG][eE][tT])([^|;&]|&[^[:space:]&|;])*(-[[:alnum:]]*F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-[[:alnum:]]*T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-[[:alnum:]]*d'"$_FINE_ARG"'*["'"'"']?@|--data[a-z-]*'"$_FINE_ARG"'*["'"'"']?@|--json'"$_FINE_ARG"'*["'"'"']?@|--url-query'"$_FINE_ARG"'*["'"'"']?@)'
+PATTERN_EXFIL='([cC][uU][rR][lL]|[wW][gG][eE][tT])([^|;&]|&[^[:space:]&|;])*(-[[:alnum:]]*F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-[[:alnum:]]*T'"$_FINE_ARG"'|-[[:alnum:]]*T[^[:space:]]|--data-urlencode'"$_FINE_ARG"'*["'"'"']?[^[:space:]=@"'"'"']*@|--upload-file|--(post|body)-file|-[[:alnum:]]*d'"$_FINE_ARG"'*["'"'"']?@|--data[a-z-]*'"$_FINE_ARG"'*["'"'"']?@|--json'"$_FINE_ARG"'*["'"'"']?@|--url-query'"$_FINE_ARG"'*["'"'"']?@)'
 # Il GET non passa da exfil-guard (ramo tolto il 30/10/2026, #4325). Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
 # nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
 # chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
@@ -276,7 +292,8 @@ PATTERN_GIT_AMEND='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?commit[
 PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--f)|(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*[cC]lean\.[rR]equire[fF]orce'
 # data-guard: operazioni DATI irreversibili non coperte da block-dangerous
 # (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).
-PATTERN_DATA='[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa][Bb][Aa][Ss][Ee]|[Ss][Cc][Hh][Ee][Mm][Aa])|[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]|[Dd][Ee][Ll][Ee][Tt][Ee][[:space:]]+[Ff][Rr][Oo][Mm]|docker([[:space:]]+compose|-compose)[^|&;]*[[:space:]]down[^|&;]*(-v|--volumes)|rsync[^|&;]*--del(ete)?([^[:alnum:]_]|$)|>[[:space:]]*[^>[:space:]|&;]*\.(db|sqlite|sqlite3|sql|dump)'
+# 13/11/2026 (HK-5): su Windows robocopy con /MIR o /PURGE (in Git Bash anche `//MIR`) e reg delete.
+PATTERN_DATA='[Rr][Oo][Bb][Oo][Cc][Oo][Pp][Yy][^|&;]*[[:space:]]["'"'"']?/+([Mm][Ii][Rr]|[Pp][Uu][Rr][Gg][Ee])|(^|[^[:alnum:]_.-])[Rr][Ee][Gg][[:space:]]+[Dd][Ee][Ll][Ee][Tt][Ee]|[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa][Bb][Aa][Ss][Ee]|[Ss][Cc][Hh][Ee][Mm][Aa])|[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]|[Dd][Ee][Ll][Ee][Tt][Ee][[:space:]]+[Ff][Rr][Oo][Mm]|docker([[:space:]]+compose|-compose)[^|&;]*[[:space:]]down[^|&;]*(-v|--volumes)|rsync[^|&;]*--del(ete)?([^[:alnum:]_]|$)|>[[:space:]]*[^>[:space:]|&;]*\.(db|sqlite|sqlite3|sql|dump)'
 
 # Esegue un guard: un crash o stdout non decisionale diventa ask, mai allow implicito.
 # $1 = la guardia che si e' rotta: la telemetria la registra come `errore`.
@@ -497,6 +514,9 @@ _RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
 # Con la sessione dentro `.git`, `cp x hooks/pre-commit` scrive un hook di git senza nominare `.git/hooks`
 # (11/11/2026, #5262): block-dangerous risolve il percorso, il pre-filtro guarda la cartella della sessione.
 _RE_CWD_GIT='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.git(["/\\])'
+# Con la sessione dentro una cartella dei segreti, `cat github` legge una chiave senza nominarla (review del
+# 10/11/2026, problema 10, #5263): block-dangerous risolve il percorso dalla cartella della sessione.
+_RE_CWD_SEGRETI='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.(ssh|aws|gnupg|secrets)(["/\\])'
 # Su Windows i percorsi hanno anche le barre rovesciate (`"C:\Users\x\.claude\settings.json"`), e PATTERN_DANGER
 # cerca `.claude/`: il pre-filtro prova anche il comando con le barre dritte (review del 9/11/2026, #5096).
 # Anche il `cd` si legge con le barre dritte: `cd "C:\...\.claude\data" && echo x > ../settings.json` ha
@@ -507,7 +527,7 @@ if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
 fi
 # Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config (7/11/2026,
 # finding 11). Dal 10/11/2026 lo copre `somiglia`, che lì confronta PATTERN_DANGER senza le maiuscole.
-if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER" || somiglia "$_GUARD_DRITTO" "$PATTERN_CD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT"; then
+if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER" || somiglia "$_GUARD_DRITTO" "$PATTERN_CD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT" || somiglia "$INPUT" "$_RE_CWD_SEGRETI"; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then

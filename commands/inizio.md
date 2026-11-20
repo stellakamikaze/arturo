@@ -1,20 +1,47 @@
 ---
 description: >-
-  Apre la sessione su un progetto: sync della config (con --tutti anche dei progetti), contesto in una
-  chiamata con arturo contesto (git, handoff recenti, todo con chi agisce, scadenze), le altre sessioni
-  sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Le parole
-  dopo il nome, o dopo " -- ", sono il compito e la sessione parte subito lì; una frase senza nome di
-  progetto è tutta compito. Progetto non trovato: propone i nomi simili e non crea niente senza un sì.
-  La chiusura è /fine. Con " -- --rotazione <compito>" (lo scrive solo il mod rotazione) riparte in una
-  riga sul passo dopo.
+  Apre la sessione su un progetto: sync, contesto (git, handoff, todo con chi agisce, scadenze) e la
+  ripartenza per filone. Le parole dopo il nome, o dopo " -- ", sono il compito. Un nome non trovato
+  porta i nomi simili. Con " -- --rotazione <compito>" (lo scrive il mod rotazione) riparte in una riga.
 argument-hint: "<nome-progetto> [--tutti] [<compito>]"
 ---
 
 # Inizio sessione
 
 Argomenti: **$ARGUMENTS**. Le parole dopo il nome del progetto, o dopo " -- ", sono il compito della
-sessione (vedi "Con un compito" in fondo); una frase senza nome di progetto è tutta compito. `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
+sessione (vedi "Con un compito" qui sotto); una frase senza nome di progetto è tutta compito. `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
 usa la cartella in cui sei. Con `--tutti` e senza nome ti fermi dopo la FASE 0.
+
+## Con un compito
+
+Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
+frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
+partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Se la FASE 1 stampa
+FACCIO IO FERMI, aggiungi una riga: "Todo di Claude fermi da più di 3 giorni: #12 (7 g), #13 (5 g).
+Dopo il compito ne chiudo uno breve, o chiedo se toglierlo." A compito finito mantieni la promessa:
+riprendine uno, o chiedi alla persona se scartarlo o passarlo a lei. Poi carica
+`prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
+senza aspettare una scelta.
+
+## Modo rotazione
+
+Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotazione`, dopo un
+`/fine --rotazione`: la persona non ha scritto niente e il lavoro continua da solo.
+- FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
+- La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
+  elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
+  conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
+  anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
+  L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
+  Nemmeno la domanda dell'intervista o la proposta di uno spazio: in rotazione nessuno risponde, e
+  `arturo contesto` non le stampa.
+- Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
+- `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
+  brief pieno l'ha avuto lo step prima. Poi parti subito.
+- A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
+- Con la riga `in attesa: <domanda>` non parti: la sessione di prima ha fatto una domanda alla persona dopo
+  la rotazione, e la risposta non è arrivata (segnalazione n. 65). La ripartenza è la riga "Ripreso…" e
+  sotto la domanda, con le parole di risposta in grassetto. Aspetti la risposta prima di ogni lavoro.
 
 ## FASE -1: Onboarding speciali
 
@@ -43,7 +70,7 @@ PLUGIN=0
 if [ "$PLUGIN" = 1 ]; then
   VERIFICA=$(python3 ~/.claude/bin/aggiornamenti.py plugin --verifica 2>&1); FIRMA=$?
   case "$FIRMA" in
-    0) case "$VERIFICA" in *"GIÀ AGGIORNATO"*) ;; *) echo "ARTURO: c'è la versione $(printf '%s\n' "$VERIFICA" | tail -1) — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna" ;; esac ;;
+    0) case "$VERIFICA" in *"GIÀ AGGIORNATO"*) ;; *"DA RIMETTERE"*) echo "ARTURO: la copia del plugin non è come il rilascio firmato: /aggiorna la reinstalla e la controlla" ;; *) echo "ARTURO: c'è la versione $(printf '%s\n' "$VERIFICA" | tail -1) — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna" ;; esac ;;
     3) echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo ($(printf '%s\n' "$VERIFICA" | tail -1))" ;;
     4) echo "ARTURO: questo computer non sa controllare la firma dei rilasci (servono git 2.34 e OpenSSH 8.2): Arturo non si aggiorna finché non li aggiorni. Non è un problema di sicurezza" ;;
     *) echo "Config sync: controllo aggiornamenti non riuscito: $(printf '%s\n' "$VERIFICA" | tail -1)" ;;
@@ -155,19 +182,37 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
 - la riga `quota:` con la finestra di 5 ore e quella della settimana, come le ha viste la barra in
   basso; manca se la barra non ha ancora un dato valido;
+- `SCHEDA DEL PROGETTO`: la scheda che `/fine` scrive nella memoria, con cos'è, decisioni chiuse ed
+  errori da non ripetere. Manca a memoria spenta o senza scheda. La cartella scritta nella scheda vale
+  anche fuori dalla base dei progetti, e la scheda da sola basta a trovare il progetto;
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
-  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
-  commit già arrivati con un cherry-pick o un rebase non compare);
+  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno e con "chiuso da
+  /fine" se la sessione l'ha segnato (un ramo coi commit già arrivati con un cherry-pick o un rebase
+  non compare);
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
-  quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
+  quando c'è, e il percorso dell'ultimo handoff da leggere per intero. La riga `SALVATO IN AUTOMATICO`
+  dice che l'ultima sessione si è chiusa senza `/fine`: l'handoff l'ha scritto Arturo dal transcript,
+  con le ultime richieste e il lavoro aperto;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
   IO, FERMO), i FACCIO IO FERMI DA PIÙ DI 3 GIORNI (nessun passo vero: una nota non conta), i todo
   chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori dal progetto, il todo DA
   DOVE PARTIRE e gli avvisi.
+- `INTERVISTA`: nelle prime sei settimane dopo `/setup`, al massimo una domanda al giorno su quello che
+  Arturo non sa ancora del lavoro della persona: cosa fa, per chi, come. Le domande stanno in
+  `~/.claude/docs/mestieri.md`, per famiglia di mestiere. Manca in rotazione, a memoria spenta, a intervista spenta
+  o se oggi una domanda c'è già stata.
+- `SPAZIO`: nei giorni senza domanda dell'intervista, al massimo una proposta a settimana di uno spazio,
+  col segnale che l'ha fatta nascere: Melchior se la memoria è spenta e il lavoro cresce, l'Orsa se
+  corregge la stessa cosa in più sessioni. Ogni spazio si propone una
+  volta sola. Manca in rotazione e a proposte spente.
 
 Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
 resta dove sei.
+
+Dopo il `cd` lancia `python3 ~/.claude/bin/arturo scoperta impronta`: prende l'impronta dei file di testo
+del progetto, e `/fine` la confronta per vedere le modifiche fatte a mano (la Scoperta). La sua riga non
+va nella ripartenza.
 
 Se dopo il `cd` Claude Code risponde "Shell cwd was reset", la cartella sta fuori dalle cartelle
 della sessione e ogni comando torna alla cartella di partenza. Di' alla persona in una riga di
@@ -189,6 +234,10 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
   basta e la cartella principale non ha modifiche, `git merge --no-edit <ramo>`, con `git merge
   --abort` al primo conflitto. Un conflitto lo dici alla persona e non lo risolvi da solo. Gli altri
   rami (prove, vecchie versioni) restano una riga col conteggio (segnalazione n. 20, 27/10/2026).
+  Un ramo "chiuso da /fine, da riportare" viene da una sessione che non poteva toccare il tree
+  principale (riporto differito di `~/.claude/shared/fine-worktree.md`, #4007). Non serve proporlo:
+  dal tree principale, fuori da un worktree, lo riporti tu coi passi 5-8 di quel file, prima del
+  lavoro. Da dentro un worktree non lo tocchi: lo fa il prossimo `/inizio` nel tree principale.
 - **Altre sessioni.** Lancia `ListAgents`. Un'altra sessione di Claude Code sullo stesso progetto va
   in cima alla ripartenza, con quello che sta facendo.
 - **Terza sessione aperta.** Il limite delle 5 ore è uno solo per tutte le sessioni dell'account, anche
@@ -246,10 +295,15 @@ percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi 
 `bash ~/.claude/bin/identita-git.sh . && git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
 mai nel repo del progetto.
 
+Se lo script stampa `AVVISO`, il commit parte con l'identità automatica di Git: riporta la riga nella
+ripartenza, con l'invito a sceglierne una con `/setup`. Solo `MANCA` ferma il commit: riportalo, e il
+progetto resta senza il primo commit finché la persona non sceglie l'identità.
+
 ## FASE 3: Carica il contesto
 
 Leggi in ordine, se esistono:
-1. il `CLAUDE.md` del progetto;
+1. il `CLAUDE.md` del progetto. Le decisioni chiuse e gli errori della `SCHEDA DEL PROGETTO` della FASE 1
+   valgono come vincoli: non si rimettono in discussione;
 2. l'ultimo handoff per intero: il percorso è nella riga "da leggere per intero" della FASE 1.
    Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
    da una versione vecchia di `/fine`), leggi quello.
@@ -333,6 +387,9 @@ Perché è fatta così:
 - **Da allora** (2-4 frasi) unisce la Ripartenza degli handoff e cosa è cambiato dopo: i commit
   arrivati, i todo chiusi (anche quelli chiusi ora dal confronto col git log), le scadenze arrivate,
   un handoff di un'altra macchina. Chiude con la considerazione che ne segue.
+- **Salvato in automatico.** Con la riga `SALVATO IN AUTOMATICO` il "Da allora" comincia così: "L'ultima
+  volta non hai chiuso con /fine: ecco cosa stavi facendo", con l'ultima richiesta e il lavoro aperto
+  in parole semplici. Poi una riga: "Il primo /fine di oggi lo completa".
 - **I todo stanno per filone**, numerati, con l'ID. I filoni vengono dalle righe «filone» della
   RIPARTENZA, coi nomi che la persona riconosce. Senza filoni, un gruppo solo col nome del progetto.
   Entrano tutti i todo aperti del progetto. I todo di «generale» chiudono la lista, nel gruppo «Fuori
@@ -356,8 +413,28 @@ Perché è fatta così:
   i todo), nominala in una riga. Altrimenti niente.
 - **La riga di sistema compare solo se qualcosa non va** (sync, pull, conflitti, config): sale in
   cima se blocca il lavoro.
+- **La domanda dell'intervista.** [solo se la FASE 1 stampa `INTERVISTA`] prima della riga di risposta
+  metti una riga: "Una domanda per conoscerti meglio: <domanda>", e sotto "Rispondi quando vuoi, oppure
+  **salta**". La domanda non ferma il lavoro: con un compito parti lo stesso.
+- **La proposta di uno spazio.** [solo se la FASE 1 stampa `SPAZIO`] prima della riga di risposta metti
+  due righe con parole tue: cosa hai visto (il "perché" della riga, coi suoi numeri) e cosa proponi (la
+  "proposta"). Sotto: "Se ti va, scrivimi **sì**; se no, **no** e non te lo ripropongo". Anche la proposta
+  non ferma il lavoro.
 - **Il messaggio chiude senza menu**, con le parole di risposta in grassetto. La persona risponde a
   parole.
+- **La checklist di Volta.** Subito dopo la ripartenza passa lo stesso elenco, con gli stessi numeri e le
+  stesse parole, a `arturo ripartenza scrivi` su stdin, in un solo comando Bash. Se la persona usa Volta, la
+  vede come checklist con una nota per riga, e la sua scelta torna qui come messaggio (FASE 6). Senza Volta
+  il file non lo legge nessuno e si cancella da solo. Exit 2 = schema rotto: correggi il campo che dice e
+  rilancia. Non vale per il Modo rotazione e per la ripartenza breve di "Con un compito", che non hanno
+  l'elenco numerato. `id` è il numero del todo, oppure `null` per una riga senza todo.
+  ```bash
+  python3 ~/.claude/bin/arturo ripartenza scrivi <<'RIPARTENZA'
+  {"progetto": "<progetto>", "titolo": "<la riga del titolo>",
+   "filoni": [{"nome": "<filone>", "voci": [{"n": 1, "id": 5, "testo": "<todo>", "marca": "<marca>", "sotto": "<riga sotto o vuoto>"}]}],
+   "partenza": {"n": 1, "motivo": "<il motivo di Da dove partirei>"}}
+  RIPARTENZA
+  ```
 
 ## FASE 6: La risposta della persona
 
@@ -372,36 +449,32 @@ Perché è fatta così:
   (un invio, un pagamento, una cancellazione) ti fermi e chiedi.
 - **Un filone o dei numeri.** Parti da quei todo. Il task di sessione (`TaskCreate`) nasce solo per
   i todo scelti: due numerazioni insieme confondono i numeri.
+- **La risposta dalla checklist di Volta.** Arriva come un messaggio della persona, con i numeri della
+  ripartenza: "Lavora su 2 5. Già fatto: 3. Scartati: 4. Rimandati: 6. A Claude: 7. A me: 8. Note: 2:
+  testo. Nota generale". Ogni parte vale come se la persona l'avesse scritta a parole. "Lavora su" sono
+  i numeri da cui parti. "Già fatto" chiude il todo con `arturo todo fatto ID`: lo dice la persona, e
+  non serve un controllo tuo. "Scartati" usa `arturo todo scarta ID "<motivo>"`, col motivo dalla sua
+  nota o "scartato dalla checklist". "Rimandati" usa `arturo todo modifica ID --quando "più avanti"`. "A
+  Claude" usa `--chi io`, "A me" usa `--chi tu`. Una nota sotto un numero vale per quel todo, la nota
+  generale per tutta la sessione. Una riga senza todo (`id` nullo) si tratta a parole. Riporta in una
+  riga cosa hai scritto nell'archivio, poi parti da "Lavora su".
+- **La risposta all'intervista.** Riscrivi la risposta in una o due frasi coi fatti della persona, senza
+  aggiungerne. Mostrala e chiedi: "La salvo nella memoria?". Solo col sì lancia
+  `python3 ~/.claude/bin/arturo intervista risposta <id> --testo "<le frasi approvate>"`: la nota entra
+  come `persona-<id>` e la annuncia `/fine`. Se la risposta dice il mestiere, fissa anche la famiglia con
+  `arturo intervista famiglia <1-6>`. Con **salta** lancia `arturo intervista salta <id>`. Con "basta
+  domande" lancia `arturo intervista spegni`. Un no al salvataggio non salva niente, e la domanda può
+  tornare un altro giorno.
+- **La risposta alla proposta di uno spazio.** Col sì esegui il passo della riga `col sì` di `SPAZIO`:
+  per Melchior accendi la memoria;
+  per l'Orsa scrivi la regola in una riga, mostrala e solo col suo sì sul testo aggiungila al suo
+  `CLAUDE.md`. Poi lancia `python3 ~/.claude/bin/arturo spazi si <spazio>`. Col no lancia
+  `arturo spazi no <spazio>`, con "basta proposte" `arturo spazi spegni`. Senza risposta non fare niente:
+  la proposta non torna comunque.
+- **Il nome.** Se la persona vuole chiamare Arturo in un altro modo ("chiamati Bruno"), lancia
+  `python3 ~/.claude/bin/arturo nome "<nome>"`: il nome sta nell'Orsa e l'avvio lo ripete a ogni sessione.
+  Da subito usalo quando parli di te.
 - **"qualcosa non torna".** Se la persona dice che Arturo o il progetto non funzionano come si
   aspetta, apri con Read `~/.claude/commands/diagnosi.md` e seguilo.
-
-## Con un compito
-
-Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
-frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
-partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Se la FASE 1 stampa
-FACCIO IO FERMI, aggiungi una riga: "Todo di Claude fermi da più di 3 giorni: #12 (7 g), #13 (5 g).
-Dopo il compito ne chiudo uno breve, o chiedo se toglierlo." A compito finito mantieni la promessa:
-riprendine uno, o chiedi alla persona se scartarlo o passarlo a lei. Poi carica
-`prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
-senza aspettare una scelta.
-
-## Modo rotazione
-
-Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotazione`, dopo un
-`/fine --rotazione`: la persona non ha scritto niente e il lavoro continua da solo.
-- FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
-- La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
-  elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
-  conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
-  anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
-  L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
-- Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
-- `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
-  brief pieno l'ha avuto lo step prima. Poi parti subito.
-- A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
-- Con la riga `in attesa: <domanda>` non parti: la sessione di prima ha fatto una domanda alla persona dopo
-  la rotazione, e la risposta non è arrivata (segnalazione n. 65). La ripartenza è la riga "Ripreso…" e
-  sotto la domanda, con le parole di risposta in grassetto. Aspetti la risposta prima di ogni lavoro.
 
 Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.

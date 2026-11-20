@@ -205,14 +205,14 @@ def test_cc11(repo: Path) -> None:
     assert voce in r.stdout, "CC11 la correzione non torna quando il messaggio è un comando"
     assert "arturo correzione aggiungi" not in r.stdout, "CC11 il promemoria delle correzioni esce su un comando"
     # Senza bin/correzioni.py il comando `arturo correzione` non c'è: la riga che lo chiede deve tacere,
-    # mentre la REGOLA FISSA resta (config dell'autore, PM-1 della revisione skill dell'8/11/2026).
+    # mentre il promemoria del brief resta (PM-1 della revisione skill dell'8/11/2026).
     nuda = lab.dir / "senza-bin"
     (nuda / "hooks").mkdir(parents=True)
     shutil.copy2(repo / "hooks" / "inject-now.sh", nuda / "hooks" / "inject-now.sh")
     r = subprocess.run([banco_telemetria().BASH, str(nuda / "hooks" / "inject-now.sh")],
                        input=json.dumps({"prompt": "rifai la tabella"}), capture_output=True, text=True,
                        encoding="utf-8", errors="replace", env=lab.env, cwd=str(nuda), timeout=60)
-    assert r.returncode == 0 and "REGOLA FISSA" in r.stdout, f"CC11 senza bin/ manca la REGOLA FISSA: {r.stdout!r}"
+    assert r.returncode == 0 and "BRIEF:" in r.stdout, f"CC11 senza bin/ manca il promemoria del brief: {r.stdout!r}"
     assert "arturo correzione aggiungi" not in r.stdout, "CC11 senza bin/ il promemoria chiede un comando che non c'è"
     r = lab.hook("inject-now.sh", json.dumps({"prompt": "rifai la tabella", "session_id": "sessione-due"}))
     assert testa not in r.stdout, "CC11 un'altra sessione vede la correzione"

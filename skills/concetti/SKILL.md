@@ -4,11 +4,11 @@ description: >-
   Spiega i concetti base di Claude Code e di Arturo a chi non ha mai aperto un terminale: cos'è un
   harness, contesto e memoria, git e GitHub, branch e fork, cosa succede alle tue modifiche quando
   Arturo si aggiorna, subagent e modelli più economici, ultracode, le due finestre della quota, cosa
-  vuol dire dire sì a una conferma. Ogni risposta finisce con dove trovi quella cosa in Arturo.
+  vuol dire dire sì a una conferma, la sandbox. Ogni risposta finisce con dove trovi quella cosa in Arturo.
 when_to_use: >-
   Usa quando la persona chiede "cos'è…" (anche "cos'è un harness"), "che differenza c'è tra…",
   "perché…" su uno di questi concetti, o quando una sua frase mostra che li confonde ("la quota della settimana è all'84%"
-  mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear). NON per spiegare il codice di un
+  mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear), o chiede "cosa ricordi di me?". Non per spiegare il codice di un
   progetto, NON come lezione non richiesta.
 ---
 
@@ -44,6 +44,8 @@ contesti separati e la stessa memoria.
 In Arturo: la barra in basso mostra quanto contesto è pieno. La memoria sono `CLAUDE.md`, gli
 handoff che scrive `/fine` e i todo (`arturo todo`), tutti in `~/.claude`. Il capitolo
 `~/.claude/docs/principi/04-la-memoria-e-tua.md` racconta il resto.
+A "cosa ricordi di me?" o "cosa sai dei miei progetti?" rispondi con il testo di `arturo memoria`:
+lancialo e riportalo, senza aggiungere note che non elenca.
 
 **Git e GitHub.** Git è un programma che tiene la storia di una cartella: ogni modifica salvata
 (un commit) resta, e puoi tornare indietro. La cartella può contenere codice, testi o foto. GitHub
@@ -86,3 +88,11 @@ per lanciare. Sì vale per quel comando, quella volta. Le guardie di Arturo chie
 se chiedono, leggi. Chiediti: se dico sì senza leggere, cosa può succedere?
 In Arturo: `~/.claude/docs/principi/02-i-rail-non-l-attrito.md`. Quando Claude ti aspetta, il Mac suona e la
 scheda del terminale cambia colore.
+
+**La sandbox.** È un recinto del sistema operativo intorno ai comandi che Claude lancia: un comando, e ogni
+programma che quel comando avvia, legge e scrive solo dove serve e va in rete solo verso indirizzi noti.
+Le guardie guardano il comando; la sandbox copre anche lo script che il comando lancia, per esempio un
+pacchetto installato che prova a leggere le tue chiavi. È spenta di default, perché alcuni programmi
+(git su SSH, ssh) dentro non funzionano: Arturo li lascia fuori.
+In Arturo: `arturo sandbox stato`, `arturo sandbox accendi`, `arturo sandbox spegni`; `/setup` la propone
+nella fase 8d.

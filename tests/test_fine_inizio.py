@@ -58,6 +58,21 @@ non fa stash e lascia il file risolto a mano com'è; lo dice con ERRORE e rc 1.
 F27 un compito col trattino dopo il nome (review del 7/11/2026, finding 33): "libro - capitolo tre" e
 "libro togli il flag --force" caricano il progetto col compito; un'opzione in testa o subito dopo il nome
 ("--boh libro", "libro --boh") resta sconosciuta, exit 3.
+F28 la scheda del progetto (M3 del piano della memoria, 14/11/2026, #5672): /fine la scrive con arturo
+memoria scheda, arturo contesto la rilegge dalla home anche per un progetto fuori dalla base, senza
+voci ripetute e con le righe scritte a mano; a memoria spenta niente scheda; un segreto non entra.
+F29 note salvate e annunciate (M5, 15/11/2026, #5672): la FASE 8 salva con arturo memoria nota senza
+chiedere, la chiusura annuncia con ricordate --annuncia e "togli N" archivia; una nota salvata in un giro
+di rotazione si annuncia nella chiusura dopo; il gate accetta l'idea "→ memoria" con la nota salvata e
+la rifiuta dopo "togli"; l'igiene settimanale sta nel fine completo.
+F30 il riporto differito (#4007, 19/11/2026): da una sessione fissata al worktree la guardia rifiuta
+ogni git sul tree principale. shared/fine-worktree.md segna il ramo con la config comune
+(branch.<ramo>.arturo-riporta) e non usa mai git -C; arturo contesto mostra il ramo "chiuso da /fine";
+/inizio lo riporta da solo dal tree principale; il segno sparisce con git branch -d.
+F31 il lavoro che torna ha la sua prova e i suoi attrezzi (20/11/2026): /creaskill fa la quinta domanda
+("come capisci che è venuto bene?") e la skill nasce con "Finito quando" e "Attrezzi"; il metodo dice di
+chiudere con quella lista e di salvare script e modelli nella skill; la FASE 8 di /fine manda la correzione
+di un lavoro nella skill della persona, non in memoria, e non tocca le skill di Arturo.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -401,6 +416,11 @@ def test_f04(repo: Path) -> None:
             return subprocess.run([sys.executable, "-B", str(script), "--radice", str(radice), "--oggi", OGGI, *a],
                                   capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert lancia().returncode == 2, "F04 senza --dry-run/--out/--scrivi non è exit 2"
+        try:  # un nome vecchio del progetto come link alla cartella vera (su Windows può mancare il permesso)
+            os.symlink("beta", str(radice / "beta-vecchio"), target_is_directory=True)
+            con_link = True
+        except (OSError, NotImplementedError):
+            con_link = False
         prima = read(radice / "INDEX.md")
         r = lancia("--dry-run")
         assert r.returncode == 0 and read(radice / "INDEX.md") == prima, f"F04 --dry-run: {r.returncode} {r.stderr}"
@@ -416,6 +436,7 @@ def test_f04(repo: Path) -> None:
         assert righe(attive, "PP-COPERTINA") and righe(attive, "PP-LIBRO") and not righe(r.stdout, "PP-LIBRO-VECCHIO"), \
             "F04 il filone Copertina e il progetto libro non hanno una riga ciascuno"
         assert righe(attive, "PP-BETA") and not righe(attive, "VECCHIO-BETA"), "F04 la Ripartenza non vince sull'INDEX"
+        assert not con_link or len(righe(r.stdout, "PP-BETA")) == 1, "F04 la cartella link conta due volte i suoi handoff"
         alfa = righe(attive, "alfa/HANDOFF_2026-09-25")
         assert alfa and "DA-INDEX-ALFA" in alfa[0] and "STATO-INDEX-ALFA" in alfa[0], f"F04 alfa: {alfa}"
         assert not righe(r.stdout, "RIGA-SUPERATA") and righe(attive, "DA-PROSSIMI-DELTA"), "F04 superate o Prossimi passi"
@@ -1029,7 +1050,7 @@ def test_f19(repo: Path) -> None:
         fine = passo_worktree(repo, fine, "F19")  # dal 3/11/2026 il controllo sta in shared/fine-worktree.md
     assert "**Rami non riportati.**" in inizio and "--abort" in inizio, "F19 /inizio non dice cosa fare di un ramo non riportato"
     assert "merge --no-edit" in fine, "F19 /fine non prova il merge quando il fast-forward non basta"
-    assert re.search(r"cherry HEAD\s+<branch>", fine) and "righe con `+`" in fine, \
+    assert re.search(r"cherry (HEAD|<branch principale>)\s+<branch>", fine) and "righe con `+`" in fine, \
         "F19 /fine controlla il ramo con branch --no-merged e non con git cherry, come arturo contesto"
 
 
@@ -1265,12 +1286,216 @@ def test_f27(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+
+def test_f28(repo: Path) -> None:
+    """La scheda del progetto (M3 del piano della memoria, 14/11/2026, #5672): /fine la scrive con arturo
+    memoria scheda, /inizio la rilegge con arturo contesto anche aperto dalla home, per un progetto fuori
+    dalla base dei progetti. Una seconda scrittura non ripete le voci e tiene le righe scritte a mano.
+    Memoria spenta: niente scheda, né scritta né stampata. Un segreto non entra."""
+    fine = read(repo / "commands" / "fine.md")
+    assert "## FASE 7 · CLAUDE.md e scheda del progetto" in fine and "## FASE 8" in fine, \
+        "F28 /fine non ha la scheda del progetto nella FASE 7"
+    fase7 = fine[fine.index("## FASE 7"):fine.index("## FASE 8")]
+    for pezzo in ("arturo memoria scheda <slug>", "--cosa", "--decisione", "--errore", "Exit 4", "Memoria applicata"):
+        assert pezzo in fase7, f"F28 la FASE 7 di /fine non nomina {pezzo!r}"
+    assert "non ha ancora la scheda" in fine[:fine.index("## FASE 1")], \
+        "F28 il fine leggero salta la FASE 7 anche quando il progetto non ha la scheda"
+    inizio = read(repo / "commands" / "inizio.md")
+    assert "SCHEDA DEL PROGETTO" in inizio, "F28 /inizio non dice di leggere la scheda del progetto"
+    serve(repo, "bin/memoria.py", "F28")
+
+    def prova(lab: Lab) -> None:
+        cartella = lab.home / "lavori" / "libro"
+        cartella.mkdir(parents=True)
+        scheda = lab.home / ".claude" / "data" / "memory" / "progetti" / "progetto-libro.md"
+
+        def arturo(*argomenti: str, cwd: Path, **altro) -> subprocess.CompletedProcess:
+            e = lab.env(**altro)
+            if "ARTURO_MEMORIA" not in altro:
+                e.pop("ARTURO_MEMORIA", None)  # vale il default: accesa
+            return subprocess.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), *argomenti], cwd=str(cwd),
+                                  env=e, capture_output=True, text=True, encoding="utf-8", timeout=120)
+
+        r = arturo("memoria", "scheda", "libro", "--decisione", "Il titolo resta Il Libro", cwd=cartella)
+        assert r.returncode == 3 and not scheda.exists(), \
+            f"F28 la prima scheda senza --cosa: exit {r.returncode} {r.stdout} {r.stderr}"
+        r = arturo("memoria", "scheda", "libro", "--cosa", "Il romanzo sul tram 9", "--cartella", str(cartella),
+                   "--decisione", "Il titolo resta Il Libro", "--errore", "NON mandare bozze senza note: causa rifiuto",
+                   cwd=cartella)
+        assert r.returncode == 0 and "scheda creata" in r.stdout and scheda.is_file(), \
+            f"F28 /fine non crea la scheda: exit {r.returncode} {r.stdout} {r.stderr}"
+        testo = read(scheda)
+        for pezzo in ("name: progetto-libro", "type: project", "cartella: ~/lavori/libro", "## Decisioni chiuse",
+                      "- Il titolo resta Il Libro", "## Errori da non ripetere"):
+            assert pezzo in testo, f"F28 la scheda nuova non ha {pezzo!r}: {testo}"
+        scheda.write_text(testo.replace("- Il titolo resta Il Libro", "- Il titolo resta Il Libro\n- SCRITTA-A-MANO"),
+                          encoding="utf-8")
+        r = arturo("memoria", "scheda", "libro", "--decisione", "il titolo resta il libro",
+                   "--decisione", "Tre parti, non quattro", cwd=cartella)
+        testo = read(scheda)
+        assert r.returncode == 0 and testo.count("itolo resta") == 1 and "- Tre parti, non quattro" in testo \
+            and "- SCRITTA-A-MANO" in testo, f"F28 la seconda scrittura ripete voci o perde righe: {r.stdout} {testo}"
+        r = arturo("contesto", "libro", cwd=lab.home)
+        out = r.stdout
+        assert r.returncode == 0 and f"cartella: {cartella.resolve()}" in out, \
+            f"F28 /inizio dalla home non trova la cartella scritta nella scheda: exit {r.returncode} {out[:400]}"
+        assert "SCHEDA DEL PROGETTO" in out and "Tre parti, non quattro" in out and "NON mandare bozze" in out, \
+            f"F28 /inizio non rilegge la scheda: {out[:600]}"
+        r = arturo("contesto", "libro", cwd=lab.home, ARTURO_MEMORIA="0")
+        assert "SCHEDA DEL PROGETTO" not in r.stdout, f"F28 a memoria spenta /inizio stampa la scheda: {r.stdout[:300]}"
+        prima = read(scheda)
+        r = arturo("memoria", "scheda", "libro", "--errore", "altro", cwd=cartella, ARTURO_MEMORIA="0")
+        assert r.returncode == 4 and read(scheda) == prima, f"F28 a memoria spenta la scheda si scrive: {r.returncode}"
+        r = arturo("memoria", "scheda", "libro", "--errore", "token ghp_" + "a" * 36, cwd=cartella)
+        assert r.returncode == 5 and read(scheda) == prima, f"F28 un segreto entra nella scheda: {r.returncode}"
+    con_lab(repo, prova)
+
+
+def test_f29(repo: Path) -> None:
+    """Note salvate e annunciate (M5 del piano della memoria, 15/11/2026, #5672)."""
+    fine = read(repo / "commands" / "fine.md")
+    for titolo in ("## Modo rotazione", "## FASE 1", "## FASE 8", "## FASE 9", "## Chiusura"):
+        assert titolo in fine, f"F29 /fine non ha la sezione {titolo!r}"
+    fase8 = fine[fine.index("## FASE 8"):fine.index("## FASE 9")]
+    for pezzo in ("arturo memoria nota --tipo", "Una nota nuova la salva senza chiedere", "Exit 6",
+                  "arturo memoria igiene", "--se-dovuta", "solo nel fine completo"):
+        assert pezzo in fase8, f"F29 la FASE 8 di /fine non dice {pezzo!r}"
+    assert "Chiede il sì** per una nota nuova" not in fine, "F29 /fine chiede ancora il sì per una nota nuova"
+    chiusura = fine[fine.index("## Chiusura"):]
+    for pezzo in ("arturo memoria ricordate --annuncia", "togli N", "arturo memoria togli N", "non nel giro che ruota"):
+        assert pezzo in chiusura, f"F29 la Chiusura di /fine non dice {pezzo!r}"
+    rotazione = fine[fine.index("## Modo rotazione"):fine.index("## FASE 1")]
+    assert "non lancia `ricordate --annuncia`" in rotazione, "F29 il fine leggero annuncia le note a nessuno"
+    serve(repo, "bin/memoria.py", "F29")
+
+    def prova(lab: Lab) -> None:
+        def arturo(*argomenti: str) -> subprocess.CompletedProcess:
+            e = lab.env()
+            e.pop("ARTURO_MEMORIA", None)
+            return subprocess.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), *argomenti],
+                                  cwd=str(lab.home), env=e, capture_output=True, text=True, encoding="utf-8",
+                                  timeout=120)
+
+        def gate_idee(slug: str) -> list:
+            codice = ("import sys; sys.path.insert(0, sys.argv[1]); import handoff_profilo as h; "
+                      "print('\\n'.join(h.idee_senza_nota(sys.argv[2], h.cartelle_memoria())))")
+            testo = f"# Handoff\n## Idee\n- le tariffe vanno lette dal listino → memoria [[{slug}]]\n"
+            e = lab.env()
+            e.pop("ARTURO_MEMORIA", None)
+            r = subprocess.run([sys.executable, "-B", "-c", codice, str(lab.repo / "bin"), testo], env=e,
+                               capture_output=True, text=True, encoding="utf-8", timeout=60)
+            assert r.returncode == 0, f"F29 il gate delle idee non gira: {r.stderr[-300:]}"
+            return [x for x in r.stdout.splitlines() if x.strip()]
+
+        mem = lab.home / ".claude" / "data" / "memory"
+        # Giro di rotazione: la nota si salva, l'annuncio non parte.
+        r = arturo("memoria", "nota", "--tipo", "feedback", "--nome", "tariffe-dal-listino", "--descrizione",
+                   "le tariffe si leggono dal listino", "--testo", "Le tariffe vengono dal listino dell'anno.")
+        assert r.returncode == 0 and (mem / "feedback" / "tariffe-dal-listino.md").is_file(), \
+            f"F29 la FASE 8 non salva la nota senza chiedere: {r.stdout} {r.stderr}"
+        assert not gate_idee("tariffe-dal-listino"), "F29 il gate non accetta un'idea con la nota salvata in sessione"
+        # La chiusura che la persona legge: annuncia anche la nota del giro prima.
+        arturo("memoria", "nota", "--tipo", "reference", "--nome", "cartella-del-libro", "--descrizione",
+               "dove sta la cartella del libro", "--testo", "La cartella è ~/lavori/libro.")
+        r = arturo("memoria", "ricordate", "--annuncia")
+        assert r.returncode == 0 and "1. le tariffe si leggono dal listino" in r.stdout \
+            and "2. dove sta la cartella del libro" in r.stdout, f"F29 la chiusura non annuncia le note: {r.stdout}"
+        r = arturo("memoria", "togli", "1")
+        assert r.returncode == 0 and (mem / "_archive" / "feedback" / "tariffe-dal-listino.md").is_file() \
+            and not (mem / "feedback" / "tariffe-dal-listino.md").exists(), f"F29 togli 1 non archivia: {r.stdout}"
+        assert gate_idee("tariffe-dal-listino"), "F29 il gate accetta un'idea la cui nota è stata tolta"
+        r = arturo("memoria", "ricordate", "--annuncia")
+        assert r.returncode == 3, f"F29 la chiusura dopo ripete l'annuncio: {r.stdout}"
+    con_lab(repo, prova)
+
+
+def test_f30(repo: Path) -> None:
+    """Il riporto differito (#4007, 19/11/2026): una sessione che non può uscire dal worktree segna il
+    ramo da dentro, e /inizio lo riporta dal tree principale."""
+    fine = read(repo / "commands" / "fine.md")
+    inizio = read(repo / "commands" / "inizio.md")
+    assert "**Sessione in un worktree**" in fine and "## FASE 4" in fine, "F30 /fine non ha il passo del worktree"
+    passo = passo_worktree(repo, fine, "F30")
+    assert "## Riporto differito" in passo, "F30 /fine non dice cosa fare se la sessione non può uscire dal worktree"
+    assert "git config branch.<branch>.arturo-riporta" in passo, "F30 /fine non segna il ramo chiuso da dentro il worktree"
+    assert "git -C" not in passo, "F30 /fine usa git -C, che una sessione nel worktree si vede rifiutare"
+    assert passo.index("arturo-riporta") < passo.index("ExitWorktree") < passo.index("merge --ff-only"), \
+        "F30 /fine segna il ramo dopo l'uscita: se l'uscita fallisce, il ramo resta senza segno"
+    assert "chiuso da /fine, da riportare" in inizio and "lo riporti tu" in inizio, \
+        "F30 /inizio non riporta da solo il ramo chiuso da /fine"
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "tavole"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q", "-b", "main")
+        (progetto / "a.md").write_text("a\n", encoding="utf-8")
+        lab.git(progetto, "add", "a.md")
+        lab.git(progetto, "commit", "-qm", "primo")
+        ramo = "tavole-20261119-1800"
+        albero = progetto / ".claude" / "worktrees" / ramo
+        lab.git(progetto, "worktree", "add", "-q", "-b", ramo, str(albero))
+        (albero / "b.md").write_text("b\n", encoding="utf-8")
+        lab.git(albero, "add", "b.md")
+        lab.git(albero, "commit", "-qm", "tavola nel worktree")
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert f"{ramo} · 1 commit" in out and "chiuso da /fine" not in out, \
+            f"F30 un ramo senza segno risulta chiuso da /fine: {out}"
+        # Il segno e il controllo si fanno da dentro il worktree: config e rami sono comuni.
+        lab.git(albero, "config", f"branch.{ramo}.arturo-riporta", "2026-11-19")
+        piu = [c for c in lab.git(albero, "cherry", "main", ramo).splitlines() if c.startswith("+")]
+        assert len(piu) == 1, f"F30 git cherry dal worktree non vede il commit da riportare: {piu}"
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert re.search(rf"{re.escape(ramo)} · 1 commit · ultimo \S+ · worktree \S+ · chiuso da /fine il 2026-11-19, "
+                         r"da riportare", out), f"F30 arturo contesto non mostra il ramo chiuso da /fine: {out}"
+        # Un ramo senza segno che viene prima in ordine alfabetico: il ramo chiuso resta in cima, perché
+        # l'elenco si taglia a 15 righe (32 rami in un repository vero, 19/11/2026).
+        lab.git(progetto, "checkout", "-q", "-b", "aaa-prova")
+        (progetto / "c.md").write_text("c\n", encoding="utf-8")
+        lab.git(progetto, "add", "c.md")
+        lab.git(progetto, "commit", "-qm", "prova")
+        lab.git(progetto, "checkout", "-q", "main")
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        elenco = out[out.index("RAMI CON COMMIT"):].splitlines()
+        assert len(elenco) > 2 and "chiuso da /fine" in elenco[1] and "aaa-prova" in elenco[2], \
+            f"F30 il ramo chiuso da /fine non sta in cima all'elenco, che si taglia: {elenco[:3]}"
+        lab.git(progetto, "branch", "-D", "aaa-prova")
+        # Il riporto di /inizio dal tree principale: merge, rimozione, branch -d, e il segno sparisce.
+        lab.git(progetto, "merge", "--ff-only", ramo)
+        lab.git(progetto, "worktree", "remove", str(albero))
+        lab.git(progetto, "branch", "-d", ramo)
+        r = lab.run(["git", "-C", str(progetto), "config", "--get", f"branch.{ramo}.arturo-riporta"])
+        assert r.returncode == 1 and not r.stdout, f"F30 il segno resta dopo git branch -d: {r.stdout}"
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert "RAMI CON COMMIT" not in out, f"F30 il ramo riportato resta in elenco: {out}"
+    con_lab(repo, prova)
+
+
+def test_f31(repo: Path) -> None:
+    """Prova e attrezzi per ogni lavoro che torna, e la correzione nella skill (20/11/2026)."""
+    assert (repo / "commands" / "creaskill.md").is_file(), "F31 manca commands/creaskill.md"  # base vecchia
+    crea = read(repo / "commands" / "creaskill.md")
+    for pezzo in ("Cinque domande", "Come capisci che è venuto bene?", "Ti fermi quando lo sai fare da solo",
+                  "## Finito quando", "## Attrezzi", "non consegna finché una riga dice no"):
+        assert pezzo in crea, f"F31 /creaskill non dice {pezzo!r}"
+    assert "uattro domande" not in crea + read(repo / "README.md"), "F31 restano le quattro domande di /creaskill"
+    metodo = read(repo / "shared" / "metodo.md")
+    verificato = metodo[metodo.index("## Fatto vuol dire verificato"):metodo.index("## Errori e correzioni")]
+    for pezzo in ('"Finito quando"', '"Attrezzi"', "Prima di costruirne uno, guarda lì", "/creaskill"):
+        assert pezzo in verificato, f"F31 il metodo non dice {pezzo!r}"
+    fine = read(repo / "commands" / "fine.md")
+    fase8 = fine[fine.index("## FASE 8"):fine.index("## FASE 9")]
+    for pezzo in ("~/.claude/skills/<nome>/", "non in memoria", "scrivila dopo il sì",
+                  "Una skill di Arturo non si tocca", "/segnala"):
+        assert pezzo in fase8, f"F31 la FASE 8 di /fine non dice {pezzo!r}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
-         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27}
+         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
+         "F29": test_f29, "F30": test_f30, "F31": test_f31}
 
 
 def main() -> int:

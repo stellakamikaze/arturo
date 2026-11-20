@@ -46,7 +46,11 @@ ASK = [
 ]
 
 
-def _testo_gh(cmd: str) -> str:
+_ESEGUE_TESTO = re.compile(r"\b(?:exec\w*|spawn\w*|system|popen|subprocess|child_process|run|call|check_output|"
+                           r"eval|Function)\s*\(|child_process|subprocess|os\.system|shell\s*=\s*True")
+
+
+def _testo_gh(cmd: str, pulito: bool = False) -> str:
     """Le sole invocazioni di gh, una per riga, lette come programmi (review del 7/11/2026, finding 10):
     un grep o un argomento in prosa che cita un sottocomando di gh non lo lancia. Contano gh dentro
     sh -c, eval, xargs e nelle sostituzioni $( ) e backtick, anche fra virgolette
@@ -58,7 +62,27 @@ def _testo_gh(cmd: str) -> str:
         spec.loader.exec_module(fc)
     except Exception:
         return cmd
-    testi = [cmd] + re.findall(r"\$\(([^()]*)\)", cmd) + re.findall(r"`([^`]*)`", cmd)
+    # $( ) e backtick dentro un heredoc quotato verso python o node sono testo: la shell non li espande, e
+    # il codice markdown di una nota (`gh workflow run x.yml`) non lancia gh (20/11/2026, 2 conferme in 7 giorni).
+    # ruby, perl e php eseguono il backtick: per loro il corpo resta. Vale solo per le conferme (`pulito`): i blocchi
+    # duri leggono sempre il testo intero, e un corpo che esegue programmi (execSync, os.system, subprocess) resta
+    # visibile, perché passa la stringa a una shell (revisione del 20/11/2026: `gh repo delete` passava).
+    sorgente = cmd
+    if not pulito:
+        sorgente = None
+    try:
+        if sorgente is None:
+            raise ValueError("testo intero")
+        spec_hd = importlib.util.spec_from_file_location(
+            "heredoc_gh", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+        hd = importlib.util.module_from_spec(spec_hd)
+        spec_hd.loader.exec_module(hd)
+        sorgente = hd.togli(cmd, lambda h: h.quotato and h.certo and h.consumatore in hd.INTERPRETI
+                            and h.consumatore not in hd._BACKTICK_ESEGUE
+                            and not _ESEGUE_TESTO.search("\n".join(h.corpo)))
+    except Exception:
+        sorgente = cmd
+    testi = [cmd] + re.findall(r"\$\(([^()]*)\)", sorgente) + re.findall(r"`([^`]*)`", sorgente)
     righe = []
     for testo in testi:
         for nome, args in fc.programmi(testo):
@@ -102,7 +126,8 @@ def main() -> int:
     cmd = (data.get("tool_input") or {}).get("command", "")
     if not isinstance(cmd, str) or not cmd:
         return 0
-    cmd = _testo_gh(cmd)
+    intero = cmd
+    cmd = _testo_gh(intero)
 
     for pat, why in BLOCK:
         if re.search(pat, cmd, re.IGNORECASE):
@@ -112,6 +137,7 @@ def main() -> int:
             )
             return 2
 
+    cmd = _testo_gh(intero, pulito=True)
     reasons = [why for pat, why in ASK if re.search(pat, cmd, re.IGNORECASE)]
     api_write = _api_write(cmd)
     if api_write:
@@ -121,7 +147,9 @@ def main() -> int:
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "ask",
-                "permissionDecisionReason": f"Operazione gh: {reasons[0]}. Conferma.",
+                # Tutte le ragioni, non solo la prima: chi legge il motivo (un attenuatore, la persona) vede anche le
+                # altre operazioni dello stesso comando (revisione del 20/11/2026).
+                "permissionDecisionReason": f"Operazione gh: {'; '.join(dict.fromkeys(reasons))}. Conferma.",
             }
         }))
         return 0

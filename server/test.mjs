@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 // caso con il suo messaggio, non il caricamento del banco.
 import * as logica from "./logica.js";
 const { gestisci, settimanale, giornaliero, programmato, pulizia, giornoRoma, settimanaPrima, mime, testoDeriva, testoRiepilogo, ritenzione,
-  LIMITI, EVENTI, calcolaIndietro, rilascio, confronta } = logica;
+  LIMITI, EVENTI, calcolaIndietro, rilascio, confronta, validaLotto } = logica;
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0, scartati: 0, telegramKo: 0, emailKo: 0 };
@@ -14,15 +14,7 @@ const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comand
 function finti(riepilogo = null) {
   const stato = { eventi: [], segnalazioni: [], email: [], avvisi: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [],
     feedback: [], conteggi: {} };
-  stato.lancillotto = [];
   const archivio = {
-    async installazioneNuovaLancillotto(inst) { return !stato.lancillotto.some((e) => e.installazione === inst); },
-    async contaEventiLancillotto(inst, giorno) {
-      return stato.lancillotto.filter((e) => e.ricevuto === giorno && e.installazione === inst).length;
-    },
-    async scriviEventiLancillotto(righe, ricevuto) {
-      for (const r of righe) stato.lancillotto.push({ ...r, ricevuto: ricevuto.slice(0, 10) });
-    },
     async installazioneNuova(inst) { return !stato.eventi.some((e) => e.installazione === inst); },
     async contaEventi(inst, giorno) {
       return stato.eventi.filter((e) => e.ricevuto === giorno && e.installazione === inst).length;
@@ -67,6 +59,13 @@ function finti(riepilogo = null) {
     async ritiraContributo(id, quando) {
       Object.assign(stato.segnalazioni[id - 1], { titolo: "(ritirata)", testo: "", pacchetto: "", seguiti: "[]", installazione: "",
         risposta: "", stato: "ritirata", aggiornata: quando });
+    },
+    async dimentica(inst) {
+      const eventi = stato.eventi.filter((e) => e.installazione === inst).length;
+      const numeri = stato.segnalazioni.map((s, i) => (s && s.installazione === inst ? i + 1 : 0)).filter(Boolean);
+      stato.eventi = stato.eventi.filter((e) => e.installazione !== inst);
+      for (const n of numeri) stato.segnalazioni[n - 1] = null;
+      return { eventi, segnalazioni: numeri };
     },
     async indietro() { return stato.indietro || []; },
     async ultimoAvviso(chiave) {
@@ -119,8 +118,11 @@ const casi = {
     const f = finti();
     const grande = post("/v1/eventi", JSON.stringify(lotto([{ evento: "sessione" }])) + " ".repeat(LIMITI.corpoEventi));
     assert.equal((await gestisci(grande, { ...f, adesso })).status, 413, "V03 corpo troppo grande accettato");
-    const pieno = Array.from({ length: LIMITI.eventiPerGiorno }, () => ({ evento: "sessione" }));
-    assert.equal((await gestisci(post("/v1/eventi", lotto(pieno)), { ...f, adesso })).status, 200);
+    // Il tetto del giorno vale più lotti pieni (#5996): si riempie a lotti, poi un evento in più torna 429.
+    const pieno = Array.from({ length: LIMITI.eventiPerLotto }, () => ({ evento: "sessione" }));
+    for (let n = 0; n < LIMITI.eventiPerGiorno; n += LIMITI.eventiPerLotto) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto(pieno)), { ...f, adesso })).status, 200, `V03 lotto ${n} rifiutato`);
+    }
     assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }])), { ...f, adesso })).status, 429,
       "V03 il tetto giornaliero per installazione non regge");
   },
@@ -175,7 +177,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
+      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "memoria", "richiamo", "salvataggio", "inizio"], "V08 l'elenco degli eventi");
   },
   async V10() {
     const f = finti();
@@ -273,11 +275,11 @@ const casi = {
     assert.equal((await gestisci(post("/altro", {}), { ...f, adesso })).status, 404);
     assert.equal((await gestisci(post("/v1/eventi", "{non json"), { ...f, adesso })).status, 400);
   },
-  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no. `tappa` è un
-  // evento vecchio (il client non lo manda più dal 16/10/2026): resta accettato, con la stessa regola.
+  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no. `tappa`, tolta dal client
+  // il 16/10/2026 e dal server il 18/11/2026 (#3435), si scarta con ogni valore.
   async V16() {
     const buoni = [["setup", "fase:7b"], ["setup", "fase:4b"], ["setup", "fine"], ["chiede", "exfil-guard.py"], ["confermata", "exfil-guard.py"],
-      ["errore", "data-guard.py"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"], ["claude", "2.1.290"],
+      ["errore", "data-guard.py"], ["claude", "2.1.290"],
       ["aggiorna", "rifiutato"], ["aggiorna", "indietro"], ["aggiorna", "scartato"]];
     for (const [evento, valore] of buoni) {
       const f = finti();
@@ -286,7 +288,7 @@ const casi = {
     }
     const cattivi = [["setup", "fase:11"], ["setup", "fase:3 nota"], ["tappa", "tappa:5"], ["tappa", "tappa:testo"],
       ["tappa", "note:3"], ["claude", "2.1.x-beta"], ["chiede", "una guardia con spazi"], ["aggiorna", "forse"],
-      ["tappa", "tappa:3\n"]];
+      ["tappa", "tappa:3\n"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"]];
     for (const [evento, valore] of cattivi) await scartato(evento, valore, "V16");
   },
   // Fase 2 della telemetria (3/11/2026, #4540): durata e turni solo nelle fasce, skill solo di Arturo o altro.
@@ -444,7 +446,7 @@ const casi = {
     m.append("testo", "ciao");
     assert.equal((await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, adesso, limite: fermo })).status, 429,
       "V25 il limite per IP non ferma il feedback");
-    assert.deepEqual(chiesti, ["eventi", "moduli", "moduli", "moduli"], "V25 il limite usa il secchio sbagliato");
+    assert.deepEqual(chiesti, ["eventi", "moduli", "sito", "moduli"], "V25 il limite usa il secchio sbagliato");
     // Id inventati: oltre il tetto le installazioni nuove si contano ma non mandano messaggi.
     const g = finti();
     for (let i = 0; i < LIMITI.avvisiInstallazioniPerGiorno + 5; i++) {
@@ -561,7 +563,7 @@ const casi = {
     await programmato({ ...g, adesso: new Date("2026-10-23T06:00:00Z") });
     assert.equal(g.stato.avvisi.length, LIMITI.avvisiIndietroPerGiorno, "V30 gli avvisi superano il tetto del giorno");
     const testo = testoRiepilogo({ ...VUOTO, migliorare: { indietro: fuori, ritenzione: { nuove: 0, soglie: [] } } }, "prova");
-    assert.match(testo, /Rimaste indietro[^\n]*\n {2}9c0d1e2f {2}ferma alla v0\.1\.16, manca dal 2026-10-19, c'è la v0\.1\.17\n/,
+    assert.match(testo, /Rimaste indietro[^\n]*\n {2}9c0d1e2f {2}ferma alla v0\.1\.16, manca dal 2026-10-19, c'è la v0\.1\.17, ultimo esito nessuno\n/,
       "V30 il riepilogo non elenca chi è rimasto indietro");
   },
   async V31() {
@@ -845,52 +847,15 @@ const casi = {
     await settimanale({ ...v, adesso: lunedi });
     assert.match(v.stato.email[0].testo, /Banchi delle guardie rossi[^\n]*\n[^\n]*\n  nessuno\n/, "V45 senza rossi il lunedì non dice nessuno");
   },
-  // Lancillotto (25/10/2026): un lotto valido va nella sua tabella, non tra gli eventi di Arturo.
+  // Lancillotto è dismesso dal 14/11/2026 (#5617): il suo indirizzo non esiste più e non salva niente.
   async L01() {
     const f = finti();
     const corpo = { installazione: "9f8e7d6c-1111-2222", versione: "0.2.0", sistema: "macos-26", eventi: [
-      { giorno: "2026-10-13", evento: "installa", valore: "nuova" }, { giorno: "2026-10-13", evento: "giorno", valore: "eventi:3" },
-      { giorno: "2026-10-13", evento: "url_assente", valore: "org.mozilla.firefox" }] };
+      { giorno: "2026-10-13", evento: "installa", valore: "nuova" }] };
     const r = await gestisci(post("/v1/lancillotto/eventi", corpo), { ...f, adesso });
-    assert.equal(r.status, 200, "L01 un lotto valido di Lancillotto non è accettato");
-    assert.deepEqual(await r.json(), { accettati: 3, scartati: 0 }, "L01 conteggio sbagliato");
-    assert.equal(f.stato.lancillotto.length, 3, "L01 eventi non salvati nella tabella di Lancillotto");
-    assert.equal(f.stato.eventi.length, 0, "L01 eventi di Lancillotto finiti tra quelli di Arturo");
-    assert.equal(f.stato.avvisi.length, 1, "L01 nessun avviso per la nuova installazione");
-    assert.match(f.stato.avvisi[0], /^Lancillotto: nuova installazione 9f8e7d6c/, "L01 avviso sbagliato");
-    await gestisci(post("/v1/lancillotto/eventi", corpo), { ...f, adesso });
-    assert.equal(f.stato.avvisi.length, 1, "L01 avviso ripetuto per la stessa installazione");
-  },
-  // Niente nomi di app, siti, titoli o testo: tutto fuori elenco si scarta.
-  async L02() {
-    const f = finti();
-    const base = { installazione: "9f8e7d6c-1111-2222", versione: "0.2.0", sistema: "macos-26" };
-    for (const [evento, valore] of [["url_assente", "com.esempio.GestionaleRossi"], ["comando", "cerca Mario Rossi"],
-      ["giorno", "eventi:1234"], ["sensore", "ax:ok"], ["finestra", "https://web.bbva.it"], ["titolo", "Fattura 2026"],
-      ["errore", "Traceback /Users/dora"], ["__proto__", "x"]]) {
-      const r = await gestisci(post("/v1/lancillotto/eventi", { ...base, eventi: [{ evento, valore }] }), { ...f, adesso });
-      assert.deepEqual(await r.json(), { accettati: 0, scartati: 1 }, `L02 ${evento}=${valore} accettato`);
-    }
-    assert.equal(f.stato.lancillotto.length, 0, "L02 un valore fuori elenco è stato salvato");
-    for (const extra of [{ versione: "v0.1.2" }, { sistema: "Darwin" }, { installazione: "corto" }]) {
-      const r = await gestisci(post("/v1/lancillotto/eventi", { ...base, ...extra, eventi: [{ evento: "installa", valore: "nuova" }] }),
-        { ...f, adesso });
-      assert.equal(r.status, 400, `L02 base non valida accettata: ${JSON.stringify(extra)}`);
-    }
-  },
-  // L'elenco del server e quello del client (lancillotto/telemetria.py) coincidono, se il client è accanto.
-  async L03() {
-    const { EVENTI_LANCILLOTTO } = await import("./lancillotto.js");
-    let client;
-    try {
-      client = readFileSync(new URL("../../lancillotto/lancillotto/telemetria.py", import.meta.url), "utf8");
-    } catch {
-      return;  // il repo di Lancillotto non è accanto: il confronto lo fa il suo banco
-    }
-    const blocco = /EVENTI = \{([\s\S]*?)\n\}/.exec(client);
-    assert.ok(blocco, "L03 EVENTI non trovato nel client");
-    const nomi = [...blocco[1].matchAll(/^\s+"([a-z_]+)":/gm)].map((m) => m[1]).sort();
-    assert.deepEqual(nomi, Object.keys(EVENTI_LANCILLOTTO).sort(), "L03 eventi diversi fra client e server");
+    assert.equal(r.status, 404, "L01 l'indirizzo di Lancillotto risponde ancora");
+    assert.equal(f.stato.eventi.length, 0, "L01 eventi di Lancillotto salvati tra quelli di Arturo");
+    assert.equal(f.stato.avvisi.length, 0, "L01 avviso partito per Lancillotto");
   },
   // Le segnalazioni per la pagina privata (27/10/2026): solo col token, l'elenco senza testo, il link negli avvisi.
   async S01() {
@@ -1208,6 +1173,65 @@ const casi = {
     assert.ok(f.stato.segnalazioni.every((x) => x.contatto_nome === "" && x.contatto_email === ""), "V63 un contatto rotto resta sul server");
     const solaEmail = await gestisci(post("/v1/segnalazioni", { ...s, contatto: { email: "a@b.it" } }), { ...f, adesso });
     assert.equal((await solaEmail.json()).contatto, "salvato", "V63 l'email senza nome non si salva");
+  },
+  // Revisione siti del 19/11/2026 (#6124): il tetto di leggiJson vale anche per un invio a pezzi, e le risposte
+  // portano nosniff e no-store.
+  async V65() {
+    const f = finti();
+    const pezzo = new TextEncoder().encode(" ".repeat(1024));
+    let mandati = 0;
+    const flusso = new ReadableStream({
+      pull(c) { mandati++; if (mandati > 8) c.close(); else c.enqueue(pezzo); },
+    });
+    const r = await gestisci(new Request("https://arturo.example/v1/sito", { method: "POST", body: flusso, duplex: "half",
+      headers: { "content-type": "application/json" } }), { ...f, adesso });
+    assert.equal(r.status, 413, "V65 un corpo a pezzi oltre il tetto passa leggiJson");
+    assert.ok(mandati < 8, `V65 leggiJson legge tutto il corpo prima del tetto (${mandati} pezzi letti)`);
+    const ok = await gestisci(post("/v1/sito", { tipo: "download", pagina: "/", sistema: "" }), { ...f, adesso });
+    assert.equal(ok.status, 202, "V65 un download valido non passa più");
+    assert.equal(ok.headers.get("x-content-type-options"), "nosniff", "V65 la risposta non ha nosniff");
+    assert.equal(ok.headers.get("cache-control"), "no-store", "V65 la risposta non ha no-store");
+  },
+  // V66 (20/11/2026, #4793): /v1/dimentica cancella eventi e segnalazioni di un id, e solo quelli. Il campanello porta i
+  // numeri e i primi 8 caratteri, mai l'id intero né il testo. Un id mai visto ha la stessa risposta e non suona.
+  async V66() {
+    const f = finti();
+    const io = "1b2c3d4e-aaaa-bbbb", altro = "9f8e7d6c-cccc-dddd";
+    await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-14", evento: "sessione", valore: "" }])), { ...f, adesso });
+    await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-14", evento: "sessione", valore: "" }], { installazione: altro })), { ...f, adesso });
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Mia", testo: "Testo mio riservato", installazione: io }), { ...f, adesso });
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Altrui", testo: "Testo altrui", installazione: altro }), { ...f, adesso });
+    const avvisiPrima = f.stato.avvisi.length;
+    assert.equal((await gestisci(post("/v1/dimentica", { installazione: "../x" }), { ...f, adesso })).status, 400, "V66 un id rotto passa");
+    const r = await gestisci(post("/v1/dimentica", { installazione: io }), { ...f, adesso });
+    assert.equal(r.status, 200, "V66 la cancellazione non risponde 200");
+    assert.deepEqual(await r.json(), { eventi: 1, segnalazioni: 1 }, "V66 la cancellazione non conta eventi e segnalazioni");
+    assert.ok(!f.stato.eventi.some((e) => e.installazione === io), "V66 restano eventi dell'id dimenticato");
+    assert.equal(f.stato.eventi.filter((e) => e.installazione === altro).length, 1, "V66 la cancellazione tocca un'altra installazione");
+    assert.doesNotMatch(JSON.stringify(f.stato.segnalazioni), /Testo mio/, "V66 resta la segnalazione dell'id dimenticato");
+    assert.match(JSON.stringify(f.stato.segnalazioni), /Testo altrui/, "V66 la cancellazione toglie la segnalazione di un altro");
+    assert.equal(f.stato.avvisi.length, avvisiPrima + 1, "V66 la cancellazione non suona il campanello");
+    const campanello = f.stato.avvisi.at(-1);
+    assert.match(campanello, /n\. 1\b/, "V66 il campanello non dice il numero da togliere a mano");
+    assert.match(campanello, /1b2c3d4e/, "V66 il campanello non dice chi");
+    assert.doesNotMatch(campanello, /aaaa-bbbb|riservato/, `V66 il campanello porta l'id intero o il testo: ${campanello}`);
+    const mai = await gestisci(post("/v1/dimentica", { installazione: "00000000-mai-visto" }), { ...f, adesso });
+    assert.equal(mai.status, 200, "V66 un id mai visto ha un'altra risposta");
+    assert.deepEqual(await mai.json(), { eventi: 0, segnalazioni: 0 }, "V66 un id mai visto conta qualcosa");
+    assert.equal(f.stato.avvisi.length, avvisiPrima + 1, "V66 un id mai visto suona il campanello");
+    const lento = await gestisci(post("/v1/dimentica", { installazione: io }), { ...f, adesso, limite: async () => false });
+    assert.equal(lento.status, 429, "V66 la cancellazione salta il limite per IP");
+  },
+  // M7 della memoria (15/11/2026): i quattro eventi nuovi passano coi soli valori a fasce, e un nome di nota non passa.
+  async V64() {
+    const base = { installazione: "abcdefgh-1234", versione: "v0.2.13", sistema: "Darwin" };
+    const buoni = [["memoria", "spenta"], ["memoria", "accesa:0"], ["memoria", "accesa:>200"], ["richiamo", "0/0"],
+      ["richiamo", "2-5/1"], ["richiamo", ">20/6-20"], ["salvataggio", "automatico"], ["inizio", "persona"], ["inizio", "rotazione"]];
+    const cattivi = [["memoria", "accesa"], ["memoria", "accesa:12"], ["memoria", "spenta:0"], ["richiamo", "3/1"],
+      ["richiamo", "1"], ["richiamo", "progetto-rossi.md/1"], ["salvataggio", "auto"], ["inizio", "volta"], ["inizio", ""]];
+    const r = validaLotto({ ...base, eventi: [...buoni, ...cattivi].map(([evento, valore]) => ({ giorno: "2026-11-15", evento, valore })) }, "2026-11-15");
+    assert.deepEqual(r.righe.map((x) => [x.evento, x.valore]), buoni, "V64 i valori buoni della memoria non passano tutti");
+    assert.equal(r.scartati, cattivi.length, "V64 un valore fuori fascia della memoria passa");
   },
 };
 

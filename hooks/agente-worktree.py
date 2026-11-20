@@ -75,7 +75,7 @@ def pulisci(d: Path) -> None:
 def avviso(copia: str, cwd: str, f: Path) -> str:
     sparita = "non esiste più" if not os.path.isdir(copia) else "esiste ancora, ma non sei lì"
     return (
-        f"ATTENZIONE: sei un agente ripreso fuori dalla tua copia separata. La tua copia {copia} {sparita}: "
+        f"Sei un agente ripreso fuori dalla tua copia separata. La tua copia {copia} {sparita}: "
         f"ora lavori in {cwd}, la cartella della sessione che ti ha lanciato o di un altro agente. "
         "Qui non modificare file, non lanciare comandi e non fare commit: mescoleresti il tuo lavoro col loro. "
         "Puoi leggere con Read, Grep e Glob. Fermati e scrivi nel report, come prima riga, che la tua copia "
