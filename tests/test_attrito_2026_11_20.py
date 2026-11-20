@@ -116,6 +116,10 @@ def at03(b: Banco) -> int:
         ("sed-n", b.guardia(BD, f"wc -l {f}; sed -n 1,80p {f}"), "silent"),
         ("sed-n-virgolette", b.guardia(BD, f"sed -n '1,80p' {f}"), "silent"),
         ("clone-scratchpad", b.guardia(BD, f"R={j}; rm -rf $R; git clone -q https://github.com/x/y.git $R/y"), "silent"),
+        ("clone-checkout", b.guardia(BD, f"R={j}; git clone -q https://github.com/x/y.git $R/y && "
+                                         "git -C $R/y checkout -q 11543bf && git -C $R/y log --oneline -1"), "silent"),
+        ("checkout-config", b.guardia(BD, "git -C ~/.claude checkout -- settings.json"), "ask"),
+        ("checkout-config-ramo", b.guardia(BD, "git -C ~/.claude checkout -q dev"), "ask"),
         ("sed-i", b.guardia(BD, f"sed -i '' 's/a/b/' {f}"), "ask"),
         ("sed-ni", b.guardia(BD, f"sed -ni 's/a/b/p' {f}"), "ask"),
         ("sed-in-place", b.guardia(BD, f"sed --in-place=.bak 's/a/b/' {f}"), "ask"),

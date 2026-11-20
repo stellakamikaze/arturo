@@ -1073,13 +1073,19 @@ _GIT_RESET_RISCRIVE = frozenset(("--hard", "--merge", "--keep"))
 def _git_riscritti(args, base):
     """(file, cartelle) che git riscrive nella cartella di lavoro senza una redirezione: i percorsi di
     `checkout -- F` e `restore F`, e la radice del repo per un checkout senza `--` e per `reset --hard`."""
-    i = 0
+    i, con_c = 0, None
     while i < len(args) and args[i].startswith("-"):
         if args[i] == "-C" and i + 1 < len(args):
             base = _resolve(args[i + 1], base) or base
+            con_c = base
         i += 2 if args[i] in _fc._GIT_CON_VALORE else 1
     sotto, resto = (args[i], args[i + 1:]) if i < len(args) else ("", [])
     file, cartelle = [], []
+    # `git -C <cartella che non c'è>` esce con un errore prima di toccare file. Prima del comando un clone che
+    # lo stesso comando crea non c'è ancora, e la radice saliva fino a ~/.claude (20/11/2026: `git clone … $R/a &&
+    # git -C $R/a checkout X` nello scratchpad chiedeva come una riscrittura della config).
+    if con_c is not None and "$" not in con_c and not os.path.exists(con_c):
+        return file, cartelle
     radice = _fc._radice_git(base) if base else None
     if sotto in ("checkout", "restore"):
         if "--" in resto:
