@@ -280,8 +280,42 @@ def at08(b: Banco) -> int:
     return verifica("AT08", casi)
 
 
+NODE_GH = "node <<'EOF'\nrequire('child_process').execSync(`gh repo delete stellakamikaze/x --yes`)\nEOF"
+PY_GH = "python3 <<'EOF'\nimport os\nos.system('echo $(gh repo delete stellakamikaze/x --yes)')\nEOF"
+PY_EXEC = "python3 <<'EOF'\nexec(\"import shutil; shutil.rmtree('/Users/x/Documents')\")\nEOF"
+
+
+@gruppo
+def at09(b: Banco) -> int:
+    """I buchi trovati dalla revisione a contesto pulito del 20/11/2026: ognuno deve chiedere o bloccare."""
+    j = b.claude / "jobs" / "abcd1234" / "tmp"
+    j.mkdir(parents=True, exist_ok=True)
+    casi = [
+        ("find-delete-prima", b.guardia(BD, "find ~/Documents -delete -type d -empty"), "ask"),
+        ("find-delete-in-mezzo", b.guardia(BD, "find ~/x -type f -delete -type d -empty"), "ask"),
+        ("var-tcsh", b.guardia(BD, 'S=tcsh; $S -c "rm -rf ~/Documents"'), "ask"),
+        ("var-awk", b.guardia(BD, 'A=awk; $A "BEGIN{system(\\"rm -rf ~/Documents\\")}"'), "ask"),
+        ("var-caffeinate", b.guardia(BD, "T=caffeinate; $T rm -rf ~/Documents"), "ask"),
+        ("var-gtimeout", b.guardia(BD, "T=gtimeout; $T 5 rm -rf ~/Documents"), "ask"),
+        ("var-printf-v", b.guardia(BD, "C=claude; printf -v C rm; $C -rf ~/Documents"), "ask"),
+        ("sed-in", b.guardia(BD, "sed --in s/a/b/ ~/.claude/CLAUDE.md"), "ask"),
+        ("gsed-in-pl", b.guardia(BD, "gsed --in-pl s/a/b/ ~/.claude/hooks/g.py"), "ask"),
+        ("ln-poi-checkout", b.guardia(BD, "ln -s ~/.claude /tmp/lk && git -C /tmp/lk checkout HEAD~5 -- hooks/"), "ask"),
+        ("rmtree-in-exec", b.guardia(BD, PY_EXEC), "ask"),
+        ("push-dietro-xargs", b.guardia(BD, "git push origin --delete x && echo m:main | xargs git push -f origin"),
+         "ask"),
+        ("glob-sui-job", b.guardia(BD, "rm -rf ~/.claude/jobs/*/tmp/*"), "ask"),
+        ("gh-node-execsync", b.guardia(GH, NODE_GH), "block"),
+        ("gh-python-system", b.guardia(GH, PY_GH), "block"),
+    ]
+    return verifica("AT09", casi)
+
+
 TESTS = {"AT01": at01, "AT02": at02, "AT03": at03, "AT04": at04, "AT05": at05, "AT06": at06, "AT07": at07,
-         "AT08": at08}
+         "AT08": at08, "AT09": at09}
+# AT09 prova che gli allentamenti non aprono buchi: sulla base quei comandi chiedevano già, quindi il veleno lì è
+# verde di proposito. Il suo rosso si prova togliendo la correzione: vedi la riga del commit.
+SOLO_REGRESSIONE = {"AT09"}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "forma_comando.py", "protect_claude_md.py", "heredoc.py",
            "gh-destructive-guard.py", "commit-secret-gate.py")
 
@@ -290,6 +324,8 @@ def avvelena(repo: Path, ref: str) -> int:
     """Ogni gruppo, con le guardie com'erano su `ref`, deve fallire col suo codice."""
     inerti, rossi = [], []
     for codice, test in TESTS.items():
+        if codice in SOLO_REGRESSIONE:
+            continue
         copia = Path(tempfile.mkdtemp(prefix="arturo-veleno."))
         try:
             shutil.copytree(repo / "hooks", copia / "hooks", ignore=shutil.ignore_patterns("__pycache__", "*.local"))

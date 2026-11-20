@@ -160,7 +160,7 @@ _NL=$'\n'
 _timeout_c_e() {
   command -v timeout &>/dev/null && return 0
   local d
-  for d in ${ARTURO_TIMEOUT_CARTELLE-/opt/homebrew/bin /usr/local/bin /opt/homebrew/opt/coreutils/libexec/gnubin /usr/local/opt/coreutils/libexec/gnubin}; do
+  for d in ${ARTURO_TIMEOUT_CARTELLE-/opt/homebrew/bin /usr/local/bin}; do
     [[ -x "$d/timeout" ]] && return 0
   done
   return 1

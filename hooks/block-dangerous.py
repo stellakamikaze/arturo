@@ -760,6 +760,13 @@ def _log_di_job(p):
     return bool(p) and p.startswith(bgjobs + os.sep)
 
 
+def _sed_in_place(t):
+    """True per -i, -I, -ni e per --in-place con le sue abbreviazioni di GNU (--in, --in-pl, --in-place=.bak): GNU sed
+    accetta l'inizio non ambiguo di un'opzione lunga (revisione del 20/11/2026)."""
+    lunga = t.split("=", 1)[0]
+    return bool(re.match(r"^-[a-zA-Z]*[iI]", t)) or (len(lunga) >= 4 and "--in-place".startswith(lunga))
+
+
 def _claude_md_testuale(testo):
     """La regex di riserva sui CLAUDE.md, senza i falsi del sed: se ogni `sed -i` del comando ha i suoi file
     scritti per intero e nessuno si chiama CLAUDE.md, il nome che la regex vede sta nel testo del sed (20/11/2026:
@@ -776,7 +783,7 @@ def _claude_md_testuale(testo):
     if not sed:
         return True
     for _n, args in sed:
-        if not any(re.match(r"^-[a-zA-Z]*[iI]", t) or t.startswith("--in-place") for t in args):
+        if not any(_sed_in_place(t) for t in args):
             continue
         liberi, script, salta = [], False, False
         for a in args:
@@ -810,8 +817,15 @@ def _scratch_di_job(p):
         parti = os.path.relpath(_piega(os.path.normpath(p)), jobs).replace("\\", "/").split("/")
     except ValueError:
         return False  # su Windows un altro disco
-    return len(parti) >= 3 and parti[0] not in ("", ".", "..") and parti[1] == "tmp" and \
-        all(x not in ("", ".", "..") for x in parti[2:])
+    if len(parti) < 3 or parti[0] in ("", ".", "..") or re.search(r"[*?\[\]{}$]", parti[0]) or parti[1] != "tmp" or \
+            any(x in ("", ".", "..") for x in parti[2:]):
+        return False
+    # Con CLAUDE_JOB_DIR vale solo lo scratchpad di questo job: `rm -rf ~/.claude/jobs/*/tmp/*` toglieva quelli delle
+    # altre sessioni (revisione del 20/11/2026).
+    dir_job = (os.environ.get("CLAUDE_JOB_DIR") or "").strip()
+    if not dir_job:
+        return True
+    return _piega(os.path.basename(os.path.normpath(dir_job))) == parti[0]
 
 
 def _is_protected_tree(p):
@@ -1070,6 +1084,20 @@ _ARCHIVI = frozenset(_fc._TAR | {"unzip", "patch", "gpatch", "git", "ditto", "rs
 _GIT_RESET_RISCRIVE = frozenset(("--hard", "--merge", "--keep"))
 
 
+_COMANDO = [""]  # il comando intero che la guardia sta giudicando, per le regole che guardano gli altri segmenti
+
+
+def _clonata(cartella):
+    """True se lo stesso comando crea `cartella` con un `git clone` e nessun `ln` la può far diventare un link
+    (revisione del 20/11/2026: `ln -s ~/.claude /tmp/lk && git -C /tmp/lk checkout HEAD~5 -- hooks/` passava)."""
+    comando = _COMANDO[0]
+    if not comando or re.search(r"(?:^|[\s;&|(])(?:\S*/)?ln(?=\s)", comando):
+        return False
+    nome = os.path.basename(os.path.normpath(cartella))
+    return bool(nome) and bool(re.search(r"\bgit\b[^;&|\n]*\bclone\b[^;&|\n]*" + re.escape(nome)
+                                         + r"(?=[\s\x22\x27;&|)]|$)", comando))
+
+
 def _git_riscritti(args, base):
     """(file, cartelle) che git riscrive nella cartella di lavoro senza una redirezione: i percorsi di
     `checkout -- F` e `restore F`, e la radice del repo per un checkout senza `--` e per `reset --hard`."""
@@ -1084,7 +1112,7 @@ def _git_riscritti(args, base):
     # `git -C <cartella che non c'è>` esce con un errore prima di toccare file. Prima del comando un clone che
     # lo stesso comando crea non c'è ancora, e la radice saliva fino a ~/.claude (20/11/2026: `git clone … $R/a &&
     # git -C $R/a checkout X` nello scratchpad chiedeva come una riscrittura della config).
-    if con_c is not None and "$" not in con_c and not os.path.exists(con_c):
+    if con_c is not None and "$" not in con_c and not os.path.exists(con_c) and _clonata(con_c):
         return file, cartelle
     radice = _fc._radice_git(base) if base else None
     if sotto in ("checkout", "restore"):
@@ -1233,7 +1261,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
                 return True
         # sed -i e perl -i sul file
         # L'opzione si legge dalle parole: "-i" dentro un nome (`regole-interfaccia.md`) non è -i (20/11/2026).
-        if sed and ((cmd0 in ("sed", "gsed") and any(re.match(r"^-[a-zA-Z]*[iI]", t) or t.startswith("--in-place")
+        if sed and ((cmd0 in ("sed", "gsed") and any(_sed_in_place(t)
                                                        for t in toks[1:]))
                     or (cmd0 == "perl" and any(re.match(r"^-[a-zA-Z]*i", t) for t in toks[1:]))):
             for t in toks[1:]:
@@ -1580,6 +1608,36 @@ def _cancella_dentro(args) -> bool:
     return False
 
 
+_FIND_VUOTE_CON_VALORE = frozenset(("-mindepth", "-maxdepth", "-name", "-iname", "-path", "-ipath"))
+
+
+def _find_solo_vuote(args):
+    """True se l'espressione di find è solo `[filtri] -type d -empty [filtri] -delete`, con -delete per ultimo: toglie
+    soltanto cartelle vuote. `find X -delete -type d -empty` cancella tutto, perché find valuta da sinistra
+    (revisione del 20/11/2026): ogni parola fuori dall'elenco chiuso, o -delete non in fondo, chiede."""
+    args = [a for a in args if not re.match(r"^\d?>", a)]
+    if not args or args[-1] != "-delete" or args.count("-delete") != 1:
+        return False
+    i = 0
+    while i < len(args) and not args[i].startswith("-"):
+        i += 1  # i percorsi di partenza
+    espr, tipo_d, vuota = args[i:-1], False, False
+    j = 0
+    while j < len(espr):
+        a = espr[j]
+        if a == "-type" and j + 1 < len(espr) and espr[j + 1] == "d":
+            tipo_d, j = True, j + 2
+        elif a == "-empty":
+            vuota, j = True, j + 1
+        elif a == "-depth":
+            j += 1
+        elif a in _FIND_VUOTE_CON_VALORE and j + 1 < len(espr):
+            j += 2
+        else:
+            return False
+    return tipo_d and vuota
+
+
 def _find_delete(command):
     """`find … -delete`, `find … -exec rm|unlink|shred` (anche dentro `-exec sh -c '…'`) e
     `find … | xargs rm` cancellano quanto un rm ricorsivo."""
@@ -1591,9 +1649,7 @@ def _find_delete(command):
         trova = True
         # `find X -type d -empty -delete` toglie solo cartelle vuote: non perde niente (20/11/2026). Con -o, -or,
         # `,`, `!`, -not o le parentesi -delete può valere per un altro ramo dell'espressione: chiede.
-        vuote = "-empty" in args and any(a == "-type" and b == "d" for a, b in zip(args, args[1:])) and \
-            not any(a in ("-o", "-or", ",", "!", "-not", "(", ")", "\\(", "\\)") for a in args)
-        if "-delete" in args and not vuote:
+        if "-delete" in args and not _find_solo_vuote(args):
             return True
         for i, t in enumerate(args[:-1]):
             if t in ("-exec", "-execdir", "-ok", "-okdir") and _cancella_dentro(args[i + 1:]):
@@ -1936,7 +1992,9 @@ def _rmtree_bersagli(command):
     corpi = []
 
     def _python(h):
-        if h.quotato and h.consumatore in _hd._PYTHON:
+        # exec, eval, compile e __import__ eseguono il testo di una stringa: lì il corpo resta intero (revisione 20/11).
+        if h.quotato and h.consumatore in _hd._PYTHON and \
+                not re.search(r"\b(?:exec|eval|compile)\s*\(|__import__|\bimportlib\b|\bgetattr\b", "\n".join(h.corpo)):
             corpi.append(_hd.python_senza("\n".join(h.corpo), _hd.senza_prosa))
             return True
         return False
@@ -2460,6 +2518,9 @@ def _push_cancella_unito(command, cwd):
     cui ultimo commit sul remoto, letto con ls-remote, sta già in main, master, dev o HEAD dello stesso remoto.
     Così non si perde niente. Nei 7 giorni al 20/11/2026 erano 23 conferme su 355, tutte su rami di worktree già
     uniti. Un flag che forza, --mirror, --prune, un `+`, un ramo che non si legge o un repo ignoto: False."""
+    # Un push dietro xargs, sh -c o eval non lo vede nessuna delle due letture: con lui il comando chiede (revisione 20/11).
+    if re.search(r"\b(?:xargs|eval|sh\s+-c|bash\s+-c|zsh\s+-c|parallel)\b[^\n]*\bpush\b", command):
+        return False
     trovati = False
     for nome, args, cds in _programmi_con_cd(command):
         if nome != "git":
@@ -2529,11 +2590,9 @@ def _push_cancella_unito(command, cwd):
     return trovati
 
 
-# I programmi che cancellano o ne lanciano un altro: una variabile che vale uno di loro chiede ancora.
-_VARIABILE_PERICOLOSA = frozenset(("rm", "unlink", "shred", "rmdir", "sh", "bash", "zsh", "dash", "ksh", "fish", "env",
-                                   "sudo", "doas", "xargs", "find", "eval", "exec", "command", "builtin", "busybox",
-                                   "python", "python3", "py", "node", "perl", "ruby", "php", "osascript", "nohup",
-                                   "timeout", "nice", "time", "watch", "parallel", "git", "gio", "srm"))
+# I soli programmi che possono stare in una variabile davanti a `rm`: un elenco di ammessi, non di pericolosi, perché
+# un elenco di pericolosi resta sempre incompleto (tcsh, awk, caffeinate, gtimeout, gxargs: revisione del 20/11/2026).
+_VARIABILE_AMMESSI = frozenset(("claude",))
 
 
 def _variabile_innocua(nome, command):
@@ -2553,8 +2612,8 @@ def _variabile_innocua(nome, command):
         return False
     var = nomi[0]
     if len(re.findall(r"(?:^|[\s;&|(])" + re.escape(var) + r"=", command, re.IGNORECASE)) != 1 or \
-            re.search(r"\b(?:export|declare|typeset|local|readonly|read|alias)\b[^;&|\n]*\b" + re.escape(var) + r"\b",
-                      command):
+            re.search(r"\b(?:export|declare|typeset|local|readonly|read|alias|mapfile|readarray|let|unset|eval|"
+                      r"printf\s+-v|getopts)\b[^;&|\n]*\b" + re.escape(var) + r"\b", command):
         return False
     valore = assegnate.get(var)
     if not valore:
@@ -2562,7 +2621,10 @@ def _variabile_innocua(nome, command):
     valore = valore.strip("'\"")
     if not valore or re.search(r"[\s$`()<>;&|*?\[\]{}\\]", valore):
         return False
-    return _fc._nome(os.path.basename(valore)) not in _VARIABILE_PERICOLOSA
+    if os.path.islink(os.path.expanduser(valore)) and \
+            _fc._nome(os.path.basename(os.path.realpath(os.path.expanduser(valore)))) not in _VARIABILE_AMMESSI:
+        return False  # un link chiamato claude che porta a rm
+    return _fc._nome(os.path.basename(valore)) in _VARIABILE_AMMESSI
 
 
 def _rm_segments(command):
@@ -2709,6 +2771,7 @@ def main() -> int:
     testo = _testo_shell(command)
     _ASSEGNATE.clear()
     _ASSEGNATE.update(_assegnazioni(command))
+    _COMANDO[0] = command
 
     # 1) Blocco duro
     if not _inert_reference(command):
