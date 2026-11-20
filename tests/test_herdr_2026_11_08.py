@@ -803,7 +803,8 @@ HZ175 ⌘N, il compito nuovo (#6186, Fase 3 del piano del 20/11/2026): scelteCom
      parole comuni non contano), poi il progetto aperto, "Progetto nuovo" e "Senza progetto"; lo slug del modello
      piccolo va in cima solo se è un progetto noto. comandoCompito e leggiCompito portano progetto, testo (al più
      1.000 caratteri) e ⌘Invio alla barra; promptCompito parte da /inizio <slug> -- <compito>. ⌘N e Ctrl+Shift+N
-     prendono lo spazio nuovo di Herdr con PRENDE, nell'installazione e in chi ha già Volta, una volta sola; un
+     prendono lo spazio nuovo di Herdr con PRENDE, nell'installazione e in chi ha già Volta (anche col tasto già
+     segnato nel registro come tasto di serie: REGISTRO_PER_COMANDO), una volta sola; un
      tasto che la persona usa per altro resta suo. barra, comuni, main, coda, dati e compito.js li usano.
 HZ176 volta_compito.py (#6186): un giro di claude -p --model haiku senza strumenti, hook e MCP riceve il compito
      intero e l'elenco dei progetti (senza doppi né slug storti, riga tagliata); vale solo una riga sola con uno
@@ -14127,7 +14128,9 @@ def hz175(repo: Path, casa: Path) -> str | None:
     # l'aggiornamento del mod: tasti() di volta_mod.py lo prende una volta sola
     tasto = "cmd-n" if sys.platform == "darwin" else "ctrl-shift-n"
     app = casa / "app-mod"
-    app.mkdir()
+    (app / "volta-mod").mkdir(parents=True)
+    # chi ha già Volta ha il tasto segnato nel registro come tasto di serie di Herdr: il compito lo prende lo stesso
+    (app / "volta-mod" / "tasti-offerti.json").write_text(json.dumps({"tasti": ["global " + tasto]}), encoding="utf-8")
     env = {**os.environ, "HERDR_APP_HOME": str(app)}
     gira = lambda: subprocess.run([sys.executable, "-c", PROVA_TASTI, str(v)], capture_output=True, text=True, timeout=30, env=env)  # noqa: E731
     for prima, atteso in (("space.new", "arturo.compito"), ("space.new", "space.new")):
@@ -14311,6 +14314,7 @@ VELENI = [
     ('HZ175', 'shared/volta/keys.json', '"cmd-n": "arturo.compito"', '"cmd-m": "arturo.compito"'),
     ('HZ175', 'shared/volta/keys-ctrl.json', '"ctrl-shift-n": "arturo.compito"', '"ctrl-shift-y": "arturo.compito"'),
     ('HZ175', 'shared/volta/volta_mod.py', ', "arturo.compito": ("space.new",)}', '}'),
+    ('HZ175', 'shared/volta/volta_mod.py', 'REGISTRO_PER_COMANDO = ("arturo.volta-chiudi", "arturo.compito")', 'REGISTRO_PER_COMANDO = ("arturo.volta-chiudi",)'),
     ('HZ175', 'shared/volta/installa-herdr.sh', '          "arturo.compito": ("space.new",)}', '          }'),
     ('HZ175', 'shared/volta/mods/arturo/dati.js', '      if (dietro) {\n', '      if (false) {\n'),
     ('HZ175', 'shared/volta/mods/arturo/barra.js', '    else if (c === "compito") apriCompito(arg ? decodifica(arg) : "");\n', ''),
