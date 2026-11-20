@@ -4,6 +4,7 @@
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale, schedaDelProgetto } from "./sessioni.js";
 import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
+import { promptCompito, avvisoCompito, nomeProgetto as nomeProgettoDi } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -40,6 +41,9 @@ export async function config() {
     // La ripresa da sola delle sessioni ferme per limite o connessione (#5882): "accesa" di serie, "spenta"
     // la toglie (Federico l'ha approvata il 17/11/2026).
     ripresa: c.ripresa === "spenta" ? "spenta" : "accesa",
+    // Il modello piccolo che propone il progetto di un compito nuovo (⌘N, volta_compito.py, #6186): "acceso"
+    // di serie, "spento" lascia la sola proposta dalle parole del testo.
+    compito_modello: c.compito_modello === "spento" ? "spento" : "acceso",
   };
 }
 
@@ -507,10 +511,28 @@ export async function conversazione(nome) {
 // in background sulla macchina di "Nasce su" e si aggancia nello spazio che la persona sta guardando,
 // col suo progetto; dallo spazio libero, o senza spazio, nasce senza progetto.
 export async function nuovaScheda() {
-  // anche uno spazio di un'altra macchina dà il progetto: lì Volta apre le sessioni di quella macchina (#5802)
+  return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione");
+}
+
+// Il progetto dello spazio che la persona sta guardando, o null dallo spazio libero o senza spazio.
+// Anche uno spazio di un'altra macchina dà il progetto: lì Volta apre le sessioni di quella macchina (#5802).
+export function progettoDavanti() {
   const s = spaces().find((x) => x.active);
-  const progetto = s?.named && !libero(s.name) ? canonico(s.name) : null;
-  return nasciSu(dove(), "", progetto, "Nuova sessione");
+  return s?.named && !libero(s.name) ? canonico(s.name) : null;
+}
+
+// Il compito di ⌘N (#6186, leggiCompito di sessioni.js): un progetto noto parte da "/inizio <slug> -- <compito>"
+// sulla macchina del progetto, come apri() con un todo; un progetto nuovo e un compito senza progetto nascono
+// sulla macchina di "Nasce su". Con `apri` (⌘Invio) la scheda si apre, altrimenti la sessione lavora dietro.
+export async function compito(x) {
+  if (!x?.testo) return { errore: "compito vuoto" };
+  const d = dove();
+  if (x.tipo === "progetto") {
+    const nome = canonico(x.slug);
+    const sua = d === "qui" ? macchinaDelProgetto(shared("arturo.progetti")?.[nome]?.macchine, shared("arturo.volta.macchine")) : null;
+    return nasciSu(sua ?? d, promptCompito({ ...x, slug: nome }), nome, null, null, !x.apri);
+  }
+  return nasciSu(d, promptCompito(x), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);
 }
 
 // Le richieste da imparare: i pulsanti del benvenuto e della finestra "Cosa posso chiedere".
@@ -1053,7 +1075,9 @@ export const riprendiSu = (macchina, prompt, progetto, nome) => nasciSu(macchina
 // Arturo Volta funziona, e il prompt è il solo testo).
 export const conArturo = (c) => (c?.arturo ?? []).some((a) => /(^|[\\/])arturo(\.cmd|\.exe)?$/.test(String(a)));
 
-async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null) {
+// `dietro` (⌘N con Invio, #6186): la sessione nasce e lavora in background senza una scheda, e la finestra
+// resta dov'è; un avviso dice dove è nata, e la riga compare nell'elenco e nell'Orchestratore.
+async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null, dietro = false) {
   const dico = (titolo, errore, level = "error") => {
     if (!copia) notify({ title: titolo, body: errore, level });
     return { errore };
@@ -1083,6 +1107,10 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
     if (nata.attach?.length) {
       // la nascita accende il servizio di Claude su quella macchina: il clic dopo salta prepara (step 5)
       servizioVisto(macchina);
+      if (dietro) {
+        notify({ title: "Compito partito", body: avvisoCompito(progetto ? nomeProgettoDi(progetto) : null, nomeMacchina(macchina)), level: "info" });
+        return { ok: true, id: nata.id };
+      }
       const nome = nomeScheda ?? progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
       // La scheda parte dalla home anche qui: claude attach non ha bisogno della cartella della sessione.
       const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);

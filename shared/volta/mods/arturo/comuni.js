@@ -14,8 +14,8 @@ export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 // Herdr (Alt+↓ per la sessione che aspetta), perché su Windows ⌘ sarebbe il tasto Windows.
 export function tasti() {
   return window()?.platform === "macos"
-    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E", tessere: "⌘T", coda: "⌘⇧J", checklist: "⌘⇧S", annulla: "⌘Z" }
-    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T", coda: "Ctrl+Shift+J", checklist: "Ctrl+Shift+S", annulla: "Ctrl+Alt+Z" };
+    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E", tessere: "⌘T", coda: "⌘⇧J", checklist: "⌘⇧S", compito: "⌘N", apriCompito: "⌘Invio", annulla: "⌘Z" }
+    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T", coda: "Ctrl+Shift+J", checklist: "Ctrl+Shift+S", compito: "Ctrl+Shift+N", apriCompito: "Ctrl+Invio", annulla: "Ctrl+Alt+Z" };
 }
 
 // Un pallino di stato disegnato, non un carattere.
@@ -207,6 +207,14 @@ let cercaAperta = null;
 export function apriFinestra() {
   if (cercaAperta) closeOverlay(cercaAperta);
   cercaAperta = openOverlay({ mod: "arturo", props: { parte: "apri" }, kind: "dialog", width: 560 });
+}
+
+// Il dialogo del compito nuovo (⌘N, compito.js, #6186): uno solo aperto, come la ricerca.
+let compitoAperto = null;
+// `testo`: il compito già scritto nel campo (comando arturo.compitoscritto-<esadecimale>).
+export function apriCompito(testo = "") {
+  if (compitoAperto) closeOverlay(compitoAperto);
+  compitoAperto = openOverlay({ mod: "arturo", props: { parte: "compito", testo }, kind: "dialog", width: 560 });
 }
 
 // ⌘⇧N: prima lo screenshot della finestra com'è, poi il velo per scegliere il punto (notaui.js). Con `apri`

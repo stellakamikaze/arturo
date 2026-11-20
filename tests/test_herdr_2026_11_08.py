@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ174: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ176: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -798,6 +798,17 @@ HZ174 la sonda porta i giudizi dei permessi (#6185): da cache/giudizi/<sessionId
      conti dei sì e gli ultimi tre sì coi tetti; una riga storta non ferma la lettura. La voce della macchina dice
      se il giudice è acceso o spento (cache/giudice-spento), volta_sonda.py giudice lo cambia, e la carta "permesso"
      tiene tipo e motivo.
+HZ175 ⌘N, il compito nuovo (#6186, Fase 3 del piano del 20/11/2026): scelteCompito di sessioni.js propone il progetto
+     dalle parole del testo (slug, titolo, nomi alternativi, riga di stato; "nome: compito" lo dice a mano; le
+     parole comuni non contano), poi il progetto aperto, "Progetto nuovo" e "Senza progetto"; lo slug del modello
+     piccolo va in cima solo se è un progetto noto. comandoCompito e leggiCompito portano progetto, testo (al più
+     1.000 caratteri) e ⌘Invio alla barra; promptCompito parte da /inizio <slug> -- <compito>. ⌘N e Ctrl+Shift+N
+     prendono lo spazio nuovo di Herdr con PRENDE, nell'installazione e in chi ha già Volta, una volta sola; un
+     tasto che la persona usa per altro resta suo. barra, comuni, main, coda, dati e compito.js li usano.
+HZ176 volta_compito.py (#6186): un giro di claude -p --model haiku senza strumenti, hook e MCP riceve il compito
+     intero e l'elenco dei progetti (senza doppi né slug storti, riga tagliata); vale solo una riga sola con uno
+     slug dell'elenco. Una frase, due righe, uno slug inventato, "nessuno", il modello caduto, l'elenco o claude
+     che mancano danno slug null.
 """
 from __future__ import annotations
 
@@ -813,7 +824,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1660,7 +1671,7 @@ def hz22(repo: Path, casa: Path) -> str | None:
     # di Volta, più ctrl-shift-c, -v e -f del terminale): Arturo non deve prenderne nessuno.
     sopra = casa / "sopra-herdr"
     (sopra / "app").mkdir(parents=True)
-    (sopra / "app" / "keys.json").write_text(json.dumps({"global": {**dict.fromkeys(HERDR_CTRL, "herdr"), "ctrl-shift-t": "tab.new"}}), encoding="utf-8")
+    (sopra / "app" / "keys.json").write_text(json.dumps({"global": {**dict.fromkeys(HERDR_CTRL, "herdr"), "ctrl-shift-t": "tab.new", "ctrl-shift-n": "space.new"}}), encoding="utf-8")
     r = installa(repo, sopra, "windows")
     if r.returncode != 0 or "lasciato com'era" in r.stdout:
         return f"su Windows un tasto di Arturo è già di Herdr: {r.stdout.strip()[-200:]}"
@@ -8361,7 +8372,7 @@ def hz82(repo: Path, casa: Path) -> str | None:
     # i due tasti del giro fra le sessioni (HZ86), quello della checklist (HZ156) e ⌘Z (HZ159) entrano perché in questo
     # keys.json sono liberi; un tasto preso dalla persona resta suo
     giro = {k: v for k, v in leggi(vc / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json")).get("global", {}).items()
-            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla")) and k not in miei}
+            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla", "arturo.compito")) and k not in miei}
     attesi2.update(giro)
     # i tasti di serie di Herdr che questo keys.json non ha entrano, sotto quelli già presenti (#5369)
     serie = leggi(vc / ("keys-herdr-macos.json" if sys.platform == "darwin" else "keys-herdr.json"))
@@ -13981,7 +13992,254 @@ def hz170(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174}
+PROVA_COMPITO = r"""
+import * as m from "./sessioni.mjs";
+import { instrada } from "./comandi.mjs";
+const mappa = {
+  volta: { chiave: "volta", titolo: "Volta", riga: "Orchestratore attivo; prossimo il tasto Cmd+N" },
+  "sito-uf": { chiave: "sito-uf", titolo: "Sito UF", riga: "homepage nuova in bozza" },
+  uf: { chiave: "uf", titolo: "Ufficio Furore", riga: "amministrazione" },
+  arturo: { chiave: "arturo", titolo: "Arturo", riga: "rilascio quotidiano della versione" },
+  "fiscale-personale": { chiave: "fiscale-personale", titolo: "Fiscale personale", riga: "dichiarazione dei redditi" },
+  "nuovo-mondo": { chiave: "nuovo-mondo", titolo: "Nuovo Mondo", riga: "" },
+  "sistema-solare": { chiave: "sistema-solare", titolo: "Sistema solare", riga: "" },
+  sentinella: { chiave: "sentinella", titolo: "Sentinella", riga: "" },
+};
+mappa["volta-celeste"] = mappa.volta;
+mappa["herdr-arturo"] = mappa.volta;
+const pp = m.progettiPerCompito(mappa, [{ chiave: "arturo" }, { chiave: "volta" }, { chiave: "sparito" }]);
+const out = { ordine: pp.map((p) => p.chiave), alias: pp.find((p) => p.chiave === "volta").alias };
+const prova = (t, d = null, mo = null) => {
+  const s = m.scelteCompito(t, pp, d, mo);
+  return [s.righe.map((r) => (r.tipo === "progetto" ? `${r.slug}/${r.perche}` : r.tipo === "nuovo" ? `+${r.slug}` : "-")), s.at];
+};
+out.banco = prova("sistema il banco di Volta");
+out.celeste = prova("togli i resti di volta celeste dal layout");
+out.sito = prova("aggiorna la homepage del sito uf");
+out.detto = prova("arturo: prepara il rilascio");
+out.dettoNuovo = prova("sagra: prepara il preventivo");
+out.niente = prova("chiama il commercialista domani");
+out.davanti = prova("chiama il commercialista domani", "uf");
+out.modello = prova("chiama il commercialista domani", "uf", "fiscale-personale");
+out.modelloIgnoto = prova("chiama il commercialista domani", null, "inventato");
+out.riga = prova("prepara la dichiarazione dei redditi");
+out.vuoto = prova("");
+out.corto = prova("uf: paga le fatture");
+out.rumore = prova("senti i fiscali per i preventivi del modello");
+out.unaRiga = prova("guarda la homepage domani");
+out.serve = [m.serveModello("chiama il commercialista domani", pp), m.serveModello("sistema il banco di Volta", pp),
+  m.serveModello("ciao", pp), m.serveModello("chiama il commercialista domani", [])];
+const c1 = m.comandoCompito({ tipo: "progetto", slug: "volta" }, "sistema il banco:\n  è rosso #6186 \"ora\"");
+const c2 = m.comandoCompito({ tipo: "nuovo", slug: "sagra" }, "sagra: prepara il preventivo", true);
+const c3 = m.comandoCompito({ tipo: "senza", slug: "" }, "sagra: prepara il preventivo");
+const c4 = m.comandoCompito({ tipo: "nuovo", slug: "chiama-commercialista" }, "nota: chiama il commercialista");
+out.comandi = [c1.split("-").slice(0, 2).join("-"), c2.split("-").slice(0, 3).join("-"), c3.split("-").slice(0, 3).join("-")];
+const l = (c) => m.leggiCompito(c.replace(/^arturo\./, ""), mappa);
+out.letti = [l(c1), l(c2), l(c3), l(c4), l(m.comandoCompito({ tipo: "progetto", slug: "nuovo-mondo" }, "x y")),
+  l(m.comandoCompito({ tipo: "progetto", slug: "volta-celeste" }, "x")), l(m.comandoCompito({ tipo: "progetto", slug: "ignoto" }, "x")),
+  m.leggiCompito("compito-volta-", mappa), m.leggiCompito("compito-volta-zzzz", mappa), l(m.comandoCompito({ tipo: "progetto", slug: "volta" }, "   "))];
+out.prompt = [l(c1), l(c2), l(c3)].map(m.promptCompito);
+out.lungo = l(m.comandoCompito({ tipo: "progetto", slug: "volta" }, "a".repeat(1500))).testo.length;
+out.strada = [instrada("compitoscritto-00610062"), instrada("compito"), instrada(c1.replace(/^arturo\./, "")), instrada(c2.replace(/^arturo\./, "")), instrada("compito-volta-zz")]
+  .map((x) => [x.verbo, x.lungo, typeof x.arg === "string" ? x.arg.split("-").slice(0, 2).join("-") : x.arg]);
+out.avviso = [m.avvisoCompito("Volta", "Mac mini"), m.avvisoCompito(null, "MacBook")];
+console.log(JSON.stringify(out));
+"""
+
+
+def hz175(repo: Path, casa: Path) -> str | None:
+    """⌘N, il compito nuovo (#6186): la proposta del progetto, il comando, i tasti presi a Herdr e chi li usa."""
+    v = repo / "shared/volta"
+    mod = v / "mods/arturo"
+    node = shutil.which("node")
+    if node:
+        shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+        shutil.copyfile(mod / "comandi.js", casa / "comandi.mjs")
+        (casa / "prova.mjs").write_text(PROVA_COMPITO, encoding="utf-8")
+        r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js o comandi.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        if d["ordine"][:2] != ["arturo", "volta"] or sorted(d["alias"]) != ["herdr-arturo", "volta-celeste"] or len(d["ordine"]) != 8:
+            return f"progettiPerCompito sbaglia ordine, nomi alternativi o doppi: {d['ordine']} {d['alias']}"
+        attesi = {
+            "banco": [["volta/testo", "+banco-volta", "-"], 0],
+            "celeste": [["volta/testo", "+togli-resti-volta", "-"], 0],
+            "sito": [["sito-uf/testo", "+homepage-sito", "-"], 0],
+            "detto": [["arturo/testo", "volta/testo", "-"], 0],
+            "dettoNuovo": [["+sagra", "-"], 1],
+            "niente": [["+chiama-commercialista-domani", "-"], 1],
+            "davanti": [["uf/davanti", "+chiama-commercialista-domani", "-"], 0],
+            "modello": [["fiscale-personale/modello", "uf/davanti", "+chiama-commercialista-domani", "-"], 0],
+            "modelloIgnoto": [["+chiama-commercialista-domani", "-"], 1],
+            "riga": [["fiscale-personale/testo", "+dichiarazione-redditi", "-"], 0],
+            "vuoto": [["-"], 0],
+            "corto": [["uf/testo", "-"], 0],
+            "rumore": [["fiscale-personale/testo", "+senti-fiscali-preventivi", "-"], 0],
+            "unaRiga": [["+homepage-domani", "-"], 1],
+        }
+        for k, a in attesi.items():
+            if d[k] != a:
+                return f"scelteCompito su {k!r}: {d[k]}, atteso {a}"
+        if d["serve"] != [True, False, False, False]:
+            return f"serveModello chiede il modello quando non serve, o non lo chiede: {d['serve']}"
+        if d["comandi"] != ["arturo.compito-volta", "arturo.compitoapri-nuovo-sagra", "arturo.compito-senza-progetto"]:
+            return f"comandoCompito sbaglia verbo o progetto: {d['comandi']}"
+        letti = [{"tipo": "progetto", "slug": "volta", "testo": 'sistema il banco: è rosso #6186 "ora"', "apri": False},
+                 {"tipo": "nuovo", "slug": "sagra", "testo": "prepara il preventivo", "apri": True},
+                 {"tipo": "senza", "slug": "", "testo": "sagra: prepara il preventivo", "apri": False},
+                 {"tipo": "nuovo", "slug": "chiama-commercialista", "testo": "nota: chiama il commercialista", "apri": False},
+                 {"tipo": "progetto", "slug": "nuovo-mondo", "testo": "x y", "apri": False},
+                 {"tipo": "progetto", "slug": "volta", "testo": "x", "apri": False},
+                 {"tipo": "progetto", "slug": "ignoto", "testo": "x", "apri": False}, None, None, None]
+        if d["letti"] != letti:
+            return f"leggiCompito non rende il compito mandato: {d['letti']}"
+        if d["prompt"] != ['/inizio volta -- sistema il banco: è rosso #6186 "ora"',
+                           "Progetto nuovo sagra: crea la scheda e la voce dei task (procedura Nuovo progetto di /tasks), poi esegui: prepara il preventivo",
+                           "sagra: prepara il preventivo"]:
+            return f"promptCompito: {d['prompt']}"
+        if d["lungo"] != 1000:
+            return f"il compito non ha il tetto di 1.000 caratteri: {d['lungo']}"
+        if d["strada"] != [["compito", False, "00610062"], ["compito", False, None], ["compito-vai", True, "compito-volta"], ["compito-vai", True, "compitoapri-nuovo"], [None, False, None]]:
+            return f"instrada non porta i comandi del compito, o prende un comando senza testo: {d['strada']}"
+        if d["avviso"] != ["Volta · Mac mini. Claude ci lavora: la trovi nell'elenco e nell'Orchestratore.",
+                           "Senza progetto · MacBook. Claude ci lavora: la trovi nell'elenco e nell'Orchestratore."]:
+            return f"avvisoCompito: {d['avviso']}"
+    # i tasti: ⌘N e Ctrl+Shift+N, presi allo spazio nuovo di Herdr
+    mac, win = leggi(v / "keys.json")["global"], leggi(v / "keys-ctrl.json")["global"]
+    if mac.get("cmd-n") != "arturo.compito" or win.get("ctrl-shift-n") != "arturo.compito":
+        return f"⌘N e Ctrl+Shift+N non aprono il compito nuovo: {mac.get('cmd-n')}, {win.get('ctrl-shift-n')}"
+    if leggi(v / "keys-herdr-macos.json")["global"].get("cmd-n") != "space.new" or leggi(v / "keys-herdr.json")["global"].get("ctrl-shift-n") != "space.new":
+        return "i tasti di serie di Herdr non danno più lo spazio nuovo a ⌘N e Ctrl+Shift+N: PRENDE va rivisto"
+    # l'installazione: prende il tasto che fa ancora lo spazio nuovo, lascia quello che la persona usa per altro
+    for nome, prima, atteso in (("presa", "space.new", "arturo.compito"), ("sua", "tab.rename", "tab.rename")):
+        sotto = casa / nome
+        (sotto / "app").mkdir(parents=True)
+        (sotto / "app" / "keys.json").write_text(json.dumps({"global": {"cmd-n": prima}}), encoding="utf-8")
+        r = installa(repo, sotto)
+        if r.returncode != 0:
+            return f"installazione fallita: {(r.stdout + r.stderr)[-200:]}"
+        avuto = leggi(sotto / "app" / "keys.json")["global"].get("cmd-n")
+        if avuto != atteso:
+            return f"installa-herdr.sh: ⌘N era {prima}, ora {avuto}, atteso {atteso}"
+        if ("tasto cmd-n lasciato com'era" in r.stdout) != (atteso == prima):
+            return f"installa-herdr.sh dice il falso su ⌘N ({prima}): {r.stdout[-200:]}"
+    # l'aggiornamento del mod: tasti() di volta_mod.py lo prende una volta sola
+    tasto = "cmd-n" if sys.platform == "darwin" else "ctrl-shift-n"
+    app = casa / "app-mod"
+    app.mkdir()
+    env = {**os.environ, "HERDR_APP_HOME": str(app)}
+    gira = lambda: subprocess.run([sys.executable, "-c", PROVA_TASTI, str(v)], capture_output=True, text=True, timeout=30, env=env)  # noqa: E731
+    for prima, atteso in (("space.new", "arturo.compito"), ("space.new", "space.new")):
+        tutti = leggi(app / "keys.json") if (app / "keys.json").exists() else {"global": {}}
+        tutti["global"][tasto] = prima
+        (app / "keys.json").write_text(json.dumps(tutti), encoding="utf-8")
+        r = gira()
+        if r.returncode != 0:
+            return f"tasti() di volta_mod.py non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+        avuto = leggi(app / "keys.json")["global"].get(tasto)
+        if avuto != atteso:
+            return (f"tasti() di volta_mod.py: {tasto} era {prima}, ora {avuto}, atteso {atteso} "
+                    f"({'chi ha già Volta non riceve il tasto' if atteso == 'arturo.compito' else 'rimesso dalla persona, non resta suo'})")
+    # chi li usa
+    for file, pezzi in (
+        ("barra.js", ('else if (c === "compito") apriCompito(arg ? decodifica(arg) : "");',
+                      'else if (c === "compito-vai") { const x = leggiCompito(arg, shared("arturo.progetti")); if (x) this.lungo(c, cx, () => compito(x)); }')),
+        ("comuni.js", ('compitoAperto = openOverlay({ mod: "arturo", props: { parte: "compito", testo }, kind: "dialog", width: 560 });',
+                       'compito: "⌘N"', 'compito: "Ctrl+Shift+N"')),
+        ("main.js", ("compito: Compito }",)),
+        ("coda.js", ('.on_click(() => run("arturo.compito"))', "tasti().compito")),
+        ("dati.js", ("return nasciSu(sua ?? d, promptCompito({ ...x, slug: nome }), nome, null, null, !x.apri);",
+                     'return nasciSu(d, promptCompito(x), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);',
+                     "      if (dietro) {\n        notify({ title: \"Compito partito\"",
+                     'compito_modello: c.compito_modello === "spento" ? "spento" : "acceso",')),
+        ("compito.js", ("run(comandoCompito(r, this.testo, apri));\n    this.chiudi();",
+                        'this.input.on("submit", () => this.vai(false));',
+                        'this.testo = typeof props()?.testo === "string" ? props().testo : "";',
+                        'if (e.key === "enter" && (e.modifiers?.platform || e.modifiers?.control)) { cx.stop_propagation(); return this.vai(true); }',
+                        "if (Date.now() - this.battuta < COMPITO_PAUSA_MS) return;",
+                        "if (!serveModello(testo, progetti)) return;",
+                        'if (typeof d.slug === "string" && d.slug && this.at === null) this.modello = { testo, slug: d.slug };',
+                        "const m = this.modello?.testo === this.testo ? this.modello.slug : null;")),
+    ):
+        testo = (mod / file).read_text(encoding="utf-8")
+        for pezzo in pezzi:
+            if pezzo not in testo:
+                return f"{file} non porta il compito nuovo: manca {pezzo[:80]!r}"
+    return None
+
+
+CLAUDE_FINTO_COMPITO = r"""#!/bin/sh
+# il claude finto di HZ176: scrive argomenti e ingresso, risponde come dice l'ambiente
+printf '%s\n' "$@" > "$FINTO_DIR/argv"
+cat > "$FINTO_DIR/stdin"
+printf '%b' "$FINTO_RISPOSTA"
+exit "${FINTO_RC:-0}"
+"""
+
+
+def hz176(repo: Path, casa: Path) -> str | None:
+    """volta_compito.py: il modello piccolo propone il progetto di un compito, e vale solo uno slug dell'elenco (#6186)."""
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    mod = casa / "mod"
+    mod.mkdir()
+    shutil.copyfile(repo / "shared/volta/mods/arturo/volta_compito.py", mod / "volta_compito.py")
+    finto = casa / "claude"
+    finto.write_text(CLAUDE_FINTO_COMPITO, encoding="utf-8")
+    finto.chmod(0o755)
+    progetti = casa / "progetti.json"
+    progetti.write_text(json.dumps([{"chiave": "volta", "titolo": "Volta", "riga": "Orchestratore  attivo\nsu due Mac " + "x" * 300},
+                                    {"chiave": "sito-uf", "titolo": "Sito UF", "riga": ""}, {"chiave": "volta", "titolo": "Doppio"},
+                                    {"chiave": "Non Valido", "titolo": "fuori"}, "storto"]), encoding="utf-8")
+    esa = lambda t: "".join("%04x" % int.from_bytes(t.encode("utf-16-le")[i:i + 2], "little") for i in range(0, len(t.encode("utf-16-le")), 2))  # noqa: E731
+    compito = "il banco è rosso: perché? \U0001F642"
+
+    def gira(risposta, rc=0, file=progetti, testo=compito, claude=finto):
+        env = {**{k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}, "VOLTA_COMPITO_CLAUDE": str(claude), "FINTO_DIR": str(casa),
+               "FINTO_RISPOSTA": risposta, "FINTO_RC": str(rc), "HOME": str(casa)}
+        for f in ("argv", "stdin"):
+            (casa / f).unlink(missing_ok=True)
+        r = subprocess.run([sys.executable, str(mod / "volta_compito.py"), "proponi", str(file), esa(testo)], capture_output=True, text=True,
+                           encoding="utf-8", timeout=60, env=env, cwd=mod)
+        if r.returncode != 0:
+            return {"rotto": (r.stderr or r.stdout).strip()[-200:]}
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    d = gira("volta\\n")
+    if d != {"slug": "volta"}:
+        return f"lo slug detto dal modello non arriva: {d}"
+    argv = (casa / "argv").read_text(encoding="utf-8").split("\n")
+    for pezzo in ("-p", "haiku", "--strict-mcp-config", "--no-session-persistence", '{"disableAllHooks":true}'):
+        if pezzo not in argv:
+            return f"il modello non parte piccolo e senza strumenti, hook e MCP: manca {pezzo} in {argv[:12]}"
+    if argv[argv.index("--tools") + 1] != "":
+        return f"il modello parte con degli strumenti: {argv}"
+    ingresso = (casa / "stdin").read_text(encoding="utf-8")
+    if "Compito: " + compito not in ingresso:
+        return f"il compito non arriva intero al modello (accenti, emoji): {ingresso[-200:]!r}"
+    righe = [x for x in ingresso.splitlines() if x.startswith("- ")]
+    if righe != ["- volta: Volta, Orchestratore attivo su due Mac " + "x" * 88, "- sito-uf: Sito UF"]:
+        return f"l'elenco dei progetti dato al modello (doppi, slug storti, riga tagliata): {righe}"
+    for nome, risposta, rc in (("uno slug che non è nell'elenco", "inventato\\n", 0), ("nessuno", "nessuno\\n", 0),
+                               ("una frase", "Penso sia il progetto volta\\n", 0), ("due righe", "volta\\nperché parla del banco\\n", 0),
+                               ("il modello caduto", "volta\\n", 1), ("una risposta vuota", "", 0)):
+        d = gira(risposta, rc)
+        if d.get("slug") is not None or not d.get("perche"):
+            return f"con {nome} la proposta passa lo stesso: {d}"
+    if gira('  "Sito-UF".\\n') != {"slug": "sito-uf"}:
+        return "uno slug fra virgolette, con maiuscole e punto, non viene riconosciuto"
+    for nome, kw in (("l'elenco che manca", {"file": casa / "manca.json"}), ("il compito vuoto", {"testo": "   "}),
+                     ("claude che manca", {"claude": casa / "non-c-e"})):
+        d = gira("volta\\n", **kw)
+        if d.get("slug") is not None or "rotto" in d:
+            return f"con {nome}: {d}"
+    if (casa / "argv").exists():
+        return "senza claude il modello è partito lo stesso"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -14039,6 +14297,28 @@ VELENI = [
     ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '        if d.get("giudice") in ("acceso", "spento"):\n            v["giudice"] = d["giudice"]\n', ''),
     ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '"oauth", "gesto", "permesso", "scelta", "review")', '"oauth", "gesto", "scelta", "review")'),
     ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '        os.remove(f)\nexcept OSError as e:', '        pass\nexcept OSError as e:'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', 'const conta = (p) => p.length >= 4 && !COMUNI.has(p);', 'const conta = (p) => p.length >= 4;'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '  return { righe, at: presi.length ? 0 : righe.length - 1 };', '  return { righe, at: 0 };'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '  return n >= 5 && a.length - n <= 2 && b.length - n <= 2;', '  return n >= 5;'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '    .filter((x) => x.k && x.v >= PESO.inizio).sort(', '    .filter((x) => x.k && x.v > 0).sort('),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '    if (k && noti.has(k) && !presi.some((x) => x.slug === k) && presi.length < 3)', '    if (k && !presi.some((x) => x.slug === k) && presi.length < 3)'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '  if (detto && nomi.includes(detto)) v += PESO.detto;\n  else if', '  if'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '  v += Math.min(3, pt.filter((x) => x.length >= 5 && pr.has(x)).length) * PESO.riga;\n', ''),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', 'riga?.tipo === "nuovo" && riga.slug === progettoNuovo(nomeDetto(testo))', 'true'),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '  if (noti?.[m[2]]) return { tipo: "progetto", slug: noti[m[2]].chiave ?? m[2], testo, apri };\n', ''),
+    ('HZ175', 'shared/volta/mods/arturo/sessioni.js', '  return !(progetti ?? []).some((p) => votoProgetto(testo, p) >= PESO.nome);', '  return true;'),
+    ('HZ175', 'shared/volta/mods/arturo/comandi.js', 'if (/^compito(apri)?-[a-z0-9-]+-(?:[0-9a-f]{4})+$/.test(c))', 'if (c.startsWith("compito-"))'),
+    ('HZ175', 'shared/volta/keys.json', '"cmd-n": "arturo.compito"', '"cmd-m": "arturo.compito"'),
+    ('HZ175', 'shared/volta/keys-ctrl.json', '"ctrl-shift-n": "arturo.compito"', '"ctrl-shift-y": "arturo.compito"'),
+    ('HZ175', 'shared/volta/volta_mod.py', ', "arturo.compito": ("space.new",)}', '}'),
+    ('HZ175', 'shared/volta/installa-herdr.sh', '          "arturo.compito": ("space.new",)}', '          }'),
+    ('HZ175', 'shared/volta/mods/arturo/dati.js', '      if (dietro) {\n', '      if (false) {\n'),
+    ('HZ175', 'shared/volta/mods/arturo/barra.js', '    else if (c === "compito") apriCompito(arg ? decodifica(arg) : "");\n', ''),
+    ('HZ175', 'shared/volta/mods/arturo/compito.js', 'd.slug && this.at === null) this.modello', 'd.slug) this.modello'),
+    ('HZ176', 'shared/volta/mods/arturo/volta_compito.py', '    return v if v in noti else None', '    return v'),
+    ('HZ176', 'shared/volta/mods/arturo/volta_compito.py', '    if len(righe) != 1:\n        return None', '    if not righe:\n        return None'),
+    ('HZ176', 'shared/volta/mods/arturo/volta_compito.py', '    return r.stdout if r.returncode == 0 else ""', '    return r.stdout'),
+    ('HZ176', 'shared/volta/mods/arturo/volta_compito.py', '        if not SLUG.fullmatch(s) or s in noti:', '        if not s:'),
     ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s?.progetto) && s.progetto === nome;'),
     ('HZ172', 'shared/volta/mods/arturo/dati.js', 'const x = schedaDelProgetto(schede, nome, (await elencoVolta()).sessioni, shared("arturo.progetti"));', 'const x = schede[0];'),
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', "    appesa = cartella_appesa(c)\n    if appesa:", "    appesa = None\n    if appesa:"),
@@ -15097,7 +15377,7 @@ VELENI = [
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '    await etichetta(scheda, s);\n  }\n  const a = argvPer(', '  }\n  const a = argvPer('),
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '    const r = await rilanciaAggancio(scheda.address, argvPer(scheda.address, argv));', '    const r = { code: 0 };'),
     ('HZ52', 'shared/volta/mods/arturo/sessioni.js', 'return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];', 'return a;'),
-    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(dove(), "", progetto, "Nuova sessione");', 'return nasciSu(dove(), "", progetto);'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione");', 'return nasciSu(dove(), "", progettoDavanti());'),
     ('HZ52', 'shared/volta/mods/arturo/volta.js', '      if (v?.errore) this.nonApre(s, v.errore, cx);\n', ''),
     ('HZ19', 'shared/volta/mods/arturo/volta.js', 'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);', 'if (d.azione === "aggancia") return this.apri(s, d.argv, true, cx);'),
     ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '    if riavvia:\n        r = azione(nome, "respawn", sid)', '    if False:\n        r = azione(nome, "respawn", sid)'),

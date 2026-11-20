@@ -104,7 +104,9 @@ TASTI_AGGIUNTI = (("cmd-k", "arturo.apri"),)
 TASTI_SPOSTATI = ("arturo.volta-nuova",)
 # Il tasto che Arturo prende a Herdr (installa-herdr.sh ha lo stesso): la scheda nuova di Herdr (tab.new,
 # una shell) diventa le tessere dei progetti, se quel tasto fa ancora la scheda di Herdr o manca (#5290).
-PRENDE = {"arturo.casa": ("tab.new",), "arturo.volta-chiudi": ("tab.close",)}
+# ⌘N (Ctrl+Shift+N su Windows) apre il compito nuovo (#6186, 20/11/2026) e prende lo spazio nuovo di Herdr
+# (space.new), che resta nel menu File: in Volta gli spazi nascono dai progetti.
+PRENDE = {"arturo.casa": ("tab.new",), "arturo.volta-chiudi": ("tab.close",), "arturo.compito": ("space.new",)}
 # ⌘W e Ctrl+W chiudono la sessione davanti col congedo e la tolgono subito da elenco e giro (Federico,
 # 12/11/2026 sera): prendono il tab.close di Herdr. Il registro li segna per tasto e comando, perché su
 # Windows "global ctrl-w" era già segnato da quando Ctrl+W faceva tab.close (TASTI_NUOVI di prima).

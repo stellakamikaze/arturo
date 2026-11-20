@@ -1743,6 +1743,150 @@ export const TESTO_NUOVA_MAX = 400;
 export const TESTO_CHECKLIST_MAX = 1000;
 export const comandoNuova = (testo) => `arturo.nuova-${codifica(String(testo ?? "").trim().slice(0, TESTO_NUOVA_MAX))}`;
 
+// ⌘N, un compito nuovo (#6186, 20/11/2026): la persona scrive il compito e Volta propone il progetto mentre
+// scrive (decisione di Federico: "Volta propone il progetto e Invio conferma"). progettoProbabile dà i progetti
+// più probabili per un testo, dal più probabile. `progetti`: [{ chiave, titolo, alias, riga }] nell'ordine
+// della barra, che decide i pari. Il testo si confronta senza maiuscole e accenti, a parole intere:
+// - "nome: compito": il nome prima dei due punti vale più di tutto (PESO.detto);
+// - lo slug, il titolo o un nome alternativo scritti per intero nel testo (PESO.nome, più uno per ogni
+//   parola del nome: "sito uf" batte "uf");
+// - una parola del testo uguale a una parola del nome (PESO.parola), o quasi uguale (PESO.inizio, vicine());
+// - una parola del testo nella riga di stato della scheda (PESO.riga, al più tre).
+// Le parole corte e le più comuni non contano: "controlla tutto" non deve proporre un progetto. Sotto
+// PESO.inizio il progetto non si propone: una sola parola della riga di stato è rumore (prova dal vero del
+// 20/11: "senti il commercialista per il modello 730" proponeva Sentinella e Mercurio).
+export const TESTO_COMPITO_MAX = TESTO_CHECKLIST_MAX;
+export const PESO = { detto: 40, nome: 10, parola: 4, inizio: 2, riga: 1 };
+const COMUNI = new Set(("alla alle allo anche ancora aveva avere bene come cosa cose cosi dalla dalle dello degli della delle dopo dove "
+  + "essere fare fatto fino hanno loro meno molto nella nelle nello niente ogni oltre perche pero poco prima quale quando quanto "
+  + "quella quelle quello questa queste questi questo sono sopra sotto senza solo sola stata stato suoi sulla sulle tanto tutta tutte tutti tutto "
+  + "progetto compito nuovo nuova sistema controlla prepara scrivi manda guarda verifica aggiorna").split(" "));
+const parole = (x) => piano(x).split(" ").filter(Boolean);
+const conta = (p) => p.length >= 4 && !COMUNI.has(p);
+// Due parole quasi uguali: cominciano con le stesse cinque lettere o più e cambiano solo nelle ultime due
+// ("preventivi" e "preventivo", "fiscale" e "fiscali"). "senti" non è "sentinella".
+const vicine = (a, b) => {
+  let n = 0;
+  while (n < a.length && n < b.length && a[n] === b[n]) n += 1;
+  return n >= 5 && a.length - n <= 2 && b.length - n <= 2;
+};
+// La parte prima dei due punti di "nome: compito", se è corta (al più tre parole) e il resto non è vuoto.
+export function nomeDetto(testo) {
+  const m = /^\s*([^:\n]{2,40}):\s+\S/.exec(String(testo ?? ""));
+  if (!m || /^https?$/i.test(m[1].trim()) || parole(m[1]).length > 3) return "";
+  return m[1].trim();
+}
+// Il compito su una riga sola, al più TESTO_COMPITO_MAX caratteri. `senzaNome` toglie il "nome:" davanti: vale
+// solo per il progetto nuovo che da lì prende il nome, perché "sistema il banco: è rosso" è una frase intera.
+export function testoCompito(testo, senzaNome = false) {
+  let t = String(testo ?? "");
+  if (senzaNome && nomeDetto(t)) t = t.slice(t.indexOf(":") + 1);
+  return t.replace(/\s+/g, " ").trim().slice(0, TESTO_COMPITO_MAX);
+}
+export function votoProgetto(testo, p) {
+  const nomi = [...new Set([p?.chiave, p?.titolo, ...(p?.alias ?? [])].map(piano).filter(Boolean))];
+  if (!nomi.length) return 0;
+  const detto = piano(nomeDetto(testo));
+  const t = ` ${piano(testo)} `;
+  const pt = parole(testo).filter(conta);
+  let v = 0;
+  if (detto && nomi.includes(detto)) v += PESO.detto;
+  else if (detto.length >= 3 && nomi.some((n) => n.startsWith(detto) || (n.length >= 3 && detto.startsWith(n)))) v += PESO.detto / 2;
+  const interi = nomi.filter((n) => n.length >= 3 && t.includes(` ${n} `));
+  if (interi.length) v += PESO.nome + Math.max(...interi.map((n) => n.split(" ").length));
+  else {
+    const pn = [...new Set(nomi.flatMap((n) => n.split(" ")).filter(conta))];
+    for (const x of pt) {
+      if (pn.includes(x)) v += PESO.parola;
+      else if (pn.some((n) => vicine(n, x))) v += PESO.inizio;
+    }
+  }
+  const pr = new Set(parole(p?.riga).filter((x) => x.length >= 5 && !COMUNI.has(x)));
+  v += Math.min(3, pt.filter((x) => x.length >= 5 && pr.has(x)).length) * PESO.riga;
+  return v;
+}
+export function progettoProbabile(testo, progetti, quanti = 3) {
+  return (progetti ?? []).map((p, i) => ({ k: p?.chiave, v: votoProgetto(testo, p), i }))
+    .filter((x) => x.k && x.v >= PESO.inizio).sort((a, b) => b.v - a.v || a.i - b.i).slice(0, quanti).map((x) => x.k);
+}
+
+// Il modello piccolo (volta_compito.py) si chiede solo quando serve: un compito di almeno tre parole e
+// COMPITO_MODELLO_MIN caratteri che non nomina un progetto per intero. Un nome scritto vale già la proposta.
+// Dopo COMPITO_PAUSA_MS senza battute, una volta per testo.
+export const COMPITO_PAUSA_MS = 1000;
+export const COMPITO_MODELLO_MIN = 12;
+export function serveModello(testo, progetti) {
+  const t = testoCompito(testo);
+  if (t.length < COMPITO_MODELLO_MIN || parole(t).length < 3 || !(progetti ?? []).length) return false;
+  return !(progetti ?? []).some((p) => votoProgetto(testo, p) >= PESO.nome);
+}
+
+// I progetti per progettoProbabile dalla mappa di shared arturo.progetti (chiave e nomi alternativi portano
+// alla stessa voce) e, se c'è, dall'ordine della barra (shared arturo.casa.progetti).
+export function progettiPerCompito(mappa, ordine = []) {
+  const per = {};
+  for (const [k, p] of Object.entries(mappa && typeof mappa === "object" ? mappa : {})) {
+    if (!p?.chiave) continue;
+    const x = (per[p.chiave] ??= { chiave: p.chiave, titolo: p.titolo ?? null, riga: p.riga ?? "", alias: [] });
+    if (k !== p.chiave) x.alias.push(k);
+  }
+  const prima = (Array.isArray(ordine) ? ordine : []).map((o) => o?.chiave).filter((k) => per[k]);
+  return [...new Set([...prima, ...Object.keys(per)])].map((k) => per[k]);
+}
+
+// Le righe del dialogo di ⌘N, nell'ordine in cui ↑↓ le scorrono: i progetti proposti (al più tre), poi
+// "Progetto nuovo: <slug>" e "Senza progetto". `davanti`: il progetto dello spazio aperto, proposto quando
+// il testo ne indica meno di tre. `modello`: lo slug scelto dal modello piccolo (volta_compito.py), che va in
+// cima se è un progetto noto. `at`: la riga proposta, cioè il primo progetto, o "Senza progetto" se non c'è
+// nessun progetto da proporre. Il progetto nuovo prende il nome da "nome: compito", altrimenti dalle prime
+// parole del compito: non è mai la proposta, lo sceglie la persona.
+export function scelteCompito(testo, progetti, davanti = null, modello = null) {
+  const noti = new Set((progetti ?? []).map((p) => p?.chiave).filter(Boolean));
+  const presi = [];
+  const metti = (k, perche) => {
+    if (k && noti.has(k) && !presi.some((x) => x.slug === k) && presi.length < 3) presi.push({ tipo: "progetto", slug: k, perche });
+  };
+  metti(modello, "modello");
+  for (const k of progettoProbabile(testo, progetti)) metti(k, "testo");
+  metti(davanti, "davanti");
+  const nome = progettoNuovo(nomeDetto(testo) || parole(testoCompito(testo)).filter(conta).slice(0, 3).join(" "));
+  const righe = [...presi];
+  if (nome && !noti.has(nome)) righe.push({ tipo: "nuovo", slug: nome });
+  righe.push({ tipo: "senza", slug: "" });
+  return { righe, at: presi.length ? 0 : righe.length - 1 };
+}
+
+// Il comando del dialogo, come lo riceve la barra: "arturo.compito-<slug>-<esadecimale>" per un progetto noto,
+// "…-nuovo-<slug>-…" per uno nuovo, "…-senza-progetto-…" senza progetto. Con ⌘Invio il verbo è "compitoapri":
+// la sessione nasce e la scheda si apre; con Invio nasce in background e la finestra resta dov'è.
+export const SENZA_PROGETTO = "senza-progetto";
+export function comandoCompito(riga, testo, apri = false) {
+  const dove = riga?.tipo === "progetto" ? riga.slug : riga?.tipo === "nuovo" ? `nuovo-${riga.slug}` : SENZA_PROGETTO;
+  return `arturo.compito${apri ? "apri" : ""}-${dove}-${codifica(testoCompito(testo, riga?.tipo === "nuovo" && riga.slug === progettoNuovo(nomeDetto(testo))))}`;
+}
+// { tipo, slug, testo, apri } o null. `noti`: la mappa dei progetti; un progetto noto che si chiama
+// "nuovo-qualcosa" resta quel progetto.
+export function leggiCompito(c, noti = NOTI) {
+  const m = /^compito(apri)?-([a-z0-9-]+)-((?:[0-9a-f]{4})+)$/.exec(String(c ?? ""));
+  if (!m) return null;
+  const testo = decodifica(m[3]).replace(/\s+/g, " ").trim().slice(0, TESTO_COMPITO_MAX);
+  if (!testo) return null;
+  const apri = Boolean(m[1]);
+  if (m[2] === SENZA_PROGETTO) return { tipo: "senza", slug: "", testo, apri };
+  if (noti?.[m[2]]) return { tipo: "progetto", slug: noti[m[2]].chiave ?? m[2], testo, apri };
+  if (m[2].startsWith("nuovo-") && progettoNuovo(m[2].slice(6))) return { tipo: "nuovo", slug: progettoNuovo(m[2].slice(6)), testo, apri };
+  // un progetto che la mappa non ha (elenco non ancora letto): /inizio lo trova o lo dice
+  return { tipo: "progetto", slug: m[2], testo, apri };
+}
+// L'avviso dopo Invio: dove è nata la sessione che lavora dietro.
+export const avvisoCompito = (progetto, macchina) => `${progetto || "Senza progetto"} · ${macchina}. Claude ci lavora: la trovi nell'elenco e nell'Orchestratore.`;
+// Il primo messaggio della sessione nata da ⌘N.
+export function promptCompito(x) {
+  if (x?.tipo === "progetto") return `/inizio ${x.slug} -- ${x.testo}`;
+  if (x?.tipo === "nuovo") return `Progetto nuovo ${x.slug}: crea la scheda e la voce dei task (procedura Nuovo progetto di /tasks), poi esegui: ${x.testo}`;
+  return String(x?.testo ?? "");
+}
+
 // Il dialogo è un'altra copia del mod: manda il cambio alla barra come comando, lo stesso di herdr-app
 // do. Il testo viaggia in esadecimale (quattro cifre per carattere), perché il nome di un comando non
 // porta spazi né accenti: "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<chiave>", con la chiave

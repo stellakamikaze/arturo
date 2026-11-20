@@ -112,7 +112,9 @@ scrivi("arturo.json", arturo)
 # tasto che faceva la sessione nuova della Volta di prima (arturo.volta-nuova, ora la prima tessera).
 PRENDE = {"arturo.casa": ("tab.new", "arturo.volta-nuova"),
           # ⌘W e Ctrl+W: la sessione davanti si chiude col congedo e lascia subito elenco e giro (12/11/2026)
-          "arturo.volta-chiudi": ("tab.close",)}
+          "arturo.volta-chiudi": ("tab.close",),
+          # ⌘N e Ctrl+Shift+N: il compito nuovo al posto dello spazio nuovo di Herdr, che resta nel menu File (#6186)
+          "arturo.compito": ("space.new",)}
 # Un tasto rimasto su un mod di Arturo tolto non apre più niente: vale come libero e si riallinea.
 # Solo questi tre valori esatti, e solo sui tasti di Arturo: ogni altro tasto resta della persona.
 VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")

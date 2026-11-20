@@ -15,7 +15,9 @@ import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
 import { rigaMod, decodifica, leggiProvaChecklist, appesa } from "./sessioni.js";
-import { leggiGesto } from "./sessioni.js";
+import { leggiGesto, leggiCompito } from "./sessioni.js";
+import { compito } from "./dati.js";
+import { apriCompito } from "./comuni.js";
 import { instrada } from "./comandi.js";
 import { pastigliaTutto } from "./sposta.js";
 import { apriContesto } from "./contestoui.js";
@@ -86,6 +88,9 @@ export class Barra {
     else if (c === "apri") apriFinestra();
     else if (c === "progetto") { if (arg) this.lungo(c, cx, () => apri(arg)); }
     else if (c === "conversazione") { if (arg) this.lungo(c, cx, () => conversazione(arg)); }
+    // ⌘N: il dialogo del compito nuovo; il compito scritto fa nascere la sessione nel progetto scelto (#6186).
+    else if (c === "compito") apriCompito(arg ? decodifica(arg) : "");
+    else if (c === "compito-vai") { const x = leggiCompito(arg, shared("arturo.progetti")); if (x) this.lungo(c, cx, () => compito(x)); }
     else if (c === "chiedi") apriSuggerimenti();
     else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }
     else if (c === "settimana") apriRevisione();

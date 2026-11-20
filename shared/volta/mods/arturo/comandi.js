@@ -29,6 +29,13 @@ export function instrada(c) {
   if (c.startsWith("apri-")) return { verbo: "progetto", arg: dopo("apri-"), lungo: true };
   // "conversazione-<slug>": una conversazione nuova nel progetto, anche se il suo spazio c'è già.
   if (c.startsWith("conversazione-")) return { verbo: "conversazione", arg: dopo("conversazione-"), lungo: true };
+  // "compito": ⌘N, il dialogo del compito nuovo (compito.js, #6186). "compito-<progetto>-<esadecimale>" e
+  // "compitoapri-…": il compito scritto, col progetto scelto (comandoCompito di sessioni.js); l'argomento è il
+  // comando intero, che la barra legge con leggiCompito.
+  if (c === "compito") return { verbo: "compito", arg: null, lungo: false };
+  // "compitoscritto-<esadecimale>": il dialogo aperto con quel testo già scritto (prove senza tastiera, herdr-app do).
+  if (/^compitoscritto-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "compito", arg: dopo("compitoscritto-"), lungo: false };
+  if (/^compito(apri)?-[a-z0-9-]+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "compito-vai", arg: c, lungo: true };
   if (c === "chiedi") return { verbo: "chiedi", arg: null, lungo: false };
   // "suggerimento-<id>": una richiesta di "Cosa posso chiedere".
   if (c.startsWith("suggerimento-")) return { verbo: "suggerimento", arg: dopo("suggerimento-"), lungo: true };

@@ -4,7 +4,7 @@
 // figlio dello stesso stack).
 // "Apri un progetto" (apri), la guida (guida), "Cosa posso chiedere" (chiedi), "La settimana"
 // (settimana), "Aggiungi un todo" (nuovo), il velo delle note (nota, ⌘⇧N), l'elenco delle note (note, ⌘⇧E) e la
-// checklist della ripartenza (checklist, ⌘⇧S) si aprono come dialoghi, e così il nome o il progetto di una
+// checklist della ripartenza (checklist, ⌘⇧S) e il compito nuovo (compito, ⌘N) si aprono come dialoghi, e così il nome o il progetto di una
 // sessione di Volta (cambio). La stessa checklist sta anche sopra la sessione, da sola (ripartenza, blocco
 // sovrapposto del layout). Il menu di un todo
 // (azioni), quello di una sessione di Volta (sessione), il selettore di "Nasce su" (macchina) e il menu di
@@ -30,13 +30,14 @@ import { Coda } from "./coda.js";
 import { Checklist } from "./checklist.js";
 import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
 import { Contesto } from "./contestoui.js";
+import { Compito } from "./compito.js";
 import { impostaDormi } from "./dati.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
 const MISURATE = new Set(["marchio", "barra", "piede", "testata", "schede", "todo", "stato", "benvenuto", "casa"]);
 
-const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, coda: Coda, checklist: Checklist, ripartenza: Checklist, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto, contesto: Contesto, menuprogetto: MenuProgetto, schede: Schede };
+const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, coda: Coda, checklist: Checklist, ripartenza: Checklist, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto, contesto: Contesto, menuprogetto: MenuProgetto, schede: Schede, compito: Compito };
 
 export default class Arturo extends View {
   init(p, cx) {
