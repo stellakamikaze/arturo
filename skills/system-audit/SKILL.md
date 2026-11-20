@@ -10,8 +10,8 @@ when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
   comandi, o quando "qualcosa sembra rotto" (una guardia che non scatta, un comando che non compare).
   Su "revisione completa della config" lancia la revisione con più agenti (sezione dedicata).
-  NON per controllare il codice di un progetto: per quello ci sono validate e la review. Segui tutti i
-  passi nell'ordine: non prendere scorciatoie basandoti su questa description.
+  Non per controllare il codice di un progetto: per quello c'è /code-review.
+ruolo: manutenzione della configurazione, quando qualcosa sembra rotto
 ---
 
 # System Audit
@@ -34,11 +34,11 @@ bash ~/.claude/skills/system-audit/audit.sh --strict
 Solo questi controlli, niente di più:
 
 1. **settings.json** — JSON valido con radice a mappa. Lo schema dei campi non si verifica.
-2. **Hook diretti** — ogni script `.py`/`.sh`/`.js` citato da un `command` degli hook o da `statusLine` esiste su disco (path con virgolette e spazi compresi).
+2. **Hook diretti** — ogni script `.py`/`.sh`/`.js` citato da un `command` degli hook o da `statusLine` esiste su disco (path con virgolette e spazi compresi). In `test -f X || python3 Y` il file `X` è la condizione del ripiego: l'audit controlla solo `Y`, lo script lanciato. Il puntatore `$(cat ~/.claude/arturo/radice)` si legge anche con `2>/dev/null` dentro le parentesi.
 3. **Guardie transitive** — ogni guardia richiamata da `bash-dispatcher.sh` con `run_guard` esiste su disco.
 4. **Smoke test** — ogni hook Python riceve `{}` su stdin ed esce 0 (timeout 5 s se c'è `timeout`); ogni hook JS passa `node --check`. Gli hook `.sh` non si eseguono (vedi Importante).
 5. **Agent** — ogni `.md` in `~/.claude/agents/` ha frontmatter YAML con `name` e `description`.
-6. **Skill e mod** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`. Una cartella con `.claude-plugin/plugin.json` è un mod di Claude Code (come il pannello `/dafare`), non una skill: non ha `SKILL.md` e non va aggiunta. Per un mod l'audit controlla che `name` del manifest coincida con il nome della cartella e che esista `hooks/hooks.json`. Due cartelle non sono skill e si saltano: `skills/shared/`, coi file comuni alle skill, e `skills/synced/`, che Claude Code tiene per le skill di claude.ai.
+6. **Skill e mod** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`. Una cartella con `.claude-plugin/plugin.json` è un mod di Claude Code (come il pannello `/dafare`), non una skill: non ha `SKILL.md` e non va aggiunta. Per un mod l'audit controlla che `name` del manifest coincida con il nome della cartella e che esista `hooks/hooks.json`. Due cartelle non sono skill e si saltano: `skills/shared/`, coi file comuni alle skill, e `skills/synced/`, che Claude Code tiene per le skill di claude.ai. Anche una cartella nascosta, come `.trash` che Claude Code lascia in `skills/`, non è una skill e si salta. Il `FAIL` delle skill dice fra parentesi quali cartelle sono rotte.
 7. **README** — `~/.claude/README.md` esiste.
 
 Col plugin il codice di Arturo sta due cartelle sopra `audit.sh`, non in `~/.claude`: l'audit legge lì agent, skill, README e guardie, e gli hook anche da `hooks/hooks.json` del plugin. `~/.claude` resta la fonte di settings, `CLAUDE.md` e skill della persona. Il mod di Arturo col plugin non ha `.claude-plugin`: vale se `hooks/hooks.json` lo elenca sotto `modules`.
@@ -46,6 +46,7 @@ Col plugin il codice di Arturo sta due cartelle sopra `audit.sh`, non in `~/.cla
 9. **Comandi fantasma** — `CLAUDE.md`, `README.md`, `commands/`, `skills/*/SKILL.md`, `agents/` e `shared/` non citano come vivo uno slash-comando che nessuna skill, nessun comando e nessun mod registra (i comandi di Claude Code contano come vivi). Le righe di storia ("rimosso", "archiviata", "ha assorbito") non contano. Non contano neanche le righe con un endpoint o un indirizzo web (endpoint, API, GET, POST, `http://`, una porta come `:9773`). Un percorso preceduto da vista, pagina, rotta, indirizzo, url o sezione è una pagina web e non conta. L'audit guarda solo la parola subito prima: un comando vero più avanti nella stessa riga resta controllato. Un comando di Claude Code nuovo che l'audit non conosce va aggiunto a `NATIVE` in `audit.sh`.
 10. **Peso dei corpi** — WARN se un `SKILL.md` o un comando supera 30 KB: il corpo entra intero nel contesto a ogni uso, e le parti lette solo in un caso vanno in un file a parte.
 11. **Plugin** — WARN se un plugin è installato ma non attivo in `settings.json`, con il comando per toglierlo (`bash ~/.claude/bin/cleanup-stale-plugins.sh --yes`). Succede dopo una sincronizzazione fra macchine.
+12. **Aspetto** — WARN per ogni valore sbagliato in `~/.claude/personale/aspetto.json` (`arturo aspetto controlla`): un colore o un pezzo della barra scritto male non conta, e vale quello di Arturo.
 
 ## Banco
 

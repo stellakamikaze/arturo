@@ -7,6 +7,7 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     .git/hooks/** di qualunque repository
     ~/Library/LaunchAgents/** (macOS)
     ~/.config/systemd/user/** e ~/.config/autostart/** (Linux)
+    Start Menu/Programs/Startup/** e i profili *profile.ps1 di PowerShell (Windows)
     -> unlock: touch ~/.claude/system-unlock-{session_id}
 
   CLAUDE.md e CLAUDE.local.md (qualsiasi cartella; il .local dal 10/11/2026, #5159)
@@ -23,6 +24,11 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     installati, col plugin anche le guardie di Arturo)
     ~/.claude/firme/**, bin/aggiornamenti.py, bin/aggiorna-applica.sh (l'aggiornamento automatico:
     chi li cambia fa installare da solo codice non firmato)
+    ~/.claude/bin/** (gli hook eseguono telemetria.py, telemetria-esito.sh, correzioni.py: 11/11/2026, #5262)
+    ~/.claude/plugins/installed_plugins.json e plugins/known_marketplaces.json (dicono a Claude Code da
+    quale cartella caricare il codice di un plugin, guardie di Arturo comprese)
+    ~/.claude/arturo/rilasci.allowed_signers (l'ancora dei rilasci: fiducia.py verifica ogni aggiornamento
+    con questa chiave)
     ~/.claude/arturo/radice (col plugin, la barra in basso esegue il codice della cartella che nomina;
     lo scrive solo l'avvio, 4/11/2026, #4567)
     ~/.claude/arturo/*.local (le preferenze della persona, comprese quelle delle guardie: strati F1, #4531)
@@ -49,7 +55,8 @@ block-dangerous.py.
 ~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di sei categorie: i due
 CLAUDE.md, i settings della radice, la config, il resto di ~/.claude (dot-claude) e le cartelle .claude dei
 progetti (dot-claude-progetto). Persistenza,
-file di unlock, firme/, gli script dell'aggiornamento e i .local restano col default. Il vocabolario
+file di unlock, firme/, gli script dell'aggiornamento, il puntatore arturo/radice, i due elenchi dei plugin e
+i .local restano col default. Il resto di bin/ segue la categoria config, come hooks/. Il vocabolario
 sta accanto a _locale().
 
 Fail-closed: errore di parsing = blocca per sicurezza.
@@ -191,7 +198,14 @@ def _persistenza(rp):
         r = piega(os.path.realpath(os.path.expanduser(radice)))
         if rp == r or rp.startswith(r + os.sep):
             return True
-    return False
+    # Windows (revisione del 10/11/2026, HK-6): la cartella Esecuzione automatica, dell'utente e di
+    # %PROGRAMDATA%, e i profili di PowerShell, che girano a ogni shell aperta.
+    parti = rp.split(os.sep)
+    esecuzione = [piega(x) for x in ('Start Menu', 'Programs', 'Startup')]
+    if any(parti[i:i + 3] == esecuzione for i in range(len(parti) - 2)):
+        return True
+    cartelle_ps = (piega('WindowsPowerShell'), piega('PowerShell'))
+    return parti[-1].endswith(piega('profile.ps1')) and any(c in cartelle_ps for c in parti[:-1])
 
 
 def _mod_di(rp, claude_dir):

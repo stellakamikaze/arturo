@@ -101,7 +101,8 @@ def test_cc03(repo: Path) -> None:
         "CC03 il frontmatter della skill concetti non è valido"
     voci = re.findall(r"^\*\*(.+?)\*\*", testo[m.end():], re.M)
     attese = ["Harness.", "Contesto e memoria.", "Git e GitHub.", "Branch e fork.", "Le tue modifiche e gli aggiornamenti.",
-              "Subagent e modelli più economici.", "Ultracode.", "Le due finestre della quota.", "Dire sì a una conferma."]
+              "Subagent e modelli più economici.", "Ultracode.", "Le due finestre della quota.", "Dire sì a una conferma.",
+              "La sandbox."]
     assert voci == attese, f"CC03 le voci della skill concetti sono {voci}"
     assert len(re.findall(r"^In Arturo:", testo, re.M)) == len(attese), "CC03 una voce non dice dove trovi la cosa in Arturo"
     skill = len(list((repo / "skills").glob("*/SKILL.md")))
@@ -164,8 +165,10 @@ def test_cc05(repo: Path) -> None:
 
 def test_cc06(repo: Path) -> None:
     pm = repo / "skills" / "prompt-master" / "SKILL.md"
-    testo = read(pm)
-    assert "l'intervista a giri" in testo, "CC06 prompt-master non fa l'intervista a giri sulle idee da decidere"
+    assert "l'intervista a giri" in read(pm) and "references/intervista.md" in read(pm), \
+        "CC06 prompt-master non fa l'intervista a giri sulle idee da decidere"
+    # Dal 19/11/2026 l'intervista sta in references/intervista.md: si carica solo per un'idea da decidere.
+    testo = read(repo / "skills" / "prompt-master" / "references" / "intervista.md")
     for parola in ("Consiglio:", "sì a tutto", "subagent", "aspetta il sì"):
         assert parola in testo, f"CC06 l'intervista di prompt-master non dice {parola!r}"
     guidami = read(repo / "commands" / "guidami.md")

@@ -25,18 +25,25 @@ possono avere lo stesso feedback_x.md. Si saltano MEMORY.md, index.md, i file e 
 cominciano con _ o con un punto (_archive/, _reports/), le cartelle che sono link simbolici.
 
 Interruttore (memoria_accesa): ARTURO_MEMORIA=1 o 0 nell'ambiente, poi "accesa" in
-data/memoria/impostazioni.json, poi il default, che è spenta: la memoria si accende con "arturo memoria
-accendi". Il codice non conta: col plugin sta in un'altra cartella (strati F1, #4531).
+data/memoria/impostazioni.json, poi il default, che è accesa (dal 14/11/2026): "arturo memoria spegni"
+la spegne. Al primo avvio senza scelta accendi_al_primo_avvio() scrive "accesa": true e dà l'avviso
+una volta. Il codice non conta: col plugin sta in un'altra cartella (strati F1, #4531).
+
+Lo schema di una nota (docs/memoria.md, 14/11/2026) è quello di Claude Code: `name`, `description` e
+`type` (TIPI), in testa o dentro `metadata:`. Facoltativi: `alias`, `cartella`, `triggers`. Le
+convenzioni di chi mantiene Arturo (`entity_type`, `answers`, le cartelle per prefisso del nome)
+si leggono ancora, ma nessuna è richiesta. cartella_nuova() dice dove va una nota nuova di data/memory.
 
 Punteggio del richiamo:
-  1. tokenize e path_tokens spezzano su `-`, `_` e spazi: `nome-progetto` diventa {nome, progetto}.
+  1. tokenize spezza su `-`, `_` e spazi: `nome-progetto` diventa {nome, progetto}.
   2. i `triggers` si confrontano parola per parola, non come stringhe intere: un trigger di più
      parole ("deploy notturno") conta per ciascuna.
-  3. score() guarda anche il CORPO, con peso basso: la conoscenza che vive nel corpo si ritrova.
+  3. score_detail() guarda anche il CORPO, con peso basso: la conoscenza che vive nel corpo si ritrova.
 
 Il parser del frontmatter legge chiavi di primo livello (anche col trattino), liste a trattini e
 fra parentesi quadre, blocchi > e |, una mappa annidata di un livello (Claude Code scrive
-`metadata:` con `type:` dentro) e `triggers: a, b` scritto come stringa.
+`metadata:` con `type:` dentro) e `triggers: a, b` scritto come stringa. problemi_frontmatter() è
+l'unico controllo della forma YAML: lo usano melchior-postwrite e `arturo memoria controlla`.
 
 Solo libreria standard, Python 3.8 o successivo. Python aggiunge la cartella dello script a
 sys.path[0] quando un hook gira come `python3 ~/.claude/hooks/x.py`, quindi `import melchior_match`
@@ -52,7 +59,6 @@ from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
 from radici import file_locale, radice_orsa  # noqa: E402
 
-QUI = Path(__file__).resolve().parent
 CLAUDE_DIR = radice_orsa()
 MEMORY_DIR = CLAUDE_DIR / "data" / "memory"
 PROJECTS_DIR = CLAUDE_DIR / "projects"
@@ -61,14 +67,12 @@ NOTES_CACHE = CLAUDE_DIR / "cache" / "melchior-notes.json"  # locale, fuori da g
 EXCLUDE = {"MEMORY.md", "index.md"}
 MAX_BYTE = 256 * 1024  # una nota più grande si legge solo fino a qui
 
-# Log degli accessi: un file per macchina dal 19/10/2026. Il file unico
-# .melchior-access.log era scritto da tre macchine e andava in conflitto a ogni
-# sync (674 commit). Il nome della cartella contiene "melchior-access.log" apposta:
-# session-start.sh e config-sync-pull.sh escludono dal conteggio dei file sporchi
-# ogni path che lo contiene. Il vecchio file resta in sola lettura (storico).
-# Si registrano solo le note di MEMORY_DIR, per nome: chi legge il log le cerca lì.
+# Log degli accessi: un file per macchina dal 19/10/2026, perché un file unico scritto da più
+# computer va in conflitto a ogni sincronizzazione della memoria. Si registrano solo le note di
+# MEMORY_DIR, per nome: chi legge il log le cerca lì. Il log resta sul computer e non entra
+# nella telemetria. Il nome della cartella contiene "melchior-access.log" apposta: chi sincronizza
+# la memoria esclude dai file cambiati ogni percorso che lo contiene. Non va rinominata.
 ACCESS_LOG_DIR = MEMORY_DIR / ".melchior-access.log.d"
-LEGACY_ACCESS_LOG = MEMORY_DIR / ".melchior-access.log"
 _NOME_NOTA = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
 
 
@@ -83,18 +87,59 @@ def leggi_impostazioni():
     return dati if isinstance(dati, dict) else {}
 
 
+def scrivi_impostazioni(dati):
+    """Riscrive data/memoria/impostazioni.json in modo atomico (file temporaneo e replace)."""
+    IMPOSTAZIONI.parent.mkdir(parents=True, exist_ok=True)
+    tmp = IMPOSTAZIONI.with_name(IMPOSTAZIONI.name + ".tmp")
+    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(IMPOSTAZIONI))
+
+
 def memoria_accesa():
-    """ARTURO_MEMORIA (1 o 0) vince, poi "accesa" nelle impostazioni, poi il default: spenta.
-    Fino al 4/11/2026 il default dipendeva da bin/arturo accanto agli hook (accesa senza): col plugin
-    il codice e l'Orsa stanno in cartelle diverse, quindi decidono solo l'ambiente e la persona
-    (strati F1, #4531). Chi mantiene Arturo la tiene accesa con "accesa": true nelle impostazioni."""
+    """ARTURO_MEMORIA (1 o 0) vince, poi "accesa" nelle impostazioni, poi il default: accesa.
+    Dal 14/11/2026 (M2 del piano della memoria) il default è accesa: chi l'ha spenta ha "accesa":
+    false nelle impostazioni e resta spenta. Il codice non conta: col plugin il codice e l'Orsa stanno
+    in cartelle diverse, quindi decidono solo l'ambiente e la persona (strati F1, #4531)."""
     valore = os.environ.get("ARTURO_MEMORIA", "").strip()
     if valore in ("1", "0"):
         return valore == "1"
     scelta = leggi_impostazioni().get("accesa")
     if isinstance(scelta, bool):
         return scelta
-    return False
+    return True
+
+
+AVVISO_ACCESA = ("MEMORIA: da questo avvio Arturo ricorda i progetti della persona su questo computer: decisioni, "
+                 "errori già visti, preferenze. Diglielo in una riga, con parole tue. Per spegnerla basta che lo "
+                 "chieda a te: lanci tu \"arturo memoria spegni\".")
+
+
+def accendi_al_primo_avvio():
+    """L'avviso della memoria accesa, una volta per installazione (M2, 14/11/2026).
+
+    Se l'ambiente non decide e le impostazioni non dicono "accesa", scrive "accesa": true e
+    restituisce AVVISO_ACCESA. Negli altri casi restituisce None e non scrive: chi ha scelto resta
+    com'è, un file illeggibile non si sovrascrive (perderebbe le cartelle), una scrittura che non
+    riesce non ripete l'avviso a ogni avvio."""
+    if os.environ.get("ARTURO_MEMORIA", "").strip() in ("1", "0"):
+        return None
+    if IMPOSTAZIONI.exists():
+        try:
+            dati = json.loads(IMPOSTAZIONI.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if not isinstance(dati, dict):
+            return None
+    else:
+        dati = {}
+    if isinstance(dati.get("accesa"), bool):
+        return None
+    dati["accesa"] = True
+    try:
+        scrivi_impostazioni(dati)
+    except OSError:
+        return None
+    return AVVISO_ACCESA
 
 
 def cartelle_progetti():
@@ -135,6 +180,47 @@ def radici():
         visti.add(vero)
         out.append(d)
     return out
+
+
+def _schede(pattern):
+    """Le schede di tutte le radici, fuori dalle cartelle che iniziano con _ o con un punto."""
+    for radice in radici():
+        try:
+            trovate = sorted(radice.rglob(pattern))
+        except OSError:
+            continue
+        for p in trovate:
+            try:
+                rel = p.relative_to(radice).parts
+            except ValueError:
+                continue
+            if not any(x.startswith(("_", ".")) for x in rel):
+                yield p
+
+
+def _nomi(v):
+    if isinstance(v, (list, tuple)):
+        return [str(x).strip().lower() for x in v]
+    return [x.strip().strip("\"'").lower() for x in str(v or "").strip("[]").split(",") if x.strip()]
+
+
+def trova_scheda(name):
+    """La scheda progetto-<nome>.md di un progetto, o None: prima il filename esatto, poi il catalogo del
+    frontmatter. Il catalogo (revisione Melchior, 13/11/2026): una scheda vale per una cartella anche se si
+    chiama in un altro modo, quando la cartella è fra i suoi `alias:` o è il nome della sua `cartella:`.
+    Così la cartella romanzo-bozza trova progetto-romanzo, se è fra i suoi alias. La usano memory-autoload.py, arturo contesto (/inizio)
+    e arturo memoria scheda (/fine), dal 14/11/2026 (M3 del piano della memoria)."""
+    if not name:
+        return None
+    name = str(name).lower()
+    for p in _schede(f"progetto-{name}.md"):
+        return p
+    for p in _schede("progetto-*.md"):
+        fm = parse_frontmatter_simple(leggi(p)) or {}
+        cartella = str(campo(fm, "cartella") or "").replace("\\", "/").rstrip("/")
+        if name in _nomi(campo(fm, "alias")) or (cartella and cartella.rsplit("/", 1)[-1].lower() == name):
+            return p
+    return None
 
 
 def breve(p):
@@ -237,16 +323,6 @@ def tokenize(text):
     return out
 
 
-def path_tokens(cwd):
-    """Token dal CWD: name + ultime 3 parti, splittati su -/_/spazio, meno STOPWORDS."""
-    toks = set()
-    for part in [cwd.name, *cwd.parts[-3:]]:
-        for t in re.split(r"[-_\s]+", part.lower()):
-            if len(t) > 2 and t not in STOPWORDS:
-                toks.add(t)
-    return toks
-
-
 # --- Frontmatter ---------------------------------------------------------------------------
 
 FRONTMATTER_RE = re.compile(r"^---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)", re.S)
@@ -341,6 +417,87 @@ def tipo(fm):
     return str(campo(fm, "entity_type") or campo(fm, "type") or "?")
 
 
+# --- Schema e forma ------------------------------------------------------------------------
+
+TIPI = ("user", "feedback", "project", "reference")  # i quattro di Claude Code
+CAMPI_RICHIESTI = ("name", "description", "type")
+# type -> cartella di data/memory per una nota nuova. Sono i nomi che la memoria di chi mantiene
+# Arturo usa già: le due memorie restano una.
+CARTELLA_TIPO = {"user": "profilo", "feedback": "feedback", "project": "progetti", "reference": "reference"}
+# Le cartelle per prefisso del nome nella memoria di chi mantiene Arturo: si leggono, non si chiedono.
+PREFISSI = (
+    ("errore-", "errori"),
+    ("feedback-", "feedback"),
+    ("reference-", "reference"),
+    ("progetto-", "progetti"),
+    ("persona-", "persone"),
+    ("pattern-", "pattern"),
+    ("sistema-", "sistemi"),
+    ("incidente-", "sistemi"),
+)
+
+
+def cartella_nuova(nome_file, fm):
+    """La cartella di data/memory per una nota nuova: il prefisso del nome, se è uno di PREFISSI
+    (`errore-` va in errori/), altrimenti il `type`. None se nessuno dei due la dice."""
+    for prefisso, cartella in PREFISSI:
+        if nome_file.startswith(prefisso):
+            return cartella
+    return CARTELLA_TIPO.get(str(campo(fm, "type") or "").strip())
+
+
+_FRA_VIRGOLETTE = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'')
+
+
+def problemi_frontmatter(text):
+    """[(grave, motivo)] del blocco di frontmatter, [] se non c'è o se si legge. grave=True vuol
+    dire che il blocco non si legge come YAML: chi usa PyYAML non vede la nota. Prima le regole
+    della sola libreria standard, uguali su ogni computer; poi PyYAML, se c'è, per il resto."""
+    m = FRONTMATTER_RE.match(text or "")
+    if not m:
+        return []
+    righe = m.group(1).splitlines()
+    out = []
+    for i, r in enumerate(righe):
+        k = CHIAVE_RE.match(r)
+        if not k or r[:1] in (" ", "\t"):
+            continue
+        chiave, valore = k.group(1), k.group(2).strip()
+        if not valore or valore[0] in "\"'{>|":
+            continue
+        if valore[0] == "[":
+            seguito = valore  # una lista fra quadre può andare a capo, sulle righe rientrate
+            for r2 in righe[i + 1:]:
+                if r2[:1] not in (" ", "\t"):
+                    break
+                seguito += " " + r2.strip()
+            seguito = _FRA_VIRGOLETTE.sub('""', seguito)  # dentro le virgolette "#" e "]" sono testo
+            if "]" not in seguito:
+                out.append((True, f'la lista di "{chiave}" apre la parentesi quadra e non la chiude'))
+            elif " #" in seguito.split("]", 1)[0]:
+                out.append((True, f'" #" dentro la lista di "{chiave}" commenta il resto della lista'))
+            continue
+        if ": " in valore:
+            out.append((True, f'il valore di "{chiave}" contiene ": " senza virgolette: '
+                              "il frontmatter non si legge come YAML"))
+        elif " #" in valore:
+            out.append((False, f'il valore di "{chiave}" contiene " #": in YAML il resto '
+                               "della riga diventa un commento e si perde"))
+    if any(grave for grave, _m in out):
+        return out
+    try:
+        import yaml
+    except Exception:
+        return out
+    try:
+        dati = yaml.safe_load(m.group(1))
+    except Exception as e:
+        return out + [(True, "YAML non parsabile: " + str(e).split("\n")[0].strip())]
+    if not isinstance(dati, dict):
+        out.append((True, "il frontmatter non è una mappa YAML"))
+    return out
+
+
 def _lista(v):
     if isinstance(v, list):
         return v
@@ -364,7 +521,7 @@ def score_detail(fm, tokens, body=""):
 
     trigger-word +3 · name (substring) +2 · description +1 · answers +1 · body +1
     Il set di token distinti serve a distinguere "1 token che colpisce piu' campi"
-    (score alto ma segnale debole, es. `rassegna`) da "piu' token che convergono"
+    (score alto ma segnale debole, es. una parola comune) da "piu' token che convergono"
     (segnale forte). memory-retrieve richiede >=2 token distinti.
     """
     if not isinstance(fm, dict):
@@ -398,11 +555,6 @@ def score_detail(fm, tokens, body=""):
     # accumulano +1 per ogni token del prompt e affollano i candidati
     s += min(body_hits, 2)
     return s, matched
-
-
-def score(fm, tokens, body=""):
-    """Solo lo score numerico (compat)."""
-    return score_detail(fm, tokens, body)[0]
 
 
 # --- Elenco e lettura delle note -----------------------------------------------------------

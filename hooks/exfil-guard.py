@@ -16,7 +16,7 @@ Due rami:
       stati tolti il 30/10/2026: il dispatcher non manda più qui né dig né i GET, e
       scattavano solo se lo stesso comando conteneva anche un upload.
 
-Contratto del 28/10/2026 (Federico: "togli i controlli"): una guardia chiede solo sui rail, dove
+Contratto del 28/10/2026 (chi mantiene Arturo: "togli i controlli"): una guardia chiede solo sui rail, dove
 la forma del comando basta a decidere. Il codice Python, node o curl che chiama la rete (GET, POST
 generico, $() nell'URL) non arriva più qui: lo giudica il classificatore di auto mode, che legge
 il codice. Una regex non distingue uno script che legge archive.org da uno che porta fuori un
@@ -227,7 +227,9 @@ _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
 UPLOAD_FILE = re.compile(
     # -d, -F e -T anche in coda a un gruppo di opzioni corte: `curl -sd @file` (review del 1/11/2026).
     r'(?:(?<![\w-])-[A-Za-z0-9]*F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]'
-    + r'|(?<![\w-])-[A-Za-z0-9]*T' + _FINE_ARG
+    + r'|(?<![\w-])-[A-Za-z0-9]*T' + _FINE_ARG + r'''|(?<![\w-])-[A-Za-z0-9]*T[^\s"',]'''
+    # `--data-urlencode nome@file` carica il file; `nome=a@b.it` è testo (review del 10/11/2026, #5263)
+    + r'''|--data-urlencode''' + _FINE_ARG + r'''*["']?[^\s=@"']*@'''
     + r'|--upload-file|--(?:post|body)-file|(?<![\w-])-[A-Za-z0-9]*d' + _FINE_ARG + r'''*["']?@|--data[a-z-]*''' + _FINE_ARG
     + r'''*["']?@|--json''' + _FINE_ARG + r'''*["']?@|--url-query''' + _FINE_ARG + r'''*["']?@)'''
 )

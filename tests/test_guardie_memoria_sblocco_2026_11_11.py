@@ -210,29 +210,33 @@ def test_ms02(b: Banco):
 
 @gruppo
 def test_ms03(b: Banco):
-    fuori = [
+    # Dal 20/11/2026 (#5263, review del 10/11 problema 10) una chiave e ~/.netrc chiedono conferma: non basta
+    # che il ramo memoria non approvi.
+    segreti = [
         ("mv della cartella delle chiavi", f"mv ~/.ssh {Z}/s"),
         ("mv di una chiave", f"mv ~/.ssh/id_ed25519 {Z}/k"),
-        ("mv dei Documenti", f"mv ~/Documents {Z}/d"),
         ("cat di .netrc", f"cat ~/.netrc > {Z}/n.md"),
         ("tee con ingresso da .netrc", f"tee {Z}/n.md < ~/.netrc"),
         ("cat | tee", f"cat ~/.netrc | tee {Z}/n.md"),
+        ("head con -n staccato", f"head -n 5 ~/.netrc > {Z}/n.md"),
+        ("cat con maggiore fra apici", f"cat '>' ~/.netrc > {Z}/n.md"),
+        ("diff --from-file", f"diff --from-file=~/.netrc {Z}/r/a.md > {Z}/x.md"),
+    ]
+    fuori = [
+        ("mv dei Documenti", f"mv ~/Documents {Z}/d"),
         ("cp da fuori zona", f"cp ~/.zshrc {Z}/"),
         ("grep -r sui Documenti", f"grep -r . ~/Documents > {Z}/x"),
         ("mv della zona intera", f"mv {Z} ~/.claude/projects/p/memory/h"),
-        ("head con -n staccato", f"head -n 5 ~/.netrc > {Z}/n.md"),
         ("maggiore fra apici come argomento", f"tee '>' ~/.zshrc < {Z}/r/a.md"),
-        ("cat con maggiore fra apici", f"cat '>' ~/.netrc > {Z}/n.md"),
         ("sudo davanti", f"sudo tee {Z}/r/a.md"),
         ("sort -o in un gruppo corto", f"sort -uo.zshrc {Z}/r/a.md"),
         ("sort --o abbreviato", f"sort --o=.zshrc {Z}/r/a.md"),
         ("cp -t attaccato", f"cp -t/tmp {Z}/r/a.md"),
         ("mv -vt attaccato", f"mv -vt/tmp {Z}/r/a.md"),
-        ("diff --from-file", f"diff --from-file=~/.netrc {Z}/r/a.md > {Z}/x.md"),
         ("find -H fuori zona", f"find -H ~/Documents -type f > {Z}/x"),
         ("graffe che si espandono", f"tee {{{Z}/r/b.md,~/.zshrc}} < {Z}/r/a.md"),
     ]
-    casi = [(n, b.dispatcher(c), "silent") for n, c in fuori]
+    casi = [(n, b.dispatcher(c), "silent") for n, c in fuori] + [(n, b.dispatcher(c), "ask") for n, c in segreti]
     casi += [
         # Dal #5262 questi due chiedono: mv porta via una cartella che contiene codice delle guardie (GC04).
         ("mv di plugins da ~/.claude", b.dispatcher(f"mv plugins {Z}/p", b.claude), "ask"),

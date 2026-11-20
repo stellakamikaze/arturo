@@ -91,7 +91,7 @@ PY
 fi
 
 hook_files=()
-for command in "${hook_commands[@]}"; do
+for command in ${hook_commands[@]+"${hook_commands[@]}"}; do
   # Come sopra: il heredoc fuori da <(...), perché un apostrofo nel commento rompeva bash 3.2 (n. 68).
   script_file=$(mktemp "${TMPDIR:-/tmp}/audit-script.XXXXXX")
   python3 - "$command" "$CLAUDE_DIR" "$CODICE" > "$script_file" <<'PY' || true
@@ -165,7 +165,7 @@ if [[ -f "$dispatcher" ]]; then
 fi
 
 smoke=0
-for script in "${hook_files[@]}"; do
+for script in ${hook_files[@]+"${hook_files[@]}"}; do
   [[ -f "$script" ]] || continue
   case "$script" in
     *.py) runner=(python3 -B "$script") ;;
@@ -469,6 +469,19 @@ if [[ -f "$personale_py" ]] && command -v python3 >/dev/null 2>&1; then
     while IFS= read -r riga; do
       case "$riga" in "OMONIMO NON DICHIARATO:"*|"DICHIARATO SENZA OMONIMO:"*) warning "$riga" ;; esac
     done < <(printf '%s\n' "$omonimi_out")
+  fi
+fi
+
+# L'aspetto della persona (proposta n. 73, 18/11/2026): un valore sbagliato in personale/aspetto.json non rompe
+# niente, vale quello di Arturo, ma la persona non vede il colore che ha scelto. WARN, uno per valore.
+aspetto_py="$CODICE/bin/aspetto.py"
+if [[ -f "$CLAUDE_DIR/personale/aspetto.json" && -f "$aspetto_py" ]] && command -v python3 >/dev/null 2>&1; then
+  if aspetto_out=$(CLAUDE_CONFIG_DIR="$CLAUDE_DIR" python3 "$aspetto_py" controlla 2>&1); then
+    ok "aspetto: personale/aspetto.json valido"
+  else
+    while IFS= read -r riga; do
+      case "$riga" in "ERRORE "*) warning "aspetto: ${riga#ERRORE }" ;; esac
+    done < <(printf '%s\n' "$aspetto_out")
   fi
 fi
 

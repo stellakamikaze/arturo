@@ -150,8 +150,9 @@ def main():
         return
 
     seen, state_file = load_seen(session_id)
-    # v3-9 (24/10/2026): una nota `stato: dormiente` esce dal push, non dal punteggio
-    # (il matcher resta congelato). Resta nel recall e nelle firme d'errore.
+    # v3-9 (24/10/2026): una nota `stato: dormiente` (la scrive un reaper personale) esce dal push, non dal
+    # punteggio, e resta nel recall e nelle firme d'errore. La marca `dormiente: <data>` di
+    # `arturo memoria igiene` è un'altra cosa: quella nota si propone ancora (docs/memoria.md).
     fresh = [(s, p, fm) for s, p, fm in scored
              if str(p) not in seen and str(mm.campo(fm, "stato") or "") != "dormiente"][:MAX_SUGGEST]
     if not fresh:
@@ -169,7 +170,7 @@ def main():
     if any_old:
         print(f"Le note marcate VECCHIA hanno fatti non verificati da >{VERIFY_AGE_DAYS}gg: se ne leggi")
         print("una, trattane i fatti deperibili (IP, stati, cifre) come ipotesi da verificare prima")
-        print("di agirci; se un fatto è contraddetto dalla realtà osservata, correggi SUBITO nella nota:")
+        print("di agirci. Se la realtà osservata contraddice un fatto, la nota si corregge subito.")
     for s, p, fm in fresh:
         entity = mm.tipo(fm)
         cut = DESC_LEN_ERRORI if "errori" in p.parts else DESC_LEN

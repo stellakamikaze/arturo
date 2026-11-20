@@ -19,6 +19,10 @@ IG06 (10/11/2026) l'hook .githooks/pre-push blocca un nome nel messaggio o in un
      il repository pubblico, lascia passare un push pulito, un file non salvato e un altro repository.
 IG07 (10/11/2026) fuori da dev il workflow toglie dall'intervallo i commit che dev ha già: un nome già
      segnalato su dev non manda di nuovo l'email da main o da un ramo che unisce dev.
+IG08 (18/11/2026, #6063) il workflow toglie anche i commit che un altro ramo pubblico ha già: il primo push di
+     un ramo che porta commit vecchi e unirlo in dev non danno rosso. Un ramo che contiene già il commit spinto
+     non conta, così due rami spinti insieme non si tolgono a vicenda un nome nuovo. In una pull request contano
+     tutti i rami di origin, e il commit di un fork resta controllato. Il passo del workflow gira davvero, in bash.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -218,8 +222,78 @@ def test_ig07(repo: Path) -> None:
         assert not problemi, f"IG07 l'intervallo non toglie i commit di dev: {problemi}"
 
 
+def test_ig08(repo: Path) -> None:
+    f = repo / ".github" / "workflows" / "igiene.yml"
+    assert f.is_file(), "IG08 manca .github/workflows/igiene.yml"
+    passi = next(iter((yaml.safe_load(f.read_text(encoding="utf-8")).get("jobs") or {}).values())).get("steps") or []
+    blocco = next((p["run"] for p in passi if "run" in p), "")
+    assert blocco, "IG08 il workflow non ha il passo che lancia il controllo"
+    sorgente = repo / "tests" / "igiene.py"
+    h = modulo(sorgente, "IG08").impronta(PROVA)
+    with tempfile.TemporaryDirectory() as d:
+        r = Path(d)
+        ambiente = dict(os.environ, **GIT_ENV, ARTURO_IGIENE_IMPRONTE_EXTRA=h)
+
+        def git(*a: str) -> str:
+            return subprocess.run(["git", "-C", str(r), *a], env=ambiente, capture_output=True, text=True,
+                                  check=True, timeout=30).stdout.strip()
+
+        def commit(messaggio: str) -> str:
+            git("commit", "-q", "--allow-empty", "-m", messaggio)
+            return git("rev-parse", "HEAD")
+
+        def pubblica(**rami: str) -> None:
+            for nome, sha in rami.items():
+                git("update-ref", f"refs/remotes/origin/{nome}", sha)
+
+        def esito(prima: str, dopo: str, ramo: str, evento: str = "push") -> int:
+            env = dict(ambiente, PRIMA=prima, DOPO=dopo, RAMO=ramo, EVENTO=evento)
+            return subprocess.run(["bash", "-e", "-c", blocco], cwd=str(r), env=env, capture_output=True, text=True,
+                                  timeout=60).returncode
+
+        git("init", "-q", "-b", "dev")
+        (r / "tests").mkdir()
+        (r / "tests" / "igiene.py").write_bytes(sorgente.read_bytes())
+        git("add", "-A")
+        radice = commit("radice")
+        pubblica(dev=radice)
+        git("checkout", "-q", "-b", "vecchio")
+        vecchio = commit(f"di ottobre, con {PROVA}, già pubblico")
+        pubblica(vecchio=vecchio)
+        git("checkout", "-q", "-b", "landing")
+        landing = commit("landing, pulito")
+        pubblica(landing=landing)
+        zero = "0" * 40
+        assert esito(zero, landing, "landing") == 0, \
+            "IG08 il primo push di un ramo nuovo ricontrolla i commit che un altro ramo pubblico ha già (#6063)"
+        git("checkout", "-q", "-b", "solo", radice)
+        solo = commit(f"spinto con {PROVA}, il push l'ha segnalato")
+        pubblica(solo=solo)
+        assert esito(zero, solo, "solo") == 1, "IG08 il push di un ramo non controlla i suoi commit nuovi"
+        assert esito(radice, solo, "7/merge", "pull_request") == 0, \
+            "IG08 una pull request dallo stesso repository ricontrolla i commit che il push ha già controllato"
+        git("checkout", "-q", "dev")
+        git("merge", "-q", "--no-ff", "-m", "unisce landing", "landing")
+        unione = git("rev-parse", "HEAD")
+        pubblica(dev=unione)
+        assert esito(radice, unione, "dev") == 0, \
+            "IG08 unire in dev un ramo già pubblico ricontrolla i suoi commit vecchi (#6063)"
+        nuovo = commit(f"nuovo, con {PROVA}")
+        pubblica(dev=nuovo, main=nuovo)
+        assert esito(unione, nuovo, "dev") == 1, \
+            "IG08 due rami spinti insieme con lo stesso commit nuovo si tolgono a vicenda: il nome passa"
+        git("checkout", "-q", "-b", "fork", unione)
+        fork = commit(f"da un fork, con {PROVA}")
+        assert esito(unione, fork, "9/merge", "pull_request") == 1, \
+            "IG08 una pull request da un fork non controlla i suoi commit"
+        git("checkout", "-q", "-b", "ramo", unione)
+        ramo = commit(f"ramo nuovo, con {PROVA}")
+        pubblica(ramo=ramo)
+        assert esito(zero, ramo, "ramo") == 1, "IG08 il primo push di un ramo nuovo non controlla i suoi commit nuovi"
+
+
 TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04, "IG05": test_ig05,
-         "IG06": test_ig06, "IG07": test_ig07}
+         "IG06": test_ig06, "IG07": test_ig07, "IG08": test_ig08}
 
 
 def main() -> int:

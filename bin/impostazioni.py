@@ -185,7 +185,7 @@ def _dove(unisci, base, nostro, loro, via=""):
 def adotta(forza: bool = False) -> int:
     """Il frammento di oggi diventa la base dell'unione, e settings.json resta com'è.
 
-    Perché esiste (strati F5, 5/11/2026): la config di Federico ha già le sue voci, scelte una per una.
+    Perché esiste (strati F5, 5/11/2026): la config di chi mantiene Arturo ha già le sue voci, scelte una per una.
     Con applica la prima unione partirebbe da una base vuota, e ogni voce che il frammento ha diversa
     dai suoi settings sarebbe un conflitto. Con adotta la base è il frammento di oggi: le voci di oggi
     restano sue, e un applica dopo porta solo quello che Arturo cambia da qui in avanti.

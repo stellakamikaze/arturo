@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""U01-U13: il pannello /dafare dentro Claude Code (ciclo 2, 3/10/2026).
+"""U01-U14: il pannello /dafare dentro Claude Code (ciclo 2, 3/10/2026).
 
 Il pannello è la parte dafare del mod di Arturo, skills/arturo/hooks/dafare/ (mod passo 3, 3/11/2026):
 Claude Code carica il mod da solo come arturo@skills-dir. Legge e scrive i todo solo con la CLI `arturo todo`.
@@ -22,6 +22,9 @@ lanciato con bash e zsh in un clone fermo alla base, mostra il codice del mod. U
 /diagnosi spiega le managed settings che lo spengono. U12 il README conta le skill giuste e spiega il mod.
 U13 validate e test non eseguono gli hook di sessione e non chiedono rete né accesso: un
 controllo positivo prova che la sentinella funziona e che la HOME di prova non ha accesso.
+U14 (18/11/2026, PR n. 4 e segnalazione n. 86) ogni Button del pannello porta l'etichetta come Text con un
+colore della palette, mai come label: un'etichetta senza colore prende quello del tema, e col tema scuro
+è bianca sul fondo chiaro del pannello.
 
 Il gate richiede il binario `claude`: se manca, il banco fallisce con un messaggio esplicito.
 Sulla base fc6459f ogni controllo deve fallire.
@@ -150,12 +153,14 @@ def test_u02(repo: Path) -> None:
     testo = r.stdout + r.stderr
     assert r.returncode == 0 and "Validation passed" in testo, f"U02 validate rc={r.returncode}: {testo[-800:]}"
     hooks = [x for x in testo.splitlines() if "register.tsx hooks:" in x]
+    # Da Claude Code 2.1.325 un elenco lungo di chiamate esce su più righe "calls:" (14/11/2026): si uniscono.
     calls = [x for x in testo.splitlines() if "register.tsx calls:" in x]
-    assert len(hooks) == 1 and len(calls) == 1, f"U02 validate non elenca hooks e calls: {testo[-800:]}"
+    assert len(hooks) == 1 and calls, f"U02 validate non elenca hooks e calls: {testo[-800:]}"
     for evento in ("session.start", "turn.complete", "command.run{command=dafare}",
                    "ui.render{component=Pane, requestId=dafare}", "ui.render{component=AbovePrompt}"):
         assert evento in hooks[0], f"U02 il mod non aggancia {evento}: {hooks[0]}"
-    assert "$.process.run" in calls[0], f"U02 il mod non lancia la CLI: {calls[0]}"
+    chiamate = " ".join(calls)
+    assert "$.process.run" in chiamate, f"U02 il mod non lancia la CLI: {chiamate}"
     # Nel mod unico validate elenca le chiamate di tutte le parti: il pannello si legge nel suo sorgente.
     pannello = "".join(read(f) for f in sorted((mod(repo) / "hooks" / "dafare").iterdir()) if f.is_file())
     assert "$.process.run" in pannello, "U02 il pannello non lancia la CLI"
@@ -616,10 +621,36 @@ def test_u13(repo: Path) -> None:
             f'U13 la HOME di prova ha un accesso: la prova "senza login" non vale ({(r.stdout + r.stderr)[-300:]})'
 
 
+def bottoni_del_pannello(testo: str) -> list:
+    """(tag, testo dopo il tag) di ogni <Button>. Il tag finisce al primo > fuori dalle graffe: dentro
+    c'è onPress={() => ...}, e una regex [^>]* si fermerebbe alla freccia."""
+    fuori, i = [], testo.find("<Button")
+    while i != -1:
+        graffe, j = 0, i
+        while j < len(testo):
+            c = testo[j]
+            graffe += (c == "{") - (c == "}")
+            if c == ">" and graffe == 0:
+                break
+            j += 1
+        fuori.append((testo[i:j + 1], testo[j + 1:j + 200]))
+        i = testo.find("<Button", j)
+    return fuori
+
+
+def test_u14(repo: Path) -> None:
+    testo = read(mod(repo) / "hooks" / "dafare" / "register.tsx")
+    bottoni = bottoni_del_pannello(testo)
+    assert len(bottoni) >= 10, f"U14 pochi Button letti nel pannello: {len(bottoni)}"
+    senza = [" ".join(tag.split())[:90] for tag, dopo in bottoni
+             if tag.endswith("/>") or re.search(r"\slabel=", re.sub(r"\{[^{}]*\}", "", tag))
+             or not re.match(r"\s*<Text color=\{C\.[a-z]+\}>", dopo)]
+    assert not senza, f"U14 {len(senza)} Button con l'etichetta senza un colore della palette, illeggibili col tema scuro: {senza[:2]}"
+
 TESTS = {
     "U01": test_u01, "U02": test_u02, "U03": test_u03, "U04": test_u04, "U05": test_u05, "U06": test_u06,
     "U07": test_u07, "U08": test_u08, "U09": test_u09, "U10": test_u10, "U11": test_u11, "U12": test_u12,
-    "U13": test_u13,
+    "U13": test_u13, "U14": test_u14,
 }
 
 

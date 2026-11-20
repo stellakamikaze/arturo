@@ -9,8 +9,9 @@ modello ha riscritto un comando "evitando keyword bloccate": una regex che sbagl
 
 Stampa la versione RIDOTTA del comando, su cui il dispatcher e comms-guard.py
 rimatchano i pattern:
-  - i corpi degli heredoc consumati da binari che NON eseguono (cat, tee, sed, awk,
-    grep, jq, sort, head, tail, wc, patch, diff, git) vengono rimossi. Un heredoc
+  - i corpi degli heredoc consumati da binari che NON eseguono (heredoc.LETTORI: cat,
+    tee, grep, jq, sort, head, tail, wc, diff, git e pochi altri) vengono rimossi. sed,
+    awk e patch non ci sono: eseguono o applicano il corpo (#5361, rilievo 7). Un heredoc
     dato a bash/perl/node RESTA: quel testo gira davvero. Dal 19/10/2026 sparisce anche il
     corpo python che non lancia programmi e non usa la rete (Heredoc.codice_senza_rete);
   - se ogni segmento del comando inizia con un binario di sola lettura (grep, rg,

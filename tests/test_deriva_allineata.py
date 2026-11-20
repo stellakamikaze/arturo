@@ -55,7 +55,7 @@ def alternative(sorgente: str) -> set:
 
 # Radici tolte dal client che il server accetta ancora: un client non aggiornato le manda, e il
 # server scarterebbe quegli eventi e li conterebbe in scartati (dal 24/10/2026; prima rifiutava il lotto intero). Escono dal server con l'evento tappa, dopo il 13/11 (#3435).
-RADICI_VECCHIE = {"templates"}
+RADICI_VECCHIE: set = set()  # templates tolta anche dal server il 18/11/2026 (#3435)
 
 py_deriva = telemetria.EVENTI["deriva"].pattern
 js_deriva = js("deriva")

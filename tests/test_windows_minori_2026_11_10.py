@@ -9,6 +9,9 @@ WM03 con Windows Terminal il punto e virgola del prompt esce come \\; (per wt se
      argomento); il comando di riserva con cmd e la riga da scrivere a mano restano col testo intero;
 WM04 impostazioni.py e unisci-settings.py scrivono in UTF-8 anche se la pipe ha un'altra codifica: su Windows è la
      codepage della console, e Claude Code leggeva le accentate rotte. Il banco la simula con PYTHONIOENCODING=latin-1.
+WM05 (16/11/2026, segnalazione n. 80) sul Mac `arturo sessione` apre la finestra in iTerm2 se il comando parte da
+     iTerm2 (TERM_PROGRAM=iTerm.app) o se ARTURO_TERMINALE=iterm, e in Terminale negli altri casi e con
+     ARTURO_TERMINALE=terminal anche dentro iTerm2.
 
 Le funzioni girano in un processo figlio con bin/ della copia da provare, HOME e USERPROFILE spostati in una
 cartella di prova, e il programma degli appunti finto: niente appunti veri, niente finestre. Sulla base 3f12336
@@ -25,7 +28,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["WM01", "WM02", "WM03", "WM04"]
+CASI = ["WM01", "WM02", "WM03", "WM04", "WM05"]
 DISCRIMINANTI = list(CASI)
 
 # Gira nel figlio: sys.argv[1] è la cartella bin/ da provare. Stampa i rossi in JSON.
@@ -77,6 +80,20 @@ con_cmd, _ = sessione.comando("windows", dove, prompt)
 if con_wt[-1] != prompt.replace(";", "\\;") or con_cmd[-1] != prompt or prompt not in a_mano:
     rossi.append(f"WM03 punto e virgola: wt {con_wt[-1]!r}, cmd {con_cmd[-1]!r}, a mano {a_mano!r}")
 
+app = {}
+for nome, env in (("iterm", {"TERM_PROGRAM": "iTerm.app"}), ("scelta", {"ARTURO_TERMINALE": "iterm"}),
+                  ("terminale", {"TERM_PROGRAM": "Apple_Terminal"}), ("forzato", {"TERM_PROGRAM": "iTerm.app", "ARTURO_TERMINALE": "terminal"})):
+    for k in ("TERM_PROGRAM", "ARTURO_TERMINALE"):
+        os.environ.pop(k, None)
+    os.environ.update(env)
+    argv, _ = sessione.comando("darwin", Path("/Users/x/Documents/ClaudeCode"), prompt)
+    script = " ".join(argv)
+    app[nome] = "iTerm" if 'tell application "iTerm"' in script else "Terminal" if 'tell application "Terminal"' in script else "?"
+    if argv[-1] != _ or argv[0] != "osascript":
+        app[nome] += " senza la riga"
+if app != {"iterm": "iTerm", "scelta": "iTerm", "terminale": "Terminal", "forzato": "Terminal"}:
+    rossi.append(f"WM05 terminale del Mac: {app!r}")
+
 for nome, argomenti in (("impostazioni.py", ["aiuto"]), ("unisci-settings.py", [])):
     p = subprocess.run([sys.executable, str(Path(sys.argv[1]) / nome), *argomenti], capture_output=True, timeout=30,
                        env=dict(os.environ, PYTHONIOENCODING="latin-1"))
@@ -116,6 +133,9 @@ VELENI = [
     ("WM02", "bin/segnala.py", '    if programma == "clip":\n', '    if False:\n'),
     ("WM02", "bin/segnala.py", 'input=testo_appunti(testo, comando[0]), timeout=10)', 'input=testo, text=True, timeout=10)'),
     ("WM03", "bin/sessione.py", 'prompt.replace(";", "\\\\;")], a_mano', 'prompt], a_mano'),
+    ("WM05", "bin/sessione.py", '    return "iterm" if env.get("TERM_PROGRAM") == "iTerm.app" else "terminal"',
+     '    return "terminal"'),
+    ("WM05", "bin/sessione.py", '        if terminale_mac() == "iterm":', '        if False:'),
     ("WM04", "bin/impostazioni.py", '            flusso.reconfigure(encoding="utf-8")', '            pass'),
     ("WM04", "bin/unisci-settings.py", '            flusso.reconfigure(encoding="utf-8")', '            pass'),
 ]

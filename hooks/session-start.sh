@@ -25,6 +25,23 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'artur
   printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
     "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
+# Una sessione aperta dal demone di `claude --bg` eredita il PATH minimo di launchd
+# (/usr/bin:/bin:/usr/sbin:/sbin), senza Homebrew: node, npm e gh sembrano mancare anche se ci sono
+# (15/11/2026). Le cartelle che esistono e mancano dal PATH entrano in coda, dopo quelle di sistema,
+# per l'avviso su node qui sotto e per i comandi di Claude. ARTURO_PATH_CANDIDATE vuota le spegne (banchi).
+AGGIUNTE_PATH=""
+_vecchio_ifs="$IFS"; IFS=:
+for _d in ${ARTURO_PATH_CANDIDATE-/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.local/node/bin}; do
+  [ -n "$_d" ] && [ -d "$_d" ] || continue
+  case ":$PATH:" in *":$_d:"*) ;; *) AGGIUNTE_PATH="${AGGIUNTE_PATH:+$AGGIUNTE_PATH:}$_d" ;; esac
+done
+IFS="$_vecchio_ifs"
+if [ -n "$AGGIUNTE_PATH" ]; then
+  PATH="$PATH:$AGGIUNTE_PATH"
+  if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-path-completo' "$CLAUDE_ENV_FILE"; then
+    printf 'export PATH="$PATH:%s"  # arturo-path-completo\n' "$AGGIUNTE_PATH" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
+  fi
+fi
 # zsh come bash nei comandi di Claude (segnalazione n. 46, 3/11/2026): un glob senza file, una parola
 # che inizia con = e una variabile non quotata fanno come in bash. Prima lo faceva il mod riscrivi-bash
 # mettendo `setopt` davanti al comando, e in modalità auto Claude Code respinge un comando cambiato dopo
@@ -36,7 +53,7 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-zsh-come-bash' "$CLAUDE_E
     >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
 # Col plugin il codice sta in una cartella che cambia a ogni versione. La barra in basso la legge da
-# ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/strati.md).
+# ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/prove-plugin.md).
 # Il puntatore sta dove lo leggono la barra e il lanciatore di scrape: ${CLAUDE_CONFIG_DIR:-~/.claude} (lotto L10).
 ORSA_RADICE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$ORSA_RADICE" 2>/dev/null && pwd -P)" ]; then
@@ -50,6 +67,12 @@ fi
 echo "DIRECTORY: $PROJECT_ROOT"
 MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
 [ -n "$MACCHINA" ] && echo "MACCHINA: $MACCHINA"
+
+# Il nome scelto dalla persona per Arturo (bin/nome.py, Fase F3 del piano della catena, #5711): sta
+# nell'Orsa, in personale/nome.txt. Senza il file non stampa niente. Anche dopo un compact.
+if [ -f "$ORSA_RADICE/personale/nome.txt" ] && [ -f "$ARTURO_CODICE/bin/nome.py" ]; then
+  python3 "$ARTURO_CODICE/bin/nome.py" riga 2>/dev/null || true
+fi
 
 # La barra in basso (statusline.js) e l'avviso sul contesto (context-monitor.js) girano con node.
 # Claude Code si installa anche senza node, e allora restano spenti in silenzio (19/10/2026).
@@ -69,7 +92,7 @@ python3 -c '' >/dev/null 2>&1 \
 HOOK_INPUT=""
 [ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compact"'; then
-  echo "COMPACT APPENA AVVENUTO: fermati. Riepiloga all'utente file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. Poi aspetta la sua conferma prima di continuare."
+  echo "COMPACT APPENA AVVENUTO: il riassunto può aver perso dettagli. Riepiloga in poche righe file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. In una rotazione automatica lo step continua; fuori dalla rotazione la persona conferma prima di continuare."
   # Il riassunto può perdere una correzione della persona: torna intera da qui (#4099).
   if [ -f "$ARTURO_CODICE/bin/correzioni.py" ]; then
     printf '%s' "$HOOK_INPUT" | python3 "$ARTURO_CODICE/bin/correzioni.py" blocco 2>/dev/null || true
@@ -77,7 +100,11 @@ if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compa
 fi
 
 # Reminder context management
-echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) lancia /fine --rotazione, sempre, anche col contesto leggero; poi il tool ruota (mod rotazione) solo se il passo dopo è tuo. Senza il mod, al ~65% completa il task e salva con /fine"
+echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) Arturo chiude con /fine --rotazione, sempre, anche col contesto leggero. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, verso il 65% del contesto il compito si chiude e si salva con /fine."
+
+# La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
+# Arturo e dell'Orsa. Senza ruoli la riga non esce.
+[ -f "$ARTURO_CODICE/bin/ruoli.py" ] && python3 "$ARTURO_CODICE/bin/ruoli.py" riga 2>/dev/null
 
 # Avvisi Git locali: nessuna rete, nessun comando in background.
 if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -126,7 +153,7 @@ fi
 
 # Banchi delle guardie (tests/banchi-avvio.sh). Se l'esito ha piu' di 12 ore, i banchi ripartono in
 # background e il risultato lo legge la sessione dopo: l'avvio non aspetta. Dal 3/11/2026 un rosso non
-# si dice alla persona (Federico: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
+# si dice alla persona (chi mantiene Arturo: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
 # manda da solo a chi mantiene Arturo, con la telemetria, e un rosso con piu' di 30 minuti fa ripartire
 # subito i banchi, cosi' un rosso intermittente si cancella da solo. Il lock e' una cartella, perche' mkdir e' atomico anche dove flock non
 # c'e' (macOS, Git Bash): due sessioni che partono insieme non lo prendono entrambe. Dentro c'e'
@@ -323,6 +350,18 @@ if [ -d "$HOME/.claude/.git" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ] \
     echo "SETUP: la prima configurazione di Arturo non è finita$RIPRESA_SETUP. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che la guida una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
   fi
 fi
+# Col plugin l'invito non partiva mai: ~/.claude non è il repository di Arturo (review del 10/11/2026, #5266).
+# Un plugin non porta permessi, regole di blocco e barra: li unisce /setup, che scrive il file di blocco
+# data/arturo-impostazioni.lock. Senza blocco e senza setup-fatto l'invito esce, una volta al giorno.
+if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$ORSA_RADICE" 2>/dev/null && pwd -P)" ] \
+  && [ -f "$ARTURO_CODICE/.claude-plugin/plugin.json" ] \
+  && [ ! -f "$ORSA_RADICE/data/arturo-impostazioni.lock" ] && [ ! -f "$ORSA_RADICE/data/setup-fatto" ]; then
+  OGGI_SETUP=$(date +%Y-%m-%d)
+  if [ "$(cat "$ORSA_RADICE/session-env/setup-invito" 2>/dev/null)" != "$OGGI_SETUP" ]; then
+    mkdir -p "$ORSA_RADICE/session-env" && printf '%s\n' "$OGGI_SETUP" > "$ORSA_RADICE/session-env/setup-invito"
+    echo "SETUP: Arturo è installato come plugin, ma i suoi permessi, le regole di blocco e la barra in basso non sono ancora nelle impostazioni di Claude Code: un plugin non li porta. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che li applica e guida il resto una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
+  fi
+fi
 
 # Herdr, la finestra di Arturo (8/11/2026, ramo herdr): chi ha già fatto /setup non ripassa dal passo che
 # la installa. Una volta sola, su Mac Apple e su Windows, se Herdr non c'è: il segno in data/herdr-invito.
@@ -368,11 +407,11 @@ SEGNALA_STATO="$HOME/.claude/session-env/segnala.json"
 if ! grep -q '"pausa": "sempre"' "$SEGNALA_STATO" 2>/dev/null; then
   if [ "$(printf '%s' "${ARTURO_SEGNALAZIONI:-}" | tr '[:upper:]' '[:lower:]')" = "manuali" ] \
     || grep -q '"modo": "manuali"' "$SEGNALA_STATO" 2>/dev/null; then
-    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
+    echo "SEGNALA: quando qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza già scritta e --origine avvio in prepara. Vale per Arturo, non per i bug del progetto della persona."
   else
     [ -f "$HOME/.claude/session-env/segnalazioni-annuncio" ] \
       || python3 "$ARTURO_CODICE/bin/arturo" segnala avviso 2>/dev/null || true
-    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, segui /segnala senza aspettare che lo chieda: scrivi tu la bozza, mandala con manda e --origine avvio, e di' alla persona in una riga cosa e' partito, il numero e come ritirarla. Una volta per fatto. Riguarda Arturo, non i bug del progetto della persona. Un tema di sicurezza non parte mai da solo: vale SECURITY.md."
+    echo "SEGNALA: quando qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, la segnalazione parte da sola: scrivi la bozza, mandala con manda e --origine avvio, poi di' alla persona in una riga cosa è partito, il numero e come ritirarla. Una volta per fatto, per Arturo e non per i bug del progetto della persona. Un tema di sicurezza segue SECURITY.md e non parte da solo."
   fi
 fi
 

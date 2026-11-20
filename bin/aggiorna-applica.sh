@@ -549,7 +549,7 @@ if [ "$MODO" = merge ]; then
 elif [ "$MODO" = sync ]; then
   # Nel sync fra macchine un aggiornamento di Arturo appena unito con merge può non essere ancora
   # pushato: un rebase semplice lo appiattiva in commit singoli e la storia di upstream si perdeva
-  # (30/10/2026, migrazione della config di Federico). --rebase-merges rifà il merge.
+  # (30/10/2026, migrazione della config di chi mantiene Arturo). --rebase-merges rifà il merge.
   git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase --rebase-merges "$REF" > "$LAVORO/esito" 2>&1
 else
   git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase "$REF" > "$LAVORO/esito" 2>&1

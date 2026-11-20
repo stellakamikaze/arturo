@@ -620,7 +620,8 @@ def test_g211(repo: Path) -> None:
                         raise  # su macOS e Linux un link che non nasce è un guasto (#4411)
                     (senza_timeout / programma).write_text(f'#!/bin/sh\nexec "{Path(percorso).as_posix()}" "$@"\n',
                                                           encoding="utf-8")
-        nudo = {"PATH": str(senza_timeout)}
+        # Il dispatcher cerca timeout anche nelle cartelle di Homebrew (20/11/2026): qui non deve trovarlo.
+        nudo = {"PATH": str(senza_timeout), "ARTURO_TIMEOUT_CARTELLE": ""}
         if os.name == "nt":
             # Python non lancia gli script senza estensione: per i suoi "git" serve git.exe, che sta
             # da solo in Git\cmd, senza timeout. Mai Git\bin: Git Bash lo legge come /bin, cioè

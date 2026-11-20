@@ -14,8 +14,9 @@ Cosa è una correzione lo decide Claude: questo modulo conserva e ristampa, non 
   blocco             per gli hook: legge il JSON dell'hook su stdin e stampa il blocco, o niente
 
 La sessione è quella di CLAUDE_CODE_SESSION_ID, che Claude Code passa ai comandi della sessione e
-che gli hook ricevono come session_id. Un file per sessione in ~/.claude/cache/correzioni/, tolto
-dopo 14 giorni: /clear apre una sessione nuova e parte senza correzioni. Una correzione che vale
+che gli hook ricevono come session_id. Un file per sessione in ~/.claude/data/correzioni/, tolto
+dopo 14 giorni. Sta in data/ perché il sandbox dei comandi lascia scrivere solo lì (segnalazione n. 88);
+fino al 18/11/2026 stava in cache/correzioni/, che leggi() legge ancora per la sessione in corso: /clear apre una sessione nuova e parte senza correzioni. Una correzione che vale
 sempre va nel CLAUDE.md o in memoria con /fine (FASE 8). Solo libreria standard, Python 3.8 o
 successivo.
 """
@@ -44,6 +45,11 @@ AIUTO = """arturo correzione: le correzioni della persona, valide per tutta la s
 
 
 def cartella() -> Path:
+    return Path(os.environ.get("ARTURO_RADICE") or radice_orsa()) / "data" / "correzioni"
+
+
+def cartella_vecchia() -> Path:
+    # Fino al 18/11/2026 (segnalazione n. 88): fuori dal sandbox dei comandi. Si legge, non si scrive più.
     return Path(os.environ.get("ARTURO_RADICE") or radice_orsa()) / "cache" / "correzioni"
 
 
@@ -52,8 +58,11 @@ def file_di(sessione: str) -> Path:
 
 
 def leggi(sessione: str) -> list:
+    f = file_di(sessione)
+    if not f.exists():
+        f = cartella_vecchia() / f"{sessione}.json"
     try:
-        voci = json.loads(file_di(sessione).read_text(encoding="utf-8"))
+        voci = json.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     return [v for v in voci if isinstance(v, dict) and isinstance(v.get("testo"), str)] \

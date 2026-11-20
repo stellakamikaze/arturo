@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Reinstallazione di Arturo: riporta dalla copia messa da parte gli handoff, le skill, i comandi e i
-# file .local che la persona ha fatto da sé (#3842, deciso da Federico il 2/11/2026: "riporta tutti i file personali").
+# file .local che la persona ha fatto da sé (#3842, deciso il 2/11/2026: "riporta tutti i file personali").
 #
 # Uso: bash ~/.claude/bin/riporta-tuoi.sh <copia messa da parte>
 # Lo lancia il blocco d'installazione del README e di /setup, dopo il clone e dopo la lista fissa.

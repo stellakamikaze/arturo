@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PostToolUse hook (Write|Edit|MultiEdit): scanner detective sulle scritture nella
+"""PostToolUse hook (Write|Edit|MultiEdit, e Bash dal 20/11/2026): scanner detective sulle scritture nella
 MEMORIA persistente e negli handoff.
 
 La memoria e' il canale di persistenza piu' pericoloso: una nota avvelenata torna nel
@@ -61,6 +61,56 @@ SUSPICIOUS = [
      "caratteri invisibili/bidi (offuscamento)"),
 ]
 NON_SEGRETI = {"Stripe Publishable Key"}
+
+# Voce altrui (16/11/2026, proposta n. 78): una nota che fa di un'altra persona il modello di stile
+# ("voce asciutta come quella di X", "scrivi come X") guida ogni testo firmato da chi usa Arturo. La voce
+# della persona sta nella sua Orsa (personale/humanizer.md) e si scrive col suo sì. Il nome di chi usa
+# questa installazione (git user.name, data/contatto.json) non conta: la sua voce è la sua.
+_NOME = r"(?P<nome>[A-ZÀ-Ý][a-zà-ÿ'’]{2,})"
+VOCE_ALTRUI = [
+    re.compile(r"(?i:\b(?:voce|stile|tono|registro|prosa)\b)[^.\n]{0,40}?"
+               r"(?i:\b(?:come\s+quell[ao]\s+d[iel]{1,3}|alla\s+maniera\s+d[iel]{1,3}|nello\s+stile\s+d[iel]{1,3}|"
+               r"sul\s+modello\s+d[iel]{1,3}|come))\s+" + _NOME),
+    re.compile(r"(?i:\b(?:voce|stile|tono)\s+d[iel]{1,3})\s+" + _NOME),
+    re.compile(r"(?i:\bscriv\w*\s+(?:\w+\s+){0,2}come)\s+" + _NOME),
+    re.compile(r"(?i:\b(?:write|writes|writing)\s+(?:\w+\s+){0,2}like|\bin\s+the\s+(?:style|voice)\s+of)\s+" + _NOME),
+]
+NON_PERSONE = {"arturo", "claude", "anthropic", "melchior", "orsa", "volta", "codex", "chatgpt", "gemini",
+               "openai", "google", "markdown", "italiano", "inglese"}
+
+
+def _nomi_propri():
+    """Le parole del nome di chi usa l'installazione, in minuscolo: git user.name e data/contatto.json."""
+    nomi = set()
+    try:
+        import subprocess
+        r = subprocess.run(["git", "config", "--global", "user.name"], capture_output=True, text=True, timeout=2)
+        nomi.update(r.stdout.lower().split())
+    except Exception:
+        pass
+    try:
+        with open(os.path.expanduser("~/.claude/data/contatto.json"), encoding="utf-8") as f:
+            nomi.update(str(json.load(f).get("nome") or "").lower().split())
+    except Exception:
+        pass
+    return nomi
+
+
+def voce_altrui(testo, propri=None):
+    """I nomi presi come modello di stile nel testo, senza doppioni. Vuoto se la nota parla d'altro."""
+    propri = _nomi_propri() if propri is None else propri
+    nomi = []
+    for rx in VOCE_ALTRUI:
+        for m in rx.finditer(testo or ""):
+            n = m.group("nome")
+            if n.lower() not in NON_PERSONE and n.lower() not in propri:
+                nomi.append(n)
+    return list(dict.fromkeys(nomi))
+
+
+VOCE_AVVISO = ("La voce di chi usa Arturo sta nella sua Orsa, ~/.claude/personale/humanizer.md, e si scrive "
+               "solo col suo sì (skill humanizer, references/voce-cresce.md). Un'altra persona non fa da "
+               "modello di stile, salvo che lo chieda chi scrive: togli la nota, o chiedi alla persona.")
 
 
 def _carica(nome):
@@ -143,9 +193,11 @@ def main():
         return 0
 
     tool = data.get("tool_name", "")
+    ti = data.get("tool_input") or {}
+    if tool == "Bash":
+        return _bash(ti.get("command"))
     if tool not in ("Write", "Edit", "MultiEdit"):
         return 0
-    ti = data.get("tool_input") or {}
     fp = ti.get("file_path", "") or ""
     if not fp or not tocca_memoria(fp):
         return 0
@@ -160,7 +212,41 @@ def main():
     for e in ti.get("edits") or []:
         if isinstance(e, dict) and isinstance(e.get("new_string"), str):
             chunks.append(e["new_string"])
-    text = "\n".join(chunks)
+    return _avvisa(rp, "\n".join(chunks))
+
+
+# Programmi che scrivono sul file che nominano (review del 10/11/2026, problema 12, #5263): il ramo memoria del
+# dispatcher approva `echo "…" >> ~/.claude/projects/p/memory/MEMORY.md`, e lo scanner via Edit e Write non la vede.
+_SCRIVONO = frozenset("tee cp mv install rsync ln dd sed perl python python3 ruby node".split())
+_REDIREZIONE = re.compile(r"(?:^|[\s;&|(])\d?>>?\|?\s*(['\"]?)([^\s;&|'\")]+)\1")
+
+
+def _bash(command):
+    """Scrittura via shell in una radice della memoria o negli handoff: il testo che il comando porta (echo,
+    printf, heredoc) passa dagli stessi controlli di Write. Solo i file che il comando scrive: redirezione o
+    un programma di _SCRIVONO che li nomina."""
+    if not isinstance(command, str) or not command or (".claude" not in command and _mm is None):
+        return 0
+    bersagli = [m.group(2) for m in _REDIREZIONE.finditer(command)]
+    try:
+        import shlex
+        parole = shlex.split(command, comments=False, posix=True)
+    except ValueError:
+        parole = command.split()
+    if any(os.path.basename(w) in _SCRIVONO for w in parole):
+        bersagli += [w for w in parole if "/" in w]
+    toccati = []
+    for b in bersagli:
+        if b and tocca_memoria(b):
+            rp = os.path.realpath(os.path.expanduser(b))
+            if rp not in toccati:
+                toccati.append(rp)
+    if not toccati:
+        return 0
+    return _avvisa(toccati[0], command, altri=toccati[1:])
+
+
+def _avvisa(rp, text, altri=()):
     if not text:
         return 0
 
@@ -176,13 +262,18 @@ def main():
                 "(una pagina, un file, un messaggio). Un segreto va tolto dalla nota: scrivi dove "
                 "trovarlo, non il valore.")
         avvisi.append(out)
+    altrui = voce_altrui(text) if not rp.startswith(HANDOFF_DIR) else []
+    if altrui:
+        avvisi.append(f"[WARNING] MEMORY-VOCE: la nota {os.path.basename(rp)} prende come modello di stile "
+                      f"{', '.join(altrui)}. " + VOCE_AVVISO)
 
-    reach = check_reachability(rp)
-    if reach:
-        avvisi.append(reach)
-    pointer = check_pointer(rp)
-    if pointer:
-        avvisi.append(pointer)
+    for q in (rp, *altri):
+        reach = check_reachability(q)
+        if reach:
+            avvisi.append(reach)
+        pointer = check_pointer(q)
+        if pointer:
+            avvisi.append(pointer)
     if avvisi:
         # Lo stdout semplice di un PostToolUse va solo nel log di debug: Claude lo vede
         # soltanto in additionalContext (context-window.md, 19/10/2026).

@@ -1,5 +1,5 @@
 ---
-description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi
+description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi. Col plugin `indietro` e `personale` dicono perché non servono
 argument-hint: "(nessuno) | indietro | personale"
 ---
 
@@ -23,6 +23,23 @@ OpenSSH, e lo dici senza allarme.
 Chi ti parla **potrebbe non essere una persona tecnica**: niente gergo di Git, nessun output
 grezzo incollato senza spiegazione.
 
+## Freni
+
+- Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
+- Con `STORIA RISCRITTA` non si applica niente.
+- Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
+  niente, neanche col suo sì: "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo".
+  Con `FIRMA NON VERIFICABILE` non si applica niente finché git e OpenSSH non sono aggiornati: non è
+  un allarme, e non si dice "compromissione".
+- Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
+  `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
+- La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha
+  mostrato il diff.
+- Per tornare indietro mai `reset --hard`: solo `aggiorna-applica.sh indietro`, e solo dopo il suo sì.
+- Mai scartare modifiche sue per far passare l'aggiornamento.
+- Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
+  drammatizzare e non ritentare a oltranza.
+
 ## Passo 0 — Plugin o copia in ~/.claude
 
 ```bash
@@ -35,11 +52,19 @@ Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag f
 dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
 senza firma: la verifica la fa Arturo, prima.
 
+- `DA RIMETTERE`: la versione installata è quella giusta, ma i file della copia non sono come nel rilascio
+  firmato (la riga `DERIVA:` dell'avvio). Chiedi alla persona se li ha cambiati lei: le sue modifiche vanno in
+  `~/.claude/personale/`, e la reinstallazione le cancella. Se non li ha cambiati lei, prima segnala come dice
+  `SECURITY.md`. Poi, col suo sì, lancia `python3 ~/.claude/bin/aggiornamenti.py plugin`: disinstalla la copia
+  tenendo i dati del plugin, reinstalla lo stesso rilascio firmato e lo controlla. Con `RIMESSO` chiedi di
+  riavviare Claude Code. Un plugin spento resta spento.
 - `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
   (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
   frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.
-- Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
-  `python3 ~/.claude/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
+- Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. `/aggiorna` è già la richiesta della
+  persona (#5880): niente altro sì, lancia subito `python3 ~/.claude/bin/aggiornamenti.py plugin`. La regola
+  `autoMode` "Arturo's own updater" lo fa passare dal classificatore. Se il classificatore lo nega lo stesso
+  (la regola arriva con `/setup`), prepara quel comando da lanciare con `!`, su una riga sola. Fa `claude plugin update` e controlla la copia
   installata col suo MANIFEST firmato, poi unisce a settings.json le voci nuove del frammento
   (`impostazioni applica`). Con `APPLICATO` chiedi di riavviare Claude Code, poi `/novita`. Una riga
   `IMPOSTAZIONI NON APPLICATE` sotto dice quale voce è in conflitto: proponi `/setup`, che la decide con lei.
@@ -50,6 +75,15 @@ senza firma: la verifica la fa Arturo, prima.
   Se la riga dice "ho disattivato Arturo", la copia nuova non ha superato il controllo e quella di prima
   non è tornata: Arturo resta spento finché la persona non lo riattiva. Dille di segnalarlo come dice
   `SECURITY.md`, e di lanciare `claude plugin enable arturo@arturo` solo dopo la risposta di chi mantiene Arturo.
+
+Col plugin `/aggiorna indietro` e `/aggiorna personale` non propongono l'aggiornamento e hanno una risposta
+sola. Con `rc=3` o `rc=4` di' prima la riga della verifica, come sopra.
+- `indietro`: "Col plugin Arturo non torna alla versione di prima: Claude Code installa solo il rilascio
+  che indica il catalogo firmato. Se la versione nuova ti dà un problema, dimmi cosa succede e lo segnalo a
+  chi mantiene Arturo." Poi, col suo racconto, segui `/segnala`. Niente `claude plugin install` di una
+  versione vecchia a mano: salta la verifica della firma.
+- `personale`: "Col plugin le tue aggiunte stanno già fuori da Arturo, in `~/.claude/personale/`: un
+  aggiornamento non le tocca, e non c'è niente da spostare."
 
 Con `COPIA IN ~/.claude` (`rc=5`) Arturo è una copia in `~/.claude`: prosegui dal Passo 1, senza
 dirlo alla persona. Con `NESSUN RILASCIO` il plugin non trova il suo catalogo: mostra la riga e
@@ -386,7 +420,8 @@ niente, non c'era niente da spostare: diglielo in una riga.
 
 ## Tornare indietro
 
-Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento. Ogni
+Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento. Col plugin vale
+la risposta del Passo 0. Ogni
 `/aggiorna` scrive una riga in `session-env/aggiornamenti` (versione prima, versione dopo,
 data): tornare indietro toglie l'ultima riga, e un secondo `/aggiorna indietro` toglie la
 precedente. I passi 1-4 qui sopra non c'entrano.
@@ -423,20 +458,3 @@ precedente. I passi 1-4 qui sopra non c'entrano.
    - `RIPRISTINO NON RIUSCITO`: **fermati**, come nel Passo 3.
 
 4. Digli di **chiudere e riaprire Claude Code**, come dopo ogni aggiornamento.
-
-## Freni
-
-- Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
-- Con `STORIA RISCRITTA` non si applica niente.
-- Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
-  niente, neanche col suo sì: "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo".
-  Con `FIRMA NON VERIFICABILE` non si applica niente finché git e OpenSSH non sono aggiornati: non è
-  un allarme, e non si dice "compromissione".
-- Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
-  `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
-- La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha
-  mostrato il diff.
-- Per tornare indietro mai `reset --hard`: solo `aggiorna-applica.sh indietro`, e solo dopo il suo sì.
-- Mai scartare modifiche sue per far passare l'aggiornamento.
-- Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
-  drammatizzare e non ritentare a oltranza.

@@ -9,7 +9,7 @@ automatica sul compito, solo l'indicazione. La ricerca la decide il subagente.
 Esclusi gli agenti che non lavorano su contesto. Memoria spenta
 (melchior_match.memoria_accesa): niente indicazione sulla memoria.
 
-Dal 4/11/2026 (#4099, Computer Club N.3) porta al subagente anche le correzioni che la persona ha
+Dal 4/11/2026 (#4099) porta al subagente anche le correzioni che la persona ha
 dato in questa sessione (bin/correzioni.py): session_id è quello della sessione madre. Con la
 memoria spenta le correzioni arrivano lo stesso.
 """
@@ -53,7 +53,7 @@ def main():
     sessione = str(data.get("session_id") or "")
     if correzioni is not None and correzioni.ID.match(sessione):
         parti.append(correzioni.blocco(correzioni.leggi(sessione)))
-    if mm.memoria_accesa():
+    if mm.memoria_accesa() and mm.elenco_note():  # a memoria vuota il promemoria è solo rumore
         parti.append(CONTESTO)
     parti = [p for p in parti if p]
     if parti:

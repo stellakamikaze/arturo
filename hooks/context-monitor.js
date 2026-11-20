@@ -129,19 +129,20 @@ process.stdin.on('end', () => {
     fs.writeFileSync(warnPath, JSON.stringify(warnData));
     // Con il mod rotazione (tool mcp__<plugin>__ruota, 3/11/2026) il giro è automatico: niente da proporre.
     // Il modello sa se il tool c'è; senza, vale il testo di sempre.
-    const conRotazione = 'If this session has the rotation tool (mcp__arturo__ruota, or mcp__rotazione__ruota before the mod passo 3, or another name ending in __ruota): ' +
-      'close the current step, run /fine --rotazione, then call that tool, and propose nothing to the user. Otherwise: ';
+    // 19/11/2026: testo in italiano come il resto di Arturo; via l'alias mcp__rotazione__ruota, superato.
+    const conRotazione = 'Se la sessione ha il tool della rotazione (mcp__arturo__ruota, o un altro nome che finisce in __ruota): ' +
+      'chiudi lo step in corso, lancia /fine --rotazione, poi chiama quel tool, senza proporre niente alla persona. Altrimenti: ';
     let message;
     if (isCritical) {
-      message = `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` + conRotazione +
-        'Propose /fine to the user now, before any other work.';
+      message = `CONTEXT CRITICAL: contesto usato al ${usedPct}%, restano ${remaining}%. ` + conRotazione +
+        'proponi /fine alla persona adesso, prima di altro lavoro.';
     } else {
-      message = `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` + conRotazione +
-        'This is the rotation threshold: finish the task in progress, then propose /fine ' +
-        'to the user in one line, as a save. Do not start new complex work. ' +
+      message = `CONTEXT WARNING: contesto usato al ${usedPct}%, restano ${remaining}%. ` + conRotazione +
+        'questa è la soglia della rotazione: finisci il compito in corso, poi proponi /fine ' +
+        'alla persona in una riga, come salvataggio. Niente lavoro nuovo complesso. ' +
         (primaRotazione
-          ? 'Mention once that /clear and /inizio start a fresh session: the user may keep working here after /fine.'
-          : '/clear and /inizio were already proposed in this session: do not repeat them.');
+          ? "Di' una volta che /clear e /inizio aprono una sessione pulita: la persona può continuare qui dopo /fine."
+          : '/clear e /inizio sono già stati proposti in questa sessione: non ripeterli.');
     }
 
     const output = {

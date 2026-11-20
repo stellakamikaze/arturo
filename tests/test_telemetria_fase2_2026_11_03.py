@@ -44,8 +44,13 @@ _sicuro = _copia._sicuro
 Lab, BASH, read = _m.Lab, _m.BASH, _m.read
 
 
+# Gli eventi di questo banco. Dal 15/11/2026 la chiusura registra anche memoria e richiamo (M7 della memoria): li
+# prova tests/test_telemetria_memoria_2026_11_15.py.
+DELLA_FASE = ("durata", "turni", "skill")
+
+
 def coppie(lab) -> list:
-    return [(e["evento"], e["valore"]) for e in lab.coda()]
+    return [(e["evento"], e["valore"]) for e in lab.coda() if e["evento"] in DELLA_FASE]
 
 
 def _riga(tipo: str, minuto: int, contenuto, **altro) -> str:
@@ -115,12 +120,12 @@ def test_ts03(repo: Path) -> None:
     dati = {"session_id": "s-due", "transcript_path": str(transcript(lab))}
     fine(lab, dati)
     fine(lab, dati)
-    assert len(lab.coda()) == 5, f"TS03 la stessa sessione chiusa due volte si conta due volte: {coppie(lab)}"
+    assert len(coppie(lab)) == 5, f"TS03 la stessa sessione chiusa due volte si conta due volte: {coppie(lab)}"
     vuota = transcript(lab, "vuota.jsonl", [_riga("user", 0, "<command-name>/clear</command-name>"),
                                            _riga("assistant", 1, [{"type": "text", "text": "ok"}])])
     fine(lab, {"session_id": "s-vuota", "transcript_path": str(vuota)})
     r = fine(lab, {"session_id": "s-senza"})
-    assert r.returncode == 0 and len(lab.coda()) == 5, f"TS03 una sessione senza messaggi registra qualcosa: {coppie(lab)}"
+    assert r.returncode == 0 and len(coppie(lab)) == 5, f"TS03 una sessione senza messaggi registra qualcosa: {coppie(lab)}"
     spenta = Lab(repo, ARTURO_TELEMETRIA="0")
     fine(spenta, {"session_id": "s-tre", "transcript_path": str(transcript(spenta))})
     assert spenta.coda() == [], f"TS03 con la telemetria spenta la chiusura registra: {coppie(spenta)}"
@@ -134,7 +139,7 @@ def test_ts04(repo: Path) -> None:
             "hook_event_name": "SessionEnd", "cwd": str(lab.dir)}
     r = lab.hook("session-end.sh", json.dumps(dati))
     fine_attesa = time.monotonic() + 20
-    while time.monotonic() < fine_attesa and len(lab.coda()) < 5:
+    while time.monotonic() < fine_attesa and len(coppie(lab)) < 5:
         time.sleep(0.2)
     assert r.returncode == 0, f"TS04 session-end.sh esce con {r.returncode}: {r.stderr}"
     assert ("turni", "2-5") in coppie(lab), f"TS04 session-end.sh non lancia la telemetria della chiusura: {coppie(lab)}"

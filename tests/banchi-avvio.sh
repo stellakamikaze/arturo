@@ -30,6 +30,18 @@ mkdir -p "$COPIA"
 # Solo i file tracciati, con le modifiche non salvate. Senza git: le cartelle che servono ai banchi.
 if git -C "$CLAUDE_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   git -C "$CLAUDE_DIR" ls-files -z | (cd "$CLAUDE_DIR" && tar --null -T - -cf - 2>/dev/null) | tar -xf - -C "$COPIA" 2>/dev/null
+  # I file di Arturo: quelli del punto in cui la config si è staccata da Arturo, la stessa base di
+  # hooks/deriva.py (upstream/main se c'è un remote upstream, altrimenti origin/main). Un hook che la persona
+  # ha scritto per sé non è una guardia di Arturo: test_hook_utf8.py lo salta. L'11/11/2026 U08 era rosso
+  # su un hooks/notifica-focus.sh personale, che chi mantiene Arturo non può correggere.
+  RIF_ARTURO=origin/main
+  git -C "$CLAUDE_DIR" config --get remote.upstream.url >/dev/null 2>&1 && RIF_ARTURO=upstream/main
+  BASE_ARTURO=$(git -C "$CLAUDE_DIR" merge-base HEAD "$RIF_ARTURO" 2>/dev/null)
+  if [ -n "$BASE_ARTURO" ] \
+     && git -C "$CLAUDE_DIR" ls-tree -r --name-only "$BASE_ARTURO" > "$LAVORO/file-arturo.txt" 2>/dev/null \
+     && [ -s "$LAVORO/file-arturo.txt" ]; then
+    export ARTURO_FILE_ARTURO="$LAVORO/file-arturo.txt"
+  fi
 else
   for parte in hooks tests bin settings.json .gitignore; do
     [ -e "$CLAUDE_DIR/$parte" ] && cp -R "$CLAUDE_DIR/$parte" "$COPIA/" 2>/dev/null
@@ -43,6 +55,17 @@ export TMPDIR="$LAVORO"
 
 rossi=""
 n=0
+# Una config che non porta i banchi di Arturo (il plugin non li installa, una config personale ha il suo tests/)
+# non ha niente da provare qui: l'esito è SALTATO, non ROSSO, e non parte telemetria (20/11/2026: ROSSO a ogni
+# avvio su una config senza i banchi). Se ne manca solo una parte resta ROSSO, come voleva il finding 92.
+presenti=0
+for banco in $BANCHI; do
+  [ -f "$COPIA/tests/$banco" ] && presenti=$((presenti + 1))
+done
+if [ "$presenti" -eq 0 ]; then
+  printf 'SALTATO\nnessun banco delle guardie in questa installazione (%s)\n' "$(date '+%Y-%m-%d %H:%M')" > "$ESITO"
+  exit 0
+fi
 for banco in $BANCHI; do
   n=$((n + 1))
   # Un banco dell'elenco che manca nella copia è rosso col suo nome: saltato, il controllo delle guardie si

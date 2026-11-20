@@ -8,7 +8,6 @@
 //   POST /v1/feedback      il modulo di feedback del sito (/api/feedback): testo, tipo, email facoltativa.
 //                          Dal 24/10/2026 il vocale non si accetta più
 //   POST /v1/sito          un download dal sito (/api/sito): il comando copiato o il repository aperto
-//   POST /v1/lancillotto/eventi  gli eventi d'uso di Lancillotto (25/10/2026), in una tabella loro (lancillotto.js)
 // Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
 //   GET  /v1/segnalazioni  le ultime 50 segnalazioni, senza testo; /v1/segnalazioni/<n> una intera (27/10/2026)
@@ -19,12 +18,14 @@
 //   GET  /v1/contributi/<n>          stato, risposta, versione con la correzione
 //   POST /v1/contributi/<n>/seguito  un'aggiunta alla segnalazione (le informazioni che chi la mantiene ha chiesto)
 //   POST /v1/contributi/<n>/ritira   titolo, testo, pacchetto e seguiti cancellati, resta il numero
+// La cancellazione (20/11/2026, #4793): la persona cancella da sola i suoi dati dal server, con l'id della sua installazione.
+//   POST /v1/dimentica      eventi, segnalazioni collegate e contatori di quell'id cancellati; il campanello dice i
+//                           numeri delle segnalazioni, perché chi mantiene Arturo tolga a mano le copie su Telegram e Gmail
 // Un codice sbagliato e un numero inesistente danno lo stesso 404: il numero da solo non dice se esiste.
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 // Telegram ed email sono campanelli (24/10/2026): mai il testo né l'email di chi scrive. Una segnalazione porta
 // numero, tipo, da dove arriva e il link alla pagina privata (27/10/2026), un feedback numero, tipo e origine.
 
-import { validaLottoLancillotto, avvisoInstallazioneLancillotto, testoLancillotto } from "./lancillotto.js";
 import { DATA_A_NUMERO } from "./versioni.js";
 import { pagina, sezione, scheda, codice } from "./email.js";
 import { recapGiorno, recapSettimana, righeGiorno } from "./recap.js";
@@ -55,10 +56,10 @@ export const REGOLE = {
 export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
 // SKILL: le cartelle di skills/, lo stesso elenco di SKILL in bin/telemetria.py (banco TS01, 3/11/2026). Come per i
 // comandi, una skill della persona arriva come "altro".
-export const SKILL = ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "system-audit", "todo"];
+export const SKILL = ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "revisione", "system-audit", "todo"];
 // Le skill uscite (3/11/2026: i mod gws e riscrivi-bash, diventati hook; poi i sei mod diventati parti di skills/arturo):
 // un client fino alla 0.2.x le manda ancora.
-// Restano accettate perché un nome fuori elenco fa rifiutare il lotto intero; da togliere con l'evento tappa (#3435).
+// Restano accettate per non scartare le skill di quei client; da togliere quando nessun client attivo le manda più.
 export const SKILL_USCITE = ["apri", "cache-fredda", "dafare", "gws", "redazione-segreti", "riscrivi-bash", "rotazione", "testata"];
 
 // I nomi di Arturo che la deriva può dire oltre la forma (24/10/2026). La regex di `deriva` resta uguale, lettera per
@@ -72,22 +73,24 @@ export const SKILL_USCITE = ["apri", "cache-fredda", "dafare", "gws", "redazione
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
   radice: [".gitattributes", ".gitignore", ".gitleaks.toml", ".gitleaksignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
-  skills: ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "system-audit", "todo"],
-  agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
+  skills: ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "revisione", "system-audit", "todo"],
+  agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md", "monitor-lettore.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
   commands: COMANDI.map((c) => `${c}.md`),
-  hooks: ["agente-worktree.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "commit-secret-gate.py", "comms-guard.py",
+  hooks: ["agente-worktree.py", "aspetto_valori.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "commit-secret-gate.py", "comms-guard.py",
     "comms-prefilter.py", "context-monitor.js", "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "emoji_remover.py",
-    "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py", "herdr-stato.sh", "heredoc.py", "inject-now.sh",
-    "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py", "memory-autoload.py", "memory-retrieve.py", "memory-write-scanner.py",
-    "metodo.sh", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py", "session-end.sh", "session-start.sh",
-    "statusline.js", "subagent-memory-context.py", "titolo-sessione.py", "typecheck-after-edit.py", "web-egress-guard.py"],
+    "estensione-skill.py", "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py", "herdr-stato.sh",
+    "heredoc.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py", "memory-autoload.py", "memory-firma.py",
+    "memory-retrieve.py", "memory-write-scanner.py", "metodo.sh", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py",
+    "scoperta-indice.py", "session-end.sh", "session-start.sh", "statusline.js", "subagent-memory-context.py", "titolo-sessione.py", "typecheck-after-edit.py",
+    "web-egress-guard.py"],
 };
 // Gli hook che il settings.json di Arturo dichiara (hook_dichiarati in hooks/deriva.py), più "tutti" per disableAllHooks.
-export const DERIVA_HOOK = ["agente-worktree.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "context-monitor.js", "credential-leak-scanner.py",
-  "emoji_remover.py", "gws-esito.py", "gws-token-health.py", "herdr-stato.sh", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "memory-retrieve.py",
-  "memory-write-scanner.py", "prompt-injection-scanner.py", "protect_claude_md.py", "scheda-terminale.py", "session-end.sh",
-  "session-start.sh", "subagent-memory-context.py", "titolo-sessione.py", "typecheck-after-edit.py", "web-egress-guard.py"];
+export const DERIVA_HOOK = ["agente-worktree.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "context-monitor.js",
+  "credential-leak-scanner.py", "emoji_remover.py", "estensione-skill.py", "gws-esito.py", "gws-token-health.py", "herdr-stato.sh", "inject-now.sh",
+  "input-notifier-start.sh", "melchior-postwrite.py", "memory-firma.py", "memory-retrieve.py", "memory-write-scanner.py", "prompt-injection-scanner.py",
+  "protect_claude_md.py", "scheda-terminale.py", "scoperta-indice.py", "session-end.sh", "session-start.sh", "subagent-memory-context.py", "titolo-sessione.py",
+  "typecheck-after-edit.py", "web-egress-guard.py"];
 
 // Il valore della deriva che si salva: un nome fuori elenco diventa `file:altro` o `hook:altro`, come nel client. Non si
 // scarta: l'elenco corrente di un'installazione (le righe dopo `insieme:<n>`) resta intero, e il recap dice che c'era.
@@ -126,15 +129,16 @@ const GUARDIA_E_REGOLA = unoDi([...GUARDIE, ...Object.entries(REGOLE).flatMap(([
 // L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
 // il banco M09 controlla che coincidano, salvo gli eventi vecchi che il client non manda più.
 export const EVENTI = {
-  sessione: /^$/,
+  // Dal 14/11/2026 la forma dell'installazione: plugin o clone (vuoto da una versione di prima).
+  sessione: /^(|plugin|clone)$/,
   comando: unoDi([...COMANDI, "altro"]),
   guardia: GUARDIA_E_REGOLA,
-  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale)$/,
+  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale|bloccato-modifiche|bloccato-attesa|non-partito)$/,
   segnalazione: /^(problema|proposta|integrazione)$/,
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
   // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
-  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|firme|hooks|output-styles|server|shared|skills|templates|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
+  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|firme|hooks|output-styles|server|shared|skills|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
   config: /^rotta-(settings|conflitto|rebase|hook)$/,
   // Dal 15/10/2026, per il miglioramento di Arturo. In coda, nello stesso ordine di bin/telemetria.py.
   setup: /^(fase:(10|[0-9][a-z]?)|fine)$/,
@@ -148,12 +152,12 @@ export const EVENTI = {
   skill: unoDi([...SKILL, ...SKILL_USCITE, "altro"]),
   // Dal 3/11/2026: un banco delle guardie diventato rosso su un computer (tests/banchi-avvio.sh).
   banchi: /^test[a-z0-9_-]{1,56}\.py$/,
-  // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati per
-  // non perdere i dati dei client fermi (prima del 24/10/2026 un evento fuori elenco faceva rifiutare il
-  // lotto intero). Da togliere dopo qualche settimana, insieme al loro posto in M09 (tests/test_telemetria.py).
-  // tappa: tolta dal client il 16/10/2026 con il percorso a tappe. Per la stessa ragione `deriva`
-  // accetta ancora la radice templates/, tolta dal client il 16/10/2026: esce con tappa (#3435).
-  tappa: /^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$/,
+  // Dal 15/11/2026 (M7 della memoria, #5672): se la memoria serve. Accesa o spenta con le note in fasce, una volta al
+  // giorno; per sessione le note proposte e quelle aperte, in fasce; un handoff scritto da solo; chi apre /inizio.
+  memoria: /^(spenta|accesa:(0|1-10|11-50|51-200|>200))$/,
+  richiamo: /^(0|1|2-5|6-20|>20)\/(0|1|2-5|6-20|>20)$/,
+  salvataggio: /^automatico$/,
+  inizio: /^(persona|rotazione)$/,
 };
 // Le soglie della ritenzione: installazioni ancora vive dopo 7, 30 e 60 giorni dalla prima volta.
 // Sessanta giorni è il criterio di successo di Arturo (uso vivo dopo due mesi).
@@ -164,7 +168,7 @@ export const TIPI = ["problema", "proposta", "integrazione"];
 // VOCI_PACCHETTO): la voce "collega" non viaggia nel pacchetto, diventa l'id dell'installazione.
 export const STATI = ["ricevuta", "serve-info", "in-lavoro", "chiusa", "rifiutata"];
 export const VOCI_PACCHETTO = ["ambiente", "banchi", "config", "deriva", "errore"];
-export const ORIGINI = ["segnala", "avvio", "fine"];
+export const ORIGINI = ["segnala", "avvio", "fine", "revisione"];
 export const SISTEMI = ["Darwin", "Linux", "Windows", "altro"];
 export const LIMITI = {
   corpoEventi: 64 * 1024,
@@ -177,7 +181,8 @@ export const LIMITI = {
   // Il pacchetto tecnico si svuota prima del testo: serve alla diagnosi, non alla storia.
   pacchettoGiorni: 90,
   eventiPerLotto: 500,
-  eventiPerGiorno: 500,
+  // Un computer usato tutto il giorno fa circa 800 eventi (#5996, 17/11/2026): 500 fermava la coda.
+  eventiPerGiorno: 2000,
   eventiTotaliPerGiorno: 100000,
   // Le installazioni nuove accettate in un giorno (8/11/2026, review del 7/11, finding 40): il tetto per installazione
   // si aggirava con un id nuovo a ogni POST, e da un solo IP 200 lotti riempivano il server per il giorno.
@@ -288,18 +293,21 @@ export function calcolaIndietro(attive, versioni, al, giorni = LIMITI.fermaGiorn
   return fuori.sort((x, y) => (x.dal < y.dal ? -1 : x.dal > y.dal ? 1 : 0));
 }
 
+// nosniff e no-store su ogni risposta (revisione siti del 19/11/2026, #6124): sono dati di una persona o
+// di un modulo, non pagine da tenere in cache.
 function risposta(status, dati) {
   return new Response(JSON.stringify(dati), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff", "cache-control": "no-store" },
   });
 }
 
+// Il tetto vale mentre si legge, anche senza content-length (invio a pezzi): prima leggeva tutto il corpo (#6124).
 async function leggiJson(request, limite) {
-  const testo = await request.text();
-  if (new TextEncoder().encode(testo).length > limite) return { errore: risposta(413, { errore: "troppo grande" }) };
+  const corpo = await corpoLimitato(request, limite);
+  if (corpo === null) return { errore: risposta(413, { errore: "troppo grande" }) };
   try {
-    return { dati: JSON.parse(testo) };
+    return { dati: JSON.parse(new TextDecoder().decode(corpo)) };
   } catch {
     return { errore: risposta(400, { errore: "JSON non valido" }) };
   }
@@ -588,7 +596,7 @@ export function emailConfigRotta(installazione, valore, versione, { adesso = new
 }
 
 // Una config rotta fa un task al mese per installazione e guasto: se resta rotta per giorni, non nasce un task al giorno.
-export const taskRotta = (installazione, tipo, giorno) =>
+const taskRotta = (installazione, tipo, giorno) =>
   task(`rotta:${corto(installazione)}:${tipo}:${giorno.slice(0, 7)}`, `Riparare la config rotta di ${idCorto(installazione)} (${tipo})`,
     { note: `Guasto: ${ROTTA_IN_PAROLE[tipo] || tipo}. Il primo passo è chiedere a chi la usa l'output di /diagnosi.` });
 
@@ -608,6 +616,34 @@ export function ritenzione(righe, al) {
     fuori.soglie.push({ giorni: n, idonee: idonee.length, vive: idonee.filter((x) => giorni(x.prima, x.ultima) >= n).length });
   }
   return fuori;
+}
+
+// Il tempo al primo /fine (M7 della memoria, 15/11/2026): delle installazioni nate nella finestra, quante hanno lanciato
+// /fine e dopo quanti giorni, come mediana. Una riga per installazione: { prima, fine } (fine null se non c'è ancora).
+export function tempoPrimoFine(righe) {
+  const dopo = righe.filter((x) => x.fine).map((x) => giorni(x.prima, x.fine)).sort((a, b) => a - b);
+  const meta = Math.floor(dopo.length / 2);
+  const mediana = !dopo.length ? null : dopo.length % 2 ? dopo[meta] : (dopo[meta - 1] + dopo[meta]) / 2;
+  return { nate: righe.length, conFine: dopo.length, mediana };
+}
+
+// Le misure della memoria in numeri pronti per il testo e per l'HTML del riepilogo. La quota di /inizio si calcola sulle
+// sessioni che la rotazione non ha aperto: ogni rotazione apre una sessione nuova, e la gonfierebbe.
+export function misureMemoria(mem) {
+  const m = mem || {};
+  const inizio = Object.fromEntries((m.inizio || []).map((x) => [x.valore, Number(x.n) || 0]));
+  const persona = inizio.persona || 0;
+  const rotazione = inizio.rotazione || 0;
+  const richiamo = m.richiamo || [];
+  const somma = (filtro) => richiamo.filter(filtro).reduce((s, x) => s + (Number(x.n) || 0), 0);
+  return {
+    persona, rotazione, sessioni: Math.max((m.sessioni || 0) - rotazione, 0),
+    primoFine: m.primoFine || { nate: 0, conFine: 0, mediana: null },
+    stato: m.stato || [],
+    richiamo: { sessioni: somma(() => true), conProposte: somma((x) => !x.valore.startsWith("0/")),
+      conAperte: somma((x) => !x.valore.endsWith("/0")) },
+    salvataggi: m.salvataggi || { n: 0, installazioni: 0 },
+  };
 }
 
 // Viaggia col riepilogo in JSON: la routine che propone correzioni la legge insieme ai numeri (#3507).
@@ -641,7 +677,8 @@ export function testoMigliorare(m) {
     ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${installazioni(x.installazioni)}`, "  nessuna"),
     "",
     `Rimaste indietro (attive negli ultimi ${LIMITI.fermaGiorni} giorni, senza un rilascio uscito da almeno ${LIMITI.fermaGiorni}):`,
-    ...righe(m.indietro, (x) => `  ${corto(x.installazione)}  ferma alla ${x.rilascio}, manca dal ${x.dal}, c'è la ${x.nuovo}`, "  nessuna"),
+    ...righe(m.indietro, (x) => `  ${corto(x.installazione)}  ferma alla ${x.rilascio}, manca dal ${x.dal}, c'è la ${x.nuovo}`
+      + `${x.forma ? `, ${x.forma}` : ""}, ultimo esito ${x.esito || "nessuno"}`, "  nessuna"),
     "",
     "Aggiornamenti non applicati (versione, esito, volte):",
     ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),
@@ -652,7 +689,27 @@ export function testoMigliorare(m) {
     "Versioni di Claude Code (installazioni):",
     ...righe(m.claude, (x) => `  ${x.n}  ${x.valore}`, "  nessun dato"),
     "",
+    ...testoMemoria(m.memoria),
     "---",
+    "",
+  ];
+}
+
+// Se la memoria serve (M7 della memoria, 15/11/2026): le righe di "Dove migliorare Arturo".
+export function testoMemoria(mem) {
+  if (!mem) return [];
+  const x = misureMemoria(mem);
+  const per = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
+  const f = x.primoFine;
+  return [
+    "Memoria:",
+    `  /inizio scritto dalla persona: ${x.persona} su ${x.sessioni} sessioni non aperte dalla rotazione (${per(x.persona, x.sessioni)}); dalla rotazione: ${x.rotazione}.`,
+    `  Primo /fine: ${f.conFine} su ${installazioni(f.nate)} nate negli ultimi 30 giorni` +
+      (f.mediana === null ? "." : `, dopo ${f.mediana} ${f.mediana === 1 ? "giorno" : "giorni"} (mediana).`),
+    `  Stato (l'ultimo per installazione): ${x.stato.length ? x.stato.map((s) => `${s.valore} ${s.n}`).join(", ") : "nessun dato"}.`,
+    `  Richiamo: ${x.richiamo.conProposte} sessioni su ${x.richiamo.sessioni} con note proposte (${per(x.richiamo.conProposte, x.richiamo.sessioni)}), ` +
+      `${x.richiamo.conAperte} con almeno una nota aperta (${per(x.richiamo.conAperte, x.richiamo.conProposte)} di quelle con note proposte).`,
+    `  Salvataggi automatici di sessioni chiuse senza /fine: ${x.salvataggi.n}, ${installazioni(x.salvataggi.installazioni)}.`,
     "",
   ];
 }
@@ -737,7 +794,6 @@ export function testoRiepilogo(r, titolo, testa = []) {
     "", `Eventi scartati perché fuori elenco: ${r.scartati || 0}`,
     `Avvisi non partiti: Telegram ${r.telegramKo || 0}, email ${r.emailKo || 0}`,
     "",
-    ...(testoLancillotto(r.lancillotto) ? [testoLancillotto(r.lancillotto), ""] : []),
     ...testoUso(r.uso),
   ].join("\n");
 }
@@ -775,6 +831,13 @@ export function avvisoSegnalazione(s, numero, leggi = "") {
 // Lo sportello (4/11/2026): un seguito o un ritiro, col solo numero.
 export function avvisoContributo(numero, cosa) {
   return `Arturo: segnalazione n. ${Number(numero)}, ${cosa === "ritira" ? "ritirata da chi l'ha mandata" : "un seguito di chi l'ha mandata"}`;
+}
+
+// La cancellazione (#4793): l'id per intero non esce, bastano i primi 8 caratteri per riconoscere la persona.
+export function avvisoDimentica(installazione, eventi, numeri) {
+  const segnalazioni = numeri.length ? `, le segnalazioni ${numeri.map((n) => `n. ${Number(n)}`).join(", ")}` : ", nessuna segnalazione";
+  return `Arturo: l'installazione ${installazione.slice(0, 8)} ha chiesto di essere dimenticata. Cancellati ${Number(eventi)} eventi` +
+    `${segnalazioni}.` + (numeri.length ? " Le copie di quelle segnalazioni su Telegram e Gmail si tolgono a mano." : "");
 }
 
 export function avvisoSetupFinito(riga) {
@@ -1042,27 +1105,20 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     return risposta(200, { accettati: righe.length, scartati });
   }
 
-  // Lancillotto: stessi tetti per IP e per installazione di Arturo, tabella e avviso suoi.
-  if (url.pathname === "/v1/lancillotto/eventi") {
-    if (!await limite("eventi", request)) return risposta(429, { errore: "troppe richieste" });
-    const { dati, errore } = await leggiJson(request, LIMITI.corpoEventi);
+  // La persona cancella i suoi dati (20/11/2026, #4793): prima scriveva all'indirizzo della privacy e aspettava chi
+  // mantiene Arturo. Basta l'id, che conoscono solo lei e chi mantiene Arturo: chi lo indovina cancella e basta, non legge
+  // niente. La risposta ha la stessa forma anche per un id mai visto, così non dice se un'installazione esiste.
+  if (url.pathname === "/v1/dimentica") {
+    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
+    const { dati, errore } = await leggiJson(request, 1024);
     if (errore) return errore;
-    const { righe, scartati, installazione, motivo } = validaLottoLancillotto(dati, giorno,
-      { eventiPerLotto: LIMITI.eventiPerLotto, giorniIndietro: LIMITI.giorniIndietro });
-    if (motivo) return risposta(400, { errore: motivo });
-    const gia = await archivio.contaEventiLancillotto(installazione, giorno);
-    if (gia + righe.length > LIMITI.eventiPerGiorno) return risposta(429, { errore: "troppi eventi oggi" });
-    if (righe.length && await archivio.incrementa(giorno, "eventi", righe.length) > LIMITI.eventiTotaliPerGiorno) {
-      return risposta(429, { errore: "server pieno per oggi" });
+    const installazione = dati && typeof dati.installazione === "string" ? dati.installazione : "";
+    if (!ID.test(installazione)) return risposta(400, { errore: "installazione non valida" });
+    const { eventi, segnalazioni } = await archivio.dimentica(installazione);
+    if ((eventi || segnalazioni.length) && await archivio.incrementa(giorno, "avviso-segnalazione") <= LIMITI.avvisiSegnalazioniPerGiorno) {
+      await telegram(avvisoDimentica(installazione, eventi, segnalazioni));
     }
-    if (scartati) await archivio.incrementa(giorno, "scartati-lancillotto", scartati);
-    if (!righe.length) return risposta(200, { accettati: 0, scartati });
-    const nuova = await archivio.installazioneNuovaLancillotto(installazione);
-    await archivio.scriviEventiLancillotto(righe, adesso.toISOString());
-    if (nuova && await archivio.incrementa(giorno, "avviso-installazione") <= LIMITI.avvisiInstallazioniPerGiorno) {
-      await telegram(avvisoInstallazioneLancillotto(righe[0]));
-    }
-    return risposta(200, { accettati: righe.length, scartati });
+    return risposta(200, { eventi, segnalazioni: segnalazioni.length });
   }
 
   if (url.pathname === "/v1/segnalazioni") {
@@ -1131,7 +1187,8 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
   // I download dal sito: il comando di installazione copiato, o il repository aperto.
   if (url.pathname === "/v1/sito") {
     if (daFuori) return risposta(403, { errore: "invio da un altro sito" });
-    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
+    // Secchio suo (#6124): i download arrivano tutti con l'IP del server della landing, e prima chiudevano il modulo a tutti.
+    if (!await limite("sito", request)) return risposta(429, { errore: "troppe richieste" });
     const { dati, errore } = await leggiJson(request, 2048);
     if (errore) return errore;
     const { evento, motivo } = validaSito(dati);

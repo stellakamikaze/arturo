@@ -132,9 +132,12 @@ def solo_testo(testo):
 
 
 def elenca(radice):
-    """Gli handoff: lista di dict (slug, nome, rel, percorso, data, ora, testo, chiave)."""
+    """Gli handoff: lista di dict (slug, nome, rel, percorso, data, ora, testo, chiave).
+    Una cartella che è un link a un'altra (un nome vecchio del progetto) si salta: i suoi handoff sono già
+    nella cartella vera, e contarli due volte raddoppiava ogni riga dell'indice (18/11/2026)."""
     out = []
-    for d in sorted(p for p in Path(radice).iterdir() if p.is_dir() and not p.name.startswith(".")):
+    for d in sorted(p for p in Path(radice).iterdir()
+                    if p.is_dir() and not p.is_symlink() and not p.name.startswith(".")):
         for f in sorted(d.iterdir()):
             m = RE_FILE.match(f.name)
             if not m or not f.is_file():
@@ -302,6 +305,9 @@ def genera(radice, index_path, oggi):
                 stats["superate"] += 1  # punta a un handoff che non è più l'ultimo del suo filone
             continue
         base = v["file"].split("/")[0] if "/" in v["file"] else slug_etichetta(v["etichetta"])
+        if (Path(radice) / base).is_symlink():  # nome vecchio di un progetto: le sue righe stanno già sotto quello vero
+            stats["superate"] += 1
+            continue
         if base in slug_generati and base not in CONTENITORI:
             stats["superate"] += 1
             continue

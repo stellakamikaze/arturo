@@ -24,6 +24,8 @@ TF04 la versione è solo un tag di rilascio di Arturo: un tag della persona ("va
      "v2026-10-21-rossi") non esce mai.
 TF05 gli elenchi della deriva sul server (file della radice, skills/, agents/, commands/, hooks/, hook di settings.json)
      coincidono col repository.
+TF06 (17/11/2026, #5996) il lotto del client sta nel lotto del server e il tetto del giorno vale almeno cinque lotti:
+     con lotto e tetto entrambi a 500, un lotto rifiutato fermava la coda per tutto il giorno.
 US04 l'unione di settings.json porta i matcher nuovi (Monitor, PostToolUseFailure) a chi ha cambiato un
      hook di PostToolUse: i due gruppi "Edit|MultiEdit|Write" non fanno più conflitto.
 
@@ -402,8 +404,20 @@ def test_us04(repo: Path) -> None:
         "US04 l'unione perde le aggiunte della persona"
 
 
+def test_tf06(repo: Path) -> None:
+    tel = _carica_da(repo / "bin" / "telemetria.py", "telemetria_tf06")
+    js = read(repo / "server" / "logica.js")
+    limite = {k: int(v) for k, v in re.findall(r"^\s*(eventiPerLotto|eventiPerGiorno): (\d+),", js, re.M)}
+    assert len(limite) == 2, f"TF06 eventiPerLotto ed eventiPerGiorno non si leggono in server/logica.js: {limite}"
+    assert tel.LOTTO <= limite["eventiPerLotto"], f"TF06 il lotto del client ({tel.LOTTO}) supera quello del server"
+    assert limite["eventiPerGiorno"] >= 5 * tel.LOTTO, \
+        f"TF06 il tetto del giorno ({limite['eventiPerGiorno']}) vale meno di cinque lotti da {tel.LOTTO}"
+    assert limite["eventiPerGiorno"] >= tel.CODA_MASSIMA, \
+        f"TF06 il tetto del giorno ({limite['eventiPerGiorno']}) non svuota una coda piena ({tel.CODA_MASSIMA})"
+
+
 TESTS = {"CT02": test_ct02, "CT03": test_ct03, "TF01": test_tf01, "TF02": test_tf02, "TF03": test_tf03, "TF04": test_tf04,
-         "TF05": test_tf05, "M21": test_m21, "M22": test_m22, "M23": test_m23, "M24": test_m24, "M25": test_m25, "US04": test_us04}
+         "TF05": test_tf05, "TF06": test_tf06, "M21": test_m21, "M22": test_m22, "M23": test_m23, "M24": test_m24, "M25": test_m25, "US04": test_us04}
 
 
 def main() -> int:

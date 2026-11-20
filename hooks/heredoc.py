@@ -34,6 +34,9 @@ LETTORI = frozenset("cat tee grep rg jq sort head tail wc diff git cut tr uniq l
 # Interpreti che eseguono il corpo come codice loro, non come shell.
 INTERPRETI = frozenset("python python3 node ruby perl php".split())
 # Parole che stanno davanti al programma senza esserlo, e involucri che eseguono il comando dopo.
+# Di proposito più corta di forma_comando._DAVANTI: qui decide chi consuma un heredoc, e in
+# `done <<'EOF'` o `} <<'EOF'` il corpo va al ciclo o al gruppo intero, non a un lettore. Con `done`
+# e `}` nella lista il consumatore resta vuoto. Il banco GC09 controlla che resti un sottoinsieme (#5361).
 _DAVANTI = frozenset("! { then do else elif if while until time".split())
 _INVOLUCRI = frozenset("command builtin exec nohup nice env caffeinate".split())
 # Codice di un interprete che lancia programmi: quel corpo resta visibile.
@@ -310,6 +313,24 @@ _FILE_DI_COSTRUZIONE = re.compile(r"(?i)^(?:gnu)?makefile$|\.mk$|^justfile$|^pac
 _MODULO_PYTHON = re.compile(r"(?:^|[\s;&|(])(?:\S*/)?python3?(?:\.\d+)?\s[^\n;&|]*-m\s", _RE_NOMI)
 
 
+# `for f in a.sh b.sh; do bash "$f"; done` con una lista di parole fisse: la variabile vale solo quelle
+# parole, e l'esecutore non riceve un argomento mobile (15/11/2026, #5714). Una lista con un glob, una
+# variabile, una sostituzione o virgolette resta mobile.
+_FOR_FISSO = re.compile(r"(?<![\w$])for\s+([A-Za-z_]\w*)\s+in\s+([^;\n]*?)\s*(?:;|\n)\s*do\b(.*?)\bdone\b", re.S)
+_PAROLA_FISSA = re.compile(r"^[\w./~+@%:,=-]+$")
+
+
+def _espandi_for_fissi(testo: str) -> str:
+    """Il testo con ogni ciclo for su parole fisse sostituito dal suo corpo, una volta per parola."""
+    def uno(m: "re.Match[str]") -> str:
+        var, lista, corpo = m.group(1), m.group(2).split(), m.group(3)
+        if not lista or not all(_PAROLA_FISSA.match(p) for p in lista):
+            return m.group(0)
+        uso = re.compile(r'"?\$(?:\{' + var + r'\}|' + var + r'(?!\w))"?')
+        return "\n".join(uso.sub(lambda _m, p=p: p, corpo) for p in lista)
+    return _FOR_FISSO.sub(uno, testo)
+
+
 def _eseguito_per_altra_via(prima: str, dopo: str, resto_riga: str, righe_dopo: List[str]) -> bool:
     """Il file scritto dall'heredoc può girare senza che il suo nome segua un esecutore (review del 10/11/2026,
     n. 6): un esecutore con un glob o una variabile (`bash /tmp/x.s?`), il nome che ricompare accanto a un
@@ -319,7 +340,7 @@ def _eseguito_per_altra_via(prima: str, dopo: str, resto_riga: str, righe_dopo: 
         return False
     resto = _REDIREZIONE.sub(" ", dopo, count=1) + "\n" + resto_riga + "\n" + "\n".join(righe_dopo)
     esecutore = re.search(_ESECUTORI, resto, _RE_NOMI) is not None
-    if esecutore and _ARGOMENTO_MOBILE.search(resto):
+    if esecutore and _ARGOMENTO_MOBILE.search(_espandi_for_fissi(resto)):
         return True
     for b in bersagli:
         nome = os.path.basename(b)

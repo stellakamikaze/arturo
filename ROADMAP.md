@@ -1,8 +1,8 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-10
+Aggiornata il 2026-11-18
 
-Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico.
+Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (`docs/strati.md`).
 
 Se una voce ti riguarda, o se manca qualcosa che ti serve, scrivilo sulla pagina della roadmap: https://arturo.stellakamikaze.org/roadmap/. Ogni voce ha il suo spazio per i commenti, e gli altri utenti li leggono.
 
@@ -10,7 +10,7 @@ Se una voce ti riguarda, o se manca qualcosa che ti serve, scrivilo sulla pagina
 Per le sessioni che sviluppano Arturo: questa è la mappa unica del lavoro (regola in docs/manutenzione.md).
 Una sessione parte da una voce e il suo /fine aggiorna "Stato" della voce e la data in testa.
 I task della voce stanno nel commento "task:", che il sito non mostra.
-Forma di una voce: "### Titolo {#ancora}", poi "Stato: ...", poi i paragrafi, poi il commento dei task.
+Forma di una voce: "### Titolo {#ancora}", poi "Stato: ...", poi "Strato: ...", poi i paragrafi, poi il commento dei task.
 L'ancora non cambia mai: i commenti sul sito sono legati a lei.
 -->
 
@@ -20,6 +20,8 @@ L'ancora non cambia mai: i commenti sul sito sono legati a lei.
 
 Stato: quasi finito. Il plugin si installa, si aggiorna solo da rilasci firmati e all'avvio porta le regole di Arturo. Manca la prova su un Mac pulito.
 
+Strato: Ingresso.
+
 Oggi Arturo vive nella stessa cartella delle tue modifiche, `~/.claude`. Per questo un aggiornamento può scontrarsi con un file che hai cambiato tu. Con il plugin, Arturo sta in una cartella sua e la tua parte personale resta tua: un aggiornamento cambia solo Arturo.
 
 Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di provare il passaggio guidato: la prova non cambia niente (voce "Il passaggio al plugin"). Su Windows la proposta arriva quando il passaggio è provato anche lì.
@@ -28,7 +30,9 @@ Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di 
 
 ### Le correzioni della revisione di novembre {#revisione-novembre}
 
-Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, e sul Python che manca.
+Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, sul Python che manca e sui comandi di Windows che cancellano o eseguono (`robocopy`, `reg delete`, PowerShell, `wsl`, node) e sull'avvio automatico (cartella Esecuzione automatica, profili PowerShell, `schtasks`, chiavi `Run` del registro, `sc create`) e sul codice Python e node che scrive la config (`open()`, `shutil.copy`, `write_text`, `writeFileSync`, archivi estratti).
+
+Strato: Protezione.
 
 Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con `.exe` passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.
 
@@ -38,6 +42,8 @@ Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato 
 
 Stato: in corso. Una parte è scritta e aspetta il banco di prova.
 
+Strato: Protezione.
+
 Le guardie fermano i comandi rischiosi: cancellazioni, invii, segreti. Alcune chiedono conferma più volte per la stessa cosa, o su un file che stai già modificando. L'obiettivo è una conferma sola, dove serve davvero.
 
 <!-- task: #4472 #4473 #4435 #4558 #3779 #4547 #4308 #3118 #3701 -->
@@ -45,6 +51,8 @@ Le guardie fermano i comandi rischiosi: cancellazioni, invii, segreti. Alcune ch
 ### La testata di Arturo sotto quella di Claude Code {#testata}
 
 Stato: in corso. La riga con versione e stato della configurazione è uscita nella 0.2.0; il blocco con la stella e la roadmap arriva con la 0.3.
+
+Strato: Ingresso.
 
 All'avvio, subito sotto l'intestazione di Claude Code, compare il blocco di Arturo: il marchio con la stella, la versione, lo stato della configurazione e gli aggiornamenti in arrivo. Ogni due settimane, o quando questa pagina cambia, il blocco ti ricorda la roadmap. Gli avvisi dei controlli interni non compaiono più a ogni avvio.
 
@@ -56,23 +64,61 @@ L'intestazione di Claude Code, con la sua mascotte, non si può cambiare: nessun
 
 Stato: in corso. La skill `humanizer` è su dev ed esce con il prossimo rilascio.
 
+Strato: Metodo.
+
 Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti inventati, chiuse a effetto, elenchi di tre, parole gonfie. La skill `humanizer` li toglie senza cambiare cosa dice il testo, e segue il tuo modo di scrivere. È l'adattamento italiano di un progetto open source di blader, e prende il posto del catalogo dei tic che Arturo aveva dentro la skill dell'italiano semplificato.
 
 <!-- task: #4695 -->
 
 ### Le vostre segnalazioni {#segnalazioni}
 
-Stato: in corso. Tre correzioni escono con il prossimo rilascio.
+Stato: in corso. Col prossimo rilascio escono quattro proposte: colori e barra in un file tuo che gli aggiornamenti non toccano, la sessione chiusa in viola, gli elenchi lunghi in un file e la riga d'esempio nel brief.
+
+Strato: Misura.
 
 Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli ancora aperti: comandi che si fermano, testi poco chiari, passi di installazione che non tornano.
 
-<!-- task: #4068 #4071 #4074 #4099 #4102 #3842 #3845 #4103 #4187 #4545 #4190 -->
+<!-- task: #4068 #4071 #4074 #4099 #4102 #3842 #3845 #4103 #4187 #4545 #4190 #5432 #5378 #5693 #5836 -->
 
 ## Prossimo (versione 0.4)
+
+### Arturo ti propone cosa automatizzare {#scoperta}
+
+Stato: in corso. La prima versione è pronta sul ramo di sviluppo `dev` ed esce col prossimo rilascio. Comprende il comando `arturo scoperta`, l'indice che si aggiorna dopo ogni modifica, l'impronta dei file presa da `/inizio` e la proposta che arriva con `/fine`. Per ora non manda niente alla telemetria: i conteggi partiranno solo quando sarà pubblicato il testo nuovo sulla privacy.
+
+Strato: Scoperta.
+
+Claude Code tiene già una copia di ogni versione dei file che modifichi con lui. Arturo le legge e cerca le ripetizioni: lo stesso file cambiato a intervalli regolari, gli stessi campi riscritti, gruppi di file toccati insieme. A fine lavoro, in `/fine`, ti propone un'automazione con le prove: le date, le modifiche, una bozza da leggere. Le proposte sono al massimo una per sessione e due a settimana. Se dici sì, la bozza diventa una skill o una routine, che puoi sempre annullare; se dici no, la stessa proposta non torna. Le versioni dei file e le bozze restano sul tuo computer: alla telemetria arriveranno solo i conteggi delle proposte fatte, accettate e annullate, dopo il testo nuovo della privacy.
+
+La Scoperta legge anche l'indice delle tue chat, se l'hai fatto con `/setup`: un lavoro con almeno cinque conversazioni in chat, la prima e l'ultima in due mesi diversi, diventa una proposta senza aspettare che tu lo ripeta in Claude Code. Le proposte hanno tre forme: un'automazione, come nella prima versione; una sintesi, cioè un documento che raccoglie un lavoro lungo; oppure una pagina web locale, da un modello di mestiere, di solito quello della tua famiglia. Per esempio una lezione interattiva per chi insegna, un simulatore di spesa per chi produce eventi o un calendario editoriale per chi scrive una newsletter ([I mestieri della conoscenza](docs/mestieri.md)). `arturo scoperta mappa` ti dice per ogni progetto cosa Arturo può proporti e in che forma.
+
+<!-- task: #5615 #5702 -->
+
+### Arturo parte da quello che hai già fatto con l'IA {#storico}
+
+Stato: in corso. Su un ramo di sviluppo ci sono `arturo storico`, la fase 2a di `/setup` e il testo nuovo della privacy, approvato il 15/11. Restano la prova su un'esportazione vera e la verifica dei percorsi delle impostazioni nei tre servizi.
+
+Strato: Ingresso, con la Memoria.
+
+Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Gemini. Scarichi l'esportazione delle tue conversazioni e Arturo la legge: divide le conversazioni e le raggruppa per lavoro, insieme ai file che ci avevi caricato, quando l'esportazione li contiene. Il lavoro pesante lo fa uno script sul tuo computer, senza modello: a Claude arriva l'indice dei lavori, non le chat intere. Sul tuo computer resta solo l'indice che approvi, lavoro per lavoro: titolo, periodo, temi e materiali collegati. Il testo delle chat non resta, e l'indice si cancella con un comando. `/inizio` e la memoria lo usano da lì in poi.
+
+<!-- task: #5700 -->
+
+### L'intervista che continua {#intervista}
+
+Stato: in corso. Su un ramo di sviluppo ci sono `arturo intervista`, la domanda in `/inizio` e le domande per famiglia in [I mestieri della conoscenza](docs/mestieri.md). Per ora dura sei settimane dopo `/setup`, ma la durata è ancora fra le voci da decidere.
+
+Strato: Metodo, con la Memoria.
+
+`/setup` ti intervista una volta. Dopo, `/inizio` ti fa al massimo una domanda al giorno su quello che Arturo non sa ancora del tuo lavoro, per esempio per chi lo fai. Le domande cambiano col mestiere ([I mestieri della conoscenza](docs/mestieri.md)). La risposta entra nella memoria solo col tuo sì, e `arturo intervista spegni` ferma le domande.
+
+<!-- task: #5709 -->
 
 ### Il passaggio al plugin per chi usa già Arturo {#passaggio}
 
 Stato: pronto. Il comando è `arturo migra`. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Chi mantiene Arturo decide quando chiederlo a tutti.
+
+Strato: Ingresso.
 
 Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale.
 
@@ -82,17 +128,31 @@ Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente
 
 Stato: in corso a fasi. Le prime due fasi sono uscite.
 
+Strato: Misura.
+
 La telemetria manda solo eventi: quale comando, quale guardia, quanto dura una sessione. Mai i tuoi testi, i tuoi file o le risposte di Claude. Le fasi che restano misurano dove le persone si fermano, e servono a migliorare Arturo. L'ultima fase parte solo dopo un parere legale sulla privacy.
 
 <!-- task: #3925 #3926 #3928 #3400 #3435 #4548 #3499 #3930 -->
 
 ### Assistenti per ruolo: posta, agenda, archivio {#ruoli}
 
-Stato: in corso. È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali.
+Stato: in corso. È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali. /monitor impara dalle tue correzioni (scarti, ripristini, mittenti, voci del report) e ha una guida per adattarlo al tuo lavoro.
+
+Strato: Collegamenti.
 
 Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva per urgenza, la posta, l'agenda, l'archivio dei documenti, e un osservatore che ti propone cosa delegare. Ogni skill ha una versione generica, e tu la adatti nella tua parte personale.
 
 <!-- task: #4536 #4538 -->
+
+### Una sessione ferma riparte da sola {#ripresa}
+
+Stato: in corso. Nasce dalla prima `/revisione` del 17 novembre 2026. Dal 17 novembre Volta fa ripartire da sola le sessioni ferme per il limite o per la connessione persa. Restano i lavori lunghi in parallelo che aspettano il limite.
+
+Strato: Ingresso.
+
+Oggi una sessione si ferma quando finisce il limite d'uso del modello, quando la connessione cade a metà risposta o quando il computer va in stop. Poi aspetta che tu scriva "riprendi". Arturo la fa ripartire da sola appena può: quando il limite si azzera, quando la rete torna, quando il computer si sveglia. Ti dice in una riga che è ripartita e da dove. I lavori lunghi in parallelo aspettano il limite invece di fermarsi tutti insieme.
+
+<!-- task: #5882 -->
 
 ## Dopo (versione 0.5 e oltre)
 
@@ -100,21 +160,49 @@ Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva
 
 Stato: da fare, dopo il passaggio dei primi utenti.
 
+Strato: Orsa.
+
 Oggi Arturo nasce dalla configurazione personale di chi lo mantiene. Dopo il plugin il verso si rovescia: anche quella configurazione diventa Arturo più una parte personale, come la vostra.
 
 <!-- task: #4535 #4292 #4293 #4294 -->
 
 ### Sito e documentazione {#documentazione}
 
-Stato: da fare.
+Stato: in corso. Il README è riordinato, e `docs/strati.md` descrive i due assi per chi sviluppa Arturo. Restano il sito e la prova da una macchina pulita.
 
-Il README si apre con lo schema degli strati, e un capitolo spiega come estendere Arturo senza copiarlo. Il sito racconta il plugin. Il criterio: una persona nuova installa Arturo da una macchina pulita seguendo solo la documentazione.
+Strato: Ingresso.
 
-<!-- task: #4537 #3373 #4439 -->
+Il README parte da cosa fa Arturo, e `docs/strati.md` spiega come estendere una skill senza copiarla. Resta il sito, che deve raccontare il plugin. Il lavoro è finito quando una persona nuova installa Arturo su una macchina pulita seguendo solo la documentazione.
+
+I mestieri della conoscenza (`docs/mestieri.md`) danno al racconto gli esempi, famiglia per famiglia, e il README racconta la strada dalla chat al terminale.
+
+<!-- task: #4537 #3373 #4439 #5699 -->
+
+### Esportare un progetto e limitare cosa Claude legge {#contesto}
+
+Stato: in corso. Su un ramo di sviluppo ci sono `arturo fascicolo esporta` e `arturo fascicolo importa`. Come limitare cosa Claude legge aspetta una decisione.
+
+Strato: Memoria, con la Protezione.
+
+Il modello gira sui server dell'azienda che lo vende, ma la memoria di Arturo sta sul tuo computer, in file di testo accanto ai tuoi materiali. Per questo un progetto si può copiare e passare a qualcun altro. Questa voce aggiunge due comandi. `arturo fascicolo esporta` copia il contesto di un progetto in una cartella di file di testo, e un collega con Arturo la importa con `arturo fascicolo importa`. I file `.md` della stessa cartella si caricano in un progetto di ChatGPT o di Claude.ai. Un file con un possibile segreto resta fuori, e i testi che arrivano da un'altra persona passano dai controlli di `arturo fascicolo importa` prima di entrare nella memoria. L'ultima parte è un limite a cosa Claude legge: cartelle escluse dalla lettura, e un avviso prima di aprire un file che hai segnato come riservato.
+
+<!-- task: #5710 -->
+
+### Arturo ti propone uno spazio quando ti serve {#spazi}
+
+Stato: pronto per il prossimo rilascio.
+
+Strato: Orsa, con l'Ingresso.
+
+Arturo ti propone uno spazio quando vede un segnale nel tuo lavoro, una volta sola e dicendoti quale segnale ha visto. Arturo ti suggerisce Melchior quando la memoria è spenta e hai almeno 15 handoff o un CLAUDE.md di almeno 250 righe, perché la memoria tiene le decisioni, gli errori già visti e le preferenze in note piccole, e porta in ogni sessione solo quelle che servono al lavoro di quel giorno. Ti propone di spostare nell'Orsa una correzione che hai fatto in tre sessioni diverse, perché lì gli aggiornamenti non la toccano. Nell'Orsa entra anche un nome tuo per Arturo, con `arturo nome`. Volta, la finestra simile alla chat, resta una prova di chi mantiene Arturo e non fa parte di questa voce.
+
+<!-- task: #5711 -->
 
 ### Le viste dei tuoi compiti {#viste}
 
 Stato: fermo, aspetta una decisione.
+
+Strato: Memoria.
 
 I tuoi compiti hanno già un archivio, un comando e una pagina locale. Un compito può aspettarne un altro fin da quando nasce, e ogni progetto ha una riga che dice a che punto è. Restano da scegliere la vista dei progetti e il pannello dentro Claude Code.
 
@@ -123,6 +211,8 @@ I tuoi compiti hanno già un archivio, un comando e una pagina locale. Un compit
 ### Arturo per le organizzazioni {#organizzazioni}
 
 Stato: rinviato.
+
+Strato: Orsa.
 
 Uno strato sopra Arturo, curato da una persona di riferimento: le skill del mestiere, la voce e le regole di scrittura, i collegamenti agli strumenti dell'organizzazione. È stato progettato e poi rinviato il 16 ottobre 2026, per finire prima il plugin.
 
@@ -136,6 +226,9 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
+- Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
+- Per quanto tempo continua l'intervista dopo `/setup`: oggi sei settimane, una domanda al giorno al massimo (voce "L'intervista che continua"). <!-- task: #5709 -->
+- Se i segnali di oggi per Melchior e l'Orsa sono quelli giusti, e con quali soglie (voce "Arturo ti propone uno spazio quando ti serve"). <!-- task: #5711 -->
 
 ## Uscito di recente
 

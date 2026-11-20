@@ -174,6 +174,7 @@ def test_ct06(repo: Path) -> None:
     server = Server()
     lab = Lab(repo, server)
     salva_contatto(lab)
+    lab.telemetria("accendi")  # il sì alla domanda di /setup: senza, gli eventi non partono (M29)
     lab.telemetria("registra", "sessione")
     _, _, percorso = lab.prepara("Non parte.")
     lab.arturo("segnala", "invia", "--canale", "arturo", "--file", percorso)

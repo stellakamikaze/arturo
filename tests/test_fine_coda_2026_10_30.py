@@ -21,6 +21,11 @@ FC12 (finding 27) la copia dell'indice per il commit della memoria ha un nome su
      index.fine-coda, il commit della memoria non esce con l'albero vuoto. Solo fuori da Windows (git finto).
 FC13 (finding 30) una riga di soli ======= (titolo in Markdown) non ferma la coda; un conflitto vero
      ferma e dice il nome del file.
+FC14 (#5878, revisione del 17/11/2026) in rotazione (--leggero o --rotazione) un handoff che chiede alla
+     persona /clear e /inizio, nel prossimo passo o nella Ripartenza, rende la coda rossa: exit 1, niente
+     commit, la riga citata. Restano verdi: il passo con "io" come soggetto che nomina /clear, la riapertura
+     per un rilascio (solo /inizio), il /fine scritto dalla persona e il mod spento (ARTURO_ROTAZIONE=0).
+     Sulla base e0ec624 è rosso.
 
 Sulla base 875109c bin/fine-coda.py non esiste: rossi tutti i casi.
 """
@@ -35,13 +40,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09", "FC10", "FC11", "FC12", "FC13"]
+CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09", "FC10", "FC11", "FC12", "FC13",
+        "FC14"]
 FILE = ["bin/fine-coda.py", "bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/handoff_profilo.py",
         "bin/index-rigenera.py", "bin/todo_store.py", "hooks/melchior_match.py", "hooks/radici.py", "hooks/controlla-config.py",
         ".gitignore"]
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1"}
 VERDE = "# Session Handoff\n## Progetto\n- Nome: libro / Branch: main\n\n## Task Pendenti\nNessun task pendente.\n"
+CLEAR = ("# Session Handoff\n## Progetto\n- Nome: libro / Branch: main\n## Ripartenza\nLo step 2 è fatto.\n"
+         "Prossimo passo: {passo}\n\n## Task Pendenti\nNessun task pendente.\n")
 ROSSO = "# Session Handoff\n## Progetto\n- Nome: libro / Branch: main\n\n## Altro\nniente\n"
 
 
@@ -71,6 +79,7 @@ class Lab:
                              PATH=str(finti) + os.pathsep + os.environ.get("PATH", ""), ARTURO_TODO=str(tmp / "eventi.jsonl"),
                              CLAUDE_CODE_SESSION_ID="prova-fc", TMPDIR=str(self.temp), TEMP=str(self.temp),
                              TMP=str(self.temp), ARTURO_TELEMETRIA="0", PYTHONDONTWRITEBYTECODE="1", **GIT_ENV)
+        self.ambiente.pop("ARTURO_ROTAZIONE", None)
         self.remoto = tmp / "privato.git"
         self.git(tmp, "init", "-q", "--bare", "-b", "main", str(self.remoto))
         self.git(self.cl, "init", "-q", "-b", "main")
@@ -329,12 +338,43 @@ def fc13(lab: Lab):
                 f"conflitto rc={r2.returncode} {r2.stdout.strip()[-160:]!r}")
 
 
+def fc14(lab: Lab):
+    chiede = "scrivi /clear e poi /inizio libro, riparto dallo step 3"
+    casi = [  # (passo, altre righe della Ripartenza, argomenti, ARTURO_ROTAZIONE, rc atteso)
+        (chiede, "", ["--leggero"], None, 1),
+        (chiede, "", ["--rotazione"], None, 1),
+        ("tu: /clear e /inizio libro", "", ["--leggero"], None, 1),
+        ("io faccio lo step 3.", "Per ripartire scrivi /clear e poi /inizio libro.\n", ["--leggero"], None, 1),
+        ("io faccio lo step 3, la chiusura che chiede /clear e /inizio a Federico", "", ["--leggero"], None, 0),
+        ("tu chiudi e riapri Claude Code, poi scrivi /inizio libro", "", ["--leggero"], None, 0),
+        (chiede, "", [], None, 0),
+        (chiede, "", ["--leggero"], "0", 0),
+    ]
+    errori = []
+    for i, (passo, altro, argomenti, interruttore, atteso) in enumerate(casi):
+        testo = CLEAR.format(passo=passo).replace("Prossimo passo:", altro + "Prossimo passo:")
+        ambiente = dict(lab.ambiente)
+        if interruttore is not None:
+            lab.ambiente["ARTURO_ROTAZIONE"] = interruttore
+        prima = lab.commit()
+        try:
+            r = lab.coda(lab.handoff(f"HANDOFF_2026-11-17_1{i}-00.md", testo), *argomenti)
+        finally:
+            lab.ambiente = ambiente
+        rossa = r.returncode == 1 and lab.commit() == prima and "ROTAZIONE" in r.stdout and "/clear" in r.stdout
+        if (atteso == 1 and not rossa) or (atteso == 0 and r.returncode != 0):
+            errori.append(f"caso {i} {argomenti} {passo[:30]!r}: rc={r.returncode} {r.stdout.strip()[-140:]!r}")
+        if atteso == 1:  # l'handoff rosso resta fuori dal commit: il caso dopo non lo porta con sé
+            (lab.cl / "data" / "handoffs" / "libro" / f"HANDOFF_2026-11-17_1{i}-00.md").unlink()
+    return "; ".join(errori) or None
+
+
 def prova(repo: Path, ref: str | None) -> list:
     rossi = []
     for codice, fn, k in (("FC01", fc01, {}), ("FC02", fc02, {}), ("FC03", fc03, {"visibilita": "PUBLIC"}),
                           ("FC04", fc04, {}), ("FC05", fc05, {}), ("FC06", fc06, {}), ("FC07", fc07, {}),
                           ("FC08", fc08, {}), ("FC09", fc09, {}), ("FC10", fc10, {}), ("FC11", fc11, {}),
-                          ("FC12", fc12, {}), ("FC13", fc13, {})):
+                          ("FC12", fc12, {}), ("FC13", fc13, {}), ("FC14", fc14, {})):
         esito = con_lab(repo, ref, fn, **k)
         if esito:
             rossi.append(f"{codice} {esito}")

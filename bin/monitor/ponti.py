@@ -24,7 +24,9 @@ ponti.json, una voce per ponte personale:
 `comando` e `prova` sono liste: niente shell. `~` vale la home.
 
 Variabili per il banco: ARTURO_HOME (al posto di ~/.claude), GWS_CONFIG_BASE (al posto di
-~/.config), ARTURO_BIN (la cartella bin con memoria.py e il vecchio fonte-task.local). Solo libreria standard, Python 3.8 o successivo.
+~/.config), ARTURO_BIN (la cartella bin con memoria.py). La fonte esterna dei task non segue nessuna di
+queste: la legge todo_store.comando_fonte(), lo stesso punto di `arturo todo`, dalla radice della persona
+(CLAUDE_CONFIG_DIR o ~/.claude). Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
@@ -36,7 +38,9 @@ import subprocess
 import sys
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parents[2] / "hooks"))
-from radici import file_locale, radice_orsa  # noqa: E402
+sys.path.append(str(Path(os.path.realpath(__file__)).parents[1]))
+from radici import radice_orsa  # noqa: E402
+import todo_store as ts  # noqa: E402
 
 CASA = Path(os.environ.get("ARTURO_HOME") or radice_orsa())
 CONFIG = Path(os.environ.get("GWS_CONFIG_BASE") or Path.home() / ".config")
@@ -93,11 +97,10 @@ def google():
 
 def task():
     cosa = "i task nuovi, senza doppioni, e quelli fermi da controllare"
-    locale = file_locale("fonte-task.local", BIN / "fonte-task.local")
-    if locale.is_file():
-        riga = next((r for r in locale.read_text(encoding="utf-8").splitlines()
-                     if r.strip().startswith("comando")), "")
-        return ponte("task", "pronto", cosa, dettaglio="fonte esterna: " + riga.split("=", 1)[-1].strip())
+    # Lo stesso punto di `arturo todo`: se qui c'è una fonte esterna, anche i todo vanno lì (#4835).
+    esterna = ts.comando_fonte()
+    if esterna:
+        return ponte("task", "pronto", cosa, dettaglio=f"fonte esterna di {ts.nome_fonte()}: " + " ".join(esterna))
     eventi = CASA / "data" / "todo" / "eventi.jsonl"
     n = sum(1 for _ in eventi.open(encoding="utf-8")) if eventi.is_file() else 0
     return ponte("task", "pronto", cosa, dettaglio=f"arturo todo ({n} eventi)" if n else "arturo todo, ancora vuoto")

@@ -35,6 +35,12 @@ name = "LIMITE_MODULI"
 namespace_id = "1002"
 simple = { limit = 10, period = 60 }
 
+# I download dal sito hanno un secchio loro (19/11/2026, #6124): arrivano tutti con l'IP del server della landing.
+[[ratelimits]]
+name = "LIMITE_SITO"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
 [vars]
 MITTENTE = "MITTENTE_SUL_TUO_DOMINIO"
 DESTINATARIO = "DESTINATARIO_VERIFICATO"

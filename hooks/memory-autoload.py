@@ -7,7 +7,8 @@ solo la garanzia deterministica: se CWD = dir di progetto, la sua scheda
 `progetto-<nome>.md` viene proposta per match esatto sul filename, in qualunque
 radice della memoria (melchior_match.radici).
 
-Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output.
+Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output. Al primo avvio senza
+scelta nelle impostazioni la accende e lo dice una volta (melchior_match.accendi_al_primo_avvio).
 Zero-dipendenze. Non-blocking: errore → exit 0 silenzioso.
 """
 import sys
@@ -23,23 +24,13 @@ def log_access(paths, context):
     mm.registra_accessi(paths, context, log_path=ACCESS_LOG)
 
 
-def find_scheda(name):
-    """Scheda progetto per match esatto sul filename, path-independent."""
-    if not name:
-        return None
-    target = f"progetto-{name.lower()}.md"
-    for radice in mm.radici():
-        for p in sorted(radice.rglob(target)):
-            try:
-                rel = p.relative_to(radice).parts
-            except ValueError:
-                continue
-            if not any(x.startswith(("_", ".")) for x in rel):
-                return p
-    return None
+find_scheda = mm.trova_scheda  # la ricerca sta in melchior_match: la usano anche arturo contesto e arturo memoria scheda
 
 
 def main():
+    avviso = mm.accendi_al_primo_avvio()
+    if avviso:
+        print(avviso)
     if not mm.memoria_accesa():
         return
     # argv opzionale come hint manuale (es. da /inizio <progetto>), altrimenti CWD.
@@ -51,8 +42,20 @@ def main():
     if sys.argv[1:]:
         names = list(sys.argv[1:])
     else:
+        # La risalita si ferma alla home: il nome della home è il nome dell'utente, e se
+        # coincide con quello di una scheda, la cartella contenitore la proponeva a ogni
+        # avvio (#5868, 17/11/2026).
         cwd = Path.cwd()
-        names = [cwd.name] + [q.name for q in list(cwd.parents)[:3]]
+        try:
+            home = Path.home().resolve()
+            fermi = {home, *home.parents}
+        except (RuntimeError, OSError):
+            fermi = set()
+        names = []
+        for q in [cwd, *list(cwd.parents)[:3]]:
+            if q in fermi:
+                break
+            names.append(q.name)
     found = []
     for n in names:
         p = find_scheda(n)

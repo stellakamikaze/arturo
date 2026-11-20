@@ -34,6 +34,8 @@ const CANDIDATI_PYTHON: string[][] = [['python3'], ['python'], ['py', '-3']]
 
 // La palette di Arturo su fondo chiaro. Il pannello porta il suo fondo: i colori non dipendono dal
 // tema del terminale. Gli esiti sono testo o bordo, mai un fondo pieno.
+// Anche le etichette dei Button: senza un Text colorato prendono il colore del tema e, col tema scuro,
+// sono bianche sul fondo chiaro.
 const C = {
   tela: '#fefffc',
   inchiostro: '#171717',
@@ -44,8 +46,30 @@ const C = {
   arturo: '#f2a24a',
 }
 
-const COLORE_GRUPPO: Record<string, string> = { tu: C.sera, decidi: C.sera, io: C.passa, fermo: C.blocca }
-const COLORE_PAROLA: Record<Parola, string> = { 'a rischio': C.blocca, 'chiede te': C.sera, fermo: C.cenere, va: C.passa }
+// I colori scelti dalla persona in ~/.claude/personale/aspetto.json (proposta n. 73, 18/11/2026) si fondono
+// sopra C alla prima lettura, da `arturo aspetto mostra dafare`: il mod parla solo con la CLI (banco U02).
+// Per questo gruppi e parole leggono C a ogni disegno, non una volta sola al caricamento del modulo.
+let paletteLetta = false
+async function leggiPalette($: EngineInterface): Promise<void> {
+  if (paletteLetta) return
+  paletteLetta = true
+  const r = await cli($, ['mostra', 'dafare'], 'aspetto')
+  if (!r.ok) return
+  try {
+    const colori = (JSON.parse(r.stdout) as { colori?: Record<string, unknown> }).colori ?? {}
+    for (const [nome, valore] of Object.entries(colori)) {
+      if (Object.hasOwn(C, nome) && typeof valore === 'string' && /^#[0-9a-f]{6}$/i.test(valore)) {
+        (C as Record<string, string>)[nome] = valore
+      }
+    }
+  } catch {
+    // un file che non si legge lascia i colori di serie
+  }
+}
+const coloreGruppo = (tipo: string): string | undefined =>
+  ({ tu: C.sera, decidi: C.sera, io: C.passa, fermo: C.blocca } as Record<string, string>)[tipo]
+const coloreParola = (parola: Parola): string =>
+  ({ 'a rischio': C.blocca, 'chiede te': C.sera, fermo: C.cenere, va: C.passa } as Record<Parola, string>)[parola]
 const PAROLE: Parola[] = ['a rischio', 'chiede te', 'fermo', 'va']
 
 const vista = atom({ plugin: 'arturo', key: 'vista' } as const, null)
@@ -185,6 +209,7 @@ export function normalizzaVista(dato: unknown): Vista | 'versione' | 'forma' {
 
 // Rilegge le cose da fare. Un guasto lascia intatta la vista di prima: mai vuota per un errore.
 async function carica($: EngineInterface): Promise<void> {
+  await leggiPalette($)
   const r = await cli($, ['--json'])
   if (!r.ok) {
     await update($, errore, () => r.testo)
@@ -568,8 +593,8 @@ export const register: Register = on => {
           <Box gap={1}>
             <Text bold color={C.sera}>{sua ? '›' : ' '}</Text>
             {n < 9
-              ? <Button key={voce.chiave} plain hotkey={String(n + 1)} label={voce.progetto} onPress={() => apriProgetto($, voce.progetto, voce.todo)} />
-              : <Button key={voce.chiave} plain label={voce.progetto} onPress={() => apriProgetto($, voce.progetto, voce.todo)} />}
+              ? <Button key={voce.chiave} plain hotkey={String(n + 1)} onPress={() => apriProgetto($, voce.progetto, voce.todo)}><Text color={C.inchiostro}>{voce.progetto}</Text></Button>
+              : <Button key={voce.chiave} plain onPress={() => apriProgetto($, voce.progetto, voce.todo)}><Text color={C.inchiostro}>{voce.progetto}</Text></Button>}
             <Text bold color={coloreSopra} wrap="wrap">{sopra}</Text>
           </Box>
           {sotto.filter(x => x !== '').map(riga => (
@@ -600,7 +625,7 @@ export const register: Register = on => {
               <Text bold color={C.sera} wrap="wrap">CHIEDONO TE O SONO A RISCHIO ({chiedono.length})</Text>
               {stretto ? null : <Text color={C.cenere} wrap="wrap">Il numero apre il progetto sul todo da cui partire.</Text>}
               {chiedono.map((x, i) => rigaLista(
-                { chiave: `adesso-${x.nome}`, progetto: x.nome, todo: x.da_dove?.id ?? null }, i, x.parola, COLORE_PAROLA[x.parola],
+                { chiave: `adesso-${x.nome}`, progetto: x.nome, todo: x.da_dove?.id ?? null }, i, x.parola, coloreParola(x.parola),
                 [fraseDi(x), x.da_dove ? `parti da #${x.da_dove.id} ${titoloDi(x.da_dove.id)}${x.da_dove.motivo ? `: ${x.da_dove.motivo}` : ''}` : ''],
               ))}
             </Box>
@@ -623,7 +648,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {ps.map((x, i) => rigaLista(
           { chiave: `progetto-${x.nome}`, progetto: x.nome, todo: x.da_dove?.id ?? null }, i,
-          `${x.parola} · ${quante(x.aperti)}`, COLORE_PAROLA[x.parola], [fraseDi(x)],
+          `${x.parola} · ${quante(x.aperti)}`, coloreParola(x.parola), [fraseDi(x)],
         ))}
       </Box>
     )
@@ -639,8 +664,8 @@ export const register: Register = on => {
             <Text bold color={C.sera}>{sua ? '›' : ' '}</Text>
             {passo ? <Text color={C.cenere}>{passo}</Text> : null}
             {r.tasto
-              ? <Button key={`riga-${r.t.id}`} plain hotkey={r.tasto} label={`#${r.t.id}`} onPress={() => update($, scelto, () => r.t.id)} />
-              : <Button key={`riga-${r.t.id}`} plain label={`#${r.t.id}`} onPress={() => update($, scelto, () => r.t.id)} />}
+              ? <Button key={`riga-${r.t.id}`} plain hotkey={r.tasto} onPress={() => update($, scelto, () => r.t.id)}><Text color={C.inchiostro}>{`#${r.t.id}`}</Text></Button>
+              : <Button key={`riga-${r.t.id}`} plain onPress={() => update($, scelto, () => r.t.id)}><Text color={C.inchiostro}>{`#${r.t.id}`}</Text></Button>}
             <Text bold={sua} color={sua ? C.sera : C.inchiostro} wrap="wrap">{r.t.titolo}</Text>
           </Box>
           {sotto.length > 0 || r.t.scadenza_testo ? (
@@ -681,7 +706,7 @@ export const register: Register = on => {
             ? v.gruppi.map(g => {
                 const dentro = altre.filter(r => r.t.gruppo === g.tipo)
                 if (dentro.length === 0) return null
-                const colore = COLORE_GRUPPO[g.tipo] ?? C.inchiostro
+                const colore = coloreGruppo(g.tipo) ?? C.inchiostro
                 return (
                   <Box flexDirection="column">
                     <Text bold color={colore} wrap="wrap">{g.titolo} ({dentro.length})</Text>
@@ -702,18 +727,18 @@ export const register: Register = on => {
             {tutte.length > 0 ? (
               <Box gap={2} flexWrap="wrap">
                 {(Object.keys(VERBI) as Verbo[]).map(verbo => (
-                  <Button key={verbo} plain hotkey={VERBI[verbo]!.tasto} label={VERBI[verbo]!.etichetta} onPress={() => agisci($, verbo)} />
+                  <Button key={verbo} plain hotkey={VERBI[verbo]!.tasto} onPress={() => agisci($, verbo)}><Text color={C.inchiostro}>{VERBI[verbo]!.etichetta}</Text></Button>
                 ))}
-                <Button key="sessione" plain hotkey="o" label="apri sessione" onPress={() => apriSessione($)} />
+                <Button key="sessione" plain hotkey="o" onPress={() => apriSessione($)}><Text color={C.inchiostro}>apri sessione</Text></Button>
               </Box>
             ) : null}
             <Box gap={2} flexWrap="wrap">
-              <Button key="annulla" plain hotkey="u" label="annulla" onPress={() => annulla($)} />
-              <Button key="vista" plain hotkey="v" label={dove === 'adesso' ? 'progetti' : 'adesso'} onPress={() => vaiA($, dove === 'adesso' ? 'progetti' : 'adesso')} />
-              {dove !== 'progetti' ? <Button key="progetti" plain hotkey="p" label="lista dei progetti" onPress={() => vaiA($, 'progetti')} /> : null}
-              {dove !== 'progetto' && voci.length > 0 ? <Button key="entra" plain hotkey="e" label="apri il progetto" onPress={() => entra($)} /> : null}
-              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="giu" plain hotkey="j" label="giù" onPress={() => sposta($, 1)} /> : null}
-              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="su" plain hotkey="k" label="su" onPress={() => sposta($, -1)} /> : null}
+              <Button key="annulla" plain hotkey="u" onPress={() => annulla($)}><Text color={C.inchiostro}>annulla</Text></Button>
+              <Button key="vista" plain hotkey="v" onPress={() => vaiA($, dove === 'adesso' ? 'progetti' : 'adesso')}><Text color={C.inchiostro}>{dove === 'adesso' ? 'progetti' : 'adesso'}</Text></Button>
+              {dove !== 'progetti' ? <Button key="progetti" plain hotkey="p" onPress={() => vaiA($, 'progetti')}><Text color={C.inchiostro}>lista dei progetti</Text></Button> : null}
+              {dove !== 'progetto' && voci.length > 0 ? <Button key="entra" plain hotkey="e" onPress={() => entra($)}><Text color={C.inchiostro}>apri il progetto</Text></Button> : null}
+              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="giu" plain hotkey="j" onPress={() => sposta($, 1)}><Text color={C.inchiostro}>giù</Text></Button> : null}
+              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="su" plain hotkey="k" onPress={() => sposta($, -1)}><Text color={C.inchiostro}>su</Text></Button> : null}
             </Box>
           </Box>
         ) : null}
@@ -778,7 +803,7 @@ export const register: Register = on => {
       <Box gap={1} backgroundColor={C.tela} paddingX={1}>
         <Text color={C.arturo}>{STELLA}</Text>
         <Text color={C.inchiostro}>{testo}</Text>
-        {corto ? null : <Button key="apri" plain label="apri" onPress={() => apri($)} />}
+        {corto ? null : <Button key="apri" plain onPress={() => apri($)}><Text color={C.inchiostro}>apri</Text></Button>}
       </Box>
     )
   })

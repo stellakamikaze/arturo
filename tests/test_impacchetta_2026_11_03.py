@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IP01-IP08: il plugin di Arturo generato dal repository rispetta il contratto (strati F2, docs/strati.md).
+"""IP01-IP08: il plugin di Arturo generato dal repository rispetta il contratto (strati F2, docs/prove-plugin.md).
 
 IP01 bin/impacchetta.py genera il pacchetto e la sua verifica non trova errori;
 IP02 ogni commands/<nome>.md è skills/<nome>/SKILL.md con name: e disable-model-invocation, e nel
@@ -34,7 +34,7 @@ IP18 senza un repository in ~/.claude l'identità di Git di /setup vale nei prog
 IP19 metodo, Conciso e la regola 1 del CLAUDE.md dicono la stessa cosa sul passo bloccato (finding 81);
 IP20 i testi per il subagente e per il login di gws danno i percorsi veri del codice (finding 56);
 IP21 senza identità di Arturo né email nella config, identita-git.sh CARTELLA accetta l'identità automatica di
-     Git con un AVVISO e rc 0, e /fine lo dice; con useConfigOnly, che fa fallire anche il commit, resta MANCA
+     Git con un AVVISO e rc 0, e /fine e /inizio lo dicono; con useConfigOnly, che fa fallire anche il commit, resta MANCA
      (segnalazione n. 67, 10/11/2026);
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
@@ -261,10 +261,11 @@ def prova(repo: Path) -> list[str]:
         esegui(["git", "-C", str(repo_auto), "config", "user.useConfigOnly", "true"], env=env_auto)
         rifiutata = esegui(identita + [str(repo_auto)], env=env_auto)
         avviso_fine = "Se lo script stampa `AVVISO`" in (repo / "commands" / "fine.md").read_text(encoding="utf-8")
+        avviso_inizio = "Se lo script stampa `AVVISO`" in (repo / "commands" / "inizio.md").read_text(encoding="utf-8")
         if automatica.returncode != 0 or "AVVISO" not in automatica.stdout \
-                or rifiutata.returncode != 1 or "MANCA" not in rifiutata.stdout or not avviso_fine:
+                or rifiutata.returncode != 1 or "MANCA" not in rifiutata.stdout or not avviso_fine or not avviso_inizio:
             rossi.append(f"IP21 identità automatica di Git: rc {automatica.returncode} {automatica.stdout.strip()[:80]!r}, "
-                         f"useConfigOnly rc {rifiutata.returncode}, /fine {avviso_fine}")
+                         f"useConfigOnly rc {rifiutata.returncode}, /fine {avviso_fine}, /inizio {avviso_inizio}")
 
         eccezione = "L'eccezione è il classificatore della modalità auto"
         regole = {f: (repo / f).read_text(encoding="utf-8") for f in
@@ -407,6 +408,7 @@ VELENI = [
     ("IP18", "bin/migra.py", "    file.parent.mkdir(parents=True, exist_ok=True)\n    for chiave", "    return\n    for chiave"),
     ("IP21", "bin/identita-git.sh", '      if [ -n "$AUTO" ]; then', '      if false; then'),
     ("IP21", "commands/fine.md", "Se lo script stampa `AVVISO`", "Se lo script stampa qualcosa"),
+    ("IP21", "commands/inizio.md", "Se lo script stampa `AVVISO`", "Se lo script stampa qualcosa"),
     ("IP19", "shared/metodo.md", "L'eccezione è il classificatore della modalità auto, quando ferma un passo che la persona ha già approvato: lì non cercare un'altra via, prepara un solo comando da lanciare con `!`.", ""),
     ("IP20", "hooks/subagent-memory-context.py", '"cerca prima di agire: " + radici.comando_arturo() + " memoria cerca \\"parole chiave\\" "',
      '"cerca prima di agire: python3 ~/.claude/scripts/melchior_recall.py \\"parole chiave\\" "'),
