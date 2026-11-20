@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ172: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ174: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -789,6 +789,15 @@ HZ171 la Coda riprova una copia delle prove fallita (#6112, 19/11/2026): daCopia
 HZ172 Lavoraci e progetto della sessione (#5485, 19/11/2026): schedaDelProgetto di sessioni.js dà il todo solo alla
      scheda la cui sessione ha la chiave del progetto (anche sotto un alias); un'altra sessione, una senza
      progetto o una che Volta non elenca no. apri() di dati.js la usa e, senza scheda, fa nascere una sessione.
+HZ173 l'Orchestratore (#6185, Fase 2 del piano del 20/11/2026): gruppiOrchestra di sessioni.js mette le carte delle
+     sessioni in "Ti aspettano" (il permesso lasciato a te in cima), le sessioni che lavorano, aspettano un comando o
+     sono in errore nei loro gruppi, la più recente prima, e i permessi approvati oggi in fondo, chiusi di serie;
+     chiuse e addormentate restano fuori. tastoOrchestra apre una riga di sessione con Invio e T, G va al giudice;
+     statoGiudice e siOggi fanno la riga dei permessi. coda.js, volta.js, comandi.js e barra.js li usano.
+HZ174 la sonda porta i giudizi dei permessi (#6185): da cache/giudizi/<sessionId>.jsonl solo quelli di oggi, coi
+     conti dei sì e gli ultimi tre sì coi tetti; una riga storta non ferma la lettura. La voce della macchina dice
+     se il giudice è acceso o spento (cache/giudice-spento), volta_sonda.py giudice lo cambia, e la carta "permesso"
+     tiene tipo e motivo.
 """
 from __future__ import annotations
 
@@ -804,7 +813,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -6371,7 +6380,7 @@ def hz133(repo: Path, casa: Path) -> str | None:
     if 'const cc = fondiDoppie(senzaScartate(senzaRisposte(ordineCoda([...conCapo(carte(this.dati?.sessioni), this.uf), ...carteUf(this.uf)]), this.risposte), this.scartate));' not in volta or 'setShared("arturo.coda", cc)' not in volta:
         return "volta.js non pubblica le carte in ordine in shared arturo.coda"
     coda = (mod / "coda.js").read_text(encoding="utf-8")
-    for pezzo in ('shared("arturo.coda")', 'const a = tastoCoda(e.key, c);', 'run(comandoRisposta(c.chiave, testo));', 'if (a.azione === "esci") return terminale();'):
+    for pezzo in ('shared("arturo.coda")', 'const a = tastoOrchestra(e.key, c);', 'run(comandoRisposta(c.chiave, testo));', 'if (a.azione === "esci") return terminale();'):
         if pezzo not in coda:
             return f"coda.js non legge le carte o non usa i tasti di sessioni.js: manca {pezzo}"
     return None
@@ -13509,7 +13518,7 @@ def hz167(repo: Path, casa: Path) -> str | None:
     """La Coda come elenco per chi agisce e "A Claude" che porta Claude sul task (18/11/2026)."""
     mod = repo / "shared/volta/mods/arturo"
     coda = (mod / "coda.js").read_text(encoding="utf-8")
-    for pezzo in ("ordineVisto(gruppiCoda(Array.isArray(l) ? l : []), this.chiusi)", "this.scroll.scroll_to_item(scelta)",
+    for pezzo in ("return ordineVisto(this.gruppi(), this.chiusi);", "this.scroll.scroll_to_item(scelta)",
                   "figli.push(this.intestazione(t, g));", ".track_scroll(this.scroll)"):
         if pezzo not in coda:
             return f"coda.js non mostra l'elenco per gruppi o non segue la riga scelta: manca {pezzo[:70]}"
@@ -13729,6 +13738,166 @@ def hz172(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_ORCHESTRA = r"""
+import * as m from "./sessioni.mjs";
+const ora = Date.now();
+const iso = (min) => new Date(ora - min * 60000).toISOString();
+const ss = [
+  { host: "qui", id: "lav1", stato: "lavora", azione: "Bash: ls", interazione: iso(30), progetto: "volta",
+    giudizi: { si: 2, tutti: 3, ultimi: [{ quando: ora / 1000 - 120, decisione: "si", riga: "Bash: ls", motivo: "legge" },
+      { quando: ora / 1000 - 60, decisione: "si", riga: "Bash: git status", motivo: "legge" }] } },
+  { host: "qui", id: "lav2", stato: "lavora", azione: "Edit", interazione: iso(2), giudizi: { si: 1, ultimi: [{ quando: ora / 1000 - 30, decisione: "si", riga: "Edit a.js" }, { quando: ora / 1000 - 10, decisione: "persona", riga: "rm -r x" }] } },
+  { host: "qui", id: "att1", stato: "ferma", chi: "claude", coda: "Fatto.", interazione: iso(10) },
+  { host: "amaltea", id: "err1", stato: "errore", interazione: iso(5) },
+  { host: "qui", id: "sta1", stato: "ferma", chi: "claude", coda: "La mando?", interazione: iso(4) },
+  { host: "qui", id: "sta2", stato: "ferma", chi: "claude", coda: "Scegli?", interazione: iso(3) },
+  { host: "qui", id: "per1", stato: "aspetta", aspetta: "permission prompt", interazione: iso(1),
+    carta: { tipo: "permesso", domanda: "Bash: gws send", motivo: "invio a terzi", opzioni: [] } },
+  { host: "qui", id: "dor1", tipo: "background", dorme: true, stato: "ferma", chi: "claude", coda: "Fatto." },
+  { host: "qui", id: "chi1", tipo: "background", chiusa: true, stato: "ferma", giudizi: { si: 4, ultimi: [] } },
+];
+const righe = m.righeOrchestra(ss, ora);
+// sta2: la carta è stata risposta o scartata, non è più in coda
+const carte = m.ordineCoda(m.carte(ss)).filter((c) => c.id !== "sta2");
+const uf = [{ origine: "uf", fonte: "bozza", chiave: "uf:b1" }, { origine: "uf", gruppo: "tu", chiave: "uf:t1" }];
+const gg = m.gruppiOrchestra([...carte, ...uf], righe);
+const r0 = righe.find((r) => r.sessione === "qui:lav1"), ra = righe.find((r) => r.sessione === "qui:att1");
+console.log(JSON.stringify({
+  gruppi: gg.map((g) => [g.chiave, g.carte.map((c) => c.vista ? c.sessione + (c.vista === "giudizio" ? "@" + c.titolo : "") : c.chiave)]),
+  nomi: gg.map((g) => g.nome),
+  chiusi: m.CHIUSI_DI_SERIE,
+  permessoUmano: m.UMANI.includes("permesso"), rango: m.rangoCarta(carte.find((c) => c.id === "per1")),
+  tasti: {
+    g: m.tastoOrchestra("g", r0)?.azione, gCarta: m.tastoOrchestra("g", carte[0])?.azione, invio: m.tastoOrchestra("enter", r0)?.azione,
+    t: m.tastoOrchestra("t", r0)?.azione, giu: m.tastoOrchestra("down", r0)?.azione, esc: m.tastoOrchestra("escape", r0)?.azione,
+    f: m.tastoOrchestra("f", r0), fCarta: m.tastoOrchestra("f", carte[0])?.azione,
+  },
+  riga: m.dettaglioRiga(r0, (h) => h === "qui" ? "MacBook" : h, ora), rigaFerma: m.dettaglioRiga(ra, (h) => h === "qui" ? "MacBook" : h, ora),
+  si: m.siOggi(ss),
+  giudice: [m.statoGiudice([{ giudice: "acceso" }, { giudice: "acceso" }])?.testo, m.statoGiudice([{ giudice: "spento" }])?.testo,
+    m.statoGiudice([{ giudice: "acceso" }, { giudice: "spento" }, {}])?.testo, m.statoGiudice([{}]),
+    m.giudiceDopo(m.statoGiudice([{ giudice: "acceso" }, { giudice: "spento" }])), m.giudiceDopo(m.statoGiudice([{ giudice: "spento" }]))],
+}));
+"""
+
+
+def hz173(repo: Path, casa: Path) -> str | None:
+    """L'Orchestratore (#6185): gruppiOrchestra, tastoOrchestra, statoGiudice con node, e chi li usa."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta/mods/arturo"
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    (casa / "prova.mjs").write_text(PROVA_ORCHESTRA, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    attesi = [["aspettano", ["qui:per1", "qui:sta1"]], ["lavorano", ["qui:lav2", "qui:lav1"]],
+              ["comando", ["qui:sta2", "qui:att1"]], ["errori", ["amaltea:err1"]], ["bozze", ["uf:b1"]], ["tu", ["uf:t1"]],
+              ["approvati", ["qui:lav2@Edit a.js", "qui:lav1@Bash: git status", "qui:lav1@Bash: ls"]]]
+    if d["gruppi"] != attesi:
+        return f"gruppiOrchestra sbaglia gruppi o ordine: {d['gruppi']}, attesi {attesi}"
+    if d["nomi"][:4] != ["Ti aspettano", "Lavorano", "Aspettano un comando", "Errori"] or d["chiusi"] != ["approvati"]:
+        return f"nomi dei gruppi o gruppi chiusi di serie sbagliati: {d['nomi']} {d['chiusi']}"
+    if not d["permessoUmano"] or d["rango"] != 0:
+        return f"il permesso lasciato alla persona non va in cima: UMANI {d['permessoUmano']}, rango {d['rango']}"
+    tt = d["tasti"]
+    if (tt["g"], tt["gCarta"], tt["invio"], tt["t"], tt["giu"], tt["esc"], tt["f"], tt["fCarta"]) != ("giudice", "giudice", "apri", "apri", "salta", "esci", None, "gesto"):
+        return f"tastoOrchestra sbaglia: {tt}"
+    if d["riga"] != "Volta · MacBook · da 30 min · Bash: ls" or d["rigaFerma"] != "Senza progetto · MacBook · da 10 min":
+        return f"dettaglioRiga sbaglia: {d['riga']!r} / {d['rigaFerma']!r}"
+    if d["si"] != 7:
+        return f"siOggi non conta i sì di tutte le sessioni, chiuse comprese: {d['si']}"
+    if d["giudice"] != ["decide Arturo", "decidi tu", "decide Arturo su 1 di 2 macchine", None, "spento", "acceso"]:
+        return f"statoGiudice o giudiceDopo sbagliano: {d['giudice']}"
+    coda = (mod / "coda.js").read_text(encoding="utf-8")
+    for pezzo, perche in (("gruppiOrchestra(", "la vista non usa i gruppi dell'Orchestratore"),
+                          ("tastoOrchestra(e.key, c)", "la vista non usa i tasti dell'Orchestratore"),
+                          ('run("arturo.giudice")', "G e il clic sulla riga dei permessi non vanno al giudice"),
+                          ("new Set(CHIUSI_DI_SERIE)", "i permessi approvati non sono chiusi di serie"),
+                          ('"Orchestratore"', "la testata non dice Orchestratore")):
+        if pezzo not in coda:
+            return f"coda.js: {perche}"
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    if 'setShared("arturo.orchestra", o)' not in volta or "righeOrchestra(this.vis()?.sessioni)" not in volta:
+        return "volta.js non pubblica le sessioni visibili in arturo.orchestra"
+    if 'giudiceSu(m.questa ? "qui" : m.host, stato)' not in volta:
+        return "volta.js non cambia il giudice sulle macchine"
+    if 'if (c === "giudice") return { verbo: "giudice"' not in (mod / "comandi.js").read_text(encoding="utf-8"):
+        return "comandi.js non riconosce arturo.giudice"
+    if 'else if (c === "giudice") this.volta.giudice(cx);' not in (mod / "barra.js").read_text(encoding="utf-8"):
+        return "barra.js non porta arturo.giudice alla barra"
+    return None
+
+
+def hz174(repo: Path, casa: Path) -> str | None:
+    """La sonda porta i giudizi dei permessi e lo stato del giudice (#6185)."""
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    sonda = repo / "shared/volta/mods/arturo/volta_sonda.py"
+    env, cache = lotto5(casa)
+    gd = cache / "giudizi"
+    gd.mkdir(parents=True, exist_ok=True)
+    ora = time.time()
+    ieri = ora - 2 * 86400
+    righe = [{"quando": ieri, "decisione": "si", "riga": "ieri"}, "{storta",
+             {"quando": ora - 50, "decisione": "si", "riga": "a" * 500, "motivo": "m" * 500, "tool": "Bash"},
+             {"quando": ora - 40, "decisione": "persona", "riga": "rm -r x", "motivo": "cancella"},
+             {"quando": ora - 30, "decisione": "si", "riga": "b"}, {"quando": ora - 20, "decisione": "si", "riga": "c"},
+             {"quando": ora - 10, "decisione": "si", "riga": "d"}, {"quando": ora - 5, "decisione": "fisso", "riga": "gws send"}]
+    (gd / "aaaa1111-a.jsonl").write_text("\n".join(x if isinstance(x, str) else json.dumps(x) for x in righe) + "\n", encoding="utf-8")
+    (gd / "bbbb2222-b.jsonl").write_text(json.dumps({"quando": ieri, "decisione": "si", "riga": "vecchio"}) + "\n", encoding="utf-8")
+    carte = cache / "carte"
+    carte.mkdir(parents=True, exist_ok=True)
+    (carte / "cccc3333-c.json").write_text(json.dumps({"tipo": "permesso", "fonte": "permesso", "domanda": "Bash: gws send",
+                                                         "motivo": "invio a terzi", "opzioni": []}), encoding="utf-8")
+    try:
+        per = leggi5(sonda, env, [fondo5(x[:8], x) for x in ("aaaa1111-a", "bbbb2222-b", "cccc3333-c")])
+    except RuntimeError as e:
+        return str(e)
+    a = per["aaaa1111"].get("giudizi") or {}
+    if (a.get("si"), a.get("tutti")) != (4, 6):
+        return f"i conti dei giudizi di oggi sono sbagliati (attesi 4 sì su 6, senza ieri e la riga storta): {a}"
+    if [x.get("riga") for x in a.get("ultimi") or []] != ["b", "c", "d"]:
+        return f"gli ultimi tre sì non sono quelli giusti: {a.get('ultimi')}"
+    if (a.get("ultimo") or {}).get("decisione") != "fisso" or (a.get("ultimo") or {}).get("riga") != "gws send":
+        return f"l'ultimo giudizio non è l'ultima riga: {a.get('ultimo')}"
+    lungo = None
+    (gd / "aaaa1111-a.jsonl").write_text(json.dumps({"quando": ora - 1, "decisione": "si", "riga": "a" * 500, "motivo": "m" * 500}) + "\n", encoding="utf-8")
+    try:
+        lungo = leggi5(sonda, env, [fondo5("aaaa1111", "aaaa1111-a")])["aaaa1111"].get("giudizi") or {}
+    except RuntimeError as e:
+        return str(e)
+    u = (lungo.get("ultimi") or [{}])[0]
+    if len(u.get("riga") or "") != 160 or len(u.get("motivo") or "") != 160:
+        return f"i giudizi non hanno i tetti di Volta (160 caratteri): {len(u.get('riga') or '')}, {len(u.get('motivo') or '')}"
+    if per["bbbb2222"].get("giudizi") is not None:
+        return f"una sessione con soli giudizi di ieri porta dei giudizi: {per['bbbb2222'].get('giudizi')}"
+    c = per["cccc3333"].get("carta") or {}
+    if (c.get("tipo"), c.get("motivo")) != ("permesso", "invio a terzi"):
+        return f"la carta del permesso perde tipo o motivo: {c}"
+    def macchina() -> dict:
+        (Path(env["CLAUDE_CONFIG_DIR"]) / "cache" / "volta-agenti.json").unlink(missing_ok=True)
+        r = subprocess.run([sys.executable, str(sonda), "volta"], capture_output=True, text=True, timeout=40,
+                           env={**env, "HZ_SESSIONI": "[]"})
+        return next((m for m in json.loads(r.stdout)["macchine"] if m["host"] == "qui"), {})
+    if macchina().get("giudice") != "acceso":
+        return "la voce della macchina non dice che il giudice è acceso"
+    r = subprocess.run([sys.executable, str(sonda), "giudice", "qui", "spento"], capture_output=True, text=True, timeout=40, env=env)
+    if json.loads(r.stdout.strip().splitlines()[-1]) != {"ok": True, "giudice": "spento"} or not (cache / "giudice-spento").exists():
+        return f"volta_sonda.py giudice qui spento non spegne: {r.stdout.strip()[-160:]}"
+    if macchina().get("giudice") != "spento":
+        return "la voce della macchina non dice che il giudice è spento"
+    r = subprocess.run([sys.executable, str(sonda), "giudice", "qui", "acceso"], capture_output=True, text=True, timeout=40, env=env)
+    if (cache / "giudice-spento").exists() or '"acceso"' not in r.stdout:
+        return f"volta_sonda.py giudice qui acceso non riaccende: {r.stdout.strip()[-160:]}"
+    r = subprocess.run([sys.executable, str(sonda), "giudice", "qui", "forse"], capture_output=True, text=True, timeout=40, env=env)
+    if r.returncode != 1 or "non valido" not in r.stdout:
+        return f"uno stato del giudice sbagliato non è rifiutato: rc {r.returncode}, {r.stdout.strip()[-120:]}"
+    return None
+
+
 PROVA_COPIE = r"""
 import * as m from "./sessioni.mjs";
 const ora = 1000000;
@@ -13812,7 +13981,7 @@ def hz170(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -13858,6 +14027,18 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 VELENI = [
     ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s);'),
+    ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  if (r.fase === "stasi" && inCoda.has(r.sessione)) return null;', ''),
+    ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  return (sessioni ?? []).filter((s) => s && !chiusa(s) && !dorme(s)).map((s) => ({', '  return (sessioni ?? []).filter((s) => s).map((s) => ({'),
+    ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  return out.sort((a, b) => b.quando - a.quando).slice(0, APPROVATI_MAX);', '  return out.slice(0, APPROVATI_MAX);'),
+    ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  if (k === "g") return { azione: "giudice" };', ''),
+    ('HZ173', 'shared/volta/mods/arturo/sessioni.js', 'export const UMANI = ["invio", "pagamento", "segreto", "otp", "oauth", "gesto", "permesso"];', 'export const UMANI = ["invio", "pagamento", "segreto", "otp", "oauth", "gesto"];'),
+    ('HZ173', 'shared/volta/mods/arturo/coda.js', '    const a = tastoOrchestra(e.key, c);', '    const a = tastoCoda(e.key, c);'),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', 'v["quando"] >= oggi:', 'v["quando"] > 0:'),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '"ultimi": [corta(v) for v in si[-3:]]', '"ultimi": [corta(v) for v in si[:3]]'),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '                "giudizi": giudizi_riga(s.get("giudizi")),\n', '                "giudizi": s.get("giudizi"),\n'),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '        if d.get("giudice") in ("acceso", "spento"):\n            v["giudice"] = d["giudice"]\n', ''),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '"oauth", "gesto", "permesso", "scelta", "review")', '"oauth", "gesto", "scelta", "review")'),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', '        os.remove(f)\nexcept OSError as e:', '        pass\nexcept OSError as e:'),
     ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s?.progetto) && s.progetto === nome;'),
     ('HZ172', 'shared/volta/mods/arturo/dati.js', 'const x = schedaDelProgetto(schede, nome, (await elencoVolta()).sessioni, shared("arturo.progetti"));', 'const x = schede[0];'),
     ('HZ166', 'shared/volta/mods/arturo/volta_sonda.py', "    appesa = cartella_appesa(c)\n    if appesa:", "    appesa = None\n    if appesa:"),
@@ -13872,7 +14053,7 @@ VELENI = [
     ('HZ167', 'shared/volta/mods/arturo/azioni.js', ',\n    poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };', ' };'),
     ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '  if (c.fonte === "bozza") return "bozze";\n', ''),
     ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '(chiusi.has(g.chiave) ? [] : g.carte)', '(g.carte)'),
-    ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '.filter((g) => g.carte.length);', ';'),
+    ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '  return GRUPPI_CODA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) })).filter((g) => g.carte.length);', '  return GRUPPI_CODA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) }));'),
     ('HZ167', 'shared/volta/mods/arturo/volta.js', '      if (r.ok && g.poi) {', '      if (false) {'),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "m.nascita.permesso === true ?", "false ?"),
     ('HZ171', 'shared/volta/mods/arturo/sessioni.js', "  return (giro?.n ?? 0) < PROVA_TENTATIVI && ora >= (giro?.dopo ?? 0);", "  return false;"),

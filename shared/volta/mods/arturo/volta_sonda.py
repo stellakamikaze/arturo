@@ -394,6 +394,31 @@ def scrivi(f, d):
         os.replace(tmp, f)
     except OSError:
         pass
+# I giudizi dei permessi (Fase 2 del piano dell'Orchestratore, 20/11/2026): hooks/giudice-permessi.py della
+# config scrive una riga per permesso in cache/giudizi/<sessionId>.jsonl. Da oggi: quanti sì, quanti in tutto,
+# gli ultimi tre sì e l'ultimo giudizio. Si leggono solo gli ultimi 64 KB; i tetti li mette giudizi_riga().
+def giudizi_di(f):
+    try:
+        with open(f, "rb") as fh:
+            fh.seek(0, 2)
+            fh.seek(max(0, fh.tell() - 65536))
+            rr = fh.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return None
+    oggi = time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1))
+    vv = []
+    for r in rr:
+        try:
+            v = json.loads(r)
+        except ValueError:
+            continue
+        if isinstance(v, dict) and isinstance(v.get("quando"), (int, float)) and v["quando"] >= oggi:
+            vv.append(v)
+    if not vv:
+        return None
+    si = [v for v in vv if v.get("decisione") == "si"]
+    corta = lambda v: {k: (str(v.get(k) or "")[:200] if k != "quando" else v["quando"]) for k in ("quando", "decisione", "riga", "motivo")}  # noqa: E731
+    return {"si": len(si), "tutti": len(vv), "ultimi": [corta(v) for v in si[-3:]], "ultimo": corta(vv[-1])}
 # Le code delle trascrizioni (#5489): ogni 30 secondi la sonda rileggeva fino a 3 MB per sessione, 38 MB
 # a giro. Ora tiene per sessione il file, il punto fin dove ha letto (la fine dell'ultima riga intera) e
 # lo stato del calcolo a quel punto: un file fermo non si rilegge, uno cresciuto si legge dal punto.
@@ -594,6 +619,7 @@ for s in sessioni:
     s["ripartenza"] = leggi(os.path.join(radice, "cache", "ripartenza", sid + ".json")) or None
     # i tentativi della ripresa da sola (#5882), scritti da RIPRESA: al più due per fermata
     s["ripresa"] = leggi(os.path.join(radice, "cache", "volta-ripresa", sid + ".json")) or None
+    s["giudizi"] = giudizi_di(os.path.join(radice, "cache", "giudizi", sid + ".jsonl"))
     st = coda_di(sid) if re.fullmatch(r"[0-9A-Za-z-]{4,64}", sid) else None
     if st is None:
         continue
@@ -677,6 +703,8 @@ for s in sessioni:
             s["congedo"] = True
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 uscita = {"claude": cl, "sessioni": sessioni}
+# il giudice dei permessi di questa macchina: spento dal file cache/giudice-spento (tasto G dell'Orchestratore)
+uscita["giudice"] = "spento" if os.path.exists(os.path.join(radice, "cache", "giudice-spento")) else "acceso"
 rotta = nascite()
 # Documenti appeso: al più una prova al minuto, e "da" resta l'ora della prima volta finché dura
 #PERMESSO#
@@ -1627,6 +1655,8 @@ def raccogli(viste=None, prima=None, entro=None, fresca=False):
         v["sessioni"] = d.get("sessioni") or []
         if isinstance(d.get("nascita"), dict):
             v["nascita"] = d["nascita"]
+        if d.get("giudice") in ("acceso", "spento"):
+            v["giudice"] = d["giudice"]
         return v
 
     voci = [qui] + altre
@@ -1703,7 +1733,7 @@ def cartella_viva(c):
 
 
 # I tipi della carta: le categorie umane di A20 che scrive hooks/carta-sessione.py, più scelta e review.
-TIPI_CARTA = ("invio", "pagamento", "segreto", "otp", "oauth", "gesto", "scelta", "review")
+TIPI_CARTA = ("invio", "pagamento", "segreto", "otp", "oauth", "gesto", "permesso", "scelta", "review")
 
 
 def carta_di(c):
@@ -1724,6 +1754,9 @@ def carta_di(c):
            "esito": corto(c.get("esito"), 200), "domanda": corto(c.get("domanda"), 600),
            "opzioni": alpiu(c.get("opzioni"), 6, 80), "raccomandazione": corto(c.get("raccomandazione"), 300),
            "prove": alpiu(c.get("prove"), 4, 400), "link": alpiu(c.get("link"), 4, 400), "menu": c.get("menu") is True}
+    # il perché del giudice dei permessi, su una carta "permesso" (Fase 2 dell'Orchestratore)
+    if corto(c.get("motivo"), 200):
+        out["motivo"] = corto(c.get("motivo"), 200)
     return out if out["domanda"] or out["opzioni"] else None
 
 
@@ -1779,6 +1812,24 @@ def errore_riga(e):
     t = e.get("sblocco")
     return {"tipo": e["tipo"], "quando": e["quando"][:40],
             "sblocco": t if isinstance(t, (int, float)) and not isinstance(t, bool) and t > 0 else None}
+
+
+def giudizi_riga(g):
+    """I giudizi dei permessi di oggi coi tetti di Volta: { si, tutti, ultimi: [{ quando, riga, motivo }] al più 3,
+    ultimo: { quando, decisione, riga, motivo } }, righe da 160 e motivi da 160. None senza giudizi."""
+    if not isinstance(g, dict):
+        return None
+
+    def num(x):
+        return x if isinstance(x, (int, float)) and not isinstance(x, bool) and x >= 0 else 0
+
+    def voce(v):
+        if not isinstance(v, dict):
+            return None
+        return {"quando": num(v.get("quando")), "decisione": v.get("decisione") if v.get("decisione") in ("si", "persona", "fisso") else "persona",
+                "riga": " ".join(str(v.get("riga") or "").split())[:160], "motivo": " ".join(str(v.get("motivo") or "").split())[:160]}
+    ultimi = [x for x in (voce(v) for v in (g.get("ultimi") if isinstance(g.get("ultimi"), list) else [])[-3:]) if x]
+    return {"si": int(num(g.get("si"))), "tutti": int(num(g.get("tutti"))), "ultimi": ultimi, "ultimo": voce(g.get("ultimo"))}
 
 
 def tentativi_riga(r):
@@ -1844,6 +1895,8 @@ def righe(voci):
                 "carta": carta_di(s.get("carta")),
                 # la ripartenza di /inizio, per la checklist con le note (17/11/2026)
                 "ripartenza": ripartenza_di(s.get("ripartenza")),
+                # i permessi giudicati da Arturo oggi (Fase 2 dell'Orchestratore): conti e ultimi sì
+                "giudizi": giudizi_riga(s.get("giudizi")),
                 # In background senza processo e senza status ci sono due casi (#5495, 13/11/2026).
                 # chiusa: fermata con claude stop ("stopped") o dopo /fine come ultimo messaggio, cioè
                 # il congedo di ⌘W. Volta non la mostra più; una in errore resta, per Riavvia.
@@ -1869,6 +1922,8 @@ def documento(voci, precedente=None, adesso=None):
         voce = {"macchina": v["macchina"], "host": v["host"], "questa": v["questa"]}
         if isinstance(v.get("nascita"), dict):
             voce["nascita"] = v["nascita"]
+        if v.get("giudice") in ("acceso", "spento"):
+            voce["giudice"] = v["giudice"]
         if "irraggiungibile" in v:
             voce["irraggiungibile"] = v["irraggiungibile"]
             sessioni += [dict(r, vecchia=True) for r in (precedente or {}).get("sessioni", [])
@@ -2451,6 +2506,31 @@ def python_su(nome, script, dati):
         return {"errore": ultima_riga(out, err, rc)}
 
 
+# Il giudice dei permessi acceso o spento su una macchina (tasto G dell'Orchestratore, Fase 2 del piano del
+# 20/11/2026): il file cache/giudice-spento lo spegne (hooks/giudice-permessi.py della config). Torna lo stato.
+GIUDICE = r'''
+import base64, json, os, sys
+a = json.loads(base64.b64decode(sys.argv[1]).decode("utf-8"))
+f = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"), "cache", "giudice-spento")
+try:
+    if a["stato"] == "spento":
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        open(f, "a").close()
+    elif os.path.exists(f):
+        os.remove(f)
+except OSError as e:
+    print(json.dumps({"errore": "il file del giudice non si scrive: %s" % str(e)[:120]})); raise SystemExit
+print(json.dumps({"ok": True, "giudice": "spento" if os.path.exists(f) else "acceso"}))
+'''
+
+
+def giudice(nome, stato):
+    """Accende o spegne il giudice dei permessi sulla macchina `nome`: {ok, giudice} oppure {errore}."""
+    if stato not in ("acceso", "spento"):
+        return {"errore": "stato del giudice non valido"}
+    return python_su(nome, GIUDICE, {"stato": stato})
+
+
 def ripresa(nome, session_id, errore, tipo, riuscita=""):
     """Conta un tentativo della ripresa da sola (#5882) sulla macchina della sessione, con RIPRESA:
     {ok, tentativo} oppure {errore, rifiutata?, rete?}. Il testo lo porta poi Volta, nella scheda o con
@@ -2608,6 +2688,13 @@ def main(argv):
             print("uso: volta_sonda.py rispondi <macchina> <id> <sessionId> [--cartella <dir>] -- <testo>")
             return 2
         esito = rispondi(resto[0], resto[1], resto[2], testo, cartella)
+        print(json.dumps(esito, ensure_ascii=True))
+        return 0 if "errore" not in esito else 1
+    if argv and argv[0] == "giudice":
+        if len(argv) != 3:
+            print("uso: volta_sonda.py giudice <macchina> acceso|spento")
+            return 2
+        esito = giudice(argv[1], argv[2])
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "ripresa":

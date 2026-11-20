@@ -185,7 +185,8 @@ function fraseFase(s, adesso) {
 // hooks/carta-sessione.py, oppure con la carta minima letta da risposta e coda, così entrano anche le
 // sessioni di una macchina senza l'hook. Una sessione che lavora o è in errore non ha carta.
 // Le categorie umane di A20 (CHI_TU di pm/progetti/indice.py) come le scrive hooks/carta-sessione.py.
-export const UMANI = ["invio", "pagamento", "segreto", "otp", "oauth", "gesto"];
+// "permesso" (20/11/2026): un permesso che il giudice dei permessi (hooks/giudice-permessi.py) lascia alla persona.
+export const UMANI = ["invio", "pagamento", "segreto", "otp", "oauth", "gesto", "permesso"];
 const pulita = (r, n) => {
   const t = String(r ?? "").replace(/[*_`#>]+/g, "").replace(/\s+/g, " ").replace(/^[\s\-·:]+|[\s\-·:]+$/g, "");
   return t.length <= n ? t : `${t.slice(0, n - 1).trimEnd()}…`;
@@ -299,6 +300,107 @@ export function gruppiCoda(lista) {
 }
 // Le carte nell'ordine in cui l'elenco le mostra, senza i gruppi chiusi: è l'ordine delle frecce.
 export const ordineVisto = (gruppi, chiusi = new Set()) => (gruppi ?? []).flatMap((g) => (chiusi.has(g.chiave) ? [] : g.carte));
+// L'Orchestratore (Fase 2 del piano del 20/11/2026, #6185): la Coda diventa il posto da cui si guidano tutte le
+// sessioni. In cima le sessioni per stato, sotto i gruppi di prima (bozze, tocca a te, decidi tu), in fondo i
+// permessi approvati da Arturo oggi, chiusi di serie. Le chiuse e le addormentate restano fuori. Le righe di
+// sessione hanno `vista: "sessione"`, quelle dei permessi `vista: "giudizio"`; una carta non ha `vista`.
+export const GRUPPI_ORCHESTRA = [
+  ["aspettano", "Ti aspettano"],
+  ["lavorano", "Lavorano"],
+  ["comando", "Aspettano un comando"],
+  ["errori", "Errori"],
+  ["bozze", "Bozze da mandare"],
+  ["tu", "Tocca a te"],
+  ["decidi", "Decidi tu"],
+  ["approvati", "Approvati da Arturo (oggi)"],
+];
+export const CHIUSI_DI_SERIE = ["approvati"];
+// Al più tanti permessi approvati nel gruppo in fondo: i più recenti.
+export const APPROVATI_MAX = 20;
+// Le righe di sessione per l'Orchestratore, da vis(): senza chiuse e addormentate, con la fase, la frase di
+// stato e i permessi approvati oggi. volta.js le pubblica in shared arturo.orchestra.
+export function righeOrchestra(sessioni, adesso = Date.now()) {
+  return (sessioni ?? []).filter((s) => s && !chiusa(s) && !dorme(s)).map((s) => ({
+    vista: "sessione", chiave: `s:${chiave(s)}`, sessione: chiave(s), host: s.host ?? "qui", macchina: s.macchina ?? null,
+    progetto: s.progetto ?? null, titolo: titolo(s), fase: fase(s), frase: fraseStato(s, adesso),
+    azione: String(s.azione ?? "").replace(/\s+/g, " ").trim().slice(0, 160), quando: interazione(s),
+    vecchia: Boolean(s.vecchia), giudizi: s.giudizi && typeof s.giudizi === "object" ? s.giudizi : null,
+  }));
+}
+// I permessi approvati oggi da tutte le sessioni, dal più recente: una riga per permesso.
+export function righeApprovati(righe) {
+  const out = [];
+  for (const r of righe ?? []) {
+    for (const g of r?.giudizi?.ultimi ?? []) {
+      if (g?.decisione !== "si") continue;
+      const q = Number(g.quando) || 0;
+      out.push({ vista: "giudizio", chiave: `g:${r.sessione}:${q}`, sessione: r.sessione, host: r.host, macchina: r.macchina,
+        progetto: r.progetto, titolo: String(g.riga ?? ""), motivo: String(g.motivo ?? ""), quando: q * 1000, di: r.titolo });
+    }
+  }
+  return out.sort((a, b) => b.quando - a.quando).slice(0, APPROVATI_MAX);
+}
+// Quanti permessi Arturo ha approvato oggi, su tutte le sessioni (anche le chiuse: il conto è della giornata).
+export const siOggi = (sessioni) => (sessioni ?? []).reduce((n, s) => n + (Number(s?.giudizi?.si) || 0), 0);
+// Il gruppo di una riga di sessione. Una sessione in stasi ha la sua carta in "Ti aspettano"; se la carta non
+// c'è più (risposta o scartata) aspetta un comando. Una macchina che non risponde: l'ultima fase letta.
+export function gruppoSessione(r, inCoda = new Set()) {
+  if (r.fase === "attiva") return "lavorano";
+  if (r.fase === "errore") return "errori";
+  if (r.fase === "stasi" && inCoda.has(r.sessione)) return null;
+  return "comando";
+}
+// I gruppi dell'Orchestratore: `carte` come shared arturo.coda (già in ordine), `righe` come righeOrchestra.
+// Dentro i gruppi di sessione la più recente prima. Un gruppo vuoto non c'è. Torna [{ chiave, nome, carte }].
+export function gruppiOrchestra(carte, righe) {
+  const per = new Map(GRUPPI_ORCHESTRA.map(([k]) => [k, []]));
+  const inCoda = new Set();
+  for (const c of carte ?? []) {
+    if (!c) continue;
+    const g = gruppoCarta(c);
+    per.get(g === "sessioni" ? "aspettano" : g).push(c);
+    if (c.origine === "sessione") inCoda.add(c.chiave);
+  }
+  const ss = [...(righe ?? [])].filter(Boolean).sort((a, b) => (b.quando || 0) - (a.quando || 0));
+  for (const r of ss) {
+    const g = gruppoSessione(r, inCoda);
+    if (g) per.get(g).push(r);
+  }
+  per.set("approvati", righeApprovati(righe));
+  return GRUPPI_ORCHESTRA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) })).filter((g) => g.carte.length);
+}
+// Lo stato del giudice sulle macchine che lo dicono (campo `giudice` della voce di macchina della sonda):
+// { accese, spente, testo } con testo "decide Arturo", "decidi tu" o "decide Arturo su 2 di 3 macchine".
+// null se nessuna macchina lo dice (una sonda di prima).
+export function statoGiudice(macchine) {
+  const mm = (macchine ?? []).filter((m) => m && (m.giudice === "acceso" || m.giudice === "spento"));
+  if (!mm.length) return null;
+  const accese = mm.filter((m) => m.giudice === "acceso").length, spente = mm.length - accese;
+  const testo = !spente ? "decide Arturo" : !accese ? "decidi tu" : `decide Arturo su ${accese} di ${mm.length} macchine`;
+  return { accese, spente, testo };
+}
+// Il tasto G: spegne se il giudice è acceso su almeno una macchina, altrimenti accende.
+export const giudiceDopo = (stato) => (stato && stato.accese > 0 ? "spento" : "acceso");
+// Cosa fa un tasto sulla riga `c` dell'Orchestratore. Una riga di sessione o di permesso si apre con Invio o T;
+// le frecce e Esc come sulla Coda; G accende o spegne il giudice su ogni riga. Il resto vale per le carte
+// (tastoCoda).
+export function tastoOrchestra(k, c) {
+  if (k === "g") return { azione: "giudice" };
+  if (!c?.vista) return tastoCoda(k, c);
+  if (k === "enter" || k === "t") return { azione: "apri" };
+  if (k === "right" || k === "down") return { azione: "salta" };
+  if (k === "left" || k === "up") return { azione: "indietro" };
+  if (k === "escape") return { azione: "esci" };
+  return null;
+}
+// La riga sotto il titolo di una sessione dell'Orchestratore: progetto · macchina · da quanto · ultima azione.
+// Su una sessione che non lavora l'ultima azione non serve: c'è la frase di stato.
+export function dettaglioRiga(r, nomeMacchina = (h) => h, adesso = Date.now()) {
+  const quanto = r.quando ? daQuanto(new Date(r.quando).toISOString(), adesso) : "";
+  const az = r.fase === "attiva" ? r.azione : "";
+  return [r.progetto ? nomeProgetto(r.progetto) : "Senza progetto", nomeMacchina(r.host), quanto, az].filter(Boolean).join(" · ");
+}
+
 // La carta davanti dopo un salto: in giro, così dall'ultima si torna alla prima.
 export const passoCoda =(at, verso, n) => (n > 0 ? (((Number(at) || 0) + verso) % n + n) % n : 0);
 // La carta da mostrare: la stessa di prima se c'è ancora (per chiave), altrimenti quella al suo posto.
@@ -2040,6 +2142,7 @@ export const TETTI = {
     "respawn": 210,
     "cambia": 90,
     "ripresa": 90,
+    "giudice": 90,
     "nasci": 360,
     "sposta": 60,
     "congeda": 400,

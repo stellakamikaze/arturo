@@ -28,6 +28,8 @@ import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, chiudiAltrui, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda, ioQui } from "./dati.js";
 import { voloSposta, VOLO_FRESCO_MS, giuDa, dimenticata, testoHandoff, promptRipresa } from "./sessioni.js";
+import { righeOrchestra, siOggi, statoGiudice, giudiceDopo } from "./sessioni.js";
+import { giudiceSu } from "./dati.js";
 import { cartellaHandoff, nomeFile, creaCartella, leggiGiu, scriviGiu, riprendiSu, conArturo } from "./dati.js";
 import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
@@ -1254,6 +1256,34 @@ export class Volta {
     if (JSON.stringify(cc) !== JSON.stringify(shared("arturo.coda") ?? [])) setShared("arturo.coda", cc);
     const m = rigaMisura(this.uf?.misura);
     if (m !== (shared("arturo.coda.misura") ?? null)) setShared("arturo.coda.misura", m);
+    // l'Orchestratore (Fase 2, #6185): tutte le sessioni visibili, i sì di oggi e lo stato del giudice
+    const o = { righe: righeOrchestra(this.vis()?.sessioni), si: siOggi(this.dati?.sessioni), giudice: statoGiudice(this.dati?.macchine) };
+    if (JSON.stringify(o) !== JSON.stringify(shared("arturo.orchestra") ?? null)) setShared("arturo.orchestra", o);
+  }
+
+  // G nell'Orchestratore (Fase 2 del piano del 20/11/2026, #6185): spegne il giudice dei permessi su tutte le
+  // macchine che rispondono se è acceso almeno su una, altrimenti lo accende. Una macchina senza il campo
+  // `giudice` (sonda di prima) non si tocca. L'esito va nella voce della macchina e in un avviso.
+  giudice(cx) {
+    if (this.giudicando && !appesa(this.giudicando, tettoDi("giudice"))) return;
+    const stato = giudiceDopo(statoGiudice(this.dati?.macchine));
+    const mm = (this.dati?.macchine ?? []).filter((m) => !m.irraggiungibile && (m.giudice === "acceso" || m.giudice === "spento"));
+    if (!mm.length) return notify({ title: "Il giudice dei permessi non si vede", body: "Nessuna macchina dice se il giudice è acceso: aggiorna il mod.", level: "warning" });
+    const mio = (this.giudicando = Date.now());
+    cx.spawn(async (cx) => {
+      try {
+        const ee = await Promise.all(mm.map((m) => giudiceSu(m.questa ? "qui" : m.host, stato)));
+        const nuovo = new Map(mm.map((m, i) => [m.host, ee[i]?.giudice]));
+        this.dati = { ...this.dati, macchine: (this.dati?.macchine ?? []).map((m) => (nuovo.get(m.host) ? { ...m, giudice: nuovo.get(m.host) } : m)) };
+        const ko = mm.map((m, i) => (ee[i]?.errore ? `${m.macchina ?? m.host}: ${ee[i].errore}` : null)).filter(Boolean);
+        registra("giudice", { stato, macchine: mm.length, errori: ko.length });
+        notify({ title: stato === "spento" ? "Permessi: decidi tu" : "Permessi: decide Arturo",
+          body: ko.length ? `Non cambiato su ${ko.join(" · ")}` : stato === "spento" ? "Il giudice è spento su tutte le macchine: ogni permesso torna a te." : "Il giudice è acceso: i passi reversibili passano da soli, i freni restano a te.",
+          level: ko.length ? "warning" : "info" });
+        this.aggiornaCoda();
+        cx.notify();
+      } finally { if (this.giudicando === mio) this.giudicando = null; }
+    });
   }
 
   // "arturo.checklist" (⌘⇧S) e "arturo.checklist-<chiave>" (17/11/2026): la ripartenza di /inizio come

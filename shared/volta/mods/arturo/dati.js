@@ -1440,6 +1440,17 @@ export async function rispondiSessione(s, testo, canale) {
   }
 }
 
+// Il giudice dei permessi acceso o spento su una macchina (tasto G dell'Orchestratore, Fase 2 del piano del
+// 20/11/2026): volta_sonda.py giudice scrive o toglie cache/giudice-spento. Torna { ok, giudice } | { errore }.
+export async function giudiceSu(host, stato) {
+  const cfg = await config();
+  try {
+    return esito(await exec(cfg.arturo[0], [cfg.volta, ...entroDi("giudice"), "giudice", host ?? "qui", stato], { timeout: tettoDi("giudice") }));
+  } catch (e) {
+    return { errore: `${nomeMacchina(host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}
+
 // La ripresa da sola (#5882): il canale come la risposta della Coda, ma solo dove arriva senza la persona.
 // Una scheda di questa finestra: il testo si scrive lì. Una scheda di un'altra finestra: lo fa quella. In
 // background senza schede: stop e ripresa col testo (rispondi). Prima volta_sonda.py ripresa conta il

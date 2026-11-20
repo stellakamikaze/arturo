@@ -11,15 +11,20 @@
 // il motore per il fuoco), Esc torna al terminale. Le decisioni dei tasti stanno in sessioni.js (tastoCoda),
 // senza Herdr. Le prove (screenshot, video) arrivano qui con volta_carte.py: Herdr mostra solo le immagini
 // dentro la cartella dell'app.
+// Dal 20/11/2026 è l'Orchestratore (Fase 2 del piano dell'Orchestratore, #6185): in cima tutte le sessioni per
+// stato (ti aspettano, lavorano, aspettano un comando, errori), sotto i gruppi di prima e in fondo i permessi
+// approvati da Arturo oggi (gruppiOrchestra di sessioni.js, shared arturo.orchestra di volta.js). Su una riga di
+// sessione Invio o T aprono la scheda; G spegne o accende il giudice dei permessi su tutte le macchine.
 
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, ScrollHandle } from "gpui-base";
 import { theme, shared, run, exec, appHome } from "herdr";
-import { ICONA, punto, tasti } from "./comuni.js";
+import { ICONA, punto, tasti, colore } from "./comuni.js";
 import { terminale } from "./casa.js";
 import { config, apriFile, nomeMacchina } from "./dati.js";
-import { tastoCoda, passoCoda, cartaDavanti, raccomandata, tipoProva, copiaProva, comandoRisposta, daQuanto, nomeProgetto, testoPiano, etichettaOpzione, CODA_OPZIONI } from "./sessioni.js";
-import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE, UMANI, gruppiCoda, ordineVisto } from "./sessioni.js";
+import { passoCoda, cartaDavanti, raccomandata, tipoProva, copiaProva, comandoRisposta, daQuanto, nomeProgetto, testoPiano, etichettaOpzione, CODA_OPZIONI } from "./sessioni.js";
+import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE, UMANI, ordineVisto } from "./sessioni.js";
+import { gruppiOrchestra, tastoOrchestra, dettaglioRiga, CHIUSI_DI_SERIE } from "./sessioni.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
 import { tettoDi, entroDi, daCopiare, PROVA_RIPROVA_MS } from "./sessioni.js";
 
@@ -40,7 +45,7 @@ export class Coda {
     this.sopra = null;    // il gesto del pulsante sotto il cursore (on_hover), per C
     this.copie = {};      // destinazione -> "copio" | "ok" | messaggio d'errore
     this.giri = {};       // destinazione -> { n, dopo }: le copie partite e da quando si riprova (daCopiare)
-    this.chiusi = new Set();   // i gruppi chiusi, per chiave
+    this.chiusi = new Set(CHIUSI_DI_SERIE);   // i gruppi chiusi, per chiave: i permessi approvati di serie
     this.scroll = ScrollHandle.new();
     this.py = "python3";
     this.script = `${appHome()}/mods/arturo/volta_carte.py`;
@@ -72,10 +77,16 @@ export class Coda {
     });
   }
 
-  // Le carte nell'ordine dell'elenco: per gruppo, senza i gruppi chiusi.
-  elenco() {
+  // I gruppi dell'Orchestratore: le carte della Coda e le righe delle sessioni (shared di volta.js).
+  gruppi() {
     const l = shared("arturo.coda");
-    return ordineVisto(gruppiCoda(Array.isArray(l) ? l : []), this.chiusi);
+    const o = shared("arturo.orchestra");
+    return gruppiOrchestra(Array.isArray(l) ? l : [], Array.isArray(o?.righe) ? o.righe : []);
+  }
+
+  // Le righe nell'ordine dell'elenco: per gruppo, senza i gruppi chiusi.
+  elenco() {
+    return ordineVisto(this.gruppi(), this.chiusi);
   }
 
   davanti() {
@@ -131,7 +142,8 @@ export class Coda {
   apri(c) {
     if (c.origine === "uf") return this.rispondi(c, "Apri");
     terminale();
-    run(`arturo.volta-${c.chiave}`);
+    // una riga di sessione o di permesso porta la chiave della sessione in `sessione`
+    run(`arturo.volta-${c.vista ? c.sessione : c.chiave}`);
   }
 
   // Apre o chiude un gruppo.
@@ -176,9 +188,10 @@ export class Coda {
       cx.stop_propagation();
       return cx.notify();
     }
-    const a = tastoCoda(e.key, c);
+    const a = tastoOrchestra(e.key, c);
     if (!a) return;
     cx.stop_propagation();
+    if (a.azione === "giudice") return run("arturo.giudice");
     if (a.azione === "esci") return terminale();
     if (a.azione === "rispondi") return this.rispondi(c, a.testo);
     if (a.azione === "apri") return this.apri(c);
@@ -199,11 +212,10 @@ export class Coda {
 
   render(cx) {
     const t = theme();
-    const tutte = shared("arturo.coda");
-    const gruppi = gruppiCoda(Array.isArray(tutte) ? tutte : []);
+    const gruppi = this.gruppi();
     const l = ordineVisto(gruppi, this.chiusi);
     const c = this.davanti();
-    if (c) this.copiaProve(c, cx);
+    if (c && !c.vista) this.copiaProve(c, cx);
     // L'elenco ha figli piatti (intestazioni e righe), così scroll_to_item porta in vista la riga scelta.
     const figli = [];
     let scelta = -1;
@@ -212,11 +224,12 @@ export class Coda {
       if (this.chiusi.has(g.chiave)) continue;
       for (const x of g.carte) {
         if (c && x.chiave === c.chiave) scelta = figli.length;
-        figli.push(this.riga(t, x, Boolean(c) && x.chiave === c.chiave));
+        const su = Boolean(c) && x.chiave === c.chiave;
+        figli.push(x.vista === "sessione" ? this.rigaSessione(t, x, su) : x.vista === "giudizio" ? this.rigaGiudizio(t, x, su) : this.riga(t, x, su));
       }
     }
     if (this.seguiScelta && scelta >= 0) { this.seguiScelta = false; this.scroll.scroll_to_item(scelta); }
-    const quante = Array.isArray(tutte) ? tutte.length : 0;
+    const quante = gruppi.reduce((n, g) => n + g.carte.length, 0);
     return v_flex().id("coda").track_focus(this.handle).size_full().bg(t.background).rounded(RAGGIO.riquadro)
       .border_1().border_color(t.border).overflow_hidden()
       .on_key_down((e, cx) => this.tasto(e, c, l.length, cx))
@@ -227,28 +240,38 @@ export class Coda {
         : div().id("coda-corpo").flex_1().child(this.vuota(t)));
   }
 
-  // La testata: il titolo, il conto per gruppo e, se il capo l'ha contata (#5723), la quota di raccomandazioni
-  // accettate. I tasti in una riga sola, i principali.
+  // La testata: il titolo, il conto per gruppo, i permessi (chi decide e quanti sì oggi) e, se il capo l'ha
+  // contata (#5723), la quota di raccomandazioni accettate. I tasti in una riga sola, i principali.
   testa(t, gruppi, quante) {
     const misura = shared("arturo.coda.misura");
-    const conti = gruppi.map((g) => `${g.carte.length} ${g.nome.toLowerCase()}`).join(" · ");
+    const o = shared("arturo.orchestra");
+    const conti = gruppi.filter((g) => g.chiave !== "approvati").map((g) => `${g.carte.length} ${g.nome.toLowerCase()}`).join(" · ");
+    const gd = o?.giudice;
+    const permessi = gd ? `Permessi: ${gd.testo} · ${Number(o.si) || 0} sì oggi · G ${gd.accese ? "spegne" : "accende"}` : "";
     return v_flex().flex_none().px(SPAZIO.xxl).pt(SPAZIO.xxl).pb(SPAZIO.l).gap(SPAZIO.xs + 1)
       .child(h_flex().gap(SPAZIO.l).items_baseline()
-        .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Coda"))
-        .when(quante > 0, (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.muted).child(String(quante))))
+        .child(div().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Orchestratore"))
+        // il numero dice le righe da guardare: i permessi già approvati non contano
+        .when(quante > 0, (el) => el.child(div().text_size(TESTO.etichetta).text_color(t.muted)
+          .child(String(gruppi.filter((g) => g.chiave !== "approvati").reduce((n, g) => n + g.carte.length, 0)))))
         .child(div().flex_1())
         .child(div().text_size(TESTO.nota).text_color(t.dim)
-          .child(quante ? "↑↓ scegli · 1-6 o Invio rispondono · T apre · Esc torna" : "Esc torna alla sessione")))
+          .child(quante ? "↑↓ scegli · Invio risponde o apre · T apre · Esc torna" : "Esc torna alla sessione")))
       .when(quante > 0, (el) => el.child(div().truncate().text_size(TESTO.etichetta).text_color(t.muted).child(conti)))
+      .when(Boolean(permessi), (el) => el.child(h_flex().id("coda-giudice").gap(SPAZIO.s + 2).items_center().cursor_pointer()
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click(() => run("arturo.giudice"))
+        .child(punto(gd.accese ? t.accent : t.dim, PALLINO))
+        .child(div().truncate().text_size(TESTO.etichetta).text_color(t.muted).child(permessi))))
       .when(typeof misura === "string" && misura.length > 0, (el) => el.child(div().text_size(TESTO.nota).text_color(t.dim).child(misura)));
   }
 
   vuota(t) {
     return v_flex().id("coda-vuota").w_full().pt(SPAZIO.xxl * 2).items_center().gap(SPAZIO.l)
       .child(svg(ICONA("circle-check")).size(40).text_color(t.done ?? t.accent))
-      .child(div().text_size(TESTO.testata).text_color(t.foreground).child("Niente ti aspetta"))
+      .child(div().text_size(TESTO.testata).text_color(t.foreground).child("Nessuna sessione aperta"))
       .child(div().text_size(TESTO.etichetta).text_color(t.muted)
-        .child(`Quando una sessione chiede qualcosa, la carta arriva qui. ${tasti().coda} la riapre.`));
+        .child(`Qui compaiono tutte le sessioni, divise per stato, e ciò che aspetta te. ${tasti().coda} la riapre.`));
   }
 
   // L'intestazione di un gruppo: apre e chiude, col conto. Come filone() della checklist.
@@ -258,7 +281,7 @@ export class Coda {
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
       .on_click((_e, cx) => this.giraGruppo(g.chiave, cx))
       .child(svg(ICONA(chiuso ? "chevron-right" : "chevron-down")).size(12).text_color(t.dim))
-      .child(div().text_size(TESTO.etichetta).font_semibold().text_color(g.chiave === "sessioni" ? t.blocked : t.muted).child(g.nome))
+      .child(div().text_size(TESTO.etichetta).font_semibold().text_color(g.chiave === "aspettano" || g.chiave === "errori" ? t.blocked : t.muted).child(g.nome))
       .child(div().text_size(TESTO.nota).text_color(t.dim).child(String(g.carte.length)));
   }
 
@@ -318,12 +341,52 @@ export class Coda {
       .when(scelta, (el) => el.child(this.gesti(t, c)));
   }
 
+  // Una sessione dell'Orchestratore: pallino del colore della fase, titolo, frase di stato a destra, sotto
+  // progetto · macchina · da quanto · ultima azione. Il clic sceglie la riga, il doppio clic (o Invio, T) la apre.
+  rigaSessione(t, r, scelta) {
+    const f = r.frase ?? { testo: "", colore: "muted" };
+    return v_flex().id(`coda-r-${r.chiave}`).w_full().px(SPAZIO.m).py(SPAZIO.s + 2).gap(SPAZIO.xs).rounded(RAGGIO.riga).cursor_pointer()
+      .when(scelta, (el) => el.bg(t.selected))
+      .when(!scelta, (el) => el.hover((s) => s.bg(t.hover)))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((e, cx) => (e?.click_count > 1 ? this.apri(r) : this.scegli(r, cx)))
+      .child(h_flex().w_full().gap(SPAZIO.m + 2).items_center()
+        .child(punto(colore(t, f.colore), PALLINO))
+        .child(div().flex_1().min_w(0).truncate().text_size(TESTO.corpo).text_color(r.vecchia ? t.muted : t.foreground).child(r.titolo ?? ""))
+        .child(div().flex_none().text_size(TESTO.nota).text_color(colore(t, f.colore)).child(f.testo ?? "")))
+      .child(div().pl(RIENTRO).truncate().text_size(TESTO.nota).text_color(t.muted).child(dettaglioRiga(r, nomeMacchina)))
+      .when(scelta, (el) => el.child(h_flex().pl(RIENTRO).gap(SPAZIO.m).pt(SPAZIO.xs)
+        .child(this.gesto(t, "coda-apri", "terminal", "Apri la sessione · Invio", () => this.apri(r)))));
+  }
+
+  // Un permesso approvato da Arturo oggi: il passo, la sessione e il perché. Invio o T aprono la sessione.
+  rigaGiudizio(t, r, scelta) {
+    const quando = r.quando ? daQuanto(new Date(r.quando).toISOString()) : "";
+    return v_flex().id(`coda-r-${r.chiave}`).w_full().px(SPAZIO.m).py(SPAZIO.s + 2).gap(SPAZIO.xs).rounded(RAGGIO.riga).cursor_pointer()
+      .when(scelta, (el) => el.bg(t.selected))
+      .when(!scelta, (el) => el.hover((s) => s.bg(t.hover)))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => this.scegli(r, cx))
+      .child(h_flex().w_full().gap(SPAZIO.m + 2).items_center()
+        .child(svg(ICONA("circle-check")).size(12).flex_none().text_color(t.done ?? t.accent))
+        .child(div().flex_1().min_w(0).when(!scelta, (el) => el.truncate()).when(scelta, (el) => el.whitespace_normal())
+          .text_size(TESTO.etichetta).text_color(t.foreground).child(r.titolo ?? "")))
+      .child(div().pl(RIENTRO).truncate().text_size(TESTO.nota).text_color(t.muted)
+        .child([r.di, r.progetto ? nomeProgetto(r.progetto) : "", nomeMacchina(r.host), quando].filter(Boolean).join(" · ")))
+      .when(scelta && Boolean(r.motivo), (el) => el.child(div().pl(RIENTRO).w_full().whitespace_normal().text_size(TESTO.etichetta).text_color(t.muted)
+        .child(`Perché: ${r.motivo}`)))
+      .when(scelta, (el) => el.child(h_flex().pl(RIENTRO).gap(SPAZIO.m).pt(SPAZIO.xs)
+        .child(this.gesto(t, "coda-apri", "terminal", "Apri la sessione · Invio", () => this.apri(r)))));
+  }
+
   // La riga scelta, aperta: la domanda intera, il riassunto, le doppie, le prove, il campo della nota.
   dettaglio(t, c, sotto) {
     const uf = c.origine === "uf";
     const domanda = testoPiano(c.domanda);
     return v_flex().pl(RIENTRO).gap(SPAZIO.m).pt(SPAZIO.xs)
       .when(!uf && Boolean(domanda) && domanda !== sotto, (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.riga).text_color(t.foreground).child(domanda)))
+      .when(Boolean(c.motivo), (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.etichetta).text_color(t.blocked)
+        .child(`Arturo lo lascia a te: ${testoPiano(c.motivo)}`)))
       .when(Boolean(c.riassunto || c.esito), (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.corpo).text_color(t.muted).child(testoPiano(c.riassunto || c.esito))))
       .when((c.doppie ?? []).length > 0, (el) => el.child(div().w_full().whitespace_normal().text_size(TESTO.etichetta).text_color(t.dim)
         .child(`Chiede la stessa cosa anche: ${c.doppie.join(" · ")}`)))

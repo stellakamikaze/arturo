@@ -109,6 +109,7 @@ export class Barra {
     else if (c === "coda" && senzaCoda(layout())) notify({ title: "La Coda non c'è in questa finestra", body: "Il layout è di prima della Coda: aggiorna Volta e riaprila.", level: "warning" });
     else if (c === "coda") { run("layout.select", { stack: STACK, child: CODA }); setShared("arturo.coda.apri", Date.now()); }
     else if (c === "coda-rispondi") this.volta.rispondiCoda(arg.chiave, decodifica(arg.testo), cx);
+    else if (c === "giudice") this.volta.giudice(cx);
     // ⌘⇧S: la checklist della ripartenza (checklist.js); dalla Coda con la chiave della sessione.
     else if (c === "checklist") this.volta.checklist(arg);
     else if (c === "checklist-prova") { const p = leggiProvaChecklist(arg); if (p) setShared("arturo.checklist.prova", { ...p, quando: Date.now() }); }

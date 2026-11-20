@@ -62,6 +62,8 @@ export function instrada(c) {
   // "coda": la Coda delle decisioni al posto del terminale (⌘⇧J, #5720); "coda-rispondi-<chiave>-<esadecimale>":
   // la risposta scelta su una carta (comandoRisposta di sessioni.js), per macchina:id.
   if (c === "coda") return { verbo: "coda", arg: null, lungo: false };
+  // "giudice": il tasto G dell'Orchestratore, spegne o accende il giudice dei permessi su tutte le macchine.
+  if (c === "giudice") return { verbo: "giudice", arg: null, lungo: false };
   const cr = /^coda-rispondi-([^:]+:[0-9A-Za-z]+)-((?:[0-9a-f]{4})+)$/.exec(c);
   if (cr) return { verbo: "coda-rispondi", arg: { chiave: cr[1], testo: cr[2] }, lungo: false };
   // "coda-gesto-<chiave>-<esadecimale>": un gesto della carta col suo commento (comandoGesto di sessioni.js).
