@@ -153,11 +153,23 @@ fi
 # stdout vuoto e la diagnosi finisce sul servizio sbagliato. Esclusi ssh, docker exec
 # e heredoc: li' `timeout` gira su una macchina Linux.
 _NL=$'\n'
+# La guardia può girare con un PATH più corto della shell di Claude, che legge il profilo della persona: lì
+# /opt/homebrew/bin c'è, qui a volte no, e `timeout` di coreutils veniva bloccato anche dove esiste
+# (20/11/2026, 11 blocchi in 7 giorni). Contano anche le cartelle di Homebrew; ARTURO_TIMEOUT_CARTELLE le
+# sostituisce, e vuota le spegne (i banchi del blocco).
+_timeout_c_e() {
+  command -v timeout &>/dev/null && return 0
+  local d
+  for d in ${ARTURO_TIMEOUT_CARTELLE-/opt/homebrew/bin /usr/local/bin /opt/homebrew/opt/coreutils/libexec/gnubin /usr/local/opt/coreutils/libexec/gnubin}; do
+    [[ -x "$d/timeout" ]] && return 0
+  done
+  return 1
+}
 PATTERN_TIMEOUT="(^|[;&|(\`${_NL}])[[:space:]]*((sudo|env|command|exec)[[:space:]]+)?timeout[[:space:]]+(-[^[:space:]]+[[:space:]]+([A-Z]+[[:space:]]+)?)*[0-9]"
 PATTERN_REMOTE='(^|[[:space:];&|(])(ssh|docker[[:space:]]+exec|kubectl[[:space:]]+exec)[[:space:]]|<<'
 # Il match si ripete sul comando con le parti fra virgolette mascherate: un
 # `git commit -m "fix; timeout 30"` non e' un timeout. Se python fallisce resta il comando intero.
-if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
+if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! _timeout_c_e; then
     _SENZAQ=$(MSYS2_ARG_CONV_EXCL='*' python3 -c 'import sys
 c=sys.argv[1]; out=[]; q=None; i=0
 while i<len(c):
@@ -170,7 +182,7 @@ while i<len(c):
 print("".join(out))' "$COMMAND" 2>/dev/null) || _SENZAQ="$COMMAND"
     [[ -n "$_SENZAQ" ]] || _SENZAQ="$COMMAND"
 fi
-if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
+if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! _timeout_c_e; then
     echo "BLOCCATO: 'timeout' non esiste su questo sistema. Fallirebbe con 'command not found' e stdout vuoto. Usa il parametro timeout del tool Bash, 'curl --max-time N', oppure 'cmd & pid=\$!; sleep N; kill \$pid'." >&2
     exit 2
 fi

@@ -163,9 +163,127 @@ def at04(b: Banco) -> int:
     return verifica("AT04", casi)
 
 
-TESTS = {"AT01": at01, "AT02": at02, "AT03": at03, "AT04": at04}
+def _dispatcher_nudo(b: Banco, comando: str, cartelle: str) -> str:
+    """Il dispatcher con un PATH senza timeout, e le cartelle extra dove cercarlo."""
+    import json as _json
+    nudo = b.home.parent / "bin-nudo"
+    if not nudo.exists():
+        nudo.mkdir()
+        for programma in ("bash", "python3", "git", "jq", "sh", "cat", "printf", "date", "mkdir", "basename", "sed",
+                          "grep", "tr", "wc", "dirname", "env"):
+            percorso = shutil.which(programma)
+            if percorso:
+                (nudo / programma).symlink_to(percorso)
+    copia = b.claude / "hooks"
+    if not (copia / "bash-dispatcher.sh").exists():
+        shutil.rmtree(copia, ignore_errors=True)
+        shutil.copytree(b.hooks, copia, ignore=shutil.ignore_patterns("__pycache__", "*.local"))
+    env = dict(ms._env(b.home), PATH=str(nudo), ARTURO_TIMEOUT_CARTELLE=cartelle)
+    dati = _json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(b.home),
+                        "hook_event_name": "PreToolUse", "session_id": "at"})
+    p = subprocess.run([str(nudo / "bash"), str(copia / "bash-dispatcher.sh")], input=dati, text=True,
+                       encoding="utf-8", capture_output=True, timeout=120, check=False, env=env)
+    return ms.decisione(p)
+
+
+@gruppo
+def at05(b: Banco) -> int:
+    if os.name == "nt":
+        return 0  # su Windows timeout c'è in Git Bash
+    brew = b.home.parent / "brew-finto"
+    brew.mkdir()
+    (brew / "timeout").write_text("#!/bin/sh\nshift; exec \"$@\"\n", encoding="utf-8")
+    (brew / "timeout").chmod(0o755)
+    casi = [
+        ("timeout-in-homebrew", _dispatcher_nudo(b, "timeout 5 ls", str(brew)), "silent"),
+        ("timeout-assente", _dispatcher_nudo(b, "timeout 5 ls", ""), "block"),
+        ("timeout-cartella-vuota", _dispatcher_nudo(b, "timeout 5 ls", str(b.home / "tmp")), "block"),
+    ]
+    return verifica("AT05", casi)
+
+
+def _bd_job(b: Banco, comando: str, cwd: Path, sessione: str, job: str | None, dopo: bool = False) -> str:
+    import json as _json
+    env = dict(ms._env(b.home))
+    if job:
+        env["CLAUDE_JOB_DIR"] = str(b.claude / "jobs" / job)
+    dati = _json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(cwd),
+                        "hook_event_name": "PostToolUse" if dopo else "PreToolUse", "session_id": sessione})
+    p = subprocess.run([sys.executable, "-B", str(b.hooks / BD)] + (["dopo"] if dopo else []), input=dati,
+                       text=True, encoding="utf-8", capture_output=True, timeout=30, check=False, env=env)
+    return ms.decisione(p)
+
+
+@gruppo
+def at06(b: Banco) -> int:
+    repo = b.home / "progetto" / "amend"
+    repo.mkdir(parents=True)
+    _git("init", "-q", "-b", "main", cwd=repo, home=b.home)
+    (repo / "a.txt").write_text("a\n", encoding="utf-8")
+    _git("add", "a.txt", cwd=repo, home=b.home)
+    _git("commit", "-qm", "a", cwd=repo, home=b.home)
+    # La sessione A del job j1 registra il suo commit; dopo /clear la sessione B dello stesso job fa l'amend.
+    _bd_job(b, "git commit -qm a", repo, "sessione-a", "j1", dopo=True)
+    amend = "git commit -q --amend --no-edit"
+    casi = [
+        ("stesso-job", _bd_job(b, amend, repo, "sessione-b", "j1"), "silent"),
+        ("altro-job", _bd_job(b, amend, repo, "sessione-c", "j2"), "ask"),
+        ("senza-job", _bd_job(b, amend, repo, "sessione-d", None), "ask"),
+        ("stessa-sessione", _bd_job(b, amend, repo, "sessione-a", None), "silent"),
+    ]
+    return verifica("AT06", casi)
+
+
+CG = "commit-secret-gate.py"
+
+
+@gruppo
+def at07(b: Banco) -> int:
+    repo = b.home / "progetto" / "gate"
+    repo.mkdir(parents=True)
+    _git("init", "-q", "-b", "main", cwd=repo, home=b.home)
+    (repo / "a.txt").write_text("a\n", encoding="utf-8")
+    nota = (f"F={repo}/a.txt; cat >> $F <<'EOF'\n- la richiesta d'importo al partner\nEOF\n"
+            f"cd {repo} && git add a.txt && git commit -qm nota")
+    pr = f"cd {repo} && gh pr create --title t --body-file - <<'EOF'\nL'ultima revisione\nEOF"
+    veleno = (f"cd {repo} && bash <<'EOF'\necho l'apostrofo\ngit commit -am segreto\nEOF")
+    casi = [
+        ("apostrofo-nel-corpo", b.guardia(CG, nota), "silent"),
+        ("pr-con-apostrofo", b.guardia(CG, pr), "silent"),
+        ("commit-nel-corpo", b.guardia(CG, veleno), "ask"),
+    ]
+    return verifica("AT07", casi)
+
+
+@gruppo
+def at08(b: Banco) -> int:
+    import re as _re
+    sorgente = b.hooks.parent / "tests" / "banchi-avvio.sh"
+    banchi = _re.search(r'^BANCHI="([^"]+)"', sorgente.read_text(encoding="utf-8"), _re.M).group(1).split()
+
+    def corsa(con_banchi: list) -> tuple:
+        config = b.home.parent / f"config-{len(con_banchi)}"
+        (config / "tests").mkdir(parents=True)
+        shutil.copy2(sorgente, config / "tests" / "banchi-avvio.sh")
+        for nome in con_banchi:
+            (config / "tests" / nome).write_text("pass\n", encoding="utf-8")
+        env = dict(ms._env(b.home), ARTURO_DIR=str(config), ARTURO_TELEMETRIA="0")
+        p = subprocess.run(["bash", str(config / "tests" / "banchi-avvio.sh")], env=env, capture_output=True,
+                           text=True, encoding="utf-8", timeout=300, check=False)
+        esito = (config / "cache" / "banchi-ultimo-esito.txt").read_text(encoding="utf-8").splitlines()[:1]
+        return p.returncode, (esito or [""])[0]
+    casi = [
+        ("nessun-banco", corsa([]), (0, "SALTATO")),
+        ("ne-manca-uno", corsa(banchi[1:]), (1, "ROSSO")),
+        ("tutti", corsa(banchi), (0, "VERDE")),
+    ]
+    return verifica("AT08", casi)
+
+
+TESTS = {"AT01": at01, "AT02": at02, "AT03": at03, "AT04": at04, "AT05": at05, "AT06": at06, "AT07": at07,
+         "AT08": at08}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "forma_comando.py", "protect_claude_md.py", "heredoc.py",
-           "gh-destructive-guard.py")
+           "gh-destructive-guard.py", "commit-secret-gate.py")
 
 
 def avvelena(repo: Path, ref: str) -> int:
@@ -180,6 +298,10 @@ def avvelena(repo: Path, ref: str) -> int:
                                          check=False)
                 if vecchio.returncode == 0:
                     (copia / "hooks" / nome).write_bytes(vecchio.stdout)
+            (copia / "tests").mkdir()
+            vecchio = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:tests/banchi-avvio.sh"],
+                                     capture_output=True, check=False)
+            (copia / "tests" / "banchi-avvio.sh").write_bytes(vecchio.stdout)
             try:
                 test(copia / "hooks")
                 inerti.append(f"{codice}: verde con le guardie di {ref}")

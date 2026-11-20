@@ -1806,6 +1806,17 @@ def _registro_percorso(sessione):
     return os.path.join(_home(), ".claude", "session-env", f"commit-{sessione}.json")
 
 
+def _registro_job():
+    """Il registro del job in background, che resta lo stesso dopo /clear: una rotazione (/fine --rotazione, poi
+    /clear e /inizio) apre una sessione nuova nello stesso job, e il suo --amend sul commit della sessione di
+    prima chiedeva come su quello di un'altra sessione (20/11/2026, 7 conferme in 7 giorni). Lo legge
+    CLAUDE_JOB_DIR, che Claude Code dà ai soli job in background: senza, None."""
+    job = os.path.basename(os.path.normpath(os.environ.get("CLAUDE_JOB_DIR", "") or ""))
+    if not job or not _SESSIONE_RE.match(job):
+        return None
+    return os.path.join(_home(), ".claude", "session-env", f"commit-job-{job}.json")
+
+
 def _registro_leggi(percorso):
     try:
         with open(percorso, encoding="utf-8") as f:
@@ -1848,20 +1859,21 @@ def _testa(repo):
 
 def registra_commit(data) -> int:
     """Modo `dopo`: scrive nel registro della sessione l'HEAD dei repository dove il comando ha fatto un commit."""
-    percorso = _registro_percorso(data.get("session_id"))
     command = (data.get("tool_input") or {}).get("command", "")
-    if not percorso or not isinstance(command, str) or "commit" not in command:
+    if not isinstance(command, str) or "commit" not in command:
         return 0
-    registro = None
+    teste = []
     for repo, _amend in _commit_del_comando(command, data.get("cwd") or _home()):
         testa = _testa(repo) if repo else None
-        if not testa:
+        if testa:
+            teste.append(testa)
+    for percorso in (_registro_percorso(data.get("session_id")), _registro_job()):
+        if not percorso or not teste:
             continue
-        if registro is None:
-            registro = _registro_leggi(percorso)
-        voci = [s for s in registro.get(testa[0], []) if isinstance(s, str) and s != testa[1]]
-        registro[testa[0]] = (voci + [testa[1]])[-_REGISTRO_MAX:]
-    if registro is not None:
+        registro = _registro_leggi(percorso)
+        for radice, sha in teste:
+            voci = [s for s in registro.get(radice, []) if isinstance(s, str) and s != sha]
+            registro[radice] = (voci + [sha])[-_REGISTRO_MAX:]
         os.makedirs(os.path.dirname(percorso), exist_ok=True)
         provvisorio = f"{percorso}.{os.getpid()}"
         with open(provvisorio, "w", encoding="utf-8") as f:
@@ -1878,6 +1890,11 @@ def _amend_altrui(command, cwd, sessione):
         return None
     percorso = _registro_percorso(sessione)
     registro = _registro_leggi(percorso) if percorso else {}
+    # Le sessioni dello stesso job in background (le rotazioni dopo /clear) contano come questa.
+    job = _registro_job()
+    for radice, voci in (_registro_leggi(job) if job else {}).items():
+        if isinstance(voci, list):
+            registro[radice] = list(registro.get(radice, [])) + voci
     fatti = set()
     for repo, amend in commit:
         if not amend:
