@@ -328,6 +328,31 @@ const casi = {
     ], "QB1 i banchi rossi del riepilogo");
     assert.deepEqual((await a.riepilogo("2026-10-01", "2026-10-10")).banchi, [], "QB1 un banco fuori finestra entra nel riepilogo");
   },
+  // Q25 (20/11/2026, #4793): dimentica cancella eventi, segnalazioni e contatori con l'id, e lascia quelli degli altri.
+  async Q25() {
+    const db = d1();
+    const a = archivio(db);
+    const io = "aaaaaaaa-1111", altro = "bbbbbbbb-2222";
+    await a.scriviEventi([{ giorno: AL, installazione: io, versione: "v1", sistema: "Darwin", evento: "sessione", valore: "" },
+      { giorno: AL, installazione: io, versione: "v1", sistema: "Darwin", evento: "comando", valore: "fine" },
+      { giorno: AL, installazione: altro, versione: "v1", sistema: "Darwin", evento: "sessione", valore: "" }], `${AL}T10:00:00Z`);
+    const s = (installazione) => ({ tipo: "problema", titolo: "t", testo: "x", versione: "v1", sistema: "Darwin", installazione });
+    await a.salvaSegnalazione(s(altro), `${AL}T10:00:00Z`);
+    const mia = await a.salvaSegnalazione(s(io), `${AL}T10:00:00Z`);
+    await a.primaVolta("sempre", `setup-fine:${io}`);
+    await a.primaVolta(AL, `rotta:${io}`);
+    await a.primaVolta("sempre", `setup-fine:${altro}`);
+    await a.incrementa(AL, "eventi", 3);
+    assert.deepEqual(await a.dimentica(io), { eventi: 2, segnalazioni: [mia] }, "Q25 dimentica non conta i dati dell'id");
+    const conta = async (sql, ...v) => (await db.prepare(sql).bind(...v).first()).n;
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ?", io), 0, "Q25 restano eventi");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM segnalazioni WHERE installazione = ?", io), 0, "Q25 restano segnalazioni");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM contatori WHERE chiave LIKE ?", `%${io}`), 0, "Q25 restano contatori con l'id");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ?", altro), 1, "Q25 via gli eventi di un altro");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM segnalazioni WHERE installazione = ?", altro), 1, "Q25 via la segnalazione di un altro");
+    assert.equal(await conta("SELECT COUNT(*) AS n FROM contatori WHERE chiave = ? OR chiave = 'eventi'", `setup-fine:${altro}`), 2,
+      "Q25 via i contatori di un altro o i totali del giorno");
+  },
   // Lancillotto è dismesso dal 14/11/2026 (#5617). Il Worker non crea più la sua tabella e il riepilogo non la
   // legge. La tabella è cancellata da D1: una copia rimasta in un database vecchio non rompe la pulizia.
   async QL1() {

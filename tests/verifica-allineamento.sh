@@ -235,6 +235,8 @@ BANCHI=(
   test_sandbox_2026_11_19.py
   # Le skill di ruolo (20/11/2026, strati F6, #4536): aggiunte personali col tool Skill e mappa dei ruoli.
   test_ruoli_2026_11_20.py
+  # Lo sportello lato client (20/11/2026, #4793): modo log, copie degli ultimi lotti, arturo telemetria dimentica.
+  test_telemetria_log_dimentica_2026_11_20.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -265,7 +267,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -508,6 +510,8 @@ BASELINE=(
   "test_sandbox_2026_11_19.py f500fc1"
   # Le skill di ruolo (20/11/2026): estensione-skill.py e bin/ruoli.py non ci sono. 0c1daea, il dev prima.
   "test_ruoli_2026_11_20.py 0c1daea"
+  # Lo sportello lato client (20/11/2026, #4793): modo log e dimentica non ci sono. 0cc681e, il dev prima.
+  "test_telemetria_log_dimentica_2026_11_20.py 0cc681e"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -603,6 +607,8 @@ VELENI=(
   test_monitor_giorno_2026_11_20.py
   # La ripartenza (17/11/2026, #5910): ogni rottura di ripartenza.py o del passo di /inizio fa rosso il suo caso RP.
   test_ripartenza_2026_11_17.py
+  # Lo sportello (#4793): un modo log che manda, una cartella che non si pota, un id che resta dopo dimentica.
+  test_telemetria_log_dimentica_2026_11_20.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

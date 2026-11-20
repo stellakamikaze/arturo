@@ -13,6 +13,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — I tuoi dati d'uso li cancelli da solo
+
+**Cosa cambia**: `arturo telemetria dimentica` cancella dal server i tuoi eventi d'uso e le segnalazioni
+collegate al tuo id, senza scrivere a nessuno. Poi Arturo riparte con un id nuovo. Con la variabile
+`ARTURO_TELEMETRIA=log` non parte niente: ogni lotto finisce sullo schermo e in
+`~/.claude/data/telemetria/lotti/`, così vedi cosa uscirebbe. In quella cartella restano anche gli ultimi
+10 lotti partiti davvero.
+
+**Il principio**: un diritto che passa da un'email a una persona è un diritto lento. Cancellare deve
+costare quanto spegnere: un comando. Le copie che il server non raggiunge (Telegram, Gmail) restano a chi
+mantiene Arturo, e il server gli dice quali sono.
+
+**A chi serve**: a chi vuole sapere cosa esce prima di dire sì, e a chi vuole andarsene senza lasciare
+tracce. Chiedi a Claude "cancella i miei dati d'uso dal server".
+
+---
+
 ## 2026-11-20 — /monitor fa il giro quotidiano
 
 **Cosa cambia**: dopo la scelta delle fonti, /monitor fa il giro quotidiano. Legge i tuoi todo, le sessioni con Claude, la posta e il calendario, e ti dice cosa chiede la giornata:

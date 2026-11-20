@@ -18,6 +18,9 @@
 //   GET  /v1/contributi/<n>          stato, risposta, versione con la correzione
 //   POST /v1/contributi/<n>/seguito  un'aggiunta alla segnalazione (le informazioni che chi la mantiene ha chiesto)
 //   POST /v1/contributi/<n>/ritira   titolo, testo, pacchetto e seguiti cancellati, resta il numero
+// La cancellazione (20/11/2026, #4793): la persona cancella da sola i suoi dati dal server, con l'id della sua installazione.
+//   POST /v1/dimentica      eventi, segnalazioni collegate e contatori di quell'id cancellati; il campanello dice i
+//                           numeri delle segnalazioni, perché chi mantiene Arturo tolga a mano le copie su Telegram e Gmail
 // Un codice sbagliato e un numero inesistente danno lo stesso 404: il numero da solo non dice se esiste.
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 // Telegram ed email sono campanelli (24/10/2026): mai il testo né l'email di chi scrive. Una segnalazione porta
@@ -828,6 +831,13 @@ export function avvisoContributo(numero, cosa) {
   return `Arturo: segnalazione n. ${Number(numero)}, ${cosa === "ritira" ? "ritirata da chi l'ha mandata" : "un seguito di chi l'ha mandata"}`;
 }
 
+// La cancellazione (#4793): l'id per intero non esce, bastano i primi 8 caratteri per riconoscere la persona.
+export function avvisoDimentica(installazione, eventi, numeri) {
+  const segnalazioni = numeri.length ? `, le segnalazioni ${numeri.map((n) => `n. ${Number(n)}`).join(", ")}` : ", nessuna segnalazione";
+  return `Arturo: l'installazione ${installazione.slice(0, 8)} ha chiesto di essere dimenticata. Cancellati ${Number(eventi)} eventi` +
+    `${segnalazioni}.` + (numeri.length ? " Le copie di quelle segnalazioni su Telegram e Gmail si tolgono a mano." : "");
+}
+
 export function avvisoSetupFinito(riga) {
   return `Arturo: setup finito (${riga.installazione.slice(0, 8)}) · ${riga.versione} · ${riga.sistema}`;
 }
@@ -1091,6 +1101,22 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
       await telegram(avvisoSetupFinito(finito));
     }
     return risposta(200, { accettati: righe.length, scartati });
+  }
+
+  // La persona cancella i suoi dati (20/11/2026, #4793): prima scriveva all'indirizzo della privacy e aspettava chi
+  // mantiene Arturo. Basta l'id, che conoscono solo lei e chi mantiene Arturo: chi lo indovina cancella e basta, non legge
+  // niente. La risposta ha la stessa forma anche per un id mai visto, così non dice se un'installazione esiste.
+  if (url.pathname === "/v1/dimentica") {
+    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
+    const { dati, errore } = await leggiJson(request, 1024);
+    if (errore) return errore;
+    const installazione = dati && typeof dati.installazione === "string" ? dati.installazione : "";
+    if (!ID.test(installazione)) return risposta(400, { errore: "installazione non valida" });
+    const { eventi, segnalazioni } = await archivio.dimentica(installazione);
+    if ((eventi || segnalazioni.length) && await archivio.incrementa(giorno, "avviso-segnalazione") <= LIMITI.avvisiSegnalazioniPerGiorno) {
+      await telegram(avvisoDimentica(installazione, eventi, segnalazioni));
+    }
+    return risposta(200, { eventi, segnalazioni: segnalazioni.length });
   }
 
   if (url.pathname === "/v1/segnalazioni") {

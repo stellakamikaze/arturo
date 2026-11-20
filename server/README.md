@@ -37,6 +37,12 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   `ricevuta`); `POST /v1/contributi/<n>/ritira` cancella titolo, testo, pacchetto, seguiti e id e lascia numero,
   tipo e data. Un codice sbagliato e un numero inesistente danno lo stesso `404`, col corpo uguale (caso V36).
   Seguito e ritiro suonano su Telegram col solo numero.
+- `POST /v1/dimentica` (20/11/2026, #4793): la persona cancella da sola i suoi dati, con `arturo telemetria
+  dimentica`. Il corpo porta solo `installazione`. Il server cancella gli eventi di quell'id, le segnalazioni
+  collegate e i contatori con l'id nella chiave (`rotta:<id>`, `setup-fine:<id>`), e risponde `200` con quanti
+  eventi e quante segnalazioni. Un id mai visto ha la stessa risposta, con zero: non dice se un'installazione
+  esiste. Telegram avvisa coi primi 8 caratteri dell'id e i numeri delle segnalazioni, perché chi mantiene Arturo
+  tolga a mano le copie su Telegram e Gmail. Stesso limite per IP dei moduli (casi V66 e Q25).
 - `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
   Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Solo testo scritto: un modulo
   con il campo `voce` torna `400` con il motivo, un corpo oltre 64 KB torna `413`. Al massimo 100 al

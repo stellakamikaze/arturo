@@ -60,6 +60,13 @@ function finti(riepilogo = null) {
       Object.assign(stato.segnalazioni[id - 1], { titolo: "(ritirata)", testo: "", pacchetto: "", seguiti: "[]", installazione: "",
         risposta: "", stato: "ritirata", aggiornata: quando });
     },
+    async dimentica(inst) {
+      const eventi = stato.eventi.filter((e) => e.installazione === inst).length;
+      const numeri = stato.segnalazioni.map((s, i) => (s && s.installazione === inst ? i + 1 : 0)).filter(Boolean);
+      stato.eventi = stato.eventi.filter((e) => e.installazione !== inst);
+      for (const n of numeri) stato.segnalazioni[n - 1] = null;
+      return { eventi, segnalazioni: numeri };
+    },
     async indietro() { return stato.indietro || []; },
     async ultimoAvviso(chiave) {
       const giorni = Object.keys(stato.conteggi).filter((k) => k.endsWith(` ${chiave}`)).map((k) => k.split(" ")[0]).sort();
@@ -1184,6 +1191,36 @@ const casi = {
     assert.equal(ok.status, 202, "V65 un download valido non passa più");
     assert.equal(ok.headers.get("x-content-type-options"), "nosniff", "V65 la risposta non ha nosniff");
     assert.equal(ok.headers.get("cache-control"), "no-store", "V65 la risposta non ha no-store");
+  },
+  // V66 (20/11/2026, #4793): /v1/dimentica cancella eventi e segnalazioni di un id, e solo quelli. Il campanello porta i
+  // numeri e i primi 8 caratteri, mai l'id intero né il testo. Un id mai visto ha la stessa risposta e non suona.
+  async V66() {
+    const f = finti();
+    const io = "1b2c3d4e-aaaa-bbbb", altro = "9f8e7d6c-cccc-dddd";
+    await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-14", evento: "sessione", valore: "" }])), { ...f, adesso });
+    await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-14", evento: "sessione", valore: "" }], { installazione: altro })), { ...f, adesso });
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Mia", testo: "Testo mio riservato", installazione: io }), { ...f, adesso });
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Altrui", testo: "Testo altrui", installazione: altro }), { ...f, adesso });
+    const avvisiPrima = f.stato.avvisi.length;
+    assert.equal((await gestisci(post("/v1/dimentica", { installazione: "../x" }), { ...f, adesso })).status, 400, "V66 un id rotto passa");
+    const r = await gestisci(post("/v1/dimentica", { installazione: io }), { ...f, adesso });
+    assert.equal(r.status, 200, "V66 la cancellazione non risponde 200");
+    assert.deepEqual(await r.json(), { eventi: 1, segnalazioni: 1 }, "V66 la cancellazione non conta eventi e segnalazioni");
+    assert.ok(!f.stato.eventi.some((e) => e.installazione === io), "V66 restano eventi dell'id dimenticato");
+    assert.equal(f.stato.eventi.filter((e) => e.installazione === altro).length, 1, "V66 la cancellazione tocca un'altra installazione");
+    assert.doesNotMatch(JSON.stringify(f.stato.segnalazioni), /Testo mio/, "V66 resta la segnalazione dell'id dimenticato");
+    assert.match(JSON.stringify(f.stato.segnalazioni), /Testo altrui/, "V66 la cancellazione toglie la segnalazione di un altro");
+    assert.equal(f.stato.avvisi.length, avvisiPrima + 1, "V66 la cancellazione non suona il campanello");
+    const campanello = f.stato.avvisi.at(-1);
+    assert.match(campanello, /n\. 1\b/, "V66 il campanello non dice il numero da togliere a mano");
+    assert.match(campanello, /1b2c3d4e/, "V66 il campanello non dice chi");
+    assert.doesNotMatch(campanello, /aaaa-bbbb|riservato/, `V66 il campanello porta l'id intero o il testo: ${campanello}`);
+    const mai = await gestisci(post("/v1/dimentica", { installazione: "00000000-mai-visto" }), { ...f, adesso });
+    assert.equal(mai.status, 200, "V66 un id mai visto ha un'altra risposta");
+    assert.deepEqual(await mai.json(), { eventi: 0, segnalazioni: 0 }, "V66 un id mai visto conta qualcosa");
+    assert.equal(f.stato.avvisi.length, avvisiPrima + 1, "V66 un id mai visto suona il campanello");
+    const lento = await gestisci(post("/v1/dimentica", { installazione: io }), { ...f, adesso, limite: async () => false });
+    assert.equal(lento.status, 429, "V66 la cancellazione salta il limite per IP");
   },
   // M7 della memoria (15/11/2026): i quattro eventi nuovi passano coi soli valori a fasce, e un nome di nota non passa.
   async V64() {

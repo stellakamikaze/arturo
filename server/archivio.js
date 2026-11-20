@@ -64,6 +64,18 @@ export function archivio(db) {
         `UPDATE segnalazioni SET titolo = '(ritirata)', testo = '', pacchetto = '', seguiti = '[]', installazione = '',
          contatto_nome = '', contatto_email = '', risposta = '', stato = 'ritirata', aggiornata = ? WHERE id = ?`).bind(quando, id).run();
     },
+    // La cancellazione chiesta dalla persona (20/11/2026, #4793): eventi, segnalazioni collegate e i contatori con l'id
+    // nella chiave (rotta:<id> del giorno, setup-fine:<id> per sempre). Torna quanti eventi e i numeri delle segnalazioni.
+    async dimentica(installazione) {
+      const n = await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ?").bind(installazione).first();
+      const s = await db.prepare("SELECT id FROM segnalazioni WHERE installazione = ? ORDER BY id").bind(installazione).all();
+      await db.batch([
+        db.prepare("DELETE FROM eventi WHERE installazione = ?").bind(installazione),
+        db.prepare("DELETE FROM segnalazioni WHERE installazione = ?").bind(installazione),
+        db.prepare("DELETE FROM contatori WHERE instr(chiave, ':') > 0 AND substr(chiave, instr(chiave, ':') + 1) = ?").bind(installazione),
+      ]);
+      return { eventi: n ? n.n : 0, segnalazioni: (s.results || []).map((r) => r.id) };
+    },
     async svuotaPacchetti(prima) {
       await db.prepare("UPDATE segnalazioni SET pacchetto = '' WHERE pacchetto != '' AND substr(ricevuta, 1, 10) < ?").bind(prima).run();
     },

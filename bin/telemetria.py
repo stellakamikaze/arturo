@@ -17,7 +17,10 @@ tiene gli eventi 12 mesi. Il suo codice è in server/.
 Accesa di default, ma la coda parte solo dopo la risposta alla domanda della FASE 0 di /setup
 (risposta_setup, dal 18/11/2026): `accendi` è il sì, `spegni` il no. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
 standard DO_NOT_TRACK=1. `arturo telemetria mostra` fa vedere l'id e la coda, così si vede
-esattamente cosa parte.
+esattamente cosa parte. Con ARTURO_TELEMETRIA=log (20/11/2026, #4793) `invia` non manda niente: scrive ogni lotto
+in data/telemetria/lotti/ e lo stampa. La cartella tiene gli ultimi 10 lotti anche quando partono davvero, così la
+persona vede cosa è uscito. `arturo telemetria dimentica` cancella dal server eventi e segnalazioni del suo id, poi
+l'installazione riparte con un id nuovo e la coda vuota.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
@@ -159,6 +162,9 @@ CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la 
 # tetto a 500, un lotto rifiutato fermava la coda per tutto il giorno (#5996, 17/11/2026).
 LOTTO = 100
 SPENTI = {"0", "no", "off", "false", "spenta"}
+# ARTURO_TELEMETRIA=log (#4793): la telemetria lavora come accesa, ma il lotto va in data/telemetria/lotti/ e non in rete.
+LOG = "log"
+LOTTI_TENUTI = 10
 ASPETTA = "non parte niente finché la persona non risponde alla domanda di /setup (FASE 0)"
 # I tag dei rilasci di Arturo: v0.2.0, v0.2.1 dal 3/11/2026. Prima erano date (v2026-10-19, v2026-10-19.2), e il
 # server le traduce nel loro numero. La stessa forma di rilascio() in server/logica.js.
@@ -174,6 +180,10 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
   accendi        la riaccende (anche il sì alla domanda di /setup)
   invia          manda adesso la coda e le segnalazioni in attesa
   segnalazioni   manda adesso solo le segnalazioni in attesa
+  dimentica      cancella dal server i tuoi eventi e le tue segnalazioni, poi riparte con un id nuovo
+
+Con ARTURO_TELEMETRIA=log gli eventi non partono: "invia" li stampa e li scrive in
+~/.claude/data/telemetria/lotti/. Lì restano anche gli ultimi 10 lotti partiti davvero.
 
 Finché non rispondi alla domanda di /setup (FASE 0) non parte niente: gli eventi restano nella coda
 sul tuo computer, e "mostra" li fa vedere. Con un sì partono, con un no la coda si cancella.
@@ -207,6 +217,39 @@ def file_attese() -> Path:
 
 def file_coda() -> Path:
     return radice_orsa() / "data" / "telemetria" / "coda.jsonl"
+
+
+def cartella_lotti() -> Path:
+    return radice_orsa() / "data" / "telemetria" / "lotti"
+
+
+def modo_log() -> bool:
+    return os.environ.get("ARTURO_TELEMETRIA", "").strip().lower() == LOG
+
+
+def copia_lotto(lotto: dict, inviato: bool) -> Path | None:
+    """Scrive il lotto in data/telemetria/lotti/ e tiene gli ultimi LOTTI_TENUTI. Un errore tace: la copia non ferma l'invio."""
+    cartella = cartella_lotti()
+    try:
+        cartella.mkdir(parents=True, exist_ok=True)
+        base = time.strftime("%Y%m%d-%H%M%S")
+        n = 0
+        while (cartella / f"{base}-{n}.json").exists():
+            n += 1
+        file = cartella / f"{base}-{n}.json"
+        ts.scrivi_json_atomico(file, {"inviato": inviato, "lotto": lotto})
+        for vecchio in sorted(cartella.glob("*.json"))[:-LOTTI_TENUTI]:
+            vecchio.unlink()
+        return file
+    except OSError:
+        return None
+
+
+def lotti_copiati() -> list:
+    try:
+        return sorted(cartella_lotti().glob("*.json"))
+    except OSError:
+        return []
 
 
 def cartella_attesa() -> Path:
@@ -924,7 +967,8 @@ def _invia(zitto: bool) -> tuple:
     cambia_stato(lambda s: s.__setitem__("ultimo_tentativo", int(time.time())))
     segnalazioni = invia_segnalazioni_in_attesa()
     controlla_risposte()
-    if perche_spenta() or not risposta_setup():
+    log = modo_log()
+    if perche_spenta() or not (log or risposta_setup()):
         return 0, segnalazioni
     if zitto:
         segna_claude()
@@ -934,10 +978,19 @@ def _invia(zitto: bool) -> tuple:
     base = {"installazione": installazione(), "versione": versione(), "sistema": sistema()}
     partiti = 0
     for i in range(0, len(eventi), LOTTO):
-        lotto = eventi[i:i + LOTTO]
-        status = posta("/v1/eventi", dict(base, eventi=lotto))
+        lotto = dict(base, eventi=eventi[i:i + LOTTO])
+        if log:
+            # Il lotto fa la strada di un invio riuscito, ma finisce nella cartella e sullo schermo.
+            copia_lotto(lotto, inviato=False)
+            if not zitto:
+                print(json.dumps(lotto, ensure_ascii=False, indent=1))
+            partiti += len(lotto["eventi"])
+            continue
+        status = posta("/v1/eventi", lotto)
         if 200 <= status < 300 or status in (400, 413):
-            partiti += len(lotto)  # un lotto rifiutato non si rimanda all'infinito
+            partiti += len(lotto["eventi"])  # un lotto rifiutato non si rimanda all'infinito
+            if 200 <= status < 300:
+                copia_lotto(lotto, inviato=True)
         else:
             break
     if partiti:
@@ -950,6 +1003,25 @@ def _invia(zitto: bool) -> tuple:
             valide = [r for r in righe if _evento_valido(r)]
             _scrivi_coda_atomica(valide[partiti:])
     return partiti, segnalazioni
+
+
+def dimentica() -> tuple:
+    """Chiede al server di cancellare eventi e segnalazioni di questo id (#4793). Torna (status, risposta). Con un 200 l'id
+    locale e la coda se ne vanno: la prossima sessione crea un id nuovo. Vale anche con la telemetria spenta: cancellare è
+    un diritto, non un invio di dati d'uso."""
+    stato = leggi_stato()
+    io = stato.get("id")
+    if not (isinstance(io, str) and re.fullmatch(r"[A-Za-z0-9-]{8,64}", io)):
+        return None, {}
+    status, r = posta_json("/v1/dimentica", {"installazione": io}, timeout=10)
+    if 200 <= status < 300:
+        cambia_stato(lambda s: s.pop("id", None) if s.get("id") == io else None)
+        for f in (file_coda(), file_attese()):
+            try:
+                f.unlink()
+            except OSError:
+                pass
+    return status, r
 
 
 def _fascia_durata(secondi: float) -> str:
@@ -1247,9 +1319,27 @@ def main(argv: list) -> int:
         return 0
     if comando == "stato" and not resto:
         spenta = perche_spenta()
+        if not spenta and modo_log():
+            print(f"Telemetria in modo log (ARTURO_TELEMETRIA=log): non parte niente, i lotti vanno in {cartella_lotti()}")
+            return 0
         attesa = "" if spenta or risposta_setup() else f", ma {ASPETTA}"
         print(f"Telemetria {'spenta (' + spenta + ')' if spenta else 'accesa' + attesa}. Server: {url()}")
         return 0
+    if comando == "dimentica" and not resto:
+        status, r = dimentica()
+        if status is None:
+            print("Questa installazione non ha ancora un id: sul server non c'è niente di suo.")
+            return 0
+        if 200 <= status < 300:
+            print(f"Cancellati dal server: {int(r.get('eventi') or 0)} eventi e {int(r.get('segnalazioni') or 0)} segnalazioni.\n"
+                  "Da qui l'installazione ha un id nuovo e la coda vuota. Le copie delle segnalazioni su Telegram e Gmail le\n"
+                  "cancella a mano chi mantiene Arturo: il server gli ha mandato i numeri. Per non mandare più niente: "
+                  "arturo telemetria spegni")
+            return 0
+        motivo = "il server non risponde" if status == 0 else "troppe richieste, riprova fra un minuto" if status == 429 \
+            else f"il server ha risposto {status}"
+        print(f"Cancellazione non riuscita: {motivo}. L'id resta lo stesso, così puoi riprovare.", file=sys.stderr)
+        return 1
     if comando == "mostra" and not resto:
         stato = leggi_stato()
         print(f"Id di questa installazione: {stato.get('id', '(non ancora creato)')}")
@@ -1260,6 +1350,9 @@ def main(argv: list) -> int:
         print(f"Eventi in coda: {len(eventi)}")
         for e in eventi:
             print(f"  {e['giorno']}  {e['evento']}" + (f"  {e['valore']}" if e["valore"] else ""))
+        lotti = lotti_copiati()
+        if lotti:
+            print(f"Ultimi lotti ({len(lotti)}, i più vecchi si cancellano da soli): {cartella_lotti()}")
         return 0
     if comando == "spegni" and not resto:
         # Anche il no alla domanda di /setup (FASE 0): la risposta resta, e la coda si cancella senza partire.
