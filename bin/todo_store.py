@@ -31,7 +31,7 @@ import time
 import uuid
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
-from radici import file_locale, radice_orsa  # noqa: E402
+from radici import _corto, file_locale, radice_orsa  # noqa: E402
 
 VERSIONE_EVENTI = 1
 VERSIONE_VISTA = 1
@@ -961,6 +961,11 @@ def fonte_locale() -> Path:
     lancia Arturo dal repo (o un banco con la HOME di prova che lancia il repo vero) non trova così la fonte
     vera della persona, che scriverebbe sul suo strumento."""
     return file_locale("fonte-task.local", radice_orsa() / "bin" / "fonte-task.local")
+
+
+def nome_fonte() -> str:
+    """Il file della fonte come la persona lo scriverebbe (~/.claude/arturo/fonte-task.local), per i messaggi."""
+    return _corto(fonte_locale())
 
 
 def comando_fonte(file: Path | None = None) -> list | None:

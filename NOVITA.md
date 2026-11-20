@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — /monitor vede la tua fonte dei task come arturo todo
+
+**Cosa cambia**: se tieni i task in un altro strumento (`fonte-task.local`, `docs/fonte-task.md`), l'inventario
+di `/monitor` adesso lo dice, col percorso del file. Prima cercava il file accanto al codice di Arturo: con
+Arturo installato come plugin non lo trovava e diceva "arturo todo, ancora vuoto", mentre i tuoi todo
+andavano già nel tuo strumento. Anche i messaggi di `arturo web`, `arturo sessione` e `arturo contesto`
+dicono ora il percorso vero del file.
+
+**Il principio**: un file di preferenza si legge da un punto solo. Se due parti di Arturo lo cercano in
+posti diversi, prima o poi raccontano due storie diverse sugli stessi todo.
+
+**A chi serve**: a chi ha collegato una fonte esterna dei task, soprattutto se l'ha scritta nel vecchio
+posto `~/.claude/bin/fonte-task.local`.
+
+---
+
 ## 2026-11-20 — I tuoi dati d'uso li cancelli da solo
 
 **Cosa cambia**: `arturo telemetria dimentica` cancella dal server i tuoi eventi d'uso e le segnalazioni

@@ -437,7 +437,7 @@ def leggi_esterna(progetto: str) -> tuple:
 def sezione_esterna(v: dict, progetto: str, dal: str | None) -> list:
     gruppi = [g for g in v["gruppi"] if isinstance(g, dict)]
     aperti = sum(len(g.get("todo") or []) for g in gruppi)
-    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti}, dalla fonte di fonte-task.local)']
+    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti}, dalla fonte di {ts.nome_fonte()})']
     if not aperti:
         righe.append("  nessuno")
     for g in gruppi:

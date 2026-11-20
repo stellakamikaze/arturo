@@ -5,13 +5,16 @@ MP01 casa vuota: esce 0; task pronto con arturo todo, sessioni e memoria da coll
      di claude.ai da controllare in sessione.
 MP02 gws: conta solo le cartelle gws o gws-<nome> con le credenziali; un login valido è pronto, uno
      scaduto è da collegare; backup e cartelle con spazi non contano.
-MP03 bin/fonte-task.local: il ponte dei task dice la fonte esterna.
+MP03 arturo/fonte-task.local nella radice della persona: il ponte dei task dice la fonte esterna e il file.
 MP04 ponti personali da personale/monitor/ponti.json: un ponte buono è pronto; un file che manca,
      una prova che fallisce, una voce senza comando sono rotti; un JSON rotto non fa cadere niente.
 MP05 --json: ogni voce ha nome, stato, cosa, passo, dettaglio, e lo stato sta nell'elenco chiuso.
 MP06 nessun segreto in uscita: un valore che `gws auth status` stampa non arriva all'inventario.
 MP07 il nucleo è ponti.py, e nessun file di bin/monitor porta le forme di una persona (fisc, crm, pec,
      canali Slack): fingerprint.py e cursori.py ci sono, ma generici (3/11/2026).
+MP08 un punto solo con arturo todo (#4835): il vecchio bin/fonte-task.local della radice vale come fonte;
+     un fonte-task.local nella cartella del codice (ARTURO_BIN) no; un file senza riga comando vale
+     l'archivio di Arturo, come per arturo todo.
 
 Sulla base 2fe4037 (il dev prima di bin/monitor) sono rossi tutti i casi.
 """
@@ -25,7 +28,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["MP01", "MP02", "MP03", "MP04", "MP05", "MP06", "MP07"]
+CASI = ["MP01", "MP02", "MP03", "MP04", "MP05", "MP06", "MP07", "MP08"]
 DISCRIMINANTI = CASI
 STATI = {"pronto", "da collegare", "da controllare in sessione", "rotto"}
 # Le forme del /monitor di una persona: fingerprint fiscali, CRM, PEC, rotazione dei canali Slack. I nomi
@@ -53,7 +56,9 @@ class Lab:
         return c
 
     def lancia(self, c, *arg):
-        env = dict(os.environ, ARTURO_HOME=str(c / "home"), GWS_CONFIG_BASE=str(c / "config"),
+        # CLAUDE_CONFIG_DIR sulla casa di prova: la fonte dei task vera della persona resta fuori.
+        env = dict(os.environ, ARTURO_HOME=str(c / "home"), CLAUDE_CONFIG_DIR=str(c / "home"),
+                   GWS_CONFIG_BASE=str(c / "config"),
                    ARTURO_BIN=str(c / "bin"), PATH=f"{c / 'path'}{os.pathsep}{os.environ.get('PATH', '')}")
         if not self.script.is_file():
             return 127, "", "ponti.py assente"
@@ -109,10 +114,11 @@ def prova(lab: Lab) -> list:
 
     c = lab.casa("mp03")
     senza_gws(c)
-    (c / "bin" / "fonte-task.local").write_text("comando = python3 ~/.claude/personale/mia_fonte.py\n")
+    (c / "home" / "arturo").mkdir()
+    (c / "home" / "arturo" / "fonte-task.local").write_text("comando = python3 ~/.claude/personale/mia_fonte.py\n")
     cod, v, _ = lab.voci(c)
-    if not (cod == 0 and "fonte esterna" in v.get("task", {}).get("dettaglio", "")
-            and "mia_fonte.py" in v["task"]["dettaglio"]):
+    d = v.get("task", {}).get("dettaglio", "")
+    if not (cod == 0 and "fonte esterna" in d and "mia_fonte.py" in d and "arturo/fonte-task.local" in d):
         rossi.append(f"MP03 fonte esterna: {v.get('task')}")
 
     c = lab.casa("mp04")
@@ -166,6 +172,20 @@ def prova(lab: Lab) -> list:
                        if forma in f.read_text(encoding="utf-8").lower())
     if not (cartella / "ponti.py").is_file() or personali:
         rossi.append(f"MP07 nucleo: ponti.py presente {(cartella / 'ponti.py').is_file()}, forme personali {personali}")
+
+    c = lab.casa("mp08")
+    senza_gws(c)
+    (c / "bin" / "fonte-task.local").write_text("comando = python3 /codice/fonte_sbagliata.py\n")
+    _, v_codice, _ = lab.voci(c)
+    (c / "home" / "bin").mkdir()
+    (c / "home" / "bin" / "fonte-task.local").write_text("comando = python3 /casa/fonte_vecchia.py\n")
+    _, v_vecchio, _ = lab.voci(c)
+    (c / "home" / "bin" / "fonte-task.local").write_text("# comando = python3 /casa/spenta.py\n")
+    _, v_spenta, _ = lab.voci(c)
+    dc, dv, ds = (x.get("task", {}).get("dettaglio", "") for x in (v_codice, v_vecchio, v_spenta))
+    if not (dc.startswith("arturo todo") and "fonte_vecchia.py" in dv and "bin/fonte-task.local" in dv
+            and ds.startswith("arturo todo")):
+        rossi.append(f"MP08 un punto solo: codice {dc!r}, vecchio posto {dv!r}, senza comando {ds!r}")
     return rossi
 
 

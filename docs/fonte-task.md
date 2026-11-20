@@ -17,6 +17,13 @@ Il file è tuo: gli aggiornamenti di Arturo non lo toccano. Per tornare all'arch
 La pagina `arturo web` legge solo l'archivio di Arturo: con una fonte esterna non parte e rimanda a `/dafare`.
 Arturo lo cerca sempre lì, nella tua cartella di casa, anche se lanci Arturo da un'altra cartella: un banco con una casa di prova non trova la tua fonte e non scrive sul tuo strumento.
 
+Il file lo legge un punto solo, `fonte_locale()` di `bin/todo_store.py`: lo usano `arturo todo`, `/inizio`,
+`/fine`, `arturo contesto`, `arturo sessione`, la pagina `arturo web` e il ponte dei task di `/monitor`.
+La cartella è quella di Claude Code: `CLAUDE_CONFIG_DIR` se l'hai impostata, altrimenti `~/.claude`.
+`ARTURO_HOME` e la cartella del codice di Arturo non contano. Se scrivi un file `fonte-task.local` accanto
+al codice, Arturo lo ignora. Il vecchio posto, `~/.claude/bin/fonte-task.local`, vale finché manca quello
+nuovo. Un file senza una riga `comando` vale come nessun file: i todo restano nell'archivio di Arturo.
+
 ## Cosa deve fare il tuo programma
 
 Riceve gli argomenti di `arturo todo` e risponde come lui. Quelli che `/inizio`, `/fine` e
