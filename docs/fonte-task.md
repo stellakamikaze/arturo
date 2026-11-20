@@ -49,6 +49,19 @@ Senza `--chiave` il giro di /monitor riprova `aggiungi` senza impronta e tiene l
 che ha creato, in `~/.claude/data/monitor/creati.jsonl`: i doppioni restano fuori lo stesso, ma solo per
 i todo nati da /monitor.
 
+`arturo progetti unisci PERDENTE VINCITORE` (bin/unisci.py) usa un verbo facoltativo in più. Se il tuo
+programma non lo conosce, esce con 2 senza scrivere niente: Arturo unisce i suoi file e avvisa che i task
+del perdente restano dove sono.
+
+| Argomenti | Cosa fa | Uscita |
+|---|---|---|
+| `unisci <perdente> <vincitore> --prova --json` | dice cosa sposterebbe, senza scrivere | `{"task": 4, "riassunto": "…", "avvisi": []}` |
+| `unisci <perdente> <vincitore> --backup <cartella> --json` | copia in `<cartella>` quello che cambia, poi porta i task del perdente al vincitore e fa del perdente un nome alternativo del vincitore | lo stesso JSON, coi conti di quello che ha fatto |
+
+Se l'unione non si può fare (per esempio non sai dire quali task sono del perdente), esci con 2 e stampa
+`{"rifiuto": "<motivo>"}`: Arturo si ferma prima di scrivere e mostra il motivo. Con 3 Arturo non scrive
+niente.
+
 Il pannello `/dafare` usa altri verbi. Se il tuo programma non li conosce, il tasto risponde con il suo
 errore e non cambia niente.
 
