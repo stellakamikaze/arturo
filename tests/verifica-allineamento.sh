@@ -87,6 +87,8 @@ BANCHI=(
   test_herdr_2026_11_08.py
   # #5147 (20/11/2026): l'invito all'avvio alla firma locale di Arturo.app, una volta sola (FI01-FI04).
   test_herdr_firma_invito_2026_11_20.py
+  # Il contesto del progetto e la sintesi della testata di Volta (12/11/2026, TC01-TC06).
+  test_testata_contesto_2026_11_12.py
   test_setup_ritratto_2026_11_01.py
   test-block-dangerous-falsi-positivi.py
   test-web-egress-guard.py
@@ -593,6 +595,8 @@ VELENI=(
   test_herdr_2026_11_08.py
   # #5147 (20/11/2026): senza il segno, con l'invito spento o col comando sbagliato FI01-FI04 sono rossi.
   test_herdr_firma_invito_2026_11_20.py
+  # Il contesto del progetto e la testata (12/11/2026): ogni rottura fa rosso il suo caso TC.
+  test_testata_contesto_2026_11_12.py
   # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
   # arturo progetti rinomina (#6095): ogni rottura di rinomina.py o di contesto.py fa rosso il suo caso RN.
