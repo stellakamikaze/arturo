@@ -14507,7 +14507,7 @@ const persona = [giro("L1", [{ indirizzo: "t2", s: bg("a2", "s1", "Step 32"), sc
 prima = {};
 const nascita = () => [
   { indirizzo: "c1", s: bg("n1", "x1", "Lavoro su Volta"), scheda: tab("d1", "/inizio volta") },
-  { indirizzo: "c2", s: bg("n2", "x2", "Lavoro su Volta"), scheda: tab("d2", "Richiesta su Mac mini") },
+  { indirizzo: "c2", s: bg("n2", "x2", "Lavoro su Volta"), scheda: tab("d2", "Richiesta su studio") },
   { indirizzo: "c3", s: bg("n3", "x3", "Lavoro su Volta", { progetto: "volta" }), scheda: tab("d3", "volta") },
   { indirizzo: "c4", s: bg("n4", "x4", "Lavoro su Volta"), scheda: tab("d4", "/inizio volta", { panes: 2 }) },
   { indirizzo: "c5", s: bg("n5", "x5", "Lavoro su Volta"), scheda: tab("d5", "/inizio volta") },
