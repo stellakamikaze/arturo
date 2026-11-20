@@ -33,6 +33,8 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - Un'interfaccia che costruisci o tocchi (pagina, dashboard, form) passa prima dal controllo di `$ARTURO_CODICE/shared/regole-interfaccia.md`: copre ciò che Impeccable e Hallmark non dicono, e vale anche senza di loro.
 - Un diagramma dentro una pagina, un documento o una presentazione lo disegni con la skill `diagram-design`, se è installata (`$ARTURO_CODICE/docs/diagram-design.md`).
 - Un effetto che arriverà dopo (un job programmato, un invio differito) è "armato", non fatto, fino al primo scatto.
+- Una skill con la sezione "Finito quando" si chiude con quella lista: controlli ogni riga prima di consegnare e dici l'esito.
+- Uno script o un modello che costruisci per un lavoro che torna va nella cartella della skill di quel lavoro, con una riga in "Attrezzi" che lo cita. Prima di costruirne uno, guarda lì. Senza una skill, proponi `/creaskill`.
 - Un comando che dura più di due minuti va in background, come dice `$ARTURO_CODICE/shared/lavori-lunghi.md`: un lavoro avviato non è un lavoro fatto.
 
 ## Errori e correzioni

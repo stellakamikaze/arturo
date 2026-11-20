@@ -69,6 +69,10 @@ F30 il riporto differito (#4007, 19/11/2026): da una sessione fissata al worktre
 ogni git sul tree principale. shared/fine-worktree.md segna il ramo con la config comune
 (branch.<ramo>.arturo-riporta) e non usa mai git -C; arturo contesto mostra il ramo "chiuso da /fine";
 /inizio lo riporta da solo dal tree principale; il segno sparisce con git branch -d.
+F31 il lavoro che torna ha la sua prova e i suoi attrezzi (20/11/2026): /creaskill fa la quinta domanda
+("come capisci che è venuto bene?") e la skill nasce con "Finito quando" e "Attrezzi"; il metodo dice di
+chiudere con quella lista e di salvare script e modelli nella skill; la FASE 8 di /fine manda la correzione
+di un lavoro nella skill della persona, non in memoria, e non tocca le skill di Arturo.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1466,13 +1470,32 @@ def test_f30(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f31(repo: Path) -> None:
+    """Prova e attrezzi per ogni lavoro che torna, e la correzione nella skill (20/11/2026)."""
+    assert (repo / "commands" / "creaskill.md").is_file(), "F31 manca commands/creaskill.md"  # base vecchia
+    crea = read(repo / "commands" / "creaskill.md")
+    for pezzo in ("Cinque domande", "Come capisci che è venuto bene?", "Ti fermi quando lo sai fare da solo",
+                  "## Finito quando", "## Attrezzi", "non consegna finché una riga dice no"):
+        assert pezzo in crea, f"F31 /creaskill non dice {pezzo!r}"
+    assert "uattro domande" not in crea + read(repo / "README.md"), "F31 restano le quattro domande di /creaskill"
+    metodo = read(repo / "shared" / "metodo.md")
+    verificato = metodo[metodo.index("## Fatto vuol dire verificato"):metodo.index("## Errori e correzioni")]
+    for pezzo in ('"Finito quando"', '"Attrezzi"', "Prima di costruirne uno, guarda lì", "/creaskill"):
+        assert pezzo in verificato, f"F31 il metodo non dice {pezzo!r}"
+    fine = read(repo / "commands" / "fine.md")
+    fase8 = fine[fine.index("## FASE 8"):fine.index("## FASE 9")]
+    for pezzo in ("~/.claude/skills/<nome>/", "non in memoria", "scrivila dopo il sì",
+                  "Una skill di Arturo non si tocca", "/segnala"):
+        assert pezzo in fase8, f"F31 la FASE 8 di /fine non dice {pezzo!r}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
-         "F29": test_f29, "F30": test_f30}
+         "F29": test_f29, "F30": test_f30, "F31": test_f31}
 
 
 def main() -> int:

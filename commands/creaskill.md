@@ -1,5 +1,5 @@
 ---
-description: Crea una skill tua - quattro domande, una per volta, poi la skill in ~/.claude/skills/ che Claude usa da solo quando la richiesta torna
+description: Crea una skill tua - cinque domande, una per volta, poi la skill in ~/.claude/skills/ che Claude usa da solo quando la richiesta torna
 argument-hint: "[il lavoro che vuoi trasformare in skill] (opzionale)"
 ---
 
@@ -15,7 +15,7 @@ e non nominare YAML, frontmatter o trigger: sono affari tuoi.
 
 **Cosa dice la persona**: $ARGUMENTS
 
-## Passo 1 — Quattro domande
+## Passo 1 — Cinque domande
 
 Parti da quello che la persona ha già detto, in `$ARGUMENTS` o prima nella sessione: non
 chiedere di nuovo una cosa che sai. Le domande, una per volta:
@@ -27,6 +27,12 @@ chiedere di nuovo una cosa che sai. Le domande, una per volta:
    fine. Se ha un risultato già fatto che le piace, fattelo indicare: vale più di dieci regole.
 4. **Cosa NON deve fare?** Un lavoro che le somiglia ma è un altro, un errore che non vuole
    rivedere, un limite (per esempio "non mandare niente, prepara solo").
+5. **Come capisci che è venuto bene?** Le tre o quattro cose che guarda lei prima di dire "va
+   bene": i conti tornano, c'è la data, sta in una pagina. Diventano la lista che Claude
+   controlla da solo prima di consegnare.
+
+Se dopo le cinque risposte non sai ancora fare il lavoro senza chiederle altro, continua con
+una domanda per volta sul punto che manca. Ti fermi quando lo sai fare da solo.
 
 Se un lavoro così lo fa già un comando di Arturo o una skill che c'è, diglielo prima di
 continuare: forse basta quello.
@@ -87,13 +93,24 @@ del Passo 1, se c'è.>
 ## Cosa non fare
 
 <I limiti del Passo 1, ognuno col suo perché.>
+
+## Finito quando
+
+<Le risposte alla domanda 5, una per riga, ognuna controllabile con un sì o un no. Prima di
+consegnare Claude le controlla tutte e dice l'esito di ognuna.>
+
+## Attrezzi
+
+<Nasce vuota. Ogni script o modello che Claude costruisce per questo lavoro e che serve anche
+la volta dopo va nella cartella della skill, con una riga qui: il file e quando si usa.>
 ```
 
 Il corpo descrive un buon risultato e il perché, non una procedura passo per passo: così Claude
 sceglie la strada da solo, e la skill regge anche quando il caso cambia un po'. Il `when_to_use`
 è la parte che conta di più: Claude decide se aprire la skill leggendo solo quello. Se servono
 parti lunghe (un modello, un elenco di nomi), mettile in file a parte nella cartella
-`references/` della skill e citale dal corpo.
+`references/` della skill e citale dal corpo. "Finito quando" è la sola lista: la persona la
+legge e la corregge, e Claude non consegna finché una riga dice no.
 
 ## Passo 4 — La prova
 

@@ -13,6 +13,24 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — ogni lavoro che torna ha la sua lista "Finito quando" e i suoi attrezzi
+
+**Cosa cambia**: `/creaskill` ti fa una quinta domanda: "come capisci che è venuto bene?". Le tue
+risposte diventano la sezione "Finito quando" della skill, e Claude le controlla una per una prima di
+consegnarti il lavoro. Se dopo cinque risposte Claude non sa ancora fare il lavoro da solo, continua a
+chiedere, una domanda per volta. La skill nasce anche con la sezione "Attrezzi": uno script o un
+modello che Claude costruisce per quel lavoro resta nella cartella della skill, e la volta dopo lo
+riusa. Con `/fine`, una tua correzione su un lavoro che ha una skill tua finisce in quella skill, dopo
+il tuo sì, e non più solo in memoria.
+
+**Il principio**: un errore si corregge nelle istruzioni del lavoro, non nella chat. E il controllo
+finale lo fa Claude, su una lista che hai scritto tu.
+
+**A chi serve**: a chi ha skill sue o fa spesso lo stesso lavoro. Le skill che hai già non cambiano:
+se vuoi le due sezioni nuove, chiedi a Claude di aggiungerle.
+
+---
+
 ## 2026-11-20 — anche /inizio ti dice che l'identità di Git è automatica
 
 **Cosa cambia**: quando `/inizio` crea un progetto nuovo, fa il primo commit. Se non hai scelto un nome

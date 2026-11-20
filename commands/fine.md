@@ -271,6 +271,9 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
   (`python3 ~/.claude/bin/arturo memoria cerca "parole"`) e aggiorna quella. Un fatto, un file.
 - Vale in ogni sessione: una regola nel `CLAUDE.md` personale (opzionale A). Altrimenti muore con l'handoff.
   Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.
+- Vale per un lavoro che ha una skill della persona (`~/.claude/skills/<nome>/`): la correzione va in quella
+  skill, in "Cosa non fare" o in "Finito quando", e non in memoria. Mostra la riga e scrivila dopo il sì.
+  Una skill di Arturo non si tocca: lì la correzione parte con `/segnala`.
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
 stabile, password e chiavi, dati sensibili (salute, opinioni politiche, religione, dati di terzi che la
