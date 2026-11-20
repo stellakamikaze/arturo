@@ -339,6 +339,27 @@ if [ -f "$HOME/.claude/data/setup-fatto" ] && [ ! -e "$HOME/.claude/data/herdr-i
   fi
 fi
 
+# La firma locale di Arturo.app (#5147, 20/11/2026): dal 9/11 installa-herdr.sh propone firma-locale.sh con la
+# riga HERDR FIRMA, ma chi aveva già Arturo.app non ripassa da lì. Il primo avvio sul Mac decide una volta sola
+# e scrive l'esito nel segno data/herdr-firma-invito: invito solo con Arturo.app e senza l'identità. Senza
+# Arturo.app tace, perché chi la installa dopo vede la riga dall'installatore. ARTURO_HERDR_FIRMA è per i banchi.
+SEGNO_FIRMA="$HOME/.claude/data/herdr-firma-invito"
+if [ "$(uname -s)" = Darwin ] && [ ! -e "$SEGNO_FIRMA" ] && [ -f "$ARTURO_CODICE/shared/volta/firma-locale.sh" ]; then
+  if [ ! -d "$HOME/Applications/Arturo.app" ]; then
+    ESITO_FIRMA=senza-app
+  elif [ -n "${ARTURO_HERDR_FIRMA:-}" ]; then
+    ESITO_FIRMA=$ARTURO_HERDR_FIRMA
+  elif security find-identity -v -p codesigning 2>/dev/null | grep -q '"Arturo firma locale"'; then
+    ESITO_FIRMA=presente
+  else
+    ESITO_FIRMA=assente
+  fi
+  mkdir -p "$HOME/.claude/data" && printf '%s %s\n' "$(date +%Y-%m-%d)" "$ESITO_FIRMA" > "$SEGNO_FIRMA"
+  if [ "$ESITO_FIRMA" = assente ]; then
+    echo "HERDR FIRMA: a ogni aggiornamento di Herdr macOS richiede i permessi di Arturo.app (Documenti, microfono), perché la sua firma cambia. Nella tua prima risposta proponi alla persona in una riga, una volta sola: \"Perché il Mac ricordi i permessi della finestra anche dopo gli aggiornamenti, lancia nel tuo Terminale questo comando; ti chiede due volte la password del Mac.\" Il comando è: sh \"$ARTURO_CODICE/shared/volta/firma-locale.sh\". Non lo lanci tu: segna un certificato come affidabile, ed è un'impostazione di sicurezza della persona. Se dice no non insistere: la finestra funziona lo stesso e l'invito non torna."
+  fi
+fi
+
 # Segnalazioni (11/11/2026): di default Claude le scrive e le manda da solo a chi mantiene Arturo, e dice cosa è
 # partito. L'avviso esce una volta sola (arturo segnala avviso, segno in session-env/segnalazioni-annuncio). Con
 # "arturo segnalazioni manuali" o ARTURO_SEGNALAZIONI=manuali torna l'invito a proporre /segnala. "arturo segnala

@@ -85,6 +85,8 @@ REPO="$HOME/.claude"
 BANCHI=(
   test_ritratto_2026_11_01.py
   test_herdr_2026_11_08.py
+  # #5147 (20/11/2026): l'invito all'avvio alla firma locale di Arturo.app, una volta sola (FI01-FI04).
+  test_herdr_firma_invito_2026_11_20.py
   test_setup_ritratto_2026_11_01.py
   test-block-dangerous-falsi-positivi.py
   test-web-egress-guard.py
@@ -509,6 +511,8 @@ VELENI=(
   test_windows_minori_2026_11_10.py
   # Herdr (8/11/2026, ramo herdr): installazione, hook dello stato, invito, mod, Da dove partire, La settimana, azioni sui todo, Arturo.app, note sulla finestra e gitignore di data/ (HZ01-HZ15).
   test_herdr_2026_11_08.py
+  # #5147 (20/11/2026): senza il segno, con l'invito spento o col comando sbagliato FI01-FI04 sono rossi.
+  test_herdr_firma_invito_2026_11_20.py
   # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
