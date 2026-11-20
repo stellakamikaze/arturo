@@ -13,6 +13,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — anche /inizio ti dice che l'identità di Git è automatica
+
+**Cosa cambia**: quando `/inizio` crea un progetto nuovo, fa il primo commit. Se non hai scelto un nome
+per i commit, Git ne usa uno ricavato dal tuo utente e dal computer. Prima `/inizio` lo faceva in
+silenzio; ora te lo dice nella ripartenza e ti indica `/setup`, FASE 1, come fa già `/fine`
+(segnalazione n. 67).
+
+**Il principio**: due comandi che fanno lo stesso passo raccontano la stessa cosa.
+
+**A chi serve**: a chi non ha ancora scelto un nome per i commit in `/setup`.
+
+---
+
 ## 2026-11-20 — /monitor vede la tua fonte dei task come arturo todo
 
 **Cosa cambia**: se tieni i task in un altro strumento (`fonte-task.local`, `docs/fonte-task.md`), l'inventario

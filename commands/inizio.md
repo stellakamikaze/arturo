@@ -295,6 +295,10 @@ percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi 
 `bash ~/.claude/bin/identita-git.sh . && git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
 mai nel repo del progetto.
 
+Se lo script stampa `AVVISO`, il commit parte con l'identità automatica di Git: riporta la riga nella
+ripartenza, con l'invito a sceglierne una con `/setup`. Solo `MANCA` ferma il commit: riportalo, e il
+progetto resta senza il primo commit finché la persona non sceglie l'identità.
+
 ## FASE 3: Carica il contesto
 
 Leggi in ordine, se esistono:
