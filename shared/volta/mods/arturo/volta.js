@@ -38,7 +38,7 @@ import { apriChecklist } from "./checklist.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 import { run, panes } from "herdr";
 import { congedoSullaCopia } from "./sessioni.js";
-import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare, schedeSpente, SCHEDA, daAllineare } from "./sessioni.js";
+import { xRiga, uscenti, nascitePerAvviso, congediOrfani, tocca, daStaccare, schedeSpente, SCHEDA, daAllineare, daRinominare } from "./sessioni.js";
 import { ricordaChiuse } from "./sessioni.js";
 import { ANNULLA_MS, inAnnullo, senzaAnnullo, conAnnullo, daAnnullare } from "./sessioni.js";
 import { apriContesto } from "./contestoui.js";
@@ -201,6 +201,7 @@ export class Volta {
     this.noStacco = new Set(); // indirizzi delle schede che non si sono staccate: non si riprovano fino al ricarico
     this.allineaLavora = false; // l'ora di partenza mentre allineaSpazi lavora
     this.allineati = new Set(); // "chiave|progetto" degli spostamenti già fatti: non si ripetono fino al ricarico
+    this.visteTitoli = {}; // daRinominare: titolo, sessionId e nomi dati da Volta per sessione, dal giro prima
     // "Riduci movimento" del sistema: sul Mac subito, su Windows col Python di arturo.json (sotto)
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
@@ -644,10 +645,20 @@ export class Volta {
         const p = panes().find((x) => x.terminal === indirizzo);
         // anche lo spazio di un'altra macchina: lì stanno le schede delle sue sessioni (#5802)
         const dove = p ? sp.find((x) => (!x.machine || x.machine === s?.host) && x.tabs.some((tb) => tb.id === p.tab)) : null;
-        if (s) voci.push({ indirizzo, s, spazio: dove ? { nome: dove.name, libero: libero(dove.name) } : null });
+        const tb = dove ? dove.tabs.find((x) => x.id === p.tab) : null;
+        if (s) voci.push({ indirizzo, s, spazio: dove ? { nome: dove.name, libero: libero(dove.name) } : null,
+          scheda: tb ? { id: tb.id, nome: tb.name, named: tb.named, panes: tb.panes } : null });
       }
       const r = daAllineare(voci, { prima: this.visteProgetti, letto: this.giroBuono ?? this.dati.letto, davanti: focused()?.terminal ?? null, fatti: this.allineati });
       this.visteProgetti = r.visti;
+      // il nome della scheda dopo /inizio o una rotazione (daRinominare, #5547): non quella che si riapre adesso
+      const n = daRinominare(voci, { prima: this.visteTitoli, letto: this.giroBuono ?? this.dati.letto, salta: new Set(r.sposta.map((x) => x.indirizzo)) });
+      this.visteTitoli = n.visti;
+      for (const { indirizzo, tab, nome, s } of n.rinomina) {
+        run("tab.rename", { id: tab, name: nome });
+        registra("rinomina scheda", { macchina: s.host, sid: s.id, terminale: indirizzo, nome });
+      }
+      if (n.rinomina.length && !r.sposta.length) cx.notify();
       for (const { indirizzo, s, progetto } of r.sposta) {
         this.allineati.add(`${chiave(s)}|${progettoDi(progetto).chiave}`);
         const esito = await spostaScheda(s, progetto).catch((e) => ({ errore: String(e?.message ?? e).slice(0, 120) }));

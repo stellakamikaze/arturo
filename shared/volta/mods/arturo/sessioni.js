@@ -998,6 +998,45 @@ export function daAllineare(voci, opz = {}) {
   return { sposta: sposta.slice(0, 1), visti };
 }
 
+// Il nome della scheda dopo /inizio o una rotazione (#5547, 20/11/2026). La scheda prende il nome una
+// volta sola, quando aggancia() la apre: poi la colonna dice il titolo nuovo e la scheda quello vecchio.
+// Lo spostamento di daAllineare la riapre col titolo di adesso; qui la scheda che resta nel suo spazio.
+// Volta rinomina la scheda col titolo scritto della sessione (s.titolo, stesso in due letture) in due casi:
+// - il nome è un segnaposto della nascita ("/inizio arturo", "Richiesta su Mac mini", "Sessione a1", lo
+//   slug del progetto) o nessuno l'ha nominata;
+// - la sessione ha cambiato sessionId (/clear, rotazione) e il nome è uno che Volta le ha già dato.
+// Un titolo che cambia a metà lavoro (il modello lo rifà ogni tanto) non rinomina: la scheda resta sul
+// compito. Un nome che la persona ha dato alla scheda non è mai fra quelli di Volta, e resta. Solo le
+// schede di un riquadro, come rinominaSchede di dati.js. `voci`: [{ indirizzo, s, scheda: { id, nome,
+// named, panes } }]; `opz.salta`: gli indirizzi che daAllineare riapre in questo giro.
+// Torna { rinomina: [{ indirizzo, tab, nome, s }], visti }: `visti` è il `prima` del giro dopo.
+export const NOME_SCHEDA_MAX = 40;
+const NOMI_VISTI = 8;
+const segnaposto = (nome, s) => /^(\/|Richiesta su |Sessione )/.test(nome) || (Boolean(s.progetto) && nome === String(s.progetto).trim());
+export function daRinominare(voci, opz = {}) {
+  const prima = opz.prima ?? {}, letto = opz.letto ?? "", salta = opz.salta ?? new Set();
+  const rinomina = [], visti = {};
+  for (const { indirizzo, s, scheda } of voci ?? []) {
+    if (!s?.id || s.vecchia) continue;
+    const k = chiave(s), v = prima[k];
+    const t = String(s.titolo ?? "").replace(/\s+/g, " ").trim().slice(0, NOME_SCHEDA_MAX);
+    const sid = s.sessionId ?? "";
+    const nomi = [...new Set([...(v?.nomi ?? []), titolo(s).slice(0, NOME_SCHEDA_MAX)])].slice(-NOMI_VISTI);
+    const fermo = Boolean(v) && v.titolo === t;
+    visti[k] = { titolo: t, letto: fermo ? v.letto : letto, sid0: v?.sid0 ?? sid, nomi };
+    if (!fermo || !t || v.letto === letto || !scheda?.id || salta.has(indirizzo)) continue;
+    const nome = String(scheda.nome ?? "");
+    // la scheda dice già il titolo: il giro è chiuso anche così, e un titolo dopo non rinomina
+    if (nome === t) { visti[k].sid0 = sid; continue; }
+    if (scheda.panes !== 1) continue;
+    const giro = sid !== v.sid0 && nomi.includes(nome);
+    if (!giro && !segnaposto(nome, s) && scheda.named !== false) continue;
+    rinomina.push({ indirizzo, tab: scheda.id, nome: t, s });
+    visti[k] = { ...visti[k], sid0: sid, nomi: [...new Set([...nomi, t])].slice(-NOMI_VISTI) };
+  }
+  return { rinomina, visti };
+}
+
 // Un passo del congedo, deciso dallo stato di adesso. `c`: { sessionId, id, host, fase, da, dal } con fase
 // "attende" (lavorava quando l'hai chiusa: finisce il turno), "fine" (ripresa con /fine), "ferma" (claude
 // stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, salvata?, avviso? } con fai:

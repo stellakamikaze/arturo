@@ -819,6 +819,11 @@ HZ178 Unisci a… (#6187): unione() di dati.js chiama Arturo con --prova e tiene
      l'unione vera, una alla volta, mai fra due nomi dello stesso progetto, e non dà per riuscita una risposta che
      non è un'unione. La voce "Unisci a…" sta nel menu del progetto e della tessera di ⌘T; nel dialogo l'unione
      vera parte solo dal clic sul pulsante Unisci, con l'anteprima pronta, e nessun tasto la manda.
+HZ179 il nome della scheda dopo /inizio o una rotazione (20/11/2026, #5547): daRinominare dà alla scheda il
+     titolo scritto della sessione, stesso in due letture, se il nome è un segnaposto della nascita o se la
+     sessione ha cambiato sessionId e il nome è uno che Volta le ha dato; mai un nome dato dalla persona, mai
+     un titolo rifatto a metà lavoro, mai una scheda con due riquadri o che daAllineare riapre; volta.js
+     rinomina con tab.rename a ogni giro di allineaSpazi.
 """
 from __future__ import annotations
 
@@ -834,7 +839,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -14482,7 +14487,73 @@ def hz178(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178}
+PROVA_RINOMINA = r"""
+import { daRinominare } from "./sessioni.mjs";
+const bg = (id, sid, titolo, extra = {}) => ({ id, sessionId: sid, host: "qui", tipo: "background", titolo, attach: ["claude", "attach", id], ...extra });
+const tab = (id, nome, extra = {}) => ({ id, nome, named: true, panes: 1, ...extra });
+let prima = {};
+const giro = (letto, voci, opz = {}) => { const r = daRinominare(voci, { prima, letto, ...opz }); prima = r.visti; return r.rinomina.map((x) => `${x.indirizzo}>${x.nome}`); };
+// la rotazione: /clear cambia il sessionId, /inizio scrive il titolo del compito nuovo, poi il modello lo rifà
+const rot = (sid, t, nome) => [{ indirizzo: "t1", s: bg("a1", sid, t), scheda: tab("b1", nome) }];
+const rotazione = [giro("L1", rot("s1", "Step 32 del piano", "Step 32 del piano")), giro("L2", rot("s2", "Step 33 del piano", "Step 32 del piano")),
+  giro("L3", rot("s2", "Step 33 del piano", "Step 32 del piano")), giro("L4", rot("s2", "Step 33, banco verde", "Step 33 del piano")),
+  giro("L5", rot("s2", "Step 33, banco verde", "Step 33 del piano"))];
+// la scheda che la persona ha nominato da Herdr: la rotazione non la tocca
+prima = {};
+const persona = [giro("L1", [{ indirizzo: "t2", s: bg("a2", "s1", "Step 32"), scheda: tab("b2", "Il mio lavoro") }]),
+  giro("L2", [{ indirizzo: "t2", s: bg("a2", "s2", "Step 33"), scheda: tab("b2", "Il mio lavoro") }]),
+  giro("L3", [{ indirizzo: "t2", s: bg("a2", "s2", "Step 33"), scheda: tab("b2", "Il mio lavoro") }])];
+// i segnaposto della nascita, la scheda con due riquadri, quella che daAllineare riapre, quella senza nome
+prima = {};
+const nascita = () => [
+  { indirizzo: "c1", s: bg("n1", "x1", "Lavoro su Volta"), scheda: tab("d1", "/inizio volta") },
+  { indirizzo: "c2", s: bg("n2", "x2", "Lavoro su Volta"), scheda: tab("d2", "Richiesta su Mac mini") },
+  { indirizzo: "c3", s: bg("n3", "x3", "Lavoro su Volta", { progetto: "volta" }), scheda: tab("d3", "volta") },
+  { indirizzo: "c4", s: bg("n4", "x4", "Lavoro su Volta"), scheda: tab("d4", "/inizio volta", { panes: 2 }) },
+  { indirizzo: "c5", s: bg("n5", "x5", "Lavoro su Volta"), scheda: tab("d5", "/inizio volta") },
+  { indirizzo: "c6", s: bg("n6", "x6", "Lavoro su Volta"), scheda: tab("d6", "2", { named: false }) },
+  { indirizzo: "c7", s: bg("n7", "x7", "Un titolo lungo che passa i quaranta caratteri della scheda"), scheda: tab("d7", "/inizio volta") },
+  { indirizzo: "c8", s: bg("n8", "x8", "Lavoro su Volta", { vecchia: true }), scheda: tab("d8", "/inizio volta") },
+];
+const salta = new Set(["c5"]);
+const primo = giro("L1", nascita(), { salta });
+const stessa = giro("L1", nascita(), { salta });
+const due = giro("L2", nascita(), { salta });
+console.log(JSON.stringify({ rotazione, persona, primo, stessa, due }));
+process.exit(0);
+"""
+
+
+def hz179(repo: Path, casa: Path) -> str | None:
+    """Il nome della scheda dopo /inizio o una rotazione (20/11/2026, #5547)."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, perche in (("const n = daRinominare(voci, { prima: this.visteTitoli, letto: this.giroBuono ?? this.dati.letto, salta: new Set(r.sposta.map((x) => x.indirizzo)) });", "allineaSpazi non chiede i nomi da cambiare"),
+                          ('run("tab.rename", { id: tab, name: nome });', "allineaSpazi non rinomina la scheda"),
+                          ("scheda: tb ? { id: tb.id, nome: tb.name, named: tb.named, panes: tb.panes } : null", "allineaSpazi non passa la scheda di Herdr")):
+        if pezzo not in vj:
+            return f"volta.js: {perche}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    (casa / "prova.mjs").write_text(PROVA_RINOMINA, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=60, cwd=casa)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["rotazione"] != [[], [], ["t1>Step 33 del piano"], [], []]:
+        return f"dopo la rotazione la scheda non prende il titolo nuovo, o lo cambia a metà lavoro: {d['rotazione']}"
+    if d["persona"] != [[], [], []]:
+        return f"la rotazione rinomina una scheda che la persona ha nominato: {d['persona']}"
+    if d["primo"] or d["stessa"]:
+        return f"la scheda si rinomina alla prima lettura o due volte nella stessa: {d['primo']}, {d['stessa']}"
+    attesi = ["c1>Lavoro su Volta", "c2>Lavoro su Volta", "c3>Lavoro su Volta", "c6>Lavoro su Volta", "c7>Un titolo lungo che passa i quaranta car"]
+    if d["due"] != attesi:
+        return f"i segnaposto della nascita non prendono il titolo, o si rinominano schede da lasciare: {d['due']}"
+    return None
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -14527,6 +14598,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (!fermo || !t || v.letto === letto || !scheda?.id", "    if (!fermo || !t || !scheda?.id"),
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && nomi.includes(nome);", "    const giro = nomi.includes(nome);"),
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && nomi.includes(nome);", "    const giro = sid !== v.sid0;"),
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (scheda.panes !== 1) continue;\n", ""),
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (!s?.id || s.vecchia) continue;\n    const k = chiave(s), v = prima[k];\n    const t =", "    if (!s?.id) continue;\n    const k = chiave(s), v = prima[k];\n    const t ="),
+    ('HZ179', 'shared/volta/mods/arturo/volta.js', '        run("tab.rename", { id: tab, name: nome });\n', ''),
     ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s);'),
     ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  if (r.fase === "stasi" && inCoda.has(r.sessione)) return null;', ''),
     ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  return (sessioni ?? []).filter((s) => s && !chiusa(s) && !dorme(s)).map((s) => ({', '  return (sessioni ?? []).filter((s) => s).map((s) => ({'),
