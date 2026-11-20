@@ -18,6 +18,10 @@ import { rigaMod, decodifica, leggiProvaChecklist, appesa } from "./sessioni.js"
 import { leggiGesto, leggiCompito } from "./sessioni.js";
 import { compito } from "./dati.js";
 import { apriCompito } from "./comuni.js";
+import { unisci } from "./dati.js";
+import { leggiUnisci } from "./sessioni.js";
+import { apriUnisci } from "./unisci.js";
+import { apriMenuProgetto } from "./menusessione.js";
 import { instrada } from "./comandi.js";
 import { pastigliaTutto } from "./sposta.js";
 import { apriContesto } from "./contestoui.js";
@@ -91,6 +95,12 @@ export class Barra {
     // ⌘N: il dialogo del compito nuovo; il compito scritto fa nascere la sessione nel progetto scelto (#6186).
     else if (c === "compito") apriCompito(arg ? decodifica(arg) : "");
     else if (c === "compito-vai") { const x = leggiCompito(arg, shared("arturo.progetti")); if (x) this.lungo(c, cx, () => compito(x)); }
+    // Unisci a… (#6187): il dialogo dal menu di un progetto; l'unione vera solo dal suo pulsante Unisci. Dopo
+    // un'unione riuscita la barra rilegge i progetti, così il doppione sparisce subito.
+    else if (c === "unisci") apriUnisci(arg);
+    else if (c === "menu-progetto") apriMenuProgetto(arg.slug, shared("arturo.progetti")?.[arg.slug]?.titolo, arg.dove);
+    else if (c === "unisci-prova") { const x = leggiUnisci(arg); if (x) apriUnisci(x.perdente, x.vincitore); }
+    else if (c === "unisci-vai") { const x = leggiUnisci(arg); if (x) this.lungo(c, cx, () => unisci(x.perdente, x.vincitore).then((v) => { if (v.stato === "fatto") this.carica(cx); })); }
     else if (c === "chiedi") apriSuggerimenti();
     else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }
     else if (c === "settimana") apriRevisione();

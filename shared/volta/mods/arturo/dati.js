@@ -5,6 +5,7 @@ import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, r
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale, schedaDelProgetto } from "./sessioni.js";
 import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
 import { promptCompito, avvisoCompito, nomeProgetto as nomeProgettoDi } from "./sessioni.js";
+import { leggiUnione, vistaUnione, percheNonUnire, UNIONE_PROVA_MS, UNIONE_MS } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -1615,6 +1616,48 @@ export async function progettiMemoria() {
 export async function nomiProgetti() {
   const m = await progettiMemoria();
   return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();
+}
+
+// Unisci due progetti doppioni (#6187): arturo progetti unisci PERDENTE VINCITORE [--prova] --json, letto da
+// vistaUnione di sessioni.js. Con `prova` Arturo conta e non scrive niente. Arturo esce 2 col motivo in JSON
+// quando rifiuta: per questo non passa da arturo(), che di un'uscita diversa da 0 tiene solo la prima riga.
+export async function unione(perdente, vincitore, prova) {
+  const tetto = prova ? UNIONE_PROVA_MS : UNIONE_MS;
+  const t0 = Date.now();
+  try {
+    const c = await config();
+    const [cmd, ...pre] = c.arturo;
+    const r = await exec(cmd, [...pre, "progetti", "unisci", perdente, vincitore, ...(prova ? ["--prova"] : []), "--json"], { cwd: c.base, timeout: tetto });
+    const d = leggiUnione(r.stdout);
+    if (d) return vistaUnione(d, perdente, vincitore);
+    return { ...vistaUnione(null), testo: prima(r.stderr) || `Arturo si è fermato senza dire perché (uscita ${r.code}).` };
+  } catch (e) {
+    const scaduto = Date.now() - t0 >= tetto - 1000;
+    return { ...vistaUnione(null), testo: scaduto ? `Arturo non ha risposto in ${Math.round(tetto / 1000)} secondi.` : String(e?.message ?? e).slice(0, 160) };
+  }
+}
+
+// L'unione vera, dalla barra: la manda solo il pulsante Unisci del dialogo (unisci.js), che è il sì della
+// persona. Lo stato sta in shared arturo.unione, che il dialogo mostra: { perdente, vincitore, stato:
+// "corso" | "fatto" | "errore", vista, quando }. Una alla volta. Un'unione che non risponde entro il tetto può
+// essere ancora in corso: l'avviso lo dice, e non si rilancia da sola.
+export async function unisci(perdente, vincitore) {
+  const noti = shared("arturo.progetti");
+  const no = percheNonUnire(perdente, vincitore, noti);
+  if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return { stato: "errore", testo: no }; }
+  const p = canonico(perdente), v = canonico(vincitore);
+  const ora = shared("arturo.unione");
+  if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {
+    notify({ title: "Un'unione è già in corso", body: `${ora.perdente} entra in ${ora.vincitore}: aspetta che finisca.`, level: "warning" });
+    return { stato: "errore", testo: "Un'unione è già in corso." };
+  }
+  setShared("arturo.unione", { perdente: p, vincitore: v, stato: "corso", vista: null, quando: Date.now() });
+  const vista = await unione(p, v, false);
+  const ok = vista.stato === "fatto";
+  setShared("arturo.unione", { perdente: p, vincitore: v, stato: ok ? "fatto" : "errore", vista, quando: Date.now() });
+  if (ok) notify({ title: `${nomeProgettoDi(p)} ora è ${nomeProgettoDi(v)}`, body: `Il nome ${p} resta valido. Copia di prima: ${vista.backup}`, level: "info" });
+  else notify({ title: "L'unione non è riuscita", body: `${vista.testo || "Arturo non ha confermato."} Guarda data/progetti/unioni/ prima di riprovare.`, level: "error" });
+  return vista;
 }
 
 // Le cartelle della base dei progetti, dalla più recente.

@@ -64,23 +64,30 @@ export class MenuSessione {
   }
 }
 
-// Il menu del tasto destro sull'intestazione di un progetto nella colonna (vista per progetto, 12/11/2026):
-// Apri il progetto (lo stesso clic) e il suo contesto. Manda il comando alla barra e si chiude.
-export function apriMenuProgetto(chiave, titoloProgetto) {
+// Il menu del tasto destro su un progetto: sull'intestazione nella colonna (vista per progetto, 12/11/2026) e
+// su una tessera di ⌘T (#6187). Nella colonna: Apri il progetto (lo stesso clic), il suo contesto e "Unisci a…".
+// Sulla tessera il clic apre già una conversazione nuova: restano il contesto e "Unisci a…". Manda il comando
+// alla barra e si chiude.
+export function apriMenuProgetto(chiave, titoloProgetto, dove = "colonna") {
   if (!chiave) return false;
-  openOverlay({ mod: "arturo", props: { parte: "menuprogetto", chiave, titolo: titoloProgetto ?? chiave }, kind: "popup", width: 230 });
+  openOverlay({ mod: "arturo", props: { parte: "menuprogetto", chiave, titolo: titoloProgetto ?? chiave, dove }, kind: "popup", width: 230 });
   return true;
 }
+export const apriMenuTessera = (chiave, titoloProgetto) => apriMenuProgetto(chiave, titoloProgetto, "tessera");
 
-export const VOCI_PROGETTO = [{ verbo: "apri", testo: "Apri il progetto" }, { verbo: "contesto", testo: "Contesto del progetto" }];
+export const VOCI_PROGETTO = [{ verbo: "apri", testo: "Apri il progetto" }, { verbo: "contesto", testo: "Contesto del progetto" }, { verbo: "unisci", testo: "Unisci a…" }];
+export const VOCI_TESSERA = VOCI_PROGETTO.filter((v) => v.verbo !== "apri");
+export const vociProgetto = (dove) => (dove === "tessera" ? VOCI_TESSERA : VOCI_PROGETTO);
 
-// Il comando di una voce: "arturo.apri-<slug>" o "arturo.contesto-<slug>" (instrada di comandi.js).
-export const comandoProgetto = (chiave, v) => `arturo.${v.verbo === "apri" ? "apri" : "contesto"}-${chiave}`;
+// Il comando di una voce: "arturo.apri-<slug>", "arturo.contesto-<slug>" o "arturo.unisci-<slug>" (instrada di
+// comandi.js). Un verbo che non conosce non manda niente.
+export const comandoProgetto = (chiave, v) => (["apri", "contesto", "unisci"].includes(v?.verbo) ? `arturo.${v.verbo}-${chiave}` : null);
 
 export class MenuProgetto {
   init(_p, cx) {
     this.chiave = props()?.chiave ?? "";
     this.titolo = props()?.titolo ?? this.chiave;
+    this.voci = vociProgetto(props()?.dove);
     this.handle = cx.focus_handle();
     cx.timer.after(120, () => this.handle.focus());
   }
@@ -92,10 +99,10 @@ export class MenuProgetto {
     return v_flex().id("menu-progetto").track_focus(this.handle).w_full().p(8).gap(1).bg(t.popover)
       .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
       .child(div().px(10).pt(4).pb(2).truncate().text_size(12.5).text_color(t.muted).child(this.titolo))
-      .children(VOCI_PROGETTO.map((v) => h_flex().id(`mp-${v.verbo}`).h(30).px(10).items_center().rounded(6).cursor_pointer()
+      .children(this.voci.map((v) => h_flex().id(`mp-${v.verbo}`).h(30).px(10).items_center().rounded(6).cursor_pointer()
         .hover((st) => st.bg(t.hover))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        .on_click(() => { run(comandoProgetto(this.chiave, v)); this.chiudi(); })
+        .on_click(() => { const c = comandoProgetto(this.chiave, v); if (c) run(c); this.chiudi(); })
         .child(div().flex_1().truncate().text_size(13).text_color(t.foreground).child(v.testo))));
   }
 }

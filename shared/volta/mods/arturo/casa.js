@@ -11,6 +11,7 @@ import { comandoConversazione } from "./comandi.js";
 import { ICONA, punto, colore, tasti } from "./comuni.js";
 import { tessere, passo, colonne, iniziali, tinta, immagine, senzaTessere, STACK, TERMINALE, GAP, MIN_W } from "./tessere.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
+import { apriMenuTessera } from "./menusessione.js";
 
 // La figura della ricerca senza risultati, in due copie coi colori scritti dentro (resvg non legge le
 // variabili CSS): si sceglie dalla luminosità dello sfondo del tema. La misura è quella dell'SVG.
@@ -109,6 +110,8 @@ export class Casa {
         .bg(t.background).border_1().border_color(scelta ? t.ring : t.border)
         .hover((st) => st.border_color(scelta ? t.ring : t.muted))
         .on_click(() => this.vai(tt))
+        // tasto destro: il contesto del progetto e "Unisci a…" (#6187). "Nuova richiesta" non ha menu.
+        .on_mouse_down("right", (_e, cx) => { if (tt.tipo !== "nuova" && apriMenuTessera(tt.chiave, tt.titolo)) cx.stop_propagation(); })
         .child(figura(tt))
         .child(v_flex().px(SPAZIO.l).pt(SPAZIO.m).pb(SPAZIO.l).gap(SPAZIO.xs)
           .child(div().truncate().text_size(TESTO.riga).text_color(t.foreground).child(tt.titolo))
@@ -145,7 +148,7 @@ export class Casa {
       .child(v_flex().flex_none().px(SPAZIO.xxl).pt(SPAZIO.xxl).pb(SPAZIO.xl).gap(SPAZIO.l)
         .child(h_flex().items_center().gap(SPAZIO.l)
           .child(div().flex_1().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Progetti"))
-          .child(div().text_size(TESTO.etichetta).text_color(t.dim).child("Invio apre · Esc torna alla sessione")))
+          .child(div().text_size(TESTO.etichetta).text_color(t.dim).child("Invio apre · tasto destro per il menu · Esc torna alla sessione")))
         .child(h_flex().h(PULSANTE.grande).px(SPAZIO.l).gap(SPAZIO.m).items_center().rounded(RAGGIO.riga).border_1().border_color(t.accent).bg(t.raised)
           .child(svg(ICONA("search")).size(ICONA_MISURA.grande).text_color(t.muted))
           .child(Input.new(this.input).flex_1().h_full().text_size(TESTO.riga).text_color(t.foreground))))

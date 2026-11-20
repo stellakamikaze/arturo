@@ -36,6 +36,16 @@ export function instrada(c) {
   // "compitoscritto-<esadecimale>": il dialogo aperto con quel testo già scritto (prove senza tastiera, herdr-app do).
   if (/^compitoscritto-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "compito", arg: dopo("compitoscritto-"), lungo: false };
   if (/^compito(apri)?-[a-z0-9-]+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "compito-vai", arg: c, lungo: true };
+  // "unisciprova-<esadecimale>-<esadecimale>": il dialogo dell'unione aperto già sull'anteprima di quei due progetti
+  // (prove senza tastiera). "uniscivai-…": l'unione vera, che manda solo il pulsante Unisci (#6187). L'argomento è
+  // il comando intero: lo legge leggiUnisci di sessioni.js. "unisci-<slug>": il dialogo, per scegliere dove entra.
+  if (/^unisciprova-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "unisci-prova", arg: c, lungo: false };
+  if (/^uniscivai-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "unisci-vai", arg: c, lungo: true };
+  if (/^unisci-[a-z0-9][a-z0-9-]*$/.test(c)) return { verbo: "unisci", arg: dopo("unisci-"), lungo: false };
+  // "menuprogetto-<slug>" e "menutessera-<slug>": il menu del tasto destro su un progetto della colonna e su una
+  // tessera di ⌘T, senza clic (prove, herdr-app do).
+  const mp = /^menu(progetto|tessera)-([a-z0-9][a-z0-9-]*)$/.exec(c);
+  if (mp) return { verbo: "menu-progetto", arg: { dove: mp[1] === "tessera" ? "tessera" : "colonna", slug: mp[2] }, lungo: false };
   if (c === "chiedi") return { verbo: "chiedi", arg: null, lungo: false };
   // "suggerimento-<id>": una richiesta di "Cosa posso chiedere".
   if (c.startsWith("suggerimento-")) return { verbo: "suggerimento", arg: dopo("suggerimento-"), lungo: true };

@@ -2339,3 +2339,100 @@ export function lascia(o, campo, mio, k = undefined) {
   if (k === undefined) { if (o[campo] === mio) o[campo] = false; }
   else if (o[campo]?.[k] === mio) delete o[campo][k];
 }
+
+// --- Unisci due progetti doppioni (#6187, Fase 4 del piano del 20/11/2026) ---------------------------
+// Il menu di un progetto apre il dialogo (unisci.js) con "arturo.unisci-<perdente>". Il dialogo chiede ad
+// Arturo l'anteprima (arturo progetti unisci PERDENTE VINCITORE --prova --json) e la mostra. L'unione vera
+// parte solo dal pulsante Unisci, che è il sì della persona: manda "arturo.uniscivai-…" alla barra.
+// I due slug viaggiano in esadecimale, perché uno slug ha i trattini e non si sa dove finisce.
+
+// Le attese: l'anteprima chiede alla fonte dei task quanti ne sposterebbe; l'unione vera li sposta uno
+// per uno (ATTESA_FONTE di unisci.py è 300 s).
+export const UNIONE_PROVA_MS = 90000;
+export const UNIONE_MS = 420000;
+
+export const comandoUnisci = (perdente) => `arturo.unisci-${slug(perdente)}`;
+const coppia = (verbo, perdente, vincitore) => `arturo.${verbo}-${codifica(slug(perdente))}-${codifica(slug(vincitore))}`;
+// "unisciprova": il dialogo aperto già sull'anteprima (prove senza tastiera, herdr-app do).
+export const comandoUnisciProva = (perdente, vincitore) => coppia("unisciprova", perdente, vincitore);
+// "uniscivai": l'unione vera. Lo manda solo il pulsante Unisci del dialogo.
+export const comandoUnisciVai = (perdente, vincitore) => coppia("uniscivai", perdente, vincitore);
+
+// I due progetti di un comando "unisciprova-…" o "uniscivai-…" (senza "arturo."), o null: due slug veri e diversi.
+export function leggiUnisci(c) {
+  const m = /^unisci(?:prova|vai)-((?:[0-9a-f]{4})+)-((?:[0-9a-f]{4})+)$/.exec(String(c ?? ""));
+  if (!m) return null;
+  const perdente = decodifica(m[1]), vincitore = decodifica(m[2]);
+  if (!perdente || !vincitore || slug(perdente) !== perdente || slug(vincitore) !== vincitore || perdente === vincitore) return null;
+  return { perdente, vincitore };
+}
+
+// I progetti in cui `perdente` può entrare, per ciò che la persona scrive: tutti i progetti noti (la forma di
+// progettiPerCompito) tranne lui e i suoi nomi alternativi. Prima chi comincia così, poi chi lo contiene, nello
+// slug, nel titolo e nei nomi alternativi.
+export function scelteUnione(perdente, progetti, testo, quanti = 8) {
+  const p = slug(perdente);
+  const l = (progetti ?? []).filter((x) => x?.chiave && x.chiave !== p && !(x.alias ?? []).includes(p));
+  const f = progettoNuovo(testo);
+  if (!f) return l.slice(0, quanti);
+  const nomi = (x) => [x.chiave, slug(x.titolo ?? ""), ...(x.alias ?? [])].filter(Boolean);
+  const inizia = (x) => nomi(x).some((n) => n.startsWith(f));
+  return [...l.filter(inizia), ...l.filter((x) => !inizia(x) && nomi(x).some((n) => n.includes(f)))].slice(0, quanti);
+}
+
+// La risposta di arturo progetti unisci … --json: l'ultima riga che è un oggetto JSON, o null.
+export function leggiUnione(uscita) {
+  const righe = String(uscita ?? "").split("\n").map((x) => x.trim()).filter((x) => x.startsWith("{"));
+  try {
+    const d = righe.length ? JSON.parse(righe[righe.length - 1]) : null;
+    return d && typeof d === "object" && !Array.isArray(d) ? d : null;
+  } catch { return null; }
+}
+
+const quanti = (n, uno, tanti) => `${n} ${n === 1 ? uno : tanti}`;
+
+// Cosa mostra il dialogo per la risposta `d` di Arturo all'unione di `perdente` in `vincitore`:
+// { stato, testo, righe: [{ cosa, quanto }], avvisi, pronta, backup }.
+// stato: "anteprima" (niente scritto), "fatto", "rifiuto" (Arturo dice perché non si può), "vecchio" (l'Arturo
+// di questa Volta non conosce il comando e risponde altro), "errore". `pronta`: il pulsante Unisci si accende.
+// Una risposta che parla di altri progetti, o un "fatto" senza la copia di prima, è un errore: il dialogo non
+// mostra mai come riuscita un'unione che Arturo non ha confermato.
+export function vistaUnione(d, perdente, vincitore) {
+  const fuori = (stato, testo) => ({ stato, testo, righe: [], avvisi: [], pronta: false, backup: null });
+  if (!d || typeof d !== "object" || Array.isArray(d)) return fuori("errore", "Arturo non ha risposto.");
+  if (typeof d.rifiuto === "string" && d.rifiuto.trim()) return fuori("rifiuto", d.rifiuto.trim());
+  if (typeof d.perdente !== "string" || typeof d.vincitore !== "string" || !Number.isFinite(d.handoff) || !Number.isFinite(d.todo))
+    return fuori("vecchio", "L'Arturo di questa Volta non sa ancora unire due progetti: va aggiornato.");
+  if (slug(d.perdente) !== slug(perdente) || slug(d.vincitore) !== slug(vincitore))
+    return fuori("errore", `Arturo ha risposto per ${d.perdente} e ${d.vincitore}, non per i progetti scelti.`);
+  const fatto = d.fatto === true;
+  if (fatto && !(typeof d.backup === "string" && d.backup)) return fuori("errore", "Arturo dice fatto ma non dice dov'è la copia di prima.");
+  if (!fatto && d.prova !== true) return fuori("errore", "Arturo non ha né provato né unito.");
+  const verbo = fatto ? "passati" : "passano";
+  const righe = [
+    { cosa: "Todo di Arturo", quanto: d.todo ? `${d.todo} ${verbo}` : "nessuno" },
+    { cosa: "Handoff", quanto: d.handoff ? `${d.handoff} ${verbo}${d.altri_file ? `, con ${quanti(d.altri_file, "altro file", "altri file")}` : ""}` : "nessuno" },
+    { cosa: "Riga di stato", quanto: d.stato ? `quella di ${d.perdente}, più recente` : `resta quella di ${d.vincitore}` },
+    { cosa: "Scheda", quanto: String(d.scheda ?? "") || "nessuna" },
+    { cosa: "Link nelle altre note", quanto: d.link ? `${d.link} ${fatto ? "riscritti" : "da riscrivere"} verso ${d.vincitore}` : "nessuno" },
+    { cosa: "Schede dei terminali", quanto: d.terminali ? `${d.terminali} ${verbo}` : "nessuna" },
+  ];
+  const f = d.fonte && typeof d.fonte === "object" ? d.fonte : null;
+  const giu = Boolean(f?.giu);
+  if (giu) righe.push({ cosa: "Task", quanto: "la fonte dei task non risponde" });
+  else if (f) righe.push({ cosa: "Task", quanto: `${Number(f.task) || 0} ${verbo}${f.riassunto ? ` (${f.riassunto})` : ""}` });
+  for (const x of Array.isArray(d.rinominati) ? d.rinominati : [])
+    if (x?.da && x?.a) righe.push({ cosa: "Nome già preso", quanto: `${x.da} diventa ${x.a}` });
+  const avvisi = (Array.isArray(d.avvisi) ? d.avvisi : []).map((a) => String(a).trim()).filter(Boolean);
+  return { stato: fatto ? "fatto" : "anteprima", testo: "", righe, avvisi, pronta: !fatto && !giu, backup: fatto ? d.backup : null };
+}
+
+// Si può mandare l'unione di `perdente` in `vincitore`? null se sì, altrimenti il motivo. `noti`: la mappa di
+// shared arturo.progetti. Due nomi dello stesso progetto sono già uniti; il vincitore deve essere un progetto noto.
+export function percheNonUnire(perdente, vincitore, noti = NOTI) {
+  const p = progettoDi(perdente, noti).chiave, v = progettoDi(vincitore, noti).chiave;
+  if (!p || !v) return "Manca uno dei due progetti.";
+  if (p === v) return `${perdente} e ${vincitore} sono già lo stesso progetto.`;
+  if (!noti?.[v]) return `Non conosco il progetto ${vincitore}.`;
+  return null;
+}

@@ -111,7 +111,7 @@ PRENDE = {"arturo.casa": ("tab.new",), "arturo.volta-chiudi": ("tab.close",), "a
 # 12/11/2026 sera): prendono il tab.close di Herdr. Il registro li segna per tasto e comando, perché su
 # Windows "global ctrl-w" era già segnato da quando Ctrl+W faceva tab.close (TASTI_NUOVI di prima).
 # Lo stesso per ⌘N e Ctrl+Shift+N (#6186): "global cmd-n" era già segnato come tasto di serie di Herdr, e col
-# solo tasto il compito nuovo non arrivava a chi ha già Volta (sonda del 20/11/2026 su Mac mini e MacBook).
+# solo tasto il compito nuovo non arrivava a chi ha già Volta (sonda del 20/11/2026 su due Mac).
 REGISTRO_PER_COMANDO = ("arturo.volta-chiudi", "arturo.compito")
 # I tasti di serie di Herdr, copie di defaults/ (il banco VM36 le confronta). Herdr li scrive in keys.json
 # solo se il file manca: un keys.json scritto prima del primo avvio (installa-herdr.sh fino al 12/11/2026)
