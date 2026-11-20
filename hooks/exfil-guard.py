@@ -227,7 +227,9 @@ _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
 UPLOAD_FILE = re.compile(
     # -d, -F e -T anche in coda a un gruppo di opzioni corte: `curl -sd @file` (review del 1/11/2026).
     r'(?:(?<![\w-])-[A-Za-z0-9]*F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]'
-    + r'|(?<![\w-])-[A-Za-z0-9]*T' + _FINE_ARG
+    + r'|(?<![\w-])-[A-Za-z0-9]*T' + _FINE_ARG + r'''|(?<![\w-])-[A-Za-z0-9]*T[^\s"',]'''
+    # `--data-urlencode nome@file` carica il file; `nome=a@b.it` è testo (review del 10/11/2026, #5263)
+    + r'''|--data-urlencode''' + _FINE_ARG + r'''*["']?[^\s=@"']*@'''
     + r'|--upload-file|--(?:post|body)-file|(?<![\w-])-[A-Za-z0-9]*d' + _FINE_ARG + r'''*["']?@|--data[a-z-]*''' + _FINE_ARG
     + r'''*["']?@|--json''' + _FINE_ARG + r'''*["']?@|--url-query''' + _FINE_ARG + r'''*["']?@)'''
 )

@@ -162,6 +162,10 @@ def _iter_urls(tool_input, profondita=0):
 
 def _suspicious(url):
     """True se l'URL verso host esterno trasporta un payload sospetto."""
+    # navigate accetta anche un indirizzo senza schema e ci mette https da solo: senza, urlsplit non
+    # trova l'host e la guardia lo saltava (review del 10/11/2026, problema 11, #5263).
+    if isinstance(url, str) and "://" not in url[:12] and not url.startswith(("/", "about:", "data:", "file:")):
+        url = "https://" + url.lstrip()
     try:
         parts = urlsplit(url)
     except Exception:
@@ -173,7 +177,9 @@ def _suspicious(url):
         return False  # interno o non parsabile -> non gated qui
     if CMD_SUB.search(url):
         return True
-    if len(parts.query or "") >= 300:  # query mostruosa = sospetta
+    # percorso e query insieme: un payload sta anche nel percorso (`/<2000 caratteri>`), e il messaggio
+    # promette "query o path" (#5263)
+    if len(parts.path or "") + len(parts.query or "") >= 300:
         return True
     return False
 

@@ -721,7 +721,9 @@ def main() -> int:
 
     added = "\n".join(
         ln[1:] for ln in out.splitlines()
-        if ln.startswith("+") and not ln.startswith("+++")
+        # Solo l'intestazione del file è `+++ b/…` o `+++ /dev/null`: una riga del file che comincia con `++`
+        # diventa `+++…` nel diff, e scartarla nascondeva la chiave (review del 10/11/2026, problema 12).
+        if ln.startswith("+") and not re.match(r"^\+\+\+ (?:b/|/dev/null|\"b/)", ln)
     )
     if add_prima:
         # Un file scritto nello stesso comando prima di `git add` non esiste ancora quando la guardia legge il
