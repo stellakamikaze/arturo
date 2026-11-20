@@ -594,7 +594,7 @@ export function emailConfigRotta(installazione, valore, versione, { adesso = new
 }
 
 // Una config rotta fa un task al mese per installazione e guasto: se resta rotta per giorni, non nasce un task al giorno.
-export const taskRotta = (installazione, tipo, giorno) =>
+const taskRotta = (installazione, tipo, giorno) =>
   task(`rotta:${corto(installazione)}:${tipo}:${giorno.slice(0, 7)}`, `Riparare la config rotta di ${idCorto(installazione)} (${tipo})`,
     { note: `Guasto: ${ROTTA_IN_PAROLE[tipo] || tipo}. Il primo passo è chiedere a chi la usa l'output di /diagnosi.` });
 

@@ -29,7 +29,7 @@ const chi = (installazione) => codice(idCorto(installazione));
 
 // Le installazioni con una deriva che ostacola: hook spenti, guardie modificate, aggiornamento in conflitto. I valori
 // passano dagli elenchi chiusi anche qui: le righe salvate prima del 8/11/2026 avevano le radici aperte (finding 37).
-export function ostacoli(deriva) {
+function ostacoli(deriva) {
   const fuori = [];
   for (const d of deriva || []) {
     const valori = (d.valori || []).map(derivaPubblica);
@@ -43,8 +43,8 @@ export function ostacoli(deriva) {
   return fuori;
 }
 
-// Le righe da fare, ognuna con il suo task. Le config rotte hanno già il task dalla loro email: qui si ripetono con
-// la stessa impronta, così un recap riletto non fa doppioni.
+// Le righe da fare, ognuna con il suo task. Le config rotte hanno già il task dalla loro email (taskRotta in
+// logica.js): qui hanno una riga senza task, così il recap non ne fa un secondo.
 function daFare({ indietro = [], banchi = [], deriva = [], config = [] }, giorno) {
   const righe = [];
   for (const x of indietro) {

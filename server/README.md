@@ -77,10 +77,14 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
 
 | File | Cosa fa |
 |------|---------|
-| `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo, ritenzione. Niente Cloudflare dentro. |
+| `logica.js` | Validazione, tetti, testo delle email di segnalazione e config rotta, cron, ritenzione. Niente Cloudflare dentro. |
+| `recap.js` | Il recap di ogni mattina e il riepilogo del lunedì, con le righe "Da fare" e i loro task. |
+| `email.js` | L'impaginazione HTML delle email: pagina, sezioni, tabelle, accanto al testo semplice. |
+| `versioni.js` | La tabella che traduce i rilasci a data (12/10-3/11/2026) nel loro numero. |
 | `archivio.js` | Le query su D1, compresa "Dove migliorare Arturo". |
 | `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`), all'invio email (`env.POSTA`) e a Telegram. |
 | `schema.sql` | Le quattro tabelle: `eventi`, `segnalazioni`, `contatori`, `feedback`. |
+| `migrazioni/` | Le modifiche allo schema di un archivio già in uso, una per file con la data. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
 | `test.mjs` | Il banco: `node server/test.mjs` prova `logica.js` con un archivio e una posta finti. |
 | `test-sql.mjs` | Il banco delle query: `node server/test-sql.mjs` prova `archivio.js` su SQLite in memoria (Node 22). |
