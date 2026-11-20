@@ -689,13 +689,9 @@ def contesto_json(nome: str) -> dict:
         nome = risolvi_nome(nome)[0]
     cartella, _ = trova_cartella(nome)
     s = slug(cartella.name) if cartella else slug(nome)
+    # uno spazio di Volta col nome alternativo ("volta" per herdr-arturo) lo porta già risolvi_nome, con
+    # gli alias delle schede (nomi_vecchi)
     tutte = pm.schede() if s else {}
-    # uno spazio di Volta col nome alternativo ("volta" per herdr-arturo): l'alias della scheda
-    if s and not cartella and s not in tutte and not handoff_di(s):
-        vero = next((k for k, v in tutte.items() if s in {slug(str(a)) for a in (v.get("alias") or [])}), None)
-        if vero:
-            s = vero
-            cartella = trova_cartella(vero)[0]
     radice = radice_orsa()
     base = base_progetti()
     chiave_base = re.sub(r"[^A-Za-z0-9]", "-", str(base))

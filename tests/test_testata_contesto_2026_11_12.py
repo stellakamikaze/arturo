@@ -36,7 +36,7 @@ VELENI = [
     ("TC01", "bin/contesto.py", 'fonte("handoff", "Ultimo handoff"', 'fonte("handoff-x", "Ultimo handoff"'),
     ("TC01", "bin/contesto.py", '"anteprima": [corto(r, 140) for r in righe if r.strip()][:6]', '"anteprima": []'),
     ("TC01", "bin/contesto.py", "    for f in collegate(scheda, pm.radici_memoria()):\n", "    for f in []:\n"),
-    ("TC02", "bin/contesto.py", "        if vero:\n            s = vero\n", "        if False:\n            s = vero\n"),
+    ("TC02", "bin/contesto.py", "            if a and a != s and a not in veri:\n", "            if False:\n"),
     ("TC03", "bin/contesto.py", '[f\'Nessuna cartella, scheda o handoff per "{nome}".\']', "[]"),
     ("TC05", "hooks/titolo-sessione.py", "return \" \".join(parole) if 2 <= len(parole) <= PAROLE", "return \" \".join(parole) if 2 <= len(parole)"),
     ("TC05", "hooks/titolo-sessione.py", "    if not etichette and len(righe) == 1:\n", "    if False:\n"),
