@@ -760,10 +760,64 @@ def _log_di_job(p):
     return bool(p) and p.startswith(bgjobs + os.sep)
 
 
+def _claude_md_testuale(testo):
+    """La regex di riserva sui CLAUDE.md, senza i falsi del sed: se ogni `sed -i` del comando ha i suoi file
+    scritti per intero e nessuno si chiama CLAUDE.md, il nome che la regex vede sta nel testo del sed (20/11/2026:
+    `s/.../- Ultimo commit: 2a8289d - CLAUDE.md di Post Office/` su un handoff). Le redirezioni contano sempre."""
+    m = CLAUDE_MD_WRITE_RE.search(testo)
+    if not m:
+        return False
+    if re.search(r">>?\s*" + r"\S*CLAUDE\.md", testo):
+        return True
+    try:
+        sed = [(n, a) for n, a in _fc.programmi(testo) if n in ("sed", "gsed")]
+    except Exception:
+        return True
+    if not sed:
+        return True
+    for _n, args in sed:
+        if not any(re.match(r"^-[a-zA-Z]*[iI]", t) or t.startswith("--in-place") for t in args):
+            continue
+        liberi, script, salta = [], False, False
+        for a in args:
+            if salta:
+                salta, script = False, True
+            elif a in ("-e", "--expression", "-f", "--file"):
+                salta = True
+            elif a.startswith("--expression=") or a.startswith("--file="):
+                script = True
+            elif a == "":
+                continue  # il suffisso vuoto di `sed -i ''` su macOS
+            elif not a.startswith("-") or a == "-":
+                liberi.append(a)
+        file = liberi if script else liberi[1:]
+        if not file:
+            return True
+        for f in file:
+            if re.search(r"[$`*?\[]", f) or os.path.basename(f).lower() == "claude.md":
+                return True
+    return False
+
+
+def _scratch_di_job(p):
+    """True per un percorso DENTRO la cartella temporanea di un job di Claude Code (~/.claude/jobs/<id>/tmp/<x>):
+    lo scratchpad della sessione, che Claude Code cancella col job. La cartella tmp, il job e jobs no.
+    Nei 7 giorni al 20/11/2026 erano 50 conferme su 355, tutte su file di lavoro della sessione (#attrito)."""
+    if not p:
+        return False
+    jobs = _piega(os.path.normpath(os.path.join(_home(), ".claude", "jobs")))
+    try:
+        parti = os.path.relpath(_piega(os.path.normpath(p)), jobs).replace("\\", "/").split("/")
+    except ValueError:
+        return False  # su Windows un altro disco
+    return len(parti) >= 3 and parti[0] not in ("", ".", "..") and parti[1] == "tmp" and \
+        all(x not in ("", ".", "..") for x in parti[2:])
+
+
 def _is_protected_tree(p):
     if not p:
         return False
-    if _log_di_job(p):
+    if _log_di_job(p) or _scratch_di_job(p):
         return False
     # Su macOS e Windows il disco ignora le maiuscole: `rm -rf ~/.CLAUDE` cancella la config, e su Windows
     # Git Bash scrive `/c/users/...` (review del 9/11/2026, #5096).
@@ -1172,7 +1226,9 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
             if any(colpisce(t, base_cwd) for t in toks[1:] if not t.startswith("-")):
                 return True
         # sed -i e perl -i sul file
-        if sed and ((cmd0 in ("sed", "gsed") and "-i" in seg)
+        # L'opzione si legge dalle parole: "-i" dentro un nome (`regole-interfaccia.md`) non è -i (20/11/2026).
+        if sed and ((cmd0 in ("sed", "gsed") and any(re.match(r"^-[a-zA-Z]*[iI]", t) or t.startswith("--in-place")
+                                                       for t in toks[1:]))
                     or (cmd0 == "perl" and any(re.match(r"^-[a-zA-Z]*i", t) for t in toks[1:]))):
             for t in toks[1:]:
                 if not t.startswith("-") and colpisce(t, base_cwd):
@@ -1449,7 +1505,7 @@ def _temporaneo(p):
 
 def _rigenerabile(p):
     """True se il path è una cartella che si ricrea da sola, o sta dentro una di esse."""
-    if _log_di_job(p):
+    if _log_di_job(p) or _scratch_di_job(p):
         return True
     parti = p.replace("\\", "/").split("/")
     return any(parte in RIGENERABILI for parte in parti)
@@ -1527,7 +1583,11 @@ def _find_delete(command):
         if nome != "find":
             continue
         trova = True
-        if "-delete" in args:
+        # `find X -type d -empty -delete` toglie solo cartelle vuote: non perde niente (20/11/2026). Con -o, -or,
+        # `,`, `!`, -not o le parentesi -delete può valere per un altro ramo dell'espressione: chiede.
+        vuote = "-empty" in args and any(a == "-type" and b == "d" for a, b in zip(args, args[1:])) and \
+            not any(a in ("-o", "-or", ",", "!", "-not", "(", ")", "\\(", "\\)") for a in args)
+        if "-delete" in args and not vuote:
             return True
         for i, t in enumerate(args[:-1]):
             if t in ("-exec", "-execdir", "-ok", "-okdir") and _cancella_dentro(args[i + 1:]):
@@ -1847,6 +1907,22 @@ def _rmtree_bersagli(command):
     testo = _hd.togli(command, lambda h: h.quotato and h.inerte())
     if "rmtree" not in testo or "shutil" not in testo or not _PYTHON_RE.search(testo):
         return []
+    # Il corpo python di un heredoc quotato si legge senza commenti e senza le stringhe con spazi: un rmtree
+    # dentro il testo che uno script sostituisce in un file non cancella niente (20/11/2026). Le stringhe senza
+    # spazi (i percorsi) restano, e il codice che il tokenizer non legge resta intero.
+    corpi = []
+
+    def _python(h):
+        if h.quotato and h.consumatore in _hd._PYTHON:
+            corpi.append(_hd.python_senza("\n".join(h.corpo), _hd.senza_prosa))
+            return True
+        return False
+    segno = "\x00CORPO-PYTHON\x00"
+    ridotto = _hd.togli(testo, _python, segnaposto=segno)
+    if corpi and ridotto.count(segno) == len(corpi) and all(c is not None for c in corpi):
+        for c in corpi:
+            ridotto = ridotto.replace(segno, c, 1)
+        testo = ridotto
     # `from shutil import rmtree as r` e poi `r(...)`: l'alias cancella come rmtree (20/10/2026, #3525).
     for alias in _RMTREE_ALIAS_RE.findall(testo):
         testo += "\n" + re.sub(r"\b" + re.escape(alias) + r"\s*\(", "rmtree(", testo)
@@ -2353,6 +2429,119 @@ def _push_forzato(command):
     return None
 
 
+_PRINCIPALI = ("HEAD", "main", "master", "dev")
+
+
+def _push_cancella_unito(command, cwd):
+    """True se ogni `git push` che riscrive rami del comando cancella soltanto (`--delete`, `-d`, `:ramo`) rami il
+    cui ultimo commit sul remoto, letto con ls-remote, sta già in main, master, dev o HEAD dello stesso remoto.
+    Così non si perde niente. Nei 7 giorni al 20/11/2026 erano 23 conferme su 355, tutte su rami di worktree già
+    uniti. Un flag che forza, --mirror, --prune, un `+`, un ramo che non si legge o un repo ignoto: False."""
+    trovati = False
+    for nome, args, cds in _programmi_con_cd(command):
+        if nome != "git":
+            continue
+        cartella, sotto, resto = _git_parti(args)
+        if sotto != "push":
+            continue
+        liberi, salta, cancella = [], False, False
+        for a in _senza_redirezioni(resto):
+            if salta:
+                salta = False
+            elif a in ("-o", "--push-option"):
+                salta = True
+            elif a.startswith("--"):
+                lunga = a.split("=", 1)[0]
+                if len(lunga) >= 4 and "--delete".startswith(lunga):
+                    cancella = True
+                elif len(lunga) >= 4 and any(o.startswith(lunga) for o in _PUSH_RISCRIVE):
+                    return False
+                elif lunga in ("--repo", "--receive-pack", "--exec") or lunga.startswith("--recurse"):
+                    return False
+            elif a.startswith("-") and len(a) > 1:
+                if "f" in a[1:]:
+                    return False
+                cancella = cancella or "d" in a[1:]
+            else:
+                liberi.append(a)
+        if len(liberi) < 2:
+            if cancella:
+                return False
+            continue
+        remoto, refspec = liberi[0], liberi[1:]
+        if not cancella and not any(r.startswith(":") for r in refspec):
+            if any(r.startswith("+") for r in refspec):
+                return False
+            continue
+        rami = []
+        for r in refspec:
+            if r.startswith("+") or (":" in r and not r.startswith(":")):
+                return False
+            r = r[1:] if r.startswith(":") else r
+            r = r[len("refs/heads/"):] if r.startswith("refs/heads/") else r
+            if not re.fullmatch(r"[\w][\w./-]*", r) or ".." in r or r in _PRINCIPALI:
+                return False
+            rami.append(r)
+        if not re.fullmatch(r"[\w][\w.-]*", remoto):
+            return False
+        basi = _basi_dopo_cd(cds, cwd)
+        if len(basi) != 1 or basi[0] is None:
+            return False
+        repo = _resolve(cartella, basi[0]) if cartella else basi[0]
+        if not repo or not os.path.isdir(repo):
+            return False
+        principali = [x for x in (_git_esegui(repo, "rev-parse", "--verify", "-q", f"refs/remotes/{remoto}/{p}")
+                                  for p in _PRINCIPALI) if x and x.strip()]
+        if not principali:
+            return False
+        for ramo in rami:
+            vero = _git_esegui(repo, "ls-remote", "--heads", remoto, f"refs/heads/{ramo}")
+            sha = (vero or "").split()[:1]
+            if not sha or not re.fullmatch(r"[0-9a-f]{40}", sha[0]):
+                return False
+            if not any(_git_esegui(repo, "merge-base", "--is-ancestor", sha[0], p.strip()) is not None
+                       for p in principali):
+                return False
+        trovati = True
+    return trovati
+
+
+# I programmi che cancellano o ne lanciano un altro: una variabile che vale uno di loro chiede ancora.
+_VARIABILE_PERICOLOSA = frozenset(("rm", "unlink", "shred", "rmdir", "sh", "bash", "zsh", "dash", "ksh", "fish", "env",
+                                   "sudo", "doas", "xargs", "find", "eval", "exec", "command", "builtin", "busybox",
+                                   "python", "python3", "py", "node", "perl", "ruby", "php", "osascript", "nohup",
+                                   "timeout", "nice", "time", "watch", "parallel", "git", "gio", "srm"))
+
+
+def _variabile_innocua(nome, command):
+    """True se `$X` (o `${X}`) è assegnata una volta sola nel comando, a un valore letterale di una parola, e
+    quel programma non cancella né ne lancia un altro: `C=~/.local/bin/claude; $C rm <id>` toglie una sessione."""
+    m = re.fullmatch(r"\$\{?([A-Za-z_]\w*)\}?", nome)
+    if not m:
+        return False
+    # Sul Mac e su Windows il nome del programma arriva in minuscolo: la variabile si ritrova senza maiuscole, ed
+    # è innocua solo se una sola variabile del comando ha quel nome.
+    try:
+        assegnate = _fc._assegnazioni(command)
+    except Exception:
+        return False
+    nomi = [k for k in assegnate if k.lower() == m.group(1).lower()]
+    if len(nomi) != 1 or not re.search(r"\$\{?" + re.escape(nomi[0]) + r"(?!\w)", command):
+        return False
+    var = nomi[0]
+    if len(re.findall(r"(?:^|[\s;&|(])" + re.escape(var) + r"=", command, re.IGNORECASE)) != 1 or \
+            re.search(r"\b(?:export|declare|typeset|local|readonly|read|alias)\b[^;&|\n]*\b" + re.escape(var) + r"\b",
+                      command):
+        return False
+    valore = assegnate.get(var)
+    if not valore:
+        return False
+    valore = valore.strip("'\"")
+    if not valore or re.search(r"[\s$`()<>;&|*?\[\]{}\\]", valore):
+        return False
+    return _fc._nome(os.path.basename(valore)) not in _VARIABILE_PERICOLOSA
+
+
 def _rm_segments(command):
     """(bersagli, catena dei cd) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
@@ -2380,7 +2569,10 @@ def _rm_segments(command):
             for bersagli in _powershell_rimuove(args):
                 out.append((bersagli, cwd_decl))
             continue
-        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI):
+        # La barra conta come inizio del nome: `R=/bin/rm; $R -rf x` passava (20/11/2026).
+        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(/])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI):
+            if _variabile_innocua(nome, command):
+                continue  # `C=~/.local/bin/claude; $C rm <id>`: il programma è claude, non rm (20/11/2026)
             out.append((None, cwd_decl))  # `RM='rm -rf'; $RM x`: il programma è una variabile (finding 2)
             continue
         if nome == "xargs" and "rm" in [forma._nome(a) for a in args]:
@@ -2575,7 +2767,7 @@ def main() -> int:
     risolto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p))
     if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
             CLAUDE_MD_OPEN_RE.search(dritto) or "claude-md" in windows or \
-            (CLAUDE_MD_WRITE_RE.search(dritto) and not risolto):
+            (_claude_md_testuale(dritto) and not risolto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo. Per una modifica sola "
@@ -2750,6 +2942,12 @@ def main() -> int:
     except Exception:
         forzato = "git push che la guardia non riesce a leggere" if re.search(
             r"\bpush\b[^\n;&|]*(\s-[a-z]*[fd]|--(forc|mir|del|pru)|\s[+:])", command) else None
+    if forzato:
+        try:
+            if _push_cancella_unito(command, cwd):
+                forzato = None
+        except Exception:
+            pass
     if forzato:
         # Il nome di regola è quello del push riscritto: un nome nuovo va anche in server/logica.js, e il
         # Worker si pubblica col lotto del server (L3), non con questo.

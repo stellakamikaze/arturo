@@ -195,6 +195,8 @@ BANCHI=(
   test_guardie_memoria_sblocco_2026_11_11.py
   # Le guardie vedono scritture sulla config, heredoc eseguiti e comandi fra virgolette (11/11/2026, #5262).
   test_guardie_cieche_2026_11_11.py
+  # Le conferme che non proteggono niente, dal ripasso dei transcript dei 7 giorni (20/11/2026).
+  test_attrito_2026_11_20.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
   # /revisione: estratto dei transcript senza l'uscita dei comandi, attriti separati, bozza e registro (17/11/2026).
@@ -569,6 +571,8 @@ VELENI=(
   test_guardie_memoria_sblocco_2026_11_11.py
   # #5262 (11/11/2026): con le guardie di b68e732 ogni gruppo GC è rosso.
   test_guardie_cieche_2026_11_11.py
+  # Ripasso dei permessi (20/11/2026): con le guardie di 0c1daea ogni gruppo AT è rosso.
+  test_attrito_2026_11_20.py
   # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
   test_windows_minori_2026_11_10.py
   # /revisione (17/11/2026): ogni riga tolta fa rosso il suo caso RV.

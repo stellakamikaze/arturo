@@ -58,7 +58,20 @@ def _testo_gh(cmd: str) -> str:
         spec.loader.exec_module(fc)
     except Exception:
         return cmd
-    testi = [cmd] + re.findall(r"\$\(([^()]*)\)", cmd) + re.findall(r"`([^`]*)`", cmd)
+    # $( ) e backtick dentro un heredoc quotato verso python o node sono testo: la shell non li espande, e
+    # il codice markdown di una nota (`gh workflow run x.yml`) non lancia gh (20/11/2026, 2 conferme in 7 giorni).
+    # ruby, perl e php eseguono il backtick: per loro il corpo resta.
+    sorgente = cmd
+    try:
+        spec_hd = importlib.util.spec_from_file_location(
+            "heredoc_gh", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+        hd = importlib.util.module_from_spec(spec_hd)
+        spec_hd.loader.exec_module(hd)
+        sorgente = hd.togli(cmd, lambda h: h.quotato and h.certo and h.consumatore in hd.INTERPRETI
+                            and h.consumatore not in hd._BACKTICK_ESEGUE)
+    except Exception:
+        sorgente = cmd
+    testi = [cmd] + re.findall(r"\$\(([^()]*)\)", sorgente) + re.findall(r"`([^`]*)`", sorgente)
     righe = []
     for testo in testi:
         for nome, args in fc.programmi(testo):
