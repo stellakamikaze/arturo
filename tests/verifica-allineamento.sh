@@ -159,6 +159,10 @@ BANCHI=(
   test_fine_coda_2026_10_30.py
   test_fonte_task_2026_10_30.py
   test_progetti_memoria_2026_11_11.py
+  # arturo progetti rinomina: un progetto cambia nome in un passo, il nome vecchio resta valido (proposta n. 90, #6095).
+  test_rinomina_2026_11_19.py
+  # arturo progetti unisci: due progetti doppioni diventano uno, con copia di sicurezza prima (#6187).
+  test_unisci_2026_11_20.py
   test_strati_2026_11_02.py
   test_impacchetta_2026_11_03.py
   test_lavoro_proprio_2026_10_31.py
@@ -515,6 +519,10 @@ VELENI=(
   test_herdr_firma_invito_2026_11_20.py
   # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
+  # arturo progetti rinomina (#6095): ogni rottura di rinomina.py o di contesto.py fa rosso il suo caso RN.
+  test_rinomina_2026_11_19.py
+  # arturo progetti unisci (#6187): ogni rottura di unisci.py fa rosso il suo caso UN.
+  test_unisci_2026_11_20.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
   test_contatto_2026_11_10.py
   # Le segnalazioni automatiche (11/11/2026): ogni filtro tolto da manda fa rosso il suo caso SA.

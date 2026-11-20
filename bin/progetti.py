@@ -3,6 +3,8 @@
 
 Uso: arturo progetti [--json]
      arturo progetti titolo <slug> "<Titolo>"
+     arturo progetti rinomina VECCHIO NUOVO [--prova]   (bin/rinomina.py, proposta n. 90)
+     arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]   (bin/unisci.py, #6187)
 
 Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha già su disco.
   - le cartelle della base dei progetti (PROJECTS_BASE);
@@ -329,6 +331,12 @@ def main(argv: list) -> int:
     if any(a in ("-h", "--help", "aiuto") for a in argv):
         print(__doc__.strip())
         return 0
+    if argv[:1] == ["rinomina"]:
+        import rinomina
+        return rinomina.main(argv[1:])
+    if argv[:1] == ["unisci"]:
+        import unisci
+        return unisci.main(argv[1:])
     if argv[:1] == ["titolo"]:
         if len(argv) != 3:
             print('uso: arturo progetti titolo <slug> "<Titolo>"', file=sys.stderr)
