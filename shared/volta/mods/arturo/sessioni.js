@@ -1002,7 +1002,7 @@ export function daAllineare(voci, opz = {}) {
 // volta sola, quando aggancia() la apre: poi la colonna dice il titolo nuovo e la scheda quello vecchio.
 // Lo spostamento di daAllineare la riapre col titolo di adesso; qui la scheda che resta nel suo spazio.
 // Volta rinomina la scheda col titolo scritto della sessione (s.titolo, stesso in due letture) in due casi:
-// - il nome è un segnaposto della nascita ("/inizio arturo", "Richiesta su Mac mini", "Sessione a1", lo
+// - il nome è un segnaposto della nascita ("/inizio arturo", "Richiesta su studio", "Sessione a1", lo
 //   slug del progetto) o nessuno l'ha nominata;
 // - la sessione ha cambiato sessionId (/clear, rotazione) e il nome è uno che Volta le ha già dato.
 // Un titolo che cambia a metà lavoro (il modello lo rifà ogni tanto) non rinomina: la scheda resta sul
