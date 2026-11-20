@@ -1073,7 +1073,8 @@ def script_claude_non_tracciati(cmd: str, cwd: str):
 # La shell riscriveva settings, hook e skill senza conferma. Dal 18/10/2026 una scrittura
 # su questi path chiede, ma conta solo la DESTINAZIONE: il falso positivo di prima era un
 # `cp` che leggeva settings.json e scriveva altrove.
-CONFIG_DIR = frozenset(("hooks", "mods", "scripts", "skills", "agents", "commands", "output-styles"))
+# pm: il motore dei task e /dafare, spostati lì il 29/10/2026 (#4177, 20/11/2026).
+CONFIG_DIR = frozenset(("hooks", "mods", "scripts", "skills", "agents", "commands", "output-styles", "pm"))
 CONFIG_FILE = frozenset(("CLAUDE.md", "INSTANCE.md"))
 _SETTINGS = re.compile(r"^settings[^/]*\.json$")
 # ditto scrive l'ultimo argomento come cp. Il contenuto che ci mette dentro lo conta
@@ -1087,7 +1088,7 @@ _SCRITTURA_INLINE = re.compile(
 _MENZIONE = re.compile(
     r"(?:~|\$HOME|\$\{HOME\}|/Users/[^/\s\x27\x22]+)/\.claude/[\w./-]+"
     r"|(?<![\w/.~-])(?:settings[\w.-]*\.json|CLAUDE\.md|INSTANCE\.md"
-    r"|(?:hooks|mods|scripts|skills|agents|commands|output-styles)/[\w./-]+)")
+    r"|(?:hooks|mods|scripts|skills|agents|commands|output-styles|pm)/[\w./-]+)")
 
 
 def _codice_inline(cmd: str, progs):
