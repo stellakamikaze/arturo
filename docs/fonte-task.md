@@ -35,6 +35,12 @@ Due verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Art
 |---|---|---|
 | `aggiungi "<titolo>" … --dopo N[,M]` | il todo nuovo aspetta i todo N e M | `#<numero>` del todo |
 | `stato [--progetto <slug>] ["<riga>"]` | senza riga legge, con la riga scrive a che punto è il progetto | la riga |
+| `aggiungi "<titolo>" … --chiave <hash>` | il todo nuovo porta l'impronta di /monitor (8 cifre esadecimali); se un todo l'ha già, anche chiuso, non ne crea un altro | `#<numero>` del todo nuovo, oppure `Già presente #<numero>` con exit 0 |
+| `chiavi --json` | le impronte dei todo, aperti e chiusi | `{"chiavi": [{"chiave": "1a2b3c4d", "id": 12, "stato": "fatto"}]}` |
+
+Senza `--chiave` il giro di /monitor riprova `aggiungi` senza impronta e tiene lui l'elenco dei todo
+che ha creato, in `~/.claude/data/monitor/creati.jsonl`: i doppioni restano fuori lo stesso, ma solo per
+i todo nati da /monitor.
 
 Il pannello `/dafare` usa altri verbi. Se il tuo programma non li conosce, il tasto risponde con il suo
 errore e non cambia niente.

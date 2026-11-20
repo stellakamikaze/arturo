@@ -225,6 +225,8 @@ BANCHI=(
   test_statusline_path_2026_11_15.py
   # /monitor impara dalle correzioni: segnali, mittenti, regole, sezioni, annullo (17/11/2026).
   test_monitor_impara_2026_11_17.py
+  # Il giro quotidiano di /monitor: impronta dei todo, raccolta senza doppioni, cursori, lettore (20/11/2026, #4538).
+  test_monitor_giorno_2026_11_20.py
   # La ripartenza di /inizio come dati per la checklist di Volta (17/11/2026, #5910).
   test_ripartenza_2026_11_17.py
   # L'aspetto della persona in personale/aspetto.json: scheda, barra, /dafare, DERIVA (proposta n. 73, #5432).
@@ -496,6 +498,8 @@ BASELINE=(
   "test_prova_2026_11_17.py 22e5935"
   # /monitor impara (17/11/2026): impara.py non c'è. e0ec624, il dev prima.
   "test_monitor_impara_2026_11_17.py e0ec624"
+  # Il giro di /monitor (20/11/2026, #4538): giro.py, posta_gws.py e --chiave non ci sono. fc03145, il dev prima.
+  "test_monitor_giorno_2026_11_20.py fc03145"
   # La ripartenza per Volta (17/11/2026, #5910): il comando arturo ripartenza non c'è. b70d1d0, il dev prima.
   "test_ripartenza_2026_11_17.py b70d1d0"
   # L'aspetto (18/11/2026, proposta n. 73): aspetto_valori.py e arturo aspetto non ci sono. 58e0435, il dev prima.
@@ -595,6 +599,8 @@ VELENI=(
   test_telemetria_memoria_2026_11_15.py
   # /monitor impara (17/11/2026): ogni rottura di impara.py (soglie, sempre, modo proposta, annullo) fa rosso il suo caso IM.
   test_monitor_impara_2026_11_17.py
+  # Il giro di /monitor (#4538): impronta doppia, ponte a nome d'altri, visto ignorato, cursore su fonte troncata, testo nascosto.
+  test_monitor_giorno_2026_11_20.py
   # La ripartenza (17/11/2026, #5910): ogni rottura di ripartenza.py o del passo di /inizio fa rosso il suo caso RP.
   test_ripartenza_2026_11_17.py
 )

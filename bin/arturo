@@ -38,6 +38,7 @@ VERBI = (
     ("progetto", "il progetto della cartella in cui sei: quello che usa aggiungi"),
     ("mostra ID", "un todo con note e storia"),
     ('aggiungi "titolo" [--dopo N]', "un todo nuovo; con --dopo aspetta il todo N (anche N,M)"),
+    ("chiavi [--json]", "le impronte che /monitor ha dato ai todo, per non creare doppioni"),
     ("modifica ID", "cambia uno o più campi"),
     ("inizia ID", "lo segna in corso"),
     ("fatto ID", "lo chiude"),
@@ -204,6 +205,7 @@ def parser() -> argparse.ArgumentParser:
             c.add_argument("titolo")
             c.add_argument("--note")
             c.add_argument("--dopo", default="")
+            c.add_argument("--chiave")
         else:
             c.add_argument("id")
             c.add_argument("--titolo")
@@ -221,6 +223,8 @@ def parser() -> argparse.ArgumentParser:
         c.add_argument("id")
         c.add_argument("motivo", nargs="?", default="")
         c.add_argument("--annullo", action="store_true")
+    c = comando("chiavi")
+    c.add_argument("--json", action="store_true")
     c = comando("ripristina")
     c.add_argument("id")
     c.add_argument("--motivo", default=None)
@@ -432,12 +436,27 @@ def todo(argv: list) -> int:
     if cmd == "aggiungi":
         campi = campi_da(args)
         campi.setdefault("progetto", progetto_corrente())
-        t = ts.aggiungi(campi, dopo=[n for n in re.split(r"[,\s]+", args.dopo) if n])
+        try:
+            t = ts.aggiungi(campi, dopo=[n for n in re.split(r"[,\s]+", args.dopo) if n], chiave=args.chiave)
+        except ts.GiaPresente as doppio:
+            # Exit 0: il todo c'è, ed è quello che chi scrive voleva. Il numero serve a /monitor per la sua dedup.
+            print(json.dumps(dict(ts.esporta(doppio.todo, todo_map), gia_presente=True), ensure_ascii=False)
+                  if args.json else f"Già presente #{doppio.todo['id']}: {doppio.todo['titolo']}")
+            return 0
         if args.note:
             t = ts.registra(t["id"], "nota", {"testo": args.note})
         print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
               else f"Aggiunto #{t['id']}: {t['titolo']} ({t['progetto']})"
               + (f", scadenza {t['scadenza']}" if t.get("scadenza") else ""))
+        return 0
+
+    if cmd == "chiavi":
+        righe = ts.chiavi(todo_map)
+        if args.json:
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "chiavi": righe}, ensure_ascii=False))
+        else:
+            for r in righe:
+                print(f"{r['chiave']}\t#{r['id']}\t{r['stato']}")
         return 0
 
     if cmd == "modifica":

@@ -13,6 +13,26 @@ modo di lavorare.
 
 ---
 
+## 2026-11-20 — /monitor fa il giro quotidiano
+
+**Cosa cambia**: dopo la scelta delle fonti, /monitor fa il giro quotidiano. Legge i tuoi todo, le sessioni con Claude, la posta e il calendario, e ti dice cosa chiede la giornata:
+le riunioni di oggi, le promesse che hai fatto, le email che aspettano te, i lavori aperti e chi fa il
+passo dopo. Una cosa letta in due giri diventa un todo solo, perché il todo porta l'impronta di quello
+che l'ha fatto nascere (`arturo todo aggiungi --chiave`). Una proposta che hai lasciato cadere non
+torna il giorno dopo, salvo che abbia una scadenza vicina. Una fonte letta a metà resta indietro e il
+giro dopo la rilegge.
+
+**Il principio**: chi legge il testo di altri non deve poter scrivere. La posta la legge un agente,
+`monitor-lettore`, che ha solo strumenti di lettura: un'email con istruzioni dentro non trova niente con
+cui eseguirle. I todo li scrive il giro dopo, su campi controllati. Al primo giro non nasce nessun todo
+senza il tuo sì: lo diventano da soli solo quelli dei mittenti che hai già accolto.
+
+**A chi serve**: a chi apre la giornata con /monitor. Con `gws` la posta si scarica dal terminale, anche
+da più account, e il testo nascosto delle email HTML resta fuori. Se tieni i todo in un tuo strumento
+(`fonte-task.local`) e quello non conosce `--chiave`, il giro tiene lui l'elenco dei todo che ha creato.
+
+---
+
 ## 2026-11-19 — Istruzioni più corte e una sandbox da accendere
 
 **Cosa cambia**: le istruzioni che Arturo dà a Claude seguono le guide di Anthropic per i modelli di oggi.

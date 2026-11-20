@@ -65,11 +65,22 @@ AZIONI_STATO = {
 # repository finisce qui per caso.
 PROGETTO_PERCORSO = "_percorso"
 DECISO = "Deciso: "
+# L'impronta di /monitor (fingerprint.py): 8 cifre esadecimali. Sta nel crea, fuori da `dati`, così una versione
+# vecchia di Arturo la ignora e non scarta la riga (giro quotidiano di /monitor, 20/11/2026, #4538).
+CHIAVE = re.compile(r"^[0-9a-f]{8}$")
 GIORNI = ("lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica")
 
 
 class ErroreTodo(ValueError):
     """Un valore che la persona puo' correggere: il messaggio le dice come."""
+
+
+class GiaPresente(ErroreTodo):
+    """Un todo con la stessa impronta esiste già, aperto o chiuso: niente si scrive, e non nasce un doppione."""
+
+    def __init__(self, t: dict):
+        super().__init__(f"già presente: #{t['id']} {t['titolo']}")
+        self.todo = t
 
 
 class ErroreCambiato(ErroreTodo):
@@ -278,6 +289,8 @@ def carica(file: Path | None = None) -> tuple:
                  "scadenza": "", "chi": "tu", "perche": "", "priorita": "media", "quando": "settimana",
                  "stato": "da fare", "motivo": "", "dopo": [], "note": [], "creato": ts, "aggiornato": ts, "mosso": ts,
                  "chiuso": "", "storia": [], "ev": []}
+            chiave = e.get("chiave")
+            t["chiavi"] = [chiave] if isinstance(chiave, str) and CHIAVE.match(chiave) else []
             t.update({k: pulisci(v) for k, v in dati.items() if k in CAMPI})
             t["progetto"] = t["progetto"] or "generale"  # righe scritte prima che il vuoto fosse rifiutato
             todo[uid] = t
@@ -531,26 +544,34 @@ def _evento(tipo: str, uid: str, dati: dict, **altro) -> dict:
     return {"v": VERSIONE_EVENTI, "ts": _adesso(), "ev": uuid.uuid4().hex, "todo": uid, "tipo": tipo, "dati": dati, **altro}
 
 
-def aggiungi(campi: dict, file: Path | None = None, dopo: list | None = None) -> dict:
+def aggiungi(campi: dict, file: Path | None = None, dopo: list | None = None, chiave: str | None = None) -> dict:
     """Un todo nuovo. `dopo` sono i numeri dei todo che deve aspettare: la catena nasce insieme al todo.
 
     Crea e legami si scrivono in una sola volta, sotto il lucchetto: un numero che non esiste ferma
     tutto prima di scrivere, e nessun todo resta a metà senza i suoi legami.
+
+    `chiave` è l'impronta di /monitor: se un todo l'ha già, anche chiuso o scartato, solleva GiaPresente e non
+    scrive. Così la stessa email letta in due giri non diventa due todo.
     """
     file = file or percorso()
     dati = normalizza(campi)
     if not dati.get("titolo"):
         raise ErroreTodo("il titolo non può essere vuoto")
+    if chiave is not None and not CHIAVE.match(chiave):
+        raise ErroreTodo(f"chiave {chiave!r}: servono 8 cifre esadecimali minuscole (fingerprint.py)")
     uid = uuid.uuid4().hex
     with Lucchetto(file):
         todo, _ = carica(file)
+        doppio = next((t for t in todo.values() if chiave and chiave in t["chiavi"]), None)
+        if doppio:
+            raise GiaPresente(doppio)
         attesi = []
         for n in dopo or []:
             altro = per_id(todo, n)
             if altro["uid"] not in attesi:
                 attesi.append(altro["uid"])
         numero = max((t["id"] for t in todo.values()), default=0) + 1
-        evento = _evento("crea", uid, dati, id=numero)
+        evento = _evento("crea", uid, dati, id=numero, **({"chiave": chiave} if chiave else {}))
         legami = [dict(_evento("dopo", uid, {"aggiungi": u}), ts=evento["ts"]) for u in attesi]
         _scrivi_molti([evento, *legami], file)
     t = _riletto(file, uid, evento)
@@ -558,6 +579,12 @@ def aggiungi(campi: dict, file: Path | None = None, dopo: list | None = None) ->
         raise ErroreTodo(f"#{t['id']} è scritto, ma rileggendo il registro i legami \"dopo\" non ci sono tutti: "
                          f"controlla con arturo todo mostra {t['id']}")
     return t
+
+
+def chiavi(todo: dict) -> list:
+    """Le impronte di /monitor con il loro todo: la dedup del giro le cerca qui, aperti e chiusi."""
+    return sorted(({"chiave": c, "id": t["id"], "stato": t["stato"]} for t in todo.values() for c in t["chiavi"]),
+                  key=lambda r: (r["id"], r["chiave"]))
 
 
 # --- stato dei progetti (3/11/2026, #3888) ---------------------------------------------------------
