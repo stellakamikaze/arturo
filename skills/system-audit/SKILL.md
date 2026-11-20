@@ -11,6 +11,7 @@ when_to_use: >-
   comandi, o quando "qualcosa sembra rotto" (una guardia che non scatta, un comando che non compare).
   Su "revisione completa della config" lancia la revisione con più agenti (sezione dedicata).
   Non per controllare il codice di un progetto: per quello c'è /code-review.
+ruolo: manutenzione della configurazione, quando qualcosa sembra rotto
 ---
 
 # System Audit

@@ -231,6 +231,8 @@ BANCHI=(
   test_aspetto_2026_11_18.py
   # La sandbox di Claude Code come opzione della persona, spenta di default (19/11/2026, #6098).
   test_sandbox_2026_11_19.py
+  # Le skill di ruolo (20/11/2026, strati F6, #4536): aggiunte personali col tool Skill e mappa dei ruoli.
+  test_ruoli_2026_11_20.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -500,6 +502,8 @@ BASELINE=(
   "test_aspetto_2026_11_18.py 58e0435"
   # La sandbox opzionale (19/11/2026): bin/sandbox.py e arturo sandbox non ci sono. f500fc1, il dev prima.
   "test_sandbox_2026_11_19.py f500fc1"
+  # Le skill di ruolo (20/11/2026): estensione-skill.py e bin/ruoli.py non ci sono. 0c1daea, il dev prima.
+  "test_ruoli_2026_11_20.py 0c1daea"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

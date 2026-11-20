@@ -9,6 +9,7 @@ when_to_use: >-
   Usa quando la persona scrive /monitor, "cosa mi è arrivato?", "cosa devo guardare oggi?",
   "smista la posta", "quali fonti leggi?", o vuole cambiare le fonti che /monitor legge. Non per
   aggiungere o chiudere un todo detto dalla persona (skill todo).
+ruolo: smistare quello che arriva (posta, calendario, call, todo) e dire cosa chiede la giornata
 version: 0.1.0
 license: MIT
 ---

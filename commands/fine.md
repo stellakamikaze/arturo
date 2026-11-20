@@ -3,6 +3,7 @@ description: >-
   Chiude la sessione: destino dei file, commit, handoff coi todo e chi agisce, memoria e sync della config.
   Si può rilanciare. Con --rotazione è il fine leggero a ogni passo chiuso, seguito dal tool ruota.
 argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
+ruolo: chiudere la sessione o un compito con commit, handoff e todo
 ---
 
 # Fine sessione

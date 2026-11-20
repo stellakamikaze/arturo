@@ -102,6 +102,10 @@ fi
 # Reminder context management
 echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) Arturo chiude con /fine --rotazione, sempre, anche col contesto leggero. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, verso il 65% del contesto il compito si chiude e si salva con /fine."
 
+# La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
+# Arturo e dell'Orsa. Senza ruoli la riga non esce.
+[ -f "$ARTURO_CODICE/bin/ruoli.py" ] && python3 "$ARTURO_CODICE/bin/ruoli.py" riga 2>/dev/null
+
 # Avvisi Git locali: nessuna rete, nessun comando in background.
 if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   CHANGES=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null || true)
