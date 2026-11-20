@@ -197,6 +197,8 @@ BANCHI=(
   test_guardie_cieche_2026_11_11.py
   # Le conferme che non proteggono niente, dal ripasso dei transcript dei 7 giorni (20/11/2026).
   test_attrito_2026_11_20.py
+  # I banchi all'avvio giudicano solo i file di Arturo, non gli hook personali (20/11/2026, #5383).
+  test_banchi_file_personali_2026_11_20.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
   # /revisione: estratto dei transcript senza l'uscita dei comandi, attriti separati, bozza e registro (17/11/2026).
@@ -516,6 +518,8 @@ BASELINE=(
   "test_ruoli_2026_11_20.py 0c1daea"
   # Lo sportello lato client (20/11/2026, #4793): modo log e dimentica non ci sono. 0cc681e, il dev prima.
   "test_telemetria_log_dimentica_2026_11_20.py 0cc681e"
+  # Un hook personale non fa rosso il banco UTF-8 all'avvio (20/11/2026, #5383). 4801ee0, il dev prima.
+  "test_banchi_file_personali_2026_11_20.py 4801ee0"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

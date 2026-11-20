@@ -17,6 +17,11 @@ U07 nessun hook si rompe all'avvio con un input minimo, e forma_comando riconosc
 U08 ogni hook .sh di settings.json che lancia python3 esporta PYTHONIOENCODING=utf-8 prima del primo python3
     (5/11/2026: la riga DERIVA di session-start arrivava a Claude in cp1252).
 
+U01, U07 e U08 giudicano solo i file di Arturo. Sul computer della persona tests/banchi-avvio.sh mette in
+ARTURO_FILE_ARTURO l'elenco dei file di Arturo, e un hook che la persona ha scritto per sé resta fuori
+(20/11/2026, #5383: U08 rosso su un hooks/notifica-focus.sh personale). Senza la variabile, nel gate,
+ogni file conta.
+
 Sulla base b0ec3ac ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
 from __future__ import annotations
@@ -55,6 +60,18 @@ def testo(b: bytes) -> str:
     return b.decode("utf-8", errors="replace")
 
 
+def di_arturo(percorso: str) -> bool:
+    """Vero se il file (percorso con /, dentro la config) è di Arturo. Senza ARTURO_FILE_ARTURO ogni file lo è."""
+    elenco = os.environ.get("ARTURO_FILE_ARTURO")
+    if not elenco:
+        return True
+    try:
+        nomi = set(Path(elenco).read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return True
+    return percorso in nomi
+
+
 def script_hook_bin(repo: Path) -> list:
     """Gli script Python di bin/ che settings.json lancia come hook, anche passando da un .sh."""
     comandi = json.dumps(json.loads((repo / "settings.json").read_text(encoding="utf-8")).get("hooks", {}))
@@ -62,7 +79,7 @@ def script_hook_bin(repo: Path) -> list:
     for sh in re.findall(r"bin/([\w.-]+\.sh)", comandi):
         if (repo / "bin" / sh).is_file():
             nomi.update(re.findall(r"bin/([\w.-]+\.py)", (repo / "bin" / sh).read_text(encoding="utf-8")))
-    return [repo / "bin" / n for n in sorted(nomi) if (repo / "bin" / n).is_file()]
+    return [repo / "bin" / n for n in sorted(nomi) if (repo / "bin" / n).is_file() and di_arturo(f"bin/{n}")]
 
 
 def test_u01(repo: Path) -> None:
@@ -71,7 +88,7 @@ def test_u01(repo: Path) -> None:
     hook_bin = script_hook_bin(repo)
     assert any(f.name == "telemetria.py" for f in hook_bin), \
         f"U01 il banco non trova più gli hook di bin/ in settings.json: {[f.name for f in hook_bin]}"
-    for f in sorted((repo / "hooks").glob("*.py")) + hook_bin:
+    for f in [h for h in sorted((repo / "hooks").glob("*.py")) if di_arturo(f"hooks/{h.name}")] + hook_bin:
         for n, riga in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
             if lettura.search(riga.split("#", 1)[0]):
                 rotti.append(f"{f.name}:{n}")
@@ -152,7 +169,7 @@ def test_u07(repo: Path) -> None:
         rotti = []
         for f in sorted((repo / "hooks").glob("*.py")):
             argv = [sys.executable, "-B", str(f)] + (["ramo-memoria"] if f.name == "forma_comando.py" else [])
-            if f.name in ("deriva.py", "controlla-config.py", "heredoc.py", "scheda-terminale.py"):
+            if not di_arturo(f"hooks/{f.name}") or f.name in ("deriva.py", "controlla-config.py", "heredoc.py", "scheda-terminale.py"):
                 continue  # i primi tre non leggono il JSON di un hook; la scheda scrive sul terminale vero (test_scheda)
             dati = {"tool_name": "Bash", "tool_input": {"command": f"echo {VIRGOLETTA}"}, "prompt": "ciao", "cwd": d}
             r = subprocess.run(argv, input=json.dumps(dati, ensure_ascii=False).encode("utf-8"), capture_output=True,
@@ -175,7 +192,7 @@ def test_u08(repo: Path) -> None:
     rotti = []
     for n in nomi:
         f = repo / "hooks" / n
-        if not f.is_file():
+        if not f.is_file() or not di_arturo(f"hooks/{n}"):
             continue
         righe = [r.split("#", 1)[0] for r in f.read_text(encoding="utf-8").splitlines()]
         primo = next((i for i, r in enumerate(righe) if re.search(r"\bpython3\b", r)), None)
