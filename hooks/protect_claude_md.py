@@ -59,8 +59,13 @@ file di unlock, firme/, gli script dell'aggiornamento, il puntatore arturo/radic
 i .local restano col default. Il resto di bin/ segue la categoria config, come hooks/. Il vocabolario
 sta accanto a _locale().
 
+Dal 21/11/2026 lo stesso file accetta anche righe per percorso: `ask percorso <glob>` e `deny percorso <glob>`.
+Una riga per percorso stringe soltanto: vince sulla categoria quando è più severa, e non allenta mai niente.
+Serve a chi apre una categoria intera (`allow config`) e vuole confermare i pochi file che decidono i permessi.
+
 Fail-closed: errore di parsing = blocca per sicurezza.
 """
+import fnmatch
 import json
 import sys
 import os
@@ -148,7 +153,16 @@ def _avviso_budget(rp, claude_dir, ti):
 # gli script dell'aggiornamento e i file .local (arturo/*.local e hooks/*.local), che altrimenti potrebbero
 # allentare sé stessi.
 # Un file illeggibile o una riga fuori vocabolario valgono come assenti.
+#
+# Righe per percorso (21/11/2026): `ask percorso <glob>` e `deny percorso <glob>`. Il glob senza `/`, `~` o `*`
+# in testa parte da ~/.claude (`hooks/mia-guardia.py`, `git/hooks/`); con `~` o `/` è assoluto; con `*` in testa
+# vale ovunque (`*/.claude/settings*.json`, i settings di ogni progetto). `*` copre anche le barre, e un glob
+# che finisce con la barra copre la cartella intera. La riga stringe soltanto: `allow percorso` non esiste, e
+# la decisione del percorso vale solo se è più severa di quella della categoria. Sblocchi, percorsi di avvio e
+# file intoccabili restano come sono.
 DECISIONI_LOCALI = {'allow', 'ask', 'deny'}
+DECISIONI_PERCORSO = {'ask', 'deny'}
+SEVERITA = {None: 0, 'allow': 0, 'ask': 1, 'deny': 2}
 CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude',
                     'dot-claude-progetto'}
 
@@ -177,9 +191,54 @@ def _locale():
     return scelte
 
 
-def _emetti_locale(categoria, avviso="", chiede=None):
-    """Se il .local decide la categoria, emette la sua decisione ed esce. Un ask passa dalla telemetria."""
+def _percorsi_locali():
+    """Le righe `<ask|deny> percorso <glob>` di protect_claude_md.local, nell'ordine del file."""
+    righe = []
+    try:
+        with open(_preferenza('protect_claude_md.local'), encoding='utf-8') as fh:
+            for riga in fh:
+                parti = riga.split('#', 1)[0].split(None, 2)
+                if len(parti) == 3 and parti[0] in DECISIONI_PERCORSO and parti[1] == 'percorso' and parti[2].strip():
+                    righe.append((parti[0], parti[2].strip()))
+    except OSError:
+        return []
+    return righe
+
+
+def _percorso_locale(rp, claude_dir):
+    """La decisione più severa fra le righe per percorso che coprono `rp`, o None."""
+    piega = sys.platform in ('darwin', 'win32')
+    trovata = None
+    for decisione, glob in _percorsi_locali():
+        g = os.path.expanduser(glob).replace('/', os.sep)
+        if not g.startswith('*') and not os.path.isabs(g):
+            g = os.path.join(claude_dir, g)
+        elif not g.startswith('*') and not any(c in g for c in '*?['):
+            g = os.path.realpath(g) + (os.sep if g.endswith(os.sep) else '')
+        if g.endswith(os.sep):
+            g += '*'
+        a, b = (rp.casefold(), g.casefold()) if piega else (rp, g)
+        if fnmatch.fnmatchcase(a, b) and SEVERITA[decisione] > SEVERITA[trovata]:
+            trovata = decisione
+    return trovata
+
+
+def _emetti_percorso(percorso, rp, avviso="", chiede=None):
+    """Emette la decisione di una riga per percorso ed esce."""
+    if percorso == 'ask' and chiede:
+        chiede()
+    _emit(percorso, f"percorso: protect_claude_md.local vuole {'una conferma' if percorso == 'ask' else 'un no'} "
+          f"per ogni modifica a {os.path.basename(rp)}. Decide guardie o permessi: conferma solo se l'hai "
+          "chiesta tu." + avviso)
+    sys.exit(0)
+
+
+def _emetti_locale(categoria, avviso="", chiede=None, percorso=None, rp="", default=None):
+    """Se il .local decide la categoria, emette la sua decisione ed esce. Un ask passa dalla telemetria.
+    Una riga per percorso più severa della categoria (o del default di Arturo, se la categoria tace) vince."""
     decisione = _locale().get(categoria)
+    if percorso and SEVERITA[percorso] > SEVERITA[decisione or default]:
+        _emetti_percorso(percorso, rp, avviso, chiede)
     if decisione:
         if decisione == 'ask' and chiede:
             chiede()
@@ -311,6 +370,10 @@ def main():
             ))
             sys.exit(0)
 
+        # Le righe per percorso del .local (21/11/2026, #6278): da qui in giù stringono la decisione della
+        # categoria. Sopra, sblocchi e percorsi di avvio restano col default di Arturo.
+        percorso = _percorso_locale(rp, claude_dir)
+
         # Categoria 2: CLAUDE.md e CLAUDE.local.md (ovunque). Il .local sono istruzioni come l'altro, e la shell
         # le chiedeva già (block-dangerous, PERCORSI_PROTETTI): via Edit e Write passavano (#5159, 10/11/2026).
         if base in ('CLAUDE.MD', 'CLAUDE.LOCAL.MD'):
@@ -327,7 +390,7 @@ def main():
                 _emit("allow", "CLAUDE.md sbloccato da conferma utente." + avviso)
                 sys.exit(0)
             _emetti_locale('claude-md-globale' if os.path.dirname(rp) == claude_dir
-                           else 'claude-md-progetto', avviso, chiede)
+                           else 'claude-md-progetto', avviso, chiede, percorso, rp, 'ask')
             # Una conferma sola per modifica (3/11/2026, #4473): il popup è la conferma. Il deny con
             # istruzioni costava due o tre sì (domanda in chat, popup dell'unlock, a volte la shell).
             chiede()
@@ -377,7 +440,7 @@ def main():
                 in_radice = os.path.dirname(rp) == claude_dir
                 _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
                                                                     or base == '.CLAUDE.JSON') else 'config',
-                               chiede=chiede)
+                               chiede=chiede, percorso=percorso, rp=rp, default='deny')
             mod = _mod_di(rp, claude_dir)
             if mod and not intoccabile:
                 _emit("deny", _testo_mod(rp, mod, claude_dir, safe_id))
@@ -394,7 +457,7 @@ def main():
 
         # Categoria 4: il resto di ~/.claude decide il flusso normale dei permessi, o il .local.
         if under_claude:
-            _emetti_locale('dot-claude', chiede=chiede)
+            _emetti_locale('dot-claude', chiede=chiede, percorso=percorso, rp=rp)
 
         # Categoria 5: una cartella .claude dentro un progetto (settings di progetto, worktree, agenti).
         # Claude Code chiede a ogni scrittura lì; senza .local la decisione resta sua (5/11/2026, #4535).
@@ -405,8 +468,11 @@ def main():
                 and (os.sep + '.claude' + os.sep) in rp):
             if re.match(r'SETTINGS.*\.JSON$', base) is not None:
                 _ferma_json_rotto(rp, ti)
-            _emetti_locale('dot-claude-progetto', chiede=chiede)
+            _emetti_locale('dot-claude-progetto', chiede=chiede, percorso=percorso, rp=rp)
 
+        # Fuori dalle categorie decide solo una riga per percorso, se c'è.
+        if percorso:
+            _emetti_percorso(percorso, rp, chiede=chiede)
         sys.exit(0)
 
     except Exception as e:

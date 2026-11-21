@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — una conferma sui file che decidono i permessi, senza chiudere tutta la cartella
+
+**Cosa cambia**: in `arturo/protect_claude_md.local` puoi scrivere una riga per percorso:
+`ask percorso hooks/mia-guardia.py`, `ask percorso git/hooks/`, `ask percorso */.claude/settings*.json`.
+Claude chiede conferma prima di modificare quei file con `Edit` o `Write`, anche se la categoria intera
+è aperta con `allow config` o `allow dot-claude-progetto`. Vale anche `deny percorso`. La riga stringe
+soltanto: `allow percorso` non esiste, e i file che Arturo protegge sempre restano protetti.
+
+**Il principio**: aprire una cartella e tenere chiusi i file che contano sono due scelte diverse. Prima
+la guardia sapeva solo la prima.
+
+**A chi serve**: a chi ha aperto `hooks/` o le cartelle `.claude` dei progetti e ha guardie sue. Chi non
+ha un `protect_claude_md.local` non cambia niente.
+
+---
+
 ## 2026-11-21 — anche i comandi di Arturo chiudono con "Finito quando"
 
 **Cosa cambia**: otto comandi e skill di Arturo hanno ora la sezione "Finito quando", come le skill che

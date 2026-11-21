@@ -243,6 +243,8 @@ BANCHI=(
   test_ruoli_2026_11_20.py
   # Lo sportello lato client (20/11/2026, #4793): modo log, copie degli ultimi lotti, arturo telemetria dimentica.
   test_telemetria_log_dimentica_2026_11_20.py
+  # Le righe per percorso di protect_claude_md.local: stringono, non allentano (21/11/2026, #6278).
+  test_protect_percorso_2026_11_21.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -520,6 +522,8 @@ BASELINE=(
   "test_telemetria_log_dimentica_2026_11_20.py 0cc681e"
   # Un hook personale non fa rosso il banco UTF-8 all'avvio (20/11/2026, #5383). 4801ee0, il dev prima.
   "test_banchi_file_personali_2026_11_20.py 4801ee0"
+  # Le righe per percorso del .local (21/11/2026, #6278): la guardia non le legge. 9641c7c, il dev prima.
+  "test_protect_percorso_2026_11_21.py 9641c7c radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
