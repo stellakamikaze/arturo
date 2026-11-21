@@ -15103,9 +15103,9 @@ const lista = [
   // due gusci, senza scheda e senza handoff: non entrano in nessuna coppia, nemmeno con lo stesso titolo
   P("arturo-tessera", { fonte: ["cartella"], cartella: true }),
   P("volta-celeste", { fonte: ["cartella"], titolo: "Volta", cartella: true }),
-  P("ganimede", { ...vero, titolo: "Ganimede", filoni: 14, alias: ["infra"], data: "2026-11-20" }),
+  P("gabbiano", { ...vero, titolo: "Gabbiano", filoni: 14, alias: ["infra"], data: "2026-11-20" }),
   // un nome dentro l'altro, ma con la sua scheda: è un progetto vero, non un doppione
-  P("ganimede-upgrade", { fonte: ["scheda"], titolo: "Ganimede upgrade" }),
+  P("gabbiano-upgrade", { fonte: ["scheda"], titolo: "Gabbiano upgrade" }),
   P("infra", { fonte: ["handoff"], handoff: true, filoni: 1, data: "2026-08-01" }),
   P("due-mondi", { ...vero, filoni: 2, data: "2026-10-01" }),
   P("duemondi", { fonte: ["handoff"], handoff: true, filoni: 3, data: "2026-11-01" }),
@@ -15115,7 +15115,7 @@ const lista = [
   P("uf", { ...vero, titolo: "UF", filoni: 11, riga: "Fermo.", data: "2026-11-17" }),
   P("eos", { ...vero, riga: "Fermo.", data: "2026-11-17" }),
   P("sito-uf", { ...vero, titolo: "Sito UF", repo: "casa/sito" }),
-  P("ufficiofurore", { ...vero, titolo: "Ufficio Furore", repo: "casa/sito" }),
+  P("ufficiostampa", { ...vero, titolo: "Ufficio Stampa", repo: "casa/sito" }),
   P("post-studio", { ...vero, titolo: "Post Office" }),
   P("postoffice-vecchio", { fonte: ["scheda"], titolo: "Post  office" }),
   // la stessa riga lunga in due giorni diversi: niente
@@ -15185,17 +15185,17 @@ def hz187(repo: Path, casa: Path) -> str | None:
         return f"doppioni.js, sessioni.js o comandi.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
     # dalla più forte; a pari forza la più recente, poi la chiave. Ogni coppia: chi entra, chi resta, la forza
-    coppie = [["herdr-arturo", "volta", 3], ["infra", "ganimede", 3], ["duemondi", "due-mondi", 3], ["postoffice-vecchio", "post-studio", 3],
-              ["ufficiofurore", "sito-uf", 3], ["melchior-redesign", "melchior", 2], ["telecub", "teleclub", 2]]
+    coppie = [["herdr-arturo", "volta", 3], ["infra", "gabbiano", 3], ["duemondi", "due-mondi", 3], ["postoffice-vecchio", "post-studio", 3],
+              ["ufficiostampa", "sito-uf", 3], ["melchior-redesign", "melchior", 2], ["telecub", "teleclub", 2]]
     if d["coppie"] != coppie:
         return (f"doppioni() segnala le coppie sbagliate, nell'ordine sbagliato o col vincitore sbagliato (un guscio non entra mai; un nome dentro "
                 f"l'altro vale solo fra una scheda e degli handoff senza scheda, una volta sola e senza un'altra coppia forte; due edizioni e un monorepo no): {d['coppie']}")
     testi = {
         "herdr-arturo|volta": ["hanno la stessa riga di stato, dello stesso giorno", "ha la scheda e più filoni (35 contro 1)"],
-        "ganimede|infra": ["infra è già un nome alternativo di ganimede", "infra è già un suo nome alternativo e ha la scheda"],
+        "gabbiano|infra": ["infra è già un nome alternativo di gabbiano", "infra è già un suo nome alternativo e ha la scheda"],
         "due-mondi|duemondi": ["hanno lo stesso nome, scritto in due modi", "ha la scheda"],
         "post-studio|postoffice-vecchio": ["hanno lo stesso titolo, Post Office", "ha gli handoff"],
-        "sito-uf|ufficiofurore": ["hanno lo stesso repository, casa/sito", "ha il nome più corto"],
+        "sito-uf|ufficiostampa": ["hanno lo stesso repository, casa/sito", "ha il nome più corto"],
         "melchior|melchior-redesign": ["il nome melchior-redesign contiene melchior, e melchior-redesign ha handoff ma non ha la scheda", "ha la scheda e più filoni (4 contro 1)"],
         "teleclub|telecub": ["i nomi cambiano di una lettera", "ha la scheda e più filoni (2 contro 1)"],
     }
@@ -15205,7 +15205,7 @@ def hz187(repo: Path, casa: Path) -> str | None:
     if d["chiavi"] != ["herdr-arturo|volta", "herdr-arturo|volta", ["chiave", "forza", "motivo", "perche", "perdente", "vincitore"]]:
         return f"la chiave di una coppia cambia col verso, o la coppia porta altri campi: {d['chiavi']}"
     # scartata herdr-arturo|volta, herdr-arturo non ha più una coppia forte: il suo nome dentro arturo torna a valere
-    if d["scartate"] != ["ganimede|infra", "due-mondi|duemondi", "post-studio|postoffice-vecchio", "sito-uf|ufficiofurore", "arturo|herdr-arturo", "teleclub|telecub"]:
+    if d["scartate"] != ["gabbiano|infra", "due-mondi|duemondi", "post-studio|postoffice-vecchio", "sito-uf|ufficiostampa", "arturo|herdr-arturo", "teleclub|telecub"]:
         return f"una coppia scartata torna, o ne sparisce una non scartata: {d['scartate']}"
     if d["tetto"] != [2, 7, 0, 0]:
         return f"il tetto delle coppie, le scartate null o una lista storta: {d['tetto']}"
@@ -15247,9 +15247,9 @@ if (process.env.HZ_CASO === "rotto") {
   out.vuoto = await doppioniScartati();
   out.primo = await scartaDoppione("herdr-arturo|volta");
   // due scarti partiti insieme leggono lo stesso file: il secondo deve rileggere e riprovare
-  out.insieme = await Promise.all([scartaDoppione("arturo|arturo-tessera"), scartaDoppione("ganimede|infra")]);
+  out.insieme = await Promise.all([scartaDoppione("arturo|arturo-tessera"), scartaDoppione("gabbiano|infra")]);
   const prima = scritti.length;
-  out.ancora = [await scartaDoppione("ganimede|infra"), scritti.length - prima];
+  out.ancora = [await scartaDoppione("gabbiano|infra"), scritti.length - prima];
   out.storte = [await scartaDoppione("volta"), await scartaDoppione("Volta|arturo"), await scartaDoppione("a|b|c"), await scartaDoppione("a b|c"), await scartaDoppione(null)];
   const letto = await doppioniScartati();
   out.letto = Object.keys(letto).sort();
@@ -15288,7 +15288,7 @@ def hz188(repo: Path, casa: Path) -> str | None:
             return f"le coppie scartate non stanno in doppioni-scartati.json nella cartella di Volta, o senza file non sono vuote: {d['file']} {d['vuoto']}"
         if d["primo"] is not True or d["insieme"] != [True, True]:
             return f"due scarti partiti insieme: il secondo non rilegge il file e si perde ({d['primo']}, {d['insieme']})"
-        if d["letto"] != ["arturo|arturo-tessera", "ganimede|infra", "herdr-arturo|volta"] or d["quando"] is not True:
+        if d["letto"] != ["arturo|arturo-tessera", "gabbiano|infra", "herdr-arturo|volta"] or d["quando"] is not True:
             return f"uno scarto cancella quelli di prima, o non porta l'ora: {d['letto']}"
         if d["ancora"] != [True, 0]:
             return f"una coppia già scartata riscrive il file: {d['ancora']}"
