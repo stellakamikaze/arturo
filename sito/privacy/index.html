@@ -202,6 +202,7 @@ ul,ol{margin:0;padding:0}
             <li><strong>L'email</strong>, se la lasci, sta insieme al testo e serve solo a risponderti.</li>
             <li><strong>Le pagine di prova</strong> (gli indirizzi che cominciano con <code>/prove/</code>) tengono voti e commenti nel tuo browser mentre li scrivi, così non li perdi se chiudi la pagina. Quando premi "Invia" partono come un messaggio di feedback, con lo stesso trattamento, e la copia nel browser si cancella.</li>
           </ul>
+          <p>La base giuridica è il tuo consenso (art. 6, par. 1, lett. a GDPR): il messaggio lo mandi tu, e lo fai cancellare quando vuoi scrivendo a <a href="mailto:federico@stellakamikaze.org">federico@stellakamikaze.org</a>.</p>
           <p>Il server non salva l'indirizzo IP. Il server di Arturo è un Worker di Cloudflare, e il suo codice è pubblico nel repository (<a href="https://github.com/stellakamikaze/arturo/tree/main/server">cartella server</a>). Telegram consegna gli avvisi a Federico.</p>
         </div>
       </article>
@@ -215,6 +216,7 @@ ul,ol{margin:0;padding:0}
             <li><strong>Il server tiene</strong> la tua email, il nome con cui gli altri ti vedono, la voce commentata, il testo e l'ora. Gli altri invitati vedono solo nome e testo, mai l'email.</li>
             <li><strong>Un commento che togli</strong> sparisce dalla pagina, ma resta nel registro del server. Se vuoi cancellarlo davvero, chiedilo dal <a href="../feedback/">modulo</a>.</li>
             <li><strong>Quanto restano:</strong> finché la pagina della roadmap esiste.</li>
+            <li><strong>La base giuridica</strong> è il tuo consenso (art. 6, par. 1, lett. a GDPR): il commento lo scrivi tu, e lo fai cancellare quando vuoi.</li>
           </ul>
           <p>La pagina dei commenti gira su un server di chi mantiene Arturo, non sul Worker di Cloudflare della telemetria. La pagina pubblica della roadmap non ha moduli: conta solo le visite, come le altre pagine del sito.</p>
         </div>
@@ -235,7 +237,7 @@ ul,ol{margin:0;padding:0}
           <p>Con gli eventi parte un codice casuale creato da Arturo, l'id, sempre lo stesso per la tua installazione. Chi mantiene Arturo non sa a chi appartiene, ma può saperlo se glielo dici tu: per questo non sono dati anonimi. Partono anche la versione di Arturo, la sua forma (plugin o copia del repository), il sistema operativo e la data dell'evento, senza l'ora.</p>
           <div class="mai"><p>Non escono mai: i tuoi prompt, le risposte di Claude, il contenuto dei tuoi file, i percorsi del tuo computer. Il tuo nome e la tua email escono solo se li dai tu per le segnalazioni, come dice la voce qui sotto.</p></div>
           <p>Il server tiene gli eventi 12 mesi e non salva l'indirizzo IP. Chi mantiene Arturo li legge ogni mattina e ogni lunedì per decidere cosa correggere.</p>
-          <p>La base giuridica è il legittimo interesse (art. 6, par. 1, lett. f GDPR) di chi mantiene Arturo a migliorare uno strumento che usi. Per questo gli eventi vengono da un elenco chiuso, non portano mai contenuti e si fermano con un comando: hai il diritto di opporti in ogni momento, e per farlo basta spegnere la telemetria.</p>
+          <p>La base giuridica è il tuo consenso (art. 6, par. 1, lett. a GDPR): Arturo te lo chiede in <code>/setup</code>, e lo ritiri quando vuoi spegnendo la telemetria. Se hai installato Arturo prima del 19 novembre 2026, gli eventi partivano già prima della domanda, sulla base del legittimo interesse (lett. f) di chi mantiene Arturo a migliorare uno strumento che usi: anche in quel caso hai il diritto di opporti in ogni momento, e per farlo basta spegnere la telemetria.</p>
           <p>I comandi di questa pagina li lancia Claude, se glielo chiedi con parole tue ("spegni la telemetria"):</p>
           <ul>
             <li><code>arturo telemetria mostra</code> ti fa vedere l'id e gli eventi in coda, così come partono.</li>
@@ -261,6 +263,7 @@ ul,ol{margin:0;padding:0}
             <li><strong>Per cancellare il contatto</strong> c'è <code>arturo contatto togli</code>, che lo toglie dal tuo computer: le segnalazioni successive partono senza. Dal server il contatto se ne va quando ritiri le segnalazioni che lo portano, oppure se scrivi a <a href="mailto:federico@stellakamikaze.org">federico@stellakamikaze.org</a>.</li>
             <li><strong>Se le vuoi mandare solo col tuo sì</strong>, <code>arturo segnalazioni manuali</code>: Claude prepara il testo, te lo mostra e chiede "La mando?". Succede lo stesso quando la telemetria è spenta.</li>
           </ul>
+          <p>La base giuridica delle segnalazioni che partono da sole è il legittimo interesse (art. 6, par. 1, lett. f GDPR) di chi mantiene Arturo a sapere dei guasti per correggerli: per questo il testo passa dalla pulizia, sai subito cosa è partito e puoi opporti con <code>arturo segnalazioni manuali</code>. Per il nome e l'email la base è il tuo consenso (lett. a): li dai tu, e lo ritiri con <code>arturo contatto togli</code>.</p>
         </div>
       </article>
 
@@ -270,17 +273,21 @@ ul,ol{margin:0;padding:0}
           <p class="voce__attacco">Gli avvisi che arrivano a Federico restano su Telegram, in Gmail e nel suo elenco dei task.</p>
           <p>Per ogni segnalazione, feedback, installazione nuova o configurazione rotta, il server manda a Federico un avviso su Telegram o per email, e da alcune email nasce un task nel suo elenco dei task. Ogni mattina e ogni lunedì gli arriva anche un riepilogo per email, con i numeri di ogni installazione.</p>
           <p>Questi messaggi portano il numero della segnalazione, il tipo, la versione di Arturo, il sistema e le prime 8 cifre dell'id. Non portano mai il testo di una segnalazione o di un feedback, la tua email, il tuo nome o l'id completo: del contatto dicono solo che c'è.</p>
-          <p>Siccome stanno fuori dal database, non le raggiungono né la cancellazione automatica dopo 12 mesi, né <code>arturo telemetria dimentica</code>, né il ritiro di una segnalazione. Le cancella a mano Federico nella chat, nella casella e nell'elenco dei task: quando usi <code>dimentica</code> il server gli manda i numeri da togliere, e negli altri casi basta chiederglielo.</p>
+          <p>Siccome stanno fuori dal database, non le raggiungono né la cancellazione automatica dopo 12 mesi, né <code>arturo telemetria dimentica</code>, né il ritiro di una segnalazione. Le cancella a mano Federico nella chat, nella casella e nell'elenco dei task, entro 12 mesi dall'arrivo. Le cancella prima se lo chiedi: quando usi <code>dimentica</code> il server gli manda i numeri da togliere, e negli altri casi basta scrivergli.</p>
         </div>
       </article>
 
       <article class="voce" id="altri" aria-labelledby="t-altri">
         <h2 id="t-altri">Gli altri servizi</h2>
         <div class="voce__corpo">
-          <p class="voce__attacco">Un caso in cui la pagina parla con un altro sito.</p>
+          <p class="voce__attacco">Quattro società trattano una parte dei dati, anche fuori dall'Unione Europea.</p>
           <ul>
             <li><strong>GitHub</strong> ospita il codice di Arturo. Quando apri il repository o scarichi Arturo, parli con GitHub.</li>
+            <li><strong>Cloudflare</strong> consegna le pagine del sito e ospita il server e il database di Arturo. È una società degli Stati Uniti e aderisce al Data Privacy Framework fra Unione Europea e Stati Uniti, che la Commissione europea considera una garanzia adeguata.</li>
+            <li><strong>Google</strong> riceve in Gmail le email di avviso per Federico. Anche Google aderisce al Data Privacy Framework.</li>
+            <li><strong>Telegram</strong> riceve i messaggi di avviso per Federico. Telegram Messenger Inc. ha sede fuori dallo Spazio economico europeo, in un paese senza una decisione di adeguatezza. Dichiara di conservare nei Paesi Bassi i dati di chi si è registrato dall'Europa e di passarli alle altre società del gruppo con le clausole contrattuali standard della Commissione europea.</li>
           </ul>
+          <p>Che cosa arriva su Gmail e su Telegram lo dice la voce <a href="#copie">Le copie fuori dal database</a>: mai il testo di un messaggio, la tua email o l'id completo.</p>
         </div>
       </article>
 
