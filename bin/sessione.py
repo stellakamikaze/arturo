@@ -70,7 +70,7 @@ def todo_dalla_fonte(esterna: list, numero: str, titolo: str | None) -> tuple:
         r = subprocess.run([*esterna, "mostra", str(numero), "--json"], capture_output=True, timeout=30,
                            env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     except (OSError, subprocess.SubprocessError) as e:
-        return None, f"la fonte dei task di fonte-task.local non risponde ({e})"
+        return None, f"la fonte dei task di {ts.nome_fonte()} non risponde ({e})"
     if r.returncode != 0:
         prima = next((x.strip() for x in r.stderr.decode("utf-8", "replace").splitlines() if x.strip()), "")
         return None, f"la fonte dei task non trova il todo #{numero}" + (f": {prima}" if prima else "")

@@ -520,7 +520,7 @@ def main(argv: list, progetto: str = "generale") -> int:
     # Con una fonte esterna i task stanno altrove: la pagina mostrerebbe un tavolo vuoto e scriverebbe in
     # un archivio che Claude, /dafare e la CLI non leggono (review del 7/11/2026, finding 62).
     if ts.comando_fonte():
-        print("arturo web: i tuoi task stanno nella fonte esterna di fonte-task.local, e questa pagina legge "
+        print(f"arturo web: i tuoi task stanno nella fonte esterna di {ts.nome_fonte()}, e questa pagina legge "
               "solo l'archivio di Arturo. Usa /dafare oppure arturo todo, che passano dalla tua fonte.",
               file=sys.stderr)
         return 3

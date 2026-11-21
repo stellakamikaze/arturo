@@ -13,6 +13,226 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai
+
+**Cosa cambia**: nelle prime settimane `/inizio` ti chiede quale lavoro rifai ogni settimana o ogni mese.
+Adesso, dopo la tua risposta, Claude ti chiede una volta sola se vuoi farne una skill tua, e col sì parte
+`/creaskill` senza richiederti cosa deve fare. Lo stesso alla fine di `/setup`: se la prima bozza di un
+lavoro ricorrente ti piace, Claude ti propone di salvarla come skill. Chi usa Arturo come plugin prima non
+poteva ricevere queste proposte: Claude non riusciva ad aprire `/creaskill` da solo. Una skill nuova nasce
+anche con una riga che dice il suo lavoro, così Claude la trova quando lo chiedi con altre parole. La bozza
+che la Scoperta ti mostra porta già lo spazio per "Finito quando".
+
+**Il principio**: il momento giusto per una skill è quando hai appena detto che un lavoro torna.
+
+**A chi serve**: a chi ha appena installato Arturo. Se dici no, la proposta non torna.
+
+---
+
+## 2026-11-21 — le skill che hai già ricevono la lista "Finito quando" con una domanda sola
+
+**Cosa cambia**: `/system-audit` ti dice in una riga quali skill tue non hanno ancora la lista "Finito
+quando", e ti avvisa se una riga di "Attrezzi" cita un file che non c'è più. Sono avvisi, mai errori: una
+skill scritta prima funziona come prima. Per sistemarne una scrivi `/creaskill <nome>`: Claude non rifà
+tutte le domande, ti chiede solo "come capisci che è venuto bene?" e aggiunge le due sezioni in fondo
+alla skill, dopo il tuo sì. Anche `/revisione` conta queste skill, e quando trova un lavoro che ripeti
+senza una skill ti propone `/creaskill`.
+
+**Il principio**: una regola nuova vale anche per il lavoro già fatto, senza obbligarti a rifarlo.
+
+**A chi serve**: a chi ha scritto skill sue prima del 20/11. Non devi fare niente finché non ti serve.
+
+---
+
+## 2026-11-21 — lo script che ti è servito oggi finisce nella skill, non nel cestino
+
+**Cosa cambia**: se in una sessione hai usato una skill tua e Claude ha scritto uno script in una cartella
+temporanea o fuori da un progetto, `/fine` gli propone un destino nuovo: la cartella di quella skill, con
+una riga in "Attrezzi". Prima lo stesso file risultava da scartare. L'inventario di `/fine` mostra anche
+i file che stanno già in `~/.claude/skills/<nome>/`, che prima saltava. Se lo script serve solo oggi,
+resta uno scarto: decide Claude, e te lo dice nella chiusura.
+
+**Il principio**: un attrezzo fatto una volta si ritrova la volta dopo. Se resta in `/tmp`, la prossima
+sessione lo riscrive da capo.
+
+**A chi serve**: a chi ha skill sue e ci lavora con script o modelli. Non devi fare niente.
+
+---
+
+## 2026-11-21 — una conferma sui file che decidono i permessi, senza chiudere tutta la cartella
+
+**Cosa cambia**: in `arturo/protect_claude_md.local` puoi scrivere una riga per percorso:
+`ask percorso hooks/mia-guardia.py`, `ask percorso git/hooks/`, `ask percorso */.claude/settings*.json`.
+Claude chiede conferma prima di modificare quei file con `Edit` o `Write`, anche se la categoria intera
+è aperta con `allow config` o `allow dot-claude-progetto`. Vale anche `deny percorso`. La riga stringe
+soltanto: `allow percorso` non esiste, e i file che Arturo protegge sempre restano protetti.
+
+**Il principio**: aprire una cartella e tenere chiusi i file che contano sono due scelte diverse. Prima
+la guardia sapeva solo la prima.
+
+**A chi serve**: a chi ha aperto `hooks/` o le cartelle `.claude` dei progetti e ha guardie sue. Chi non
+ha un `protect_claude_md.local` non cambia niente.
+
+---
+
+## 2026-11-21 — la tua skill ricorda la sua lista, e la correzione sa a quale skill appartiene
+
+**Cosa cambia**: quando parte una skill tua, Claude riceve subito la sua lista "Finito quando" e l'elenco
+degli "Attrezzi", anche se la skill l'hai scritta a mano con `/nome`. Una correzione che fai mentre la
+skill è in uso porta il nome della skill: `arturo correzione elenco` la mostra come `[skill: nome]`, e
+`/fine` ti propone di scriverla lì. Se chiudi senza `/fine`, le correzioni restano nell'handoff
+automatico. Se ripeti la stessa correzione in tre sessioni dentro la stessa skill, Arturo propone la
+skill e non il tuo `CLAUDE.md`. Una skill tua già salvata e modificata non esce più verso un repository
+non privato: `/fine` la nomina e chiede a te.
+
+**Il principio**: una regola scritta vale se qualcuno la ricorda al momento giusto. La lista serve
+all'apertura del lavoro, la correzione serve nel posto dove quel lavoro è descritto.
+
+**A chi serve**: a chi ha skill sue. Non devi fare niente: se una skill non ha ancora "Finito quando",
+continua a funzionare come prima.
+
+---
+
+## 2026-11-21 — anche i comandi di Arturo chiudono con "Finito quando"
+
+**Cosa cambia**: otto comandi e skill di Arturo hanno ora la sezione "Finito quando", come le skill che
+crei tu con `/creaskill`: `/aggiorna`, `/diagnosi`, `/guidami`, `/proponi`, `/segnala`, `/monitor`,
+`/revisione` e i todo. Prima di dirti "fatto" Claude controlla quelle righe una per una. Le righe
+non portano regole nuove: raccolgono in un punto i controlli che il testo chiedeva già qua e là.
+`/creaskill` rilegge la skill appena scritta e controlla che abbia le sue quattro sezioni.
+
+**Il principio**: Arturo segue la regola che dà a te. Un controllo scritto in fondo si fa, uno sparso
+nel testo si salta.
+
+**A chi serve**: a tutti. Non devi fare niente.
+
+---
+
+## 2026-11-20 — le guardie vedono git e gpatch anche attraverso un link
+
+**Cosa cambia**: un `git checkout`, `git restore` o `git reset --hard` che riscrive la config passando da
+un link verso `~/.claude` adesso chiede conferma. Lo stesso vale per `gpatch` e `chgrp`. Prima la guardia
+sapeva giudicarli, ma il filtro davanti a lei non la chiamava, perché nel comando non c'era scritto `.claude`.
+Il README e le note delle guardie dicono adesso il vero su cosa è protetto: tutta la cartella `bin/` e i
+due elenchi dei plugin.
+
+**Il principio**: il filtro che decide se una guardia parte non è mai più stretto della guardia.
+
+**A chi serve**: a tutti, senza fare niente. Un `git checkout main` nei tuoi progetti continua a non chiedere.
+
+---
+
+## 2026-11-20 — ogni lavoro che torna ha la sua lista "Finito quando" e i suoi attrezzi
+
+**Cosa cambia**: `/creaskill` ti fa una quinta domanda: "come capisci che è venuto bene?". Le tue
+risposte diventano la sezione "Finito quando" della skill, e Claude le controlla una per una prima di
+consegnarti il lavoro. Se dopo cinque risposte Claude non sa ancora fare il lavoro da solo, continua a
+chiedere, una domanda per volta. La skill nasce anche con la sezione "Attrezzi": uno script o un
+modello che Claude costruisce per quel lavoro resta nella cartella della skill, e la volta dopo lo
+riusa. Con `/fine`, una tua correzione su un lavoro che ha una skill tua finisce in quella skill, dopo
+il tuo sì, e non più solo in memoria.
+
+**Il principio**: un errore si corregge nelle istruzioni del lavoro, non nella chat. E il controllo
+finale lo fa Claude, su una lista che hai scritto tu.
+
+**A chi serve**: a chi ha skill sue o fa spesso lo stesso lavoro. Le skill che hai già non cambiano:
+se vuoi le due sezioni nuove, chiedi a Claude di aggiungerle.
+
+---
+
+## 2026-11-20 — anche /inizio ti dice che l'identità di Git è automatica
+
+**Cosa cambia**: quando `/inizio` crea un progetto nuovo, fa il primo commit. Se non hai scelto un nome
+per i commit, Git ne usa uno ricavato dal tuo utente e dal computer. Prima `/inizio` lo faceva in
+silenzio; ora te lo dice nella ripartenza e ti indica `/setup`, FASE 1, come fa già `/fine`
+(segnalazione n. 67).
+
+**Il principio**: due comandi che fanno lo stesso passo raccontano la stessa cosa.
+
+**A chi serve**: a chi non ha ancora scelto un nome per i commit in `/setup`.
+
+---
+
+## 2026-11-20 — /monitor vede la tua fonte dei task come arturo todo
+
+**Cosa cambia**: se tieni i task in un altro strumento (`fonte-task.local`, `docs/fonte-task.md`), l'inventario
+di `/monitor` adesso lo dice, col percorso del file. Prima cercava il file accanto al codice di Arturo: con
+Arturo installato come plugin non lo trovava e diceva "arturo todo, ancora vuoto", mentre i tuoi todo
+andavano già nel tuo strumento. Anche i messaggi di `arturo web`, `arturo sessione` e `arturo contesto`
+dicono ora il percorso vero del file.
+
+**Il principio**: un file di preferenza si legge da un punto solo. Se due parti di Arturo lo cercano in
+posti diversi, prima o poi raccontano due storie diverse sugli stessi todo.
+
+**A chi serve**: a chi ha collegato una fonte esterna dei task, soprattutto se l'ha scritta nel vecchio
+posto `$ARTURO_CODICE/bin/fonte-task.local`.
+
+---
+
+## 2026-11-20 — I tuoi dati d'uso li cancelli da solo
+
+**Cosa cambia**: `arturo telemetria dimentica` cancella dal server i tuoi eventi d'uso e le segnalazioni
+collegate al tuo id, senza scrivere a nessuno. Poi Arturo riparte con un id nuovo. Con la variabile
+`ARTURO_TELEMETRIA=log` non parte niente: ogni lotto finisce sullo schermo e in
+`~/.claude/data/telemetria/lotti/`, così vedi cosa uscirebbe. In quella cartella restano anche gli ultimi
+10 lotti partiti davvero.
+
+**Il principio**: un diritto che passa da un'email a una persona è un diritto lento. Cancellare deve
+costare quanto spegnere: un comando. Le copie che il server non raggiunge (Telegram, Gmail) restano a chi
+mantiene Arturo, e il server gli dice quali sono.
+
+**A chi serve**: a chi vuole sapere cosa esce prima di dire sì, e a chi vuole andarsene senza lasciare
+tracce. Chiedi a Claude "cancella i miei dati d'uso dal server".
+
+---
+
+## 2026-11-20 — /monitor fa il giro quotidiano
+
+**Cosa cambia**: dopo la scelta delle fonti, /monitor fa il giro quotidiano. Legge i tuoi todo, le sessioni con Claude, la posta e il calendario, e ti dice cosa chiede la giornata:
+le riunioni di oggi, le promesse che hai fatto, le email che aspettano te, i lavori aperti e chi fa il
+passo dopo. Una cosa letta in due giri diventa un todo solo, perché il todo porta l'impronta di quello
+che l'ha fatto nascere (`arturo todo aggiungi --chiave`). Una proposta che hai lasciato cadere non
+torna il giorno dopo, salvo che abbia una scadenza vicina. Una fonte letta a metà resta indietro e il
+giro dopo la rilegge.
+
+**Il principio**: chi legge il testo di altri non deve poter scrivere. La posta la legge un agente,
+`monitor-lettore`, che ha solo strumenti di lettura: un'email con istruzioni dentro non trova niente con
+cui eseguirle. I todo li scrive il giro dopo, su campi controllati. Al primo giro non nasce nessun todo
+senza il tuo sì: lo diventano da soli solo quelli dei mittenti che hai già accolto.
+
+**A chi serve**: a chi apre la giornata con /monitor. Con `gws` la posta si scarica dal terminale, anche
+da più account, e il testo nascosto delle email HTML resta fuori. Se tieni i todo in un tuo strumento
+(`fonte-task.local`) e quello non conosce `--chiave`, il giro tiene lui l'elenco dei todo che ha creato.
+
+---
+
+## 2026-11-19 — Istruzioni più corte e una sandbox da accendere
+
+**Cosa cambia**: le istruzioni che Arturo dà a Claude seguono le guide di Anthropic per i modelli di oggi.
+Il promemoria del brief a ogni messaggio è scritto come un fatto, senza "REGOLA FISSA". Le description
+delle skill dicono cosa fanno e quando, senza "Segui tutti i passi nell'ordine". Humanizer,
+italiano-semplificato e prompt-master tengono in testa le regole che contano e spostano cataloghi ed
+esempi in `references/`: humanizer passa da 548 a 200 righe. In `/inizio` il modo rotazione sta in cima,
+in `/aggiorna` i Freni. Metodo e stile Conciso non si contraddicono più sull'ultima riga, sul brief e
+sulle segnalazioni. Le guardie e i freni sono gli stessi di prima.
+
+C'è anche un comando nuovo, `arturo sandbox accendi`. La sandbox di Claude Code chiude i comandi in un
+recinto del sistema: leggono e scrivono solo dove serve, e le chiavi SSH, AWS, GPG, gh e Bitwarden
+restano fuori. Git in rete, ssh, gh, gws e bw girano fuori dal recinto, come oggi. È spenta di default,
+`/setup` la propone nella fase 8d, e `arturo sandbox spegni` toglie solo le voci che Arturo ha messo.
+
+**Il principio**: un modello recente segue alla lettera quello che legge. Un "mai" senza motivo, una
+maiuscola o un ordine ripetuto gli fanno applicare troppo una regola. Le garanzie vere stanno negli hook
+e nelle regole di blocco. Il testo spiega cosa fare e perché. Fonti: code.claude.com/docs (best-practices,
+skills, hooks, sandboxing, context-window) e le guide di prompting di Opus 5.5 e Fable 5.2 su
+platform.claude.com.
+
+**A chi serve**: a tutti, senza fare niente. La sandbox serve a chi lancia script o installa pacchetti e
+tiene chiavi sul computer: le guardie vedono il comando, la sandbox vede anche quello che il comando lancia.
+Un plugin non può accendere la sandbox da solo: la scelta resta tua.
+
+---
+
 ## 2026-11-19 — I dati d'uso partono solo dopo la tua risposta
 
 **Cosa cambia**: dopo l'installazione Arturo non manda più niente finché `/setup` non ti ha chiesto della telemetria. Fino alla tua risposta gli eventi restano in coda sul tuo computer, e `arturo telemetria mostra` te li fa vedere. Con un sì partono, con un no si cancellano. Se avevi già fatto `/setup`, per te non cambia niente: la risposta c'era già.

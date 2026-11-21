@@ -92,7 +92,7 @@ python3 -c '' >/dev/null 2>&1 \
 HOOK_INPUT=""
 [ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compact"'; then
-  echo "COMPACT APPENA AVVENUTO: fermati. Riepiloga all'utente file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. Poi aspetta la sua conferma prima di continuare."
+  echo "COMPACT APPENA AVVENUTO: il riassunto può aver perso dettagli. Riepiloga in poche righe file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. In una rotazione automatica lo step continua; fuori dalla rotazione la persona conferma prima di continuare."
   # Il riassunto può perdere una correzione della persona: torna intera da qui (#4099).
   if [ -f "$ARTURO_CODICE/bin/correzioni.py" ]; then
     printf '%s' "$HOOK_INPUT" | python3 "$ARTURO_CODICE/bin/correzioni.py" blocco 2>/dev/null || true
@@ -100,7 +100,11 @@ if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compa
 fi
 
 # Reminder context management
-echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) lancia /fine --rotazione, sempre, anche col contesto leggero; poi il tool ruota (mod rotazione) solo se il passo dopo è tuo. Senza il mod, al ~65% completa il task e salva con /fine"
+echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) Arturo chiude con /fine --rotazione, sempre, anche col contesto leggero. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, verso il 65% del contesto il compito si chiude e si salva con /fine."
+
+# La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
+# Arturo e dell'Orsa. Senza ruoli la riga non esce.
+[ -f "$ARTURO_CODICE/bin/ruoli.py" ] && python3 "$ARTURO_CODICE/bin/ruoli.py" riga 2>/dev/null
 
 # Avvisi Git locali: nessuna rete, nessun comando in background.
 if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -367,11 +371,11 @@ SEGNALA_STATO="$HOME/.claude/session-env/segnala.json"
 if ! grep -q '"pausa": "sempre"' "$SEGNALA_STATO" 2>/dev/null; then
   if [ "$(printf '%s' "${ARTURO_SEGNALAZIONI:-}" | tr '[:upper:]' '[:lower:]')" = "manuali" ] \
     || grep -q '"modo": "manuali"' "$SEGNALA_STATO" 2>/dev/null; then
-    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
+    echo "SEGNALA: quando qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza già scritta e --origine avvio in prepara. Vale per Arturo, non per i bug del progetto della persona."
   else
     [ -f "$HOME/.claude/session-env/segnalazioni-annuncio" ] \
       || python3 "$ARTURO_CODICE/bin/arturo" segnala avviso 2>/dev/null || true
-    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, segui /segnala senza aspettare che lo chieda: scrivi tu la bozza, mandala con manda e --origine avvio, e di' alla persona in una riga cosa e' partito, il numero e come ritirarla. Una volta per fatto. Riguarda Arturo, non i bug del progetto della persona. Un tema di sicurezza non parte mai da solo: vale SECURITY.md."
+    echo "SEGNALA: quando qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, la segnalazione parte da sola: scrivi la bozza, mandala con manda e --origine avvio, poi di' alla persona in una riga cosa è partito, il numero e come ritirarla. Una volta per fatto, per Arturo e non per i bug del progetto della persona. Un tema di sicurezza segue SECURITY.md e non parte da solo."
   fi
 fi
 

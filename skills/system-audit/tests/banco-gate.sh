@@ -130,6 +130,25 @@ else
 fi
 cp "$LAVORO/settings.bak" "$C/settings.json"
 
+# Le skill della persona senza "Finito quando" e gli attrezzi citati e assenti (21/11/2026, #6277): solo WARN.
+caso "skill tue: le skill di Arturo non contano come skill senza Finito quando" manca 'skill tue senza'
+V="$C/skills/banco-vecchia"
+mkdir -p "$V"
+printf -- '---\nname: banco-vecchia\ndescription: Skill della persona nata prima delle due sezioni.\n---\n# Lettera\n\n## Che cosa deve uscire\n\nUna lettera.\n' > "$V/SKILL.md"
+caso "skill tue: una skill senza Finito quando dà un WARN col nome" trova '^WARN  1 skill tue senza "Finito quando": banco-vecchia '
+caso "skill tue: una skill senza Finito quando non dà mai FAIL" manca '^FAIL'
+V2="$C/skills/banco-altra"
+mkdir -p "$V2"
+printf -- '---\nname: banco-altra\ndescription: Seconda skill della persona, con la lista vuota.\n---\n# Conti\n\n## Finito quando\n\n## Attrezzi\n' > "$V2/SKILL.md"
+caso "skill tue: due skill stanno in un WARN solo" trova '^WARN  2 skill tue senza "Finito quando": banco-altra, banco-vecchia '
+rm -rf "$V2"
+printf -- '---\nname: banco-vecchia\ndescription: Skill della persona con le due sezioni.\n---\n# Lettera\n\n## Finito quando\n\n- La data è in alto?\n\n## Attrezzi\n\n- `conti.py`: somma le righe, a ogni lettera.\n- `modello-che-manca.docx`: il modello della lettera.\n- Il sito https://esempio.it/pagina.html resta fuori.\n' > "$V/SKILL.md"
+printf 'print(1)\n' > "$V/conti.py"
+caso "attrezzi: un file citato e assente dà un WARN" trova '^WARN  skill banco-vecchia: "Attrezzi" cita modello-che-manca\.docx, che non c'"'"'è$'
+caso "attrezzi: un file citato e presente e un indirizzo web passano" manca 'cita (conti\.py|.*pagina\.html)'
+caso "skill tue: con Finito quando il WARN riassuntivo sparisce" manca 'skill tue senza'
+rm -f "$V/SKILL.md" "$V/conti.py"; rmdir "$V"
+
 caso "la copia pulita non ha FAIL" manca '^FAIL'
 
 echo

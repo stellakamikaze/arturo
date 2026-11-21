@@ -485,6 +485,34 @@ if [[ -f "$CLAUDE_DIR/personale/aspetto.json" && -f "$aspetto_py" ]] && command 
   fi
 fi
 
+# Le skill della persona nate prima di "Finito quando" e "Attrezzi" (21/11/2026, #6277): funzionano lo stesso,
+# quindi mai un FAIL. Un WARN solo le elenca tutte, e un WARN per ogni file che "Attrezzi" cita e che non c'è.
+sezioni_py="$CODICE/bin/skill_sezioni.py"
+if [[ -f "$sezioni_py" ]] && command -v python3 >/dev/null 2>&1; then
+  sezioni_file=$(mktemp "${TMPDIR:-/tmp}/audit-sezioni.XXXXXX")
+  CLAUDE_CONFIG_DIR="$CLAUDE_DIR" python3 "$sezioni_py" elenco > "$sezioni_file" 2>/dev/null || true
+  senza_n=0
+  senza_nomi=""
+  attrezzi_n=0
+  while IFS='|' read -r tipo nome file; do
+    file="${file%$'\r'}"
+    nome="${nome%$'\r'}"
+    case "$tipo" in
+      SENZA) senza_n=$((senza_n + 1)); senza_nomi="${senza_nomi:+$senza_nomi, }$nome" ;;
+      ATTREZZO) attrezzi_n=$((attrezzi_n + 1))
+                warning "skill $nome: \"Attrezzi\" cita $file, che non c'è" ;;
+    esac
+  done < "$sezioni_file"
+  if ! grep -q '^SKILL|' "$sezioni_file"; then
+    warning "skill tue: controllo di \"Finito quando\" non eseguito (bin/skill_sezioni.py non ha risposto)"
+  elif [[ $senza_n -gt 0 ]]; then
+    warning "$senza_n skill tue senza \"Finito quando\": $senza_nomi -> /creaskill <nome> aggiunge la lista"
+  elif [[ $attrezzi_n -eq 0 ]]; then
+    ok "skill tue: \"Finito quando\" presente, attrezzi citati su disco"
+  fi
+  rm -f "$sezioni_file"
+fi
+
 echo "=== System Audit ==="
 printf '%s\n' "${report[@]}"
 printf 'Totali: PASS=%s WARN=%s FAIL=%s\n' "$pass" "$warn" "$fail"

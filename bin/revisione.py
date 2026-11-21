@@ -397,6 +397,15 @@ def igiene(_a) -> int:
         print(f"system-audit: {sum(r.startswith('FAIL') for r in problemi)} FAIL, "
               f"{sum(r.startswith('WARN') for r in problemi)} WARN"
               + (" · " + " | ".join(r[:120] for r in problemi[:4]) if problemi else ""))
+    # Le skill nate prima di "Finito quando" (21/11/2026, #6277): il rimedio è /creaskill <nome>.
+    try:
+        import skill_sezioni
+        c = skill_sezioni.conto(orsa, codice)
+        print(f"skill tue: {len(c['skill'])}, {len(c['senza'])} senza \"Finito quando\""
+              + (" (" + ", ".join(c["senza"][:8]) + ") · /creaskill <nome> aggiunge la lista" if c["senza"] else "")
+              + (f" · {len(c['attrezzi'])} attrezzi citati e assenti" if c["attrezzi"] else ""))
+    except Exception as e:  # noqa: BLE001 - una skill illeggibile non ferma la revisione
+        print(f"skill tue: non lette ({type(e).__name__})")
     try:
         sys.path.insert(0, str(codice / "bin"))
         import todo_store as ts

@@ -7,9 +7,8 @@ description: >-
 when_to_use: >-
   Usa il PROMPT ESTERNO quando l'utente chiede esplicitamente un prompt per ChatGPT, Gemini, Cursor,
   Midjourney, Sora, ElevenLabs, Codex o agenti di coding. Usa il BRIEF INTERNO PRIMA di ogni richiesta
-  di lavoro rivolta a Claude Code, anche breve: il brief va sempre mostrato. NON per la conversazione
-  pura: domande, commenti, risposte a un menu. Segui tutti i passi nell'ordine: non
-  prendere scorciatoie basandoti su questa description.
+  di lavoro rivolta a Claude Code, anche breve: il brief va sempre mostrato. Non per la conversazione
+  pura: domande, commenti, risposte a un menu.
 version: 1.8.0
 upstream: nidhinjs/prompt-master@49b3a72
 ---
@@ -53,15 +52,15 @@ Se la richiesta era già completa, il prompt è quasi identico all'originale: si
 una riga, e si va avanti. Se l'hai dovuta interpretare, il prompt è il punto in cui l'interpretazione
 diventa visibile.
 
-Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per un comando singolo o una correzione puntuale bastano tre righe (obiettivo, output, fatto quando); per un lavoro che tocca più file, sistemi o side-effect servono tutte e sei. Scrivi solo le righe che portano informazione: una riga ovvia si omette, non si riempie di parole.
+Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per un comando singolo o una correzione puntuale bastano quattro righe (obiettivo, output, fatto quando, skill); per un lavoro che tocca più file, sistemi o side-effect aggiungi le righe che portano informazione. Una riga ovvia si omette, non si riempie di parole.
 
 ```
 BRIEF
-Obiettivo: [azione precisa, verbo concreto — non la parafrasi della richiesta]
+Obiettivo: [azione precisa, verbo concreto, non la parafrasi della richiesta]
 Output: [forma, formato, dove finisce]
 Vincoli: [cosa deve e non deve accadere; regole del CLAUDE.md applicabili]
 Fatto quando: [criterio verificabile, binario dove possibile]
-Skill: [/nome e perché in poche parole, oppure «nessuna»]
+Skill: [/nome e perché in poche parole, oppure "nessuna"]
 Dove non arrivo: [la parte che resta alla persona e cosa faccio io al suo posto; solo se c'è]
 Assunzioni: [cosa sto dando per scontato]
 Da chiarire: [max 3 punti]
@@ -78,49 +77,27 @@ Da chiarire: [max 3 punti]
   se la richiesta, o una sua parte, sta lì. Se sì, scrivi la riga `Dove non arrivo:` con due cose:
   la parte che resta alla persona e quella che fai tu al suo posto (la distinta dei componenti, il
   budget, uno script che ricolora i file salvati, il manuale che spiega ogni pista). Un tentativo
-  scarso costa ore a chi lo deve buttare; una riga onesta prima costa niente (Computer Club N.3,
-  4/11/2026). Vale anche quando la persona chiede solo se puoi aiutarla: rispondi con le stesse due
+  scarso costa ore a chi lo deve buttare; una riga onesta prima costa niente. Vale anche quando la persona chiede solo se puoi aiutarla: rispondi con le stesse due
   cose. Per un lavoro che sai fare la riga si omette.
 - Il brief mostrato è la punta dell'arricchimento, non tutto: il contesto recuperato resta nel tuo ragionamento e nel lavoro che ne segue. Non trascriverlo per intero, e non trasformare il brief in un rapporto di ricerca.
 - Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con una raccomandazione motivata. Max 3 punti. Il menu AskUserQuestion vale solo se il testo prima sta in una o due righe: dopo un brief di più righe, chiudi con l'elenco numerato e le parole di risposta in grassetto.
 - **Un foglio da riempire per conto di un altro chiede una riga d'esempio.** Se la richiesta arriva da un terzo (l'email o la chat di un collega) e le colonne del foglio si possono leggere in più modi, la riga `Da chiarire:` chiede una riga d'esempio compilata prima della ricerca. Una tabella piena di dati deboli costa più di una domanda: il 16/11/2026 una ricerca sui padiglioni è stata rifatta tre volte prima di capire che servivano i produttori, non gli architetti (proposta n. 82).
 - In plan mode il brief precede il piano e ne è il cappello.
 
-### 3. Quando la richiesta è un'idea ancora da decidere: l'intervista a giri
+### 3. Un'idea ancora da decidere: l'intervista a giri
 
-Alcune richieste non sono un compito ma un'idea: "vorrei un sito per la mia associazione", "mi
-serve qualcosa per le fatture", "voglio automatizzare la newsletter". Lì i punti da chiarire sono
-più di tre e dipendono uno dall'altro. Chi ti parla di solito non sa quali domande servono, e
-non lo dice: aspetta. In questo caso il brief si ferma su "Da chiarire: lo decidiamo insieme"
-e parte un'intervista a giri, finché tu e la persona avete la stessa idea di cosa fare.
+Se la richiesta è un'idea e non un compito ("vorrei un sito per la mia associazione"), il brief si ferma su
+"Da chiarire: lo decidiamo insieme" e parte l'intervista a giri: leggi prima `references/intervista.md`.
+Per un compito già chiaro, anche grande, basta il brief.
 
-- **L'albero delle decisioni.** Ogni decisione apre quelle che ne dipendono: prima "per chi è il
-  sito", poi "cosa ci trova". Al giro fai solo le domande che puoi già fare, quelle che non
-  dipendono da una risposta ancora aperta. Le altre aspettano il giro dopo.
-- **Ogni domanda ha la tua risposta consigliata.** Numerale, una per voce, e scrivi sotto
-  "Consiglio:" con il motivo in mezza riga. Formula la domanda in modo che "sì" accetti il
-  consiglio: chi non ha opinioni risponde "sì a tutto" e va bene.
-- **I fatti li cerchi tu, le decisioni le prende la persona.** Non chiederle niente che puoi
-  leggere da solo: file, cartelle, programmi installati, la storia del progetto. Se un fatto
-  richiede una ricerca lunga, affidala a un subagent e intanto fai le domande che non ne
-  dipendono.
-- **Un giro per messaggio**, di solito da due a cinque domande. Chiudi con "Rispondi coi numeri,
-  oppure **sì a tutto**". Dopo le risposte ricalcola quali domande si sono aperte.
-- **Finisce quando non restano domande aperte.** Allora riassumi in tre righe cosa farai e
-  aspetta il sì: niente lavoro prima. Se la persona dice "decidi tu", prendi i consigli e
-  dillo.
-
-Non serve per un compito già chiaro, anche grande: lì basta il brief. Dopo due giri senza
-risposte, proponi tu una versione piccola da provare subito.
 - Se l'obiettivo cambia a lavoro iniziato, correggi il brief con una riga, senza riemetterlo per intero.
-- Italiano, come il resto della config.
 
 ## Importante
 
-- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano tre righe. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
+- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano quattro righe. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
 - Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, regola del CLAUDE.md che scatta), dillo nel brief prima di procedere: è il motivo principale per cui questa modalità esiste.
-- Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da chiarire, mostri e procedi. Ma se una domanda di approfondimento cambierebbe materialmente il lavoro, si chiede PRIMA, non dopo aver iniziato.
-- **Questa skill si carica col tool `Skill` una volta per sessione**, e di nuovo dopo ogni compattazione: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. Finché il corpo è nel contesto, una richiesta nuova lo applica senza ricaricarlo: ogni caricamento rimette nel contesto una copia intera (segnalazione n. 17, 27/10/2026). L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.
+- Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da chiarire, mostri e procedi. Ma se una domanda di approfondimento cambierebbe materialmente il lavoro, si chiede prima, non dopo aver iniziato.
+- **Questa skill si carica col tool `Skill` una volta per sessione**, e di nuovo dopo ogni compattazione: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. Finché il corpo è nel contesto, una richiesta nuova lo applica senza ricaricarlo: ogni caricamento rimette nel contesto una copia intera. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.
 
 ## MODALITÀ PROMPT ESTERNO — un prompt per un altro tool AI
 

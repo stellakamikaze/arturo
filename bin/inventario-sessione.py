@@ -19,12 +19,18 @@ FONTI
     presentations, spreadsheets, drafts create, files create o copy) o con i tuoi script elencati in
     ~/.claude/arturo/inventario.local: vanno nell'handoff;
   - file in ~/Downloads e ~/Desktop modificati durante la sessione.
-  Scarta ~/.claude/** (lo copre il Config Sync di /fine) e /dev/*. I file assenti finiscono in
-  "spariti". Lo scratchpad e /tmp restano in elenco, marcati: si perdono al riavvio.
+  Scarta ~/.claude/** (lo copre il Config Sync di /fine) e /dev/*. Restano in elenco i file di
+  ~/.claude/skills/<nome>/: sono gli attrezzi e le istruzioni di una skill, e /fine li deve vedere
+  (21/11/2026, #6277). I file assenti finiscono in "spariti". Lo scratchpad e /tmp restano in
+  elenco, marcati: si perdono al riavvio.
+  La skill in uso è l'ultima skill della persona aperta nella sessione: la scrive
+  hooks/estensione-skill.py in ~/.claude/data/correzioni/<ID>.skill.
 
 DESTINI PROPOSTI
   repo (commit) · archivia (documento fuori da un repository: va in una cartella che resta) ·
-  resta (binario pesante, col percorso nel CLAUDE.md del progetto) · scarto (temporaneo)
+  resta (binario pesante, col percorso nel CLAUDE.md del progetto) · scarto (temporaneo) ·
+  skill (codice temporaneo o fuori da un repository, se la sessione ha usato una skill della persona:
+  va nella cartella della skill, con una riga in Attrezzi; anche un file che sta già in una skill)
 
 EXIT
   0 inventario stampato · 2 id di sessione assente o transcript non trovato · 124 oltre il tetto di tempo
@@ -524,15 +530,45 @@ def cartelle_lavoro(home):
     return [os.path.join(home, "Downloads"), os.path.join(home, "Desktop"), os.path.normpath(base)]
 
 
-def proponi(f, home):
+NOME_SKILL = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")  # come bin/correzioni.py
+
+
+def skill_in_uso(sid, radice):
+    """L'ultima skill della persona aperta nella sessione, o "". La scrive hooks/estensione-skill.py."""
+    try:
+        with open(os.path.join(radice, "data", "correzioni", f"{sid}.skill"), encoding="utf-8") as fh:
+            nome = fh.read().strip()
+    except (OSError, UnicodeDecodeError):
+        return ""
+    return nome if NOME_SKILL.match(nome) else ""
+
+
+def skill_del_file(path, claude_dirs):
+    """Il nome della skill se il path sta dentro <~/.claude>/skills/<nome>/, altrimenti ""."""
+    for c in claude_dirs:
+        radice = os.path.join(c, "skills")
+        if sotto(path, radice):
+            pezzi = [x for x in re.split(r"[/\\]", path[len(radice):]) if x]
+            if len(pezzi) > 1:
+                return pezzi[0]
+    return ""
+
+
+def proponi(f, home, skill=""):
     p, tipo = f["path"], f["tipo"]
     lavoro = any(sotto(p, d) for d in cartelle_lavoro(home))
+    if f.get("nella_skill"):
+        return "skill", (f"sta già nella cartella della skill {f['nella_skill']}: la salva la chiusura "
+                         "della config; se è un attrezzo, controlla la sua riga in Attrezzi")
     if f["repo"] and f["git"] not in ("ignorato", "sconosciuto"):
         if f["git"] == "pulito":
             return "repo", "già committato nel repo"
         return "repo", "dentro un repo git: va committato per pathspec"
     if tipo == "binario pesante":
         return "resta", "oltre 20 MB: resta dov'è, col path nel CLAUDE.md del progetto"
+    if skill and tipo == "codice" and (f["volatile"] or not f["repo"]):
+        return "skill", (f"riusabile: cartella della skill {skill}, con una riga in Attrezzi; "
+                         "se serve solo oggi, scarto")
     if f["volatile"]:
         if tipo in ("documento", "immagine"):
             return "archivia", "si perde al riavvio: se è un documento che serve, spostalo in una cartella che resta"
@@ -580,7 +616,7 @@ def trova_transcript(sid, projects):
         sub += glob.glob(os.path.join(cart, "**", "*.jsonl"), recursive=True)
     return principali, sorted(sub)
 
-def raccogli(sid, projects, home):
+def raccogli(sid, projects, home, orsa=None):
     principali, sub = trova_transcript(sid, projects)
     if not principali:
         return None
@@ -665,7 +701,8 @@ def raccogli(sid, projects, home):
     for p in sorted(file):
         info = file[p]
         reale = os.path.realpath(p)
-        if any(sotto(p, c) or sotto(reale, c) for c in claude_dirs):
+        nella_skill = skill_del_file(p, claude_dirs) or skill_del_file(reale, claude_dirs)
+        if not nella_skill and any(sotto(p, c) or sotto(reale, c) for c in claude_dirs):
             esclusi["~/.claude"] += 1; continue
         if sotto(p, "/dev"):
             esclusi["/dev"] += 1; continue
@@ -675,7 +712,7 @@ def raccogli(sid, projects, home):
             nota = f"spostato con mv in {spostati[p]}" if p in spostati else "non esiste più"
             spariti.append({**base, "esiste": False, "nota": nota, "volatile": volatile(p, home)})
             continue
-        vivi.append({**base, "esiste": True})
+        vivi.append({**base, "esiste": True, "nella_skill": nella_skill})
 
     # sorgenti di mv mai scritte nella sessione: compaiono solo tra gli spariti
     for src, dest in sorted(spostati.items()):
@@ -696,9 +733,10 @@ def raccogli(sid, projects, home):
     stati = {}
     for repo, paths in per_repo.items():
         stati.update(stato_git(repo, paths))
+    skill = skill_in_uso(sid, orsa or os.path.join(home, ".claude"))
     for f in vivi:
         f["git"] = stati.get(f["path"])
-        f["destino"], f["motivo"] = proponi(f, home)
+        f["destino"], f["motivo"] = proponi(f, home, skill)
         if f["volatile"]:
             f["nota"] = ("scratchpad" if f["scratchpad"] else "/tmp") + ": si perde al riavvio, destino da decidere"
 
@@ -708,7 +746,7 @@ def raccogli(sid, projects, home):
         else:
             o["destino"], o["motivo"] = "resta", "creato online: l'handoff dice dove sta"
 
-    return {"sessione": sid, "inizio": inizio.isoformat() if inizio else None,
+    return {"sessione": sid, "inizio": inizio.isoformat() if inizio else None, "skill": skill,
             "transcript": principali, "subagent": len(sub), "file": vivi, "online": online,
             "spariti": spariti, "esclusi": esclusi, "non_risolti": irrisolti}
 
@@ -718,6 +756,8 @@ def stampa(inv, home):
     corto = lambda p: "~" + p[len(home):] if sotto(p, home) else p
     print(f"INVENTARIO SESSIONE {inv['sessione']}")
     print(f"avvio {inv['inizio'] or '?'} · {len(inv['transcript'])} transcript · {inv['subagent']} subagent")
+    if inv.get("skill"):
+        print(f"skill in uso: {inv['skill']} (uno script riusabile va nella sua cartella)")
     stabili = [f for f in inv["file"] if not f["volatile"]]
     volatili = [f for f in inv["file"] if f["volatile"]]
     def tabella(titolo, righe):
@@ -776,7 +816,9 @@ def main():
     if not a.session:
         print("INVENTARIO: manca l'id di sessione: passa --session o imposta CLAUDE_CODE_SESSION_ID", file=sys.stderr)
         return 2
-    inv = raccogli(a.session, projects, home)
+    # La cartella della persona: quella di --home nei banchi, altrimenti la stessa di bin/correzioni.py.
+    orsa = os.path.join(home, ".claude") if a.home else str(os.environ.get("ARTURO_RADICE") or radice_orsa())
+    inv = raccogli(a.session, projects, home, orsa)
     if inv is None:
         print(f"INVENTARIO: transcript non trovato per la sessione {a.session} in {projects}", file=sys.stderr)
         return 2

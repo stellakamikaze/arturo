@@ -88,3 +88,13 @@ alla prossima sessione.
 - Mai inviare senza il sì sulla bozza mostrata, anche quando le segnalazioni partono da sole: qui esce un testo scritto dalla persona. Per questo si usa `prepara` e `invia`, mai `manda`. Una modifica al testo passa di nuovo da `prepara`.
 - Mai mandare la skill originale: solo la copia ripulita.
 - Un segreto trovato da `prepara` ferma tutto: toglilo dalla copia e rilancia `prepara`.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- La copia non ha nomi, email, telefoni, percorsi della persona o chiavi?
+- `prepara` è passato senza segreti, e la persona ha visto l'anteprima con i dati tolti?
+- L'invio è partito con `invia` dopo il sì, mai con `manda`?
+- La skill originale è rimasta uguale?
+- Hai detto alla persona il numero della proposta?

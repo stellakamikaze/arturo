@@ -316,6 +316,18 @@ def aggiungi(*argomenti):
     return rc == 0 or "did not match any files" in err, err
 
 
+def skill_di_arturo():
+    """I nomi delle skill di Arturo (l'elenco della telemetria, banco TS01), o un insieme vuoto se manca."""
+    sys.path.insert(0, str(QUI))
+    try:
+        import telemetria
+        return set(telemetria.SKILL)
+    except Exception:  # noqa: BLE001 - senza elenco ogni skill vale come della persona e resta fuori
+        return set()
+    finally:
+        sys.path.pop(0)
+
+
 def aggiungi_forzati(elenco):
     """git add -A -f per un elenco esplicito di file, passato su stdin: niente limiti di riga di comando."""
     if not elenco:
@@ -457,13 +469,26 @@ def main(argv):
             if not ok:
                 falliti.append(f"{p}: {ultima(err)}")
     if (CL / "skills").is_dir():
-        aggiungi("-u", "--", "skills")
         nuove = git("ls-files", "--others", "--exclude-standard", "--directory", "--", "skills")[1].split()
-        if nuove:
-            if vis == "PRIVATE" or origin_arturo or not origin:
+        if vis == "PRIVATE" or origin_arturo or not origin:
+            aggiungi("-u", "--", "skills")
+            if nuove:
                 aggiungi("--", "skills")
-            else:
-                print(f"SKILL TUE NON SALVATE: {' '.join(nuove)} - il remote della config non risulta privato "
+        else:
+            # Verso un remote non privato resta fuori anche una skill della persona già tracciata e modificata:
+            # fino al 21/11/2026 "git add -u" la portava nel commit, e una correzione scritta nella skill usciva
+            # (#6277). Le skill di Arturo sono già pubbliche e passano. Senza l'elenco dei nomi restano tutte fuori.
+            di_arturo = skill_di_arturo()
+            modificate = set()
+            for p in git("diff", "--name-only", "-z", "--", "skills")[1].split("\0"):
+                pezzi = p.split("/")
+                if len(pezzi) >= 3 and pezzi[1] not in di_arturo:
+                    modificate.add(f"skills/{pezzi[1]}/")
+                elif p:
+                    aggiungi("-u", "--", p)
+            ferme = nuove + sorted(modificate - set(nuove))
+            if ferme:
+                print(f"SKILL TUE NON SALVATE: {' '.join(ferme)} - il remote della config non risulta privato "
                       f"(visibilità: {vis or 'sconosciuta'}). Restano su questa macchina.")
     saltati = {}
     if vis == "PRIVATE":

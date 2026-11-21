@@ -110,6 +110,9 @@ DANGEROUS_ISTRUZIONE = [
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
      "pipe di script remoto in un interprete"),
+    # `curl u | tee >(sh)`: la process-substitution manda lo script alla shell come una pipe (#5263).
+    (_DOWNLOAD + r"[^;&\n]*>\(\s*(?:sudo\s+)?(?:bash|sh|zsh|fish|dash|ksh|python3?|perl|ruby|node|php)\b",
+     "pipe di script remoto in un interprete"),
 ]
 DANGEROUS = [
     (r":\(\)\s*\{[^}]*\}\s*;\s*:", "fork bomb"),
@@ -158,7 +161,9 @@ PERCORSI_PROTETTI = (
     ("config", "albero-claude", "plugins/cache", "~/.claude/plugins/cache/arturo/hooks/x.py", False),
     ("config", "albero-claude", "plugins/marketplaces", "~/.claude/plugins/marketplaces/arturo/x", False),
     # L'aggiornamento automatico: la chiave dei rilasci e i due script che la verificano e installano.
-    # Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482).
+    # Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482). Dal #5262 la voce `bin` qui
+    # sotto copre anche i due script: le due righe restano perché nominano il motivo più grave e perché in
+    # protect_claude_md.py gli stessi due file sono `ancore`, che il .local della persona non apre (#5361, rilievo 9).
     ("config", "albero-claude", "firme", "~/.claude/firme/rilasci.pub", False),
     ("config", "file-claude", "bin/aggiornamenti.py", "~/.claude/bin/aggiornamenti.py", False),
     ("config", "file-claude", "bin/aggiorna-applica.sh", "~/.claude/bin/aggiorna-applica.sh", False),
@@ -320,7 +325,30 @@ SECRET_PATH_RE = re.compile(
 # Un file .env (anche .env.local, config/.env.production): le chiavi dei servizi di un progetto
 # (17/10/2026, #3506). Non .env.example e simili, non process.env. Come destinazione di una copia
 # (`cp .env.example .env`) si scrive, non si legge: vedi _reads_secret_flat.
-ENV_RE = re.compile(r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b)", re.IGNORECASE)
+# Il suffisso d'esempio vale anche dopo altri pezzi del nome: `.env.production.example` (#5263).
+ENV_RE = re.compile(r"(?<![\w.])\.env\b(?![\w.-]*\.(?:example|sample|template|dist)(?![\w.-]))", re.IGNORECASE)
+# Un file d'esempio non porta segreti: `docs/credentials.json.example` (review del 10/11/2026, problema 12).
+_ESEMPIO = re.compile(r"\.(?:example|sample|template|dist)['\"]?$", re.IGNORECASE)
+_PEM_PRIVATO = re.compile(r"key|priv|secret", re.IGNORECASE)
+
+
+def _pem_pubblico(arg: str) -> bool:
+    """True se l'unico segreto che l'argomento nomina è un .pem che non è una chiave: un certificato pubblico
+    (`/etc/ssl/cert.pem`, `certs/ca.pem`). Chiede il .pem col nome da chiave (key, priv, secret), quello con
+    un glob, e quello che comincia con una chiave privata. Un file che non c'è non si legge."""
+    a = arg.strip("'\"")
+    if not re.search(r"\.pem$", a, re.IGNORECASE) or SECRET_PATH_RE.search(a[:-4]):
+        return False
+    if _PEM_PRIVATO.search(os.path.basename(a)) or re.search(r"[*?\[$`]", a):
+        return False
+    try:
+        q = _resolve(a, os.path.normpath(_CWD[0]) if _CWD[0] else None)
+        if q and os.path.isfile(q):
+            with open(q, "rb") as f:
+                return b"PRIVATE KEY" not in f.read(65536)
+    except OSError:
+        return False
+    return True
 
 # Check segreti PER-SEGMENTO. Chiede se un path segreto compare come ARGOMENTO
 # (non come identità ssh) in un segmento il cui comando è un binario di lettura
@@ -336,7 +364,9 @@ _READ_BINS = frozenset(
     "cp scp rsync dd open grep perl ruby python python3 tac rev mapfile "
     "nc ncat socat gpg tar zip curl wget "
     "sort uniq jq yq diff cmp hexdump hd iconv fold fmt pr expand column paste join comm rg egrep fgrep "
-    "zcat look 7z".split()
+    "zcat look 7z "
+    # il codice inline di node, deno, bun e php che nomina una chiave la legge (#5263)
+    "node nodejs deno bun php".split()
 )
 # Programmi che leggono una cartella intera: la cartella dei segreti nominata senza un file dentro
 # (`grep -r . ~/.ssh`, `cp -R ~/.ssh x`, `tar czf a.tgz ~/.ssh`) porta fuori tutte le chiavi.
@@ -370,6 +400,128 @@ def _programma_pericoloso(testo: str):
     return None
 
 
+# Il blocco duro di DANGEROUS_ISTRUZIONE nasce da una regex sul testo, virgolette comprese. Qui si rilegge
+# l'istruzione sui programmi, e si toglie il blocco solo in due casi provati (review del 10/11/2026,
+# problema 8, #5263):
+# - la forma `scarica | interprete` sta solo fra virgolette, e ogni programma dell'istruzione stampa o
+#   cerca testo senza eseguirlo (`grep -n "curl .* | bash" README.md`, `echo '... | sh' >> README.md`);
+# - dopo lo scaricamento nessuno stadio è una shell, e ogni interprete legge lo stdin come dati: uno script
+#   locale (`| python3 analizza.py`) o codice inline senza primitive che eseguono testo (`| perl -ne`).
+# Una command-substitution o una process-substitution lascia il blocco: bash le esegue anche fra virgolette.
+_TESTO_INERTE = frozenset("echo printf grep egrep fgrep rg ag ack cat head tail wc sort uniq cut tr tee less more "
+                          "sed".split())
+_INTERPRETI_STDIN = re.compile(r"^(?:python[23]?(?:\.\d+)?|perl|ruby|node|nodejs|php)$")
+_SHELL_STDIN = frozenset("sh bash zsh dash ksh fish powershell pwsh".split())
+# Codice inline che esegue testo, o un file che è lo stdin stesso (`python3 /dev/stdin`, `require("/dev/stdin")`).
+_CODICE_ESEGUE = re.compile(
+    r"\b(?:exec|execSync|execFileSync|eval|compile|system|spawn|spawnSync|popen|Popen|subprocess|child_process|"
+    r"worker_threads|vm|Function|passthru|shell_exec|proc_open|pcntl_exec|assert|instance_eval|class_eval|"
+    r"module_eval|__import__|importlib|runpy|pickle|marshal|getattr|globals|builtins|__builtins__)\b|`|\bqx\b|%x|"
+    r"/dev/stdin|/dev/fd/0|/proc/self/fd/0|php://stdin|\$\(")
+# Opzioni con un valore separato, per interprete; le altre opzioni non prendono niente.
+_INTERPRETI_VALORE = {"python": ("-W", "-X", "-Q"), "perl": ("-I", "-M", "-m", "-C"),
+                      "ruby": ("-I", "-r", "-C", "-F", "-E", "-K"), "node": ("-r", "--require", "--import",
+                      "--input-type", "--loader", "--experimental-loader", "-C", "--conditions"),
+                      "php": ("-d", "-c", "-z")}
+# L'opzione che porta il codice inline (il valore che segue, o attaccato).
+_INTERPRETI_CODICE = {"python": ("-c",), "perl": ("-e", "-E"), "ruby": ("-e",),
+                      "node": ("-e", "--eval", "-p", "--print"), "php": ("-r", "-B", "-R", "-E")}
+
+
+def _maschera_virgolette(t: str) -> str:
+    """Il testo con il contenuto fra virgolette sostituito da `_`: le virgolette restano, e una pipe fra
+    virgolette non è più una pipe."""
+    out, q, i, n = [], None, 0, len(t)
+    while i < n:
+        c = t[i]
+        if q is None and c == "\\" and i + 1 < n:
+            out.append(t[i:i + 2])
+            i += 2
+            continue
+        if q == '"' and c == "\\" and i + 1 < n:
+            out.append("__")
+            i += 2
+            continue
+        if q is None and c in "'\"":
+            q = c
+            out.append(c)
+        elif q is not None and c == q:
+            q = None
+            out.append(c)
+        else:
+            out.append("_" if q is not None else c)
+        i += 1
+    return "".join(out)
+
+
+def _interprete_su_dati(nome: str, args) -> bool:
+    """True se l'interprete legge lo stdin come dati: uno script locale, o codice inline che non esegue
+    testo. Senza script e senza codice, o con `-` come script, l'interprete esegue lo stdin."""
+    famiglia = "python" if nome.startswith("python") else ("node" if nome.startswith("node") else nome)
+    valore, codice = _INTERPRETI_VALORE.get(famiglia, ()), _INTERPRETI_CODICE.get(famiglia, ())
+    if any(_CODICE_ESEGUE.search(a) for a in args):
+        return False
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--":
+            return i + 1 < len(args) and args[i + 1] != "-"
+        if a == "-" or not a.startswith("-"):
+            return a != "-"  # il primo argomento libero è lo script
+        if famiglia == "python" and a in ("-m", "-i") or a.startswith("-m") and famiglia == "python":
+            return False  # un modulo o la console: resta la lettura della regex (json.tool passa già lì)
+        if a in codice or a.split("=", 1)[0] in codice:
+            return True  # codice inline senza primitive che eseguono testo (controllate sopra)
+        # gruppi di opzioni corte con il codice in fondo: `perl -ne`, `perl -lane`, `ruby -ne`
+        if famiglia in ("perl", "ruby") and re.match(r"^-[a-zA-Z0-9]*[eE]$", a):
+            return True
+        if famiglia in ("perl", "ruby", "python") and re.match(r"^-[a-zA-Z0-9]*[eEc].+", a) and \
+                a[1] not in "IMmCrWX":
+            return True  # codice attaccato: `perl -e'print'`
+        i += 2 if a in valore else 1
+    return False
+
+
+def _scarico_innocuo(istruzione: str) -> bool:
+    """True se l'istruzione che la regex di DANGEROUS_ISTRUZIONE ha preso non esegue uno script scaricato."""
+    if re.search(r"\$\(|`|<\(|>\(", istruzione):
+        return False
+    try:
+        mascherato = _maschera_virgolette(istruzione)
+        if not any(re.search(p, mascherato, re.IGNORECASE) for p, _ in DANGEROUS_ISTRUZIONE):
+            # la forma sta solo fra virgolette: conta chi riceve quel testo
+            programmi = _fc.programmi(istruzione)
+            if not programmi:
+                return False
+            for nome, args in programmi:
+                if nome not in _TESTO_INERTE or (nome == "sed" and _sed_esegue(istruzione)):
+                    return False
+            return True
+        pipe = [(a, b) for a, b, tipo in _fc._separatori(istruzione) if tipo in _fc._SEP_PIPE]
+        stadi, inizio = [], 0
+        for a, b in pipe:
+            stadi.append(istruzione[inizio:a])
+            inizio = b
+        stadi.append(istruzione[inizio:])
+        primo = next((k for k, s in enumerate(stadi) if re.search(_DOWNLOAD, s, re.IGNORECASE)), None)
+        if primo is None or primo == len(stadi) - 1:
+            return False
+        for stadio in stadi[primo + 1:]:
+            comandi = _fc.programmi(stadio)
+            if not comandi:
+                return False
+            for nome, args in comandi:
+                if not re.match(r"^[\w.+-]+$", nome):
+                    return False  # un programma che non si legge (`(bash`, `$x`): resta il blocco
+                if nome in _SHELL_STDIN or nome in ("eval", "xargs", "source", "."):
+                    return False
+                if _INTERPRETI_STDIN.match(nome) and not _interprete_su_dati(nome, args):
+                    return False
+        return True
+    except Exception:
+        return False
+
+
 def _cmd_subst_bodies(command: str):
     """Corpi delle command-substitution `$(...)` e backtick: bash li ESEGUE anche
     dentro le doppie virgolette, quindi `git commit -m "$(cat chiave)"` legge davvero
@@ -386,6 +538,101 @@ def _reads_secret(command: str) -> bool:
         if _reads_secret_flat(src):
             return True
     return False
+
+
+# --- Segreti sul percorso risolto (review del 10/11/2026, problema 10, #5263) ---
+# _reads_secret legge il testo: `cd ~/.ssh && cat github`, `K=~/.ssh; cat $K/github`, `cat ~/.[s]sh/id_*`,
+# `m4 ~/.ssh/github` o `ln -s ~/.ssh/id_ed25519 /tmp/k` non lo nominano come un lettore noto. Qui ogni
+# argomento si risolve (cartella del comando, cd, variabili, glob, link) e, se cade fra i segreti della home,
+# chiede qualunque sia il programma. Passano solo i programmi che non stampano il contenuto (elenco chiuso).
+_SEGRETI_CASA = re.compile(r"^(?:\.ssh(?:/.*)?|\.aws/(?!config$).+|\.gnupg(?:/.*)?|\.netrc|\.secrets(?:/.*)?|"
+                           r"\.git-credentials|\.claude/data/credentials(?:/.*)?|\.config/gh/hosts\.yml|"
+                           r"\.docker/config\.json|\.kube/config|\.pypirc|\.npmrc|\.claude\.json)$")
+_SSH_PUBBLICI = re.compile(r"^\.ssh(?:/(?:config|config\.d(?:/.*)?|known_hosts(?:\.old)?|authorized_keys|"
+                           r"[^/]*\.pub|agent|sockets?(?:/.*)?|control.*))?$")
+_INNOCUI_SEGRETI = frozenset("ls stat chmod chown chgrp mkdir rmdir touch test [ [[ du realpath readlink dirname "
+                             "basename echo printf file wc shasum sha1sum sha256sum sha512sum md5 md5sum cksum "
+                             "ssh ssh-add ssh-keygen ssh-copy-id ssh-agent ssh-keyscan rm cd pushd popd true false "
+                             "exa eza tree xattr".split())
+_GLOB_CARATTERI = re.compile(r"[*?\[]")
+
+
+def _segreto_di_casa(p: str, cartella: bool = False) -> bool:
+    """True se il percorso assoluto `p` è un segreto della home, anche come pattern glob. La cartella ~/.ssh da
+    sola non lo è (`cat ~/.ssh` non legge niente); i lettori di cartelle li giudica _reads_secret_flat."""
+    h = os.path.normpath(_home())
+    p = os.path.normpath(p)
+    if not p.startswith(h + os.sep):
+        h = os.path.realpath(h)  # un link letto con realpath: sul Mac /var è /private/var
+        if not p.startswith(h + os.sep):
+            return False
+    rel = os.path.relpath(p, h).replace(os.sep, "/")
+    if cartella and rel in (".ssh", ".aws", ".gnupg", ".secrets", ".claude/data/credentials"):
+        return True
+    if not _GLOB_CARATTERI.search(rel):
+        return "/" in rel or rel in (".netrc", ".git-credentials", ".pypirc", ".npmrc", ".claude.json") \
+            if _SEGRETI_CASA.match(rel) and not _SSH_PUBBLICI.match(rel) else False
+    # un glob: conta se una cartella dei segreti ci rientra (`.[s]sh/id_*`, `.s?h/github`)
+    parti = rel.split("/")
+    for nome in (".ssh", ".aws", ".gnupg", ".netrc", ".secrets", ".git-credentials"):
+        if fnmatch.fnmatchcase(nome, parti[0]):
+            resto = "/".join([nome] + parti[1:])
+            if nome in (".netrc", ".git-credentials") and len(parti) == 1:
+                return True
+            if len(parti) > 1 and not re.search(r"\.pub$|^\.ssh/(?:config|known_hosts|authorized_keys)$", resto):
+                return True
+    return False
+
+
+def _segreti_risolti(command: str, cwd: str) -> bool:
+    """True se un argomento di un programma fuori da _INNOCUI_SEGRETI cade fra i segreti della home."""
+    try:
+        voci = _programmi_con_cd(_fc.testo_shell(command))
+    except Exception:
+        return False
+    for nome, args, cds in voci:
+        nome = _fc._nome(nome)
+        if nome in _INNOCUI_SEGRETI:
+            continue
+        if nome == "find" and not any(a in ("-exec", "-execdir", "-ok", "-okdir", "-delete") for a in args):
+            continue
+        # grep -c, -l, -q stampano conteggi o nomi di file: la forma, non il contenuto
+        if nome in ("grep", "egrep", "fgrep", "rg") and any(_GREP_SOLO_METADATI.match(t) for t in args):
+            continue
+        # la cartella intera conta per chi la sposta, la copia o la manda (`mv ~/.ssh x`); per un lettore di
+        # un file solo (`cat ~/.ssh`) no, e i lettori di cartelle li giudica _reads_secret_flat
+        cartella = nome not in _READ_BINS or nome in _LEGGONO_CARTELLE
+        basi = [b for b in _basi_dopo_cd(cds, cwd) if b] if cwd else []
+        j = 0
+        while j < len(args):
+            a = args[j]
+            if a == "-i" and nome in ("scp", "rsync", "sftp"):
+                j += 2  # identità di ssh: non si legge il contenuto
+                continue
+            j += 1
+            if a.startswith("-") and "=" in a:
+                a = a.split("=", 1)[1]
+            elif a.startswith("-") or not a or (" " in a.strip() and not a.startswith(("/", "~", "$"))):
+                continue  # un'opzione, o prosa
+            t = _expand_vars(a)
+            if t is None:
+                continue
+            t = os.path.expanduser(t)
+            for base in ([None] if os.path.isabs(t) else basi):
+                q = os.path.normpath(t if base is None else os.path.join(base, t))
+                if _segreto_di_casa(q, cartella):
+                    return True
+                try:
+                    if not _GLOB_CARATTERI.search(q) and os.path.islink(q) and _segreto_di_casa(os.path.realpath(q)):
+                        return True
+                except OSError:
+                    pass
+    return False
+
+
+# `security` di macOS stampa la password con -w o -g, e dump-keychain -d stampa tutto il portachiavi.
+_SECURITY_SEGRETO = re.compile(r"(?:^|[\s;&|(])security\s+(?:find-(?:generic|internet)-password\b[^\n;&|]*\s-[a-zA-Z]*[wg]\b|"
+                               r"dump-keychain\b[^\n;&|]*\s-[a-zA-Z]*d\b)")
 
 
 # Il tokenizer (heredoc, messaggi di commit, segmenti) sta in forma_comando.py dal 15/10/2026:
@@ -526,6 +773,14 @@ def _reads_secret_flat(cmd: str) -> bool:
             if t.startswith(("--exclude=", "--exclude-from=", "--filter=")):
                 j += 1
                 continue
+            # rg: un glob negato esclude il file, non lo legge (`rg TODO --glob '!.env'`, #5263)
+            if binario in ("rg", "ag") and t in ("-g", "--glob", "--iglob") and j + 1 < len(parole) and \
+                    parole[j + 1].startswith("!"):
+                j += 2
+                continue
+            if binario in ("rg", "ag") and t.startswith(("--glob=!", "--iglob=!", "-g!")):
+                j += 1
+                continue
             args.append(t)
             j += 1
         # Interprete che esegue uno script: un argomento in prosa (con spazi, non un path) è testo
@@ -533,9 +788,12 @@ def _reads_secret_flat(cmd: str) -> bool:
         # chiedeva conferma, 21/10/2026). Il codice di -c/-e resta controllato per intero.
         if binario in _INTERPRETI and args and not args[0].startswith("-"):
             args = [a for a in args if not _PROSA_RE.match(a)]
+        # la destinazione di una copia si scrive (`cp .env.example .env`): si toglie prima dei file d'esempio
+        letti = args[:-1] if binario in ("cp", "install", "rsync", "scp") and len(args) >= 2 else args
+        args = [a for a in args if not _ESEMPIO.search(a) and not _pem_pubblico(a)]
+        letti = [a for a in letti if not _ESEMPIO.search(a) and not _pem_pubblico(a)]
         if any(SECRET_PATH_RE.search(a) for a in args):
             return True
-        letti = args[:-1] if binario in ("cp", "install", "rsync", "scp") and len(args) >= 2 else args
         if any(ENV_RE.search(a) for a in letti):
             return True
         if ricorsivo and any(_CARTELLA_SEGRETA.search(a.rstrip("/") if a not in ("/",) else a) for a in letti):
@@ -760,10 +1018,78 @@ def _log_di_job(p):
     return bool(p) and p.startswith(bgjobs + os.sep)
 
 
+def _sed_in_place(t):
+    """True per -i, -I, -ni e per --in-place con le sue abbreviazioni di GNU (--in, --in-pl, --in-place=.bak): GNU sed
+    accetta l'inizio non ambiguo di un'opzione lunga (revisione del 20/11/2026)."""
+    lunga = t.split("=", 1)[0]
+    return bool(re.match(r"^-[a-zA-Z]*[iI]", t)) or (len(lunga) >= 4 and "--in-place".startswith(lunga))
+
+
+def _claude_md_testuale(testo):
+    """La regex di riserva sui CLAUDE.md, senza i falsi del sed: se ogni `sed -i` del comando ha i suoi file
+    scritti per intero e nessuno si chiama CLAUDE.md, il nome che la regex vede sta nel testo del sed (20/11/2026:
+    `s/.../- Ultimo commit: 2a8289d - CLAUDE.md di Post Office/` su un handoff). Le redirezioni contano sempre."""
+    m = CLAUDE_MD_WRITE_RE.search(testo)
+    if not m:
+        return False
+    if re.search(r">>?\s*" + r"\S*CLAUDE\.md", testo):
+        return True
+    try:
+        sed = [(n, a) for n, a in _fc.programmi(testo) if n in ("sed", "gsed")]
+    except Exception:
+        return True
+    if not sed:
+        return True
+    for _n, args in sed:
+        if not any(_sed_in_place(t) for t in args):
+            continue
+        liberi, script, salta = [], False, False
+        for a in args:
+            if salta:
+                salta, script = False, True
+            elif a in ("-e", "--expression", "-f", "--file"):
+                salta = True
+            elif a.startswith("--expression=") or a.startswith("--file="):
+                script = True
+            elif a == "":
+                continue  # il suffisso vuoto di `sed -i ''` su macOS
+            elif not a.startswith("-") or a == "-":
+                liberi.append(a)
+        file = liberi if script else liberi[1:]
+        if not file:
+            return True
+        for f in file:
+            if re.search(r"[$`*?\[]", f) or os.path.basename(f).lower() == "claude.md":
+                return True
+    return False
+
+
+def _scratch_di_job(p):
+    """True per un percorso DENTRO la cartella temporanea di un job di Claude Code (~/.claude/jobs/<id>/tmp/<x>):
+    lo scratchpad della sessione, che Claude Code cancella col job. La cartella tmp, il job e jobs no.
+    Nei 7 giorni al 20/11/2026 erano 50 conferme su 355, tutte su file di lavoro della sessione (#attrito)."""
+    if not p:
+        return False
+    jobs = _piega(os.path.normpath(os.path.join(_home(), ".claude", "jobs")))
+    try:
+        parti = os.path.relpath(_piega(os.path.normpath(p)), jobs).replace("\\", "/").split("/")
+    except ValueError:
+        return False  # su Windows un altro disco
+    if len(parti) < 3 or parti[0] in ("", ".", "..") or re.search(r"[*?\[\]{}$]", parti[0]) or parti[1] != "tmp" or \
+            any(x in ("", ".", "..") for x in parti[2:]):
+        return False
+    # Con CLAUDE_JOB_DIR vale solo lo scratchpad di questo job: `rm -rf ~/.claude/jobs/*/tmp/*` toglieva quelli delle
+    # altre sessioni (revisione del 20/11/2026).
+    dir_job = (os.environ.get("CLAUDE_JOB_DIR") or "").strip()
+    if not dir_job:
+        return True
+    return _piega(os.path.basename(os.path.normpath(dir_job))) == parti[0]
+
+
 def _is_protected_tree(p):
     if not p:
         return False
-    if _log_di_job(p):
+    if _log_di_job(p) or _scratch_di_job(p):
         return False
     # Su macOS e Windows il disco ignora le maiuscole: `rm -rf ~/.CLAUDE` cancella la config, e su Windows
     # Git Bash scrive `/c/users/...` (review del 9/11/2026, #5096).
@@ -1016,16 +1342,36 @@ _ARCHIVI = frozenset(_fc._TAR | {"unzip", "patch", "gpatch", "git", "ditto", "rs
 _GIT_RESET_RISCRIVE = frozenset(("--hard", "--merge", "--keep"))
 
 
+_COMANDO = [""]  # il comando intero che la guardia sta giudicando, per le regole che guardano gli altri segmenti
+
+
+def _clonata(cartella):
+    """True se lo stesso comando crea `cartella` con un `git clone` e nessun `ln` la può far diventare un link
+    (revisione del 20/11/2026: `ln -s ~/.claude /tmp/lk && git -C /tmp/lk checkout HEAD~5 -- hooks/` passava)."""
+    comando = _COMANDO[0]
+    if not comando or re.search(r"(?:^|[\s;&|(])(?:\S*/)?ln(?=\s)", comando):
+        return False
+    nome = os.path.basename(os.path.normpath(cartella))
+    return bool(nome) and bool(re.search(r"\bgit\b[^;&|\n]*\bclone\b[^;&|\n]*" + re.escape(nome)
+                                         + r"(?=[\s\x22\x27;&|)]|$)", comando))
+
+
 def _git_riscritti(args, base):
     """(file, cartelle) che git riscrive nella cartella di lavoro senza una redirezione: i percorsi di
     `checkout -- F` e `restore F`, e la radice del repo per un checkout senza `--` e per `reset --hard`."""
-    i = 0
+    i, con_c = 0, None
     while i < len(args) and args[i].startswith("-"):
         if args[i] == "-C" and i + 1 < len(args):
             base = _resolve(args[i + 1], base) or base
+            con_c = base
         i += 2 if args[i] in _fc._GIT_CON_VALORE else 1
     sotto, resto = (args[i], args[i + 1:]) if i < len(args) else ("", [])
     file, cartelle = [], []
+    # `git -C <cartella che non c'è>` esce con un errore prima di toccare file. Prima del comando un clone che
+    # lo stesso comando crea non c'è ancora, e la radice saliva fino a ~/.claude (20/11/2026: `git clone … $R/a &&
+    # git -C $R/a checkout X` nello scratchpad chiedeva come una riscrittura della config).
+    if con_c is not None and "$" not in con_c and not os.path.exists(con_c) and _clonata(con_c):
+        return file, cartelle
     radice = _fc._radice_git(base) if base else None
     if sotto in ("checkout", "restore"):
         if "--" in resto:
@@ -1172,7 +1518,9 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
             if any(colpisce(t, base_cwd) for t in toks[1:] if not t.startswith("-")):
                 return True
         # sed -i e perl -i sul file
-        if sed and ((cmd0 in ("sed", "gsed") and "-i" in seg)
+        # L'opzione si legge dalle parole: "-i" dentro un nome (`regole-interfaccia.md`) non è -i (20/11/2026).
+        if sed and ((cmd0 in ("sed", "gsed") and any(_sed_in_place(t)
+                                                       for t in toks[1:]))
                     or (cmd0 == "perl" and any(re.match(r"^-[a-zA-Z]*i", t) for t in toks[1:]))):
             for t in toks[1:]:
                 if not t.startswith("-") and colpisce(t, base_cwd):
@@ -1449,7 +1797,7 @@ def _temporaneo(p):
 
 def _rigenerabile(p):
     """True se il path è una cartella che si ricrea da sola, o sta dentro una di esse."""
-    if _log_di_job(p):
+    if _log_di_job(p) or _scratch_di_job(p):
         return True
     parti = p.replace("\\", "/").split("/")
     return any(parte in RIGENERABILI for parte in parti)
@@ -1518,6 +1866,98 @@ def _cancella_dentro(args) -> bool:
     return False
 
 
+_FIND_VUOTE_CON_VALORE = frozenset(("-mindepth", "-maxdepth", "-name", "-iname", "-path", "-ipath"))
+
+
+def _find_solo_vuote(args):
+    """True se l'espressione di find è solo `[filtri] -type d -empty [filtri] -delete`, con -delete per ultimo: toglie
+    soltanto cartelle vuote. `find X -delete -type d -empty` cancella tutto, perché find valuta da sinistra
+    (revisione del 20/11/2026): ogni parola fuori dall'elenco chiuso, o -delete non in fondo, chiede."""
+    args = [a for a in args if not re.match(r"^\d?>", a)]
+    if not args or args[-1] != "-delete" or args.count("-delete") != 1:
+        return False
+    i = 0
+    while i < len(args) and not args[i].startswith("-"):
+        i += 1  # i percorsi di partenza
+    espr, tipo_d, vuota = args[i:-1], False, False
+    j = 0
+    while j < len(espr):
+        a = espr[j]
+        if a == "-type" and j + 1 < len(espr) and espr[j + 1] == "d":
+            tipo_d, j = True, j + 2
+        elif a == "-empty":
+            vuota, j = True, j + 1
+        elif a == "-depth":
+            j += 1
+        elif a in _FIND_VUOTE_CON_VALORE and j + 1 < len(espr):
+            j += 2
+        else:
+            return False
+    return tipo_d and vuota
+
+
+# find che cancella solo ciò che si ricrea da solo (review del 10/11/2026, problema 12, #5263): file e cartelle
+# di cache con un nome di questo elenco chiuso. `rm -rf __pycache__` tace già per _rigenerabile.
+_FIND_NOMI_RIGENERABILI = frozenset((".DS_Store", "._*", "Thumbs.db", "*.pyc", "*.pyo", "__pycache__",
+                                     ".pytest_cache", ".mypy_cache", ".ruff_cache", ".parcel-cache", ".turbo"))
+_FIND_FILTRI = frozenset(("-mindepth", "-maxdepth"))
+_CWD = [None]  # la cartella del comando che la guardia sta giudicando
+
+
+def _find_rigenerabile(args, cwd=None) -> bool:
+    """True se il find cancella solo dentro cartelle temporanee o rigenerabili (`find /tmp/build-x -name '*.o'
+    -delete`), o solo file e cartelle di cache dell'elenco chiuso (`find . -name .DS_Store -delete`,
+    `find . -name __pycache__ -type d -exec rm -rf {} +`). Ogni altra forma resta da confermare."""
+    args = [a for a in args if not re.match(r"^\d?>", a)]
+    i = 0
+    while i < len(args) and not args[i].startswith(("-", "(", "!")):
+        i += 1
+    partenze, espr = args[:i] or ["."], args[i:]
+    cwd = cwd if cwd is not None else _CWD[0]
+    # A) tutte le partenze in una cartella temporanea o rigenerabile. Un cd nel comando sposta la cartella
+    # di partenza: allora valgono solo i percorsi assoluti.
+    cd = any(n in ("cd", "pushd", "popd") for n, _ in _forma().programmi(_COMANDO[0] or ""))
+    def dentro(t):
+        if cd and not t.startswith(("/", "~")):
+            return False
+        q = _resolve(t, os.path.normpath(cwd) if cwd else None)
+        if not q or _is_protected_tree(q):
+            return False
+        r = _reale(q)
+        return (_temporaneo(q) or _rigenerabile(q)) and (_temporaneo(r) or _rigenerabile(r)) and \
+            not _is_protected_tree(r)
+    if all(dentro(t) for t in partenze):
+        return True
+    # B) un solo -name dell'elenco chiuso, -type f o d, e in fondo -delete o `-exec rm [-rfv] {} +|;`
+    azione = None
+    if espr and espr[-1] == "-delete":
+        azione, espr = "delete", espr[:-1]
+    else:
+        for k, t in enumerate(espr):
+            if t in ("-exec", "-execdir"):
+                corpo = espr[k + 1:]
+                if len(corpo) >= 3 and corpo[-1] in (";", "+") and corpo[-2] == "{}" and \
+                        _fc._nome(corpo[0]) == "rm" and all(re.match(r"^-[rRfv]+$", o) for o in corpo[1:-2]):
+                    azione, espr = "rm", espr[:k]
+                break
+    if azione is None or "-delete" in espr:
+        return False
+    nomi, j = 0, 0
+    while j < len(espr):
+        a = espr[j]
+        if a in ("-name", "-iname") and j + 1 < len(espr) and espr[j + 1] in _FIND_NOMI_RIGENERABILI:
+            nomi, j = nomi + 1, j + 2
+        elif a == "-type" and j + 1 < len(espr) and espr[j + 1] in ("f", "d"):
+            j += 2
+        elif a in _FIND_FILTRI and j + 1 < len(espr) and espr[j + 1].isdigit():
+            j += 2
+        elif a == "-depth":
+            j += 1
+        else:
+            return False
+    return nomi == 1
+
+
 def _find_delete(command):
     """`find … -delete`, `find … -exec rm|unlink|shred` (anche dentro `-exec sh -c '…'`) e
     `find … | xargs rm` cancellano quanto un rm ricorsivo."""
@@ -1527,10 +1967,13 @@ def _find_delete(command):
         if nome != "find":
             continue
         trova = True
-        if "-delete" in args:
+        # `find X -type d -empty -delete` toglie solo cartelle vuote: non perde niente (20/11/2026). Con -o, -or,
+        # `,`, `!`, -not o le parentesi -delete può valere per un altro ramo dell'espressione: chiede.
+        if "-delete" in args and not _find_solo_vuote(args) and not _find_rigenerabile(args):
             return True
         for i, t in enumerate(args[:-1]):
-            if t in ("-exec", "-execdir", "-ok", "-okdir") and _cancella_dentro(args[i + 1:]):
+            if t in ("-exec", "-execdir", "-ok", "-okdir") and _cancella_dentro(args[i + 1:]) and \
+                    not _find_rigenerabile(args):
                 return True
     if trova:
         for nome, args in programmi:
@@ -1740,6 +2183,17 @@ def _registro_percorso(sessione):
     return os.path.join(_home(), ".claude", "session-env", f"commit-{sessione}.json")
 
 
+def _registro_job():
+    """Il registro del job in background, che resta lo stesso dopo /clear: una rotazione (/fine --rotazione, poi
+    /clear e /inizio) apre una sessione nuova nello stesso job, e il suo --amend sul commit della sessione di
+    prima chiedeva come su quello di un'altra sessione (20/11/2026, 7 conferme in 7 giorni). Lo legge
+    CLAUDE_JOB_DIR, che Claude Code dà ai soli job in background: senza, None."""
+    job = os.path.basename(os.path.normpath(os.environ.get("CLAUDE_JOB_DIR", "") or ""))
+    if not job or not _SESSIONE_RE.match(job):
+        return None
+    return os.path.join(_home(), ".claude", "session-env", f"commit-job-{job}.json")
+
+
 def _registro_leggi(percorso):
     try:
         with open(percorso, encoding="utf-8") as f:
@@ -1782,20 +2236,21 @@ def _testa(repo):
 
 def registra_commit(data) -> int:
     """Modo `dopo`: scrive nel registro della sessione l'HEAD dei repository dove il comando ha fatto un commit."""
-    percorso = _registro_percorso(data.get("session_id"))
     command = (data.get("tool_input") or {}).get("command", "")
-    if not percorso or not isinstance(command, str) or "commit" not in command:
+    if not isinstance(command, str) or "commit" not in command:
         return 0
-    registro = None
+    teste = []
     for repo, _amend in _commit_del_comando(command, data.get("cwd") or _home()):
         testa = _testa(repo) if repo else None
-        if not testa:
+        if testa:
+            teste.append(testa)
+    for percorso in (_registro_percorso(data.get("session_id")), _registro_job()):
+        if not percorso or not teste:
             continue
-        if registro is None:
-            registro = _registro_leggi(percorso)
-        voci = [s for s in registro.get(testa[0], []) if isinstance(s, str) and s != testa[1]]
-        registro[testa[0]] = (voci + [testa[1]])[-_REGISTRO_MAX:]
-    if registro is not None:
+        registro = _registro_leggi(percorso)
+        for radice, sha in teste:
+            voci = [s for s in registro.get(radice, []) if isinstance(s, str) and s != sha]
+            registro[radice] = (voci + [sha])[-_REGISTRO_MAX:]
         os.makedirs(os.path.dirname(percorso), exist_ok=True)
         provvisorio = f"{percorso}.{os.getpid()}"
         with open(provvisorio, "w", encoding="utf-8") as f:
@@ -1812,6 +2267,11 @@ def _amend_altrui(command, cwd, sessione):
         return None
     percorso = _registro_percorso(sessione)
     registro = _registro_leggi(percorso) if percorso else {}
+    # Le sessioni dello stesso job in background (le rotazioni dopo /clear) contano come questa.
+    job = _registro_job()
+    for radice, voci in (_registro_leggi(job) if job else {}).items():
+        if isinstance(voci, list):
+            registro[radice] = list(registro.get(radice, [])) + voci
     fatti = set()
     for repo, amend in commit:
         if not amend:
@@ -1847,6 +2307,24 @@ def _rmtree_bersagli(command):
     testo = _hd.togli(command, lambda h: h.quotato and h.inerte())
     if "rmtree" not in testo or "shutil" not in testo or not _PYTHON_RE.search(testo):
         return []
+    # Il corpo python di un heredoc quotato si legge senza commenti e senza le stringhe con spazi: un rmtree
+    # dentro il testo che uno script sostituisce in un file non cancella niente (20/11/2026). Le stringhe senza
+    # spazi (i percorsi) restano, e il codice che il tokenizer non legge resta intero.
+    corpi = []
+
+    def _python(h):
+        # exec, eval, compile e __import__ eseguono il testo di una stringa: lì il corpo resta intero (revisione 20/11).
+        if h.quotato and h.consumatore in _hd._PYTHON and \
+                not re.search(r"\b(?:exec|eval|compile)\s*\(|__import__|\bimportlib\b|\bgetattr\b", "\n".join(h.corpo)):
+            corpi.append(_hd.python_senza("\n".join(h.corpo), _hd.senza_prosa))
+            return True
+        return False
+    segno = "\x00CORPO-PYTHON\x00"
+    ridotto = _hd.togli(testo, _python, segnaposto=segno)
+    if corpi and ridotto.count(segno) == len(corpi) and all(c is not None for c in corpi):
+        for c in corpi:
+            ridotto = ridotto.replace(segno, c, 1)
+        testo = ridotto
     # `from shutil import rmtree as r` e poi `r(...)`: l'alias cancella come rmtree (20/10/2026, #3525).
     for alias in _RMTREE_ALIAS_RE.findall(testo):
         testo += "\n" + re.sub(r"\b" + re.escape(alias) + r"\s*\(", "rmtree(", testo)
@@ -2353,6 +2831,123 @@ def _push_forzato(command):
     return None
 
 
+_PRINCIPALI = ("HEAD", "main", "master", "dev")
+
+
+def _push_cancella_unito(command, cwd):
+    """True se ogni `git push` che riscrive rami del comando cancella soltanto (`--delete`, `-d`, `:ramo`) rami il
+    cui ultimo commit sul remoto, letto con ls-remote, sta già in main, master, dev o HEAD dello stesso remoto.
+    Così non si perde niente. Nei 7 giorni al 20/11/2026 erano 23 conferme su 355, tutte su rami di worktree già
+    uniti. Un flag che forza, --mirror, --prune, un `+`, un ramo che non si legge o un repo ignoto: False."""
+    # Un push dietro xargs, sh -c o eval non lo vede nessuna delle due letture: con lui il comando chiede (revisione 20/11).
+    if re.search(r"\b(?:xargs|eval|sh\s+-c|bash\s+-c|zsh\s+-c|parallel)\b[^\n]*\bpush\b", command):
+        return False
+    trovati = False
+    for nome, args, cds in _programmi_con_cd(command):
+        if nome != "git":
+            continue
+        cartella, sotto, resto = _git_parti(args)
+        if sotto != "push":
+            continue
+        liberi, salta, cancella = [], False, False
+        for a in _senza_redirezioni(resto):
+            if salta:
+                salta = False
+            elif a in ("-o", "--push-option"):
+                salta = True
+            elif a.startswith("--"):
+                lunga = a.split("=", 1)[0]
+                if len(lunga) >= 4 and "--delete".startswith(lunga):
+                    cancella = True
+                elif len(lunga) >= 4 and any(o.startswith(lunga) for o in _PUSH_RISCRIVE):
+                    return False
+                elif lunga in ("--repo", "--receive-pack", "--exec") or lunga.startswith("--recurse"):
+                    return False
+            elif a.startswith("-") and len(a) > 1:
+                if "f" in a[1:]:
+                    return False
+                cancella = cancella or "d" in a[1:]
+            else:
+                liberi.append(a)
+        if len(liberi) < 2:
+            if cancella:
+                return False
+            continue
+        remoto, refspec = liberi[0], liberi[1:]
+        if not cancella and not any(r.startswith(":") for r in refspec):
+            if any(r.startswith("+") for r in refspec):
+                return False
+            continue
+        rami = []
+        for r in refspec:
+            if r.startswith("+") or (":" in r and not r.startswith(":")):
+                return False
+            r = r[1:] if r.startswith(":") else r
+            r = r[len("refs/heads/"):] if r.startswith("refs/heads/") else r
+            if not re.fullmatch(r"[\w][\w./-]*", r) or ".." in r or r in _PRINCIPALI:
+                return False
+            rami.append(r)
+        if not re.fullmatch(r"[\w][\w.-]*", remoto):
+            return False
+        basi = _basi_dopo_cd(cds, cwd)
+        if len(basi) != 1 or basi[0] is None:
+            return False
+        repo = _resolve(cartella, basi[0]) if cartella else basi[0]
+        if not repo or not os.path.isdir(repo):
+            return False
+        principali = [x for x in (_git_esegui(repo, "rev-parse", "--verify", "-q", f"refs/remotes/{remoto}/{p}")
+                                  for p in _PRINCIPALI) if x and x.strip()]
+        if not principali:
+            return False
+        for ramo in rami:
+            vero = _git_esegui(repo, "ls-remote", "--heads", remoto, f"refs/heads/{ramo}")
+            sha = (vero or "").split()[:1]
+            if not sha or not re.fullmatch(r"[0-9a-f]{40}", sha[0]):
+                return False
+            if not any(_git_esegui(repo, "merge-base", "--is-ancestor", sha[0], p.strip()) is not None
+                       for p in principali):
+                return False
+        trovati = True
+    return trovati
+
+
+# I soli programmi che possono stare in una variabile davanti a `rm`: un elenco di ammessi, non di pericolosi, perché
+# un elenco di pericolosi resta sempre incompleto (tcsh, awk, caffeinate, gtimeout, gxargs: revisione del 20/11/2026).
+_VARIABILE_AMMESSI = frozenset(("claude",))
+
+
+def _variabile_innocua(nome, command):
+    """True se `$X` (o `${X}`) è assegnata una volta sola nel comando, a un valore letterale di una parola, e
+    quel programma non cancella né ne lancia un altro: `C=~/.local/bin/claude; $C rm <id>` toglie una sessione."""
+    m = re.fullmatch(r"\$\{?([A-Za-z_]\w*)\}?", nome)
+    if not m:
+        return False
+    # Sul Mac e su Windows il nome del programma arriva in minuscolo: la variabile si ritrova senza maiuscole, ed
+    # è innocua solo se una sola variabile del comando ha quel nome.
+    try:
+        assegnate = _fc._assegnazioni(command)
+    except Exception:
+        return False
+    nomi = [k for k in assegnate if k.lower() == m.group(1).lower()]
+    if len(nomi) != 1 or not re.search(r"\$\{?" + re.escape(nomi[0]) + r"(?!\w)", command):
+        return False
+    var = nomi[0]
+    if len(re.findall(r"(?:^|[\s;&|(])" + re.escape(var) + r"=", command, re.IGNORECASE)) != 1 or \
+            re.search(r"\b(?:export|declare|typeset|local|readonly|read|alias|mapfile|readarray|let|unset|eval|"
+                      r"printf\s+-v|getopts)\b[^;&|\n]*\b" + re.escape(var) + r"\b", command):
+        return False
+    valore = assegnate.get(var)
+    if not valore:
+        return False
+    valore = valore.strip("'\"")
+    if not valore or re.search(r"[\s$`()<>;&|*?\[\]{}\\]", valore):
+        return False
+    if os.path.islink(os.path.expanduser(valore)) and \
+            _fc._nome(os.path.basename(os.path.realpath(os.path.expanduser(valore)))) not in _VARIABILE_AMMESSI:
+        return False  # un link chiamato claude che porta a rm
+    return _fc._nome(os.path.basename(valore)) in _VARIABILE_AMMESSI
+
+
 def _rm_segments(command):
     """(bersagli, catena dei cd) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
@@ -2380,7 +2975,10 @@ def _rm_segments(command):
             for bersagli in _powershell_rimuove(args):
                 out.append((bersagli, cwd_decl))
             continue
-        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI):
+        # La barra conta come inizio del nome: `R=/bin/rm; $R -rf x` passava (20/11/2026).
+        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(/])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI):
+            if _variabile_innocua(nome, command):
+                continue  # `C=~/.local/bin/claude; $C rm <id>`: il programma è claude, non rm (20/11/2026)
             out.append((None, cwd_decl))  # `RM='rm -rf'; $RM x`: il programma è una variabile (finding 2)
             continue
         if nome == "xargs" and "rm" in [forma._nome(a) for a in args]:
@@ -2408,6 +3006,10 @@ def _rm_segments(command):
                         recursive = True
                 elif tk != "--":
                     targets.append(tk)
+            # `find … -exec rm -rf {} +`: il bersaglio è ciò che find trova, e lo giudica la regola di find
+            # (_find_delete), che conosce le cache e le cartelle temporanee (#5263).
+            if recursive and targets == ["{}"] and any(n == "find" for n, _ in forma.programmi(command)):
+                continue
             if recursive:
                 out.append((targets, cwd_decl))
     return out
@@ -2494,6 +3096,8 @@ def main() -> int:
     testo = _testo_shell(command)
     _ASSEGNATE.clear()
     _ASSEGNATE.update(_assegnazioni(command))
+    _COMANDO[0] = command
+    _CWD[0] = cwd
 
     # 1) Blocco duro
     if not _inert_reference(command):
@@ -2515,7 +3119,8 @@ def main() -> int:
         except Exception:
             pass
         for pattern, why, testi in regole:
-            if any(re.search(pattern, t, re.IGNORECASE) for t in testi):
+            if any(re.search(pattern, t, re.IGNORECASE) and
+                   not ((pattern, why) in DANGEROUS_ISTRUZIONE and _scarico_innocuo(t)) for t in testi):
                 sys.stderr.write(
                     f"Bloccato: questo comando sembra {why}. "
                     "Non proporre all'utente di eseguirlo a mano: per installare un programma "
@@ -2575,7 +3180,7 @@ def main() -> int:
     risolto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p))
     if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
             CLAUDE_MD_OPEN_RE.search(dritto) or "claude-md" in windows or \
-            (CLAUDE_MD_WRITE_RE.search(dritto) and not risolto):
+            (_claude_md_testuale(dritto) and not risolto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo. Per una modifica sola "
@@ -2615,7 +3220,11 @@ def main() -> int:
         )
 
     # 3) Lettura di file segreti via shell -> ask (per-segmento, alta precisione)
-    if _reads_secret(command) or "segreto" in windows:
+    try:
+        risolti = _segreti_risolti(command, cwd) or bool(_SECURITY_SEGRETO.search(testo))
+    except Exception:
+        risolti = False
+    if _reads_secret(command) or "segreto" in windows or risolti:
         return _ask("segreto",
             "Lettura di un file segreto via shell (chiave privata, credenziali, "
             "~/.ssh, ~/.aws...). Conferma solo se serve davvero: il contenuto "
@@ -2750,6 +3359,12 @@ def main() -> int:
     except Exception:
         forzato = "git push che la guardia non riesce a leggere" if re.search(
             r"\bpush\b[^\n;&|]*(\s-[a-z]*[fd]|--(forc|mir|del|pru)|\s[+:])", command) else None
+    if forzato:
+        try:
+            if _push_cancella_unito(command, cwd):
+                forzato = None
+        except Exception:
+            pass
     if forzato:
         # Il nome di regola è quello del push riscritto: un nome nuovo va anche in server/logica.js, e il
         # Worker si pubblica col lotto del server (L3), non con questo.

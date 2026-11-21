@@ -226,8 +226,23 @@ def sicura(testo: str, scanner) -> str:
     return una if len(una) <= MAX_RICHIESTA else una[:MAX_RICHIESTA - 1].rstrip() + "…"
 
 
+def correzioni_della_sessione(sid: str, scanner) -> list:
+    """Le correzioni della sessione (bin/correzioni.py), una riga l'una con la skill se c'è. Finiscono con la
+    sessione: senza /fine nessuno decide dove vanno, e l'handoff automatico è l'unico posto che le tiene."""
+    if not re.match(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$", sid):
+        return []
+    modulo = carica("correzioni", QUI / "correzioni.py")
+    if modulo is None or not hasattr(modulo, "leggi"):
+        return []
+    fuori = []
+    for voce in modulo.leggi(sid):
+        skill = modulo.skill_di(voce) if hasattr(modulo, "skill_di") else ""
+        fuori.append(sicura(voce["testo"], scanner) + (f" [skill: {skill}]" if skill else ""))
+    return fuori
+
+
 def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richieste: list, file: list,
-            aperti: list) -> str:
+            aperti: list, correzioni: list = ()) -> str:
     branch = git(cartella, "rev-parse", "--abbrev-ref", "HEAD") if cartella else ""
     commit = git(cartella, "log", "-1", "--format=%h - %s") if cartella else ""
     testa = [f"# Session Handoff - {quando:%Y-%m-%d %H:%M}", "## Progetto",
@@ -252,6 +267,10 @@ def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richie
             out.append(f"- … e altri {len(file) - MAX_FILE} file")
     if aperti:
         out += ["## Lavoro aperto nella sessione"] + [f"- {a}" for a in aperti]
+    if correzioni:
+        out += ["## Correzioni",
+                "Dette dalla persona nella sessione. Il prossimo /fine (FASE 8) decide dove vanno: nella skill "
+                "fra parentesi quadre, nel CLAUDE.md o in memoria."] + [f"{n}. {c}" for n, c in enumerate(correzioni, 1)]
     out += ["## Task Pendenti",
             "Nessun task pendente nuovo: il salvataggio automatico non crea todo. I todo aperti restano "
             "nell'archivio, e il prossimo /fine li riporta qui."]
@@ -369,7 +388,8 @@ def main(argv: list) -> int:
     adesso = dt.datetime.now().replace(second=0, microsecond=0)
     cartella_h = radice_orsa() / "data" / "handoffs" / s
     percorso = gia if gia is not None else nome_libero(cartella_h, adesso)
-    scrivi(percorso, componi(s, cartella, sid, adesso, richieste, file, letto["aperti"]))
+    scrivi(percorso, componi(s, cartella, sid, adesso, richieste, file, letto["aperti"],
+                             correzioni_della_sessione(sid, scanner)))
     if gia is None:  # M7 della memoria: un evento per sessione salvata, non uno per giro della stessa
         telemetria = carica("telemetria", QUI / "telemetria.py")
         if telemetria is not None and hasattr(telemetria, "registra"):

@@ -42,9 +42,15 @@ I primi due sono le fondamenta, il 3 e il 4 il lavoro di ogni giorno, il 5 e il 
 
 ## Estendere una skill senza copiarla
 
-Se una persona vuole cambiare una skill di Arturo, scrive `~/.claude/personale/<skill>.md`. Un hook lo aggiunge al contesto ogni volta che la skill parte, anche quando la chiama il modello. L'estensione aggiunge e precisa, ma freni e guardie di Arturo vincono sempre.
+Se una persona vuole cambiare una skill di Arturo, scrive `~/.claude/personale/<skill>.md`. Un hook lo aggiunge al contesto ogni volta che la skill parte: `inject-now.sh` quando la persona scrive `/<nome>`, `hooks/estensione-skill.py` quando la sceglie il modello col tool Skill (banco `tests/test_ruoli_2026_11_20.py`). Una skill che legge da sola il suo file personale, come `humanizer`, non lo riceve due volte. L'estensione aggiunge e precisa, ma freni e guardie di Arturo vincono sempre.
 
 Se una persona vuole sostituire una skill, scrive una skill con lo stesso nome nell'Orsa. Il nome senza prefisso va alla sua, quella di Arturo resta raggiungibile come `arturo:<nome>`. La sostituzione si dichiara in `personale/sostituzioni.txt`: un nome per riga (skill, comando o `name:` di uno stile), col motivo dopo `#`. `arturo personale omonimi` e `system-audit` nominano ogni omonimo non dichiarato e ogni riga che non ha più un omonimo (banco `tests/test_sostituzioni_2026_11_05.py`, SO01-SO05). Senza dichiarazione, una skill nuova di Arturo con un nome che la persona usa già non si vedrebbe mai.
+
+## Le skill di ruolo
+
+Ogni ruolo di un assistente completo è una skill, senza personaggi: smistare quello che arriva (`monitor`), la manutenzione (`system-audit`), la chiusura (`fine`), e poi posta, agenda, archivio, osservatore. Una skill dichiara il suo ruolo con una riga `ruolo:` nel frontmatter. All'avvio `bin/ruoli.py` raccoglie i ruoli delle skill di Arturo e dell'Orsa nella riga `RUOLI`, così la sessione sa quale skill chiamare anche quando la persona non la nomina. Una skill dell'Orsa con lo stesso nome eredita il ruolo di quella di Arturo; con `disable-model-invocation: true` esce dalla mappa. Una skill propria della persona entra con il suo `ruolo:`.
+
+Prima di rilasciare una skill di ruolo, il banco `tests/scelta_skill.py` la prova sul modello vero: su 30 richieste di prova, scritte in `tests/scelta-skill/<skill>.json`, la skill giusta va scelta, o lasciata, almeno 27 volte. Il banco costa una sessione per richiesta e non sta nel gate.
 
 ## Cambiare l'aspetto
 
@@ -75,6 +81,14 @@ file.
 ## Perché un plugin
 
 Un plugin di Claude Code vive in `~/.claude/plugins/`, fuori dai file della persona. L'aggiornamento sostituisce la sua cartella e non tocca l'Orsa: la separazione la garantisce Claude Code. Un plugin però non porta permessi, `autoMode`, `env`, `statusLine`, lo stile di base e il `CLAUDE.md`. Queste voci le scrive `/setup` nei settings della persona, con il file di blocco; il metodo arriva con l'hook di avvio. Pacchetto e prove: [`prove-plugin.md`](prove-plugin.md).
+
+## Nei thread cloud dei progetti di Claude Code
+
+I progetti di Claude Code (in beta) aprono un thread per compito, di solito in una sessione cloud. Un thread
+carica il `CLAUDE.md` della radice del repository, ma non skill, `.mcp.json` e `.claude/settings.json`
+(documentazione di Claude Code, claude-projects). Lì le guardie, le skill, lo stile e il metodo di Arturo non
+girano: valgono solo le regole del `CLAUDE.md` del repository e le impostazioni del progetto. Per un lavoro
+con invii, cancellazioni o segreti usa una sessione locale con Arturo.
 
 ## Dove sta il codice
 

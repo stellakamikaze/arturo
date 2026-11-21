@@ -38,6 +38,7 @@ VERBI = (
     ("progetto", "il progetto della cartella in cui sei: quello che usa aggiungi"),
     ("mostra ID", "un todo con note e storia"),
     ('aggiungi "titolo" [--dopo N]', "un todo nuovo; con --dopo aspetta il todo N (anche N,M)"),
+    ("chiavi [--json]", "le impronte che /monitor ha dato ai todo, per non creare doppioni"),
     ("modifica ID", "cambia uno o più campi"),
     ("inizia ID", "lo segna in corso"),
     ("fatto ID", "lo chiude"),
@@ -204,6 +205,7 @@ def parser() -> argparse.ArgumentParser:
             c.add_argument("titolo")
             c.add_argument("--note")
             c.add_argument("--dopo", default="")
+            c.add_argument("--chiave")
         else:
             c.add_argument("id")
             c.add_argument("--titolo")
@@ -221,6 +223,8 @@ def parser() -> argparse.ArgumentParser:
         c.add_argument("id")
         c.add_argument("motivo", nargs="?", default="")
         c.add_argument("--annullo", action="store_true")
+    c = comando("chiavi")
+    c.add_argument("--json", action="store_true")
     c = comando("ripristina")
     c.add_argument("id")
     c.add_argument("--motivo", default=None)
@@ -432,12 +436,27 @@ def todo(argv: list) -> int:
     if cmd == "aggiungi":
         campi = campi_da(args)
         campi.setdefault("progetto", progetto_corrente())
-        t = ts.aggiungi(campi, dopo=[n for n in re.split(r"[,\s]+", args.dopo) if n])
+        try:
+            t = ts.aggiungi(campi, dopo=[n for n in re.split(r"[,\s]+", args.dopo) if n], chiave=args.chiave)
+        except ts.GiaPresente as doppio:
+            # Exit 0: il todo c'è, ed è quello che chi scrive voleva. Il numero serve a /monitor per la sua dedup.
+            print(json.dumps(dict(ts.esporta(doppio.todo, todo_map), gia_presente=True), ensure_ascii=False)
+                  if args.json else f"Già presente #{doppio.todo['id']}: {doppio.todo['titolo']}")
+            return 0
         if args.note:
             t = ts.registra(t["id"], "nota", {"testo": args.note})
         print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
               else f"Aggiunto #{t['id']}: {t['titolo']} ({t['progetto']})"
               + (f", scadenza {t['scadenza']}" if t.get("scadenza") else ""))
+        return 0
+
+    if cmd == "chiavi":
+        righe = ts.chiavi(todo_map)
+        if args.json:
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "chiavi": righe}, ensure_ascii=False))
+        else:
+            for r in righe:
+                print(f"{r['chiave']}\t#{r['id']}\t{r['stato']}")
         return 0
 
     if cmd == "modifica":
@@ -540,7 +559,7 @@ COMANDI = {
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "segnalazioni": (segnalazioni, "le segnalazioni partono da sole o solo dopo il tuo sì: automatiche, manuali; senza parole dice il modo"),
     "contatto": ("contatto", "il nome e l'email che dai agli sviluppatori di Arturo per ricontattarti sulle segnalazioni: imposta, togli, no"),
-    "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
+    "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia, dimentica"),
     "scoperta": ("scoperta", "le automazioni, sintesi e pagine che Arturo ti propone dai file che cambi e dallo storico: stato, analizza, mappa, rispondi, annulla, escludi"),
     "correzione": ("correzioni", "le correzioni della persona, scritte una volta e valide per tutta la sessione: aggiungi, elenco, togli"),
     "aspetto": ("aspetto", "i colori di /dafare e della scheda e i pezzi della barra che scegli tu, in personale/aspetto.json: mostra, controlla, esempio"),
@@ -556,7 +575,8 @@ COMANDI = {
     "ripartenza": ("ripartenza", "la ripartenza di /inizio come dati, per la checklist di Volta: scrivi (JSON su stdin)"),
     "progetti": ("progetti", "tutti i progetti che segui, letti dalla memoria che c'è già: cartelle, handoff, stato, fonte dei task (Volta); rinomina VECCHIO NUOVO"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
-    "impostazioni": ("impostazioni", "col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica, adotta"),
+    "sandbox": ("sandbox", "la sandbox di Claude Code, spenta di default: i comandi leggono e scrivono solo dove serve, le chiavi restano fuori: stato, accendi, spegni"),
+    "impostazioni": ("impostazioni","col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica, adotta"),
     "migra": ("migra", "porta Arturo dal clone in ~/.claude al plugin: --prova (il rapporto), la migrazione, indietro"),
     "aggiornamenti": ("aggiornamenti", "Arturo si aggiorna da solo alla chiusura, solo coi rilasci firmati: stato, controlla, applica, manuali, automatici"),
 }

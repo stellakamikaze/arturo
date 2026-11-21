@@ -8,7 +8,10 @@ all'avvio di un subagente (subagent-memory-context.py).
 
 Cosa è una correzione lo decide Claude: questo modulo conserva e ristampa, non riconosce niente.
 
-  aggiungi "TESTO"   scrive la correzione, in una riga: la regola da seguire, non la cronaca
+  aggiungi "TESTO"   scrive la correzione, in una riga: la regola da seguire, non la cronaca. Se la
+                     sessione ha aperto una skill della persona, la voce porta il suo nome (campo
+                     `skill`, scritto da hooks/estensione-skill.py in <sessione>.skill): /fine sa
+                     in quale skill portarla (21/11/2026, #6277)
   elenco             le correzioni di questa sessione, numerate (anche senza argomenti)
   togli N            toglie la correzione N, se la persona la ritira o non vale più
   blocco             per gli hook: legge il JSON dell'hook su stdin e stampa il blocco, o niente
@@ -35,6 +38,7 @@ MASSIMO = 20         # correzioni tenute per sessione: oltre, esce la più vecch
 LUNGHEZZA = 300      # caratteri di una correzione
 GIORNI = 14          # dopo, il file di una sessione si toglie
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+NOME_SKILL = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 AIUTO = """arturo correzione: le correzioni della persona, valide per tutta la sessione di Claude Code.
 
@@ -69,6 +73,25 @@ def leggi(sessione: str) -> list:
         if isinstance(voci, list) else []
 
 
+def skill_in_uso(sessione: str) -> str:
+    """L'ultima skill della persona aperta nella sessione, o "". La scrive hooks/estensione-skill.py."""
+    try:
+        nome = (cartella() / f"{sessione}.skill").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return nome if NOME_SKILL.match(nome) else ""
+
+
+def skill_di(voce: dict) -> str:
+    nome = voce.get("skill")
+    return nome if isinstance(nome, str) and NOME_SKILL.match(nome) else ""
+
+
+def riga(numero: int, voce: dict) -> str:
+    """Una correzione numerata, con la skill a cui appartiene se c'è."""
+    return f"{numero}. {voce['testo']}" + (f" [skill: {skill_di(voce)}]" if skill_di(voce) else "")
+
+
 def scrivi(sessione: str, voci: list) -> None:
     f = file_di(sessione)
     f.parent.mkdir(parents=True, exist_ok=True)
@@ -76,7 +99,7 @@ def scrivi(sessione: str, voci: list) -> None:
     provvisorio.write_text(json.dumps(voci, ensure_ascii=False, indent=1), encoding="utf-8")
     os.replace(provvisorio, f)
     limite = time.time() - GIORNI * 86400
-    for vecchio in f.parent.glob("*.json"):
+    for vecchio in list(f.parent.glob("*.json")) + list(f.parent.glob("*.skill")):
         try:
             if vecchio != f and vecchio.stat().st_mtime < limite:
                 vecchio.unlink()
@@ -87,7 +110,7 @@ def scrivi(sessione: str, voci: list) -> None:
 def blocco(voci: list) -> str:
     if not voci:
         return ""
-    righe = [f"{i}. {v['testo']}" for i, v in enumerate(voci, 1)]
+    righe = [riga(i, v) for i, v in enumerate(voci, 1)]
     return ("CORREZIONI DI QUESTA SESSIONE (la persona le ha già dette: valgono fino alla fine, "
             "controllale prima di rispondere e prima di ogni azione che le tocca):\n" + "\n".join(righe))
 
@@ -134,10 +157,14 @@ def main(argv: list) -> int:
         if any(v["testo"].casefold() == testo.casefold() for v in voci):
             print("Già scritta: " + testo)
             return 0
-        voci.append({"testo": testo, "quando": time.strftime("%Y-%m-%dT%H:%M:%S")})
+        voce = {"testo": testo, "quando": time.strftime("%Y-%m-%dT%H:%M:%S")}
+        skill = skill_in_uso(sessione)
+        if skill:
+            voce["skill"] = skill
+        voci.append(voce)
         uscita = voci[:-MASSIMO] if len(voci) > MASSIMO else []
         scrivi(sessione, voci[-MASSIMO:])
-        print(f"Scritta, vale per tutta la sessione: {testo}")
+        print(f"Scritta, vale per tutta la sessione: {testo}" + (f" [skill: {skill}]" if skill else ""))
         for v in uscita:
             print(f"Tolta la più vecchia (si tengono {MASSIMO} correzioni): {v['testo']}")
         return 0

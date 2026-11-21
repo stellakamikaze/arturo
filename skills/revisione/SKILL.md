@@ -7,8 +7,8 @@ description: >-
   sull'anteprima. Per chi mantiene Arturo rivede prima le segnalazioni ricevute e aggiunge le funzioni nuove.
 when_to_use: >-
   Usa con /revisione, o quando la persona chiede "rivedi come uso Arturo", "cosa posso migliorare",
-  "cosa non funziona nel mio modo di lavorare con te", "fai una revisione generale". NON per la review del
-  codice di un progetto (/code-review), NON per controllare la config (/system-audit), NON per mandare
+  "cosa non funziona nel mio modo di lavorare con te", "fai una revisione generale". Non per la review del
+  codice di un progetto (/code-review), non per controllare la config (/system-audit), non per mandare
   un problema singolo (/segnala).
 argument-hint: "[giorni, di default 30]"
 ---
@@ -62,11 +62,13 @@ Quattro famiglie. Una proposta nasce da un fatto ripetuto in almeno due sessioni
 resta fuori, salvo un errore di Arturo con la causa certa.
 - **Ottimizzazione**: lo stesso lavoro chiesto più volte con le stesse spiegazioni, senza una skill che lo
   copra; una skill che non parte da sola e che la persona deve nominare; un passo che la persona fa a mano
-  col `!` perché Claude non ci riesce.
+  col `!` perché Claude non ci riesce. Per un lavoro ripetuto senza skill proponi `/creaskill`, con
+  `chi: tu`: le spiegazioni che la persona ha già dato nelle sessioni sono le risposte alle sue domande.
 - **Problema**: lo stesso attrito che torna (Esc, rifiuti, correzioni sulla stessa cosa, un blocco del
   classificatore su un lavoro legittimo), oppure un comando di Arturo che fallisce in più sessioni.
 - **Igiene**: le righe di `igiene` (note doppie o con link rotti, note "scrivi come X", omonimi, todo fermi
-  o scaduti, avvisi del system-audit, un CLAUDE.md troppo lungo).
+  o scaduti, avvisi del system-audit, un CLAUDE.md troppo lungo). La riga `skill tue` conta le skill
+  della persona senza "Finito quando": `/creaskill <nome>` aggiunge la lista con una domanda sola.
 - **Consolidamento**: due skill, due note o due regole che fanno la stessa cosa; una regola del CLAUDE.md
   che ripete il metodo di Arturo.
 
@@ -109,3 +111,13 @@ Scrivi le proposte anche in `$S/proposte.json`:
 
 Il registro resta su questo computer, fuori da ogni repository. L'estratto sta nello scratchpad e non parte
 mai. Cosa resta e cosa parte: `${CLAUDE_PLUGIN_ROOT}/docs/privacy.md`, sezione "La revisione".
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Ogni proposta nasce da almeno due sessioni diverse, salvo un errore di Arturo con causa certa?
+- Le proposte sono al massimo 7, ognuna con le prove (data e parole fra virgolette dritte) e chi agisce?
+- `proposte.json` è scritto nello schema?
+- Niente è partito con `segnala manda`, e l'invio è venuto solo dopo **mando**?
+- `revisione salva` è stato lanciato con l'esito di ogni proposta?

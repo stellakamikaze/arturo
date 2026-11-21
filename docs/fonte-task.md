@@ -17,6 +17,13 @@ Il file è tuo: gli aggiornamenti di Arturo non lo toccano. Per tornare all'arch
 La pagina `arturo web` legge solo l'archivio di Arturo: con una fonte esterna non parte e rimanda a `/dafare`.
 Arturo lo cerca sempre lì, nella tua cartella di casa, anche se lanci Arturo da un'altra cartella: un banco con una casa di prova non trova la tua fonte e non scrive sul tuo strumento.
 
+Il file lo legge un punto solo, `fonte_locale()` di `bin/todo_store.py`: lo usano `arturo todo`, `/inizio`,
+`/fine`, `arturo contesto`, `arturo sessione`, la pagina `arturo web` e il ponte dei task di `/monitor`.
+La cartella è quella di Claude Code: `CLAUDE_CONFIG_DIR` se l'hai impostata, altrimenti `~/.claude`.
+`ARTURO_HOME` e la cartella del codice di Arturo non contano. Se scrivi un file `fonte-task.local` accanto
+al codice, Arturo lo ignora. Il vecchio posto, `$ARTURO_CODICE/bin/fonte-task.local`, vale finché manca quello
+nuovo. Un file senza una riga `comando` vale come nessun file: i todo restano nell'archivio di Arturo.
+
 ## Cosa deve fare il tuo programma
 
 Riceve gli argomenti di `arturo todo` e risponde come lui. Quelli che `/inizio`, `/fine` e
@@ -35,6 +42,25 @@ Due verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Art
 |---|---|---|
 | `aggiungi "<titolo>" … --dopo N[,M]` | il todo nuovo aspetta i todo N e M | `#<numero>` del todo |
 | `stato [--progetto <slug>] ["<riga>"]` | senza riga legge, con la riga scrive a che punto è il progetto | la riga |
+| `aggiungi "<titolo>" … --chiave <hash>` | il todo nuovo porta l'impronta di /monitor (8 cifre esadecimali); se un todo l'ha già, anche chiuso, non ne crea un altro | `#<numero>` del todo nuovo, oppure `Già presente #<numero>` con exit 0 |
+| `chiavi --json` | le impronte dei todo, aperti e chiusi | `{"chiavi": [{"chiave": "1a2b3c4d", "id": 12, "stato": "fatto"}]}` |
+
+Senza `--chiave` il giro di /monitor riprova `aggiungi` senza impronta e tiene lui l'elenco dei todo
+che ha creato, in `~/.claude/data/monitor/creati.jsonl`: i doppioni restano fuori lo stesso, ma solo per
+i todo nati da /monitor.
+
+`arturo progetti unisci PERDENTE VINCITORE` (bin/unisci.py) usa un verbo facoltativo in più. Se il tuo
+programma non lo conosce, esce con 2 senza scrivere niente: Arturo unisce i suoi file e avvisa che i task
+del perdente restano dove sono.
+
+| Argomenti | Cosa fa | Uscita |
+|---|---|---|
+| `unisci <perdente> <vincitore> --prova --json` | dice cosa sposterebbe, senza scrivere | `{"task": 4, "riassunto": "…", "avvisi": []}` |
+| `unisci <perdente> <vincitore> --backup <cartella> --json` | copia in `<cartella>` quello che cambia, poi porta i task del perdente al vincitore e fa del perdente un nome alternativo del vincitore | lo stesso JSON, coi conti di quello che ha fatto |
+
+Se l'unione non si può fare (per esempio non sai dire quali task sono del perdente), esci con 2 e stampa
+`{"rifiuto": "<motivo>"}`: Arturo si ferma prima di scrivere e mostra il motivo. Con 3 Arturo non scrive
+niente.
 
 Il pannello `/dafare` usa altri verbi. Se il tuo programma non li conosce, il tasto risponde con il suo
 errore e non cambia niente.

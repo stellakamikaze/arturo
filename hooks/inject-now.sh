@@ -92,6 +92,13 @@ if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
   if [ -f "$HOME/.claude/personale/$COMANDO.md" ]; then
     echo "PERSONALE: /$COMANDO ha aggiunte della persona in ~/.claude/personale/$COMANDO.md. Leggile prima di cominciare e applicale insieme al comando, dove non contraddicono i Freni."
   fi
+  # --- La skill della persona in uso (21/11/2026, #6277) -----------------------------
+  # Una skill scritta a mano con /<nome> non passa dal tool Skill: estensione-skill.py --prompt segna
+  # la skill nella sessione (le correzioni prendono il suo nome) e stampa la sua lista "Finito quando".
+  # Su un comando di Arturo o su una skill senza la lista non stampa niente.
+  if [ -f "$_A/hooks/estensione-skill.py" ]; then
+    printf '%s' "$INPUT" | python3 "$_A/hooks/estensione-skill.py" --prompt 2>/dev/null || true
+  fi
 fi
 
 # --- Promemoria prompt-master (dal 9/9/2026) ----------------------------------
@@ -104,19 +111,20 @@ fi
 # L'8/11/2026 il testo è sceso da 903 a circa 470 byte: il resto sta già nel corpo della skill. Gli stop
 # sono esenti come nel corpo. La riga sulle correzioni esce solo dove c'è bin/correzioni.py: senza, il
 # comando `arturo correzione` non esiste e la riga prometteva una cosa che non succede.
+# Il 19/11/2026 il testo è passato da ordine a fatto, senza "REGOLA FISSA" in maiuscolo: la guida degli
+# hook di Claude Code chiede fatti, perché un testo imperativo iniettato può sembrare una prompt injection.
 # Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
 if [ -z "$COMANDO" ]; then
 cat <<'PROMEMORIA'
-REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, le prime righe sono PROMPT e
-BRIEF con la riga "Skill:". Se il corpo di prompt-master non è nel contesto (sessione nuova o dopo
-una compattazione), il primo tool è Skill(prompt-master), una volta per sessione. Esenti: domande,
-commenti, risposte a un menu, stop e comandi di controllo; lì consiglia una skill solo se c'entra
-davvero. Una correzione a lavoro iniziato è una riga, "Brief corretto: ...".
+BRIEF: in Arturo un lavoro, anche piccolo, si apre con PROMPT e BRIEF e la riga "Skill:". Il corpo di
+prompt-master si carica col tool Skill una volta per sessione, e di nuovo dopo una compattazione.
+Domande, commenti, risposte a un menu, stop e comandi di controllo non hanno brief: lì una skill si
+consiglia solo se c'entra davvero. Una correzione a lavoro iniziato è una riga, "Brief corretto: ...".
 PROMEMORIA
   if [ -f "$_A/bin/correzioni.py" ]; then
 cat <<'CORREZIONE'
-Se questo messaggio ti corregge (un errore, un modo di fare, una parola), prima di rifare scrivi la
-regola in una riga con: arturo correzione aggiungi "..." . Da lì vale per tutta la sessione.
+CORREZIONI: se la persona corregge un errore, un modo di fare o una parola, la regola si registra in
+una riga prima di rifare, con arturo correzione aggiungi "..." , e vale per tutta la sessione.
 CORREZIONE
   fi
 fi

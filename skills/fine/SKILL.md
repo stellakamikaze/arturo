@@ -1,12 +1,10 @@
 ---
 name: fine
 description: >-
-  Chiude la sessione in dieci fasi: inventario e destino dei file, validate e commit per pathspec, handoff
-  con i todo e chi agisce, gate, retention, CLAUDE.md, memoria, sync della config, una domanda per Arturo.
-  A sessione vuota fa solo il sync. /fine [--full] [salva] [--rotazione] [note], rilanciabile. Con
-  --rotazione è il fine leggero che Claude lancia a ogni passo chiuso, seguito dal tool ruota del mod
-  rotazione (/clear e /inizio da soli). Non apre sessioni (/inizio).
+  Chiude la sessione: destino dei file, commit, handoff coi todo e chi agisce, memoria e sync della config.
+  Si può rilanciare. Con --rotazione è il fine leggero a ogni passo chiuso, seguito dal tool ruota.
 argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
+ruolo: chiudere la sessione o un compito con commit, handoff e todo
 ---
 
 # Fine sessione
@@ -100,6 +98,8 @@ Il destino proposto è un punto di partenza, il giudizio è tuo. Ogni file finis
 - **archivia**: un documento fuori da un repository. Chiedi alla persona dove lo tiene e spostalo lì dopo il sì.
 - **resta**: un file pesante (video, immagini grandi) o creato online. L'handoff scrive dove sta.
 - **scarto**: un file temporaneo. La chiusura lo nomina, non lo cancella.
+- **skill**: uno script o un modello nato mentre era in uso una skill della persona. Se serve di nuovo, copialo
+  in `~/.claude/skills/<nome>/` e aggiungi la sua riga in `## Attrezzi` del `SKILL.md`. Se serve solo oggi, è scarto.
 
 Nessun handoff indica scratchpad o `/tmp` come posizione: si perdono al riavvio. Una bozza di email della
 sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
@@ -128,8 +128,10 @@ bash ${CLAUDE_PLUGIN_ROOT}/bin/identita-git.sh .
 
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
 - **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
-  progetto): leggi `${CLAUDE_PLUGIN_ROOT}/shared/fine-worktree.md` e seguilo prima dell'handoff. Riporta il lavoro
-  nel tree principale senza perdere i file ignorati e controlla che il ramo sia arrivato.
+  progetto, o da sola in background): leggi `${CLAUDE_PLUGIN_ROOT}/shared/fine-worktree.md` e seguilo prima
+  dell'handoff. Riporta il lavoro nel tree principale senza perdere i file ignorati e controlla che il
+  ramo sia arrivato. Se la sessione non può uscire dal worktree, il ramo resta segnato e lo riporta il
+  prossimo `/inizio`.
 
 ## FASE 4 · Handoff e todo
 
@@ -272,6 +274,11 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
   (`python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo memoria cerca "parole"`) e aggiorna quella. Un fatto, un file.
 - Vale in ogni sessione: una regola nel `CLAUDE.md` personale (opzionale A). Altrimenti muore con l'handoff.
   Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.
+- Vale per un lavoro che ha una skill della persona (`~/.claude/skills/<nome>/`): la correzione va in quella
+  skill, in "Cosa non fare" o in "Finito quando", e non in memoria. Mostra la riga e scrivila dopo il sì.
+  Una correzione che l'elenco chiude con `[skill: <nome>]` è nata mentre quella skill era in uso: la skill è
+  quella, salvo che la regola non riguardi il suo lavoro.
+  Una skill di Arturo non si tocca: lì la correzione parte con `/segnala`.
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
 stabile, password e chiavi, dati sensibili (salute, opinioni politiche, religione, dati di terzi che la

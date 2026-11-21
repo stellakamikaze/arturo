@@ -169,7 +169,8 @@ def simili(a: set, b: set) -> bool:
 
 
 def correzioni_recenti() -> List[tuple]:
-    """(sessione, testo) delle correzioni degli ultimi GIORNI_ORSA giorni (bin/correzioni.py)."""
+    """(sessione, testo, skill) delle correzioni degli ultimi GIORNI_ORSA giorni (bin/correzioni.py). La skill
+    è quella della persona aperta nella sessione quando la correzione è stata scritta, o ""."""
     # data/correzioni dal 18/11/2026 (segnalazione n. 88), cache/correzioni prima: si leggono tutte e due.
     limite = adesso() - GIORNI_ORSA * 86400
     fuori = []
@@ -189,14 +190,16 @@ def correzioni_recenti() -> List[tuple]:
             continue
         for v in voci if isinstance(voci, list) else []:
             if isinstance(v, dict) and isinstance(v.get("testo"), str) and v["testo"].strip():
-                fuori.append((f.stem, v["testo"].strip()))
+                skill = v.get("skill")
+                skill = skill if isinstance(skill, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", skill) else ""
+                fuori.append((f.stem, v["testo"].strip(), skill))
     return fuori
 
 
 def segnale_orsa(stato: dict) -> Optional[dict]:
     gia = [set(p) for p in stato["orsa"] if isinstance(p, list)]
     gruppi: List[Dict] = []
-    for sessione, testo in correzioni_recenti():
+    for sessione, testo, skill in correzioni_recenti():
         p = parole(testo)
         if not p or any(simili(p, g) for g in gia):
             continue
@@ -205,15 +208,30 @@ def segnale_orsa(stato: dict) -> Optional[dict]:
                 g["sessioni"].add(sessione)
                 break
         else:
-            gruppi.append({"parole": p, "sessioni": {sessione}, "testo": testo})
+            g = {"parole": p, "sessioni": {sessione}, "testo": testo, "skill": {}}
+            gruppi.append(g)
+        if skill:
+            g["skill"].setdefault(skill, set()).add(sessione)
     gruppi = [g for g in gruppi if len(g["sessioni"]) >= SOGLIA_ORSA]
     if not gruppi:
         return None
     g = max(gruppi, key=lambda x: len(x["sessioni"]))
     testo = " ".join(g["testo"].split())[:160]
+    perche = (f"in {len(g['sessioni'])} sessioni degli ultimi {GIORNI_ORSA} giorni hai dovuto "
+              f"correggere la stessa cosa: \"{testo}\"")
+    # La correzione è nata dentro una skill della persona nella maggior parte delle sessioni: la regola sta
+    # meglio lì che nel CLAUDE.md, dove peserebbe su ogni sessione (21/11/2026, #6277).
+    skill = max(g["skill"], key=lambda n: (len(g["skill"][n]), n)) if g["skill"] else ""
+    if skill and 2 * len(g["skill"][skill]) > len(g["sessioni"]) \
+            and (radice_orsa() / "skills" / skill / "SKILL.md").is_file():
+        return {"spazio": "orsa", "chiave": "orsa", "parole": sorted(g["parole"]),
+                "perche": perche + f", mentre usavi la tua skill {skill}",
+                "proposta": f"scrivere questa regola nella tua skill {skill} (~/.claude/skills/{skill}/SKILL.md), "
+                            "in \"Cosa non fare\" o in \"Finito quando\": lì vale ogni volta che quel lavoro torna, "
+                            "senza pesare sulle altre sessioni",
+                "con_il_si": f"scrivi la regola in una riga, mostrala e col suo sì aggiungila al SKILL.md di {skill}"}
     return {"spazio": "orsa", "chiave": "orsa", "parole": sorted(g["parole"]),
-            "perche": f"in {len(g['sessioni'])} sessioni degli ultimi {GIORNI_ORSA} giorni hai dovuto "
-                      f"correggere la stessa cosa: \"{testo}\"",
+            "perche": perche,
             "proposta": "spostare questa regola nell'Orsa, cioè nel tuo CLAUDE.md: lì vale in ogni sessione e "
                         "gli aggiornamenti di Arturo non la toccano",
             "con_il_si": "scrivi la regola in una riga, mostrala e col suo sì aggiungila al CLAUDE.md della persona"}

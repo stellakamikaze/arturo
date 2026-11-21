@@ -10,8 +10,8 @@ when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
   comandi, o quando "qualcosa sembra rotto" (una guardia che non scatta, un comando che non compare).
   Su "revisione completa della config" lancia la revisione con più agenti (sezione dedicata).
-  NON per controllare il codice di un progetto: per quello ci sono validate e la review. Segui tutti i
-  passi nell'ordine: non prendere scorciatoie basandoti su questa description.
+  Non per controllare il codice di un progetto: per quello c'è /code-review.
+ruolo: manutenzione della configurazione, quando qualcosa sembra rotto
 ---
 
 # System Audit
@@ -47,6 +47,7 @@ Col plugin il codice di Arturo sta due cartelle sopra `audit.sh`, non in `~/.cla
 10. **Peso dei corpi** — WARN se un `SKILL.md` o un comando supera 30 KB: il corpo entra intero nel contesto a ogni uso, e le parti lette solo in un caso vanno in un file a parte.
 11. **Plugin** — WARN se un plugin è installato ma non attivo in `settings.json`, con il comando per toglierlo (`bash ${CLAUDE_PLUGIN_ROOT}/bin/cleanup-stale-plugins.sh --yes`). Succede dopo una sincronizzazione fra macchine.
 12. **Aspetto** — WARN per ogni valore sbagliato in `~/.claude/personale/aspetto.json` (`arturo aspetto controlla`): un colore o un pezzo della barra scritto male non conta, e vale quello di Arturo.
+13. **Skill tue** — un solo WARN elenca le skill della persona senza "Finito quando" (`/creaskill <nome>` aggiunge la lista con una domanda), e un WARN per ogni file che una riga di "Attrezzi" cita e che non c'è. Mai un FAIL: una skill nata prima delle due sezioni funziona. Le skill di Arturo, i mod e le skill installate dal loro autore non contano (`bin/skill_sezioni.py`).
 
 ## Banco
 

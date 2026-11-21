@@ -6,9 +6,8 @@ description: >-
 when_to_use: >-
   Usa quando la persona dice "ricordami di…", "segnati che…", "mettilo tra le cose da fare",
   "cosa c'è da fare?", "cosa scade questa settimana?", o chiede di chiudere, spostare o fermare
-  un todo. Usa anche quando la persona chiede di vedere i todo in una pagina del browser. NON per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
-  alla chiusura). Segui tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa
-  description.
+  un todo. Usa anche quando la persona chiede di vedere i todo in una pagina del browser. Non per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
+  alla chiusura).
 version: 1.0.0
 license: MIT
 ---
@@ -163,3 +162,13 @@ vedi con `arturo todo`, e quello che scrivi tu compare nella pagina entro 20 sec
 solo su questo computer, e la chiave cambia a ogni avvio. Si spegne da sola dopo 30 minuti senza
 la pagina aperta, con il bottone "Spegni la pagina" o con Ctrl+C. Non proporre la pagina se la
 persona non la chiede.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Prima di aggiungere hai controllato i doppioni con `arturo todo --progetto .`?
+- Il titolo comincia con un verbo all'infinito?
+- `--perche` c'è solo con parole della persona?
+- Hai confermato il numero in una riga?
+- Su un numero letto prima hai usato `--titolo-atteso`?

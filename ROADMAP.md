@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-18
+Aggiornata il 2026-11-21
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (`docs/strati.md`).
 
@@ -69,6 +69,20 @@ Strato: Metodo.
 Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti inventati, chiuse a effetto, elenchi di tre, parole gonfie. La skill `humanizer` li toglie senza cambiare cosa dice il testo, e segue il tuo modo di scrivere. È l'adattamento italiano di un progetto open source di blader, e prende il posto del catalogo dei tic che Arturo aveva dentro la skill dell'italiano semplificato.
 
 <!-- task: #4695 -->
+
+### Un lavoro che torna diventa una skill tua {#skill-tue}
+
+Stato: pronto per il prossimo rilascio. Su dev ci sono la lista "Finito quando" nelle skill, le correzioni che portano il nome della skill, il destino degli script in `/fine`, l'avviso per le skill che hai già e la proposta della prima skill.
+
+Strato: Orsa, con il Metodo.
+
+Un lavoro che rifai ogni settimana ha bisogno di istruzioni scritte una volta, non di una spiegazione a ogni sessione. `/creaskill` le scrive con te in cinque domande. L'ultima chiede come capisci che il lavoro è venuto bene, e la risposta diventa la lista "Finito quando": poche righe a cui si risponde sì o no. Quando la skill parte, Claude riceve la lista e chiude il lavoro con l'esito riga per riga. Gli script di quel lavoro stanno nella cartella della skill, nella sezione "Attrezzi".
+
+Se correggi Claude mentre usa una skill, la correzione porta il nome della skill, e `/fine` la scrive lì dopo il tuo sì. Arturo ti propone la prima skill quando gli dici quale lavoro rifai, nelle prime settimane o alla fine di `/setup`. Otto comandi e skill di Arturo chiudono con la stessa lista. `/system-audit` ti dice quali skill tue non hanno ancora la lista, e `/creaskill <nome>` la aggiunge con una domanda sola.
+
+Tre cose restano fuori da questa voce. Un lavoro trovato nello storico delle chat diventa una sintesi o una pagina, non ancora una skill: è una scelta della voce "Arturo ti propone cosa automatizzare". Le skill pronte per mestiere, come la lettera, il preventivo o il verbale, restano nella voce "Arturo per le organizzazioni". Un "no" nella lista non ferma la consegna: Claude te lo dice, e decidi tu.
+
+<!-- task: #6277 -->
 
 ### Le vostre segnalazioni {#segnalazioni}
 

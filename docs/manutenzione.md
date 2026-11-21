@@ -56,6 +56,10 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    controllo saltato non è provato: il gate del rilascio gira su un Mac, dove resta solo il veleno di
    RT23, che vale solo su Windows (`salti=1`).
    Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
+   Un commit che insegna a una guardia un programma o un percorso nuovo aggiorna, nello stesso commit, il
+   `PATTERN_*` del dispatcher che la chiama, il docstring della guardia e la sua riga nel README. Il ritardo si
+   era ripetuto su due commit di fila (#5261 e #5262); GC08 e GC10 di `test_guardie_cieche_2026_11_11.py`
+   controllano la parte che si può controllare (#5361).
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
 3. **Prova su un clone pulito**: clona il repo in una cartella temporanea e verifica che i
@@ -226,9 +230,10 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   Gli eventi arrivano da id casuali che chiunque può creare: una quota di sì vicina al 100% è un
   indizio da verificare (una segnalazione, una prova su un'installazione pulita), mai la prova
   (17/10/2026, #3507).
-- **Il recap di ogni mattina.** Ogni mattina alle 8 il Worker manda a chi mantiene il recap del
-  giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
-  esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
+- **Il recap di ogni mattina.** Ogni mattina alle 7 ora italiana (alle 8 con l'ora legale) il Worker manda a chi
+  mantiene il recap del giorno prima. In testa "Da fare": installazioni rimaste indietro, banchi rossi, deriva che
+  ostacola e config rotte, ognuna col suo task tranne le config rotte, che l'hanno già dalla loro email. Poi
+  installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato, esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
   OSTACOLO se un hook di Arturo è spento, una guardia è modificata o un comando modificato va in
   conflitto con un aggiornamento), segnalazioni, eventi scartati perché fuori elenco, avvisi Telegram ed
   email non partiti (contatori `scartati`, `telegram-ko`, `email-ko`, senza id, dal 24/10/2026). Nei giorni

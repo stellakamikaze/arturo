@@ -233,3 +233,13 @@ risposta è salvato sul computer della persona: quando la risposta arriva, l'avv
 SPORTELLO) e `/segnala stato` la mostra. Quando esce la correzione `/novita` la racconta con quel numero.
 
 Chiudi con una riga: dove è andata, e grazie se la segnalazione l'ha chiesta la persona.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- `segnala precedenti` è stato lanciato, e il fatto non era già partito?
+- "In breve" sta in una o due frasi, senza nomi di file, hook o comandi?
+- Il testo non ha nomi di persone o clienti né contenuto di lavoro?
+- Un tema di sicurezza non è partito e rimanda a `SECURITY.md`?
+- Con uscita 0 hai detto il numero e come ritirarla?
