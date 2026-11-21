@@ -47,7 +47,9 @@ from pathlib import Path
 CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09"]
 DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
-            "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js"]
+            "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js",
+            # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
+            "hooks/commit-secret-gate.py", "hooks/heredoc.py", "hooks/forma_comando.py"]
 SEGNO = ".ultimo-fine-completo"
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}

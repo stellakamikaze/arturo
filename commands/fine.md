@@ -341,9 +341,11 @@ nella riga tecnica.
   blocco delle tue aggiunte, niente commit. In entrambi i casi leggi la riga, sistema e rilancia.
 - **rc=6**: `git add` o `git commit` falliti, la riga dice perché. **rc=3**: le tue aggiunte dicono che
   un servizio è giù, il resto è fatto.
+- **rc=7**: la guardia dei segreti trova una chiave nello stage (niente commit) o nei commit da spingere
+  (niente push). Non aggirarla: leggi il caso `SEGRETO` del file qui sotto.
 
 La coda si può rilanciare senza danni, e un push fallito si ritenta. Se l'uscita non è chiara, se esce
-`SKILL TUE NON SALVATE` o se esiste `~/.claude/personale/fine-coda.py`, leggi `~/.claude/shared/fine-coda-casi.md`.
+`SKILL TUE NON SALVATE`, `FILE TUOI NON SALVATI` o `SEGRETO`, o se esiste `~/.claude/personale/fine-coda.py`, leggi `~/.claude/shared/fine-coda-casi.md`.
 
 ## FASE 10 · Migliorare Arturo
 

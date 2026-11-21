@@ -255,6 +255,8 @@ BANCHI=(
   test_aggiramenti_2026_11_21.py
   # La verifica dei rilasci accetta solo firme SSH (21/11/2026, #6258, rilievo S1 della revisione del 20/11).
   test_firme_ssh_2026_11_21.py
+  # Commit e push della coda di /fine passano dal controllo dei segreti (21/11/2026, #6249, rilievi A2 e A3).
+  test_fine_coda_segreti_2026_11_21.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -546,6 +548,8 @@ BASELINE=(
   "test_aggiramenti_2026_11_21.py 02808d8 radice"
   # Un tag firmato PGP passa dal portachiavi della persona (21/11/2026, #6258). ff920f0, il dev prima.
   "test_firme_ssh_2026_11_21.py ff920f0"
+  # La coda di /fine committa e spinge senza guardia dei segreti (21/11/2026, #6249). 6132caf, il dev prima.
+  "test_fine_coda_segreti_2026_11_21.py 6132caf radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

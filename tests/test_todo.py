@@ -320,6 +320,10 @@ def _sync(repo: Path, base: Path, visibilita: str, lucchetto: bool = False) -> s
     if lucchetto:  # un processo di arturo todo in corso, o interrotto, mentre gira /fine
         (cfg / "data" / "todo" / "eventi.jsonl.lock").write_text("", encoding="utf-8")
     (cfg / "commands" / "nota-locale.md").write_text("modifica\n", encoding="utf-8")
+    # il segno del sync è un file già tracciato: dal 21/11/2026 (#6249, A3) un file nuovo delle cartelle di
+    # Arturo esce solo verso un remote privato
+    with open(cfg / "commands" / "fine.md", "a", encoding="utf-8") as f:
+        f.write("\nmodifica\n")
     testo = read(repo / "commands" / "fine.md")
     # 20/10/2026: /fine numera le fasi come la config dell'autore, il Config Sync è la FASE 9.
     assert "## FASE 9 · Config Sync" in testo, "T10 manca la FASE 9 · Config Sync di /fine"
@@ -335,10 +339,12 @@ def test_t10(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         pubblico = _sync(repo, base, "PUBLIC")
-        assert "commands/nota-locale.md" in pubblico, f"T10 il sync pubblico non ha committato niente: {pubblico!r}"
+        assert "commands/fine.md" in pubblico, f"T10 il sync pubblico non ha committato niente: {pubblico!r}"
+        assert "commands/nota-locale.md" not in pubblico, "T10 un comando nuovo della persona parte verso un remote pubblico"
         assert "data/todo" not in pubblico, "T10 i todo partono verso un remote pubblico"
         privato = _sync(repo, base, "PRIVATE")
         assert "data/todo/eventi.jsonl" in privato, f"T10 i todo non viaggiano col remote privato: {privato!r}"
+        assert "commands/nota-locale.md" in privato, f"T10 il comando nuovo non viaggia col remote privato: {privato!r}"
 
 
 def test_t11(repo: Path) -> None:

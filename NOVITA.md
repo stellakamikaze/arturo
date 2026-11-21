@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — /fine controlla le chiavi prima di salvare la config
+
+**Cosa cambia**: a fine sessione `/fine` salva la tua config su GitHub. Adesso, prima di salvare, cerca
+password, token e chiavi nei file che cambiano e nei salvataggi non ancora spediti. Se ne trova una si
+ferma: ti dice in quale file sta e che tipo di chiave è, senza mostrarla. Poi la togli e lo rilanci.
+Inoltre, se la tua config su GitHub non è privata, i tuoi comandi e script nuovi restano sul computer.
+
+**Il principio**: la revisione di sicurezza del 20/11/2026 ha provato il buco. Il salvataggio di `/fine`
+parte da uno script, e la protezione dei segreti guardava solo i comandi che Claude scrive. Un token in
+`settings.json` arrivava su GitHub senza nessun controllo.
+
+**Da sapere**: se la chiave è finta, per esempio in un test, fai il salvataggio a mano. Arturo ti chiede
+conferma e decidi tu.
+
+---
+
 ## 2026-11-21 — Un rilascio vale solo con la firma SSH di Arturo
 
 **Cosa cambia**: l'aggiornamento accetta un rilascio solo se la firma è SSH e viene dalla chiave di

@@ -1,7 +1,7 @@
 # La coda di /fine: i passi e due casi
 
 `/fine` legge questo file nella FASE 9 quando l'uscita della coda (`bin/fine-coda.py`) non è chiara, se
-la coda stampa `SKILL TUE NON SALVATE`, o se la persona ha `~/.claude/personale/fine-coda.py` (le sue
+la coda stampa `SKILL TUE NON SALVATE`, `FILE TUOI NON SALVATI` o `SEGRETO`, o se la persona ha `~/.claude/personale/fine-coda.py` (le sue
 aggiunte).
 
 ## Cosa fa la coda, in ordine
@@ -14,11 +14,31 @@ aggiunte).
 3. Sposta nel cestino i file del dry-run della FASE 6 e rigenera l'indice.
 4. Aggiunge al commit i file di Arturo e gli handoff. CLAUDE.md, `personale/`, todo e memoria entrano
    solo se il remote della config risulta privato a `gh`. Mai lucchetti, log delle letture della
-   memoria, copie `.bak-*` e indice della memoria.
+   memoria, copie `.bak-*` e indice della memoria. Verso un remote non privato, nelle cartelle di Arturo
+   (`commands`, `bin`, `hooks` e le altre) entrano solo i file già salvati in git.
 5. Ferma il commit se un file in stage ha i marcatori di conflitto.
-6. Fa due commit: la memoria a parte ("memoria: applicata da /fine"), così si annulla da sola, poi il sync.
-7. Fa il push. Se il push è rifiutato, fa un pull `--rebase --autostash` e riprova una volta. Non pusha
+6. Ferma il commit se la guardia dei segreti trova una chiave nelle righe nuove dello stage (exit 7).
+7. Fa due commit: la memoria a parte ("memoria: applicata da /fine"), così si annulla da sola, poi il sync.
+8. Ferma il push se la guardia trova una chiave nei commit che il remote non ha ancora (exit 7).
+9. Fa il push. Se il push è rifiutato, fa un pull `--rebase --autostash` e riprova una volta. Non pusha
    se origin è il repository pubblico di Arturo.
+
+## SEGRETO (exit 7)
+
+La coda nomina il file e il tipo di chiave, mai il valore. Commit e push partono da uno script: la guardia
+dei comandi Bash non li vede, e per questo la coda fa lo stesso controllo.
+- **Chiave vera**: toglila dal file e mettila nel vault o in una variabile d'ambiente. Se sta già in un
+  commit non spinto, toglila anche da lì (`git -C ~/.claude log origin/main..HEAD` elenca quei commit).
+  Poi rilancia la coda.
+- **Falso allarme** (una chiave finta di un test): fai tu il commit o il push a mano. La guardia dei comandi
+  chiede conferma alla persona, e la decisione resta sua.
+- **La guardia non si carica**: manca `hooks/commit-secret-gate.py`. Reinstalla Arturo con `/aggiorna`.
+
+## FILE TUOI NON SALVATI
+
+Come per le skill qui sotto: sono file nuovi della persona nelle cartelle di Arturo (un comando, un hook,
+uno script). Il repository della config non risulta privato, quindi restano su questa macchina. Col suo sì
+li pubblichi con `git -C ~/.claude add -- <file>`, poi commit e push.
 
 ## SKILL TUE NON SALVATE
 
