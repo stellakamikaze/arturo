@@ -632,9 +632,14 @@ fi
 # Exfil guard: upload di un file locale verso host esterni -> ask. Come per comms, si giudica il
 # codice eseguito: COMMS_REDUCED e' il comando senza gli heredoc scritti su file (vuoto se
 # il comando solo legge). Se il pre-filtro non gira, si giudica il comando intero.
-if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]]; then
+# 21/11/2026 (#6202): anche senza virgolette e barre, come la guardia, che legge `cu''rl` e `"curl"` come curl.
+if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL || "$_SCIOLTO" =~ $PATTERN_EXFIL ]]; then
     [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
-    if [[ "$COMMS_REDUCED" =~ $PATTERN_EXFIL ]]; then
+    _RIDOTTO_SCIOLTO="${COMMS_REDUCED//\\$'\n'/}"
+    _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//$_APICE/}"
+    _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//\"/}"
+    _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//\\/}"
+    if [[ "$COMMS_REDUCED" =~ $PATTERN_EXFIL || "$_RIDOTTO_SCIOLTO" =~ $PATTERN_EXFIL ]]; then
         export COMMS_REDUCED
         run_guard exfil-guard.py
     fi
@@ -655,7 +660,8 @@ if vede "$PATTERN_EGRESS_SOSPETTO"; then
 fi
 
 # Data guard: operazioni distruttive sui DATI (SQL drop, volumi, rsync --delete) -> ask.
-somiglia "$GUARD_COMMAND" "$PATTERN_DATA" && run_guard data-guard.py
+# 21/11/2026 (#6202): anche senza virgolette e barre: `rs"y"nc --delete` e `'DR''OP TABLE t'`.
+vede "$PATTERN_DATA" && run_guard data-guard.py
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
 # 21/11/2026 (#6259, S7): anche curl, wget e httpie verso api.github.com, che fanno le stesse chiamate di `gh api`.

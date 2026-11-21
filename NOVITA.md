@@ -47,7 +47,9 @@ Dici sì e il comando parte, come per ogni altra conferma. I casi nuovi sono que
 - una condivisione su Drive aperta a chiunque o con l'email di avviso, e un invito del calendario che
   avvisa i partecipanti;
 - una cartella intera spostata o cancellata per una via diversa da `rm`, e docker con la tua home
-  montata in scrittura.
+  montata in scrittura;
+- un invio di file con `curl` o `wget`, un `rsync --delete` o un `DROP TABLE` scritti a pezzi, con
+  virgolette o barre in mezzo al nome (`cu''rl`, `rs"y"nc`).
 
 Prima di ogni `git push` Arturo cerca anche chiavi e password nei commit che il server non ha ancora.
 

@@ -12,7 +12,8 @@ carica da qui. Questo file non carica block-dangerous.py: fino al 15/10/2026 i d
 si caricavano a vicenda.
 
 Usato da block-dangerous.py (rm e find che cancellano), commit-secret-gate.py (le shell e i
-commenti), comms-prefilter.py e gh-destructive-guard.py (i segmenti e i programmi), cred-read-internal.py e
+commenti), comms-prefilter.py e gh-destructive-guard.py (i segmenti e i programmi), exfil-guard.py e
+data-guard.py (i nomi scritti a pezzi, `nomi_sciolti` e `sciolto`), cred-read-internal.py e
 protect_claude_md.py dove ci sono, e dal
 dispatcher: git puro, ramo memoria e handoff, ramo ~/.claude. Il modo `script-claude` (D1 e D6)
 non lo chiama il dispatcher di Arturo: lo usa la config dell'autore, e in Arturo le scritture
@@ -81,6 +82,33 @@ def testo_shell(command: str) -> str:
         return m.group(0).replace(corpo, "")
 
     return _MESSAGGIO.sub(_svuota, testo)
+
+
+# --- Nomi scritti a pezzi (21/11/2026, #6202) ---
+# Per bash `cu''rl`, `"curl"`, `w\get` e `rs"y"nc` sono curl, wget e rsync: le virgolette e la barra si tolgono
+# prima di cercare il programma. Una guardia che cerca `\bcurl\b` nel testo non li vedeva (rilievo 2 della
+# revisione strutturale dell'11/11). Una parola cucita è fatta solo di lettere, cifre, `.`, `_` e `-`, di pezzi
+# fra virgolette con gli stessi caratteri e di caratteri dopo una barra: un argomento con spazi non lo è.
+_PAROLA_CUCITA = re.compile(r"""(?<![\w'"\\.-])(?:[\w.-]|''|""|'[\w.-]+'|"[\w.-]+"|\\[\w.-])+(?![\w'"\\.-])""")
+
+
+def nomi_sciolti(testo: str, nomi) -> str:
+    """Il testo con ogni parola cucita che senza virgolette e barre è uno dei `nomi` (minuscoli) scritta nuda.
+    Il resto non cambia: gli argomenti fra virgolette restano scritti come sono, per chi li legge dopo."""
+    def nudo(m):
+        parola = m.group(0)
+        if not re.search(r"['\"\\]", parola):
+            return parola
+        senza = re.sub(r"['\"\\]", "", parola)
+        return senza if senza.lower() in nomi else parola
+
+    return _PAROLA_CUCITA.sub(nudo, testo)
+
+
+def sciolto(testo: str) -> str:
+    """Il testo senza righe continuate, virgolette e barre, come `_SCIOLTO` del dispatcher: `'DR''OP TABLE t'`
+    diventa `DROP TABLE t`. Serve a una seconda lettura che può solo aggiungere conferme, mai toglierle."""
+    return re.sub(r"['\"\\]", "", testo.replace("\\\n", ""))
 
 
 def togli_commenti(cmd: str) -> str:

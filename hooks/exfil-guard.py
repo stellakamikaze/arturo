@@ -35,8 +35,9 @@ esfiltrazione. Entrambi i file sono ignorati da git: restano tuoi.
 
 Il dispatcher passa in COMMS_REDUCED il comando senza gli heredoc scritti su file
 (comms-prefilter.py): si giudica il codice eseguito, non la prosa. Vuota = il
-comando solo legge.
-Fail-open su parsing. Zero dipendenze.
+comando solo legge. Il nome di curl, wget, nc e socat si legge anche scritto a pezzi (`cu''rl`, `"curl"`),
+con nomi_sciolti di forma_comando.py (21/11/2026, #6202).
+Fail-open su parsing. Solo libreria standard, più forma_comando.py della stessa cartella se c'è.
 """
 from __future__ import annotations
 
@@ -48,6 +49,20 @@ import signal
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
+
+# I nomi dei programmi scritti a pezzi (`cu''rl`, `"curl"`, `w\get`) li scioglie forma_comando.py, il lettore
+# delle guardie (21/11/2026, #6202). Se manca, il testo resta com'è.
+try:
+    import importlib.util as _iu
+    _spec_fc = _iu.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    _fc = _iu.module_from_spec(_spec_fc)
+    _spec_fc.loader.exec_module(_fc)
+    _nomi_sciolti = _fc.nomi_sciolti
+except Exception:
+    def _nomi_sciolti(testo, nomi):
+        return testo
+PROGRAMMI_RETE = frozenset(("curl", "wget", "nc", "ncat", "netcat", "socat"))
 
 
 def _t(s, f):
@@ -507,6 +522,9 @@ def main() -> int:
         cmd = reduced
         if not cmd.strip():
             return 0
+
+    # Per bash `cu''rl -F f=@x` è `curl -F f=@x`: il nome si legge nudo, gli argomenti restano scritti (#6202).
+    cmd = _nomi_sciolti(cmd, PROGRAMMI_RETE)
 
     # ---- Ramo A: upload di un file locale ----
     unito = cmd.replace("\\\n", " ")
