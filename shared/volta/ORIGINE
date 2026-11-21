@@ -1,5 +1,5 @@
 {
- "albero": "dec539a20a240f7d82c717ea31af0427f3b3ba59",
+ "albero": "dba36d541ac0371bf15ba0a158ed0b78d251eb1f",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -7,7 +7,7 @@
   "arturo-icona.svg": "114a290414abfbc0357ede2264eb814afd1a9246062ce0d8ee2f0fdcc2493d2b",
   "firma-locale.sh": "0d759146fc58735a2865a2629dd8de9ef2f0a9109abf1ad61caddd7c8975342c",
   "firme/volta-app.requisito": "dd384280cf2e9aba952a59627af85546f5a63872b95403a13a74693df09576ef",
-  "firme/volta.allowed_signers": "1f019dbe306a973194c366d1c815725d0b6d7e396775f6e86b3c0a7a23d9de78",
+  "firme/volta.allowed_signers": "a469bbc8796e5c71fd2db12bae9908655ea0e1c5db4da6e52146e213fd60d384",
   "installa-herdr.sh": "848ba1d46c6cdadec504774f13c851d8bc855c9de975bbf75495c1fd0716d8f9",
   "keys-ctrl.json": "a5628b80d56fc9a383e40f970a88fbbff9c95d78b2d11948dff12967660a06ab",
   "keys-herdr-macos.json": "8728a5190aa2ef1609c08c0cb49cf31dd74ab7018944b6453d9f371570d023c0",
