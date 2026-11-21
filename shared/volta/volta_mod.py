@@ -16,6 +16,9 @@ il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
   python3 volta_mod.py programmi [--subito] il giro di core, plugin e app, come lo fa il sistema
   python3 volta_mod.py specchio             porta l'ultima release dell'app nello specchio locale (app_specchio)
   python3 volta_mod.py prove [--chiudi]     i core di prova rimasti accesi (HC_SESSION diversa da default); --chiudi li chiude
+  python3 volta_mod.py diagnosi [--uscita DIR]  archivio zip per capire un guasto: versioni, stati, registro e log,
+                                           senza testi né segreti (di serie sulla Scrivania); anche `volta diagnosi`
+  python3 volta_mod.py log                  ruota i log dei LaunchAgent oltre LOG_MAX e dice dove stanno i log
   python3 volta_mod.py --prova              esce 0: lo usa la copia vecchia prima di sostituirsi
 
 Perché sta fuori dalla cartella del mod (in ~/.config/herdr-app/volta_mod.py): lo lanciano il mod,
@@ -66,7 +69,12 @@ Regole:
   - Arturo si trova da `radice` di arturo.json, poi da ~/.claude/arturo/radice, poi dal plugin installato
     (radice_di()). Solo la copia che arturo.json nomina si porta avanti col fast-forward.
 
-Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
+Log e diagnosi (step 7, 18/11/2026): a ogni `controlla` i log dei LaunchAgent (LOG_SISTEMA) oltre LOG_MAX
+passano a <nome>.1.log, fino a LOG_TENUTI; l'app ruota il suo volta.log da sé (src/applog.rs). Ogni
+controllo scrive anche il comando `volta` in ~/.local/bin (comando_volta), mai sopra un `volta` d'altri.
+
+Variabili per i banchi: VOLTA_LOGS (log del sistema), VOLTA_LOG_DIR (log dell'app), VOLTA_LOG_MAX, VOLTA_BIN
+(dove va il comando volta), VOLTA_CLAUDE (JSON: l'argv di claude), VOLTA_REGISTRO, HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
 VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_GH (JSON: l'argv di gh), VOLTA_PLUGINS
 (installed_plugins.json), VOLTA_APP_PACCHETTO, VOLTA_ORA, VOLTA_FERMO, VOLTA_FIRMA_FINTA, VOLTA_NO_APRI,
 VOLTA_PS (file con l'uscita di ps al posto di ps), VOLTA_SOCKET (JSON pid -> socket al posto di lsof),
@@ -711,6 +719,7 @@ def cmd_controlla(forza: bool = False) -> int:
         passo_immagini()
         passo_genera()
         telemetria()
+        comando_volta()
         installato = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         v = str(installato.get("versione") or "")
         messo = float(installato.get("installato") or 0)
@@ -781,6 +790,7 @@ def cmd_installa(argv: list) -> int:
             segna("locale", versione="locale", fino=adesso + TENUTA_LOCALE * 3600)
             passo_immagini()
             telemetria()
+            comando_volta()
         print(("INSTALLATO a mano (%s): resta %d ore" % (come, TENUTA_LOCALE)) if riuscito else "NON INSTALLATO: " + come)
         return 0 if riuscito else 1
     except Exception as e:  # noqa: BLE001
@@ -1450,6 +1460,275 @@ def in_protetta(p: Path) -> bool:
     return False
 
 
+# --- Log e diagnosi (step 7 della revisione, 18/11/2026) ------------------------------------------------
+# I tre log dei LaunchAgent (volta-mod, volta-sync e volta-canale) crescevano senza fine: launchd scrive in
+# coda e non li accorcia mai. L'app scrive il suo volta.log con una rotazione sua (src/applog.rs).
+# `volta diagnosi` mette in un archivio quello che serve a capire un guasto, senza testi né segreti.
+
+LOG_MAX = 1024 * 1024        # byte: oltre, un log del sistema passa a <nome>.1.log
+LOG_TENUTI = 3               # quanti log vecchi restano per nome
+LOG_SISTEMA = ("volta-mod.log", "volta-sync.log", "volta-canale.log")
+DIAGNOSI_CODA = 256 * 1024   # byte: di ogni log entra solo la coda
+DIAGNOSI_GIORNI = 3          # giorni del registro nell'archivio
+SEGNO_COMANDO = "# volta: lanciatore scritto da volta_mod.py"
+
+
+def cartella_log_sistema() -> Path:
+    """Dove i LaunchAgent scrivono i loro log (VOLTA_LOGS per i banchi)."""
+    return Path(os.environ.get("VOLTA_LOGS") or Path.home() / "Library" / "Logs")
+
+
+def cartella_log_app() -> Path | None:
+    """La cartella di volta.log, con le regole di dir() in src/applog.rs."""
+    if os.environ.get("VOLTA_LOG_DIR"):
+        return Path(os.environ["VOLTA_LOG_DIR"])
+    if os.environ.get("HERDR_APP_HOME"):
+        return app_home() / "logs"
+    if os.name == "nt":
+        return Path(os.environ["LOCALAPPDATA"]) / "Volta" / "Logs" if os.environ.get("LOCALAPPDATA") else None
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Logs" / "Volta"
+    stato = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(stato) / "volta"
+
+
+def vecchio_log(f: Path, n: int) -> Path:
+    """volta-mod.log -> volta-mod.1.log, volta-mod.2.log, …"""
+    return f.with_name("%s.%d%s" % (f.stem, n, f.suffix))
+
+
+def ruota_log() -> list:
+    """Un log del sistema oltre LOG_MAX si copia in <nome>.1.log (i vecchi scalano fino a LOG_TENUTI) e si
+    svuota sul posto. Svuotare e non rinominare: launchd tiene il file aperto in coda (O_APPEND), e dopo una
+    rinomina continuerebbe a scrivere nel .1. Le righe scritte fra la copia e lo svuotamento si perdono: è
+    una finestra di millisecondi, una volta per mega. Torna i nomi ruotati; non solleva."""
+    try:
+        massimo = int(os.environ.get("VOLTA_LOG_MAX") or LOG_MAX)
+    except ValueError:
+        massimo = LOG_MAX
+    ruotati = []
+    for nome in LOG_SISTEMA:
+        f = cartella_log_sistema() / nome
+        try:
+            if not f.is_file() or f.stat().st_size <= massimo:
+                continue
+            vecchio_log(f, LOG_TENUTI).unlink(missing_ok=True)
+            for n in range(LOG_TENUTI - 1, 0, -1):
+                if vecchio_log(f, n).exists():
+                    os.replace(str(vecchio_log(f, n)), str(vecchio_log(f, n + 1)))
+            shutil.copyfile(str(f), str(vecchio_log(f, 1)))
+            with open(f, "r+b") as fh:
+                fh.truncate(0)
+            ruotati.append(nome)
+        except OSError:
+            continue
+    return ruotati
+
+
+def cartella_comandi() -> Path:
+    return Path(os.environ.get("VOLTA_BIN") or Path.home() / ".local" / "bin")
+
+
+# I sottocomandi di questo script che il comando `volta` gli passa; il resto va a herdr-app (VOLTA.md: `volta`
+# è un alias di `herdr-app`). Nessuno di questi nomi è un comando di herdr-app (do, status, ls, check, …).
+DI_VOLTA_MOD = ("diagnosi", "stato", "log", "controlla", "installa", "attiva", "disattiva", "automatico", "manuale",
+                "immagini", "programmi", "specchio", "prove")
+
+
+def comando_volta() -> str:
+    """Scrive il comando `volta` in ~/.local/bin, accanto a herdr-app: `volta diagnosi`, `volta stato` e gli
+    altri DI_VOLTA_MOD passano a questo script, ogni altro argomento a herdr-app. Solo sul Mac e su Linux,
+    solo per la finestra vera (non per una casa di prova), e mai sopra un `volta` che non ha il segno di
+    questo script (Volta.js, per esempio, ha un comando con lo stesso nome). Torna l'esito; non solleva."""
+    if os.name == "nt":
+        return "windows: python volta_mod.py"
+    if os.environ.get("HERDR_APP_HOME") and not os.environ.get("VOLTA_BIN"):
+        return "casa di prova"
+    f = cartella_comandi() / "volta"
+    testo = ('#!/bin/sh\n%s\ncase "$1" in\n  %s)\n    exec /usr/bin/env python3 "%s" "$@" ;;\nesac\n'
+             'exec "$(dirname "$0")/herdr-app" "$@"\n' % (SEGNO_COMANDO, "|".join(DI_VOLTA_MOD), app_home() / "volta_mod.py"))
+    try:
+        if f.exists() or f.is_symlink():
+            prima = f.read_text(encoding="utf-8", errors="replace") if f.is_file() else ""
+            if SEGNO_COMANDO not in prima:
+                return "c'è già un altro volta"
+            if prima == testo:
+                return "c'è"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_name(".volta.%d.tmp" % os.getpid())
+        tmp.write_text(testo, encoding="utf-8")
+        tmp.chmod(0o755)
+        os.replace(str(tmp), str(f))
+        return "scritto"
+    except OSError as e:
+        return "non scritto: %s" % str(e)[:120]
+
+
+# Quello che non esce mai da questa macchina in un archivio di diagnosi. L'ordine conta: prima le
+# credenziali dentro gli indirizzi, poi chiavi e token per forma, poi chiave=valore, poi le email.
+SEGRETI = (
+    (r"://[^/\s:@]+:[^/\s@]+@", "://<credenziali>@"),
+    (r"\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}|xox[abprs]-[A-Za-z0-9-]{8,}"
+     r"|AKIA[0-9A-Z]{12,}|AIza[0-9A-Za-z_-]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]{10,})", "<segreto>"),
+    (r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}", r"\1 <segreto>"),
+    (r"(?i)\b(password|passwd|pwd|token|secret|api[_-]?key|access[_-]?key|chiave|parola)(\"?\s*[=:]\s*\"?)[^\s\",;&]+",
+     r"\1\2<segreto>"),
+    (r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "<email>"),
+)
+
+
+def pulisci_testo(testo: str) -> str:
+    """Il testo come entra nell'archivio: la casa diventa ~, il nome della persona nei percorsi <utente>,
+    i segreti e le email spariscono."""
+    import re  # noqa: PLC0415
+    casa = str(Path.home())
+    for c in {casa, casa.replace("\\", "/"), os.path.realpath(casa)}:
+        if len(c) > 3:
+            testo = testo.replace(c, "~")
+    testo = re.sub(r"(?i)([/\\](?:Users|home)[/\\])[^/\\\s\"']+", r"\1<utente>", testo)
+    for schema, al_posto in SEGRETI:
+        testo = re.sub(schema, al_posto, testo)
+    return testo
+
+
+def coda_di(f: Path, quanti: int = DIAGNOSI_CODA) -> str:
+    """Gli ultimi `quanti` byte di un file, da una riga intera."""
+    try:
+        with open(f, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            n = fh.tell()
+            fh.seek(max(0, n - quanti))
+            dati = fh.read()
+    except OSError:
+        return ""
+    if n > quanti and b"\n" in dati:
+        dati = dati.split(b"\n", 1)[1]
+    return dati.decode("utf-8", errors="replace")
+
+
+def versioni() -> dict:
+    """Versioni di app, mod, core, claude e del sistema. Un programma che manca dice "assente"."""
+    import platform  # noqa: PLC0415
+    v = {"sistema": platform.platform(), "python": platform.python_version(),
+         "mod": leggi(app_home() / "mods" / "arturo" / "VERSIONE"), "volta_mod": leggi(stato_file()).get("esito")}
+    app = herdr_app()
+    if app:
+        rc, out = corri(app + ["--version"], 20)
+        v["app"] = ultima_riga(out) if rc == 0 else "rc %d: %s" % (rc, ultima_riga(out))
+    else:
+        v["app"] = "assente"
+    hc = argv_di("VOLTA_HC", "hc")
+    if hc:
+        rc, out = corri(hc + ["server", "status"], 20)
+        try:
+            v["core"] = json.loads(out.strip().splitlines()[-1]).get("version") if rc == 0 else "rc %d" % rc
+        except (ValueError, IndexError, AttributeError):
+            v["core"] = ultima_riga(out)
+    else:
+        v["core"] = "assente"
+    claude = argv_di("VOLTA_CLAUDE", "claude")
+    if claude:
+        rc, out = corri(claude + ["--version"], 20)
+        v["claude"] = ultima_riga(out) if rc == 0 else "rc %d" % rc
+    else:
+        v["claude"] = "assente"
+    return v
+
+
+def cartella_registro() -> Path:
+    """La cartella del registro, con le regole di cartella() in volta_registro.py."""
+    if os.environ.get("VOLTA_REGISTRO"):
+        return Path(os.environ["VOLTA_REGISTRO"])
+    if os.environ.get("HERDR_APP_HOME"):
+        return app_home() / "cache" / "volta-registro"
+    return Path.home() / ".cache" / "volta-registro"
+
+
+def diagnosi(uscita: Path, giorni: int = DIAGNOSI_GIORNI) -> tuple[Path, dict]:
+    """Scrive volta-diagnosi-<data>.zip in `uscita` e torna (archivio, indice). Dentro: versioni, gli stati
+    dei controlli, il registro degli ultimi `giorni` giorni con gli errori a parte, la coda dei log dell'app e
+    del sistema, e di settings.json e arturo.json solo le voci che non dicono niente della persona. Non entra
+    sessioni.json né la lettura della sonda (titoli, progetti): ogni testo passa da pulisci_testo()."""
+    import zipfile  # noqa: PLC0415
+    quando = time.strftime("%Y%m%d-%H%M%S")
+    uscita.mkdir(parents=True, exist_ok=True)
+    archivio = uscita / ("volta-diagnosi-%s.zip" % quando)
+    indice = {"creato": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "file": {}}
+    pezzi = {}
+
+    def metti(nome: str, testo: str) -> None:
+        pezzi[nome] = pulisci_testo(testo)
+        indice["file"][nome] = len(pezzi[nome].encode("utf-8"))
+
+    metti("versioni.json", json.dumps(versioni(), ensure_ascii=False, indent=2))
+    for nome in ("mod-stato.json", "programmi-stato.json", "immagini-stato.json", "immagini-genera.json"):
+        f = cache() / nome
+        if f.is_file():
+            metti("stati/" + nome, coda_di(f))
+    impostazioni = leggi(app_home() / "settings.json")
+    c = config()
+    metti("impostazioni.json", json.dumps({
+        "settings": {"voci": sorted(impostazioni), "telemetry": impostazioni.get("telemetry")},
+        "arturo": {"voci": sorted(c), "mod_modo": c.get("mod_modo") or "automatico", "mod_ramo": c.get("mod_ramo"),
+                   "mod_sorgente": bool(c.get("mod_sorgente")), "app_canale": bool(c.get("app_canale"))},
+    }, ensure_ascii=False, indent=2))
+    reg = cartella_registro()
+    errori = []
+    for i in range(giorni - 1, -1, -1):
+        g = time.strftime("%Y-%m-%d", time.localtime(time.time() - i * 86400))
+        f = reg / ("eventi-%s.jsonl" % g)
+        if not f.is_file():
+            continue
+        testo = coda_di(f, 4 * DIAGNOSI_CODA)
+        metti("registro/" + f.name, testo)
+        for riga in testo.splitlines():
+            try:
+                d = json.loads(riga)
+            except ValueError:
+                continue
+            liv = d.get("livello") or ("info" if d.get("esito") in (None, "ok") else "avviso" if d.get("esito") == "ripiego" else "errore")
+            if liv in ("avviso", "errore"):
+                errori.append(riga)
+    metti("registro/errori.jsonl", "\n".join(errori[-500:]) + ("\n" if errori else ""))
+    log_app = cartella_log_app()
+    for cartella, nomi in ((log_app, ("volta.log", "volta.1.log")),
+                           (cartella_log_sistema(), [n for x in LOG_SISTEMA for n in (x, vecchio_log(Path(x), 1).name)])):
+        for nome in nomi:
+            f = cartella / nome if cartella else None
+            if f is not None and f.is_file():
+                metti("log/" + nome, coda_di(f))
+    indice["leggimi"] = ("Archivio di diagnosi di Volta. Percorsi della casa scritti come ~, nomi utente come <utente>, "
+                         "segreti come <segreto>, email come <email>. Niente conversazioni, titoli o nomi dei progetti.")
+    tmp = archivio.with_name(archivio.name + ".tmp")
+    with zipfile.ZipFile(str(tmp), "w", zipfile.ZIP_DEFLATED) as z:
+        for nome, testo in pezzi.items():
+            z.writestr(nome, testo)
+        z.writestr("indice.json", json.dumps(indice, ensure_ascii=False, indent=2))
+    os.replace(str(tmp), str(archivio))
+    return archivio, indice
+
+
+def cmd_diagnosi(argv: list) -> int:
+    uscita = None
+    if "--uscita" in argv:
+        resto = argv[argv.index("--uscita") + 1:]
+        if not resto:
+            print("uso: volta diagnosi [--uscita <cartella>]")
+            return 2
+        uscita = Path(resto[0]).expanduser()
+    if uscita is None:
+        scrivania = Path.home() / "Desktop"
+        uscita = scrivania if scrivania.is_dir() else Path.home()
+    try:
+        archivio, indice = diagnosi(uscita)
+    except OSError as e:
+        print("DIAGNOSI NON SCRITTA: %s" % e)
+        return 1
+    print("DIAGNOSI: %s (%d file, %d KB)" % (archivio, len(indice["file"]) + 1, max(1, archivio.stat().st_size // 1024)))
+    print("Dentro: versioni, stati, registro, log. Niente conversazioni né segreti: puoi mandarlo a chi ti aiuta.")
+    return 0
+
+
 def plist_agente(script: str) -> str:
     """Il LaunchAgent. Parte con `/usr/bin/env python3` e non col Python di chi l'ha acceso: un percorso
     con la versione dentro (python@3.14) sparisce al primo aggiornamento di Homebrew, e il controllo
@@ -1585,6 +1864,8 @@ def main(argv: list) -> int:
     if argv[:1] == ["--prova"]:
         return 0
     if argv[:1] == ["controlla"]:
+        for nome in ruota_log():
+            print("LOG: %s ruotato" % nome)
         rc = cmd_controlla(forza="--forza" in argv)
         c = config()
         if dal_sistema(argv) and c.get("mod_sorgente") and c.get("mod_modo") != "manuale":
@@ -1608,6 +1889,12 @@ def main(argv: list) -> int:
         return 0
     if argv[:1] == ["installa"]:
         return cmd_installa(argv[1:])
+    if argv[:1] == ["diagnosi"]:
+        return cmd_diagnosi(argv[1:])
+    if argv[:1] == ["log"]:
+        print(json.dumps({"ruotati": ruota_log(), "app": str(cartella_log_app() or ""),
+                          "sistema": str(cartella_log_sistema())}, ensure_ascii=False))
+        return 0
     if argv[:1] == ["immagini"]:
         return 1 if passo_immagini()["esito"] == "errore" else 0
     if argv[:1] == ["attiva"]:

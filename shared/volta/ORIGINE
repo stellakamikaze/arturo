@@ -1,5 +1,5 @@
 {
- "albero": "43e48ee9c651bedf1e93d48b6cfc36164ede063c",
+ "albero": "03dd34c402a7913ab352435040089b00f0811fe9",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -73,7 +73,7 @@
   "mods/arturo/volta_davanti.py": "6aa142b0f498b8fd8cb9ce46a2520fbd64eca4e837b47d3b07076a7617d5e5e3",
   "mods/arturo/volta_microfono.py": "35398f95e7915a05bc0d0e8bd98789a215e93a2f34f95b668fff3626c9ad1c2c",
   "mods/arturo/volta_note.py": "f6c354a80c5322922865f5217cb87595d0a4c0bfa61f2649a182d69b28e33b79",
-  "mods/arturo/volta_registro.py": "6b32aacdb5027f8543b8a6bdc23722be41951d60952ae19d14770c25a112c9bc",
+  "mods/arturo/volta_registro.py": "dca652ce871b90c12d8b44de7b2aa2c86527764eb23fb0b394bbc37a94ecc62c",
   "mods/arturo/volta_sonda.py": "66dcd16870d901238a6da6b4b68d75c3ce852270f97f61cef6987431669675a3",
   "mods/arturo/volta_sposta.py": "3e0a81c5fb1ba942ef6772c8f8f775b5bacdfea8812891b1e62ad8338212f451",
   "nascita.sh": "4a757a34f4199688ac33c2752da07f81bfd23bd6446fa40178a4fb6ed8e94349",
@@ -84,7 +84,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "b8931b2dd28c33aea903af5b678c2b51f722096b1dd7c70ad58a0270b85187b7"
+  "volta_mod.py": "afe93191ee17ccb171b12ecb6f6461d3f59bfbccb93b4651141fffb44f4fbefe"
  },
  "repository": "volta"
 }

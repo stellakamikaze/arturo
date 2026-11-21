@@ -2,8 +2,9 @@
 
   python3 volta_registro.py scrivi [--righe JSON]   righe JSON da stdin, una per evento, o una lista JSON
                                                    come argomento (la manda volta.js a lotti)
-  python3 volta_registro.py riassunto [--ore N] [--json] [--tutte]   cosa è successo nelle ultime N ore (24 di
-                                                   serie); --tutte anche sulle macchine di hc machine ls
+  python3 volta_registro.py riassunto [--ore N] [--json] [--tutte] [--livello L]   cosa è successo nelle ultime N
+                                                   ore (24 di serie); --tutte anche sulle macchine di hc machine ls;
+                                                   --livello avviso tiene solo avvisi ed errori
 
 Un file per giorno, eventi-AAAA-MM-GG.jsonl, in <cartella di Volta>-registro (come cacheVolta("volta-registro")
 di dati.js): ~/.cache/volta-registro per la finestra vera, <HERDR_APP_HOME>/cache/volta-registro per una
@@ -11,8 +12,8 @@ finestra di prova, VOLTA_REGISTRO per i banchi. Non in cacheVolta(): volta.js ri
 di quella cartella. I file più vecchi di TENUTA giorni si tolgono alla prima scrittura del giorno.
 
 Una riga tiene solo i campi di CAMPI, tagliati: verbo, macchina, id corto della sessione, durata, esito, la
-prima riga dell'errore, la scheda (terminale) e il progetto. Un campo nuovo di registra() va aggiunto qui,
-altrimenti pulisci() lo scarta. Mai prompt, testo delle conversazioni o segreti. Una scrittura che non riesce non
+prima riga dell'errore, la scheda (terminale), il progetto e il livello (LIVELLI). Un campo nuovo di registra()
+va aggiunto qui, altrimenti pulisci() lo scarta. Mai prompt, testo delle conversazioni o segreti. Una scrittura che non riesce non
 ferma chi scrive: registra() non solleva mai.
 Lo importano volta_sonda.py e volta_sposta.py (stessa cartella); volta.js lo chiama con `scrivi`.
 """
@@ -31,7 +32,10 @@ sys.dont_write_bytecode = True  # come gli altri script del mod: niente __pycach
 TENUTA = 14
 # come e servizio dell'evento apri (step 5 del piano, 17/11/2026): com'è andato il clic e se prepara è servito
 CAMPI = {"ora": 32, "fonte": 20, "evento": 40, "macchina": 60, "sid": 12, "esito": 20, "errore": 160, "come": 20, "servizio": 20,
-         "terminale": 40, "progetto": 40}
+         "terminale": 40, "progetto": 40, "livello": 8}
+# Il livello di ogni riga (step 7 del piano, 18/11/2026), dal più basso. Chi scrive lo può dare; senza, viene
+# dall'esito: ok o nessun esito è info, ripiego è avviso (il tentativo dopo prova, #5758), il resto è errore.
+LIVELLI = ("debug", "info", "avviso", "errore")
 # i campi in millisecondi: ms (la durata) e visibile (dal clic a Claude nella scheda, evento apri)
 DURATE = ("ms", "visibile")
 ID = re.compile(r"[^0-9A-Za-z-]")
@@ -62,6 +66,9 @@ def pulisci(d) -> dict | None:
         if k == "sid":
             v = ID.sub("", v)
         r[k] = v[:n]
+    if r.get("livello") not in LIVELLI:
+        esito = r.get("esito")
+        r["livello"] = "info" if esito in (None, "ok") else "avviso" if esito == "ripiego" else "errore"
     for k in DURATE:
         ms = d.get(k)
         if isinstance(ms, (int, float)) and not isinstance(ms, bool) and ms >= 0:
@@ -131,8 +138,18 @@ class Durata:
         return False
 
 
-def leggi(ore: float) -> list:
+def livello(r: dict) -> int:
+    """Il rango del livello di una riga; una riga scritta prima del 18/11 non ha il campo e lo prende dall'esito."""
+    v = r.get("livello")
+    if v not in LIVELLI:
+        e = r.get("esito")
+        v = "info" if e in (None, "ok") else "avviso" if e == "ripiego" else "errore"
+    return LIVELLI.index(v)
+
+
+def leggi(ore: float, minimo: str = "debug") -> list:
     c = cartella()
+    soglia = LIVELLI.index(minimo) if minimo in LIVELLI else 0
     dal = time.time() - ore * 3600
     giorni = {time.strftime("%Y-%m-%d", time.localtime(dal + i * 86400)) for i in range(int(ore // 24) + 2)}
     righe = []
@@ -151,7 +168,7 @@ def leggi(ore: float) -> list:
                 t = time.mktime(time.strptime(d.get("ora", "")[:19], "%Y-%m-%dT%H:%M:%S"))
             except (ValueError, TypeError):
                 continue
-            if t >= dal:
+            if t >= dal and livello(d) >= soglia:
                 righe.append(d)
     return righe
 
@@ -199,15 +216,15 @@ def stampa(r: dict, ore: float, qui: bool = True) -> str:
     return "\n".join(out)
 
 
-def altre_macchine(ore: float) -> list:
+def altre_macchine(ore: float, minimo: str = "debug") -> list:
     """[(nome, riassunto o {"errore"})] delle macchine collegate di Herdr: questo file gira là con hc exec
     (remoto() di volta_sonda.py), così non serve che il mod di là sia aggiornato."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import base64  # noqa: PLC0415
     import volta_sonda as vs  # noqa: PLC0415
-    codice = ("import base64,sys;sys.argv=['r','riassunto','--json','--ore',%r];"
+    codice = ("import base64,sys;sys.argv=['r','riassunto','--json','--ore',%r,'--livello',%r];"
               "exec(compile(base64.b64decode(%r),'volta_registro','exec'))"
-              % (str(ore), base64.b64encode(Path(__file__).read_bytes()).decode()))
+              % (str(ore), minimo, base64.b64encode(Path(__file__).read_bytes()).decode()))
     out = []
     for m in vs.macchine() or []:
         if m.get("stato") != "connected":
@@ -249,11 +266,17 @@ def main(argv: list) -> int:
             except (IndexError, ValueError):
                 print("--ore vuole un numero", file=sys.stderr)
                 return 2
-        r = riassunto(leggi(ore))
+        minimo = "debug"
+        if "--livello" in argv:
+            minimo = (argv[argv.index("--livello") + 1:] or [""])[0]
+            if minimo not in LIVELLI:
+                print("--livello vuole uno di: " + ", ".join(LIVELLI), file=sys.stderr)
+                return 2
+        r = riassunto(leggi(ore, minimo))
         if "--tutte" not in argv:
             print(json.dumps(r, ensure_ascii=False) if "--json" in argv else stampa(r, ore))
             return 0
-        tutte = [("questa macchina", r)] + altre_macchine(ore)
+        tutte = [("questa macchina", r)] + altre_macchine(ore, minimo)
         if "--json" in argv:
             print(json.dumps(dict(tutte), ensure_ascii=False))
         else:
