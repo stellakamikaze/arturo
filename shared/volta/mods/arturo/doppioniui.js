@@ -99,11 +99,12 @@ export class Doppioni {
     });
   }
 
-  // L'esito dell'unione in corso, che la barra scrive in shared arturo.unione.
+  // L'esito dell'unione in corso, che la barra scrive in shared arturo.unione; un rifiuto prima di cominciare
+  // sta in arturo.unione.rifiuto (#6290).
   guardaUnione(cx) {
     const k = Object.keys(this.unioni).find((x) => this.unioni[x].stato === "corso");
     if (!k) return;
-    const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da);
+    const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da, shared("arturo.unione.rifiuto"), this.unioni[k]);
     if (!e || e.stato === "corso") return;
     this.unioni[k] = { ...this.unioni[k], ...e };
     cx.notify();

@@ -1758,15 +1758,23 @@ export async function unione(perdente, vincitore, prova) {
 // persona. Lo stato sta in shared arturo.unione, che il dialogo mostra: { perdente, vincitore, stato:
 // "corso" | "fatto" | "errore", vista, quando }. Una alla volta. Un'unione che non risponde entro il tetto può
 // essere ancora in corso: l'avviso lo dice, e non si rilancia da sola.
+// Un'unione che la barra rifiuta prima di cominciarla (#6290): il motivo va anche in shared
+// arturo.unione.rifiuto, { perdente, vincitore, testo, quando }, coi nomi come sono arrivati. Il dialogo che
+// l'ha chiesta lo legge e smette di aspettare. Non passa da arturo.unione: lì può esserci un'unione in corso.
+const rifiutaUnione = (perdente, vincitore, testo) => {
+  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now() });
+  return { stato: "errore", testo };
+};
+
 export async function unisci(perdente, vincitore) {
   const noti = shared("arturo.progetti");
   const no = percheNonUnire(perdente, vincitore, noti);
-  if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return { stato: "errore", testo: no }; }
+  if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }
   const p = canonico(perdente), v = canonico(vincitore);
   const ora = shared("arturo.unione");
   if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {
     notify({ title: "Un'unione è già in corso", body: `${ora.perdente} entra in ${ora.vincitore}: aspetta che finisca.`, level: "warning" });
-    return { stato: "errore", testo: "Un'unione è già in corso." };
+    return rifiutaUnione(perdente, vincitore, "Un'unione è già in corso.");
   }
   setShared("arturo.unione", { perdente: p, vincitore: v, stato: "corso", vista: null, quando: Date.now() });
   const vista = await unione(p, v, false);

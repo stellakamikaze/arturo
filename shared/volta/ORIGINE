@@ -1,5 +1,5 @@
 {
- "albero": "43e48ee9c651bedf1e93d48b6cfc36164ede063c",
+ "albero": "fba73d5e014b5fa434f4c727d152a7a57f5dec4d",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -26,9 +26,9 @@
   "mods/arturo/comuni.js": "4db022617e6b16bf5abe437a3902d5f021fc16d09c14d8ed5ad9c42bceeeeeb5",
   "mods/arturo/contesto.js": "df1de32945f9be8ad00ac3406a290be85ee8a120490561dedf9cc22b136dcbd0",
   "mods/arturo/contestoui.js": "43ec7976efbac41fb6ab5eb08ef26ab04421ad867a3fd8d028c9539b42beafa0",
-  "mods/arturo/dati.js": "355e1f744f09ca2c77d0954592ae459555cba1d8d7034d23999af47e04e2d83c",
-  "mods/arturo/doppioni.js": "5588366756ff9efa2c847ee3a4c7fdf595459256cf90f9b2610022b398941bd3",
-  "mods/arturo/doppioniui.js": "fa0b9273e4a977e5ab931962c7cd425013e61a9b96f16133557038d8cbdf39d8",
+  "mods/arturo/dati.js": "248a4987d058d09cd88fd16fd3b004b66c96c1d993b13e98878e32832141becd",
+  "mods/arturo/doppioni.js": "c66a42313f10005ec782d44516ab384bdfe0001a2c448b613475e6ad70a36f9f",
+  "mods/arturo/doppioniui.js": "6a5719eaf228691f58bd88157e9f67a765a638f72eb0060321d250578f5b95f3",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -65,7 +65,7 @@
   "mods/arturo/tessere.js": "18363ab3887fcbfa6ed6b474dabf232efd05c3d35f1532a88d2441c6a0539a5f",
   "mods/arturo/testata.js": "4727c853c15ec6d15445457a3a06f7208d1e137b9ad9a6591d4acaa443a90ed6",
   "mods/arturo/todo.js": "f3a99f727feb65d4bc159855842780cb2454a3e0ac4b8bd505f5ab545d36e636",
-  "mods/arturo/unisci.js": "0d1a16f1817b76258e0f9bfa52d648ece1bc20bfd3d0b8bf7bcc3d08cab6c9f1",
+  "mods/arturo/unisci.js": "4399d755f86a1ca27d5d2963462cf1a2fbcd0426b6c135b70b71a141d9f45686",
   "mods/arturo/volta.js": "d1d786cea8f17fbc3b759fbd736a7e92cc925df2362a6a2e37a6a29c7ee96c2a",
   "mods/arturo/volta_capo.py": "0068f73623b1e65d445a6b84d1cea0660aa94bdc83c1fbb0adaed22d02554d72",
   "mods/arturo/volta_carte.py": "765eb89941fbba5b6290801ea08410795be141b5ba3abf537e0fc3aae5668e5d",

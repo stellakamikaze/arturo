@@ -92,6 +92,7 @@ export class Unisci {
   unisci(cx) {
     if (this.passo !== "anteprima" || !this.vista?.pronta) return;
     this.passo = "corso";
+    this.partita = Date.now();
     run(comandoUnisciVai(this.perdente, this.vincitore));
     cx.notify();
   }
@@ -100,6 +101,14 @@ export class Unisci {
   // l'anteprima ancora a schermo, se il comando è arrivato da fuori (herdr-app do).
   guarda(cx) {
     if (this.passo !== "corso" && this.passo !== "anteprima") return;
+    // la barra ha rifiutato l'unione prima di cominciarla: non scriverà altro (#6290)
+    const r = shared("arturo.unione.rifiuto");
+    if (this.passo === "corso" && r && r.perdente === this.perdente && r.vincitore === this.vincitore && r.quando >= (this.partita ?? Infinity)) {
+      this.vista = { stato: "errore", testo: String(r.testo || "La barra ha rifiutato l'unione."), righe: [], avvisi: [], backup: null };
+      this.passo = "esito";
+      cx.notify();
+      return;
+    }
     const u = shared("arturo.unione");
     if (!u || u.perdente !== this.perdente || u.vincitore !== this.vincitore || !(u.quando >= this.aperto)) return;
     if (u.stato === "corso") {
