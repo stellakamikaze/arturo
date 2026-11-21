@@ -260,7 +260,7 @@ NC_HOST = re.compile(r'\b(nc|ncat)\b\s+[^\n|;&]*?\b([A-Za-z0-9][A-Za-z0-9.\-]+\.
                      re.IGNORECASE)
 
 
-def _ask(reason=None):
+def _ask(regola, reason=None):
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -272,6 +272,11 @@ def _ask(reason=None):
             ),
         }
     }))
+    # Il dispatcher di Arturo chiede anche quale regola ha parlato: va nella telemetria come
+    # exfil-guard.py.<regola>, così si vede quale chiede a vuoto (21/11/2026, #5762). Solo il nome
+    # della regola, mai l'host né il file. Senza la variabile l'uscita resta il solo JSON.
+    if os.environ.get("ARTURO_REGOLA") == "1":
+        print(f"REGOLA: {regola}")
     return 0
 
 
@@ -518,28 +523,28 @@ def main() -> int:
         # Un curl o un wget ridefinito come funzione o alias nasconde la destinazione vera, e -K/--config
         # legge le opzioni (anche l'URL) da un file (1/11/2026, F29).
         if _RIDEFINITO.search(unito) or _CONFIG_CURL.search(m.group(0)):
-            return _ask()
+            return _ask("upload-nascosto")
         # Una variabile assegnata solo dopo il curl, al primo giro vale quanto nell'ambiente: non si legge.
         prima = _assegnate(unito[:m.start()])
         assegnate = {nome: valori + ([None] if nome not in prima else []) for nome, valori in tutte.items()}
         if not all(_destinazione_fidata(x) and _proxy_fidati(x, assegnate) for x in _espansioni(m.group(0), assegnate)):
-            return _ask()
+            return _ask("upload-esterno")
 
     # ---- Ramo B: canali di rete grezzi ----
     # /dev/tcp e /dev/udp verso un host esterno, o che non si legge (una variabile)
     for h in DEV_TCP.findall(cmd):
         if not _internal_host(h):
-            return _ask("Redirezione bash /dev/tcp verso un host esterno o che non si legge "
+            return _ask("dev-tcp", "Redirezione bash /dev/tcp verso un host esterno o che non si legge "
                         "(canale di esfiltrazione). Conferma solo se voluto.")
     # Una pipe verso nc/ncat/netcat/socat: i dati del comando prima escono dalla macchina.
     for m in NC_PIPE.finditer(cmd):
         if not _solo_fidati(_destinazioni_nc(m.group(1), m.group(2))):
-            return _ask(f"Pipe verso {m.group(1)}: i dati del comando prima vanno a un host esterno, o a "
+            return _ask("pipe-rete", f"Pipe verso {m.group(1)}: i dati del comando prima vanno a un host esterno, o a "
                         "uno che non si legge. Conferma solo se l'invio è voluto.")
     # nc/ncat verso host esterno
     m = NC_HOST.search(cmd)
     if m and _external_host(m.group(2)):
-        return _ask("nc/ncat verso un host esterno (canale di esfiltrazione). "
+        return _ask("nc-esterno", "nc/ncat verso un host esterno (canale di esfiltrazione). "
                     "Conferma solo se voluto.")
     return 0
 

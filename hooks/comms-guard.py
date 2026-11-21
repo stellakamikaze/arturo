@@ -40,40 +40,46 @@ if hasattr(signal, "SIGALRM"):
     signal.signal(signal.SIGALRM, _stdin_timeout)
 
 
+# Ogni voce: (pattern, etichetta per la persona, famiglia del canale). La famiglia va nella telemetria come
+# comms-guard.py.<famiglia> (21/11/2026, #5762): dice il tipo di canale, mai il servizio. "chat" non dice
+# se è WhatsApp o Telegram, "api-invio" non dice quale API, come le famiglie dei segreti di
+# commit-secret-gate. L'etichetta resta nel testo della conferma, che non esce.
+FAMIGLIA_MAILTO = "mailto"
+FAMIGLIA_ENDPOINT = "api-invio"
 SEND_BINARIES = [
-    (r"\bsendmail\b", "sendmail"),
-    (r"\bmail\s+-s\b", "mail -s"),
-    (r"\bmutt\s+.*-s\b", "mutt"),
-    (r"\bmailx\b", "mailx"),
-    (r"\bmsmtp\b", "msmtp"),
-    (r"\bgit\b[^|;&\n]*\b(send-email|imap-send)\b", "git send-email / imap-send"),
-    (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send"),
+    (r"\bsendmail\b", "sendmail", "email"),
+    (r"\bmail\s+-s\b", "mail -s", "email"),
+    (r"\bmutt\s+.*-s\b", "mutt", "email"),
+    (r"\bmailx\b", "mailx", "email"),
+    (r"\bmsmtp\b", "msmtp", "email"),
+    (r"\bgit\b[^|;&\n]*\b(send-email|imap-send)\b", "git send-email / imap-send", "email"),
+    (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send", "email"),
     # gws: l'invio si ferma, la bozza no. `gws gmail +send` è la forma più comune.
-    (r"\bgws\b.*\bgmail\b.*(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)"),
+    (r"\bgws\b.*\bgmail\b.*(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)", "email"),
     # Inoltro automatico, deleghe e filtri della casella: spediscono la posta altrove
     # in silenzio, per sempre. Stesso rango di un invio.
     (r"\bgws\b.*\bgmail\b.*\b(forwardingAddresses|updateAutoForwarding|delegates|filters)\b.*\b(create|update|patch)\b",
-     "gws gmail (inoltro, delega o filtro)"),
-    (r"\bmail\s+\S+@\S+", "mail <indirizzo>"),
+     "gws gmail (inoltro, delega o filtro)", "email-inoltro"),
+    (r"\bmail\s+\S+@\S+", "mail <indirizzo>", "email"),
     # mail e mutt come programma, anche senza -s e con l'indirizzo in una variabile.
-    (r"(?:^|[;&|(`\n])\s*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt"),
-    (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>"),
+    (r"(?:^|[;&|(`\n])\s*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt", "email"),
+    (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>", "email"),
     # mailto: conta solo come argomento di un programma che apre un link (31/10/2026): dentro sed, un
     # heredoc o un --json è testo (un invito di calendario ha ORGANIZER;CN=…:mailto:…). Vedi _MAILTO_APERTO.
-    (r"\bsmtps?://", "smtp:// (invio diretto)"),
-    (r"\bswaks\b", "swaks"),
+    (r"\bsmtps?://", "smtp:// (invio diretto)", "email"),
+    (r"\bswaks\b", "swaks", "email"),
     # (?s): la forma naturale è un heredoc su più righe (`osascript <<'EOF'` e `tell application "Mail"` a capo,
     # review del 7/11/2026, finding 6).
-    (r"(?s)\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages"),
-    (r"\bwhatsapp[_/-]?send\b", "helper WhatsApp"),
-    (r"\btelegram[_/-]?send\b", "helper Telegram"),
+    (r"(?s)\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages", "applescript"),
+    (r"\bwhatsapp[_/-]?send\b", "helper WhatsApp", "chat"),
+    (r"\btelegram[_/-]?send\b", "helper Telegram", "chat"),
     # Python SMTP: invio email diretto (bypassava i binari noti).
-    (r"\bsmtplib\b", "smtplib (invio email via Python)"),
-    (r"\bSMTP_SSL\b", "SMTP_SSL (Python)"),
-    (r"(?s)\bEmailMessage\b.*\bsend", "EmailMessage/send (Python)"),
+    (r"\bsmtplib\b", "smtplib (invio email via Python)", "email"),
+    (r"\bSMTP_SSL\b", "SMTP_SSL (Python)", "email"),
+    (r"(?s)\bEmailMessage\b.*\bsend", "EmailMessage/send (Python)", "email"),
     # http.client verso un servizio di messaggistica: un POST senza curl ne' requests.
     (r"(?s)\bhttp\.client\b.*\b(telegram|slack|sendgrid|mailgun|discord|twilio|postmark|resend)\b",
-     "http.client verso un servizio di messaggistica"),
+     "http.client verso un servizio di messaggistica", "api-invio"),
 ]
 
 SEND_ENDPOINTS = re.compile(
@@ -219,18 +225,18 @@ def main() -> int:
 
     command = _senza_help(command)
     aperto = _MAILTO_APERTO.search(command) or _mailto_indiretto(command)
-    matched = "mailto: (apre un invio)" if aperto else None
-    for pattern, label in ([] if matched else SEND_BINARIES):
+    matched, famiglia = ("mailto: (apre un invio)", FAMIGLIA_MAILTO) if aperto else (None, None)
+    for pattern, label, fam in ([] if matched else SEND_BINARIES):
         if pattern == _SMTP_URL:
             if _smtp_invia(command):
-                matched = label
+                matched, famiglia = label, fam
                 break
             continue
         if re.search(pattern, command, re.IGNORECASE):
-            matched = label
+            matched, famiglia = label, fam
             break
     if not matched and SEND_ENDPOINTS.search(command):
-        matched = "endpoint messaggistica/email"
+        matched, famiglia = "endpoint messaggistica/email", FAMIGLIA_ENDPOINT
 
     if matched:
         reason = (
@@ -243,6 +249,9 @@ def main() -> int:
             "permissionDecision": "ask",
             "permissionDecisionReason": reason,
         }}) + "\n")
+        # Il dispatcher di Arturo chiede anche quale regola ha parlato. Senza la variabile esce il solo JSON.
+        if os.environ.get("ARTURO_REGOLA") == "1":
+            sys.stdout.write(f"REGOLA: {famiglia}\n")
         return 0
     return 0
 

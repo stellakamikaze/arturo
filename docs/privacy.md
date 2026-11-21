@@ -36,7 +36,9 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 
 Cosa non esce mai: prompt, risposte, file tuoi, percorsi del tuo computer, nomi, testi. Le eccezioni sono due, qui sopra: il testo di una segnalazione, che Claude scrive sul guasto di Arturo, e il contatto che dai tu per le segnalazioni.
 Di un file tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`. Il testo di una tua skill esce solo se la proponi tu con `/proponi`: sempre dopo che hai letto la copia ripulita e detto sì. Di un comando tuo esce solo `altro`.
+Di una guardia che ti chiede conferma esce il nome della regola che ha chiesto, da un elenco chiuso, come `rm-cartella` o `rsync-locale`: mai il comando, il file o l'indirizzo.
 Di un segreto fermato in un commit esce solo la famiglia, come `segreto-cloud`, mai il servizio.
+Di un invio fermato esce solo la famiglia del canale, come `email` o `chat`, mai il servizio né il destinatario.
 Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo scritto, fino a 64 KB per messaggio.
 
 Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`), lo stato della telemetria (`~/.claude/session-env/telemetria.json`), i codici delle ricevute delle segnalazioni (`~/.claude/data/segnalazioni/ricevute.json`, leggibile solo da te), il contatto che hai dato (`~/.claude/data/contatto.json`, leggibile solo da te) e l'ultima risposta letta per ognuna (`~/.claude/cache/sportello.json`).

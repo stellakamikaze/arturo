@@ -146,7 +146,7 @@ def _robocopy_cancella(cmd: str) -> bool:
     return False
 
 
-def _ask(reason: str) -> int:
+def _ask(regola: str, reason: str) -> int:
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -154,6 +154,11 @@ def _ask(reason: str) -> int:
             "permissionDecisionReason": reason,
         }
     }))
+    # Il dispatcher di Arturo chiede anche quale regola ha parlato: va nella telemetria come
+    # data-guard.py.<regola>, così si vede quale chiede a vuoto (21/11/2026, #5762). Solo il nome
+    # della regola, mai il comando né il database. Senza la variabile l'uscita resta il solo JSON.
+    if os.environ.get("ARTURO_REGOLA") == "1":
+        print(f"REGOLA: {regola}")
     return 0
 
 
@@ -177,19 +182,19 @@ def main() -> int:
     if DB_CLIENT_RE.search(cmd):
         for pattern, why in SQL_DESTRUCTIVE:
             if re.search(pattern, cmd, re.IGNORECASE):
-                return _ask(
+                return _ask("sql-distruttivo",
                     f"Operazione SQL distruttiva ({why}). Irreversibile sui dati: "
                     "conferma solo se hai un dump/backup verificato e stai agendo "
                     "sul database giusto."
                 )
         if _delete_without_where(cmd):
-            return _ask(
+            return _ask("delete-senza-where",
                 "DELETE FROM senza clausola WHERE: cancella TUTTE le righe. "
                 "Conferma solo se è voluto (e c'è un backup)."
             )
 
     if DOCKER_DOWN_VOL_RE.search(cmd):
-        return _ask(
+        return _ask("docker-volumi",
             "`docker compose down -v` rimuove i VOLUMI = i dati persistenti dei "
             "container. Prima di dismettere uno stack, verifica di avere un "
             "dump/export. Conferma solo se i dati sono già salvati."
@@ -197,34 +202,34 @@ def main() -> int:
 
     dove = _rsync_delete_reale(cmd)
     if dove == "remota":
-        return _ask(
+        return _ask("rsync-remota",
             "rsync --delete verso una destinazione REMOTA: se la direzione è "
             "sbagliata (local->master) può cancellare dati sul server. "
             "Verifica sorgente/destinazione e fai un pull/backup prima."
         )
     if dove == "locale":
-        return _ask(
+        return _ask("rsync-locale",
             "rsync --delete verso una cartella di questo computer: cancella lì ogni file che la "
             "sorgente non ha, senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima "
             "con -n (dry-run) e controlla sorgente e destinazione."
         )
 
     if _robocopy_cancella(cmd):
-        return _ask(
+        return _ask("robocopy",
             "robocopy con /MIR o /PURGE: cancella nella destinazione ogni file che la sorgente non ha, "
             "senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima con /L, che elenca "
             "cosa farebbe, e controlla sorgente e destinazione."
         )
 
     if REG_DELETE_RE.search(_senza_testo(cmd)):
-        return _ask(
+        return _ask("reg-delete",
             "reg delete cancella una chiave o un valore del registro di Windows, senza cestino. Prima "
             "salva la chiave con `reg export <chiave> copia.reg`, così la rimetti con `reg import`. "
             "Conferma solo se sai cosa cancella."
         )
 
     if DB_FILE_OVERWRITE_RE.search(cmd):
-        return _ask(
+        return _ask("db-sovrascritto",
             "Sovrascrittura di un file di database via redirezione (>). "
             "Se è un master, i dati precedenti vanno persi. Conferma solo se "
             "è voluto; usa >> per appendere o fai una copia prima."

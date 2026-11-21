@@ -24,8 +24,8 @@ l'installazione riparte con un id nuovo e la coda vuota.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
-  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous con il nome della regola e
-  per commit-secret-gate con la famiglia del segreto: l'id della chiamata resta in
+  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous, exfil-guard e data-guard con il nome della regola,
+  per commit-secret-gate con la famiglia del segreto, per comms-guard con la famiglia del canale: l'id della chiamata resta in
   session-env/telemetria-attese.json) ed `esito` (il PostToolUse o il PostToolUseFailure, via
   bin/telemetria-esito.sh: se la chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
@@ -127,6 +127,12 @@ REGOLE = {
                                      "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-destinazione",
                                      "git-stash", "git-amend", "git-worktree"}),
     "commit-secret-gate.py": frozenset(FAMIGLIE_SEGRETI + ("scaduta", "repo-ignoto", "scansione-fallita")),
+    # 21/11/2026, #5762: anche queste tre dicono la regola. exfil-guard e data-guard: i nomi passati a _ask().
+    # comms-guard: la famiglia del canale (terza colonna di SEND_BINARIES, FAMIGLIA_MAILTO, FAMIGLIA_ENDPOINT),
+    # mai il servizio.
+    "comms-guard.py": frozenset({"email", "email-inoltro", "mailto", "applescript", "chat", "api-invio"}),
+    "data-guard.py": frozenset({"sql-distruttivo", "delete-senza-where", "docker-volumi", "rsync-remota", "rsync-locale", "robocopy", "reg-delete", "db-sovrascritto"}),
+    "exfil-guard.py": frozenset({"upload-nascosto", "upload-esterno", "dev-tcp", "pipe-rete", "nc-esterno"}),
 }
 # Perché il controllo di una guardia non è arrivato in fondo (21/11/2026, #5761): esce in `errore` come
 # <guardia>.<causa>. Lo stesso elenco sta in CAUSE di hooks/commit-secret-gate.py e di server/logica.js
@@ -148,6 +154,8 @@ CAUSE = {
 # 11: escono la memoria accesa o spenta con le note in fasce, le note proposte e aperte in fasce, i salvataggi
 # automatici e se /inizio parte dalla persona o dalla rotazione (15/11/2026, M7 della memoria, #5672).
 # 12: una guardia che non riesce a fare il suo controllo dice perché, da un elenco chiuso (21/11/2026, #5761).
+# Sempre 12, non ancora uscita: anche exfil-guard, comms-guard e data-guard dicono la regola che chiede; di un invio
+# solo la famiglia del canale (21/11/2026, #5762).
 PROMESSA = 12
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
@@ -1244,7 +1252,7 @@ def avvio() -> int:
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo (plugin o clone) e di "
                   "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
                   "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
-                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono o che non riescono a fare il loro controllo (con la causa, da un elenco chiuso), banchi di prova delle guardie rossi, memoria accesa o spenta e "
+                  "(di un segreto e di un invio solo la famiglia), e se la persona conferma, guardie che si rompono o che non riescono a fare il loro controllo (con la causa, da un elenco chiuso), banchi di prova delle guardie rossi, memoria accesa o spenta e "
                   "quante note ricorda, quante note propone e quante Claude apre (in fasce, mai i nomi), sessioni salvate da sole senza /fine, "
                   "se /inizio parte dalla persona o dalla rotazione, fase di /setup raggiunta, esiti di /aggiorna e degli "
                   "aggiornamenti automatici, perché un aggiornamento automatico non parte (anche modifiche non salvate o una copia di prova in attesa), file e hook di Arturo cambiati, spenti o in conflitto "

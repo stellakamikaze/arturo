@@ -347,9 +347,9 @@ def test_m13(repo: Path) -> None:
     r = lab.hook("bash-dispatcher.sh", json.dumps({"tool_name": "Bash", "tool_input": {"command": comando},
                                                     "tool_use_id": "toolu_01"}))
     assert '"ask"' in r.stdout, f"M13 il comando di prova non chiede conferma: {r.returncode} {r.stdout[:200]}"
-    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("chiede", "exfil-guard.py")], f"M13 chiede: {lab.coda()}"
+    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("chiede", "exfil-guard.py.upload-esterno")], f"M13 chiede: {lab.coda()}"
     attese = lab.home / ".claude" / "session-env" / "telemetria-attese.json"
-    assert json.loads(attese.read_text(encoding="utf-8")) == {"toolu_01": "exfil-guard.py"}, "M13 l'attesa non c'è"
+    assert json.loads(attese.read_text(encoding="utf-8")) == {"toolu_01": "exfil-guard.py.upload-esterno"}, "M13 l'attesa non c'è"
     assert "clienti" not in json.dumps(lab.coda()) + attese.read_text(encoding="utf-8"), "M13 il comando esce"
     # Il PostToolUse vero, preso dal settings.json di Arturo.
     impostazioni = json.loads(read(repo / "settings.json"))

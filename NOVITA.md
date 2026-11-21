@@ -13,6 +13,24 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Quando una protezione ti chiede conferma, Arturo registra quale regola è scattata
+
+**Cosa cambia**: tre protezioni ti chiedono conferma prima di un comando: quella sugli invii (email e
+messaggi), quella sui dati che escono verso un server esterno e quella sulle cancellazioni nei database.
+Le domande restano le stesse, e nessuna regola cambia. Da oggi, quando una di queste chiede, Arturo
+registra quale regola è scattata, mai cosa stavi facendo: non il comando, non il file, non l'indirizzo.
+Di un invio registra solo il tipo di canale, per esempio "email" o "chat", mai il servizio né il
+destinatario. L'avviso sui dati d'uso lo dice già: è lo stesso che torna una volta per la voce qui sotto.
+
+**Il principio**: una domanda a cui tutti rispondono sì è una domanda inutile, ma per toglierla bisogna
+sapere quale è. In un mese queste tre protezioni hanno chiesto 67 volte e ricevuto 60 sì, e i dati
+dicevano solo il nome della protezione.
+
+**A chi serve**: a chi si trova a confermare spesso un invio o un caricamento che voleva fare. Con il
+nome della regola capiamo quali domande servono davvero e quali togliere.
+
+---
+
 ## 2026-11-21 — Se il controllo dei segreti non parte, Arturo registra perché e /diagnosi te lo dice
 
 **Cosa cambia**: prima di ogni commit Arturo legge le modifiche e cerca chiavi e password. Se la lettura

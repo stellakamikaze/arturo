@@ -213,8 +213,8 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
 - **Dove migliorare Arturo.** Il riepilogo del lunedì si apre con questa sezione, sugli ultimi 30
   giorni: fase di `/setup` dove si fermano le installazioni che non arrivano in fondo, guardie che
   chiedono conferma con la quota di sì (vicina al 100% vuol dire domanda inutile), sommate per guardia
-  (`confermeGuardie`) e per regola dove la guardia la dice (`conferme`: block-dangerous e
-  commit-secret-gate), guardie che si rompono, installazioni rimaste indietro (`indietro`: attive
+  (`confermeGuardie`) e per regola dove la guardia la dice (`conferme`: block-dangerous,
+  commit-secret-gate e, dal 21/11/2026, exfil-guard, comms-guard e data-guard), guardie che si rompono, installazioni rimaste indietro (`indietro`: attive
   negli ultimi 3 giorni senza un rilascio uscito da almeno 3, anche su Telegram ogni mattina),
   aggiornamenti rifiutati o annullati per versione, ritenzione a 7, 30 e 60 giorni,
   versioni di Claude Code. Dal 24/10/2026 la finestra di 30 giorni vale per tutto il blocco, setup e
@@ -312,7 +312,7 @@ evento o un valore che il server non conosce si scarta e si conta in `scartati` 
 faceva rifiutare il lotto intero), quindi un client più nuovo del server perde quei dati. Anche una
 guardia, una regola o un comando nuovi vanno nelle liste chiuse di `server/logica.js` (`GUARDIE`,
 `REGOLE`, `COMANDI`), che il banco TF03 (`tests/test_telemetria_f1_2026_10_24.py`) confronta con il
-repository e con `bin/telemetria.py`. La causa di un controllo che non arriva in fondo (`CAUSE`, oggi solo
+repository e con `bin/telemetria.py`. Una regola di comms-guard è la famiglia del canale, mai il servizio: una voce nuova di `SEND_BINARIES` prende una famiglia che c'è già. La causa di un controllo che non arriva in fondo (`CAUSE`, oggi solo
 per `commit-secret-gate.py`) sta in tre posti, la guardia, `bin/telemetria.py` e `server/logica.js`: li
 confronta il banco SC05 (`tests/test_scansione_causa_2026_11_21.py`). Lo stesso vale per una skill, un agent, un file della radice o un
 hook di `settings.json` nuovi: vanno in `DERIVA_NOMI` e `DERIVA_HOOK`, che il banco TF05 confronta con

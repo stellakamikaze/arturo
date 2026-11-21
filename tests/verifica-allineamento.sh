@@ -177,6 +177,7 @@ BANCHI=(
   test_claude_md_conferma_2026_11_03.py
   test_scansione_fallita_2026_11_03.py
   test_scansione_causa_2026_11_21.py
+  test_regola_tre_guardie_2026_11_21.py
   test_finestre_windows_2026_11_04.py
   test_sportello_2026_11_04.py
   # Il contatto di chi segnala (10/11/2026): arturo contatto, prepara e invia, domanda una volta.
@@ -469,6 +470,8 @@ BASELINE=(
   "test_scansione_fallita_2026_11_03.py e2106f0"
   # La scansione dei segreti che non parte registra la causa (21/11/2026, #5761): e794f3e, il dev prima.
   "test_scansione_causa_2026_11_21.py e794f3e"
+  # exfil-guard, comms-guard e data-guard dicono la regola che chiede (21/11/2026, #5762): d4c7fa4, il dev prima.
+  "test_regola_tre_guardie_2026_11_21.py d4c7fa4"
   # La catena dei todo e la riga di stato (3/11/2026, #3888): acb4a39, il dev prima.
   "test_catena_2026_11_03.py acb4a39"
   # Le tre viste dei todo allineate (3/11/2026, #3868): su acb4a39 la pagina non ha dopo.

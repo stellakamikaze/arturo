@@ -421,7 +421,8 @@ lancia_guardia() {
 run_guard() {
     local out rc regola="" causa="" riserva="$_RISERVA" senza_allow="$_SENZA_ALLOW"
     _RISERVA=""; _SENZA_ALLOW=""
-    # ARTURO_REGOLA=1: una guardia che sa nominare la regola che chiede (block-dangerous, commit-secret-gate) la scrive in
+    # ARTURO_REGOLA=1: una guardia che sa nominare la regola che chiede (block-dangerous, commit-secret-gate, e dal 21/11/2026
+    # exfil-guard, comms-guard e data-guard) la scrive in
     # una riga "REGOLA: <nome>" dopo il JSON. Si toglie qui, prima di ogni controllo: Claude Code
     # riceve solo il JSON, la telemetria registra <guardia>.<regola> (22/10/2026).
     out=$(lancia_guardia "$@")

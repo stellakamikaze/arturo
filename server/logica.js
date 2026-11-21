@@ -50,6 +50,10 @@ export const REGOLE = {
     "sblocco", "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-stash", "git-destinazione", "git-amend", "git-worktree"],
   "commit-secret-gate.py": ["segreto-cloud", "segreto-token", "segreto-password", "segreto-chiave-privata", "segreto-altro",
     "scaduta", "repo-ignoto", "scansione-fallita"],
+  // 21/11/2026, #5762: exfil-guard e data-guard i nomi passati a _ask(); comms-guard la famiglia del canale, mai il servizio.
+  "comms-guard.py": ["email", "email-inoltro", "mailto", "applescript", "chat", "api-invio"],
+  "data-guard.py": ["sql-distruttivo", "delete-senza-where", "docker-volumi", "rsync-remota", "rsync-locale", "robocopy", "reg-delete", "db-sovrascritto"],
+  "exfil-guard.py": ["upload-nascosto", "upload-esterno", "dev-tcp", "pipe-rete", "nc-esterno"],
 };
 // CAUSE: perché il controllo di una guardia non è arrivato in fondo (21/11/2026, #5761). Il suffisso .<causa> che
 // bash-dispatcher.sh aggiunge al nome della guardia nell'evento errore (riga "CAUSA:"). Lo stesso elenco sta in

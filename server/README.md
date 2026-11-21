@@ -12,8 +12,8 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   aggiornati: in coda all'elenco, si toglie dopo qualche settimana.
   Dal 24/10/2026 anche i valori sono a lista chiusa: `guardia`, `chiede`, `confermata` ed `errore`
   accettano solo i nomi delle guardie di Arturo (`GUARDIE` in `logica.js`), con il suffisso
-  `.<regola>` solo per le regole che esistono (`REGOLE`: quelle di block-dangerous e le famiglie del
-  segreto di commit-secret-gate, mai il nome del fornitore). `comando` accetta solo i comandi di
+  `.<regola>` solo per le regole che esistono (`REGOLE`: quelle di block-dangerous, exfil-guard e data-guard, le famiglie del
+  segreto di commit-secret-gate, mai il nome del fornitore, e le famiglie del canale di comms-guard, mai il servizio). `comando` accetta solo i comandi di
   `commands/` (`COMANDI`) e `altro`. Il lotto passa in parte: la risposta è `200 {accettati, scartati}`,
   gli eventi fuori elenco non si salvano e si contano nel contatore `scartati` del giorno, senza id.
   Il `400` resta per il lotto malformato (installazione, versione o sistema storti, JSON rotto).
