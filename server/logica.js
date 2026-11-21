@@ -51,6 +51,12 @@ export const REGOLE = {
   "commit-secret-gate.py": ["segreto-cloud", "segreto-token", "segreto-password", "segreto-chiave-privata", "segreto-altro",
     "scaduta", "repo-ignoto", "scansione-fallita"],
 };
+// CAUSE: perché il controllo di una guardia non è arrivato in fondo (21/11/2026, #5761). Il suffisso .<causa> che
+// bash-dispatcher.sh aggiunge al nome della guardia nell'evento errore (riga "CAUSA:"). Lo stesso elenco sta in
+// hooks/commit-secret-gate.py e in bin/telemetria.py (banco SC05, tests/test_scansione_causa_2026_11_21.py).
+export const CAUSE = {
+  "commit-secret-gate.py": ["strumento-mancante", "tempo-scaduto", "errore", "troppi-file"],
+};
 // COMANDI: i file di commands/, lo stesso elenco di COMANDI in bin/telemetria.py (banco M10). Il client manda
 // "altro" per un comando che non è di Arturo: il server lo accetta, il nome vero non esce mai.
 export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
@@ -122,7 +128,10 @@ export function versionePubblica(versione) {
 
 const esatto = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const unoDi = (valori) => new RegExp(`^(${valori.map(esatto).join("|")})$`);
-const GUARDIA_E_REGOLA = unoDi([...GUARDIE, ...Object.entries(REGOLE).flatMap(([g, regole]) => regole.map((r) => `${g}.${r}`))]);
+const conSuffisso = (elenco) => Object.entries(elenco).flatMap(([g, nomi]) => nomi.map((n) => `${g}.${n}`));
+const GUARDIA_E_REGOLA = unoDi([...GUARDIE, ...conSuffisso(REGOLE)]);
+// errore accetta ancora le regole, come fino al 21/11/2026, e in più le cause.
+const GUARDIA_E_CAUSA = unoDi([...GUARDIE, ...conSuffisso(REGOLE), ...conSuffisso(CAUSE)]);
 
 // L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
 // il banco M09 controlla che coincidano, salvo gli eventi vecchi che il client non manda più.
@@ -142,7 +151,7 @@ export const EVENTI = {
   setup: /^(fase:(10|[0-9][a-z]?)|fine)$/,
   chiede: GUARDIA_E_REGOLA,
   confermata: GUARDIA_E_REGOLA,
-  errore: GUARDIA_E_REGOLA,
+  errore: GUARDIA_E_CAUSA,
   claude: /^\d{1,3}\.\d{1,3}\.\d{1,4}$/,
   // Dal 3/11/2026 (#4540): alla chiusura della sessione la durata e i messaggi della persona in fasce, e le skill usate.
   durata: /^(<5m|5-30m|30m-2h|>2h)$/,

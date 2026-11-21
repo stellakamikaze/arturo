@@ -33,11 +33,29 @@ def _regola(nome: str) -> None:
         print(f"REGOLA: {nome}")
 
 
+# Perché la scansione non è arrivata in fondo (21/11/2026, #5761). In 30 giorni scansione-fallita ha chiesto
+# 27 volte con 20 sì su 3 installazioni, e il campo errori del riepilogo restava vuoto: nessun dato diceva
+# quale ramo parlava. La causa parte come evento `errore`, commit-secret-gate.py.<causa>; `chiede` resta
+# scansione-fallita o scaduta, così la serie resta confrontabile. Lo stesso elenco sta in CAUSE di
+# bin/telemetria.py e di server/logica.js.
+#   strumento-mancante  git non si avvia
+#   tempo-scaduto       git non risponde in 4 secondi, o la guardia intera supera i 6
+#   errore              git risponde con un errore, o la guardia si rompe
+#   troppi-file         i file nuovi superano il tetto di byte, di secondi o di numero
+CAUSE = ("strumento-mancante", "tempo-scaduto", "errore", "troppi-file")
+
+
+def _causa_evento(causa: str) -> None:
+    if causa in CAUSE and os.environ.get("ARTURO_REGOLA") == "1":
+        print(f"CAUSA: {causa}")
+
+
 def _stdin_timeout(signum, frame):
     # 9/10/2026: un gate che scade e tace è un gate spento (git lento, disco freddo).
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
                       "permissionDecisionReason": "Scansione dei segreti nel commit scaduta: conferma prima di proseguire."}}))
     _regola("scaduta")
+    _causa_evento("tempo-scaduto")
     sys.exit(0)
 
 
@@ -408,9 +426,9 @@ def _repo_for_command(command: str, cwd: str):
 class _Fallita(Exception):
     """La scansione non è partita: causa e rimedio in parole, per il popup (3/11/2026, #4472)."""
 
-    def __init__(self, causa: str, rimedio: str) -> None:
+    def __init__(self, causa: str, rimedio: str, tipo: str = "errore") -> None:
         super().__init__(causa)
-        self.causa, self.rimedio = causa, rimedio
+        self.causa, self.rimedio, self.tipo = causa, rimedio, tipo  # tipo: una voce di CAUSE
 
 
 def _causa(stderr: str, repo: str) -> _Fallita:
@@ -439,9 +457,10 @@ def _git(command: list, repo: str, **kw) -> subprocess.CompletedProcess:
         return subprocess.run(command, capture_output=True, timeout=4, check=False, env=env, **kw)
     except subprocess.TimeoutExpired:
         raise _Fallita("git ha impiegato più di 4 secondi a mostrare le modifiche (repository grande o disco lento)",
-                       f'git -C "{repo}" diff --cached --stat, per vedere quanto pesa') from None
+                       f'git -C "{repo}" diff --cached --stat, per vedere quanto pesa', "tempo-scaduto") from None
     except OSError as e:
-        raise _Fallita(f"git non si avvia ({e.strerror or e})", "git --version, per vedere se git è installato") from None
+        raise _Fallita(f"git non si avvia ({e.strerror or e})", "git --version, per vedere se git è installato",
+                       "strumento-mancante") from None
 
 
 # Le opzioni di git commit e di git add che prendono un valore staccato (review del 7/11/2026, finding 7).
@@ -628,7 +647,7 @@ def _scansiona_nuova(command: str, sorgenti) -> int:
     contenuto = _leggi_sorgenti(sorgenti)
     if contenuto is None:
         return _ask("scansione-fallita", "Commit in una cartella nuova con troppi file copiati da scansionare: "
-                    "conferma prima di proseguire.")
+                    "conferma prima di proseguire.", "troppi-file")
     testo = command + "\n" + contenuto
     uniq = list(dict.fromkeys(name for rx, name in COMPILED if rx.search(testo)))
     if not uniq:
@@ -639,9 +658,10 @@ def _scansiona_nuova(command: str, sorgenti) -> int:
                 "verificato che non sia una credenziale reale.")
 
 
-def _ask(regola: str, reason: str) -> int:
+def _ask(regola: str, reason: str, causa: str = "") -> int:
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": reason}}))
     _regola(regola)
+    _causa_evento(causa)
     return 0
 
 
@@ -710,7 +730,7 @@ def main() -> int:
     if isinstance(out, _Fallita):
         # La conferma resta e il nome della regola non cambia: la telemetria resta confrontabile.
         return _ask("scansione-fallita", f"La scansione dei segreti non è partita: {out.causa}. Per ripararla: "
-                    f"{out.rimedio}. Se confermi, il commit parte senza controllo dei segreti.")
+                    f"{out.rimedio}. Se confermi, il commit parte senza controllo dei segreti.", out.tipo)
 
     parziale = ""
     if lettura and lettura.saltati:
@@ -737,7 +757,7 @@ def main() -> int:
             # La conferma resta e il nome della regola non cambia: la telemetria resta confrontabile.
             return _ask("scansione-fallita", parziale + "Nessun segreto nei file letti. Se confermi, i file non "
                         "letti entrano senza controllo: aggiungili a gruppi, oppure controlla con git status cosa "
-                        "entra nel commit.")
+                        "entra nel commit.", "troppi-file")
         return 0
 
     uniq = list(dict.fromkeys(found))
@@ -749,6 +769,27 @@ def main() -> int:
                 "verificato che non sia una credenziale reale. " + parziale)
 
 
+def _prova(repo: str) -> int:
+    """Per /diagnosi (`--prova`): la lettura che la guardia fa prima di `git add -A && git commit -a`, il caso
+    più largo, nella cartella data. Una riga: ok, NON PARTE con causa e rimedio, oppure A METÀ. Non decide niente."""
+    try:
+        _, lettura = _diff(repo, True, True)
+    except _Fallita as f:
+        print(f"scansione segreti: NON PARTE ({f.tipo}): {f.causa}. Per ripararla: {f.rimedio}")
+        return 0
+    except Exception as e:
+        print(f"scansione segreti: NON PARTE (errore): errore interno della guardia ({type(e).__name__})")
+        return 0
+    if lettura.saltati:
+        totale = lettura.letti + lettura.saltati
+        print(f"scansione segreti: A METÀ (troppi-file): con git add e git commit nello stesso comando la guardia "
+              f"legge {lettura.letti} file nuovi su {totale}, poi chiede conferma. Il tetto è di "
+              f"{_TETTO_BYTE // 1_000_000} MB o di {_TETTO_SECONDI:g} secondi")
+        return 0
+    print("scansione segreti: ok")
+    return 0
+
+
 if __name__ == "__main__":
     # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
     for _flusso in (sys.stdout, sys.stderr):
@@ -756,4 +797,6 @@ if __name__ == "__main__":
             _flusso.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
+    if sys.argv[1:2] == ["--prova"]:
+        sys.exit(_prova(sys.argv[2] if len(sys.argv) > 2 else os.getcwd()))
     sys.exit(main())

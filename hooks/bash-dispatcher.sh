@@ -322,6 +322,14 @@ ask_guard() {
     exit 0
 }
 
+# Una guardia ha deciso, ma il suo controllo non è arrivato in fondo: `errore`, <guardia>.<causa>.
+# La causa è un nome di un elenco chiuso (CAUSE in bin/telemetria.py), mai il messaggio di git.
+segna_errore() {
+    [[ -f "$ARTURO_BIN/telemetria.py" ]] && \
+        python3 "$ARTURO_BIN/telemetria.py" registra errore "$1.$2" >/dev/null 2>&1
+    return 0
+}
+
 # Telemetria (bin/telemetria.py): il nome della guardia che ha bloccato, mai il comando.
 # Dice dove le persone si fermano e quali guardie danno falsi positivi. Non fallisce mai.
 segna_guardia() {
@@ -411,7 +419,7 @@ lancia_guardia() {
 }
 
 run_guard() {
-    local out rc regola="" riserva="$_RISERVA" senza_allow="$_SENZA_ALLOW"
+    local out rc regola="" causa="" riserva="$_RISERVA" senza_allow="$_SENZA_ALLOW"
     _RISERVA=""; _SENZA_ALLOW=""
     # ARTURO_REGOLA=1: una guardia che sa nominare la regola che chiede (block-dangerous, commit-secret-gate) la scrive in
     # una riga "REGOLA: <nome>" dopo il JSON. Si toglie qui, prima di ogni controllo: Claude Code
@@ -421,6 +429,15 @@ run_guard() {
     if [[ $rc -ne 0 && $rc -ne 2 && -n "$riserva" ]]; then
         run_guard "$riserva"
         return 0
+    fi
+    # Dopo REGOLA commit-secret-gate scrive anche "CAUSA: <nome>", quando la scansione non arriva in fondo
+    # (21/11/2026, #5761): parte come `errore`, <guardia>.<causa>. Si toglie prima di REGOLA, che sta sopra.
+    if [[ "$out" == *$'\n'"CAUSA: "* ]]; then
+        causa=${out##*$'\n'CAUSA: }
+        causa=${causa%$'\r'}
+        out=${out%$'\n'CAUSA: *}
+        out=${out%$'\r'}
+        [[ "$causa" =~ ^[a-z0-9-]{1,30}$ ]] || causa=""
     fi
     if [[ "$out" == *$'\n'"REGOLA: "* ]]; then
         regola=${out##*$'\n'REGOLA: }
@@ -442,6 +459,7 @@ try:
 except Exception:
     sys.exit(1)'; then
         [[ -n "$senza_allow" && "$out" == *'"allow"'* ]] && ask_guard "$1"
+        [[ -n "$causa" && "$out" == *'"ask"'* ]] && segna_errore "$1" "$causa"
         if [[ "$out" == *'"ask"'* && "$_ATTENUABILI" == *" $1 "* ]] && attenua "$1" "$out"; then
             return 0
         fi

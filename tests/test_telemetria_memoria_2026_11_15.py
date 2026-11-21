@@ -44,7 +44,7 @@ VELENI = {
     "TM03": (TEL, "            if leggi_stato().get(\"memoria_giorno\") != giorno \\", "            if True \\"),
     "TM04": ("hooks/inject-now.sh", "[[ \"$INPUT\" =~ $RE_ROTAZIONE ]] && ORIGINE=rotazione", "true"),
     "TM05": ("bin/salva-automatico.py", "    if gia is None:  # M7", "    if True:  # M7"),
-    "TM06": (TEL, "PROMESSA = 11", "PROMESSA = 10"),
+    "TM06": (TEL, "PROMESSA = 12", "PROMESSA = 10"),
 }
 BASH = shutil.which("bash") or "bash"
 

@@ -312,7 +312,9 @@ evento o un valore che il server non conosce si scarta e si conta in `scartati` 
 faceva rifiutare il lotto intero), quindi un client più nuovo del server perde quei dati. Anche una
 guardia, una regola o un comando nuovi vanno nelle liste chiuse di `server/logica.js` (`GUARDIE`,
 `REGOLE`, `COMANDI`), che il banco TF03 (`tests/test_telemetria_f1_2026_10_24.py`) confronta con il
-repository e con `bin/telemetria.py`. Lo stesso vale per una skill, un agent, un file della radice o un
+repository e con `bin/telemetria.py`. La causa di un controllo che non arriva in fondo (`CAUSE`, oggi solo
+per `commit-secret-gate.py`) sta in tre posti, la guardia, `bin/telemetria.py` e `server/logica.js`: li
+confronta il banco SC05 (`tests/test_scansione_causa_2026_11_21.py`). Lo stesso vale per una skill, un agent, un file della radice o un
 hook di `settings.json` nuovi: vanno in `DERIVA_NOMI` e `DERIVA_HOOK`, che il banco TF05 confronta con
 il repository. Una skill nuova va anche in `SKILL` di `bin/telemetria.py` e di `server/logica.js`, che il banco
 TS01 (`tests/test_telemetria_fase2_2026_11_03.py`) confronta con `skills/`: fuori elenco esce come `skill altro`.

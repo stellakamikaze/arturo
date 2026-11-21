@@ -13,6 +13,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Se il controllo dei segreti non parte, Arturo registra perché e /diagnosi te lo dice
+
+**Cosa cambia**: prima di ogni commit Arturo legge le modifiche e cerca chiavi e password. Se la lettura
+non riesce, ti chiede conferma e ti dice causa e rimedio: questo c'era già, e resta uguale. Da oggi Arturo
+registra anche la causa in una parola, da un elenco di quattro: git non si avvia, git impiega troppo, git
+risponde con un errore, la cartella ha troppi file nuovi. E `/diagnosi` prova la stessa lettura nella
+cartella dove sei: ti dice se parte, se non parte e perché, o se arriva solo a metà. L'avviso sui dati
+d'uso torna una volta, perché la causa è un dato nuovo: mai il messaggio di git, la cartella o i nomi dei
+file.
+
+**Il principio**: una protezione che non riesce a lavorare deve dirlo anche a chi la mantiene. In un mese
+questa domanda ha ricevuto 20 sì su 27, e nessun dato diceva quale guasto c'era dietro.
+
+**A chi serve**: a chi conferma spesso un commit "senza controllo dei segreti". La causa più frequente che
+abbiamo visto è una cartella con centinaia di file nuovi che git non segue: `/diagnosi` ora la nomina, e il
+rimedio è una riga in `.gitignore`.
+
+---
+
 ## 2026-11-21 — Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai
 
 **Cosa cambia**: nelle prime settimane `/inizio` ti chiede quale lavoro rifai ogni settimana o ogni mese.

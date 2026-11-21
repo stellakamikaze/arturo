@@ -495,7 +495,7 @@ Fuori dal dispatcher:
 registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo
 conta come `altro`, senza il nome. `bash-dispatcher.sh` registra `guardia` con il
 nome della guardia che ha bloccato, `chiede` con il nome della guardia che chiede conferma (per `block-dangerous` anche il nome della regola, per `commit-secret-gate` solo la famiglia del segreto) ed
-`errore` con il nome di una guardia che si rompe, mai il comando. `web-egress-guard.py` e `protect_claude_md.py` registrano
+`errore` con il nome di una guardia che si rompe, mai il comando. Dal 21/11/2026 `errore` conta anche le volte in cui `commit-secret-gate` non riesce a leggere le modifiche di un commit, con la causa in una parola da un elenco chiuso (`strumento-mancante`, `tempo-scaduto`, `errore`, `troppi-file`): mai il messaggio di git né la cartella. `web-egress-guard.py` e `protect_claude_md.py` registrano
 `chiede` allo stesso modo. I nomi delle guardie e delle regole vengono da un elenco chiuso in `bin/telemetria.py`, lo stesso del server: un nome fuori elenco non parte. Un hook PostToolUse e PostToolUseFailure (`bin/telemetria-esito.sh`) registra `confermata` quando
 lo strumento parte dopo una domanda di guardia, anche se poi fallisce: l'unico legame è l'id della chiamata, che resta in
 `session-env/telemetria-attese.json` fino all'esito. `bin/aggiorna-applica.sh`
