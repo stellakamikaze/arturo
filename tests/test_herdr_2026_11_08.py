@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ194: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ195: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -860,7 +860,8 @@ HZ188 Cerca doppioni (#6188): le coppie scartate stanno in doppioni-scartati.jso
      scartaDoppione di dati.js aggiunge senza cancellare, rilegge e riprova se un altro scarto ha scritto nel
      frattempo, rifiuta una chiave che non è una coppia di slug e avvisa se non riesce a scrivere.
 HZ189 Cerca doppioni (#6188): il pulsante sta nella schermata Progetti solo se Arturo sa unire; il dialogo
-     mostra le coppie, apre l'anteprima dell'unione, gira la coppia o la scarta, e non unisce mai da solo.
+     mostra le coppie, apre l'anteprima dell'unione, gira la coppia o la scarta, e non scrive mai da solo:
+     l'unione la manda alla barra (HZ195).
 HZ190 Cerca doppioni, ripensarci (#6268): ogni voce di doppioni-scartati.json conta i gesti sulla coppia (dispari
      scartata, pari rimessa fra i doppioni); riprendiDoppione di dati.js alza il conto senza togliere la voce, il
      file del 21/11 (un numero per coppia) si legge ancora, il comando doppioniriprendi arriva alla barra e il
@@ -884,6 +885,10 @@ HZ194 i resti della Coda a elenco (#6075, 21/11/2026): gruppiCoda e GRUPPI_CODA 
      e Nasce su stanno sulla scala comune; il testo che porta Claude su un todo sta solo in testoTodo di
      sessioni.js, e Apri e A Claude dell'Orchestratore passano da portaSulTodo di dati.js; i commenti non
      descrivono più la Coda a una carta per volta.
+HZ195 Unisci dalla riga di Cerca doppioni (21/11/2026): il pulsante Unisci della riga chiede prima il conto ad
+     Arturo (--prova) e manda l'unione vera alla barra solo se il conto è buono e la fonte dei task risponde;
+     la riga dice a che punto è e com'è finita, un'unione più vecchia del clic non conta, mentre una gira le
+     altre aspettano, e una coppia già unita non apre più l'anteprima.
 """
 from __future__ import annotations
 
@@ -899,7 +904,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -15353,7 +15358,7 @@ def hz189(repo: Path, casa: Path) -> str | None:
                            "run(comandoScartaDoppione(c.perdente, c.vincitore));",
                            "this.coppie = this.coppie.filter((x) => x.chiave !== c.chiave);",
                            "this.coppie = this.coppie.map((x) => (x.chiave === c.chiave ? alContrario(x) : x));",
-                           'bottone(`dp-guarda-${c.chiave}`, "Guarda l\'unione", () => this.guarda(c), true)',
+                           'bottone(`dp-guarda-${c.chiave}`, "Guarda l\'unione", () => this.guarda(c), false)',
                            'bottone(`dp-gira-${c.chiave}`, "Al contrario", (cx) => this.gira(c, cx), false)',
                            'bottone(`dp-scarta-${c.chiave}`, "Non sono doppioni", (cx) => this.scarta(c, cx), false)',
                            'else if (e.key === "enter") return this.guarda(l[this.at]);',
@@ -15363,14 +15368,16 @@ def hz189(repo: Path, casa: Path) -> str | None:
         for pezzo in pezzi:
             if pezzo not in testo:
                 return f"{file} non porta Cerca doppioni: manca {pezzo[:80]!r}"
-    # la revisione propone: l'unione vera resta al pulsante Unisci del dialogo dell'unione, dopo l'anteprima
+    # il dialogo non scrive niente da solo: l'unione, lo scarto e il ripensamento li manda alla barra
     dialogo = (mod / "doppioniui.js").read_text(encoding="utf-8")
     codice = "\n".join(riga for riga in dialogo.splitlines() if not riga.lstrip().startswith("//"))
-    for vietato in ("UnisciVai", "uniscivai", "unione(", "unisci(", "writeTextFile"):
+    for vietato in ("uniscivai", "writeTextFile", 'setShared("arturo.unione"'):
         if vietato in codice:
-            return f"doppioniui.js unisce o scrive da solo ({vietato}): deve solo aprire l'anteprima e mandare lo scarto alla barra"
-    if codice.count("run(") != 3:
-        return f"doppioniui.js manda {codice.count('run(')} comandi: devono essere tre, l'anteprima dell'unione, lo scarto e il ripensamento"
+            return f"doppioniui.js unisce o scrive da solo ({vietato}): l'unione e lo scarto li scrive la barra"
+    if "unione(perdente, vincitore, false)" in codice or codice.count("unione(perdente, vincitore, true)") != 1:
+        return "doppioniui.js chiama unione() senza --prova: dal dialogo Arturo può solo contare, l'unione vera la fa la barra"
+    if codice.count("run(") != 4:
+        return f"doppioniui.js manda {codice.count('run(')} comandi: devono essere quattro, l'unione, la sua anteprima, lo scarto e il ripensamento"
     return None
 
 
@@ -15835,7 +15842,64 @@ def hz194(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194}
+PROVA_UNISCI_RIGA = r"""
+import { dopoProva, dopoUnione, unioneInCorso } from "./doppioni.mjs";
+const out = {};
+out.prova = [dopoProva({ stato: "anteprima", pronta: true }), dopoProva({ stato: "anteprima", pronta: false }),
+  dopoProva({ stato: "rifiuto", pronta: true, testo: "alfa è già unito in beta" }), dopoProva({ stato: "errore" }), dopoProva(null)]
+  .map((x) => [x.vai, x.testo]);
+out.unione = [dopoUnione(null, 5), dopoUnione({ stato: "fatto", quando: 4, vista: { backup: "b" } }, 5), dopoUnione({ stato: "corso", quando: 5 }, 5),
+  dopoUnione({ stato: "fatto", quando: 9, vista: { backup: "b" } }, 5), dopoUnione({ stato: "fatto", quando: 9 }, 5),
+  dopoUnione({ stato: "errore", quando: 9, vista: { testo: "no" } }, 5), dopoUnione({ stato: "errore", quando: 9 }, 5), dopoUnione({ stato: "boh", quando: 9, vista: { backup: "b" } }, 5)]
+  .map((x) => (x ? [x.stato, x.testo, x.backup] : null));
+out.corso = [unioneInCorso({}), unioneInCorso(null), unioneInCorso({ a: { stato: "controllo" } }), unioneInCorso({ a: { stato: "fatto" }, b: { stato: "corso" } }),
+  unioneInCorso({ a: { stato: "fatto" }, b: { stato: "errore" } })];
+console.log(JSON.stringify(out));
+"""
+
+
+def hz195(repo: Path, casa: Path) -> str | None:
+    """Unisci dalla riga di Cerca doppioni: prima il conto di Arturo, poi l'unione alla barra, e l'esito nella riga."""
+    mod = repo / "shared/volta/mods/arturo"
+    dialogo = (mod / "doppioniui.js").read_text(encoding="utf-8")
+    pezzi = (
+        'if (!c || unioneInCorso(this.unioni) || this.unioni[c.chiave]?.stato === "fatto") return;',
+        "const esito = dopoProva(await unione(perdente, vincitore, true));",
+        "      if (esito.vai) {",
+        "run(comandoUnisciVai(perdente, vincitore));",
+        'const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da);',
+        "cx.timer.every(UNIONE_GUARDA_MS, (cx) => this.guardaUnione(cx));",
+        'bottone(`dp-unisci-${c.chiave}`, "Unisci", (cx) => this.unisci(c, cx), true, !occupato)',
+        'if (!c || (this.unioni[c.chiave] && this.unioni[c.chiave].stato !== "errore")) return;',
+        ".on_click((_e, cx) => { if (acceso) azione(cx); })",
+    )
+    for pezzo in pezzi:
+        if pezzo not in dialogo:
+            return f"doppioniui.js non unisce dalla riga come deve: manca {pezzo[:80]!r}"
+    # l'ordine: il conto, il giudizio sul conto, poi il comando dell'unione vera
+    if not dialogo.index(pezzi[1]) < dialogo.index(pezzi[2]) < dialogo.index(pezzi[3]):
+        return "doppioniui.js manda l'unione vera prima di aver letto il conto di Arturo"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "doppioni.js", casa / "doppioni.mjs")
+    (casa / "prova.mjs").write_text(PROVA_UNISCI_RIGA, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"doppioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    fonte = "La fonte dei task non risponde: l'unione aspetta che torni. Riprova fra poco."
+    if d["prova"] != [[True, ""], [False, fonte], [False, "alfa è già unito in beta"], [False, "Arturo non ha detto perché."], [False, "Arturo non ha detto perché."]]:
+        return f"dopoProva fa partire un'unione che Arturo non ha dato per buona, o non dice perché: {d['prova']}"
+    if d["unione"] != [None, None, ["corso", "", None], ["fatto", "", "b"], ["fatto", "", None], ["errore", "no", None],
+                       ["errore", "La barra non ha detto com'è andata.", None], ["errore", "La barra non ha detto com'è andata.", None]]:
+        return f"dopoUnione prende un'unione più vecchia del clic, o legge male l'esito della barra: {d['unione']}"
+    if d["corso"] != [False, False, True, True, False]:
+        return f"unioneInCorso non vede il conto o l'unione in corso: {d['corso']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -15880,6 +15944,15 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'if (vista?.stato === "anteprima" && vista.pronta) return { vai: true, testo: "" };', 'if (vista?.stato === "anteprima") return { vai: true, testo: "" };'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioni.js', '  if (!u || !(u.quando >= da)) return null;', '  if (!u) return null;'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'if (u.stato === "fatto") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };', 'if (u.stato !== "errore") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'x?.stato === "controllo" || x?.stato === "corso");', 'x?.stato === "corso");'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioniui.js', '    if (!c || unioneInCorso(this.unioni) || this.unioni[c.chiave]?.stato === "fatto") return;', '    if (!c) return;'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioniui.js', '      if (esito.vai) {', '      if (true) {'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioniui.js', '(cx) => this.unisci(c, cx), true, !occupato)', '(cx) => this.unisci(c, cx), true)'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioniui.js', '    if (!c || (this.unioni[c.chiave] && this.unioni[c.chiave].stato !== "errore")) return;', '    if (!c) return;'),
+    ('HZ195', 'shared/volta/mods/arturo/doppioniui.js', '        run(comandoUnisciVai(perdente, vincitore));', '        run(comandoUnisciVai(vincitore, perdente));'),
     ('HZ194', 'shared/volta/mods/arturo/sessioni.js', 'export const testoTodo = (t) => `Lavoriamo sul todo #${t.id}: ${t.titolo}`;', 'export const testoTodo = (t) => `Lavoriamo sul todo ${t.id}: ${t.titolo}`;'),
     ('HZ194', 'shared/volta/mods/arturo/sessioni.js', 'export function gruppoCarta(c) {', 'export const GRUPPI_CODA = [];\nexport function gruppoCarta(c) {'),
     ('HZ194', 'shared/volta/mods/arturo/sessioni.js', 'scelta risponde in un tasto. Qui stanno le decisioni', 'una carta per volta, risposta in un tasto. Qui stanno le decisioni'),
@@ -15989,7 +16062,7 @@ VELENI = [
     ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    run(comandoUnisciProva(c.perdente, c.vincitore));', '    run(comandoUnisciVai(c.perdente, c.vincitore));'),
     ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '        this.coppie = doppioni(memoria, via);', '        this.coppie = doppioni(memoria);'),
     ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    run(comandoScartaDoppione(c.perdente, c.vincitore));\n', ''),
-    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    this.chiudi();\n  }\n\n  gira(c, cx) {', '    this.chiudi();\n    run("arturo.casa-chiudi");\n  }\n\n  gira(c, cx) {'),
+    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    this.chiudi();\n  }\n\n  // Unisci dalla riga', '    this.chiudi();\n    run("arturo.casa-chiudi");\n  }\n\n  // Unisci dalla riga'),
     ('HZ184', 'shared/volta/installa-herdr.sh', '  [ -n "$programma" ] && return 0\n', ''),
     ('HZ184', 'shared/volta/installa-herdr.sh', '[ -z "$programma" ] || versione=$("$programma" --version', '[ -z "$programma" ] || versione=$(herdr-app --version'),
     ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ -n "$programma" ]; then\n  "$programma" check', 'if false; then\n  "$programma" check'),

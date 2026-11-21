@@ -1,5 +1,5 @@
 {
- "albero": "0b5a77ea27083b79d94b2346bedb93d24a312fe0",
+ "albero": "43e48ee9c651bedf1e93d48b6cfc36164ede063c",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -27,8 +27,8 @@
   "mods/arturo/contesto.js": "df1de32945f9be8ad00ac3406a290be85ee8a120490561dedf9cc22b136dcbd0",
   "mods/arturo/contestoui.js": "43ec7976efbac41fb6ab5eb08ef26ab04421ad867a3fd8d028c9539b42beafa0",
   "mods/arturo/dati.js": "355e1f744f09ca2c77d0954592ae459555cba1d8d7034d23999af47e04e2d83c",
-  "mods/arturo/doppioni.js": "414053d74887d96b5da7ae07ff0efca0874794031fbcee69bdf056e2d3d1f2df",
-  "mods/arturo/doppioniui.js": "e58604528869d83aba23c72b16ccbaba701743f9d10a09de8934e78dfe8f278d",
+  "mods/arturo/doppioni.js": "5588366756ff9efa2c847ee3a4c7fdf595459256cf90f9b2610022b398941bd3",
+  "mods/arturo/doppioniui.js": "fa0b9273e4a977e5ab931962c7cd425013e61a9b96f16133557038d8cbdf39d8",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",

@@ -1,22 +1,27 @@
 // Il dialogo "Cerca doppioni" (#6188, Fase 5 del piano del 20/11/2026): la revisione delle coppie di progetti che
 // sembrano lo stesso. Si apre dal pulsante della schermata Progetti (⌘T, casa.js) o con "arturo.doppioni".
-// Ogni riga dice quale progetto entra in quale, perché sembrano doppioni e perché resta quello. Tre gesti:
-// - "Guarda l'unione": apre "Unisci a…" già sull'anteprima di quei due (unisci.js). Lì niente è ancora scritto:
-//   l'unione vera parte solo dal suo pulsante Unisci.
+// Ogni riga dice quale progetto entra in quale, perché sembrano doppioni e perché resta quello. Quattro gesti:
+// - "Unisci" (21/11/2026: unire dalla lista, senza altre schermate): il clic è il sì. Arturo
+//   prima conta (--prova, non scrive niente); se il conto è buono parte l'unione vera, che fa la barra come per il
+//   pulsante Unisci di unisci.js. La riga dice a che punto è e com'è finita, e il dialogo resta aperto.
+// - "Guarda l'unione": apre "Unisci a…" già sull'anteprima di quei due (unisci.js), per chi vuole i conti prima.
 // - "Al contrario": resta l'altro progetto.
 // - "Non sono doppioni": la coppia sparisce e non torna (doppioni-scartati.json, lo scrive la barra).
 // Le coppie scartate valgono su tutte le macchine (volta_note.py porta il file, #6268). Per ripensarci: "Rivedi le
 // scartate" mostra l'elenco, e "Rimetti fra i doppioni" riporta la coppia fra le probabili, anche lì dappertutto.
-// Quali coppie, con che motivo e chi resta lo decide doppioni.js, senza Herdr. Qui non si unisce niente.
+// Quali coppie, con che motivo e chi resta lo decide doppioni.js, senza Herdr. L'unione la scrive sempre la barra.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, run, shared, setShared } from "herdr";
-import { progettiMemoria, doppioniScartati } from "./dati.js";
+import { progettiMemoria, doppioniScartati, unione } from "./dati.js";
 import { ICONA } from "./comuni.js";
 import { SPAZIO, TESTO, RAGGIO, ICONA_MISURA } from "./misure.js";
-import { doppioni, alContrario } from "./doppioni.js";
-import { comandoUnisciProva, comandoScartaDoppione, comandoRiprendiDoppione, impostaProgetti, nomeProgetto, slug } from "./sessioni.js";
+import { doppioni, alContrario, dopoProva, dopoUnione, unioneInCorso } from "./doppioni.js";
+import { comandoUnisciProva, comandoUnisciVai, comandoScartaDoppione, comandoRiprendiDoppione, impostaProgetti, nomeProgetto, slug } from "./sessioni.js";
+
+// Ogni quanto il dialogo guarda l'esito dell'unione che la barra sta facendo.
+const UNIONE_GUARDA_MS = 300;
 
 // L'altezza dell'elenco: quattro coppie intere, le altre scorrono.
 const ALTO = 420;
@@ -44,10 +49,12 @@ export class Doppioni {
     this.rivedi = shared("arturo.doppioni.rivedi") === true; // l'elenco delle coppie scartate al posto delle probabili
     this.titoli = {};        // slug → titolo, dalla memoria di Arturo
     this.ultimoScarto = 0;
+    this.unioni = {};        // le unioni partite da qui, { chiave: { stato, testo, backup, da, perdente, vincitore } }
     this.at = 0;
     this.handle = cx.focus_handle();
     this.handle.focus();
     cx.timer.after(300, () => this.handle.focus());
+    cx.timer.every(UNIONE_GUARDA_MS, (cx) => this.guardaUnione(cx));
     cx.spawn(async (cx) => {
       const [memoria, via] = await Promise.all([progettiMemoria(), doppioniScartati()]);
       if (!memoria) this.errore = "Arturo non ha dato l'elenco dei progetti. Riprova fra poco; se resta così, l'Arturo di questa Volta va aggiornato.";
@@ -67,12 +74,44 @@ export class Doppioni {
 
   // L'anteprima dell'unione la apre la barra: questo dialogo si chiude, e un dialogo chiuso ferma il suo codice.
   guarda(c) {
-    if (!c) return;
+    // una coppia che si sta unendo o è già unita non ha più un'anteprima: Arturo direbbe "già unito"
+    if (!c || (this.unioni[c.chiave] && this.unioni[c.chiave].stato !== "errore")) return;
     run(comandoUnisciProva(c.perdente, c.vincitore));
     this.chiudi();
   }
 
+  // Unisci dalla riga: il clic è il sì della persona. Prima il conto di Arturo, che non scrive niente; se è
+  // buono, l'unione vera la fa la barra (un dialogo chiuso ferma il suo codice, la barra no) e la riga ne
+  // mostra l'esito. Una alla volta: mentre una gira, gli altri pulsanti Unisci non rispondono.
+  unisci(c, cx) {
+    if (!c || unioneInCorso(this.unioni) || this.unioni[c.chiave]?.stato === "fatto") return;
+    const k = c.chiave, perdente = c.perdente, vincitore = c.vincitore;
+    this.unioni[k] = { stato: "controllo", testo: "", backup: null, da: Date.now(), perdente, vincitore };
+    cx.notify();
+    cx.spawn(async (cx) => {
+      const esito = dopoProva(await unione(perdente, vincitore, true));
+      if (this.unioni[k]?.stato !== "controllo") return;
+      if (esito.vai) {
+        this.unioni[k] = { ...this.unioni[k], stato: "corso", da: Date.now() };
+        run(comandoUnisciVai(perdente, vincitore));
+      } else this.unioni[k] = { ...this.unioni[k], stato: "errore", testo: esito.testo };
+      cx.notify();
+    });
+  }
+
+  // L'esito dell'unione in corso, che la barra scrive in shared arturo.unione.
+  guardaUnione(cx) {
+    const k = Object.keys(this.unioni).find((x) => this.unioni[x].stato === "corso");
+    if (!k) return;
+    const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da);
+    if (!e || e.stato === "corso") return;
+    this.unioni[k] = { ...this.unioni[k], ...e };
+    cx.notify();
+  }
+
   gira(c, cx) {
+    if (this.unioni[c.chiave] && this.unioni[c.chiave].stato !== "errore") return;
+    delete this.unioni[c.chiave];
     this.coppie = this.coppie.map((x) => (x.chiave === c.chiave ? alContrario(x) : x));
     cx.notify();
   }
@@ -81,6 +120,7 @@ export class Doppioni {
   // scarterebbe una coppia mai letta. Per SCARTO_PAUSA_MS dopo uno scarto il pulsante non risponde.
   scarta(c, cx) {
     if (Date.now() - this.ultimoScarto < SCARTO_PAUSA_MS) return;
+    delete this.unioni[c.chiave];
     this.ultimoScarto = Date.now();
     run(comandoScartaDoppione(c.perdente, c.vincitore));
     this.coppie = this.coppie.filter((x) => x.chiave !== c.chiave);
@@ -119,12 +159,12 @@ export class Doppioni {
     const l = rivedi ? [] : this.coppie ?? [];
     this.at = Math.max(0, Math.min(this.at, l.length - 1));
 
-    const bottone = (id, testo, azione, forte) => div().id(id).px(SPAZIO.l).py(SPAZIO.s + 1).rounded(RAGGIO.controllo).text_size(TESTO.etichetta).cursor_pointer()
-      .when(forte, (el) => el.font_semibold().bg(t.accent).text_color(t.accent_foreground))
+    const bottone = (id, testo, azione, forte, acceso = true) => div().id(id).px(SPAZIO.l).py(SPAZIO.s + 1).rounded(RAGGIO.controllo).text_size(TESTO.etichetta)
+      .when(forte, (el) => el.font_semibold().bg(acceso ? t.accent : t.raised).text_color(acceso ? t.accent_foreground : t.dim))
       .when(!forte, (el) => el.border_1().border_color(t.border).text_color(t.foreground))
-      .hover((s) => s.opacity(0.9))
+      .when(acceso, (el) => el.cursor_pointer().hover((s) => s.opacity(0.9)))
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-      .on_click((_e, cx) => azione(cx))
+      .on_click((_e, cx) => { if (acceso) azione(cx); })
       .child(testo);
 
     const frase = (etichetta, testo) => h_flex().gap(SPAZIO.m).items_start()
@@ -135,6 +175,27 @@ export class Doppioni {
     // stesso titolo ("Eredi Zucca entra in Eredi Zucca"): allora valgono i due slug.
     const nome = (k) => this.titoli[k] || nomeProgetto(k);
     const nomi = (c) => (slug(nome(c.perdente)) === slug(nome(c.vincitore)) ? [c.perdente, c.vincitore] : [nome(c.perdente), nome(c.vincitore)]);
+
+    // Il piede di una riga: i pulsanti, oppure a che punto è l'unione partita da qui. Un'unione non riuscita
+    // dice perché e lascia i pulsanti, per riprovare o guardare i conti.
+    const occupato = unioneInCorso(this.unioni);
+    const detto = (testo, colore) => div().whitespace_normal().text_size(TESTO.etichetta).text_color(colore).child(testo);
+    const piede = (c) => {
+      const u = this.unioni[c.chiave];
+      if (u?.stato === "controllo") return detto("Arturo controlla cosa passa…", t.muted).pt(SPAZIO.xs);
+      if (u?.stato === "corso") return detto("Arturo copia tutto, poi unisce… Puoi chiudere: un avviso ti dice com'è andata.", t.muted).pt(SPAZIO.xs);
+      if (u?.stato === "fatto") return v_flex().gap(SPAZIO.xs).pt(SPAZIO.xs)
+        .child(detto(`Uniti: ${u.perdente} ora apre ${u.vincitore}.`, t.foreground))
+        .when(Boolean(u.backup), (el) => el.child(detto(`Copia di prima: ${u.backup}`, t.muted)));
+      return v_flex().gap(SPAZIO.m).pt(SPAZIO.xs)
+        .when(u?.stato === "errore", (el) => el.child(detto(`Non uniti: ${u.testo}`, t.blocked)))
+        .child(h_flex().gap(SPAZIO.m).items_center()
+          .child(bottone(`dp-unisci-${c.chiave}`, "Unisci", (cx) => this.unisci(c, cx), true, !occupato))
+          .child(bottone(`dp-guarda-${c.chiave}`, "Guarda l'unione", () => this.guarda(c), false))
+          .child(bottone(`dp-gira-${c.chiave}`, "Al contrario", (cx) => this.gira(c, cx), false))
+          .child(div().flex_1())
+          .child(bottone(`dp-scarta-${c.chiave}`, "Non sono doppioni", (cx) => this.scarta(c, cx), false)));
+    };
 
     const riga = (c, i) => v_flex().id(`dp-${c.chiave}`).p(SPAZIO.l).gap(SPAZIO.m).rounded(RAGGIO.riga).border_1()
       .border_color(i === this.at ? t.ring : t.border)
@@ -149,11 +210,7 @@ export class Doppioni {
         .child(div().truncate().text_size(TESTO.nota).text_color(t.dim).child(`${c.perdente} entra in ${c.vincitore}`)))
       .child(frase("Perché", `${c.motivo}.`))
       .child(frase("Resta", c.perche ? `${c.vincitore}: ${c.perche}.` : `${c.vincitore}: l'hai scelto tu.`))
-      .child(h_flex().gap(SPAZIO.m).items_center().pt(SPAZIO.xs)
-        .child(bottone(`dp-guarda-${c.chiave}`, "Guarda l'unione", () => this.guarda(c), true))
-        .child(bottone(`dp-gira-${c.chiave}`, "Al contrario", (cx) => this.gira(c, cx), false))
-        .child(div().flex_1())
-        .child(bottone(`dp-scarta-${c.chiave}`, "Non sono doppioni", (cx) => this.scarta(c, cx), false)));
+      .child(piede(c));
 
     // Una coppia scartata: i due progetti e il pulsante per ripensarci.
     const rigaScartata = (k) => {
@@ -201,7 +258,7 @@ export class Doppioni {
       .child(corpo)
       .child(h_flex().items_center()
         .child(div().flex_1().text_size(TESTO.etichetta).text_color(t.dim)
-          .child(l.length ? "Invio mostra l'unione, senza scrivere niente · ↑↓ scegli · Esc chiude" : "Esc chiude"))
+          .child(l.length ? "Unisci copia tutto, poi unisce · Invio mostra prima i conti · ↑↓ scegli · Esc chiude" : "Esc chiude"))
         .when(this.coppie !== null && scartate.length > 0, (el) => el
           .child(bottone("dp-rivedi", rivedi ? "Torna ai doppioni" : "Rivedi le scartate", (cx) => this.volta(cx), false))));
   }

@@ -159,3 +159,24 @@ export function doppioni(lista, scartate = {}, quante = DOPPIONI_MAX) {
 
 // La stessa coppia al contrario: lo sceglie la persona col pulsante, e allora il perché non è più quello di Volta.
 export const alContrario = (c) => ({ ...c, perdente: c.vincitore, vincitore: c.perdente, perche: null });
+
+// Unisci dalla riga di Cerca doppioni (21/11/2026): prima il conto di Arturo (--prova), poi l'unione vera.
+// dopoProva legge il conto: si parte solo se Arturo lo dà per buono e la fonte dei task risponde, altrimenti
+// la riga dice perché. `vista` è quella di vistaUnione (sessioni.js).
+export function dopoProva(vista) {
+  if (vista?.stato === "anteprima" && vista.pronta) return { vai: true, testo: "" };
+  if (vista?.stato === "anteprima") return { vai: false, testo: "La fonte dei task non risponde: l'unione aspetta che torni. Riprova fra poco." };
+  return { vai: false, testo: String(vista?.testo || "Arturo non ha detto perché.") };
+}
+
+// L'esito dell'unione vera, che la barra scrive in shared arturo.unione. `da` è l'istante del clic: un'unione
+// più vecchia non è questa. null finché la barra non ha scritto niente di nuovo.
+export function dopoUnione(u, da) {
+  if (!u || !(u.quando >= da)) return null;
+  if (u.stato === "corso") return { stato: "corso", testo: "", backup: null };
+  if (u.stato === "fatto") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };
+  return { stato: "errore", testo: String(u.vista?.testo || "La barra non ha detto com'è andata."), backup: null };
+}
+
+// Una riga con l'unione in corso non si tocca, e mentre una gira le altre aspettano: Arturo ne fa una alla volta.
+export const unioneInCorso = (unioni) => Object.values(unioni ?? {}).some((x) => x?.stato === "controllo" || x?.stato === "corso");
