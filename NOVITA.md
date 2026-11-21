@@ -13,6 +13,36 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Le protezioni ti chiedono conferma in casi nuovi
+
+**Cosa cambia**: dopo l'aggiornamento Arturo ti chiede conferma in casi che prima passavano in silenzio.
+Dici sì e il comando parte, come per ogni altra conferma. I casi nuovi sono questi:
+
+- una modifica a un file che parte da solo: i tuoi script in `personale/`, la configurazione di git,
+  i file di avvio della shell, le chiavi SSH autorizzate;
+- uno script scaricato dalla rete ed eseguito subito, anche in due passi;
+- una lettura di password o di chiavi salvate, e della cronologia della shell;
+- `git reset --hard`, `git checkout --` e `git restore` quando hai modifiche non salvate: se la cartella
+  è pulita Arturo non chiede;
+- un commento su GitHub (`gh issue comment`, `gh pr comment`, `gh pr review`), un cambio di visibilità o
+  di nome di un repository, un gist pubblico;
+- una condivisione su Drive aperta a chiunque o con l'email di avviso, e un invito del calendario che
+  avvisa i partecipanti;
+- una cartella intera spostata o cancellata per una via diversa da `rm`, e docker con la tua home
+  montata in scrittura.
+
+Prima di ogni `git push` Arturo cerca anche chiavi e password nei commit che il server non ha ancora.
+
+**Il principio**: una protezione che legge solo la forma più comune di un comando si aggira con una
+forma diversa. Una revisione di sicurezza del 20/11 ha trovato 89 forme che passavano senza domanda:
+adesso chiedono tutte. Su 1.500 comandi veri di tre giorni le conferme in più sono due, tutte e due su
+un `git checkout` che buttava via modifiche non salvate.
+
+**A chi serve**: a tutti. Se una di queste conferme ti arriva spesso su un lavoro normale, mandala con
+`/segnala`: una domanda inutile si corregge.
+
+---
+
 ## 2026-11-21 — Quando una protezione ti chiede conferma, Arturo registra quale regola è scattata
 
 **Cosa cambia**: tre protezioni ti chiedono conferma prima di un comando: quella sugli invii (email e
