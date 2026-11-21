@@ -170,8 +170,11 @@ export function dopoProva(vista) {
 }
 
 // L'esito dell'unione vera, che la barra scrive in shared arturo.unione. `da` è l'istante del clic: un'unione
-// più vecchia non è questa. null finché la barra non ha scritto niente di nuovo.
-export function dopoUnione(u, da) {
+// più vecchia non è questa. null finché la barra non ha scritto niente di nuovo. `rifiuto` è shared
+// arturo.unione.rifiuto: la barra ha rifiutato quella `coppia` prima di cominciare, e allora non scrive altro (#6290).
+export function dopoUnione(u, da, rifiuto = null, coppia = null) {
+  const suo = Boolean(rifiuto) && rifiuto.quando >= da && (!coppia || (rifiuto.perdente === coppia.perdente && rifiuto.vincitore === coppia.vincitore));
+  if (suo) return { stato: "errore", testo: String(rifiuto.testo || "La barra ha rifiutato l'unione."), backup: null };
   if (!u || !(u.quando >= da)) return null;
   if (u.stato === "corso") return { stato: "corso", testo: "", backup: null };
   if (u.stato === "fatto") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };

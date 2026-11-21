@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ195: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ196: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -889,6 +889,10 @@ HZ195 Unisci dalla riga di Cerca doppioni (21/11/2026): il pulsante Unisci della
      Arturo (--prova) e manda l'unione vera alla barra solo se il conto è buono e la fonte dei task risponde;
      la riga dice a che punto è e com'è finita, un'unione più vecchia del clic non conta, mentre una gira le
      altre aspettano, e una coppia già unita non apre più l'anteprima.
+HZ196 un'unione rifiutata dalla barra (#6290): se la barra non conosce il progetto, o un'altra unione gira,
+     scrive il motivo in shared arturo.unione.rifiuto senza toccare arturo.unione; la riga di Cerca doppioni
+     passa a "Non uniti" col motivo invece di restare su "Arturo copia tutto", e il dialogo Unisci a… mostra
+     l'esito. Un rifiuto più vecchio del clic o di un'altra coppia non conta.
 """
 from __future__ import annotations
 
@@ -904,7 +908,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -15867,7 +15871,7 @@ def hz195(repo: Path, casa: Path) -> str | None:
         "const esito = dopoProva(await unione(perdente, vincitore, true));",
         "      if (esito.vai) {",
         "run(comandoUnisciVai(perdente, vincitore));",
-        'const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da);',
+        'const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da, shared("arturo.unione.rifiuto"), this.unioni[k]);',
         "cx.timer.every(UNIONE_GUARDA_MS, (cx) => this.guardaUnione(cx));",
         'bottone(`dp-unisci-${c.chiave}`, "Unisci", (cx) => this.unisci(c, cx), true, !occupato)',
         'if (!c || (this.unioni[c.chiave] && this.unioni[c.chiave].stato !== "errore")) return;',
@@ -15899,7 +15903,89 @@ def hz195(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195}
+PROVA_RIFIUTO = r"""
+import { unisci } from "./dati.mjs";
+import { eseguiti, shared } from "./herdr.mjs";
+const [p, v] = process.env.HZ_COPPIA.split(" ");
+const t0 = Date.now();
+const esito = await unisci(p, v);
+const r = shared("arturo.unione.rifiuto") ?? null;
+const u = shared("arturo.unione") ?? null;
+console.log(JSON.stringify({ stato: esito.stato, testo: esito.testo ?? "", eseguiti, rifiuto: r && [r.perdente, r.vincitore, r.testo, r.quando >= t0],
+  unione: u && [u.perdente, u.vincitore, u.stato] }));
+"""
+
+PROVA_DOPO_RIFIUTO = r"""
+import { dopoUnione } from "./doppioni.mjs";
+const c = { perdente: "grifone-vecchio", vincitore: "grifone" };
+const r = (quando, testo = "Non conosco il progetto grifone", altro = {}) => ({ ...c, testo, quando, ...altro });
+const out = [dopoUnione(null, 5, r(6), c), dopoUnione(null, 5, r(4), c), dopoUnione(null, 5, r(6, "x", { perdente: "altro" }), c),
+  dopoUnione(null, 5, r(6, "x", { vincitore: "altro" }), c), dopoUnione(null, 5, r(6, ""), c), dopoUnione({ stato: "corso", quando: 3 }, 5, r(6), c),
+  dopoUnione({ stato: "fatto", quando: 9, vista: { backup: "b" } }, 5, r(4), c), dopoUnione(null, 5, r(6))]
+  .map((x) => (x ? [x.stato, x.testo, x.backup] : null));
+console.log(JSON.stringify(out));
+"""
+
+
+def hz196(repo: Path, casa: Path) -> str | None:
+    """Un'unione rifiutata dalla barra prima di cominciare arriva al dialogo che l'ha chiesta (#6290)."""
+    mod_vero = repo / "shared/volta/mods/arturo"
+    for file, pezzi in (
+        ("dati.js", ('  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now() });',
+                     'level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }',
+                     "    return rifiutaUnione(perdente, vincitore, \"Un'unione è già in corso.\");")),
+        ("doppioniui.js", ('const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da, shared("arturo.unione.rifiuto"), this.unioni[k]);',)),
+        ("unisci.js", ("    this.partita = Date.now();\n    run(comandoUnisciVai(this.perdente, this.vincitore));",
+                       'if (this.passo === "corso" && r && r.perdente === this.perdente && r.vincitore === this.vincitore && r.quando >= (this.partita ?? Infinity)) {')),
+    ):
+        testo = (mod_vero / file).read_text(encoding="utf-8")
+        for pezzo in pezzi:
+            if pezzo not in testo:
+                return f"{file} non porta al dialogo un'unione rifiutata: manca {pezzo[:80]!r}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod_vero / "doppioni.js", casa / "doppioni.mjs")
+    (casa / "prova.mjs").write_text(PROVA_DOPO_RIFIUTO, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"doppioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    no = ["errore", "Non conosco il progetto grifone", None]
+    if d != [no, None, None, None, ["errore", "La barra ha rifiutato l'unione.", None], no, ["fatto", "", "b"], no]:
+        return f"dopoUnione non legge il rifiuto della barra, o prende quello vecchio o di un'altra coppia: {d}"
+    # la barra vera, con Herdr finto: un progetto che non conosce, poi un'altra unione in corso
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, (mod_vero / "dati.js").read_text(encoding="utf-8"))
+    (mod / "prova.mjs").write_text(PROVA_RIFIUTO, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python3", "/x/bin/arturo"], "radice": "/x", "base": str(casa)}), encoding="utf-8")
+    noti = {"volta": {"chiave": "volta", "titolo": "Volta"}, "herdr-arturo": {"chiave": "herdr-arturo", "titolo": "Herdr Arturo"}}
+
+    def gira(coppia: str, altro: dict | None = None) -> dict:
+        env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_COPPIA": coppia, "HZ_EXEC": "{}", "HZ_EXEC_CODICE": "0", "HZ_EXEC_ERR": "",
+               "HZ_SHARED": json.dumps({"arturo.progetti": noti, **(altro or {})})}
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-200:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    try:
+        d = gira("herdr-arturo grifone")
+        if d["stato"] != "errore" or not d["testo"] or d["eseguiti"] or d["unione"] is not None or d["rifiuto"] != ["herdr-arturo", "grifone", d["testo"], True]:
+            return f"un progetto che la barra non conosce: il rifiuto non arriva in arturo.unione.rifiuto, o Arturo parte lo stesso: {d}"
+        corso = {"arturo.unione": {"perdente": "x", "vincitore": "y", "stato": "corso", "vista": None, "quando": int(time.time() * 1000)}}
+        d = gira("herdr-arturo volta", corso)
+        if d["eseguiti"] or d["unione"] != ["x", "y", "corso"] or d["rifiuto"] != ["herdr-arturo", "volta", "Un'unione è già in corso.", True]:
+            return f"con un'altra unione in corso: il rifiuto non arriva al dialogo, o copre l'unione che gira: {d}"
+    except (RuntimeError, ValueError, KeyError) as e:
+        return f"unisci() di dati.js non gira con Herdr finto: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -15944,6 +16030,15 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ196', 'shared/volta/mods/arturo/dati.js', 'level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }', 'level: "warning" }); return { stato: "errore", testo: no }; }'),
+    ('HZ196', 'shared/volta/mods/arturo/dati.js', '    return rifiutaUnione(perdente, vincitore, "Un\'unione è già in corso.");', '    return { stato: "errore", testo: "Un\'unione è già in corso." };'),
+    ('HZ196', 'shared/volta/mods/arturo/dati.js', '  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now() });', '  setShared("arturo.unione", { perdente, vincitore, stato: "errore", vista: { testo }, quando: Date.now() });'),
+    ('HZ196', 'shared/volta/mods/arturo/doppioni.js', 'const suo = Boolean(rifiuto) && rifiuto.quando >= da && (', 'const suo = Boolean(rifiuto) && ('),
+    ('HZ196', 'shared/volta/mods/arturo/doppioni.js', '(!coppia || (rifiuto.perdente === coppia.perdente && rifiuto.vincitore === coppia.vincitore));', '(!coppia || rifiuto.perdente === coppia.perdente);'),
+    ('HZ196', 'shared/volta/mods/arturo/doppioni.js', '(!coppia || (rifiuto.perdente === coppia.perdente && rifiuto.vincitore === coppia.vincitore));', '(!coppia || rifiuto.vincitore === coppia.vincitore);'),
+    ('HZ196', 'shared/volta/mods/arturo/doppioni.js', '  if (suo) return { stato: "errore", testo: String(rifiuto.testo || "La barra ha rifiutato l\'unione."), backup: null };\n', ''),
+    ('HZ196', 'shared/volta/mods/arturo/doppioniui.js', 'this.unioni[k].da, shared("arturo.unione.rifiuto"), this.unioni[k]);', 'this.unioni[k].da);'),
+    ('HZ196', 'shared/volta/mods/arturo/unisci.js', '    this.partita = Date.now();\n', ''),
     ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'if (vista?.stato === "anteprima" && vista.pronta) return { vai: true, testo: "" };', 'if (vista?.stato === "anteprima") return { vai: true, testo: "" };'),
     ('HZ195', 'shared/volta/mods/arturo/doppioni.js', '  if (!u || !(u.quando >= da)) return null;', '  if (!u) return null;'),
     ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'if (u.stato === "fatto") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };', 'if (u.stato !== "errore") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };'),
@@ -16176,7 +16271,7 @@ VELENI = [
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '...(prova ? ["--prova"] : []), "--json"]', '"--json"]'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '    if (d) return vistaUnione(d, perdente, vincitore);\n', '    if (d && r.code === 0) return vistaUnione(d, perdente, vincitore);\n'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '  const ok = vista.stato === "fatto";', '  const ok = vista.stato !== "errore";'),
-    ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return { stato: "errore", testo: no }; }\n', ''),
+    ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }\n', ''),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {', '  if (false) {'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {', '  if (ora?.stato === "corso") {'),
     ('HZ178', 'shared/volta/mods/arturo/unisci.js', '    if (this.passo !== "anteprima" || !this.vista?.pronta) return;\n', ''),
