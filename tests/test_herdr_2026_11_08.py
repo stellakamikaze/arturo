@@ -16392,7 +16392,7 @@ VELENI = [
     ("HZ58", "hooks/titolo-sessione.py", '            if adesso - f.stat().st_mtime <= VECCHIO:\n                continue\n', ''),
     ("HZ58", "hooks/scheda-terminale.py", '    persona = salvato.get("fonte") == "persona" and bool(salvato.get("progetto"))', '    persona = False'),
     ("HZ58", "hooks/scheda-terminale.py", 'progetto, fonte = ("", "") if persona else (progetto_da_prompt(', 'progetto, fonte = (progetto_da_prompt('),
-    ("HZ58", "hooks/scheda-terminale.py", '    if not progetto and evento == "PostToolUse" and not persona:', '    if evento == "PostToolUse":'),
+    ("HZ58", "hooks/scheda-terminale.py", '        if fonte == "file" and salvato.get("fonte") in ("inizio", "persona"):', '        if fonte == "file" and salvato.get("fonte") in ("inizio",):'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if True:\n            try:\n                f.unlink()'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if False:\n            try:\n                f.unlink()'),
     ("HZ54", "shared/volta/mods/arturo/sessioni.js", '  out.push({ verbo: "rinomina", testo: "Rinomina…" });\n', ''),

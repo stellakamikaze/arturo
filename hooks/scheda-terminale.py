@@ -456,7 +456,7 @@ def main() -> int:
     # ("prompt") sì, perché può essere un nome che il risolutore non ha trovato.
     persona = salvato.get("fonte") == "persona" and bool(salvato.get("progetto"))
     progetto, fonte = ("", "") if persona else (progetto_da_prompt(str(dati.get("prompt") or "")), "prompt")
-    if not progetto and evento == "PostToolUse" and not persona:
+    if not progetto and evento == "PostToolUse":
         progetto, fonte = progetto_da_strumento(dati)
         # il progetto che la persona ha dato dalla finestra di Volta vale come /inizio (14/11/2026)
         if fonte == "file" and salvato.get("fonte") in ("inizio", "persona"):
