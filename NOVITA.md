@@ -13,6 +13,24 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — La privacy dice la base giuridica di ogni dato
+
+**Cosa cambia**: la pagina [privacy](docs/privacy.md) dice adesso, per ogni dato, su quale base esce e
+come la fermi. Gli eventi d'uso partono col tuo consenso, quello che `/setup` ti chiede, e lo ritiri con
+`arturo telemetria spegni`. Le segnalazioni che partono da sole restano sul legittimo interesse di chi
+mantiene Arturo, e ti opponi con `arturo segnalazioni manuali`. La pagina dice anche il nome del titolare,
+le quattro società fuori dall'Unione Europea che trattano una parte dei dati, e che gli avvisi su
+Telegram e Gmail si cancellano entro 12 mesi.
+
+**Il principio**: dal 19/11/2026 niente parte prima della tua risposta a `/setup`, quindi la base giusta
+è il consenso. La pagina del sito lo dice dal 21/11, e il testo nel repository adesso dice lo stesso.
+
+**Da sapere**: cosa esce non cambia. Se hai installato Arturo prima del 19/11/2026, i tuoi eventi
+partivano già prima della domanda: per quelli la base resta il legittimo interesse, e ti opponi spegnendo
+la telemetria.
+
+---
+
 ## 2026-11-21 — Le protezioni ti chiedono conferma in casi nuovi
 
 **Cosa cambia**: dopo l'aggiornamento Arturo ti chiede conferma in casi che prima passavano in silenzio.
