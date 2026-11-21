@@ -35,7 +35,7 @@
  "description": "La roadmap di Arturo, l'harness in italiano per Claude Code: su cosa si lavora adesso, cosa viene dopo e cosa aspetta una decisione. Ogni voce si commenta.",
  "url": "https://arturo.stellakamikaze.org/roadmap/",
  "inLanguage": "it",
- "dateModified": "2026-11-18",
+ "dateModified": "2026-11-21",
  "publisher": {
   "@type": "Person",
   "name": "Federico Nejrotti"
@@ -159,8 +159,6 @@ ul,ol{margin:0;padding:0}
 .testata__data{font:600 .9rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere);font-variant-numeric:tabular-nums}
 </style>
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
-<!-- Banner cookie e registrazione delle sessioni solo col consenso (repo consenso, 17/11/2026). -->
-<script type="module" src="/js/consenso/consenso-PWSUFHMK.js" data-consenso data-progetto="vQagmdXBqYm9EFynRiRe" data-privacy="/privacy/" data-lingua="it"></script>
 <script defer src="../traccia.js"></script>
 </head>
 <body>
@@ -184,7 +182,7 @@ ul,ol{margin:0;padding:0}
     <div class="testata__corpo">
       <h1 id="titolo">La strada di Arturo</h1>
       <p>Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in <code>NOVITA.md</code>. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (<code>docs/strati.md</code>). Ogni voce si commenta nella pagina delle persone che usano Arturo: si entra con l'email dell'invito, e ognuno legge i commenti degli altri.</p>
-      <p class="testata__data">Aggiornata il <time datetime="2026-11-18">18 novembre 2026</time></p>
+      <p class="testata__data">Aggiornata il <time datetime="2026-11-21">21 novembre 2026</time></p>
       <div class="testata__vie">
         <a class="azione" href="/sviluppo/roadmap/">Commenta la roadmap</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/dev/ROADMAP.md">ROADMAP.md su GitHub</a>
@@ -254,6 +252,19 @@ ul,ol{margin:0;padding:0}
           <p>Strato: Metodo.</p>
           <p>Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti inventati, chiuse a effetto, elenchi di tre, parole gonfie. La skill <code>humanizer</code> li toglie senza cambiare cosa dice il testo, e segue il tuo modo di scrivere. È l'adattamento italiano di un progetto open source di blader, e prende il posto del catalogo dei tic che Arturo aveva dentro la skill dell'italiano semplificato.</p>
           <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#scrittura">Commenta questa voce</a></p>
+        </div>
+      </article>
+
+      <article class="voce" id="skill-tue" aria-labelledby="t-skill-tue">
+        <p class="voce__data">Pronto per il prossimo rilascio</p>
+        <div class="voce__corpo">
+          <h3 id="t-skill-tue"><a href="#skill-tue">Un lavoro che torna diventa una skill tua</a></h3>
+          <p class="voce__stato">Su dev ci sono la lista "Finito quando" nelle skill, le correzioni che portano il nome della skill, il destino degli script in <code>/fine</code>, l'avviso per le skill che hai già e la proposta della prima skill.</p>
+          <p>Strato: Orsa, con il Metodo.</p>
+          <p>Un lavoro che rifai ogni settimana ha bisogno di istruzioni scritte una volta, non di una spiegazione a ogni sessione. <code>/creaskill</code> le scrive con te in cinque domande. L'ultima chiede come capisci che il lavoro è venuto bene, e la risposta diventa la lista "Finito quando": poche righe a cui si risponde sì o no. Quando la skill parte, Claude riceve la lista e chiude il lavoro con l'esito riga per riga. Gli script di quel lavoro stanno nella cartella della skill, nella sezione "Attrezzi".</p>
+          <p>Se correggi Claude mentre usa una skill, la correzione porta il nome della skill, e <code>/fine</code> la scrive lì dopo il tuo sì. Arturo ti propone la prima skill quando gli dici quale lavoro rifai, nelle prime settimane o alla fine di <code>/setup</code>. Otto comandi e skill di Arturo chiudono con la stessa lista. <code>/system-audit</code> ti dice quali skill tue non hanno ancora la lista, e <code>/creaskill &lt;nome&gt;</code> la aggiunge con una domanda sola.</p>
+          <p>Tre cose restano fuori da questa voce. Un lavoro trovato nello storico delle chat diventa una sintesi o una pagina, non ancora una skill: è una scelta della voce "Arturo ti propone cosa automatizzare". Le skill pronte per mestiere, come la lettera, il preventivo o il verbale, restano nella voce "Arturo per le organizzazioni". Un "no" nella lista non ferma la consegna: Claude te lo dice, e decidi tu.</p>
+          <p class="voce__vie"><a class="azione azione--bordo" href="/sviluppo/roadmap/#skill-tue">Commenta questa voce</a></p>
         </div>
       </article>
 
@@ -468,7 +479,7 @@ ul,ol{margin:0;padding:0}
 <footer class="piede">
   <div class="dentro">
     <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
-    <p>Un solo cookie, per la tua scelta sul banner. Nessun tracker di terzi, nessun font da server esterni. <a href="../privacy/">Privacy</a> · <a href="/privacy/#cookie" data-cc="show-preferencesModal">Preferenze cookie</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
+    <p>Niente cookie, nessun tracker di terzi, nessun font da server esterni. <a href="../privacy/">Privacy</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
   </div>
 </footer>
 
