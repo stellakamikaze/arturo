@@ -79,7 +79,12 @@ Dici sì e il comando parte, come per ogni altra conferma. I casi nuovi sono que
 - una cartella intera spostata o cancellata per una via diversa da `rm`, e docker con la tua home
   montata in scrittura;
 - un invio di file con `curl` o `wget`, un `rsync --delete` o un `DROP TABLE` scritti a pezzi, con
-  virgolette o barre in mezzo al nome (`cu''rl`, `rs"y"nc`).
+  virgolette o barre in mezzo al nome (`cu''rl`, `rs"y"nc`);
+- una lettura attraverso un link che porta a una chiave, anche quando il link è una cartella
+  (`cat chiavi/github` con `chiavi` che punta a `~/.ssh`).
+
+Un caso chiede meno di prima: un testo mostrato con `cat <<EOF` che cita un `curl … | bash` non viene
+più bloccato, perché `cat` lo stampa e basta.
 
 Prima di ogni `git push` Arturo cerca anche chiavi e password nei commit che il server non ha ancora.
 

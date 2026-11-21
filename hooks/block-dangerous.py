@@ -736,10 +736,13 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
                     q = os.path.normpath(t if base is None else os.path.join(base, t))
                     if _segreto_di_casa(q, cartella, punto):
                         return True
+                    # un link su qualunque pezzo del percorso, non solo sull'ultimo: `cat lnk/github` con lnk
+                    # verso ~/.ssh (21/11/2026, #6200)
                     try:
-                        if not _GLOB_CARATTERI.search(q) and os.path.islink(q) and \
-                                _segreto_di_casa(os.path.realpath(q)):
-                            return True
+                        if not _GLOB_CARATTERI.search(q):
+                            vero = os.path.realpath(q)
+                            if vero != q and _segreto_di_casa(vero, cartella, punto):
+                                return True
                     except OSError:
                         pass
     return False

@@ -51,13 +51,15 @@ fi
 # il corpo e' dato, non shell. Lo decide hooks/heredoc.py, lo stesso modulo delle guardie
 # (15/10/2026): `cat <<'EOF' | bash`, un file scritto e poi eseguito, `<<` dentro virgolette o
 # confini incerti restano interi e passano dalle guardie. Un errore tiene il comando originale.
+# Dal 21/11/2026 (#6200) anche il corpo senza virgolette verso un lettore, senza `$(`, backtick, `${` e `$[`
+# (Heredoc.dati): `cat <<EOF` che cita `curl … | bash` stampa il testo e non lo esegue.
 reduce_inert_heredocs() {
     python3 -c 'import importlib.util, sys
 spec = importlib.util.spec_from_file_location("arturo_heredoc", sys.argv[1])
 hd = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(hd)
 source = sys.stdin.read().replace("\r\n", "\n")
-print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$ARTURO_HOOKS/heredoc.py" <<< "$1" 2>/dev/null \
+print(hd.togli(source, lambda h: h.dati()), end="")' "$ARTURO_HOOKS/heredoc.py" <<< "$1" 2>/dev/null \
         || printf '%s' "$1"
 }
 
@@ -607,6 +609,41 @@ _RE_CWD_GIT='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.git(["/\\])'
 # Con la sessione dentro una cartella dei segreti, `cat github` legge una chiave senza nominarla (review del
 # 10/11/2026, problema 10, #5263): block-dangerous risolve il percorso dalla cartella della sessione.
 _RE_CWD_SEGRETI='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.(ssh|aws|gnupg|secrets)(["/\\])'
+# Un link già sul disco verso una chiave o verso la config (`cat k`, `cat lnk/github` con lnk verso ~/.ssh)
+# non nomina il segreto: block-dangerous risolve il percorso, il pre-filtro non lo chiamava (21/11/2026, #6200).
+# Qui ogni parola che sembra un percorso si controlla pezzo per pezzo con `-L`, senza processi; solo se un pezzo
+# è un link, `readlink -f` dà il percorso vero, che si confronta con PATTERN_DANGER. La cartella di primo livello
+# non conta: su macOS /tmp, /var ed /etc sono link verso /private. Se readlink non risponde, parte la guardia.
+# Banco: GC12 in tests/test_guardie_cieche_2026_11_11.py.
+_RE_CWD_VALORE='"cwd"[[:space:]]*:[[:space:]]*"([^"]*)"'
+link_in_vista() {
+    local cwd="" parola p vero n=0 letti=0
+    local -a parole
+    [[ "$INPUT" =~ $_RE_CWD_VALORE ]] && cwd="${BASH_REMATCH[1]}"
+    [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && cwd="${cwd//\\\\//}"
+    IFS=$' \t\n;&|()<>' read -r -d '' -a parole <<< "$_SCIOLTO"
+    for parola in "${parole[@]}"; do
+        (( ++n > 300 )) && return 0
+        [[ "$parola" == *=* ]] && parola="${parola#*=}"
+        [[ -z "$parola" || "$parola" == -* || "$parola" == *['$*?[{`']* ]] && continue
+        case "$parola" in
+            "~/"*) p="$HOME/${parola#\~/}" ;;
+            /*) p="$parola" ;;
+            *) [[ -n "$cwd" ]] || continue; p="$cwd/$parola" ;;
+        esac
+        vero="$p"
+        while [[ "$p" == /*/* ]]; do
+            if [[ -L "$p" ]]; then
+                (( ++letti > 8 )) && return 0
+                vero=$(readlink -f -- "$vero" 2>/dev/null) && [[ -n "$vero" ]] || return 0
+                somiglia "$vero" "$PATTERN_DANGER" && return 0
+                break
+            fi
+            p="${p%/*}"
+        done
+    done
+    return 1
+}
 # Su Windows i percorsi hanno anche le barre rovesciate (`"C:\Users\x\.claude\settings.json"`), e PATTERN_DANGER
 # cerca `.claude/`: il pre-filtro prova anche il comando con le barre dritte (review del 9/11/2026, #5096).
 # Anche il `cd` si leggeva con le barre dritte (#5121): `cd "C:\...\.claude\data"` ha `.claude` seguito da una
@@ -618,7 +655,7 @@ if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
 fi
 # Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config (7/11/2026,
 # finding 11). Dal 10/11/2026 lo copre `somiglia`, che lì confronta PATTERN_DANGER senza le maiuscole.
-if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER" || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT" || somiglia "$INPUT" "$_RE_CWD_SEGRETI"; then
+if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER" || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT" || somiglia "$INPUT" "$_RE_CWD_SEGRETI" || link_in_vista; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then

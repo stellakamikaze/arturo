@@ -64,12 +64,14 @@ def testo_shell(command: str) -> str:
     Toglie il corpo degli heredoc col delimitatore TRA VIRGOLETTE diretti a un
     lettore (cat, tee, grep...) o a un interprete (python, node...) il cui codice
     non lancia programmi: la shell non lo espande e non lo esegue, quindi un
-    `cat <segreto>` scritto lì dentro è testo, non una lettura. Un heredoc senza
-    virgolette resta, perché la shell ne espande le `$(...)`. Il confine lo legge
+    `cat <segreto>` scritto lì dentro è testo, non una lettura. Dal 21/11/2026 (#6200)
+    sparisce anche il corpo senza virgolette verso un lettore, se non ha `$(`, backtick,
+    `${` o `$[` (heredoc.Heredoc.dati): `cat <<EOF` che cita `curl … | bash` stampa il
+    testo. Verso un interprete il corpo senza virgolette resta. Il confine lo legge
     heredoc.py. Toglie anche i messaggi -m/--message privi di command-substitution.
     """
     # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
-    testo = _togli_heredoc(command, lambda h: h.quotato and (h.inerte() or h.codice_inerte()))
+    testo = _togli_heredoc(command, lambda h: h.dati() or (h.quotato and h.codice_inerte()))
 
     def _svuota(m):
         corpo = m.group(2)
