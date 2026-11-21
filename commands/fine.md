@@ -61,7 +61,8 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
 ## FASE 0 · Sessione di prova
 
 Prima di tutto lancia `python3 ~/.claude/bin/prova.py --elimina; echo "rc=$?"`. Con `rc=0` la sessione è
-di prova: il suo nome comincia con `prova-` (#5877). Allora salta tutte le fasi: niente handoff, todo,
+di prova: il nome dato a mano, con `--name` o `/rename`, comincia con `prova-` (#5877). Il nome che
+Claude Code inventa da solo non conta, anche se comincia con `prova-` (#6321). Allora salta tutte le fasi: niente handoff, todo,
 memoria, commit né sync. Se è in background, lo script lancia `claude rm` fra 30 secondi. Chiudi con la
 riga che stampa. Con `rc=1` o `rc=2` prosegui dalla FASE 1.
 

@@ -67,4 +67,4 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - La persona usa `/fine` anche a metà sessione, come salvataggio, e poi continua.
 - Un lavoro che deve sopravvivere alla sessione sta nei task o nell'handoff, non nella conversazione.
 - Un fatto che la persona ti insegna e che vale anche domani va nella memoria, non in un file nuovo.
-- Una sessione che lanci per una sonda, un banco o una prova dal vivo nasce col nome `prova-<cosa>`: `claude --bg --name prova-5877 "..."`. Volta la elimina alla chiusura senza `/fine`, `/fine` non le scrive l'handoff e `/revisione` la salta. Per provare il congedo stesso usa un nome senza `prova-`.
+- Una sessione che lanci per una sonda, un banco o una prova dal vivo nasce col nome `prova-<cosa>`: `claude --bg --name prova-5877 "..."`. Volta la elimina alla chiusura senza `/fine`, `/fine` non le scrive l'handoff e `/revisione` la salta. Per provare il congedo stesso usa un nome senza `prova-`. Conta solo il nome dato a mano, con `--name` o `/rename`: il nome che Claude Code inventa da solo non rende di prova una sessione vera.

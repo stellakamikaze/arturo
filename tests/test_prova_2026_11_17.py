@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""PV01-PV05: le sessioni di prova, marcate dal nome prova- (#5877, prima /revisione del 17/11/2026).
+"""PV01-PV06: le sessioni di prova, marcate dal nome prova- (#5877, prima /revisione del 17/11/2026).
 
 PV01 un transcript con custom-title prova-… (dopo un altro nome) è di prova: rc 0, anche senza claude agents;
 PV02 un nome qualunque, o nessun nome, non è di prova: rc 1; senza id di sessione rc 2;
 PV03 --elimina su una prova in background lancia claude rm del suo lavoro, staccato, dopo l'attesa;
 PV04 --elimina su una prova interattiva non lancia niente, e su una sessione vera non elimina niente;
 PV05 /fine apre con la FASE 0 che lancia prova.py --elimina, e il metodo dice di nascere con --name prova-;
+     FASE 0 e metodo dicono che conta solo il nome dato con --name o /rename (#6343);
 PV06 prova- solo nel nome che Claude Code inventa (agent-name, e name di claude agents) non è di prova: rc 1,
      e --elimina non lancia niente (#6321: /fine eliminava una sessione vera senza handoff).
 
@@ -109,9 +110,10 @@ def prova(repo: Path, solo: str = "") -> list:
             metodo = (repo / "shared" / "metodo.md").read_text(encoding="utf-8")
             fase0 = fine.split("## FASE 0", 1)[1].split("## FASE 1", 1)[0] if "## FASE 0" in fine else ""
             if "## FASE 0" not in fine or "~/.claude/bin/prova.py --elimina" not in fase0 \
-                    or fine.index("## FASE 0") > fine.index("## FASE 1") or "--name prova-" not in metodo:
+                    or fine.index("## FASE 0") > fine.index("## FASE 1") or "--name prova-" not in metodo \
+                    or "/rename" not in fase0 or "/rename" not in metodo:
                 rossi.append(f"PV05 testi: FASE 0 {bool(fase0)}, prova.py {'prova.py --elimina' in fase0}, "
-                             f"metodo {'--name prova-' in metodo}")
+                             f"metodo {'--name prova-' in metodo}, /rename {'/rename' in fase0}/{'/rename' in metodo}")
         if not solo or solo == "PV06":
             prima = rm.read_text(encoding="utf-8") if rm.is_file() else ""
             rc, out = lancia("--session", "66666666-ffff", "--elimina")
@@ -127,9 +129,9 @@ VELENI = [
     ("PV02", "bin/prova.py", 'MARCATO = re.compile(r"^\\s*prova-", re.I)', 'MARCATO = re.compile(r"^\\s*", re.I)'),
     ("PV03", "bin/prova.py", '        elif elimina_dopo(programma_claude(), lavoro):', '        elif False:'),
     ("PV04", "bin/prova.py", "    if not e_prova(nome):\n", "    if False:\n"),
+    ("PV05", "commands/fine.md", "`python3 ~/.claude/bin/prova.py --elimina; echo \"rc=$?\"`", "`true`"),
     ("PV06", "bin/prova.py", "    nome = nome_da_transcript(file)\n",
      '    nome = str(voce_agents(sid).get("name") or "") or nome_da_transcript(file)\n'),
-    ("PV05", "commands/fine.md", "`python3 ~/.claude/bin/prova.py --elimina; echo \"rc=$?\"`", "`true`"),
 ]
 
 
