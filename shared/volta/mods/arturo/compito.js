@@ -8,7 +8,9 @@
 // - ↑↓ scorrono: i progetti proposti, "Progetto nuovo: <slug>", "Senza progetto".
 // - Invio: la sessione nasce in background e la finestra resta dov'è. ⌘Invio (Ctrl+Invio): nasce e si apre.
 // La nascita la fa la barra: il dialogo manda il comando e si chiude, perché un overlay chiuso ferma il suo
-// codice al primo await (comandi.js).
+// codice al primo await (comandi.js). Se un'altra sessione sta nascendo, il compito aspetta il suo turno
+// nella fila della barra (compito di dati.js, #6198): il dialogo si può riaprire subito per il compito dopo.
+// Il campo è un Input su una riga: nella Textarea del kit Invio va a capo e ↑↓ restano al testo (VOLTA.md).
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";

@@ -1934,6 +1934,10 @@ export function leggiCompito(c, noti = NOTI) {
   // un progetto che la mappa non ha (elenco non ancora letto): /inizio lo trova o lo dice
   return { tipo: "progetto", slug: m[2], testo, apri };
 }
+// L'avviso di un compito che aspetta il suo turno (#6198). `prima`: i compiti in attesa davanti a lui, senza
+// la sessione che sta nascendo.
+export const avvisoAttesa = (prima) => "Parte quando è nata la sessione di prima."
+  + (prima > 1 ? ` Prima partono altri ${prima} compiti.` : prima === 1 ? " Prima parte un altro compito." : "");
 // L'avviso dopo Invio: dove è nata la sessione che lavora dietro.
 export const avvisoCompito = (progetto, macchina) => `${progetto || "Senza progetto"} · ${macchina}. Claude ci lavora: la trovi nell'elenco e nell'Orchestratore.`;
 // Il primo messaggio della sessione nata da ⌘N. `conTasks`: l'Arturo di questa macchina ha la skill dei task

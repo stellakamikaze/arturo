@@ -4,7 +4,7 @@
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale, schedaDelProgetto } from "./sessioni.js";
 import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
-import { promptCompito, avvisoCompito, nomeProgetto as nomeProgettoDi, nomeChi, sa } from "./sessioni.js";
+import { promptCompito, avvisoCompito, avvisoAttesa, nomeProgetto as nomeProgettoDi, nomeChi, sa } from "./sessioni.js";
 import { leggiUnione, vistaUnione, percheNonUnire, UNIONE_PROVA_MS, UNIONE_MS } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
@@ -582,16 +582,66 @@ export function progettoDavanti() {
 // Il compito di ⌘N (#6186, leggiCompito di sessioni.js): un progetto noto parte da "/inizio <slug> -- <compito>"
 // sulla macchina del progetto, come apri() con un todo; un progetto nuovo e un compito senza progetto nascono
 // sulla macchina di "Nasce su". Con `apri` (⌘Invio) la scheda si apre, altrimenti la sessione lavora dietro.
-export async function compito(x) {
-  if (!x?.testo) return { errore: "compito vuoto" };
+//
+// Più compiti di fila (#6198, 21/11/2026): le sessioni nascono una alla volta, e un compito mandato durante
+// una nascita aspetta il suo turno invece di ricevere "Sta già nascendo un'altra sessione". I compiti in
+// attesa stanno in `compitiInFila`, nell'ordine in cui sono arrivati, al più COMPITI_IN_FILA_MAX: il primo è
+// quello che nasce. Un avviso dice che il compito aspetta; quando nasce arriva "Compito partito", come
+// sempre. La fila sta nella memoria della barra: se Volta si chiude, i compiti non ancora nati si perdono.
+// Il clic su una scheda nuova durante una nascita riceve ancora l'avviso: la fila vale per i compiti.
+export const COMPITI_IN_FILA_MAX = 8;
+const FILA_OGNI_MS = 1000;
+const compitiInFila = [];
+let filaGira = false;
+
+// Gli argomenti di nasciSu per un compito. Si calcolano prima dell'attesa: fra la fine dell'attesa e
+// nasciSu non c'è nessun await, così un'altra nascita non si infila in mezzo.
+async function nascitaCompito(x) {
   const d = dove();
   if (x.tipo === "progetto") {
     const nome = canonico(x.slug);
     const sua = d === "qui" ? macchinaDelProgetto(shared("arturo.progetti")?.[nome]?.macchine, shared("arturo.volta.macchine")) : null;
-    return nasciSu(sua ?? d, promptCompito({ ...x, slug: nome }), nome, null, null, !x.apri);
+    return [sua ?? d, promptCompito({ ...x, slug: nome }), nome, null, null, !x.apri];
   }
   // un progetto nuovo: senza la skill dei task la sessione crea la cartella e basta (#6217)
-  return nasciSu(d, promptCompito(x, sa((await config()).capacita, "tasks")), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);
+  return [d, promptCompito(x, sa((await config()).capacita, "tasks")), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri];
+}
+
+export async function compito(x) {
+  if (!x?.testo) return { errore: "compito vuoto" };
+  if (compitiInFila.length >= COMPITI_IN_FILA_MAX) {
+    notify({ title: "Troppi compiti in attesa", body: `Ce ne sono già ${COMPITI_IN_FILA_MAX}: questo non parte. Riprova quando ne è nato uno.`, level: "warning" });
+    return { errore: "troppi compiti in attesa" };
+  }
+  const prima = compitiInFila.length;
+  compitiInFila.push(x);
+  // davanti a lui: i compiti in attesa, senza quello che sta nascendo
+  if (filaGira || inNascita()) notify({ title: "Compito in attesa", body: avvisoAttesa(Math.max(0, prima - 1)), level: "info" });
+  // la fila la svuota chi l'ha fatta partire: gli altri lasciano il compito e tornano
+  if (filaGira) return { ok: true, attesa: prima };
+  filaGira = true;
+  let esito = null;
+  try {
+    while (compitiInFila.length) {
+      try {
+        const args = await nascitaCompito(compitiInFila[0]);
+        // un'altra nascita (un clic, un'altra finestra): inNascita la conta al più NASCITA_MAX, poi si parte
+        // Una pausa che torna subito (né orologio né Python) non aspetta niente: si esce, e nasciSu dice lui
+        // se la nascita di prima è ancora in corso.
+        while (inNascita()) {
+          const t0 = Date.now();
+          await pausa(FILA_OGNI_MS);
+          if (Date.now() - t0 < FILA_OGNI_MS / 2) break;
+        }
+        esito = await nasciSu(...args);
+      } catch (e) {
+        esito = { errore: String(e?.message ?? e).slice(0, 160) };
+        notify({ title: "Il compito non parte", body: esito.errore, level: "error" });
+      }
+      compitiInFila.shift();
+    }
+  } finally { filaGira = false; }
+  return esito;
 }
 
 // Le richieste da imparare: i pulsanti del benvenuto e della finestra "Cosa posso chiedere".
