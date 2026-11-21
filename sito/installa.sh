@@ -145,6 +145,15 @@ verifica_rilascio() {
     echo "Il rilascio $rilascio non ha la firma di Arturo (tag senza firma): possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
     return 1
   fi
+  # verify-tag sceglie il programma dalla firma scritta nel tag, non da gpg.format: un tag firmato PGP
+  # passa da gpg e dal portachiavi della persona, senza guardare $firme (revisione del 20/11/2026, S1,
+  # #6258). Git legge la firma dall'ultima riga "-----BEGIN …" del tag: quella deve essere SSH. Come
+  # verifica_tag di bin/aggiornamenti.py.
+  if [ "$(git -C "$clone" cat-file tag "$rilascio" 2>/dev/null | grep -e '^-----BEGIN ' | tail -n 1 | tr -d '\r')" \
+    != '-----BEGIN SSH SIGNATURE-----' ]; then
+    echo "Il rilascio $rilascio non ha la firma di Arturo (firma non SSH): possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+    return 1
+  fi
   if ! errore=$(LC_ALL=C git -C "$clone" -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$firme" \
     verify-tag "$rilascio" 2>&1 >/dev/null); then
     if printf '%s\n' "$errore" | grep -Eiq "$FIRMA_SBAGLIATA"; then

@@ -136,6 +136,34 @@ def firma_tag(lavoro: Path, nome: str, chiave: str, ref: str = "HEAD", dentro: s
         sh("git", "update-ref", f"refs/tags/{nome}", oggetto, cwd=lavoro)
 
 
+GPG = shutil.which("gpg")
+
+
+def portachiavi_pgp() -> tuple:
+    """(GNUPGHOME, impronta) di un portachiavi nuovo con una chiave PGP senza parola d'ordine: è la chiave di
+    un altro che sta nel portachiavi della persona. La cartella è corta: gpg-agent ci apre il suo socket, e
+    oltre i 104 caratteri non si apre."""
+    casa = tempfile.mkdtemp(prefix="tig", dir="/tmp" if os.path.isdir("/tmp") else None)
+    os.chmod(casa, 0o700)
+    env = dict(os.environ, GNUPGHOME=casa)
+    subprocess.run([GPG, "--batch", "--passphrase", "", "--quick-gen-key", "altro@example.invalid", "ed25519",
+                    "sign", "never"], env=env, check=True, capture_output=True, timeout=60)
+    righe = subprocess.run([GPG, "--list-secret-keys", "--with-colons"], env=env, check=True, capture_output=True,
+                           text=True, timeout=60).stdout.splitlines()
+    return casa, [r.split(":")[9] for r in righe if r.startswith("fpr:")][0]
+
+
+def chiudi_portachiavi(casa: str):
+    subprocess.run(["gpgconf", "--kill", "all"], env=dict(os.environ, GNUPGHOME=casa), capture_output=True, timeout=30)
+    shutil.rmtree(casa, ignore_errors=True)
+
+
+def firma_pgp(lavoro: Path, nome: str, casa: str, impronta: str, messaggio: str = ""):
+    subprocess.run(["git", "-c", f"user.signingkey={impronta}", "-c", "user.name=t", "-c", "user.email=t@t",
+                    "tag", "-s", "-m", messaggio or nome, nome], cwd=lavoro, env=dict(os.environ, GNUPGHOME=casa),
+                   check=True, capture_output=True, timeout=60)
+
+
 def commit(lavoro: Path, file: str, testo: bytes, messaggio: str):
     (lavoro / file).write_bytes(testo)
     sh("git", "add", file, cwd=lavoro)
@@ -742,6 +770,43 @@ def caso_firma_altra_chiave(lab):
     assert "v1.0.1" in out, out
 
 
+def _fermo_pgp(lab, motivo, messaggio=""):
+    # Un rilascio più nuovo firmato PGP con una chiave che sta nel portachiavi della persona (revisione del
+    # 20/11/2026, S1, #6258): verify-tag lo passa a gpg, che lo dà buono senza guardare le firme di Arturo.
+    if not GPG:
+        print(f"NOTA {motivo}: gpg assente, senza gpg l'aggiramento non c'è")
+        return ""
+    casa, impronta = portachiavi_pgp()
+    try:
+        def prepara(w):
+            # Un testo per caso: caso_firma_altra_chiave spinge il suo commit anche sull'origine condivisa.
+            commit(w, "README.md", f"codice PGP: {motivo}\n".encode(), "altro")
+            firma_pgp(w, "v1.0.1", casa, impronta, messaggio)
+            sh("git", "push", "-q", "origin", "HEAD:main", cwd=w)
+        repo = variante(lab, prepara)
+        lab.finto("gpg", f'exec "{_posix(Path(GPG))}" "$@"')
+        lab.claude_locale()
+        lab.config_vecchia()
+        c = lab.home / ".claude"
+        prima = foto(c)
+        rc, out = lab.lancia(repo=repo, extra={"GNUPGHOME": _posix(Path(casa))})
+    finally:
+        chiudi_portachiavi(casa)
+    assert rc == 1 and "firma non SSH" in out, f"{motivo}: rc {rc}\n{out}"
+    assert foto(c) == prima and lab.backup() == [], f"{motivo}: ~/.claude toccata {differenze(prima, foto(c))}"
+    return out
+
+
+def caso_firma_pgp(lab):
+    _fermo_pgp(lab, "installato con una firma PGP")
+
+
+def caso_firma_pgp_finta_ssh(lab):
+    # La riga di una firma SSH nel messaggio non conta: git legge la firma dall'ultima riga "-----BEGIN".
+    _fermo_pgp(lab, "installato con una firma PGP e una finta SSH",
+               "v1.0.1\n\n-----BEGIN SSH SIGNATURE-----\nfinta\n-----END SSH SIGNATURE-----\n")
+
+
 def caso_tag_senza_firma(lab):
     def prepara(w):
         sh("git", "tag", "v1.0.1", cwd=w)
@@ -821,7 +886,8 @@ CASI = [caso_nuova, caso_config_di_prima, caso_sincronizzata, caso_senza_cartell
         caso_config_dir, caso_claude_md_resta, caso_mac_git_rimando, caso_manca_formato, caso_si_cancella,
         caso_python_windows, caso_cartella_collegata, caso_interrotto_backup, caso_mac_licenza, caso_guida_rimandi,
         caso_firma_altra_chiave, caso_tag_senza_firma, caso_tag_rinominato, caso_rilascio_vecchio, caso_senza_rilasci,
-        caso_firma_non_verificabile, caso_plugin_installato, caso_remoto_senza_file, caso_chiave_come_main]
+        caso_firma_non_verificabile, caso_plugin_installato, caso_remoto_senza_file, caso_chiave_come_main,
+        caso_firma_pgp, caso_firma_pgp_finta_ssh]
 
 # I veleni della revisione del 1/11/2026: (caso, testo dello script di oggi, testo che toglie la
 # correzione, motivo atteso, solo su Windows). Il testo da togliere deve comparire una volta sola.
@@ -848,6 +914,9 @@ VELENI = [
     (caso_firma_non_verificabile, '    return 2\n  fi\n  dentro=', '    return 1\n  fi\n  dentro=',
      "installato senza verifica", False),
     (caso_plugin_installato, "if grep -qs '\"arturo@arturo\"'", "if false", "plugin non visto", False),
+    # #6258 (21/11/2026): senza il controllo del blocco di firma un tag PGP passa da gpg.
+    (caso_firma_pgp, "    != '-----BEGIN SSH SIGNATURE-----' ]; then", "    = 'mai' ]; then",
+     "installato con una firma PGP", False),
     (caso_remoto_senza_file, "&& git -C \"$dest\" ls-files --error-unmatch bin/arturo settings.json",
      "&& true", "remoto scambiato per installazione", False),
 ]
