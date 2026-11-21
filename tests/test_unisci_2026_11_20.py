@@ -19,6 +19,9 @@ UN11 la fonte esterna che unisce riceve --backup dentro la copia di sicurezza, e
 UN12 la scheda di un terminale col progetto del perdente passa al vincitore.
 UN13 la cartella degli handoff del perdente è un collegamento a quella del vincitore (herdr-arturo -> volta):
      nessun handoff si sposta né cambia nome; un collegamento verso un'altra cartella esce 2 e non scrive.
+UN14 dopo l'unione la riga di stato del perdente non c'è più: arturo progetti non elenca il suo nome, e la
+     riga portata al vincitore resta (#6213).
+UN15 un secondo giro sullo stesso doppione esce 2 con "è già unito" e non scrive niente, anche con --prova.
 
 Veleno: --avvelena rompe bin/unisci.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso.
@@ -35,7 +38,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["UN01", "UN02", "UN03", "UN04", "UN05", "UN06", "UN07", "UN08", "UN09", "UN10", "UN11", "UN12", "UN13"]
+CASI = ["UN01", "UN02", "UN03", "UN04", "UN05", "UN06", "UN07", "UN08", "UN09", "UN10", "UN11", "UN12", "UN13",
+        "UN14", "UN15"]
 # caso -> (file in bin/, testo, testo rotto)
 VELENI = {
     "UN01": ("unisci.py", 'ts.normalizza({"progetto": vincitore})', 'ts.normalizza({"titolo": "x"})'),
@@ -51,6 +55,8 @@ VELENI = {
     "UN11": ("unisci.py", '"--backup", str(backup / "fonte"),', ''),
     "UN12": ("unisci.py", '{**dati, "progetto": vincitore}', '{**dati}'),
     "UN13": ("unisci.py", "    if hd_p.is_symlink() or", "    if False and"),
+    "UN14": ("unisci.py", "        ts.togli_stato(perdente)\n", "        pass\n"),
+    "UN15": ("unisci.py", "        if sch_v and perdente in (cx.slug(a) for a in lista(", "        if False and perdente in (cx.slug(a) for a in lista("),
 }
 
 HANDOFF = ("# Session Handoff - {data}\n## Progetto\n- Nome: {nome} / Branch: nessuno / Status: in progress\n"
@@ -304,6 +310,34 @@ def prova(repo: Path, rompi=None) -> list:
         t2 = json.loads((lab.cl / "cache" / "scheda" / "s2.json").read_text(encoding="utf-8"))
         if t1.get("progetto") != "fenice" or t2.get("progetto") != "altro" or t1.get("stato") != "attende":
             rossi.append(f"UN12 terminali: {t1} {t2}")
+
+        # UN14: la riga di stato del perdente è tolta, quella del vincitore resta
+        e = lab.arturo("progetti", "--json")
+        try:
+            nomi = [str(v.get("slug")) for v in json.loads(e.stdout)["progetti"]]
+        except (ValueError, KeyError, TypeError, AttributeError):
+            nomi = None
+        s = lab.arturo("todo", "stato", "--progetto", "fenice")
+        registro = lab.cl / "data" / "todo" / "progetti.jsonl"
+        righe = [json.loads(x) for x in registro.read_text(encoding="utf-8").splitlines() if x.strip()]
+        ultima = ([v for v in righe if v.get("progetto") == "fenice-vecchia"] or [{}])[-1]
+        if (nomi is None or "fenice" not in nomi or "fenice-vecchia" in nomi or "bozze in stampa" not in s.stdout
+                or ultima.get("tolto") is not True or ultima.get("riga") != ""):
+            rossi.append(f"UN14 riga di stato del perdente: progetti={nomi}, stato={s.stdout.strip()!r}, "
+                         f"ultima riga={ultima} {e.stderr[-200:]}")
+
+        # UN15: il secondo giro è rifiutato, vero e di prova
+        prima = lab.impronta()
+        r2 = lab.arturo("progetti", "unisci", "fenice-vecchia", "fenice")
+        p2 = lab.arturo("progetti", "unisci", "fenice-vecchia", "fenice", "--prova", "--json")
+        try:
+            rifiuto = str(json.loads(p2.stdout).get("rifiuto"))
+        except (ValueError, AttributeError):
+            rifiuto = ""
+        if (r2.returncode != 2 or "è già unito in fenice" not in r2.stderr or p2.returncode != 2
+                or "è già unito in fenice" not in rifiuto or lab.impronta() != prima):
+            rossi.append(f"UN15 secondo giro: rc={r2.returncode}/{p2.returncode}, albero cambiato={lab.impronta() != prima} "
+                         f"{r2.stderr[-200:]!r} {p2.stdout[-200:]!r}")
     return rossi
 
 

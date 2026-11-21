@@ -5,7 +5,8 @@ Uso: arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]
 
 Nasce dal piano di Volta del 20/11/2026 (Fase 4, #6187): in Volta c'erano doppioni come volta, herdr-arturo
 e volta-celeste, e l'unione si faceva a mano. Il comando porta dal perdente al vincitore:
-  - i todo del perdente, aperti e chiusi, e la sua riga di stato se è più recente;
+  - i todo del perdente, aperti e chiusi, e la sua riga di stato se è più recente; la riga del perdente
+    poi si toglie, così un secondo giro sullo stesso doppione esce 2 con "è già unito";
   - gli handoff, con "- Nome:" e "- Filone:" riscritti; un nome di file già preso dal vincitore passa al
     primo minuto libero, così resta un handoff che /inizio legge; INDEX.md si rigenera;
   - la scheda: il vincitore prende negli alias il perdente e i suoi alias, i campi del codice che non ha
@@ -247,6 +248,8 @@ def raccogli(perdente: str, vincitore: str) -> dict:
         raise Ferma(2, f"scheda non leggibile: {e}")
     terminali = schede_terminali(perdente)
     if not (todo or stato_p or handoff or sch_p or terminali):
+        if sch_v and perdente in (cx.slug(a) for a in lista(campo(dividi_scheda(testi[sch_v])[0], "alias"))):
+            raise Ferma(2, f"{perdente} è già unito in {vincitore}: non resta niente da unire")
         raise Ferma(2, f"non trovo niente di {perdente}: né todo, né stato, né handoff, né scheda")
     salta = {f for f in (sch_p, sch_v) if f is not None}
     link = {f: t for f, t in rn.link_nelle_note(perdente, vincitore, None).items() if f not in salta}
@@ -338,6 +341,9 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list) -> None:
             raise Ferma(2, f"rileggendo il registro {len(rimasti)} todo hanno ancora {perdente}: mi fermo qui")
     if r["porta_stato"]:
         ts.scrivi_stato(vincitore, r["stato_p"]["riga"])
+    if r["stato_p"]:
+        # la riga del perdente teneva vivo il suo nome in arturo progetti, e un secondo giro passava a zero (#6213)
+        ts.togli_stato(perdente)
     hd_p, hd_v = cx.handoff_dir() / perdente, cx.handoff_dir() / vincitore
     if r["handoff"]:
         hd_v.mkdir(parents=True, exist_ok=True)
