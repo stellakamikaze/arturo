@@ -3,6 +3,8 @@
 // Scrivi per filtrare, frecce per muoverti, Invio apre, Esc torna al terminale. L'elenco lo scrive la
 // barra (shared arturo.casa.progetti, barra.js); le immagini le copia volta_mod.py in immagini/ con
 // l'elenco in immagini/elenco.json. Ordine, filtro e tastiera stanno in tessere.js, senza Herdr.
+// Accanto al titolo, "Cerca doppioni" (#6188): apre la revisione delle coppie di progetti che sembrano lo stesso
+// (doppioniui.js). Senza un Arturo che sa unire due progetti il pulsante non c'è, come "Unisci a…" nel menu.
 
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
@@ -12,6 +14,7 @@ import { ICONA, punto, colore, tasti } from "./comuni.js";
 import { tessere, passo, colonne, iniziali, tinta, immagine, senzaTessere, STACK, TERMINALE, GAP, MIN_W } from "./tessere.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { apriMenuTessera } from "./menusessione.js";
+import { COMANDO_DOPPIONI, sa } from "./sessioni.js";
 
 // La figura della ricerca senza risultati, in due copie coi colori scritti dentro (resvg non legge le
 // variabili CSS): si sceglie dalla luminosità dello sfondo del tema. La misura è quella dell'SVG.
@@ -148,6 +151,12 @@ export class Casa {
       .child(v_flex().flex_none().px(SPAZIO.xxl).pt(SPAZIO.xxl).pb(SPAZIO.xl).gap(SPAZIO.l)
         .child(h_flex().items_center().gap(SPAZIO.l)
           .child(div().flex_1().font_family("Arturo Archivo").text_size(TESTO.titolo).text_color(t.foreground).child("Progetti"))
+          .when(sa(shared("arturo.capacita"), "unisci"), (el) => el.child(h_flex().id("casa-doppioni").h(PULSANTE.piccolo).px(SPAZIO.l).gap(SPAZIO.m).items_center()
+            .rounded(RAGGIO.controllo).border_1().border_color(t.border).cursor_pointer().hover((st) => st.bg(t.hover))
+            .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+            .on_click(() => run(COMANDO_DOPPIONI))
+            .child(svg(ICONA("layers")).size(ICONA_MISURA.piccola).text_color(t.muted))
+            .child(div().text_size(TESTO.etichetta).text_color(t.foreground).child("Cerca doppioni"))))
           .child(div().text_size(TESTO.etichetta).text_color(t.dim).child("Invio apre · tasto destro per il menu · Esc torna alla sessione")))
         .child(h_flex().h(PULSANTE.grande).px(SPAZIO.l).gap(SPAZIO.m).items_center().rounded(RAGGIO.riga).border_1().border_color(t.accent).bg(t.raised)
           .child(svg(ICONA("search")).size(ICONA_MISURA.grande).text_color(t.muted))

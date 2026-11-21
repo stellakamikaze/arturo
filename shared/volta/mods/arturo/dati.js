@@ -1721,6 +1721,40 @@ export async function unisci(perdente, vincitore) {
   return vista;
 }
 
+// Cerca doppioni (#6188): le coppie che la persona ha scartato ("Non sono doppioni") stanno in
+// doppioni-scartati.json nella cartella di Volta, { "<slug>|<slug>": quando }. Su questa macchina: una coppia
+// scartata qui torna a comparire su un'altra finché non la scarti anche lì.
+export const fileDoppioni = () => `${appHome()}/doppioni-scartati.json`;
+// null se il file c'è e non si legge come un oggetto: chi scrive non lo sostituisce.
+const leggiScartati = (testo) => {
+  try { const d = JSON.parse(testo ?? "{}"); return d && typeof d === "object" && !Array.isArray(d) ? d : null; }
+  catch { return null; }
+};
+export async function doppioniScartati() {
+  return leggiScartati(await readTextFile(fileDoppioni()).catch(() => null)) ?? {};
+}
+// Scarta la coppia `chiave` (chiaveCoppia di doppioni.js). La esegue la barra: due scarti di fila si scrivono
+// uno sull'altro, e writeTextFile rifiuta chi ha letto il file prima dell'altro. Allora rilegge e riprova.
+// Un file che non si legge (una virgola sbagliata dopo una correzione a mano) non si riscrive: porterebbe via
+// tutti gli scarti di prima. L'avviso dice di sistemarlo.
+export const SCARTA_TENTATIVI = 4;
+export async function scartaDoppione(chiave) {
+  if (!/^[a-z0-9][a-z0-9-]*\|[a-z0-9][a-z0-9-]*$/.test(String(chiave ?? ""))) return false;
+  for (let i = 0; i < SCARTA_TENTATIVI; i += 1) {
+    const prima = await readTextFile(fileDoppioni()).catch(() => null);
+    const d = leggiScartati(prima);
+    if (!d) {
+      notify({ title: "Non ho salvato lo scarto", body: `${fileDoppioni()} non si legge: sistemalo o toglilo, poi scarta di nuovo la coppia.`, level: "warning" });
+      return false;
+    }
+    if (d[chiave]) return true;
+    try { await writeTextFile(fileDoppioni(), JSON.stringify({ ...d, [chiave]: Date.now() }, null, 1), prima ?? null); return true; }
+    catch { /* un altro scarto ha scritto nel frattempo: si rilegge */ }
+  }
+  notify({ title: "Non ho salvato lo scarto", body: `La coppia ${chiave.replace("|", " e ")} tornerà fra i doppioni probabili.`, level: "warning" });
+  return false;
+}
+
 // Le cartelle della base dei progetti, dalla più recente.
 export async function cartelle() {
   try {

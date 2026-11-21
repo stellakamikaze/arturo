@@ -10,7 +10,8 @@
 // (azioni), quello di una sessione di Volta (sessione), il selettore di "Nasce su" (macchina) e il menu di
 // "Impostazioni" col movimento (impostazioni) come popup, e così "Sposta su" (sposta) e "Sposta tutto su" (spostatutto).
 // "Unisci a…" (unisci, #6187) è un dialogo: sceglie il progetto in cui entra un doppione, mostra l'anteprima di Arturo
-// e ha il pulsante Unisci.
+// e ha il pulsante Unisci. "Cerca doppioni" (doppioni, #6188) è un dialogo: le coppie di progetti che sembrano lo
+// stesso, col motivo e col progetto che resta; da lì si apre l'anteprima di "Unisci a…".
 
 import { View } from "gpui-kit";
 import { props, shared, setShared } from "herdr";
@@ -34,6 +35,7 @@ import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
 import { Contesto } from "./contestoui.js";
 import { Compito } from "./compito.js";
 import { Unisci } from "./unisci.js";
+import { Doppioni } from "./doppioniui.js";
 import { impostaDormi, config } from "./dati.js";
 import { impostaChi } from "./sessioni.js";
 
@@ -41,7 +43,7 @@ import { impostaChi } from "./sessioni.js";
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
 const MISURATE = new Set(["marchio", "barra", "piede", "testata", "schede", "todo", "stato", "benvenuto", "casa"]);
 
-const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, coda: Coda, checklist: Checklist, ripartenza: Checklist, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto, contesto: Contesto, menuprogetto: MenuProgetto, schede: Schede, compito: Compito, unisci: Unisci };
+const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, coda: Coda, checklist: Checklist, ripartenza: Checklist, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto, contesto: Contesto, menuprogetto: MenuProgetto, schede: Schede, compito: Compito, doppioni: Doppioni, unisci: Unisci };
 
 export default class Arturo extends View {
   init(p, cx) {

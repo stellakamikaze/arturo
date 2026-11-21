@@ -42,6 +42,11 @@ export function instrada(c) {
   if (/^unisciprova-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "unisci-prova", arg: c, lungo: false };
   if (/^uniscivai-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "unisci-vai", arg: c, lungo: true };
   if (/^unisci-[a-z0-9][a-z0-9-]*$/.test(c)) return { verbo: "unisci", arg: dopo("unisci-"), lungo: false };
+  // "doppioni": la revisione delle coppie di progetti che sembrano lo stesso (doppioniui.js, #6188).
+  // "doppioniscarta-<esadecimale>-<esadecimale>": quella coppia non è un doppione e non torna. L'argomento è il
+  // comando intero: lo legge leggiScartaDoppione di sessioni.js.
+  if (c === "doppioni") return { verbo: "doppioni", arg: null, lungo: false };
+  if (/^doppioniscarta-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "doppioni-scarta", arg: c, lungo: true };
   // "menuprogetto-<slug>" e "menutessera-<slug>": il menu del tasto destro su un progetto della colonna e su una
   // tessera di ⌘T, senza clic (prove, herdr-app do).
   const mp = /^menu(progetto|tessera)-([a-z0-9][a-z0-9-]*)$/.exec(c);

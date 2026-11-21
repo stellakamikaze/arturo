@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ186: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ189: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -848,6 +848,18 @@ HZ185 nessun nome di persona nel mod (#6212): nei file di shared/volta il nome d
      nome di allora nel filo, si legge intera e la finestra mostra "Tu" per ogni autore diverso da claude.
 HZ186 arturo note senza nome di persona (#6212): --chi accetta claude o un nome di persona e rifiuta un nome
      storto, la firma è il nome scritto nel filo (una nota di prima tiene il suo), una nota senza filo va a "tu".
+HZ187 Cerca doppioni (#6188, Fase 5 del piano del 20/11/2026): doppioni() di doppioni.js segnala le coppie di
+     progetti che sembrano lo stesso (un nome alternativo che è anche un progetto, lo stesso nome scritto in due
+     modi, lo stesso titolo, la stessa riga di stato dello stesso giorno, lo stesso repository, una lettera di
+     differenza, un nome dentro l'altro quando uno dei due ha handoff senza scheda), col motivo e col progetto
+     che resta (nome alternativo, scheda, filoni, handoff, data, cartella, nome corto). Un guscio, senza scheda
+     e senza handoff, non entra in nessuna coppia: Arturo non avrebbe niente da unire. Una coppia scartata non torna.
+     I comandi doppioni e doppioniscarta portano i due slug in esadecimale, uguali nei due versi.
+HZ188 Cerca doppioni (#6188): le coppie scartate stanno in doppioni-scartati.json nella cartella di Volta;
+     scartaDoppione di dati.js aggiunge senza cancellare, rilegge e riprova se un altro scarto ha scritto nel
+     frattempo, rifiuta una chiave che non è una coppia di slug e avvisa se non riesce a scrivere.
+HZ189 Cerca doppioni (#6188): il pulsante sta nella schermata Progetti solo se Arturo sa unire; il dialogo
+     mostra le coppie, apre l'anteprima dell'unione, gira la coppia o la scarta, e non unisce mai da solo.
 """
 from __future__ import annotations
 
@@ -863,7 +875,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -15076,7 +15088,270 @@ def hz186(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186}
+PROVA_DOPPIONI = r"""
+import * as d from "./doppioni.mjs";
+import * as m from "./sessioni.mjs";
+import { instrada } from "./comandi.mjs";
+const P = (slug, altro = {}) => ({ slug, titolo: "", riga: "", data: "", filoni: 0, handoff: false, cartella: false, alias: [], fonte: [], repo: "", ...altro });
+const vero = { fonte: ["handoff", "scheda"], handoff: true };
+const RIGA = "Claude costruisce Cerca doppioni (#6188).";
+const ALTRA = "Claude rilegge il pezzo e lo manda in revisione.";
+const lista = [
+  P("volta", { ...vero, titolo: "Volta", filoni: 35, data: "2026-11-21", riga: RIGA, cartella: true }),
+  P("herdr-arturo", { fonte: ["cartella", "handoff"], handoff: true, filoni: 1, data: "2026-11-21", riga: RIGA, cartella: true }),
+  P("arturo", { ...vero, titolo: "Arturo", filoni: 26, data: "2026-11-20" }),
+  // due gusci, senza scheda e senza handoff: non entrano in nessuna coppia, nemmeno con lo stesso titolo
+  P("arturo-tessera", { fonte: ["cartella"], cartella: true }),
+  P("volta-celeste", { fonte: ["cartella"], titolo: "Volta", cartella: true }),
+  P("ganimede", { ...vero, titolo: "Ganimede", filoni: 14, alias: ["infra"], data: "2026-11-20" }),
+  // un nome dentro l'altro, ma con la sua scheda: è un progetto vero, non un doppione
+  P("ganimede-upgrade", { fonte: ["scheda"], titolo: "Ganimede upgrade" }),
+  P("infra", { fonte: ["handoff"], handoff: true, filoni: 1, data: "2026-08-01" }),
+  P("due-mondi", { ...vero, filoni: 2, data: "2026-10-01" }),
+  P("duemondi", { fonte: ["handoff"], handoff: true, filoni: 3, data: "2026-11-01" }),
+  P("teleclub", { ...vero, filoni: 2, data: "2026-10-13" }),
+  P("telecub", { fonte: ["handoff"], handoff: true, filoni: 1, data: "2026-09-01" }),
+  // la stessa riga corta nello stesso giorno, e due nomi corti: niente
+  P("uf", { ...vero, titolo: "UF", filoni: 11, riga: "Fermo.", data: "2026-11-17" }),
+  P("eos", { ...vero, riga: "Fermo.", data: "2026-11-17" }),
+  P("sito-uf", { ...vero, titolo: "Sito UF", repo: "casa/sito" }),
+  P("ufficiofurore", { ...vero, titolo: "Ufficio Furore", repo: "casa/sito" }),
+  P("post-studio", { ...vero, titolo: "Post Office" }),
+  P("postoffice-vecchio", { fonte: ["scheda"], titolo: "Post  office" }),
+  // la stessa riga lunga in due giorni diversi: niente
+  P("niente", { ...vero, riga: ALTRA, data: "2026-11-19" }),
+  P("stella", { ...vero, riga: ALTRA, data: "2026-11-17" }),
+  // una lettera di differenza su due nomi di quattro: niente
+  P("casa", vero),
+  P("cosa", vero),
+  // un nome dentro l'altro, tutti e due con handoff e senza scheda: niente dice quale dei due è il progetto
+  P("diario", { fonte: ["handoff"], handoff: true, filoni: 1 }),
+  P("diario-viaggio", { fonte: ["handoff"], handoff: true, filoni: 2 }),
+  // un nome contenuto, una volta sola: handoff scritti sotto un secondo nome
+  P("melchior", { ...vero, titolo: "Melchior", filoni: 4, data: "2026-11-18" }),
+  P("melchior-redesign", { fonte: ["handoff"], handoff: true, filoni: 1, data: "2026-07-08" }),
+  // un nome generico senza scheda dentro due progetti: ambiguo, niente
+  P("personale", { fonte: ["handoff"], handoff: true, filoni: 10, data: "2026-11-08" }),
+  P("fiscale-personale", { ...vero, filoni: 2, data: "2026-11-20" }),
+  P("niente-di-personale", { ...vero, filoni: 1, data: "2026-11-19" }),
+  // due edizioni: cambia solo una cifra
+  P("gara-2026", vero),
+  P("gara-2027", vero),
+  // tre progetti nello stesso repository: un monorepo, niente
+  P("mono-alfa", { ...vero, repo: "casa/mono" }),
+  P("mono-beta", { ...vero, repo: "casa/mono" }),
+  P("mono-gamma", { ...vero, repo: "casa/mono" }),
+];
+const out = {};
+const tutte = d.doppioni(lista);
+out.coppie = tutte.map((c) => [c.perdente, c.vincitore, c.forza]);
+out.testi = Object.fromEntries(tutte.map((c) => [c.chiave, [c.motivo, c.perche]]));
+out.chiavi = [d.chiaveCoppia("volta", "herdr-arturo"), d.chiaveCoppia("herdr-arturo", "volta"), Object.keys(tutte[0] ?? {}).sort()];
+out.scartate = d.doppioni(lista, { [d.chiaveCoppia("volta", "herdr-arturo")]: 1, "melchior|melchior-redesign": 2 }).map((c) => c.chiave);
+out.tetto = [d.doppioni(lista, {}, 2).length, d.doppioni(lista, null).length, d.doppioni(null).length, d.doppioni([null, {}, { slug: "" }, P("solo")]).length];
+out.distanze = [d.distanza("teleclub", "telecub"), d.distanza("volta", "volta"), d.distanza("a", "abcd"), d.distanza("casa", "cosa"), d.distanza("abcdef", "abdcef")];
+out.gusci = lista.filter(d.guscio).map((x) => x.slug);
+out.orfani = lista.filter(d.senzaScheda).map((x) => x.slug);
+const a = P("alfa", { ...vero, filoni: 2, data: "2026-11-01" }), b = P("beta", { ...vero, filoni: 2, data: "2026-11-01" });
+const v = (x, y) => { const r = d.vincitoreProposto(x, y); return [r.vincitore, r.perdente, r.perche]; };
+out.vince = [v(a, b), v(b, a), v(a, { ...b, data: "2026-11-02" }), v(a, { ...b, cartella: true }), v(P("alfa-lungo"), P("beta")),
+  v(P("alfa", { fonte: ["scheda"] }), P("beta", { ...vero, filoni: 9, fonte: ["handoff"] })), v(P("alfa", { alias: ["beta"] }), P("beta", { ...vero, filoni: 9 }))];
+const gira = tutte.length ? d.alContrario(tutte[0]) : {};
+out.contrario = [gira.perdente, gira.vincitore, gira.perche, gira.chiave === tutte[0]?.chiave, gira.motivo === tutte[0]?.motivo];
+const senza = (c) => c.replace(/^arturo\./, "");
+const scarta = m.comandoScartaDoppione("volta", "herdr-arturo");
+out.comandi = [m.COMANDO_DOPPIONI, scarta === m.comandoScartaDoppione("Herdr Arturo", "volta"), scarta.split("-")[0], scarta.split("-").length];
+out.letti = [m.leggiScartaDoppione(senza(scarta)), m.leggiScartaDoppione(senza(m.comandoScartaDoppione("volta", "volta"))), m.leggiScartaDoppione("doppioniscarta-0061"),
+  m.leggiScartaDoppione("doppioniscarta-0041-0062"), m.leggiScartaDoppione(senza(scarta) + "-0061"), m.leggiScartaDoppione(senza(m.comandoUnisciVai("herdr-arturo", "volta")))];
+out.strada = [instrada("doppioni"), instrada(senza(scarta)), instrada("doppioniscarta-0061"), instrada("doppioniscarta-zz-0061"), instrada("doppioni-"), instrada(senza(m.comandoUnisciVai("a", "b")))]
+  .map((x) => [x.verbo, x.lungo]);
+console.log(JSON.stringify(out));
+"""
+
+
+def hz187(repo: Path, casa: Path) -> str | None:
+    """Cerca doppioni (#6188): le coppie probabili, il motivo, chi resta e i comandi, in doppioni.js, sessioni.js e comandi.js."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta/mods/arturo"
+    if "import " in (mod / "doppioni.js").read_text(encoding="utf-8"):
+        return "doppioni.js importa qualcosa: deve girare da solo, senza Herdr e senza gli altri file del mod"
+    for nome in ("doppioni", "sessioni", "comandi"):
+        shutil.copyfile(mod / f"{nome}.js", casa / f"{nome}.mjs")
+    (casa / "prova.mjs").write_text(PROVA_DOPPIONI, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"doppioni.js, sessioni.js o comandi.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    # dalla più forte; a pari forza la più recente, poi la chiave. Ogni coppia: chi entra, chi resta, la forza
+    coppie = [["herdr-arturo", "volta", 3], ["infra", "ganimede", 3], ["duemondi", "due-mondi", 3], ["postoffice-vecchio", "post-studio", 3],
+              ["ufficiofurore", "sito-uf", 3], ["melchior-redesign", "melchior", 2], ["telecub", "teleclub", 2]]
+    if d["coppie"] != coppie:
+        return (f"doppioni() segnala le coppie sbagliate, nell'ordine sbagliato o col vincitore sbagliato (un guscio non entra mai; un nome dentro "
+                f"l'altro vale solo fra una scheda e degli handoff senza scheda, una volta sola e senza un'altra coppia forte; due edizioni e un monorepo no): {d['coppie']}")
+    testi = {
+        "herdr-arturo|volta": ["hanno la stessa riga di stato, dello stesso giorno", "ha la scheda e più filoni (35 contro 1)"],
+        "ganimede|infra": ["infra è già un nome alternativo di ganimede", "infra è già un suo nome alternativo e ha la scheda"],
+        "due-mondi|duemondi": ["hanno lo stesso nome, scritto in due modi", "ha la scheda"],
+        "post-studio|postoffice-vecchio": ["hanno lo stesso titolo, Post Office", "ha gli handoff"],
+        "sito-uf|ufficiofurore": ["hanno lo stesso repository, casa/sito", "ha il nome più corto"],
+        "melchior|melchior-redesign": ["il nome melchior-redesign contiene melchior, e melchior-redesign ha handoff ma non ha la scheda", "ha la scheda e più filoni (4 contro 1)"],
+        "teleclub|telecub": ["i nomi cambiano di una lettera", "ha la scheda e più filoni (2 contro 1)"],
+    }
+    for k, atteso in testi.items():
+        if d["testi"].get(k) != atteso:
+            return f"il motivo o il perché del vincitore di {k}: {d['testi'].get(k)}, atteso {atteso}"
+    if d["chiavi"] != ["herdr-arturo|volta", "herdr-arturo|volta", ["chiave", "forza", "motivo", "perche", "perdente", "vincitore"]]:
+        return f"la chiave di una coppia cambia col verso, o la coppia porta altri campi: {d['chiavi']}"
+    # scartata herdr-arturo|volta, herdr-arturo non ha più una coppia forte: il suo nome dentro arturo torna a valere
+    if d["scartate"] != ["ganimede|infra", "due-mondi|duemondi", "post-studio|postoffice-vecchio", "sito-uf|ufficiofurore", "arturo|herdr-arturo", "teleclub|telecub"]:
+        return f"una coppia scartata torna, o ne sparisce una non scartata: {d['scartate']}"
+    if d["tetto"] != [2, 7, 0, 0]:
+        return f"il tetto delle coppie, le scartate null o una lista storta: {d['tetto']}"
+    if d["distanze"] != [1, 0, 3, 1, 2]:
+        return f"distanza conta male le lettere che cambiano: {d['distanze']}"
+    if d["gusci"] != ["arturo-tessera", "volta-celeste"]:
+        return f"guscio prende un progetto con la scheda o con gli handoff: {d['gusci']}"
+    if d["orfani"] != ["herdr-arturo", "infra", "duemondi", "telecub", "diario", "diario-viaggio", "melchior-redesign", "personale"]:
+        return f"senzaScheda non prende i progetti con handoff e senza scheda: {d['orfani']}"
+    vince = [["alfa", "beta", "viene prima in ordine alfabetico"], ["alfa", "beta", "viene prima in ordine alfabetico"], ["beta", "alfa", "ha l'handoff più recente"],
+             ["beta", "alfa", "ha la cartella"], ["beta", "alfa-lungo", "ha il nome più corto"], ["alfa", "beta", "ha la scheda"],
+             ["alfa", "beta", "beta è già un suo nome alternativo"]]
+    if d["vince"] != vince:
+        return f"vincitoreProposto: l'ordine dei criteri o il perché (la scheda vince sui filoni, un nome alternativo su tutto): {d['vince']}"
+    if d["contrario"] != ["volta", "herdr-arturo", None, True, True]:
+        return f"alContrario non scambia i due progetti, o tiene il perché di Volta: {d['contrario']}"
+    if d["comandi"] != ["arturo.doppioni", True, "arturo.doppioniscarta", 3]:
+        return f"i comandi di Cerca doppioni (lo scarto è lo stesso nei due versi): {d['comandi']}"
+    if d["letti"] != [{"a": "herdr-arturo", "b": "volta"}, None, None, None, None, None]:
+        return f"leggiScartaDoppione prende due progetti uguali, uno slug storto, un comando a metà o quello dell'unione: {d['letti']}"
+    if d["strada"] != [["doppioni", False], ["doppioni-scarta", True], [None, False], [None, False], [None, False], ["unisci-vai", True]]:
+        return f"instrada non porta i comandi di Cerca doppioni, o ne prende uno a metà: {d['strada']}"
+    return None
+
+
+PROVA_SCARTA = r"""
+import { writeFileSync } from "node:fs";
+import { doppioniScartati, scartaDoppione, fileDoppioni, SCARTA_TENTATIVI } from "./dati.mjs";
+import { avvisi, scritti } from "./herdr.mjs";
+const out = { tentativi: SCARTA_TENTATIVI };
+if (process.env.HZ_CASO === "rotto") {
+  writeFileSync(fileDoppioni(), "{rotto", "utf-8");
+  out.rotto = [await doppioniScartati(), await scartaDoppione("due-mondi|duemondi"), scritti.length];
+} else if (process.env.HZ_CASO === "senza-cartella") {
+  out.esito = await scartaDoppione("herdr-arturo|volta");
+  out.scritti = scritti.length;
+} else {
+  out.file = fileDoppioni().slice(process.env.HZ_APP.length);
+  out.vuoto = await doppioniScartati();
+  out.primo = await scartaDoppione("herdr-arturo|volta");
+  // due scarti partiti insieme leggono lo stesso file: il secondo deve rileggere e riprovare
+  out.insieme = await Promise.all([scartaDoppione("arturo|arturo-tessera"), scartaDoppione("ganimede|infra")]);
+  const prima = scritti.length;
+  out.ancora = [await scartaDoppione("ganimede|infra"), scritti.length - prima];
+  out.storte = [await scartaDoppione("volta"), await scartaDoppione("Volta|arturo"), await scartaDoppione("a|b|c"), await scartaDoppione("a b|c"), await scartaDoppione(null)];
+  const letto = await doppioniScartati();
+  out.letto = Object.keys(letto).sort();
+  out.quando = Object.values(letto).every((q) => Number.isFinite(q) && q > 1700000000000);
+  writeFileSync(fileDoppioni(), "[1, 2]", "utf-8");
+  out.lista = await doppioniScartati();
+}
+out.avvisi = avvisi.map((a) => [a.level, a.title, a.body ?? ""]);
+console.log(JSON.stringify(out));
+"""
+
+
+def hz188(repo: Path, casa: Path) -> str | None:
+    """Cerca doppioni (#6188): le coppie scartate in doppioni-scartati.json, lette e scritte da dati.js."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    dati = (repo / "shared/volta/mods/arturo/dati.js").read_text(encoding="utf-8")
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, dati)
+    (mod / "prova.mjs").write_text(PROVA_SCARTA, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+
+    def gira(caso: str, dove: Path) -> dict:
+        env = {**os.environ, "HZ_APP": str(dove), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso}
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-200:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    try:
+        d = gira("giro", app)
+        if d["file"].replace("\\", "/") != "/doppioni-scartati.json" or d["vuoto"] != {}:
+            return f"le coppie scartate non stanno in doppioni-scartati.json nella cartella di Volta, o senza file non sono vuote: {d['file']} {d['vuoto']}"
+        if d["primo"] is not True or d["insieme"] != [True, True]:
+            return f"due scarti partiti insieme: il secondo non rilegge il file e si perde ({d['primo']}, {d['insieme']})"
+        if d["letto"] != ["arturo|arturo-tessera", "ganimede|infra", "herdr-arturo|volta"] or d["quando"] is not True:
+            return f"uno scarto cancella quelli di prima, o non porta l'ora: {d['letto']}"
+        if d["ancora"] != [True, 0]:
+            return f"una coppia già scartata riscrive il file: {d['ancora']}"
+        if d["storte"] != [False] * 5:
+            return f"una chiave che non è una coppia di slug entra nel file: {d['storte']}"
+        if d["lista"] != {}:
+            return f"un file che non è un oggetto passa per le coppie scartate: {d['lista']}"
+        if d["avvisi"]:
+            return f"un giro buono avvisa: {d['avvisi']}"
+        # un file rotto si legge come vuoto, ma non si riscrive: porterebbe via gli scarti di prima
+        d = gira("rotto", app)
+        if d["rotto"] != [{}, False, 0] or [a[0] for a in d["avvisi"]] != ["warning"] or "non si legge" not in d["avvisi"][0][2]:
+            return f"un file degli scarti rotto viene riscritto, o lo scarto perso non si dice: {d['rotto']} {d['avvisi']}"
+        (app / "doppioni-scartati.json").unlink()
+        # la cartella di Volta non c'è: ogni scrittura cade, e dopo i tentativi un avviso dice che la coppia tornerà
+        d = gira("senza-cartella", casa / "non-c-e")
+        if d["esito"] is not False or d["scritti"] != d["tentativi"] or d["tentativi"] < 2:
+            return f"uno scarto che non si scrive passa per riuscito, o non riprova: {d['esito']} {d['scritti']} tentativi"
+        if len(d["avvisi"]) != 1 or d["avvisi"][0][0] != "warning" or "herdr-arturo e volta" not in d["avvisi"][0][2]:
+            return f"uno scarto non salvato non lo dice: {d['avvisi']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+def hz189(repo: Path, casa: Path) -> str | None:
+    """Cerca doppioni (#6188): il pulsante nella schermata Progetti, il dialogo, la barra. La revisione propone e non unisce."""
+    mod = repo / "shared/volta/mods/arturo"
+    for file, pezzi in (
+        ("casa.js", ('.when(sa(shared("arturo.capacita"), "unisci"), (el) => el.child(h_flex().id("casa-doppioni")',
+                     ".on_click(() => run(COMANDO_DOPPIONI))", '.child("Cerca doppioni")')),
+        ("main.js", ('import { Doppioni } from "./doppioniui.js";', "doppioni: Doppioni, unisci: Unisci }")),
+        ("barra.js", ('else if (c === "doppioni") apriDoppioni();',
+                      'else if (c === "doppioni-scarta") { const x = leggiScartaDoppione(arg); if (x) this.lungo(c, cx, () => scartaDoppione(chiaveCoppia(x.a, x.b))); }')),
+        ("doppioniui.js", ('aperto = openOverlay({ mod: "arturo", props: { parte: "doppioni" }, kind: "dialog", width: 640 });',
+                           "const [memoria, via] = await Promise.all([progettiMemoria(), doppioniScartati()]);",
+                           "this.coppie = doppioni(memoria, via);",
+                           "run(comandoUnisciProva(c.perdente, c.vincitore));",
+                           "run(comandoScartaDoppione(c.perdente, c.vincitore));",
+                           "this.coppie = this.coppie.filter((x) => x.chiave !== c.chiave);",
+                           "this.coppie = this.coppie.map((x) => (x.chiave === c.chiave ? alContrario(x) : x));",
+                           'bottone(`dp-guarda-${c.chiave}`, "Guarda l\'unione", () => this.guarda(c), true)',
+                           'bottone(`dp-gira-${c.chiave}`, "Al contrario", (cx) => this.gira(c, cx), false)',
+                           'bottone(`dp-scarta-${c.chiave}`, "Non sono doppioni", (cx) => this.scarta(c, cx), false)',
+                           'else if (e.key === "enter") return this.guarda(l[this.at]);',
+                           "if (Date.now() - this.ultimoScarto < SCARTO_PAUSA_MS) return;")),
+    ):
+        testo = (mod / file).read_text(encoding="utf-8")
+        for pezzo in pezzi:
+            if pezzo not in testo:
+                return f"{file} non porta Cerca doppioni: manca {pezzo[:80]!r}"
+    # la revisione propone: l'unione vera resta al pulsante Unisci del dialogo dell'unione, dopo l'anteprima
+    dialogo = (mod / "doppioniui.js").read_text(encoding="utf-8")
+    codice = "\n".join(riga for riga in dialogo.splitlines() if not riga.lstrip().startswith("//"))
+    for vietato in ("UnisciVai", "uniscivai", "unione(", "unisci(", "writeTextFile"):
+        if vietato in codice:
+            return f"doppioniui.js unisce o scrive da solo ({vietato}): deve solo aprire l'anteprima e mandare lo scarto alla barra"
+    if codice.count("run(") != 2:
+        return f"doppioniui.js manda {codice.count('run(')} comandi: devono essere due, l'anteprima dell'unione e lo scarto"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -15121,6 +15396,50 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', 'export const DOPPIONI_SOGLIA = 2;', 'export const DOPPIONI_SOGLIA = 3;'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (a.slug === b.slug || chiave in via) continue;', '    if (a.slug === b.slug) continue;'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    const orfano = senzaScheda(lungo) ? lungo : senzaScheda(corto) ? corto : null;', '    const orfano = lungo;'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (orfano && conScheda(altro)) segni.push(', '    if (orfano) segni.push('),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (guscio(a) || guscio(b)) continue;\n', ''),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', 'export const senzaScheda = (m) => conHandoff(m) && !conScheda(m);', 'export const senzaScheda = (m) => !conScheda(m);'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', ' && a?.data && a.data === b?.data)\n', ')\n'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '  if (ra.length >= RIGA_MIN && ra === ', '  if (ra === '),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (!edizioni && ((d === 1 && corto >= 5) || (d === 2 && corto >= 9))) segni.push(', '    if (!edizioni && d <= 2) segni.push('),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (!edizioni && ((d === 1', '    if (((d === 1'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '  if (repo && !repoComuni.has(repo) && repo === ', '  if (repo && repo === '),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '(volte.get(c.dentro) === 1 && !forti.has(c.dentro)));', '(!forti.has(c.dentro)));'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '(volte.get(c.dentro) === 1 && !forti.has(c.dentro)));', '(volte.get(c.dentro) === 1));'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    [Number(conScheda(a)), Number(conScheda(b)), "ha la scheda", "ha la scheda"],\n', ''),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    [Number(alias(a).includes(sb)), Number(alias(b).includes(sa)), `${sb} è già un suo nome alternativo`, `${sa} è già un suo nome alternativo`],\n', ''),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (perA === vinceA && i < criteri.length - SPAREGGI) {', '    if (perA === vinceA) {'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '  return coppie.sort((x, y) => y.forza - x.forza || ', '  return coppie.sort((x, y) => '),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    .slice(0, Math.max(0, quante)).map(', '    .map('),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', 'vincitore: c.perdente, perche: null });', 'vincitore: c.perdente });'),
+    ('HZ187', 'shared/volta/mods/arturo/doppioni.js', 'export const guscio = (m) => !conScheda(m) && !conHandoff(m);', 'export const guscio = (m) => !conScheda(m);'),
+    ('HZ187', 'shared/volta/mods/arturo/sessioni.js', 'coppia("doppioniscarta", ...[slug(a), slug(b)].sort());', 'coppia("doppioniscarta", slug(a), slug(b));'),
+    ('HZ187', 'shared/volta/mods/arturo/sessioni.js', '  if (!a || !b || slug(a) !== a || slug(b) !== b || a === b) return null;', '  if (!a || !b || slug(a) !== a || slug(b) !== b) return null;'),
+    ('HZ187', 'shared/volta/mods/arturo/comandi.js', 'if (/^doppioniscarta-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c))', 'if (c.startsWith("doppioniscarta-"))'),
+    ('HZ187', 'shared/volta/mods/arturo/comandi.js', 'return { verbo: "doppioni-scarta", arg: c, lungo: true };', 'return { verbo: "doppioni-scarta", arg: c, lungo: false };'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  for (let i = 0; i < SCARTA_TENTATIVI; i += 1) {', '  for (let i = 0; i < 1; i += 1) {'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'JSON.stringify({ ...d, [chiave]: Date.now() }, null, 1), prima ?? null); return true; }', 'JSON.stringify({ [chiave]: Date.now() }, null, 1), prima ?? null); return true; }'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '    if (d[chiave]) return true;\n', ''),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  if (!/^[a-z0-9][a-z0-9-]*\\|[a-z0-9][a-z0-9-]*$/.test(String(chiave ?? ""))) return false;\n', ''),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'return d && typeof d === "object" && !Array.isArray(d) ? d : null; }', 'return d && typeof d === "object" ? d : null; }'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  catch { return null; }\n};\nexport async function doppioniScartati', '  catch { return {}; }\n};\nexport async function doppioniScartati'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'non si legge: sistemalo o toglilo, poi scarta di nuovo la coppia.`, level: "warning" });\n      return false;', 'non si legge: sistemalo o toglilo, poi scarta di nuovo la coppia.`, level: "warning" });\n      return true;'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  notify({ title: "Non ho salvato lo scarto", body: `La coppia', '  if (false) notify({ title: "Non ho salvato lo scarto", body: `La coppia'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'tornerà fra i doppioni probabili.`, level: "warning" });\n  return false;', 'tornerà fra i doppioni probabili.`, level: "warning" });\n  return true;'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'export const fileDoppioni = () => `${appHome()}/doppioni-scartati.json`;', 'export const fileDoppioni = () => `${appHome()}/doppioni.json`;'),
+    ('HZ189', 'shared/volta/mods/arturo/casa.js', '            .on_click(() => run(COMANDO_DOPPIONI))\n', ''),
+    ('HZ189', 'shared/volta/mods/arturo/casa.js', '.when(sa(shared("arturo.capacita"), "unisci"), (el) => el.child(h_flex().id("casa-doppioni")', '.when(true, (el) => el.child(h_flex().id("casa-doppioni")'),
+    ('HZ189', 'shared/volta/mods/arturo/barra.js', '    else if (c === "doppioni") apriDoppioni();\n', ''),
+    ('HZ189', 'shared/volta/mods/arturo/barra.js', 'this.lungo(c, cx, () => scartaDoppione(chiaveCoppia(x.a, x.b)));', 'this.lungo(c, cx, () => null);'),
+    ('HZ189', 'shared/volta/mods/arturo/main.js', 'compito: Compito, doppioni: Doppioni, unisci: Unisci };', 'compito: Compito, unisci: Unisci };'),
+    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    if (Date.now() - this.ultimoScarto < SCARTO_PAUSA_MS) return;\n', ''),
+    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    run(comandoUnisciProva(c.perdente, c.vincitore));', '    run(comandoUnisciVai(c.perdente, c.vincitore));'),
+    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '        this.coppie = doppioni(memoria, via);', '        this.coppie = doppioni(memoria);'),
+    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    run(comandoScartaDoppione(c.perdente, c.vincitore));\n', ''),
+    ('HZ189', 'shared/volta/mods/arturo/doppioniui.js', '    this.chiudi();\n  }\n\n  gira(c, cx) {', '    this.chiudi();\n    run("arturo.casa-chiudi");\n  }\n\n  gira(c, cx) {'),
     ('HZ184', 'shared/volta/installa-herdr.sh', '  [ -n "$programma" ] && return 0\n', ''),
     ('HZ184', 'shared/volta/installa-herdr.sh', '[ -z "$programma" ] || versione=$("$programma" --version', '[ -z "$programma" ] || versione=$(herdr-app --version'),
     ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ -n "$programma" ]; then\n  "$programma" check', 'if false; then\n  "$programma" check'),
