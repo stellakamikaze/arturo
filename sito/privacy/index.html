@@ -143,7 +143,7 @@ ul,ol{margin:0;padding:0}
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">Cosa raccoglie il sito, e cosa Arturo</h1>
-      <p>Tre cose diverse, che qui stanno separate: il sito che stai leggendo, il modulo di feedback, e Arturo quando gira sul tuo computer. Per ognuna: cosa esce, dove va, per quanto resta e come la spegni.</p>
+      <p>Tre cose diverse, che qui stanno separate: il sito che stai leggendo, il modulo di feedback, e Arturo quando gira sul tuo computer, con le sue segnalazioni. Per ognuna: cosa esce, dove va, per quanto resta e come la spegni.</p>
     </div>
   </div>
 </header>
@@ -155,7 +155,7 @@ ul,ol{margin:0;padding:0}
     <div><h2>Un cookie solo</h2><p>Tiene la tua scelta sul banner. Il conteggio delle visite non riconosce chi torna da un giorno all'altro.</p></div>
     <div><h2>Niente terzi</h2><p>Nessun tracker esterno, nessuna pubblicità, nessun font da altri server. Il sito passa da Cloudflare, che vede l'indirizzo IP di ogni visita per consegnare le pagine.</p></div>
     <div><h2>Il feedback lo scegli tu</h2><p>Esce solo quello che scrivi, e solo quando premi "Invia".</p></div>
-    <div><h2>Arturo si spegne</h2><p>La telemetria di Arturo è accesa di default e si spegne con un comando.</p></div>
+    <div><h2>La telemetria si spegne</h2><p>Arturo dice a chi lo mantiene come lo usi, dopo avertelo chiesto in <code>/setup</code>, e smette con un comando. Un altro comando cancella dal server quello che è già partito.</p></div>
   </div>
 </section>
 
@@ -197,7 +197,7 @@ ul,ol{margin:0;padding:0}
           <p class="voce__attacco">Riceve solo quello che scrivi.</p>
           <ul>
             <li><strong>Il testo e il tipo di messaggio</strong> restano nel database del server di Arturo per 12 mesi. Poi si cancellano da soli.</li>
-            <li><strong>Su Telegram e per email</strong> Federico riceve solo un avviso con il numero del messaggio e il tipo. Il testo e la tua email non ci passano.</li>
+            <li><strong>Su Telegram e per email</strong> Federico riceve solo un avviso con il numero del messaggio e il tipo. Il testo e la tua email non ci passano. L'avviso resta nella chat e nella casella anche dopo i 12 mesi: lo spiega la voce <a href="#copie">Le copie fuori dal database</a>.</li>
             <li><strong>Solo testo scritto</strong>, fino a 64 KB per messaggio. Il modulo non registra la voce.</li>
             <li><strong>L'email</strong>, se la lasci, sta insieme al testo e serve solo a risponderti.</li>
             <li><strong>Le pagine di prova</strong> (gli indirizzi che cominciano con <code>/prove/</code>) tengono voti e commenti nel tuo browser mentre li scrivi, così non li perdi se chiudi la pagina. Quando premi "Invia" partono come un messaggio di feedback, con lo stesso trattamento, e la copia nel browser si cancella.</li>
@@ -223,11 +223,53 @@ ul,ol{margin:0;padding:0}
       <article class="voce" id="arturo" aria-labelledby="t-arturo">
         <h2 id="t-arturo">Arturo sul tuo computer</h2>
         <div class="voce__corpo">
-          <p class="voce__attacco">La telemetria di Arturo manda eventi d'uso ed è accesa di default.</p>
-          <p>Questa parte vale solo quando hai installato Arturo. Arturo manda a chi lo mantiene eventi d'uso da un elenco chiuso: i comandi di Arturo che usi (il nome, mai il testo), le guardie che ti fermano o ti chiedono conferma (per <code>block-dangerous</code> e <code>commit-secret-gate</code> anche il nome della regola, come <code>rm-cartella</code> o <code>google-api-key</code>), la fase di <code>/setup</code> raggiunta, l'esito degli aggiornamenti, la versione di Claude Code, le skill di Arturo che usi (una skill tua conta come <code>altro</code>). Dal 3 novembre 2026, alla chiusura di ogni sessione, partono anche la sua durata e quanti messaggi hai scritto, solo in fasce larghe: meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1 messaggio, da 2 a 5, da 6 a 20, oltre 20. Per contarli Arturo legge la cronologia della sessione sul tuo computer, e da lì non esce nient'altro. Con gli eventi parte un numero casuale creato da Arturo, sempre lo stesso: per questo non sono dati anonimi. Partono anche la versione e il sistema, con il solo giorno e mai l'ora.</p>
-          <div class="mai"><p>Non escono mai: i tuoi prompt, i tuoi file, i percorsi del tuo computer, il tuo nome, le risposte di Claude.</p></div>
-          <p>Il server tiene gli eventi 12 mesi e non salva l'indirizzo IP. Chi mantiene Arturo li legge ogni lunedì per decidere cosa correggere. In Claude Code, <code>python3 ~/.claude/bin/arturo telemetria mostra</code> ti fa vedere esattamente cosa parte. Niente parte prima che <code>/setup</code> ti abbia chiesto se va bene: fino alla tua risposta gli eventi restano in coda sul tuo computer, e col no si cancellano. <code>python3 ~/.claude/bin/arturo telemetria spegni</code>, oppure <code>DO_NOT_TRACK=1</code>, la spegne. Il dettaglio completo sta nel terzo impegno del <a href="https://github.com/stellakamikaze/arturo#impegni">README</a>.</p>
+          <p class="voce__attacco">Arturo dice a chi lo mantiene come lo usi, finché non spegni la telemetria.</p>
+          <p>Questa parte vale solo quando hai installato Arturo. Niente parte prima che <code>/setup</code> ti abbia chiesto se va bene: fino alla tua risposta gli eventi aspettano sul tuo computer, e se dici no si cancellano. Dopo, Arturo manda a chi lo mantiene solo gli eventi di questo elenco:</p>
+          <ul>
+            <li><strong>I comandi e le skill di Arturo che usi:</strong> il nome, mai il testo. Un comando o una skill tua conta come <code>altro</code>.</li>
+            <li><strong>Come va l'installazione:</strong> la fase di <code>/setup</code> a cui sei arrivato, l'esito degli aggiornamenti, la versione di Claude Code e quali file di Arturo hai cambiato (il nome, mai il contenuto; di un file tuo esce solo <code>altro</code>).</li>
+            <li><strong>Quanto dura una sessione:</strong> alla chiusura partono la durata (meno di 5 minuti, fino a 30, fino a 2 ore, oltre) e quanti messaggi hai scritto (1, da 2 a 5, da 6 a 20, oltre 20). Per contarli Arturo legge la cronologia della sessione sul tuo computer, e da lì non esce nient'altro.</li>
+            <li><strong>La memoria:</strong> se è accesa, quante note contiene, quante Arturo ne propone e quante Claude ne apre, sempre in fasce. Mai il nome o il testo di una nota.</li>
+            <li><strong>Le guardie</strong>, cioè i controlli di Arturo che fermano un comando rischioso o ti chiedono conferma prima: quando una guardia scatta esce il nome della regola, preso da un elenco fisso (per esempio <code>rm-cartella</code> o <code>rsync-locale</code>), mai il comando, il file o l'indirizzo. Se Arturo ferma una password o una chiave d'accesso prima che finisca nel codice salvato, esce solo il tipo di chiave (<code>segreto-cloud</code>) e non il servizio a cui appartiene. Se ferma un invio, esce solo il canale (<code>email</code> o <code>chat</code>) e non il servizio né il destinatario. Se quel controllo sulle chiavi non riesce a partire, esce la causa in una parola, per esempio "tempo scaduto".</li>
+          </ul>
+          <p>Con gli eventi parte un codice casuale creato da Arturo, l'id, sempre lo stesso per la tua installazione. Chi mantiene Arturo non sa a chi appartiene, ma può saperlo se glielo dici tu: per questo non sono dati anonimi. Partono anche la versione di Arturo, la sua forma (plugin o copia del repository), il sistema operativo e la data dell'evento, senza l'ora.</p>
+          <div class="mai"><p>Non escono mai: i tuoi prompt, le risposte di Claude, il contenuto dei tuoi file, i percorsi del tuo computer. Il tuo nome e la tua email escono solo se li dai tu per le segnalazioni, come dice la voce qui sotto.</p></div>
+          <p>Il server tiene gli eventi 12 mesi e non salva l'indirizzo IP. Chi mantiene Arturo li legge ogni mattina e ogni lunedì per decidere cosa correggere.</p>
+          <p>I comandi di questa pagina li lancia Claude, se glielo chiedi con parole tue ("spegni la telemetria"):</p>
+          <ul>
+            <li><code>arturo telemetria mostra</code> ti fa vedere l'id e gli eventi in coda, così come partono.</li>
+            <li><code>arturo telemetria spegni</code>, oppure la variabile <code>DO_NOT_TRACK=1</code>, spegne la telemetria e svuota la coda.</li>
+            <li><code>arturo telemetria dimentica</code> cancella subito dal server i tuoi eventi e le segnalazioni collegate al tuo id. Poi Arturo riparte con un id nuovo. Funziona anche con la telemetria spenta.</li>
+          </ul>
+          <p>Il dettaglio completo, con quello che Arturo legge sul tuo computer senza mandarlo a nessuno, sta nella <a href="https://github.com/stellakamikaze/arturo/blob/main/docs/privacy.md">pagina privacy del repository</a>.</p>
           <p>Anche l'aggiornamento automatico contatta GitHub: controlla se c'è una versione nuova al massimo una volta all'ora mentre lavori, e una volta alla chiusura della sessione.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="segnalazioni" aria-labelledby="t-segnalazioni">
+        <h2 id="t-segnalazioni">Le segnalazioni</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Partono da sole quando Arturo si inceppa, con il tuo nome e la tua email solo se li hai dati.</p>
+          <p>Quando Claude vede che qualcosa di Arturo si inceppa, o quando scrivi <code>/segnala</code>, a chi mantiene Arturo parte una segnalazione: tipo, titolo, testo, versione e sistema. Subito dopo Claude ti dice cosa è partito, il numero e come ritirarla. Ne partono al massimo 10 al giorno e mai due volte la stessa. Un problema di sicurezza non parte mai da solo: per quelli vale la pagina <a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">SECURITY.md</a> del repository.</p>
+          <p>Il testo lo scrive Claude e racconta il guasto di Arturo, senza nomi di persone e clienti e senza contenuti del tuo lavoro. Prima dell'invio Arturo toglie dal testo cartelle personali, email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti, e non manda niente se trova qualcosa che sembra una password o una chiave d'accesso.</p>
+          <ul>
+            <li><strong>Nome ed email</strong> li dai tu, una volta, con <code>arturo contatto</code> o quando <code>/setup</code> o <code>/segnala</code> te lo chiedono. Da quel momento partono con ogni segnalazione, anche con quelle che partono da sole. Servono a chi mantiene Arturo per chiederti un dettaglio o per dirti che il problema è risolto, e li vede solo chi lo mantiene, in una pagina protetta da accesso. Non partono mai con la telemetria. Per mandare una sola segnalazione senza nome ed email, chiedilo a Claude (l'opzione è <code>--senza-contatto</code>).</li>
+            <li><strong>Il pacchetto tecnico</strong> accompagna la segnalazione: versioni di Arturo, di Claude Code, del sistema e di Python, se le guardie funzionano quando Arturo parte, e il nome delle parti della configurazione che sono rotte. Passa dalla stessa pulizia del testo.</li>
+            <li><strong>Quanto restano:</strong> la segnalazione e il contatto 12 mesi, il pacchetto tecnico 90 giorni.</li>
+            <li><strong>Per ritirarne una</strong> c'è <code>arturo segnala ritira</code>, col numero: dal server spariscono titolo, testo, pacchetto tecnico e contatto, e restano numero, tipo e data.</li>
+            <li><strong>Per cancellare il contatto</strong> c'è <code>arturo contatto togli</code>, che lo toglie dal tuo computer: le segnalazioni successive partono senza. Dal server il contatto se ne va quando ritiri le segnalazioni che lo portano, oppure se scrivi a <a href="mailto:federico@stellakamikaze.org">federico@stellakamikaze.org</a>.</li>
+            <li><strong>Se le vuoi mandare solo col tuo sì</strong>, <code>arturo segnalazioni manuali</code>: Claude prepara il testo, te lo mostra e chiede "La mando?". Succede lo stesso quando la telemetria è spenta.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="voce" id="copie" aria-labelledby="t-copie">
+        <h2 id="t-copie">Le copie fuori dal database</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Gli avvisi che arrivano a Federico restano su Telegram, in Gmail e nel suo elenco dei task.</p>
+          <p>Per ogni segnalazione, feedback, installazione nuova o configurazione rotta, il server manda a Federico un avviso su Telegram o per email, e da alcune email nasce un task nel suo elenco dei task. Ogni mattina e ogni lunedì gli arriva anche un riepilogo per email, con i numeri di ogni installazione.</p>
+          <p>Questi messaggi portano il numero della segnalazione, il tipo, la versione di Arturo, il sistema e le prime 8 cifre dell'id. Non portano mai il testo di una segnalazione o di un feedback, la tua email, il tuo nome o l'id completo: del contatto dicono solo che c'è.</p>
+          <p>Siccome stanno fuori dal database, non le raggiungono né la cancellazione automatica dopo 12 mesi, né <code>arturo telemetria dimentica</code>, né il ritiro di una segnalazione. Le cancella a mano Federico nella chat, nella casella e nell'elenco dei task: quando usi <code>dimentica</code> il server gli manda i numeri da togliere, e negli altri casi basta chiederglielo.</p>
         </div>
       </article>
 
@@ -245,8 +287,9 @@ ul,ol{margin:0;padding:0}
         <h2 id="t-contatti">Chi risponde</h2>
         <div class="voce__corpo">
           <p class="voce__attacco">Per vedere o far cancellare i tuoi dati, scrivi a Federico.</p>
-          <p>Arturo è un progetto di Federico Nejrotti. Per sapere cosa c'è su di te, o per far cancellare un messaggio, un'email o gli eventi della tua installazione, scrivi a <a href="mailto:federico@stellakamikaze.org">federico@stellakamikaze.org</a>. Per gli eventi di Arturo serve l'id che ti mostra <code>arturo telemetria mostra</code>.</p>
-          <p>Pagina aggiornata il 19 novembre 2026. Se cambia cosa esce, cambia anche questa pagina, e Arturo te lo dice alla prima sessione.</p>
+          <p>Arturo è un progetto di Federico Nejrotti. Per sapere cosa c'è su di te, o per far cancellare un messaggio, il nome e l'email che hai dato per le segnalazioni, gli eventi della tua installazione o una delle copie fuori dal database, scrivi a <a href="mailto:federico@stellakamikaze.org">federico@stellakamikaze.org</a>. Per gli eventi di Arturo serve l'id che ti mostra <code>arturo telemetria mostra</code>, per una segnalazione il suo numero.</p>
+          <p>Se la risposta non ti basta, puoi rivolgerti al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it/">garanteprivacy.it</a>).</p>
+          <p>Pagina aggiornata il 21 novembre 2026. Se cambia cosa esce, cambia anche questa pagina, e Arturo te lo dice alla prima sessione.</p>
         </div>
       </article>
 
