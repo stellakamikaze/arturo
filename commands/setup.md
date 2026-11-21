@@ -397,12 +397,11 @@ sito vetrina): Impeccable guida e rifinisce, Hallmark costruisce. Controlla se c
 
 ---
 
-## FASE 8d — La sandbox (opzionale)
+## FASE 8d — La sandbox (accesa di default)
 
-Fase da bozza, per chi lancia script o installa pacchetti. Chiedi: "La sandbox chiude i comandi che lancio
-in un recinto: leggono e scrivono solo dove serve, e le tue chiavi (SSH, AWS, GitHub, Bitwarden) restano
-fuori. Git, ssh e gh girano come oggi. La accendo?" Dopo il sì: `python3 "$ARTURO_CODICE/bin/arturo" sandbox
-accendi`, che vale dalla sessione dopo. Si spegne con `arturo sandbox spegni`.
+Niente domanda: lancia `python3 "$ARTURO_CODICE/bin/arturo" sandbox accendi --setup` e di' alla persona la riga
+che stampa. Lascia spenta la sandbox che la persona ha spento, e su Windows non scrive niente. Se la persona
+chiede di spegnerla, lancia tu `sandbox spegni`.
 
 ---
 

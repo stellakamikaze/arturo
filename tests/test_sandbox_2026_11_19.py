@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""SB01-SB06: la sandbox di Claude Code come opzione della persona, spenta di default (19/11/2026, #6098).
+"""SB01-SB08: la sandbox di Claude Code, scelta della persona: il plugin non la accende, /setup sì sul Mac
+(19/11/2026, #6098; 21/11/2026, #6322).
 
 SB01 il frammento di Arturo non accende la sandbox: settings.json del repo e il frammento del plugin non hanno
      sandbox.enabled, e `arturo sandbox stato` su una casa vuota dice spenta.
@@ -11,6 +12,9 @@ SB04 accendi due volte non duplica niente.
 SB05 dopo accendi l'unione a tre vie di `arturo impostazioni` (base = frammento, nostro = settings della persona,
      loro = frammento) non va in conflitto e tiene la sandbox accesa.
 SB06 accendi lascia la copia settings.json.prima-della-sandbox, uguale al file di prima.
+SB07 la FASE 8d di /setup lancia accendi --setup senza domanda; --setup accende e dà la riga per la persona,
+     ma lascia spenta la sandbox che la persona ha spento ("spenta da te"); un accendi semplice la riaccende.
+SB08 su Windows accendi non scrive niente e dice perché: Claude Code lì non ha la sandbox.
 
 Sulla base f500fc1 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -160,8 +164,51 @@ def test_sb06(repo: Path) -> None:
         pulisci(radice)
 
 
+def test_sb07(repo: Path) -> None:
+    setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
+    inizio = setup.find("## FASE 8d")
+    fase = setup[inizio:setup.find("\n## ", inizio + 5)] if inizio >= 0 else ""
+    assert "sandbox accendi --setup" in fase and "La accendo?" not in fase, \
+        "SB07 la FASE 8d di /setup non accende la sandbox senza domanda"
+    radice = casa(PERSONA)
+    try:
+        r = arturo(repo, radice, "SB07", "accendi", "--setup")
+        assert leggi(radice)["sandbox"].get("enabled") is True and "per la persona:" in r.stdout, \
+            f"SB07 accendi --setup non accende o non dà la riga per la persona: {r.stdout!r}"
+        arturo(repo, radice, "SB07", "spegni")
+        r = arturo(repo, radice, "SB07", "stato")
+        assert "spenta da te" in r.stdout, f"SB07 dopo spegni lo stato non dice spenta da te: {r.stdout!r}"
+        arturo(repo, radice, "SB07", "accendi", "--setup")
+        assert not leggi(radice)["sandbox"].get("enabled"), "SB07 /setup riaccende la sandbox che la persona ha spento"
+        arturo(repo, radice, "SB07", "accendi")
+        r = arturo(repo, radice, "SB07", "stato")
+        assert "accesa" in r.stdout and not (radice / "data" / "arturo-sandbox.spenta").exists(), \
+            f"SB07 accendi dopo spegni non toglie il segno della persona: {r.stdout!r}"
+    finally:
+        pulisci(radice)
+
+
+def test_sb08(repo: Path) -> None:
+    radice = casa(PERSONA)
+    script = repo / "bin" / "sandbox.py"
+    assert script.is_file(), "SB08 manca bin/sandbox.py"
+    try:
+        # sys.platform cambia dopo gli import: prima, shutil cercherebbe i moduli di Windows.
+        codice = ("import importlib.util, sys; "
+                  f"spec = importlib.util.spec_from_file_location('sandbox_sb08', {str(script)!r}); "
+                  "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); "
+                  "sys.platform = 'win32'; sys.exit(m.main(['accendi']))")
+        r = subprocess.run([sys.executable, "-c", codice], env=ambiente(radice), capture_output=True, text=True,
+                           encoding="utf-8", timeout=60)
+        assert leggi(radice) == PERSONA and not (radice / "data" / "arturo-sandbox.json").exists(), \
+            f"SB08 su Windows accendi scrive voci che Claude Code non applica: {leggi(radice)!r}"
+        assert "Windows" in r.stdout, f"SB08 su Windows accendi non dice perché non scrive niente: {r.stdout!r} {r.stderr!r}"
+    finally:
+        pulisci(radice)
+
+
 TESTS = {"SB01": test_sb01, "SB02": test_sb02, "SB03": test_sb03, "SB04": test_sb04, "SB05": test_sb05,
-         "SB06": test_sb06}
+         "SB06": test_sb06, "SB07": test_sb07, "SB08": test_sb08}
 
 
 def main() -> int:

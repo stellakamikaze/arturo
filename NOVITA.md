@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Sul Mac la sandbox è accesa da /setup
+
+**Cosa cambia**: chi installa Arturo su un Mac trova la sandbox di Claude Code già accesa da `/setup`,
+senza domanda. I comandi che Claude lancia, e ogni programma che quei comandi avviano, leggono e scrivono
+solo dove serve, e le tue chiavi (SSH, AWS, GitHub, Bitwarden) restano fuori. Git, ssh e gh girano come
+prima. Se un programma non funziona, `arturo sandbox spegni` la spegne, e da lì `/setup` non la riaccende.
+Su Windows Claude Code non ha la sandbox: lì restano le guardie, e `arturo sandbox accendi` lo dice. Chi usa
+già Arturo la accende con `arturo sandbox accendi`.
+
+**Il principio**: le guardie di Arturo leggono il testo del comando, e la shell lo riscrive prima di
+eseguirlo. Una forma che le guardie non conoscono passa. La sandbox chiude il comando nel recinto del
+sistema operativo, qualunque forma abbia: Anthropic misura l'84% di conferme in meno, perché dentro il
+recinto non serve chiedere.
+
+---
+
 ## 2026-11-21 — /fine non rompe più la config quando un'altra macchina ha salvato prima
 
 **Cosa cambia**: se lavori su due computer, a volte `/fine` trova su GitHub un salvataggio dell'altro
