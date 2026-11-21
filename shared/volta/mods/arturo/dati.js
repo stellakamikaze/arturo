@@ -573,9 +573,11 @@ export async function conversazione(nome) {
 // La scheda nuova (Nuova richiesta, la prima tessera di ⌘T, o ⌘T in un layout senza tessere; comando
 // arturo.volta-nuova): una sessione di Claude vuota, non una shell. Nasce
 // in background sulla macchina di "Nasce su" e si aggancia nello spazio che la persona sta guardando,
-// col suo progetto; dallo spazio libero, o senza spazio, nasce senza progetto.
+// col suo progetto; dallo spazio libero, o senza spazio, nasce senza progetto. Parte pulita, senza
+// /inizio (21/11/2026: "deve aprire una sessione pulita senza alcun inizio"): /inizio resta ad Apri un
+// progetto, alla tessera di un progetto e a Duplica.
 export async function nuovaScheda() {
-  return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione");
+  return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione", null, false, true);
 }
 
 // Il progetto dello spazio che la persona sta guardando, o null dallo spazio libero o senza spazio.
@@ -1195,15 +1197,16 @@ export const conArturo = (c) => (c?.arturo ?? []).some((a) => /(^|[\\/])arturo(\
 
 // `dietro` (⌘N con Invio, #6186): la sessione nasce e lavora in background senza una scheda, e la finestra
 // resta dov'è; un avviso dice dove è nata, e la riga compare nell'elenco e nell'Orchestratore.
-async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null, dietro = false) {
+// `pulita` (la scheda nuova di ⌘T): la sessione nasce nel progetto ma senza prompt, nemmeno /inizio.
+async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null, dietro = false, pulita = false) {
   const dico = (titolo, errore, level = "error") => {
     if (!copia) notify({ title: titolo, body: errore, level });
     return { errore };
   };
   if (inNascita()) return dico("Sta già nascendo un'altra sessione", "sta già nascendo un'altra sessione: riprova fra poco", "warning");
-  // Una sessione che nasce vuota in un progetto (la scheda nuova, Duplica) parte da /inizio di quel
-  // progetto, come Apri un progetto (#5465). La Fork no: porta già la sua conversazione.
-  if (progetto && !prompt && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;
+  // Una sessione che nasce vuota in un progetto (Duplica) parte da /inizio di quel progetto, come Apri un
+  // progetto (#5465). La Fork no: porta già la sua conversazione. La scheda nuova nemmeno: nasce pulita.
+  if (progetto && !prompt && !pulita && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;
   const da = Date.now();
   setShared("arturo.nascita", { macchina, da });
   try {

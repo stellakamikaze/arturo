@@ -4038,10 +4038,11 @@ def hz52(repo: Path, casa: Path) -> str | None:
         riga_win = rilancio_atteso("& " + " ".join("'%s'" % x for x in [ssh_win, "-t", *OPZIONI_SSH, "torre.lan", "claude", "attach", "ffff1111"]), True)
         if v["esito"].get("come") != "rilanciata" or not invii(v) or invii(v)[0] != ["send", "t7", riga_win]:
             return f"Windows: il prompt PS non rilancia l'aggancio scritto per PowerShell: {v['esito']}, {invii(v)[:1]}"
-        # la scheda nuova: una sessione senza prompt nel progetto dello spazio aperto
+        # la scheda nuova: una sessione senza prompt nel progetto dello spazio aperto, pulita, senza /inizio
+        # (21/11/2026: "deve aprire una sessione pulita senza alcun inizio")
         v = volta("nuova-scheda", herdr=omonima, uscita=json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach}))
-        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x", "--", "/inizio progetto-x"]:
-            return f"la scheda nuova non fa nascere una sessione nel progetto aperto, partita da /inizio (#5465): {v['eseguiti'][:1]}"
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x"]:
+            return f"la scheda nuova non fa nascere una sessione pulita nel progetto aperto, senza /inizio: {v['eseguiti'][:1]}"
         if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione" or nuove(v)[0].get("space") != "s1" or nuove(v)[0].get("argv") != attach[:2] + OPZIONI_SSH + attach[2:]:
             return f"la scheda nuova non si aggancia nello spazio aperto: {nuove(v)}"
         if sonda(v):
@@ -17341,7 +17342,10 @@ VELENI = [
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '    await etichetta(scheda, s);\n  }\n  const a = argvPer(', '  }\n  const a = argvPer('),
     ('HZ52', 'shared/volta/mods/arturo/dati.js', '    const r = await rilanciaAggancio(scheda.address, argvPer(scheda.address, argv));', '    const r = { code: 0 };'),
     ('HZ52', 'shared/volta/mods/arturo/sessioni.js', 'return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];', 'return a;'),
-    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione");', 'return nasciSu(dove(), "", progettoDavanti());'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione", null, false, true);', 'return nasciSu(dove(), "", progettoDavanti(), null, null, false, true);'),
+    # la scheda nuova di ⌘T torna a partire da /inizio (21/11/2026: deve nascere pulita)
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione", null, false, true);', 'return nasciSu(dove(), "", progettoDavanti(), "Nuova sessione");'),
+    ('HZ52', 'shared/volta/mods/arturo/dati.js', '  if (progetto && !prompt && !pulita && copia?.verbo !== "fork") prompt', '  if (progetto && !prompt && copia?.verbo !== "fork") prompt'),
     ('HZ52', 'shared/volta/mods/arturo/volta.js', '      if (v?.errore) this.nonApre(s, v.errore, cx);\n', ''),
     ('HZ19', 'shared/volta/mods/arturo/volta.js', 'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);', 'if (d.azione === "aggancia") return this.apri(s, d.argv, true, cx);'),
     ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '    if riavvia:\n        r = azione(nome, "respawn", sid)', '    if False:\n        r = azione(nome, "respawn", sid)'),
@@ -17464,8 +17468,8 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/dati.js", '    else if (!ripresa) return { fatto: false };\n', ''),
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  const esito = await cambiaSessione(s, "progetto", slug, ["--iniziato"]);', '  const esito = await cambiaSessione(s, "progetto", slug, []);'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", 'export const daIniziare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daIniziare === "string"', 'export const daIniziare = (s) => (s && !s.vecchia && typeof s.daIniziare === "string"'),
-    ("HZ54", "shared/volta/mods/arturo/dati.js", '  if (progetto && !prompt && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;', '  if (progetto && !prompt) prompt = `/inizio ${progetto}`;'),
-    ("HZ54", "shared/volta/mods/arturo/dati.js", '  if (progetto && !prompt && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;', ''),
+    ("HZ54", "shared/volta/mods/arturo/dati.js", '  if (progetto && !prompt && !pulita && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;', '  if (progetto && !prompt && !pulita) prompt = `/inizio ${progetto}`;'),
+    ("HZ54", "shared/volta/mods/arturo/dati.js", '  if (progetto && !prompt && !pulita && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;', ''),
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (s.tipo !== "background" || !Array.isArray(s.attach)) return s.terminale ? { resta: true } : {};', '  if (!Array.isArray(s.attach) && !s.terminale) return {};'),
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (!chiudiSchede(s)) return {};', '  chiudiSchede(s);'),
     ("HZ59", "shared/volta/mods/arturo/dati.js", 'const r = await apriSessione({ ...s, progetto }, s.attach);', 'const r = await apriSessione(s, s.attach);'),

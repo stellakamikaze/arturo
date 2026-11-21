@@ -1,5 +1,5 @@
 {
- "albero": "dba36d541ac0371bf15ba0a158ed0b78d251eb1f",
+ "albero": "e43999289cb1754249e5464bec0bfd25ea1c1d40",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -28,7 +28,7 @@
   "mods/arturo/comuni.js": "4db022617e6b16bf5abe437a3902d5f021fc16d09c14d8ed5ad9c42bceeeeeb5",
   "mods/arturo/contesto.js": "df1de32945f9be8ad00ac3406a290be85ee8a120490561dedf9cc22b136dcbd0",
   "mods/arturo/contestoui.js": "43ec7976efbac41fb6ab5eb08ef26ab04421ad867a3fd8d028c9539b42beafa0",
-  "mods/arturo/dati.js": "248a4987d058d09cd88fd16fd3b004b66c96c1d993b13e98878e32832141becd",
+  "mods/arturo/dati.js": "1e3d0fa136e37446b55ea0658bf68123fbc4631f27b179ccda3b9012507580d3",
   "mods/arturo/doppioni.js": "c66a42313f10005ec782d44516ab384bdfe0001a2c448b613475e6ad70a36f9f",
   "mods/arturo/doppioniui.js": "d4c0d9327edb05b5af6969863c9aff1878cbbfa35a5186f130419c9540a12263",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
