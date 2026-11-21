@@ -2399,7 +2399,8 @@ export function lascia(o, campo, mio, k = undefined) {
 }
 
 // --- Unisci due progetti doppioni (#6187, Fase 4 del piano del 20/11/2026) ---------------------------
-// Il menu di un progetto apre il dialogo (unisci.js) con "arturo.unisci-<perdente>". Il dialogo chiede ad
+// Il menu di un progetto apre il dialogo (unisci.js) con "arturo.unisci-<perdente>": lo scrive solo comandoUnisci,
+// e comandoProgetto di menusessione.js lo prende da qui. Il dialogo chiede ad
 // Arturo l'anteprima (arturo progetti unisci PERDENTE VINCITORE --prova --json) e la mostra. L'unione vera
 // parte solo dal pulsante Unisci, che è il sì della persona: manda "arturo.uniscivai-…" alla barra.
 // I due slug viaggiano in esadecimale, perché uno slug ha i trattini e non si sa dove finisce.

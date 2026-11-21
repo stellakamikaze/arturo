@@ -1,8 +1,9 @@
 // La finestra "Contesto del progetto": come si forma il contesto che Claude legge quando apri un
 // progetto con /inizio. Una sezione per fonte, nell'ordine di lettura: cos'è, perché c'è, il file, la
 // data, il peso e le prime righe; "Apri" mostra il file. Il conto sta in contesto.js.
-// Si apre dall'icona della testata (il progetto dello spazio aperto), dal tasto destro su un progetto
-// della colonna e dal menu di una sessione. È un dialogo, cioè un'altra copia del mod.
+// Si apre dall'icona della testata (il progetto dello spazio aperto), dal menu del tasto destro su un
+// progetto della colonna o su una tessera di ⌘T (VOCI_PROGETTO di menusessione.js) e dal menu di una
+// sessione. È un dialogo, cioè un'altra copia del mod.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";

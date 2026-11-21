@@ -1,13 +1,15 @@
 // Arturo per Herdr: un mod, più parti. Il layout dice quale con props.parte:
-// marchio, barra (i progetti), piede, testata, todo (il pannello Da fare), stato, benvenuto, casa (le
+// marchio, barra (i progetti), piede, testata, schede (la fila delle schede sotto la testata), todo (il
+// pannello Da fare), stato, benvenuto, casa (le
 // tessere di ⌘T, nello stack "lavoro" accanto al terminale), coda (la Coda delle decisioni di ⌘⇧J, terzo
 // figlio dello stesso stack).
 // "Apri un progetto" (apri), la guida (guida), "Cosa posso chiedere" (chiedi), "La settimana"
 // (settimana), "Aggiungi un todo" (nuovo), il velo delle note (nota, ⌘⇧N), l'elenco delle note (note, ⌘⇧E) e la
 // checklist della ripartenza (checklist, ⌘⇧S) e il compito nuovo (compito, ⌘N) si aprono come dialoghi, e così il nome o il progetto di una
-// sessione di Volta (cambio). La stessa checklist sta anche sopra la sessione, da sola (ripartenza, blocco
+// sessione di Volta (cambio) e "Contesto del progetto" (contesto). La stessa checklist sta anche sopra la sessione, da sola (ripartenza, blocco
 // sovrapposto del layout). Il menu di un todo
-// (azioni), quello di una sessione di Volta (sessione), il selettore di "Nasce su" (macchina) e il menu di
+// (azioni), quello di una sessione di Volta (sessione), quello di un progetto della colonna o di una tessera
+// (menuprogetto), il selettore di "Nasce su" (macchina) e il menu di
 // "Impostazioni" col movimento (impostazioni) come popup, e così "Sposta su" (sposta) e "Sposta tutto su" (spostatutto).
 // "Unisci a…" (unisci, #6187) è un dialogo: sceglie il progetto in cui entra un doppione, mostra l'anteprima di Arturo
 // e ha il pulsante Unisci. "Cerca doppioni" (doppioni, #6188) è un dialogo: le coppie di progetti che sembrano lo

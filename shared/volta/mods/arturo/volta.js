@@ -1781,7 +1781,7 @@ export class Volta {
         .when(attivo, (el) => el.bg(t.selected))
         .when(progetto && !attivo, (el) => el.cursor_pointer().hover((st) => st.bg(t.hover)))
         .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave))
-          // il tasto destro: Apri il progetto e Contesto del progetto (menusessione.js)
+          // il tasto destro: il menu del progetto (VOCI_PROGETTO di menusessione.js)
           .on_mouse_down("right", (_e, cx) => { if (apriMenuProgetto(slug(g.chiave), g.titolo)) cx.stop_propagation(); }))
         .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().font_family("Arturo Archivo").text_size(TESTO.corpo).text_color(t.foreground).child(g.titolo))
         .when(g.sessioni.length > 0, (el) => el.child(div().id(`vgn-${g.chiave || "senza"}`).text_size(TESTO.nota).text_color(t.dim).child(String(g.sessioni.length)))))

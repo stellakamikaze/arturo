@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ191: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ192: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -869,6 +869,10 @@ HZ191 Cerca doppioni su tutte le macchine (#6268): il giro delle note di volta_n
      doppioni-scartati.json, senza una chiamata in più; fra due copie vale il conto più alto, un file rotto non si
      unisce e non si riscrive, due copie che dicono lo stesso non si riscrivono, e una finestra di prova non
      manda i suoi scarti alle macchine vere.
+HZ192 dopo Unisci a… (#6215): il comando "arturo.unisci-<slug>" lo scrive solo comandoUnisci di sessioni.js, e il
+     menu del progetto lo prende da lì; la guida dice il tasto destro sulle tessere; i commenti di volta.js e di
+     contestoui.js rimandano a VOCI_PROGETTO invece di elencare le voci; l'intestazione di main.js nomina ogni
+     parte di PARTI.
 """
 from __future__ import annotations
 
@@ -884,7 +888,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -14514,7 +14518,7 @@ def hz178(repo: Path, casa: Path) -> str | None:
         ("menusessione.js", ('{ verbo: "unisci", testo: "Unisci a…" }',
                              'export const VOCI_TESSERA = VOCI_PROGETTO.filter((v) => v.verbo !== "apri");',
                              'export const apriMenuTessera = (chiave, titoloProgetto) => apriMenuProgetto(chiave, titoloProgetto, "tessera");',
-                             'export const comandoProgetto = (chiave, v) => (["apri", "contesto", "unisci"].includes(v?.verbo) ? `arturo.${v.verbo}-${chiave}` : null);',
+                             'if (v?.verbo === "unisci") return comandoUnisci(chiave);',
                              'this.voci = vociCon(vociProgetto(props()?.dove), shared("arturo.capacita"));', ".children(this.voci.map((v) => h_flex()")),
         ("casa.js", ('.on_mouse_down("right", (_e, cx) => { if (tt.tipo !== "nuova" && apriMenuTessera(tt.chiave, tt.titolo)) cx.stop_propagation(); })',)),
         ("volta.js", ('.on_mouse_down("right", (_e, cx) => { if (apriMenuProgetto(slug(g.chiave), g.titolo)) cx.stop_propagation(); }))',)),
@@ -15631,7 +15635,54 @@ def hz191(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191}
+def hz192(repo: Path, casa: Path) -> str | None:
+    """Dopo Unisci a… (#6215): un posto solo per il comando del dialogo, e commenti e guida che dicono il menu del progetto."""
+    mod = repo / "shared/volta/mods/arturo"
+
+    def leggi(nome: str) -> str:
+        return (mod / nome).read_text(encoding="utf-8")
+
+    def codice(testo: str) -> str:
+        return "\n".join(r for r in testo.splitlines() if not r.lstrip().startswith("//"))
+
+    # il comando si scrive in un posto solo: comandoUnisci di sessioni.js
+    dove = [f.name for f in sorted(mod.glob("*.js")) if "arturo.unisci-" in codice(f.read_text(encoding="utf-8"))]
+    if dove != ["sessioni.js"] or codice(leggi("sessioni.js")).count("arturo.unisci-") != 1:
+        return f"il comando arturo.unisci-<slug> è scritto in più posti, o non è più in sessioni.js: {dove}"
+    if "export const comandoUnisci = (perdente) => `arturo.unisci-${slug(perdente)}`;" not in leggi("sessioni.js"):
+        return "sessioni.js non ha più comandoUnisci"
+    menu = codice(leggi("menusessione.js"))
+    for pezzo in ('import { menu, titolo, GRUPPI_MENU, chiave as chiaveSessione, vociCon, comandoUnisci } from "./sessioni.js";',
+                  'if (v?.verbo === "unisci") return comandoUnisci(chiave);',
+                  'return ["apri", "contesto"].includes(v?.verbo) ? `arturo.${v.verbo}-${chiave}` : null;'):
+        if pezzo not in menu:
+            return f"il menu del progetto non prende il comando di Unisci a… da comandoUnisci: manca {pezzo[:80]!r}"
+    # la guida dice il tasto destro, nel passo delle tessere
+    guida = leggi("guida.js")
+    tessere = guida.find("mostra le tessere dei progetti")
+    destro = guida.find('"Il tasto destro su una tessera, o su un progetto a sinistra, apre il suo menu')
+    if tessere < 0 or destro < tessere or "zona:" in guida[tessere:destro]:
+        return "la guida non dice il tasto destro nel passo delle tessere"
+    # i commenti rimandano all'elenco delle voci, non lo ricopiano
+    volta = leggi("volta.js")
+    if "// il tasto destro: il menu del progetto (VOCI_PROGETTO di menusessione.js)" not in volta or "il tasto destro: Apri il progetto e Contesto del progetto" in volta:
+        return "volta.js elenca ancora a mano le voci del menu del progetto"
+    testa = leggi("contestoui.js").split("\nimport ", 1)[0]
+    if "o su una tessera di ⌘T (VOCI_PROGETTO di menusessione.js)" not in testa:
+        return "contestoui.js non dice che il contesto si apre anche dal menu di una tessera"
+    # l'intestazione di main.js nomina ogni parte di PARTI
+    principale = leggi("main.js")
+    testa = principale.split("\nimport ", 1)[0]
+    trovate = re.search(r"const PARTI = \{(.*?)\};", principale, re.S)
+    if not trovate:
+        return "main.js non ha più PARTI"
+    mancano = [k for k in re.findall(r"(\w+):", trovate.group(1)) if not re.search(rf"\b{k}\b", testa)]
+    if mancano:
+        return f"l'intestazione di main.js non nomina queste parti: {mancano}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -15676,6 +15727,17 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ192', 'shared/volta/mods/arturo/menusessione.js', '  if (v?.verbo === "unisci") return comandoUnisci(chiave);', '  if (v?.verbo === "unisci") return `arturo.unisci-${chiave}`;'),
+    ('HZ192', 'shared/volta/mods/arturo/menusessione.js', 'return ["apri", "contesto"].includes(v?.verbo)', 'return ["apri", "contesto", "unisci"].includes(v?.verbo)'),
+    ('HZ192', 'shared/volta/mods/arturo/menusessione.js', 'chiave as chiaveSessione, vociCon, comandoUnisci } from "./sessioni.js";', 'chiave as chiaveSessione, vociCon } from "./sessioni.js";'),
+    ('HZ192', 'shared/volta/mods/arturo/sessioni.js', 'export const comandoUnisci = (perdente) => `arturo.unisci-${slug(perdente)}`;', 'export const comandoUnisci = (perdente) => `arturo.unisci-${perdente}`;'),
+    ('HZ192', 'shared/volta/mods/arturo/unisci.js', '    run(comandoUnisciVai(this.perdente, this.vincitore));', '    run(comandoUnisciVai(this.perdente, this.vincitore)); const riapri = `arturo.unisci-${this.perdente}`;'),
+    ('HZ192', 'shared/volta/mods/arturo/guida.js', '      "Il tasto destro su una tessera, o su un progetto a sinistra, apre il suo menu: da lì vedi il contesto che Claude legge.",\n', ''),
+    ('HZ192', 'shared/volta/mods/arturo/volta.js', '// il tasto destro: il menu del progetto (VOCI_PROGETTO di menusessione.js)', '// il tasto destro: Apri il progetto e Contesto del progetto (menusessione.js)'),
+    ('HZ192', 'shared/volta/mods/arturo/contestoui.js', 'o su una tessera di ⌘T (VOCI_PROGETTO di menusessione.js)', '(VOCI_PROGETTO di menusessione.js)'),
+    ('HZ192', 'shared/volta/mods/arturo/main.js', '// (menuprogetto), il selettore', '// il selettore'),
+    ('HZ192', 'shared/volta/mods/arturo/main.js', 'schede (la fila delle schede sotto la testata), ', ''),
+    ('HZ192', 'shared/volta/mods/arturo/main.js', ' e "Contesto del progetto" (contesto).', '.'),
     ('HZ190', 'shared/volta/mods/arturo/dati.js', '    const voce = { n: (voceScarto(d[chiave])?.n ?? 0) + 1, quando: Date.now() };', '    const voce = { n: 1, quando: Date.now() };'),
     ('HZ190', 'shared/volta/mods/arturo/dati.js', 'export const scartata = (v) => (voceScarto(v)?.n ?? 0) % 2 === 1;', 'export const scartata = (v) => Boolean(voceScarto(v));'),
     ('HZ190', 'shared/volta/mods/arturo/dati.js', '  if (typeof v === "number" && Number.isFinite(v)) return { n: 1, quando: v };\n', ''),

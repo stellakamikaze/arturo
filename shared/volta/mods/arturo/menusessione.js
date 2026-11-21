@@ -8,7 +8,7 @@
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, run, shared } from "herdr";
-import { menu, titolo, GRUPPI_MENU, chiave as chiaveSessione, vociCon } from "./sessioni.js";
+import { menu, titolo, GRUPPI_MENU, chiave as chiaveSessione, vociCon, comandoUnisci } from "./sessioni.js";
 import { vociMacchina } from "./comuni.js";
 import { destinazioni } from "./sposta.js";
 
@@ -79,9 +79,12 @@ export const VOCI_PROGETTO = [{ verbo: "apri", testo: "Apri il progetto" }, { ve
 export const VOCI_TESSERA = VOCI_PROGETTO.filter((v) => v.verbo !== "apri");
 export const vociProgetto = (dove) => (dove === "tessera" ? VOCI_TESSERA : VOCI_PROGETTO);
 
-// Il comando di una voce: "arturo.apri-<slug>", "arturo.contesto-<slug>" o "arturo.unisci-<slug>" (instrada di
-// comandi.js). Un verbo che non conosce non manda niente.
-export const comandoProgetto = (chiave, v) => (["apri", "contesto", "unisci"].includes(v?.verbo) ? `arturo.${v.verbo}-${chiave}` : null);
+// Il comando di una voce: "arturo.apri-<slug>", "arturo.contesto-<slug>" o quello di comandoUnisci di sessioni.js,
+// l'unico posto che lo scrive (instrada di comandi.js li legge). Un verbo che non conosce non manda niente.
+export const comandoProgetto = (chiave, v) => {
+  if (v?.verbo === "unisci") return comandoUnisci(chiave);
+  return ["apri", "contesto"].includes(v?.verbo) ? `arturo.${v.verbo}-${chiave}` : null;
+};
 
 export class MenuProgetto {
   init(_p, cx) {
