@@ -6,6 +6,13 @@ nomini. Questo banco lo misura sul modello vero: per ogni richiesta di tests/sce
 apre una sessione `claude -p` e guarda quali skill chiama. Una prova è giusta se la skill viene
 chiamata quando `atteso` è true, e non viene chiamata quando è false. La soglia è 9 su 10.
 
+Ogni richiesta gira --giri volte (di serie 3), e conta come giusta solo se è giusta in tutti i giri
+(pass^k): per chi non programma conta che la skill parta ogni volta, non una volta su tre. Un solo giro
+è rumoroso: Anthropic tratta come rumore una differenza sotto i 3 punti (infrastructure-noise,
+5/2/2026), e qui una richiesta vale più di 3 punti. La riga finale dice anche la media per giro, e il
+JSON registra modello e versione di Claude Code, perché si confrontano solo giri fatti nelle stesse
+condizioni (#6332, 21/11/2026).
+
 La sessione di prova:
 - carica Arturo come plugin dalla cartella --plugin (di serie: il pacchetto di questo repository,
   fatto con bin/impacchetta.py in una cartella temporanea), con i suoi hook di avvio e la riga RUOLI;
@@ -17,7 +24,7 @@ La sessione di prova:
 Costa una sessione per richiesta, a carico dell'abbonamento della persona: non sta nel gate, si lancia
 prima di rilasciare una skill di ruolo. Il risultato va in --uscita (JSON), con il conto per prova.
 
-  python3 tests/scelta_skill.py --skill monitor [--modello opus] [--lavori 3] [--uscita file.json]
+  python3 tests/scelta_skill.py --skill monitor [--modello opus] [--lavori 3] [--giri 3] [--uscita file.json]
   python3 tests/scelta_skill.py --skill monitor --solo 1,21     prova solo quelle (numeri da 1)
 """
 from __future__ import annotations
@@ -115,11 +122,35 @@ def prova(n: int, voce: Dict, plugin: Path, modello: Optional[str], turni: int, 
     return esito
 
 
+def conta(esiti: List[Dict]) -> Dict:
+    """Raccoglie i giri per richiesta: giusta solo se giusta in ogni giro (pass^k), più la media per giro."""
+    per_prova: Dict[int, List[bool]] = {}
+    for e in esiti:
+        per_prova.setdefault(e["n"], []).append(bool(e["giusta"]))
+    sempre = sorted(n for n, giri in per_prova.items() if giri and all(giri))
+    instabili = sorted(n for n, giri in per_prova.items() if any(giri) and not all(giri))
+    totale = len(per_prova)
+    giuste_giro = sum(sum(giri) for giri in per_prova.values())
+    prove_giro = sum(len(giri) for giri in per_prova.values())
+    return {"per_prova": per_prova, "sempre": sempre, "instabili": instabili, "totale": totale,
+            "quota": len(sempre) / totale if totale else 0.0,
+            "media_giro": giuste_giro / prove_giro if prove_giro else 0.0}
+
+
+def versione_claude() -> str:
+    try:
+        r = subprocess.run(["claude", "--version"], capture_output=True, text=True, encoding="utf-8", timeout=30)
+        return r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--skill", required=True)
     parser.add_argument("--modello")
     parser.add_argument("--lavori", type=int, default=3)
+    parser.add_argument("--giri", type=int, default=3, help="giri per richiesta; giusta solo se giusta in tutti")
     parser.add_argument("--turni", type=int, default=3)
     parser.add_argument("--plugin", type=Path, help="cartella del plugin; di serie il pacchetto di questo repo")
     parser.add_argument("--solo", help="numeri delle prove, da 1, separati da virgole")
@@ -138,29 +169,36 @@ def main() -> int:
     if plugin is None:
         temporanea = Path(tempfile.mkdtemp(prefix="arturo-scelta-plugin."))
         plugin = impacchetta(temporanea)
+    giri = max(1, a.giri)
+    lavori = [(n, voce) for _ in range(giri) for n, voce in scelte]
     try:
         with ThreadPoolExecutor(max_workers=max(1, a.lavori)) as pool:
-            esiti = list(pool.map(lambda c: prova(c[0], c[1], plugin, a.modello, a.turni, a.skill), scelte))
+            esiti = list(pool.map(lambda c: prova(c[0], c[1], plugin, a.modello, a.turni, a.skill), lavori))
     finally:
         if temporanea:
             shutil.rmtree(temporanea, ignore_errors=True)
     esiti.sort(key=lambda e: e["n"])
-    giuste = sum(e["giusta"] for e in esiti)
+    conto = conta(esiti)
     rotte = [e for e in esiti if e["codice"] != 0]
-    for e in esiti:
-        segno = "OK " if e["giusta"] else "NO "
-        print(f"{segno}{e['n']:>2} atteso={'sì' if e['atteso'] else 'no'} chiamate={','.join(e['chiamate']) or '-'}"
-              f"  {e['prompt'][:70]}")
-    quota = giuste / len(esiti) if esiti else 0.0
-    print(f"scelta {a.skill}: {giuste}/{len(esiti)} giuste ({quota:.0%}), soglia {SOGLIA:.0%}"
+    for n, voce in scelte:
+        esiti_n = [e for e in esiti if e["n"] == n]
+        giuste_n = sum(e["giusta"] for e in esiti_n)
+        segno = "OK " if giuste_n == len(esiti_n) else ("NO " if giuste_n == 0 else f"{giuste_n}/{len(esiti_n)}")
+        chiamate = " | ".join(",".join(e["chiamate"]) or "-" for e in esiti_n)
+        print(f"{segno:<4}{n:>2} atteso={'sì' if voce['atteso'] else 'no'} chiamate={chiamate}  {voce['prompt'][:70]}")
+    print(f"scelta {a.skill}: {len(conto['sempre'])}/{conto['totale']} giuste in tutti i {giri} giri "
+          f"({conto['quota']:.0%}), soglia {SOGLIA:.0%}; media per giro {conto['media_giro']:.0%}"
+          + (f"; {len(conto['instabili'])} instabili: {','.join(map(str, conto['instabili']))}" if conto["instabili"] else "")
           + (f", {len(rotte)} sessioni uscite con errore" if rotte else ""))
     if a.uscita:
-        a.uscita.write_text(json.dumps({"skill": a.skill, "modello": a.modello, "giuste": giuste,
-                                        "totale": len(esiti), "esiti": esiti}, ensure_ascii=False, indent=2),
+        a.uscita.write_text(json.dumps({"skill": a.skill, "modello": a.modello, "claude": versione_claude(),
+                                        "giri": giri, "giuste": len(conto["sempre"]), "totale": conto["totale"],
+                                        "media_giro": conto["media_giro"], "instabili": conto["instabili"],
+                                        "esiti": esiti}, ensure_ascii=False, indent=2),
                             encoding="utf-8")
     if rotte:
         return 2
-    return 0 if quota >= SOGLIA else 1
+    return 0 if conto["quota"] >= SOGLIA else 1
 
 
 if __name__ == "__main__":

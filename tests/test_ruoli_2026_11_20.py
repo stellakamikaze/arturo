@@ -20,6 +20,8 @@ RL09 una skill della persona (21/11/2026, #6277): l'hook la segna in data/correz
      ha "## Finito quando", mette nel contesto quella lista e "## Attrezzi", non il resto del corpo. Con
      --prompt fa lo stesso per /<nome> scritto a mano, e inject-now.sh lo lancia. Col clone una skill di
      Arturo non risulta della persona. Un id di sessione con un percorso non scrive niente.
+RL10 tests/scelta_skill.py fa tre giri di serie e conta una richiesta come giusta solo se è giusta in
+     tutti (pass^k), con la media per giro e le richieste instabili a parte (21/11/2026, #6332).
 
 Sulla base 0c1daea ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -297,8 +299,27 @@ def test_rl09(repo: Path) -> None:
         pulisci(radice)
 
 
+def test_rl10(repo: Path) -> None:
+    script = repo / "tests" / "scelta_skill.py"
+    assert script.is_file(), "RL10 manca tests/scelta_skill.py"
+    testo = script.read_text(encoding="utf-8")
+    assert '"--giri", type=int, default=3' in testo, "RL10 scelta_skill.py non fa tre giri di serie"
+    spec = importlib.util.spec_from_file_location("scelta_rl10", script)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    assert hasattr(modulo, "conta"), "RL10 scelta_skill.py non conta i giri per richiesta"
+    esiti = [{"n": 1, "giusta": True}, {"n": 1, "giusta": True}, {"n": 1, "giusta": True},
+             {"n": 2, "giusta": True}, {"n": 2, "giusta": False}, {"n": 2, "giusta": True},
+             {"n": 3, "giusta": False}, {"n": 3, "giusta": False}, {"n": 3, "giusta": False}]
+    conto = modulo.conta(esiti)
+    assert conto["sempre"] == [1] and conto["instabili"] == [2] and conto["totale"] == 3, \
+        f"RL10 una richiesta giusta in due giri su tre conta come giusta: {conto}"
+    assert abs(conto["quota"] - 1 / 3) < 1e-9 and abs(conto["media_giro"] - 5 / 9) < 1e-9, \
+        f"RL10 quota o media per giro sbagliate: {conto['quota']}, {conto['media_giro']}"
+
+
 TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04, "RL05": test_rl05,
-         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09}
+         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09, "RL10": test_rl10}
 
 
 def main() -> int:
