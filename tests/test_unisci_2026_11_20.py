@@ -22,6 +22,14 @@ UN13 la cartella degli handoff del perdente è un collegamento a quella del vinc
 UN14 dopo l'unione la riga di stato del perdente non c'è più: arturo progetti non elenca il suo nome, e la
      riga portata al vincitore resta (#6213).
 UN15 un secondo giro sullo stesso doppione esce 2 con "è già unito" e non scrive niente, anche con --prova.
+UN16 ogni errore in --json porta il suo tipo (#6314): repo diversi e fonte che rifiuta = scelta, collegamento
+     altrove = riparabile, fonte giù = transitorio, secondo giro = gia_unito, "non trovo niente" = scelta.
+UN17 un guasto a metà (un'eccezione dopo la copia) esce 1 con un JSON: tipo riparabile, fase scrittura, la
+     copia; nella copia ci sono errore.txt col traceback ed esito.json con la fase.
+UN18 un'unione riuscita lascia esito.json nella copia con fatto vero e fase "fatto".
+UN19 un secondo giro dopo un guasto che aveva già scritto la scheda del vincitore non ripete "## Da <perdente>".
+UN20 un giro fermato durante i link lascia solo link e l'alias: il secondo giro li finisce ed esce 0, invece di
+     dire "è già unito".
 
 Veleno: --avvelena rompe bin/unisci.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso.
@@ -39,7 +47,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["UN01", "UN02", "UN03", "UN04", "UN05", "UN06", "UN07", "UN08", "UN09", "UN10", "UN11", "UN12", "UN13",
-        "UN14", "UN15"]
+        "UN14", "UN15", "UN16", "UN17", "UN18", "UN19", "UN20"]
 # caso -> (file in bin/, testo, testo rotto)
 VELENI = {
     "UN01": ("unisci.py", 'ts.normalizza({"progetto": vincitore})', 'ts.normalizza({"titolo": "x"})'),
@@ -56,7 +64,12 @@ VELENI = {
     "UN12": ("unisci.py", '{**dati, "progetto": vincitore}', '{**dati}'),
     "UN13": ("unisci.py", "    if hd_p.is_symlink() or", "    if False and"),
     "UN14": ("unisci.py", "        ts.togli_stato(perdente)\n", "        pass\n"),
-    "UN15": ("unisci.py", "        if sch_v and perdente in (cx.slug(a) for a in lista(", "        if False and perdente in (cx.slug(a) for a in lista("),
+    "UN15": ("unisci.py", "        if gia and not link:\n", "        if False:\n"),
+    "UN16": ("unisci.py", '"sistemala a mano, poi rilancia", "riparabile")', '"sistemala a mano, poi rilancia", "scelta")'),
+    "UN17": ("unisci.py", "    except Exception as e:  # noqa: BLE001", "    except KeyboardInterrupt as e:  # noqa: BLE001"),
+    "UN18": ("unisci.py", '    fase("fatto", avvisi=avvisi)\n', "    pass\n"),
+    "UN19": ("unisci.py", '        unito = ""  # un giro fermato dopo la scheda', '        pass  # un giro fermato dopo la scheda'),
+    "UN20": ("unisci.py", "        if not gia:\n", "        if True:\n"),
 }
 
 HANDOFF = ("# Session Handoff - {data}\n## Progetto\n- Nome: {nome} / Branch: nessuno / Status: in progress\n"
@@ -338,6 +351,71 @@ def prova(repo: Path, rompi=None) -> list:
                 or "è già unito in fenice" not in rifiuto or lab.impronta() != prima):
             rossi.append(f"UN15 secondo giro: rc={r2.returncode}/{p2.returncode}, albero cambiato={lab.impronta() != prima} "
                          f"{r2.stderr[-200:]!r} {p2.stdout[-200:]!r}")
+
+        def errore_json(*a: str) -> tuple:
+            r = lab.arturo("progetti", "unisci", *a, "--json")
+            try:
+                d = json.loads(r.stdout.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                d = {}
+            return r.returncode, d
+
+        # UN16: il tipo di ogni errore
+        tipi = {"repo diversi": (errore_json("uno", "due", "--prova"), 2, "scelta"),
+                "collegamento altrove": (errore_json("deviato", "fenice", "--prova"), 2, "riparabile"),
+                "secondo giro": (errore_json("fenice-vecchia", "fenice", "--prova"), 2, "gia_unito"),
+                "niente": (errore_json("nessuno", "fenice", "--prova"), 2, "scelta")}
+        lab.arturo("todo", "aggiungi", "Lavoro della fonte", "--progetto", "fonte-a")
+        lab.fonte("rifiuta")
+        tipi["fonte rifiuta"] = (errore_json("fonte-a", "fenice", "--prova"), 2, "scelta")
+        lab.fonte("giu")
+        tipi["fonte giù"] = (errore_json("fonte-a", "fenice"), 3, "transitorio")
+        lab.fonte(None)
+        sbagli = {k: (rc, d.get("tipo")) for k, ((rc, d), rc_a, tipo) in tipi.items()
+                  if rc != rc_a or d.get("tipo") != tipo or d.get("fatto") is not False or "fase" not in d}
+        if sbagli:
+            rossi.append(f"UN16 tipi: {sbagli}")
+
+        # UN17: un guasto a metà. La cartella handoff del vincitore è un file: mkdir cade dopo copia e todo.
+        lab.handoff("rotto-a", "2026-11-15_08-00", "rompo.")
+        lab.arturo("todo", "aggiungi", "Lavoro rotto", "--progetto", "rotto-a")
+        (lab.h / "rotto-b").write_text("non sono una cartella\n", encoding="utf-8")
+        rc, d = errore_json("rotto-a", "rotto-b")
+        cp = Path(d.get("backup") or "/nessuna")
+        esito = json.loads((cp / "esito.json").read_text(encoding="utf-8")) if (cp / "esito.json").exists() else {}
+        tb = (cp / "errore.txt").read_text(encoding="utf-8") if (cp / "errore.txt").exists() else ""
+        if (rc != 1 or d.get("tipo") != "riparabile" or d.get("fase") != "scrittura" or "Traceback" not in tb
+                or esito.get("fase") != "scrittura" or esito.get("fatto") is not False
+                or esito.get("tipo") != "riparabile" or "guasto durante la fase scrittura" not in str(d.get("rifiuto"))):
+            rossi.append(f"UN17 guasto a metà: rc={rc} {d} esito={esito} tb={tb[-120:]!r}")
+
+        # UN18: esito.json di un'unione riuscita
+        esiti = [json.loads((u / "esito.json").read_text(encoding="utf-8")) for u in unioni if (u / "esito.json").exists()]
+        if len(esiti) != 1 or esiti[0].get("fatto") is not True or esiti[0].get("fase") != "fatto":
+            rossi.append(f"UN18 esito dell'unione riuscita: {esiti}")
+
+        # UN19: la scheda del vincitore ha già la sezione del perdente, la scheda del perdente è ancora lì
+        p = lab.mem / "progetti"
+        (p / "progetto-doppia-a.md").write_text(
+            "---\nname: progetto-doppia-a\nstatus: closed\nunito_in: progetto-doppia-b\n---\nCorpo di a.\n",
+            encoding="utf-8")
+        (p / "progetto-doppia-b.md").write_text(
+            "---\nname: progetto-doppia-b\nalias: [doppia-a]\nstatus: active\n---\nCorpo di b.\n\n"
+            "## Da doppia-a (unito il 20/11/2026)\n\nCorpo di a.\n", encoding="utf-8")
+        r = lab.arturo("progetti", "unisci", "doppia-a", "doppia-b")
+        sch = (p / "progetto-doppia-b.md").read_text(encoding="utf-8")
+        if r.returncode != 0 or sch.count("## Da doppia-a (") != 1 or (p / "progetto-doppia-a.md").exists():
+            rossi.append(f"UN19 secondo giro sulla scheda: rc={r.returncode} {sch!r} {r.stderr[-200:]}")
+
+        # UN20: restano solo un link e l'alias
+        (p / "progetto-link-b.md").write_text(
+            "---\nname: progetto-link-b\nalias: [link-a]\nstatus: active\n---\nCorpo.\n", encoding="utf-8")
+        (p / "persona-lettore.md").write_text("---\nname: persona-lettore\n---\nLegge [[progetto-link-a]].\n",
+                                              encoding="utf-8")
+        r = lab.arturo("progetti", "unisci", "link-a", "link-b")
+        nota = (p / "persona-lettore.md").read_text(encoding="utf-8")
+        if r.returncode != 0 or "[[progetto-link-b]]" not in nota:
+            rossi.append(f"UN20 link rimasti: rc={r.returncode} {nota!r} {r.stderr[-200:]}")
     return rossi
 
 
