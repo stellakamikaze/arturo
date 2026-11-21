@@ -13660,7 +13660,7 @@ def hz168(repo: Path, casa: Path) -> str | None:
         sys.path.remove(str(mod))
     # 1. TROVA vero con un claude finto: solo un elenco letto vale "nessuno"
     if os.name != "nt":
-        bin_ = casa / "bin"
+        bin_ = casa / ("bin-" + "lungo" * 30)  # un percorso lungo: il motivo non deve finire tagliato via
         bin_.mkdir()
         finto = bin_ / "claude"
         finto.write_text('#!/bin/sh\ncase "$HZ_AGENTI" in\n rotto) echo boom >&2; exit 1;;\n storto) echo ciao;;\n'
@@ -14652,8 +14652,8 @@ def hz183(repo: Path, casa: Path) -> str | None:
         (home / ".claude/arturo/radice").write_text(f"{plugin}\n", encoding="utf-8")
         (plugin / "bin").mkdir(parents=True)
         (plugin / "bin/note_finestra.py").write_text("", encoding="utf-8")
-        d = gira({"arturo": lanciatore, "chi": "filippo"})
-        if d["radice"] != str(plugin) or d["chi"] != "filippo":
+        d = gira({"arturo": lanciatore, "chi": "bruno"})
+        if d["radice"] != str(plugin) or d["chi"] != "bruno":
             return f"il file ~/.claude/arturo/radice non vince sulla voce del plugin, o chi non si legge: {d}"
         if d["capacita"] != {"note": True, "unisci": False, "tasks": False}:
             return f"le capacità non vengono dai file dell'Arturo installato: {d['capacita']}"
@@ -14672,7 +14672,7 @@ def hz183(repo: Path, casa: Path) -> str | None:
         d = gira({"radice": str(clone)})
         if d["capacita"] != {"note": False, "unisci": True, "tasks": True}:
             return f"unisci.py e la skill dei task della persona non danno le loro capacità: {d['capacita']}"
-        for storto in ("Filippo Moia", "", 7, "a|b", "x" * 40):
+        for storto in ("Bruno Neri", "", 7, "a|b", "x" * 40):
             if gira({"chi": storto})["chi"] != "tu":
                 return f"un chi storto ({storto!r}) non torna a quello di serie"
         # la guida dei progetti: la prima che esiste, e la prima dell'elenco se non ce n'è nessuna
@@ -14702,18 +14702,18 @@ def hz183(repo: Path, casa: Path) -> str | None:
 PROVA_AUTORE = r"""
 import * as m from "./sessioni.mjs";
 import { nota, leggiNota } from "./nota.mjs";
-const fed = "Fatto.\nProssimo passo: Federico manda l'email.", fil = "Fatto.\nProssimo passo: Filippo manda l'email.";
+const fed = "Fatto.\nProssimo passo: Federico manda l'email.", fil = "Fatto.\nProssimo passo: Bruno manda l'email.";
 const out = { serie: [m.chiede(fed), m.chiede(fil), m.chiede("Prossimo passo: tu apri la pagina."), m.chiede("Niente da fare per te.")] };
-out.imposta = [m.impostaChi("filippo"), m.chiede(fed), m.chiede(fil), m.chiede("Prossimo passo: tu apri la pagina.")];
+out.imposta = [m.impostaChi("bruno"), m.chiede(fed), m.chiede(fil), m.chiede("Prossimo passo: tu apri la pagina.")];
 out.storto = [m.impostaChi("a|b("), m.chiede(fed), m.chiede("Prossimo passo: a"), m.impostaChi(undefined)];
-out.nomi = ["filippo", "ada-2", "Filippo", "", null, 7, "x".repeat(40)].map(m.nomeChi);
+out.nomi = ["bruno", "ada-2", "Bruno", "", null, 7, "x".repeat(40)].map(m.nomeChi);
 const n = { tipo: "nuovo", slug: "orto", testo: "pianta" };
 out.prompt = [m.promptCompito(n), m.promptCompito(n, true), m.promptCompito(n, false), m.promptCompito({ tipo: "progetto", slug: "volta", testo: "x" }, false)];
 const base = { testo: "storto", x: 1, y: 2, larghezza: 10, altezza: 10, cartella: "/n/n1", quando: "t" };
 const v1 = JSON.stringify({ testo: "vecchia", punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 }, quando: "q" });
 const v2 = JSON.stringify({ testo: "nuova", punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 }, filo: [{ chi: "ada", testo: "nuova" }] });
-out.autori = [nota(base).dati.filo[0].chi, nota({ ...base, chi: "filippo" }).dati.filo[0].chi,
-  leggiNota(v1, "n1").filo[0].chi, leggiNota(v1, "n1", "filippo").filo[0].chi, leggiNota(v2, "n2", "filippo").filo[0].chi];
+out.autori = [nota(base).dati.filo[0].chi, nota({ ...base, chi: "bruno" }).dati.filo[0].chi,
+  leggiNota(v1, "n1").filo[0].chi, leggiNota(v1, "n1", "bruno").filo[0].chi, leggiNota(v2, "n2", "bruno").filo[0].chi];
 console.log(JSON.stringify(out));
 """
 
@@ -14734,20 +14734,20 @@ def hz180(repo: Path, casa: Path) -> str | None:
         d = json.loads(r.stdout.strip().splitlines()[-1])
         if d["serie"] != [False, False, True, False]:
             return f"di serie chiede() cerca un nome di persona, o non cerca tu: {d['serie']}"
-        if d["imposta"] != ["filippo", False, True, True]:
+        if d["imposta"] != ["bruno", False, True, True]:
             return f"dopo impostaChi chiede() non cerca il nome configurato: {d['imposta']}"
         if d["storto"] != ["tu", False, False, "tu"]:
             return f"un chi storto entra nell'espressione di chiede(), o non torna a quello di serie: {d['storto']}"
-        if d["nomi"] != ["filippo", "ada-2", "tu", "tu", "tu", "tu", "tu"]:
+        if d["nomi"] != ["bruno", "ada-2", "tu", "tu", "tu", "tu", "tu"]:
             return f"nomeChi: {d['nomi']}"
         con = "Progetto nuovo orto: crea la scheda e la voce dei task (procedura Nuovo progetto di /tasks), poi esegui: pianta"
         if d["prompt"] != [con, con, "Progetto nuovo orto: crea la cartella del progetto, poi esegui: pianta", "/inizio volta -- x"]:
             return f"promptCompito senza la skill dei task: {d['prompt']}"
-        if d["autori"] != ["tu", "filippo", "tu", "filippo", "ada"]:
+        if d["autori"] != ["tu", "bruno", "tu", "bruno", "ada"]:
             return f"l'autore di una nota non viene da chi, o una nota col suo filo lo perde: {d['autori']}"
         gira = dati_fuori(repo, casa)
         try:
-            for conf, chi in (({}, "tu"), ({"chi": "filippo"}, "filippo")):
+            for conf, chi in (({}, "tu"), ({"chi": "bruno"}, "bruno")):
                 argv = gira({"arturo": ["python3", "/x/bin/arturo"], **conf}, "nota")["argv"]
                 if argv != ["python3", "/x/bin/arturo", "note", "rispondi", "n1", "--chi", chi, "--json", "--", "ecco"]:
                     return f"gestoNota non passa --chi {chi} a arturo note: {argv}"
@@ -15157,7 +15157,7 @@ VELENI = [
     ('HZ186', 'bin/note_finestra.py', '        if chi != "claude" and not NOME_PERSONA.fullmatch(chi):', '        if chi not in ("claude", "tu"):'),
     ('HZ186', 'bin/note_finestra.py', '        if chi != "claude" and not NOME_PERSONA.fullmatch(chi):', '        if False:'),
     ('HZ186', 'bin/note_finestra.py', '    return chi.capitalize() if isinstance(chi, str) and NOME_PERSONA.fullmatch(chi) else', '    return "Tu" if isinstance(chi, str) and NOME_PERSONA.fullmatch(chi) else'),
-    ('HZ186', 'bin/note_finestra.py', '    if chi == "claude":\n        return "Claude"\n', ''),
+    ('HZ186', 'bin/note_finestra.py', '    if chi == "claude":\n        return "Claude"\n', '    if chi == "claude":\n        return "Tu"\n'),
     ('HZ183', 'shared/volta/mods/arturo/dati.js', '    ?? (await radicePlugin())\n', ''),
     ('HZ183', 'shared/volta/mods/arturo/dati.js', '    if (r) return casa(r);\n', ''),
     ('HZ183', 'shared/volta/mods/arturo/dati.js', '    ?? RADICE_BIN.exec(String(arturo[arturo.length - 1] ?? ""))?.[1]\n', ''),
@@ -15483,6 +15483,7 @@ VELENI = [
     ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (prima?.lavora || prima?.errore) {\n', '  if (false) {\n'),
     ('HZ122', 'shared/volta/mods/arturo/dati.js', '  if (prima?.lavora || prima?.errore) {\n', '  if (prima?.lavora) {\n'),
     ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', 'if not letto:\n    esci(', 'if False:\n    esci('),
+    ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '    except subprocess.TimeoutExpired as e:\n        guasto = "timed out dopo %d s" % e.timeout', '    except subprocess.TimeoutExpired as e:\n        guasto = str(e)[:160]'),
     ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '        lista = elenco(r.stdout) if r.returncode == 0 else None\n', '        lista = elenco(r.stdout)\n'),
     ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '    if ora.get("errore"):\n        return {"errore": "non so se lavora', '    if False:\n        return {"errore": "non so se lavora'),
     ('HZ168', 'shared/volta/mods/arturo/volta_sposta.py', '        if ora.get("errore"):\n            return "su %s non so', '        if False:\n            return "su %s non so'),

@@ -406,6 +406,8 @@ while True:
                 visto = s
                 if s.get("pid") or not a.get("vivo"):
                     esci(ok=True, id=s["id"], pid=s.get("pid"), claude=cl, stato=s.get("status") or s.get("state") or "")
+    except subprocess.TimeoutExpired as e:
+        guasto = "timed out dopo %d s" % e.timeout  # str(e) porta il percorso di claude: tagliato, perdeva il motivo
     except (OSError, subprocess.SubprocessError) as e:
         guasto = str(e)[:160]
     if not a.get("vivo") or time.monotonic() + 2 >= fine:
