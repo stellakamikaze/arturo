@@ -178,18 +178,19 @@ export class Doppioni {
     const nomi = (c) => (slug(nome(c.perdente)) === slug(nome(c.vincitore)) ? [c.perdente, c.vincitore] : [nome(c.perdente), nome(c.vincitore)]);
 
     // Il piede di una riga: i pulsanti, oppure a che punto è l'unione partita da qui. Un'unione non riuscita
-    // dice perché e lascia i pulsanti, per riprovare o guardare i conti.
+    // dice perché e lascia i pulsanti, per riprovare o guardare i conti. Ogni stato ha l'id sul suo div
+    // (dp-controllo-, dp-corso-, dp-uniti-, dp-nonuniti- e la chiave): la prova dal vero lo cerca.
     const occupato = unioneInCorso(this.unioni);
-    const detto = (testo, colore) => div().whitespace_normal().text_size(TESTO.etichetta).text_color(colore).child(testo);
+    const detto = (id, testo, colore) => div().id(id).whitespace_normal().text_size(TESTO.etichetta).text_color(colore).child(testo);
     const piede = (c) => {
       const u = this.unioni[c.chiave];
-      if (u?.stato === "controllo") return detto("Arturo controlla cosa passa…", t.muted).pt(SPAZIO.xs);
-      if (u?.stato === "corso") return detto("Arturo copia tutto, poi unisce… Puoi chiudere: un avviso ti dice com'è andata.", t.muted).pt(SPAZIO.xs);
+      if (u?.stato === "controllo") return detto(`dp-controllo-${c.chiave}`, "Arturo controlla cosa passa…", t.muted).pt(SPAZIO.xs);
+      if (u?.stato === "corso") return detto(`dp-corso-${c.chiave}`, "Arturo copia tutto, poi unisce… Puoi chiudere: un avviso ti dice com'è andata.", t.muted).pt(SPAZIO.xs);
       if (u?.stato === "fatto") return v_flex().gap(SPAZIO.xs).pt(SPAZIO.xs)
-        .child(detto(`Uniti: ${u.perdente} ora apre ${u.vincitore}.`, t.foreground))
-        .when(Boolean(u.backup), (el) => el.child(detto(`Copia di prima: ${u.backup}`, t.muted)));
+        .child(detto(`dp-uniti-${c.chiave}`, `Uniti: ${u.perdente} ora apre ${u.vincitore}.`, t.foreground))
+        .when(Boolean(u.backup), (el) => el.child(detto(`dp-copia-${c.chiave}`, `Copia di prima: ${u.backup}`, t.muted)));
       return v_flex().gap(SPAZIO.m).pt(SPAZIO.xs)
-        .when(u?.stato === "errore", (el) => el.child(detto(`Non uniti: ${u.testo}`, t.blocked)))
+        .when(u?.stato === "errore", (el) => el.child(detto(`dp-nonuniti-${c.chiave}`, `Non uniti: ${u.testo}`, t.blocked)))
         .child(h_flex().gap(SPAZIO.m).items_center()
           .child(bottone(`dp-unisci-${c.chiave}`, "Unisci", (cx) => this.unisci(c, cx), true, !occupato))
           .child(bottone(`dp-guarda-${c.chiave}`, "Guarda l'unione", () => this.guarda(c), false))

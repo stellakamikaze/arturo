@@ -1,11 +1,13 @@
 {
- "albero": "31cdad8ac744788ba090b25d959934695c3c187f",
+ "albero": "dec539a20a240f7d82c717ea31af0427f3b3ba59",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
   "arturo-app.sh": "17cca461072e478997983441c47d1b791124d0a92dac49e21bc24ea0c3eb49ad",
   "arturo-icona.svg": "114a290414abfbc0357ede2264eb814afd1a9246062ce0d8ee2f0fdcc2493d2b",
   "firma-locale.sh": "0d759146fc58735a2865a2629dd8de9ef2f0a9109abf1ad61caddd7c8975342c",
+  "firme/volta-app.requisito": "dd384280cf2e9aba952a59627af85546f5a63872b95403a13a74693df09576ef",
+  "firme/volta.allowed_signers": "1f019dbe306a973194c366d1c815725d0b6d7e396775f6e86b3c0a7a23d9de78",
   "installa-herdr.sh": "848ba1d46c6cdadec504774f13c851d8bc855c9de975bbf75495c1fd0716d8f9",
   "keys-ctrl.json": "a5628b80d56fc9a383e40f970a88fbbff9c95d78b2d11948dff12967660a06ab",
   "keys-herdr-macos.json": "8728a5190aa2ef1609c08c0cb49cf31dd74ab7018944b6453d9f371570d023c0",
@@ -28,7 +30,7 @@
   "mods/arturo/contestoui.js": "43ec7976efbac41fb6ab5eb08ef26ab04421ad867a3fd8d028c9539b42beafa0",
   "mods/arturo/dati.js": "248a4987d058d09cd88fd16fd3b004b66c96c1d993b13e98878e32832141becd",
   "mods/arturo/doppioni.js": "c66a42313f10005ec782d44516ab384bdfe0001a2c448b613475e6ad70a36f9f",
-  "mods/arturo/doppioniui.js": "6a5719eaf228691f58bd88157e9f67a765a638f72eb0060321d250578f5b95f3",
+  "mods/arturo/doppioniui.js": "d4c0d9327edb05b5af6969863c9aff1878cbbfa35a5186f130419c9540a12263",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -84,7 +86,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "afe93191ee17ccb171b12ecb6f6461d3f59bfbccb93b4651141fffb44f4fbefe"
+  "volta_mod.py": "edbfaa116107b40d41e2d0aaecc1aba0707f1cc470bf6c302d04e3729d4cd8e0"
  },
  "repository": "volta"
 }

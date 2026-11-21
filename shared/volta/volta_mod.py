@@ -76,7 +76,8 @@ controllo scrive anche il comando `volta` in ~/.local/bin (comando_volta), mai s
 Variabili per i banchi: VOLTA_LOGS (log del sistema), VOLTA_LOG_DIR (log dell'app), VOLTA_LOG_MAX, VOLTA_BIN
 (dove va il comando volta), VOLTA_CLAUDE (JSON: l'argv di claude), VOLTA_REGISTRO, HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
 VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_GH (JSON: l'argv di gh), VOLTA_PLUGINS
-(installed_plugins.json), VOLTA_APP_PACCHETTO, VOLTA_ORA, VOLTA_FERMO, VOLTA_FIRMA_FINTA, VOLTA_NO_APRI,
+(installed_plugins.json), VOLTA_APP_PACCHETTO, VOLTA_ORA, VOLTA_FERMO, VOLTA_CODESIGN (JSON: l'argv di
+codesign), VOLTA_FIRME (la cartella delle firme), VOLTA_NO_APRI,
 VOLTA_PS (file con l'uscita di ps al posto di ps), VOLTA_SOCKET (JSON pid -> socket al posto di lsof),
 VOLTA_RELEASES_URL e HERDR_RELEASES_URL (i canali; quello dell'app di solito da arturo.json, app_canale), VOLTA_RINOMINA_NEGATA=1 (finge il rifiuto della
 rinomina), VOLTA_COPIA_ROTTA=<file> (la copia file per file si rompe su quel file), VOLTA_AGENTE_PROVA=<cartella>
@@ -521,10 +522,10 @@ def tasti(fonte: Path) -> int:
 
 
 def contorno(fonte: Path) -> None:
-    """Layout, temi e lanciatori accanto al mod. arturo.json resta della persona, e così keys.json,
-    salvo i tasti rimasti su un mod di Arturo tolto."""
+    """Layout, temi, firme e lanciatori accanto al mod. arturo.json resta della persona, e così keys.json,
+    salvo i tasti rimasti su un mod di Arturo tolto. Le firme (#6244) vanno prima di volta_mod.py, che le legge."""
     app = app_home()
-    for nome in ("layouts", "themes"):
+    for nome in ("layouts", "themes", "firme"):
         for f in sorted((fonte / nome).glob("*")) if (fonte / nome).is_dir() else []:
             if f.is_file():
                 sostituisci(f, app / nome / f.name)
@@ -1083,18 +1084,29 @@ def app_aperta(app: list, pacchetto: Path | None = None) -> bool:
     return rc == 0
 
 
+def firme() -> Path:
+    """La cartella delle firme di Volta (#6244): accanto a questo script, nel repository (arturo/firme) come
+    nella cartella dell'app, dove la porta contorno(). VOLTA_FIRME la indica al banco."""
+    return Path(os.environ.get("VOLTA_FIRME") or Path(__file__).resolve().parent / "firme")
+
+
+REQUISITO_APP = "volta-app.requisito"   # identificatore e impronta del certificato che firma Volta.app
+
+
 def firma_buona(pacchetto: Path) -> str:
-    """"" se il pacchetto è firmato con l'identità locale (o Developer ID) e la firma regge, altrimenti il
-    motivo. VOLTA_FIRMA_FINTA=ok|no la finge per il banco."""
-    finta = os.environ.get("VOLTA_FIRMA_FINTA")
-    if finta:
-        return "" if finta == "ok" else "firma finta rifiutata"
-    rc, out = corri(["/usr/bin/codesign", "-dvv", str(pacchetto)], 30)
-    if rc != 0 or not any(r == "Authority=Arturo firma locale" or r.startswith("Authority=Developer ID Application:")
-                          for r in out.splitlines()):
-        return "il pacchetto non è firmato con Arturo firma locale"
-    rc, out = corri(["/usr/bin/codesign", "--verify", "--deep", "--strict", str(pacchetto)], 60)
-    return "" if rc == 0 else "firma non valida: " + ultima_riga(out)
+    """"" se il pacchetto è firmato col certificato di Volta, riconosciuto dall'impronta (firme()/
+    volta-app.requisito, #6244, 21/11/2026), e la firma regge; altrimenti il motivo. Un certificato col nome
+    giusto e un'altra impronta, una firma ad hoc o nessuna firma non passano. VOLTA_CODESIGN (JSON) è il
+    codesign del banco."""
+    try:
+        requisito = (firme() / REQUISITO_APP).read_text(encoding="utf-8").strip()
+    except OSError:
+        requisito = ""
+    if 'certificate leaf = H"' not in requisito:
+        return "manca il requisito della firma (%s): non installo un pacchetto che non so riconoscere" % REQUISITO_APP
+    codesign = argv_di("VOLTA_CODESIGN", "/usr/bin/codesign") or ["/usr/bin/codesign"]
+    rc, out = corri(codesign + ["--verify", "--deep", "--strict", "-R=" + requisito, str(pacchetto)], 60)
+    return "" if rc == 0 else "il pacchetto non è firmato col certificato di Volta: " + (ultima_riga(out) or "rc %d" % rc)
 
 
 def pacco_buono(pacco: Path, sha: str) -> str:

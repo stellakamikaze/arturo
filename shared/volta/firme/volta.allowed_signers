@@ -1,0 +1,7 @@
+# Chi può firmare i tag volta-mod-<N> del mod di Volta (#6244). volta_mod.py installa solo un tag
+# firmato da una di queste chiavi, lette dalla copia del mod già installata: una chiave nuova entra
+# solo dentro un mod firmato da una chiave già in elenco. Una chiave per macchina, in
+# ~/.ssh/volta-rilasci; Balthasar resta fuori. Copia di riserva in Vaultwarden, voci
+# "Volta rilasci <macchina> — chiave SSH di firma". Formato: man ssh-keygen, ALLOWED SIGNERS.
+volta-mac-mini namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMxigdTwbY7QlBMadn1asHr6iiK+Jv0PMPkTQhl0ZVMw
+volta-macbook namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEAmRA34WusYdcwiGvyjByLcms7SxOBTP4ASXRMV7PCX
