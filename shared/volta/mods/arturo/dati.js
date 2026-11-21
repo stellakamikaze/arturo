@@ -1346,6 +1346,26 @@ export const togliVolo = (k) => cambiaVolo((d) => { delete d[k]; });
 
 const fileVolo = () => `${cacheVolta()}/sposta/volo.json`;
 
+// I nomi dati da Volta alle schede (daRinominare di sessioni.js, #6339): il `visti` del giro, su disco, così
+// una ricarica del mod non li dimentica. Senza file, o con un file rotto: {}.
+const fileNomiSchede = () => `${cacheVolta()}/nomi-schede.json`;
+export async function leggiNomiSchede() {
+  try {
+    const d = JSON.parse((await readTextFile(fileNomiSchede())) ?? "{}");
+    return d && typeof d === "object" && !Array.isArray(d) ? d : {};
+  } catch { return {}; }
+}
+
+// Scrive `visti` solo se è cambiato dal file letto; false se non ci è riuscita (resta quello in memoria).
+export async function salvaNomiSchede(visti) {
+  try {
+    const prima = await readTextFile(fileNomiSchede()).catch(() => null);
+    const dati = JSON.stringify(visti ?? {});
+    if (prima !== dati) await writeTextFile(fileNomiSchede(), dati, prima ?? null);
+    return true;
+  } catch { return false; }
+}
+
 // Cambia volo.json con `f(d)`, solo se il file è ancora quello letto: un'altra copia del mod può scrivere
 // in mezzo. Tre tentativi; false se non ci è riuscita (lo spostamento va avanti lo stesso).
 async function cambiaVolo(f) {

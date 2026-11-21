@@ -1017,13 +1017,22 @@ export function daAllineare(voci, opz = {}) {
 // Un titolo che cambia a metà lavoro (il modello lo rifà ogni tanto) non rinomina: la scheda resta sul
 // compito. Un nome che la persona ha dato alla scheda non è mai fra quelli di Volta, e resta. Solo le
 // schede di un riquadro, come rinominaSchede di dati.js. `voci`: [{ indirizzo, s, scheda: { id, nome,
-// named, panes } }]; `opz.salta`: gli indirizzi che daAllineare riapre in questo giro.
+// named, panes } }]; `opz.salta`: gli indirizzi che daAllineare riapre in questo giro; `opz.ora`: adesso, in ms.
 // Torna { rinomina: [{ indirizzo, tab, nome, s }], visti }: `visti` è il `prima` del giro dopo.
+// Il nome dato (#6339, 21/11/2026): l'ultimo nome che Volta ha dato alla scheda sta in `dato`, fuori dalla
+// finestra di NOMI_VISTI titoli, che dopo sette titoli rifatti dal modello lo perdeva (circa 70 minuti).
+// `visti` va su disco (nomi-schede.json, salvaNomiSchede di dati.js) e si rilegge a ogni ricarica del mod:
+// in memoria, un aggiornamento lo azzerava e la scheda restava col nome di prima per sempre. Una sessione
+// che manca da un giro (elenco letto a metà, schede non ancora riagganciate dopo la ricarica) resta in
+// `visti` per NOMI_TIENI_MS dall'ultima volta vista. `visto` si rinfresca una volta l'ora: il file si
+// riscrive solo quando cambia qualcosa.
 export const NOME_SCHEDA_MAX = 40;
 const NOMI_VISTI = 8;
+export const NOMI_TIENI_MS = 2 * 86400000;
+const NOMI_VISTO_MS = 3600000;
 const segnaposto = (nome, s) => /^(\/|Richiesta su |Sessione )/.test(nome) || (Boolean(s.progetto) && nome === String(s.progetto).trim());
 export function daRinominare(voci, opz = {}) {
-  const prima = opz.prima ?? {}, letto = opz.letto ?? "", salta = opz.salta ?? new Set();
+  const prima = opz.prima ?? {}, letto = opz.letto ?? "", salta = opz.salta ?? new Set(), ora = opz.ora ?? Date.now();
   const rinomina = [], visti = {};
   for (const { indirizzo, s, scheda } of voci ?? []) {
     if (!s?.id || s.vecchia) continue;
@@ -1032,16 +1041,20 @@ export function daRinominare(voci, opz = {}) {
     const sid = s.sessionId ?? "";
     const nomi = [...new Set([...(v?.nomi ?? []), titolo(s).slice(0, NOME_SCHEDA_MAX)])].slice(-NOMI_VISTI);
     const fermo = Boolean(v) && v.titolo === t;
-    visti[k] = { titolo: t, letto: fermo ? v.letto : letto, sid0: v?.sid0 ?? sid, nomi };
+    const visto = Number.isFinite(v?.visto) && ora - v.visto < NOMI_VISTO_MS ? v.visto : ora;
+    visti[k] = { titolo: t, letto: fermo ? v.letto : letto, sid0: v?.sid0 ?? sid, nomi, visto, ...(v?.dato ? { dato: v.dato } : {}) };
     if (!fermo || !t || v.letto === letto || !scheda?.id || salta.has(indirizzo)) continue;
     const nome = String(scheda.nome ?? "");
     // la scheda dice già il titolo: il giro è chiuso anche così, e un titolo dopo non rinomina
-    if (nome === t) { visti[k].sid0 = sid; continue; }
+    if (nome === t) { visti[k].sid0 = sid; visti[k].dato = t; continue; }
     if (scheda.panes !== 1) continue;
-    const giro = sid !== v.sid0 && nomi.includes(nome);
+    const giro = sid !== v.sid0 && (nomi.includes(nome) || nome === v.dato);
     if (!giro && !segnaposto(nome, s) && scheda.named !== false) continue;
     rinomina.push({ indirizzo, tab: scheda.id, nome: t, s });
-    visti[k] = { ...visti[k], sid0: sid, nomi: [...new Set([...nomi, t])].slice(-NOMI_VISTI) };
+    visti[k] = { ...visti[k], sid0: sid, dato: t, nomi: [...new Set([...nomi, t])].slice(-NOMI_VISTI) };
+  }
+  for (const [k, v] of Object.entries(prima)) {
+    if (!(k in visti) && v && Number.isFinite(v.visto) && ora - v.visto < NOMI_TIENI_MS) visti[k] = v;
   }
   return { rinomina, visti };
 }

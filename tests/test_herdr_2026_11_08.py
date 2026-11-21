@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ196: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ197: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -893,6 +893,10 @@ HZ196 un'unione rifiutata dalla barra (#6290): se la barra non conosce il proget
      scrive il motivo in shared arturo.unione.rifiuto senza toccare arturo.unione; la riga di Cerca doppioni
      passa a "Non uniti" col motivo invece di restare su "Arturo copia tutto", e il dialogo Unisci a… mostra
      l'esito. Un rifiuto più vecchio del clic o di un'altra coppia non conta.
+HZ197 i nomi dati alle schede dopo una ricarica del mod (#6339): daRinominare tiene l'ultimo nome dato da Volta
+     in `dato`, fuori dalla finestra di NOMI_VISTI titoli, e dopo nove titoli del modello la rotazione rinomina
+     ancora; volta.js rilegge nomi-schede.json al primo giro dopo la ricarica e lo salva dopo ogni giro; una
+     sessione che manca da un giro resta per due giorni; un file rotto si legge come vuoto.
 """
 from __future__ import annotations
 
@@ -908,7 +912,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196", "HZ197")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -15986,7 +15990,98 @@ def hz196(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196}
+PROVA_NOMI_DATI = r"""
+import { daRinominare, NOMI_TIENI_MS } from "./sessioni.mjs";
+import { leggiNomiSchede, salvaNomiSchede } from "./dati.mjs";
+import { writeFileSync } from "node:fs";
+const bg = (sid, titolo) => ({ id: "a1", sessionId: sid, host: "qui", tipo: "background", titolo, attach: ["claude", "attach", "a1"] });
+let tab, prima, n = 0, ora = 1e12;
+const giro = (sid, t) => {
+  n++; ora += 60000;
+  const r = daRinominare([{ indirizzo: "t1", s: bg(sid, t), scheda: { ...tab } }], { prima, letto: "L" + n, ora });
+  prima = r.visti;
+  for (const x of r.rinomina) tab.nome = x.nome;
+  return r.rinomina.map((x) => x.nome);
+};
+const due = (sid, t) => [...giro(sid, t), ...giro(sid, t)];
+// 1) la finestra: Volta dà "Compito A", il modello rifà il titolo nove volte (circa 90 minuti), poi la rotazione
+tab = { id: "b1", nome: "/inizio arturo", named: true, panes: 1 }; prima = {};
+const nascita = due("s1", "Compito A");
+const rifatti = []; for (let i = 1; i <= 9; i++) rifatti.push(...due("s1", `Titolo del modello ${i}`));
+const finestra = due("s2", "Compito B");
+// la persona rinomina la scheda: la rotazione dopo non la tocca
+tab.nome = "Il mio lavoro";
+const persona = due("s3", "Compito C");
+// la scheda che l'aggancio ha già aperto col titolo: anche quel nome resta di Volta dopo nove titoli
+tab = { id: "b3", nome: "Compito Z", named: true, panes: 1 }; prima = {};
+due("z1", "Compito Z"); for (let i = 1; i <= 9; i++) due("z1", `Altro titolo ${i}`);
+const aggancio = due("z2", "Compito Y");
+// 2) la ricarica del mod: nome dato, titolo rifatto, il mod si ricarica e rilegge nomi-schede.json; il primo
+// giro dopo la ricarica non trova la scheda (non ancora riagganciata), poi arriva la rotazione
+tab = { id: "b2", nome: "/inizio arturo", named: true, panes: 1 }; prima = {};
+due("r1", "Pubblicare il Worker"); due("r1", "Telemetria e regole");
+const salvato = await salvaNomiSchede(prima);
+const scritto = JSON.stringify(prima);
+prima = await leggiNomiSchede();
+const riletto = JSON.stringify(prima) === scritto;
+prima = daRinominare([], { prima, letto: "L-vuoto", ora: ora += 60000 }).visti;
+const ricarica = due("r2", "Allineare la privacy");
+// 3) una sessione sparita da più di NOMI_TIENI_MS esce da visti; un file rotto si legge come {}
+const scaduto = Object.keys(daRinominare([], { prima, ora: ora + NOMI_TIENI_MS + 3600000 }).visti);
+writeFileSync(process.env.HZ_FILE, "{rotto", "utf-8");
+const rotto = await leggiNomiSchede();
+console.log(JSON.stringify({ nascita, rifatti, finestra, persona, aggancio, salvato, riletto, ricarica, scaduto, rotto }));
+"""
+
+
+def hz197(repo: Path, casa: Path) -> str | None:
+    """I nomi dati alle schede dopo una ricarica del mod e fuori dalla finestra NOMI_VISTI (#6339, 21/11/2026)."""
+    mod_vero = repo / "shared/volta/mods/arturo"
+    vj = (mod_vero / "volta.js").read_text(encoding="utf-8")
+    carica = "if (this.visteTitoli === null) this.visteTitoli = await leggiNomiSchede();"
+    chiama = "const n = daRinominare(voci, { prima: this.visteTitoli,"
+    salva = "await salvaNomiSchede(n.visti);"
+    if "this.visteTitoli = null;" not in vj or carica not in vj:
+        return "volta.js non rilegge i nomi dati da nomi-schede.json dopo una ricarica del mod"
+    if salva not in vj:
+        return "volta.js non salva i nomi dati in nomi-schede.json"
+    if not (vj.index(carica) < vj.index(chiama) < vj.index(salva)):
+        return "volta.js legge i nomi dati dopo daRinominare, o li salva prima"
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, (mod_vero / "dati.js").read_text(encoding="utf-8"))
+    (mod / "prova.mjs").write_text(PROVA_NOMI_DATI, encoding="utf-8")
+    app = casa / "app"
+    (app / "cache" / "volta").mkdir(parents=True)
+    (casa / "casa").mkdir()
+    env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_FILE": str(app / "cache/volta/nomi-schede.json")}
+    r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+    if r.returncode != 0:
+        return f"sessioni.js o dati.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["nascita"] != ["Compito A"] or d["rifatti"]:
+        return f"la scheda non prende il nome alla nascita, o lo cambia coi titoli del modello: {d['nascita']}, {d['rifatti']}"
+    if d["finestra"] != ["Compito B"]:
+        return f"dopo nove titoli del modello la rotazione non rinomina più la scheda: il nome dato è uscito dalla finestra ({d['finestra']})"
+    if d["persona"]:
+        return f"la rotazione rinomina una scheda che la persona ha nominato: {d['persona']}"
+    if d["aggancio"] != ["Compito Y"]:
+        return f"il nome che l'aggancio ha dato alla scheda esce dalla finestra dopo nove titoli: {d['aggancio']}"
+    if not d["salvato"] or not d["riletto"]:
+        return "nomi-schede.json non salva o non rilegge i nomi dati com'erano"
+    if d["ricarica"] != ["Allineare la privacy"]:
+        return f"dopo una ricarica del mod la rotazione non rinomina la scheda: il nome dato è perso ({d['ricarica']})"
+    if d["scaduto"]:
+        return f"una sessione sparita da più di due giorni resta in nomi-schede.json: {d['scaduto']}"
+    if d["rotto"] != {}:
+        return f"un nomi-schede.json rotto non si legge come vuoto: {d['rotto']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196, "HZ197": hz197}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -16166,8 +16261,17 @@ VELENI = [
     ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ] && [ -z "$programma" ]; then', 'if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ]; then'),
     ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ "$sistema" = mac-arm ] && [ -z "$programma" ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]', 'if [ "$sistema" = mac-arm ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]'),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (!fermo || !t || v.letto === letto || !scheda?.id", "    if (!fermo || !t || !scheda?.id"),
-    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && nomi.includes(nome);", "    const giro = nomi.includes(nome);"),
-    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && nomi.includes(nome);", "    const giro = sid !== v.sid0;"),
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && (nomi.includes(nome) || nome === v.dato);", "    const giro = (nomi.includes(nome) || nome === v.dato);"),
+    ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && (nomi.includes(nome) || nome === v.dato);", "    const giro = sid !== v.sid0;"),
+    ('HZ197', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && (nomi.includes(nome) || nome === v.dato);", "    const giro = sid !== v.sid0 && nomi.includes(nome);"),
+    ('HZ197', 'shared/volta/mods/arturo/sessioni.js', "sid0: sid, dato: t, nomi:", "sid0: sid, nomi:"),
+    ('HZ197', 'shared/volta/mods/arturo/sessioni.js', "visti[k].sid0 = sid; visti[k].dato = t; continue;", "visti[k].sid0 = sid; continue;"),
+    ('HZ197', 'shared/volta/mods/arturo/sessioni.js', ", nomi, visto, ...(v?.dato ? { dato: v.dato } : {}) };", ", nomi, visto };"),
+    ('HZ197', 'shared/volta/mods/arturo/sessioni.js', "    if (!(k in visti) && v && Number.isFinite(v.visto) && ora - v.visto < NOMI_TIENI_MS) visti[k] = v;\n", ""),
+    ('HZ197', 'shared/volta/mods/arturo/sessioni.js', "Number.isFinite(v.visto) && ora - v.visto < NOMI_TIENI_MS) visti[k] = v;", "Number.isFinite(v.visto)) visti[k] = v;"),
+    ('HZ197', 'shared/volta/mods/arturo/dati.js', "    if (prima !== dati) await writeTextFile(fileNomiSchede(), dati, prima ?? null);\n", ""),
+    ('HZ197', 'shared/volta/mods/arturo/volta.js', "      if (this.visteTitoli === null) this.visteTitoli = await leggiNomiSchede();\n", "      if (this.visteTitoli === null) this.visteTitoli = {};\n"),
+    ('HZ197', 'shared/volta/mods/arturo/volta.js', "      await salvaNomiSchede(n.visti);\n", ""),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (scheda.panes !== 1) continue;\n", ""),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (!s?.id || s.vecchia) continue;\n    const k = chiave(s), v = prima[k];\n    const t =", "    if (!s?.id) continue;\n    const k = chiave(s), v = prima[k];\n    const t ="),
     ('HZ179', 'shared/volta/mods/arturo/volta.js', '        run("tab.rename", { id: tab, name: nome });\n', ''),

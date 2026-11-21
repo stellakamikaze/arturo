@@ -26,7 +26,7 @@ import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } f
 import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, chiudiAltrui, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, registra, svuotaRegistro, staccaAggancio, nuda, ioQui } from "./dati.js";
+import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, leggiNomiSchede, salvaNomiSchede, registra, svuotaRegistro, staccaAggancio, nuda, ioQui } from "./dati.js";
 import { voloSposta, VOLO_FRESCO_MS, giuDa, dimenticata, testoHandoff, promptRipresa } from "./sessioni.js";
 import { righeOrchestra, siOggi, statoGiudice, giudiceDopo } from "./sessioni.js";
 import { giudiceSu } from "./dati.js";
@@ -201,7 +201,7 @@ export class Volta {
     this.noStacco = new Set(); // indirizzi delle schede che non si sono staccate: non si riprovano fino al ricarico
     this.allineaLavora = false; // l'ora di partenza mentre allineaSpazi lavora
     this.allineati = new Set(); // "chiave|progetto" degli spostamenti già fatti: non si ripetono fino al ricarico
-    this.visteTitoli = {}; // daRinominare: titolo, sessionId e nomi dati da Volta per sessione, dal giro prima
+    this.visteTitoli = null; // daRinominare: titolo, sessionId e nomi dati da Volta per sessione, dal giro prima; null = da leggere da nomi-schede.json (#6339)
     // "Riduci movimento" del sistema: sul Mac subito, su Windows col Python di arturo.json (sotto)
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
@@ -651,9 +651,12 @@ export class Volta {
       }
       const r = daAllineare(voci, { prima: this.visteProgetti, letto: this.giroBuono ?? this.dati.letto, davanti: focused()?.terminal ?? null, fatti: this.allineati });
       this.visteProgetti = r.visti;
-      // il nome della scheda dopo /inizio o una rotazione (daRinominare, #5547): non quella che si riapre adesso
+      // il nome della scheda dopo /inizio o una rotazione (daRinominare, #5547): non quella che si riapre adesso.
+      // I nomi dati stanno su disco e si rileggono al primo giro dopo la ricarica del mod (#6339).
+      if (this.visteTitoli === null) this.visteTitoli = await leggiNomiSchede();
       const n = daRinominare(voci, { prima: this.visteTitoli, letto: this.giroBuono ?? this.dati.letto, salta: new Set(r.sposta.map((x) => x.indirizzo)) });
       this.visteTitoli = n.visti;
+      await salvaNomiSchede(n.visti);
       for (const { indirizzo, tab, nome, s } of n.rinomina) {
         run("tab.rename", { id: tab, name: nome });
         registra("rinomina scheda", { macchina: s.host, sid: s.id, terminale: indirizzo, nome });
