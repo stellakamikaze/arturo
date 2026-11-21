@@ -201,6 +201,8 @@ BANCHI=(
   test_attrito_2026_11_20.py
   # I banchi all'avvio giudicano solo i file di Arturo, non gli hook personali (20/11/2026, #5383).
   test_banchi_file_personali_2026_11_20.py
+  # La base di Arturo si sceglie solo in deriva.py --base, anche per banchi-avvio.sh (21/11/2026, #6216).
+  test_base_arturo_2026_11_21.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
   # /revisione: estratto dei transcript senza l'uscita dei comandi, attriti separati, bozza e registro (17/11/2026).
@@ -532,6 +534,8 @@ BASELINE=(
   "test_telemetria_log_dimentica_2026_11_20.py 0cc681e"
   # Un hook personale non fa rosso il banco UTF-8 all'avvio (20/11/2026, #5383). 4801ee0, il dev prima.
   "test_banchi_file_personali_2026_11_20.py 4801ee0"
+  # La base scelta due volte (21/11/2026, #6216): deriva.py non ha --base e il .sh ha la sua copia. cecf8fc, il dev prima.
+  "test_base_arturo_2026_11_21.py cecf8fc"
   # Le righe per percorso del .local (21/11/2026, #6278): la guardia non le legge. 9641c7c, il dev prima.
   "test_protect_percorso_2026_11_21.py 9641c7c radice"
   # I glob e le graffe sui segreti della home (21/11/2026, #6279): cd, graffe e .npmrc tacciono. e794f3e, il dev prima.

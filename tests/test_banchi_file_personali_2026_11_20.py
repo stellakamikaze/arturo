@@ -107,6 +107,10 @@ def _arturo_finto(repo: Path, cartella: Path) -> None:
     for nome in elenco:
         (cartella / "tests" / nome).write_text(SPIA if nome == "test_hook_utf8.py" else "pass\n", encoding="utf-8")
     (cartella / "hooks" / "session-start.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    # Dal 21/11/2026 (#6216) banchi-avvio.sh chiede la base a hooks/deriva.py --base.
+    for nome in ("deriva.py", "radici.py", "fiducia.py"):
+        if (repo / "hooks" / nome).exists():
+            shutil.copy2(repo / "hooks" / nome, cartella / "hooks" / nome)
     _git(cartella, "init", "-q", "-b", "main")
     _git(cartella, "add", "-A")
     _git(cartella, "commit", "-q", "-m", "arturo")

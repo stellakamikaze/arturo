@@ -30,19 +30,20 @@ mkdir -p "$COPIA"
 # Solo i file tracciati, con le modifiche non salvate. Senza git: le cartelle che servono ai banchi.
 if git -C "$CLAUDE_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   git -C "$CLAUDE_DIR" ls-files -z | (cd "$CLAUDE_DIR" && tar --null -T - -cf - 2>/dev/null) | tar -xf - -C "$COPIA" 2>/dev/null
-  # I file di Arturo: quelli del punto in cui la config si è staccata da Arturo, la stessa base di
-  # hooks/deriva.py (upstream/main se c'è un remote upstream, altrimenti origin/main). Un hook che la persona
-  # ha scritto per sé non è una guardia di Arturo: test_hook_utf8.py lo salta. L'11/11/2026 U08 era rosso
-  # su un hooks/notifica-focus.sh personale, che chi mantiene Arturo non può correggere.
-  RIF_ARTURO=origin/main
-  git -C "$CLAUDE_DIR" config --get remote.upstream.url >/dev/null 2>&1 && RIF_ARTURO=upstream/main
-  BASE_ARTURO=$(git -C "$CLAUDE_DIR" merge-base HEAD "$RIF_ARTURO" 2>/dev/null)
+  # I file di Arturo: quelli del punto in cui la config si è staccata da Arturo. La base la sceglie solo
+  # hooks/deriva.py --base (upstream/main se c'è un remote upstream, altrimenti origin/main): dal 21/11/2026
+  # la scelta non sta più scritta due volte (#6216). Un hook che la persona ha scritto per sé non è una
+  # guardia di Arturo: test_hook_utf8.py lo salta. L'11/11/2026 U08 era rosso su un hooks/notifica-focus.sh
+  # personale, che chi mantiene Arturo non può correggere. Senza base l'elenco manca e U08 giudica tutto.
+  BASE_ARTURO=$(python3 -B "$CLAUDE_DIR/hooks/deriva.py" --base "$CLAUDE_DIR" 2>/dev/null)
   if [ -n "$BASE_ARTURO" ] \
      && git -C "$CLAUDE_DIR" ls-tree -r --name-only "$BASE_ARTURO" > "$LAVORO/file-arturo.txt" 2>/dev/null \
      && [ -s "$LAVORO/file-arturo.txt" ]; then
     export ARTURO_FILE_ARTURO="$LAVORO/file-arturo.txt"
   fi
 else
+  # Senza git non c'è una base: ARTURO_FILE_ARTURO resta vuota e test_hook_utf8.py giudica anche gli hook
+  # personali. Un hook scritto dalla persona può dare il rosso, come prima del #5383.
   for parte in hooks tests bin settings.json .gitignore; do
     [ -e "$CLAUDE_DIR/$parte" ] && cp -R "$CLAUDE_DIR/$parte" "$COPIA/" 2>/dev/null
   done
