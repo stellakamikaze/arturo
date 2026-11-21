@@ -536,6 +536,12 @@ vede "$PATTERN_GIT_PUSH" && danger_una_volta
 vede "$PATTERN_GIT_DEST" && danger_una_volta
 vede "$PATTERN_GIT_AMEND" && danger_una_volta
 vede "$PATTERN_GIT_ALTRI" && danger_una_volta
+# 22/11/2026 (#6323): un programma nascosto alle guardie (nome calcolato, alias, funzione, xargs, testo verso una
+# shell, codice di un interprete) con una parola pericolosa nel comando. Lo giudica block-dangerous (regola
+# codice-nascosto, _programma_nascosto); i percorsi dei segreti li porta già PATTERN_DANGER.
+PATTERN_NASCOSTO='\$[({A-Za-z_]|`|(^|[^[:alnum:]_.-])(g?xargs|alias|python[0-9.]*|perl|ruby|node|nodejs|php|deno|bun|osascript|sh|bash|zsh|dash|ksh|fish|pwsh|powershell)(\.exe)?([^[:alnum:]_.-]|$)|[[:alnum:]_][[:space:]]*\([[:space:]]*\)'
+PATTERN_PAROLA_PERICOLOSA='(^|[^[:alnum:]_.$-])(rm|unlink|shred|push|reset|clean|curl|wget|bw|gh)([^[:alnum:]_-]|$)'
+vede "$PATTERN_NASCOSTO" && vede "$PATTERN_PAROLA_PERICOLOSA" && danger_una_volta
 
 # --- Skip pre-filtro su git puro (commit/log/show...): i message possono
 # contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se

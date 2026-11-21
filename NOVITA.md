@@ -13,6 +13,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Le protezioni chiedono conferma quando il programma non si vede
+
+**Cosa cambia**: le protezioni di Arturo leggono il nome del programma che un comando lancia. Alcune forme
+della shell lo nascondono: un nome che si calcola solo quando il comando gira, `xargs`, un testo passato
+a una shell, il codice di python o di node scritto nel comando. Adesso, se il comando ha una di queste forme
+e contiene una parola pericolosa (`rm`, `push`, `reset`, `curl`, `gh`, `bw`, il percorso di una chiave),
+Arturo ti chiede conferma. La conferma ti dice quale forma ha trovato e quale parola.
+
+**Quanto costa**: su circa 24.000 comandi veri la conferma nuova parte 52 volte, circa una ogni dieci
+sessioni. Una parola che è già un programma visibile non conta (`bw status | python3 -c …`), e il codice
+python che non lancia programmi nemmeno.
+
+**Il principio**: una protezione che non vede il programma non può dire che è innocuo. Quando non lo vede
+e il comando nomina qualcosa di pericoloso, decide la persona.
+
+---
+
 ## 2026-11-21 — Una sessione è di prova solo se il nome "prova-" l'hai dato tu
 
 **Cosa cambia**: `/fine` salta handoff, todo e memoria ed elimina la sessione solo se il suo nome comincia

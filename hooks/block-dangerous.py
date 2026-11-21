@@ -44,6 +44,7 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 
 Fail-open su parsing (i casi catastrofici su path root restano nei deny).
 """
+import collections
 import json
 import re
 import sys
@@ -3603,6 +3604,182 @@ def _push_altrove(command, cwd):
     return None
 
 
+# --- Programmi nascosti alle guardie (#6323, 22/11/2026) ---
+# Le guardie leggono il nome del programma, e quattro forme lo tolgono dal testo: un nome calcolato quando il
+# comando gira ($(…), backtick, una variabile, un alias o una funzione dello stesso comando), xargs, un testo
+# che una shell o un interprete esegue dallo stdin, il codice inline di un interprete. Da sole sono comuni e
+# innocue. Con una parola pericolosa nel comando, la guardia chiede: su 24.493 comandi Bash veri chiede su 52
+# (0,21%). Le forme provate stanno in una sonda privata (SECURITY.md); il banco pubblico è
+# tests/test_programmi_nascosti_2026_11_22.py. La regola parla per ultima: le regole che leggono il programma
+# restano prima, coi loro messaggi.
+# Una parola preceduta da un punto è un metodo (`arr.push(x)`, `git.reset`), non un programma.
+_PAROLA_PERICOLOSA = re.compile(r"(?<![\w.$-])(rm|unlink|shred|push|reset|clean|curl|wget|bw|gh)(?![\w-])", _RE_NOMI)
+_FUNZIONE_DEFINITA = re.compile(r"(?:^|[;&|(){\n]|\b(?:then|do|else))\s*(?:function\s+[A-Za-z_][\w:.-]*(?:\s*\(\s*\))?"
+                                r"|[A-Za-z_][\w:.-]*\s*\(\s*\))\s*[{(]")
+_INTERPRETI_INLINE = {"deno": ("eval",), "bun": ("-e", "--eval", "-p", "--print"), "osascript": ("-e",)}
+# Il codice di un interprete lancia un programma solo con una di queste primitive, per famiglia. Senza, il codice
+# che cita `rm` in un testo (`s.replace("rm -rf", "")`) non esegue niente: la misura del 22/11/2026 dava lì metà
+# delle conferme a vuoto. Il backtick esegue in perl, ruby e php; in python è testo. `cur.execute(` e
+# `re.compile(` non contano.
+_LANCIA_PYTHON = (r"\b(?:system|popen|Popen|subprocess|exec[lv]\w*|spawn\w*|posix_spawn\w*|pty|__import__|"
+                  r"importlib|getattr|ctypes)\b|(?<![\w.])(?:exec|eval)\s*\(")
+_CODICE_LANCIA = {
+    "python": re.compile(_LANCIA_PYTHON),
+    "node": re.compile(r"\b(?:child_process|execa|shelljs|eval|Function|vm|process\.binding)\b|"
+                       r"\brequire\s*\(\s*(?!['\"`][\w@/.:-]*['\"`]\s*\))|\bimport\s*\(|\$`"),
+    "perl": re.compile(r"\b(?:system|exec|qx|popen|spawn\w*|Open3|eval|shell_exec|passthru|proc_open|"
+                       r"pcntl_exec|IO\.popen|Kernel)\b|`|%x|\bopen\s*\([^)]*\|"),
+    "osascript": re.compile(r"\bdo\s+(?:shell\s+)?script\b|doShellScript|\bObjC\b|NSTask", re.IGNORECASE),
+}
+for _f in ("ruby", "php"):
+    _CODICE_LANCIA[_f] = _CODICE_LANCIA["perl"]
+for _f in ("deno", "bun"):
+    _CODICE_LANCIA[_f] = re.compile(_CODICE_LANCIA["node"].pattern + r"|\bDeno\.(?:Command|run)\b|\bBun\.(?:spawn\w*|\$)")
+# Programmi che stampano il testo che ricevono: un percorso nei loro argomenti può finire a una shell.
+_STAMPANO = frozenset(("echo", "printf", "print"))
+
+
+def _segreti_visti(comandi):
+    """Quanti percorsi dei segreti stanno negli argomenti di un programma visibile, che le regole sopra hanno
+    già giudicato (`ssh -i ~/.ssh/id_x host`)."""
+    n = 0
+    for parola, args in comandi:
+        nome = _fc._nome(parola)
+        if "$" in parola or "`" in parola or nome in _STAMPANO or nome in _SHELL_STDIN or \
+                _INTERPRETI_STDIN.match(nome) or nome in _INTERPRETI_INLINE or nome in ("xargs", "gxargs", "alias"):
+            continue
+        n += sum(len(_segreti_in(a)) for a in args)
+    return n
+
+
+def _segreti_in(testo):
+    return [m.start() for r in (SECRET_PATH_RE, _SECRET_DIR_RE, ENV_RE) for m in r.finditer(testo)]
+
+
+def _parola_pericolosa(command, comandi):
+    """La parola pericolosa che le guardie non vedono come programma, o None.
+
+    Una parola che nel comando è un programma visibile (`bw status | python3 -c …`), o il sottocomando di un git
+    o di un gh visibile, la giudicano già le regole che leggono il programma: conta solo se compare più volte di
+    così. Lo stesso per un percorso dei segreti negli argomenti di un programma visibile."""
+    visti = collections.Counter()
+    for parola, args in comandi:
+        nome = _fc._nome(parola)
+        visti[nome] += 1
+        if nome in ("git", "gh"):
+            for a in args:
+                visti[_fc._nome(a)] += 1
+    trovate = collections.Counter(_fc._nome(m.group(1)) for m in _PAROLA_PERICOLOSA.finditer(command))
+    for parola, quante in trovate.items():
+        if quante > visti[parola]:
+            return parola
+    if len(_segreti_in(command)) > _segreti_visti(comandi):
+        return "un percorso dei segreti"
+    return None
+
+
+def _famiglia(nome):
+    return "python" if nome.startswith("python") else ("node" if nome.startswith("node") else nome)
+
+
+def _codice_di_interprete(nome, args):
+    """'inline' se l'interprete riceve il codice negli argomenti (`python3 -c`, `perl -ne`), 'stdin' se lo legge
+    dallo stdin (`| sh`, `python3 -`, `bash <<< 'x'`, `bash < f`), None se esegue uno script o un modulo."""
+    shell = nome in _SHELL_STDIN
+    famiglia = _famiglia(nome)
+    inline = _INTERPRETI_CODICE.get(famiglia, ()) + _INTERPRETI_INLINE.get(famiglia, ())
+    valore = _INTERPRETI_VALORE.get(famiglia, ())
+    i = 0
+    while i < len(args):
+        a = args[i]
+        passo = _fc.redirezione(args, i)
+        if passo:
+            i += passo[0]  # `bash <<< 'x'`, `bash < f`: il testo arriva dallo stdin
+            continue
+        if a == "--":
+            return "stdin" if i + 1 >= len(args) or args[i + 1] == "-" else None
+        if a in ("-", "/dev/stdin", "/dev/fd/0"):
+            return "stdin"
+        if not a.startswith("-"):
+            return "inline" if nome in _INTERPRETI_INLINE and a in inline else None  # `deno eval`; altro: script
+        if shell:
+            if _fc._GRUPPO_C.match(a):
+                return None  # `bash -c`: forma_comando legge già il testo come comando
+            if re.match(r"^-[a-zA-Z]*s[a-zA-Z]*$", a):
+                return "stdin"  # `bash -s -- x`
+            i += _fc._salto(a, "oO", _fc._SHELL_CON_VALORE)
+            continue
+        if famiglia == "python" and (a == "-m" or a.startswith("-m")):
+            return None  # un modulo
+        if a in inline or a.split("=", 1)[0] in inline:
+            return "inline"
+        if famiglia in ("perl", "ruby") and re.match(r"^-[a-zA-Z0-9]*[eE]", a):
+            return "inline"  # `perl -ne`, `perl -lane`, `perl -e'x'`
+        if famiglia in ("python",) and re.match(r"^-[a-zA-Z0-9]*c.", a) and a[1] not in "WX":
+            return "inline"  # `python3 -c'x'`
+        i += 2 if a in valore else 1
+    return "stdin"
+
+
+_CALCOLATO = "un programma il cui nome si calcola quando il comando gira"
+# xargs verso un programma che legge e basta: le parole sono il testo cercato (`xargs grep -n rm`), e conta solo
+# un percorso dei segreti, che il lettore aprirebbe.
+_XARGS_LETTORI = frozenset("grep egrep fgrep rg ag ack wc head tail ls stat file du sort uniq cut echo printf "
+                           "basename dirname realpath readlink".split())
+_XARGS_LETTORE = "xargs, che passa a un lettore i nomi letti dallo stdin"
+
+
+def _forma_nascosta(testo, command, comandi):
+    """La forma che nasconde il programma alle guardie, detta per la persona, o None."""
+    lettore = False
+    for parola, args in comandi:
+        nome = _fc._nome(parola)
+        base = parola.replace("\\", "/").rsplit("/", 1)[-1]
+        if "$" in base or "`" in parola:
+            if re.fullmatch(r"\$\{?[A-Za-z_]\w*\}?", parola) and _variabile_innocua(parola, command):
+                continue  # `C=~/.local/bin/claude; $C rm <id>`
+            return _CALCOLATO
+        if nome == "alias" and any("=" in a for a in args):
+            return "un alias definito nel comando"
+        if nome in ("xargs", "gxargs") and _fc.xargs_resto(args):
+            if _fc._nome(_fc.xargs_resto(args)[0]) in _XARGS_LETTORI:
+                lettore = True
+                continue
+            return "xargs, che passa al programma gli argomenti letti dallo stdin"
+        if nome in _SHELL_STDIN or _INTERPRETI_STDIN.match(nome) or nome in _INTERPRETI_INLINE:
+            codice = _codice_di_interprete(nome, args)
+            lancia = _CODICE_LANCIA.get(_famiglia(nome))
+            if codice and nome not in _SHELL_STDIN and lancia is not None and not lancia.search(command):
+                continue  # codice che non lancia programmi
+            if codice == "stdin":
+                return f"un testo che {nome} esegue dallo stdin"
+            if codice == "inline":
+                return f"il codice di {nome} scritto nel comando"
+    if _FUNZIONE_DEFINITA.search(_maschera_virgolette(testo)):
+        return "una funzione definita nel comando"
+    return _XARGS_LETTORE if lettore else None
+
+
+def _programma_nascosto(testo, command):
+    """Il motivo della conferma se il comando nasconde il programma e contiene una parola pericolosa."""
+    if not _PAROLA_PERICOLOSA.search(command) and not _segreti_in(command):
+        return None
+    comandi = _comandi_ovunque(testo)
+    forma = _forma_nascosta(testo, command, comandi)
+    if not forma:
+        return None
+    # Con un nome calcolato il parser legge male quello che segue: in `$(echo git) push` vede un programma `push`.
+    # Lì nessuna parola conta come già vista.
+    if forma == _XARGS_LETTORE:
+        parola = "un percorso dei segreti" if len(_segreti_in(command)) > _segreti_visti(comandi) else None
+    else:
+        parola = _parola_pericolosa(command, [] if forma == _CALCOLATO else comandi)
+    if not parola:
+        return None
+    parola = parola if parola.startswith("un ") else f'la parola "{parola}"'
+    return (f"Il comando lancia {forma}, e contiene {parola}: le guardie non vedono quale programma gira né con "
+            "quali argomenti. Scrivilo in chiaro, col nome del programma. Conferma solo se sai cosa fa.")
+
 
 def _inert_reference(command: str) -> bool:
     if re.search(r"[;&|]|\$\(|`|<\(|>\(", command):
@@ -4053,6 +4230,15 @@ def main() -> int:
                   "prima di confermare.") if re.search(r"\bcommit\b.*--am", command) else None
     if altrui:
         return _ask("git-amend", altrui)
+
+    # 11) Un programma nascosto alle guardie con una parola pericolosa nel comando -> ask (#6323, 22/11/2026).
+    # Parla per ultima: le regole sopra leggono il programma e hanno un messaggio più preciso.
+    try:
+        nascosto = _programma_nascosto(testo, command)
+    except Exception:
+        nascosto = None
+    if nascosto:
+        return _ask("codice-nascosto", nascosto)
 
     return 0
 
