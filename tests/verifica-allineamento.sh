@@ -249,6 +249,8 @@ BANCHI=(
   test_protect_percorso_2026_11_21.py
   # Una chiave letta con un glob o con le graffe su cartella e nome arriva alle guardie (21/11/2026, #6279).
   test_glob_segreti_2026_11_21.py
+  # Gli aggiramenti delle guardie della revisione del 20/11, rilievi S4-S10 e S13 (21/11/2026, #6259).
+  test_aggiramenti_2026_11_21.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -534,6 +536,8 @@ BASELINE=(
   "test_protect_percorso_2026_11_21.py 9641c7c radice"
   # I glob e le graffe sui segreti della home (21/11/2026, #6279): cd, graffe e .npmrc tacciono. e794f3e, il dev prima.
   "test_glob_segreti_2026_11_21.py e794f3e radice"
+  # Gli aggiramenti della revisione del 20/11 (21/11/2026, #6259): 89 forme passano mute. 02808d8, il dev prima.
+  "test_aggiramenti_2026_11_21.py 02808d8 radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

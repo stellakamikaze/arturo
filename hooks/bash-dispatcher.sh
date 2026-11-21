@@ -233,6 +233,10 @@ _GH_PREFIX='(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)
 PATTERN_GH_ANY='(^|[^[:alnum:]_.-])gh[[:space:]]'
 PATTERN_GIT_TEXT='(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(commit|log|show|tag|stash[[:space:]]+(push|save))'
 PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:]]|$)|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|http\.client|git[[:space:]]+(send-email|imap-send)'
+# 21/11/2026 (#6259, S8): l'invio con gws dietro una variabile (`G=gws; $G gmail +send`), gli inviti di
+# calendario con sendUpdates, la condivisione di un file di Drive, mailgun sugli host regionali, nodemailer e
+# i link che aprono WhatsApp o Telegram con il testo già scritto.
+PATTERN_COMMS+='|\+send([[:space:]]|$)|drafts[[:space:]]+send|sendUpdates|sendNotifications|permissions[[:space:]]+(create|update)|mailgun\.net|nodemailer|wa\.me/|whatsapp\.com/send|whatsapp://|t\.me/share|tg://msg'
 # block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
@@ -250,6 +254,19 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # 13/11/2026 (HK-6): l'avvio automatico su Windows, la cartella Start Menu/Programs/Startup, i profili di
 # PowerShell, schtasks, reg add/import/restore/load, sc create, Register-ScheduledTask e New-Service.
 PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|&?[[:space:]]*(#.*)?([({][[:space:]]*([^|]*[;&[:cntrl:]][[:space:]]*)?)?((sudo|doas)[[:space:]][^|;&]*)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php|powershell|pwsh)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|unlock|\.claude|(^|[;&|(){[:cntrl:]])[[:space:]]*\$[{A-Za-z_]|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|Start[[:space:]]+Menu|profile\.ps1|schtasks|(^|[^[:alnum:]_.-])reg(\.exe)?[[:space:]]+(add|import|restore|load)|(^|[^[:alnum:]_.-])sc(\.exe)?[[:space:]]+create|Register-ScheduledTask|New-Service|\.ssh([/[:space:]\"'"'"';&|)]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws([/[:space:]\"'"'"';&|)]|$)|\.gnupg([/[:space:]\"'"'"';&|)]|$)|\.secrets([/[:space:]\"'"'"';&|)]|$)|\.netrc|security[[:space:]]+(find-(generic|internet)-password|dump-keychain)|\.[^[:space:]/]*[]*?[][^[:space:]/]*/|(^|[[:space:]/=:({,<])\.[^[:space:]/]*[]*?[{}][^[:space:]/]*|\.(config|docker|kube)/[^[:space:];&|]*[]*?[{]|dotglob|[Gg][Ll][Oo][Bb]_?[Dd][Oo][Tt][Ss]|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|rm(dir)?Sync|\.rm[[:space:]]*\(|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
+# 21/11/2026 (#6259, rilievi S4-S9 e S13 della revisione del 20/11): le forme che block-dangerous ora giudica e
+# che il pre-filtro non gli passava. Banco: tests/test_aggiramenti_2026_11_21.py.
+#   S5  `bash -c "$(curl …)"`, un curl o un wget che scrive un file seguito da un altro comando (scarica ed
+#       esegui), base64 -d, xxd -r e openssl enc verso una shell;
+#   S6  find che cerca per nome e legge (-exec, xargs), git credential, la cronologia della shell;
+#   S9  remove_tree e FileUtils di perl e ruby, docker con una cartella montata, diskutil e newfs.
+PATTERN_DANGER+='|-[a-zA-Z]*c[[:space:]]+\$\([[:space:]]*(curl|wget|fetch)'
+PATTERN_DANGER+='|curl[[:space:]][^;&|]*(-[a-zA-Z]*[oOJ]|--output|--remote-name)[^;&|]*[;&[:cntrl:]]|wget[[:space:]][^;&|]*[;&[:cntrl:]]'
+PATTERN_DANGER+='|base64[[:space:]][^|;&]*(-[a-zA-Z]*[dD]|--decode)|xxd[[:space:]][^|;&]*-[a-zA-Z]*r|openssl[[:space:]]+(enc|base64)'
+PATTERN_DANGER+='|find[[:space:]].*-i?(name|path|wholename|regex)[[:space:]].*(-(exec|execdir|ok|okdir)[[:space:]]|xargs)'
+PATTERN_DANGER+='|git[[:space:]]([^|;&]*[[:space:]])?credential(-[a-z]+)?[[:space:]]|git-credential|_history|\.zhistory'
+PATTERN_DANGER+='|remove_tree|FileUtils|rm_rf|(^|[^[:alnum:]_.-])(docker|podman|nerdctl)[[:space:]].*(-v|--volume|--mount)'
+PATTERN_DANGER+='|(^|[^[:alnum:]_.-])(diskutil|newfs(_[a-z0-9]+)?)[[:space:]]'
 # 21/11/2026 (#6279): un nome che comincia col punto e porta un glob o una graffa, anche senza la barra
 # dopo: `cd ~/.s?? && cat i?_ed25519`, `cat ~/.s{sh,x}/i?_ed25519`, `cat ~/{.ssh,x}/i*`, `cat ~/.np?rc`,
 # `grep -r x ~/.s??`. Il percorso lo risolve block-dangerous (_segreti_risolti). Passa anche un filtro di jq
@@ -307,6 +324,11 @@ PATTERN_GIT_PUSH='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?push([[:
 PATTERN_GIT_DEST='(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*(-c|--config-env)[^|;&]*[[:space:]]push|GIT_CONFIG_(COUNT|KEY_[0-9]+|PARAMETERS)='
 # git commit --amend su un commit che questa sessione non ha fatto (3/11/2026, #4187): lo giudica block-dangerous.
 PATTERN_GIT_AMEND='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?commit[[:space:]]([^|;&]*[[:space:]])?--am'
+# 21/11/2026 (#6259, S4 e S9): git config (core.fsmonitor, core.pager, alias con `!`), reset, checkout, restore
+# e credential li giudica block-dangerous. Partono prima dello skip git-puro, o `git log && git -C x reset
+# --hard` passava come testo inerte.
+# Anche `git -c chiave=valore` e `--config-env`: `git -c core.fsmonitor='sh -c …' status` esegue il valore.
+PATTERN_GIT_ALTRI='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(config|reset|checkout|restore|credential(-[a-z]+)?)([[:space:]]|$)|(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(-c[[:space:]]|--config-env)'
 PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--f)|(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*[cC]lean\.[rR]equire[fF]orce'
 # data-guard: operazioni DATI irreversibili non coperte da block-dangerous
 # (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).
@@ -472,16 +494,46 @@ except Exception:
     ask_guard "$1"
 }
 
+# block-dangerous riceve sempre lo stesso comando: se ha già taciuto una volta, non riparte. Dal 21/11/2026
+# (#6259) i pattern di git che lo chiamano prima dello skip git-puro sono sei, e `git checkout x` lo lanciava
+# due volte.
+_BD_FATTO=0
+danger_una_volta() {
+    [[ $_BD_FATTO -eq 1 ]] && return 0
+    _BD_FATTO=1
+    run_guard block-dangerous.py
+}
+
+# I sottocomandi di git che il pre-filtro conosce (lo stesso elenco di _GIT_NOTI in commit-secret-gate.py). Un
+# nome fuori da qui può essere un alias di commit (`git -c alias.ci=commit ci`, `git salva`): lo risolve il gate
+# (21/11/2026, #6259, S10).
+_GIT_NOTI=" add am annotate apply archive bisect blame branch bundle cat-file check-attr check-ignore checkout cherry cherry-pick clean clone commit commit-graph commit-tree config count-objects credential describe diff diff-files diff-index diff-tree difftool fetch filter-branch for-each-ref format-patch fsck gc grep gui hash-object help init log ls-files ls-remote ls-tree lfs maintenance merge merge-base merge-file mergetool mktree mv name-rev notes pack-refs prune pull push range-diff read-tree rebase reflog remote repack replace rerere reset restore rev-list rev-parse revert rm send-email shortlog show show-branch show-ref sparse-checkout stage stash status submodule switch symbolic-ref tag update-index update-ref verify-commit verify-tag version whatchanged worktree write-tree "
+_RE_GIT_SOTTO='(^|[^[:alnum:]_.-])git[[:space:]]+((-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+[[:space:]]+|-[^[:space:]]+[[:space:]]+)*([A-Za-z][A-Za-z0-9_-]*)(.*)$'
+git_sottocomando_ignoto() {
+    local resto="$_SCIOLTO" giri=0
+    while [[ $giri -lt 20 && "$resto" =~ $_RE_GIT_SOTTO ]]; do
+        [[ "$_GIT_NOTI" == *" ${BASH_REMATCH[4]} "* ]] || return 0
+        resto="${BASH_REMATCH[5]}"
+        giri=$((giri + 1))
+    done
+    return 1
+}
+
 # Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message).
-{ somiglia "$COMMAND" "$PATTERN_COMMIT" || vede "$PATTERN_COMMIT"; } && run_guard commit-secret-gate.py
+if somiglia "$COMMAND" "$PATTERN_COMMIT" || vede "$PATTERN_COMMIT" || git_sottocomando_ignoto; then
+    run_guard commit-secret-gate.py
+fi
+# Prima di ogni git push il gate scansiona i commit che il remoto non ha ancora (S10).
+vede "$PATTERN_GIT_PUSH" && run_guard commit-secret-gate.py push
 
 # git clean -f cancella i file non tracciati, che git non sa ridare: PRIMA dello skip git-puro, che
 # altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
-vede "$PATTERN_GIT_CLEAN" && run_guard block-dangerous.py
-vede "$PATTERN_GIT_PERDE" && run_guard block-dangerous.py
-vede "$PATTERN_GIT_PUSH" && run_guard block-dangerous.py
-vede "$PATTERN_GIT_DEST" && run_guard block-dangerous.py
-vede "$PATTERN_GIT_AMEND" && run_guard block-dangerous.py
+vede "$PATTERN_GIT_CLEAN" && danger_una_volta
+vede "$PATTERN_GIT_PERDE" && danger_una_volta
+vede "$PATTERN_GIT_PUSH" && danger_una_volta
+vede "$PATTERN_GIT_DEST" && danger_una_volta
+vede "$PATTERN_GIT_AMEND" && danger_una_volta
+vede "$PATTERN_GIT_ALTRI" && danger_una_volta
 
 # --- Skip pre-filtro su git puro (commit/log/show...): i message possono
 # contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se
@@ -525,7 +577,7 @@ if [[ $_GIT_TESTO -eq 1 && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--o
 fi
 
 # Opzioni Git che possono cambiare scritture o comportamento non sono testo inerte.
-[[ $_GIT_TESTO -eq 1 && $_GIT_UNSAFE -eq 1 ]] && run_guard block-dangerous.py
+[[ $_GIT_TESTO -eq 1 && $_GIT_UNSAFE -eq 1 ]] && danger_una_volta
 
 # Comms guard: invii email/messaggi esterni (draft-first). Il match si rifa' sul CODICE eseguito:
 # comms-prefilter.py toglie gli heredoc scritti su file e tace sui comandi di sola lettura
@@ -573,7 +625,7 @@ if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || somigl
         _RISERVA=block-dangerous.py; _SENZA_ALLOW=1
         run_locale "$_DC"
     else
-        run_guard block-dangerous.py
+        danger_una_volta
     fi
 fi
 
@@ -606,7 +658,8 @@ fi
 somiglia "$GUARD_COMMAND" "$PATTERN_DATA" && run_guard data-guard.py
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
-{ somiglia "$COMMAND" "$PATTERN_GH_ANY" || vede "$PATTERN_GH_ANY"; } && run_guard gh-destructive-guard.py
+# 21/11/2026 (#6259, S7): anche curl, wget e httpie verso api.github.com, che fanno le stesse chiamate di `gh api`.
+{ somiglia "$COMMAND" "$PATTERN_GH_ANY" || vede "$PATTERN_GH_ANY" || vede 'api\.github\.com'; } && run_guard gh-destructive-guard.py
 
 # Guardie personali del punto finale, sui comandi che nominano .claude.
 if [[ "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then

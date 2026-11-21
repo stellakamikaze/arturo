@@ -146,7 +146,11 @@ def test_g201(repo: Path) -> None:
             assert esito(path) == "allow", f"G201 l'unlock di sistema non sblocca {path.relative_to(home)}"
         assert esito(bersagli[0], "altra") == "deny", "G201 l'unlock di una sessione vale per un'altra"
         assert esito(progetto / "capitolo.md") == "silent", "G201 un file qualunque viene fermato"
-        assert esito(progetto / ".git" / "config") == "silent", "G201 .git/config viene trattato come un hook"
+        # Dal 21/11/2026 (#6259, S4) .git/config chiede una conferma (core.fsmonitor e gli alias con `!` sono
+        # comandi), ma non è un hook: mai un deny con l'unlock. Qui l'unlock di sistema c'è, e passa.
+        assert esito(progetto / ".git" / "config") in ("silent", "allow"), "G201 .git/config viene trattato come un hook"
+        assert esito(progetto / ".git" / "config", "altra") in ("silent", "ask"), \
+            "G201 .git/config senza unlock viene negato come un hook"
 
 
 def test_g202(repo: Path) -> None:

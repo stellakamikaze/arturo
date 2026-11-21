@@ -437,6 +437,59 @@ def xargs_resto(args):
     return args[i:]
 
 
+# 21/11/2026 (#6259, rilievo S9 della revisione del 20/11): i comandi che git e osascript eseguono dai loro
+# argomenti. `git -c alias.x='!rm -rf ~/Documents' x`, `git rebase -x 'rm -rf x'`, `git bisect run`,
+# `git submodule foreach` e `osascript -e 'do shell script "rm -rf x"'` passavano: nessuna guardia leggeva il
+# testo come un comando.
+_GIT_GLOBALI_CON_VALORE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+                                     "--config-env", "--super-prefix"))
+_DO_SHELL_SCRIPT = re.compile(r"""do\s+shell\s+script\s+(?:"((?:\\.|[^"\\])*)"|'([^']*)')""", re.IGNORECASE)
+
+
+def _comandi_dentro_git(args) -> list:
+    """I testi che un `git …` passa a una shell."""
+    testi, i = [], 0
+    while i < len(args) and args[i].startswith("-"):
+        a = args[i]
+        valore = None
+        if a == "-c" and i + 1 < len(args):
+            valore = args[i + 1]
+        elif a.startswith("-c") and len(a) > 2 and not a.startswith("--"):
+            valore = a[2:]
+        if valore and "=" in valore:
+            chiave, corpo = valore.split("=", 1)
+            if chiave.lower().startswith("alias.") and corpo.lstrip().startswith("!"):
+                testi.append(corpo.lstrip()[1:])
+        i += 2 if a in _GIT_GLOBALI_CON_VALORE else 1
+    if i >= len(args):
+        return testi
+    sotto, resto = args[i], args[i + 1:]
+    if sotto == "rebase":
+        for k, a in enumerate(resto):
+            if a in ("-x", "--exec") and k + 1 < len(resto):
+                testi.append(resto[k + 1])
+            elif a.startswith("--exec="):
+                testi.append(a.split("=", 1)[1])
+            elif a.startswith("-x") and len(a) > 2 and not a.startswith("--"):
+                testi.append(a[2:])
+    elif sotto == "bisect" and resto[:1] == ["run"] and len(resto) > 1:
+        testi.append(" ".join(shlex.quote(x) for x in resto[1:]))
+    elif sotto == "submodule" and "foreach" in resto:
+        dopo = [x for x in resto[resto.index("foreach") + 1:] if x not in ("--recursive", "-q", "--quiet")]
+        if dopo:
+            testi.append(" ".join(dopo))
+    return testi
+
+
+def _comandi_dentro_osascript(args) -> list:
+    testi = []
+    for a in args:
+        for m in _DO_SHELL_SCRIPT.finditer(a):
+            corpo = m.group(1) if m.group(1) is not None else m.group(2)
+            testi.append(re.sub(r"\\(.)", r"\1", corpo))
+    return testi
+
+
 def programmi(cmd: str, profondita: int = 0):
     """Lista di (programma, argomenti) per ogni comando semplice di `cmd`."""
     return [(_nome(t), a) for t, a in comandi(cmd, profondita)]
@@ -492,6 +545,12 @@ def comandi(cmd: str, profondita: int = 0):
                     out += comandi(" ".join(shlex.quote(x) for x in resto), profondita + 1)
             elif prog == "trap" and args and not args[0].startswith("-"):
                 out += comandi(args[0], profondita + 1)  # il corpo gira all'uscita o al segnale
+            elif prog == "git":
+                for testo in _comandi_dentro_git(args):
+                    out += comandi(testo, profondita + 1)
+            elif prog == "osascript":
+                for testo in _comandi_dentro_osascript(args):
+                    out += comandi(testo, profondita + 1)
             elif prog == "find":
                 # `find . -exec gh repo delete {} \;`: le parole fino a `;` o `+` sono un comando (#5097)
                 for k, a in enumerate(args):

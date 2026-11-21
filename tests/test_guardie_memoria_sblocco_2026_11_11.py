@@ -141,6 +141,15 @@ Z = "~/.claude/data/handoffs"
 HEREDOC = "<<'EOF'\n# Handoff\n- nota: a > b\nEOF"
 
 
+# Dal 21/11/2026 (#6259, rilievo S4) questi comandi chiedono: scrivono un file che parte da solo (~/.zshrc,
+# ~/.bash_profile, ~/.ssh/authorized_keys) o portano via una cartella intera (S9). Prima passavano muti: per
+# questo banco conta che il ramo memoria non li ammetta, e una conferma lo dice ancora meglio.
+ORA_CHIEDE = frozenset((
+    "x>>file attaccato", "cartella/>file", "1<>file", "cp in zona e poi x>file", "cp da tmp e poi x>file",
+    "a->file", ">&file", "&>file attaccato", "env -C dopo il cd", "mv dei Documenti", "mv della zona intera",
+    "maggiore fra apici come argomento",
+))
+
 @gruppo
 def test_ms01(b: Banco):
     fuori = [
@@ -154,7 +163,7 @@ def test_ms01(b: Banco):
         ("&>file attaccato", f"ls {Z}/&>~/.zshrc"),
         (">(processo)", f"ls {Z}/ > >(tee ~/.zshrc)"),
     ]
-    casi = [(n, b.dispatcher(c), "silent") for n, c in fuori]
+    casi = [(n, b.dispatcher(c), "ask" if n in ORA_CHIEDE else "silent") for n, c in fuori]
     dentro = [
         ("printf >> zona", f"printf '%s\\n' \"- a > b\" >> {Z}/r/H.md"),
         ("grep, sort e head", f'grep -l "Sessione: x" {Z}/r/HANDOFF_*.md 2>/dev/null | sort -r | head -1'),
@@ -199,7 +208,7 @@ def test_ms02(b: Banco):
         ("tilde e trattino dopo il cd", f"cd {Z} && echo x > ~-/.zshrc"),
         ("env -C dopo il cd", f"cd {Z}/r && env -C ~ tee .zshrc < a.md"),
     ]
-    casi = [(n, b.dispatcher(c), "silent") for n, c in fuori]
+    casi = [(n, b.dispatcher(c), "ask" if n in ORA_CHIEDE else "silent") for n, c in fuori]
     dentro = [
         ("cd && heredoc", f"cd {Z}/r && cat > H.md {HEREDOC}"),
         ("mkdir && cd && ls", f"mkdir -p {Z}/r && cd {Z}/r && ls"),
@@ -236,7 +245,7 @@ def test_ms03(b: Banco):
         ("find -H fuori zona", f"find -H ~/Documents -type f > {Z}/x"),
         ("graffe che si espandono", f"tee {{{Z}/r/b.md,~/.zshrc}} < {Z}/r/a.md"),
     ]
-    casi = [(n, b.dispatcher(c), "silent") for n, c in fuori] + [(n, b.dispatcher(c), "ask") for n, c in segreti]
+    casi = [(n, b.dispatcher(c), "ask" if n in ORA_CHIEDE else "silent") for n, c in fuori] + [(n, b.dispatcher(c), "ask") for n, c in segreti]
     casi += [
         # Dal #5262 questi due chiedono: mv porta via una cartella che contiene codice delle guardie (GC04).
         ("mv di plugins da ~/.claude", b.dispatcher(f"mv plugins {Z}/p", b.claude), "ask"),

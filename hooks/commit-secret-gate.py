@@ -234,8 +234,9 @@ def _segments(command: str):
         yield segment
 
 
-def _repo_for_command(command: str, cwd: str):
-    """Il repository su cui girera' `git commit`.
+def _repo_for_command(command: str, cwd: str, nomi=("commit",)):
+    """Il repository su cui girera' `git commit`. `nomi`: i sottocomandi che contano come commit (un alias,
+    commit-tree, o push per la scansione prima dell'invio: 21/11/2026, #6259, S10).
 
     Restituisce il percorso, None se non risolvibile (-> ask), oppure False se
     nessun `git commit` viene eseguito davvero (il pattern ha visto la parola
@@ -405,7 +406,7 @@ def _repo_for_command(command: str, cwd: str):
             index += 1
         if index < len(tokens) and tokens[index] == "init" and dentro_nuova(location):
             inizializzato = True
-        if index < len(tokens) and tokens[index] == "commit":
+        if index < len(tokens) and tokens[index] in nomi:
             if dentro_nuova(location):
                 # Repo nato nello stesso comando in una cartella di mktemp (31/10/2026). Il diff non si
                 # legge prima che il comando giri: si scansionano il testo del comando e i file che vi
@@ -418,7 +419,7 @@ def _repo_for_command(command: str, cwd: str):
                     return None
                 return (_NUOVA, tuple(sorgenti))
             return location
-    if re.search(r"\bgh(?:\.exe)?\s+pr\s+create\b", command, _RE_NOMI):
+    if "commit" in nomi and re.search(r"\bgh(?:\.exe)?\s+pr\s+create\b", command, _RE_NOMI):
         return location
     return False
 
@@ -472,7 +473,8 @@ _COMMIT_LETTERE_VALORE = "mFCct"
 # comunque lo stage e i file già letti.
 _TETTO_BYTE = 20_000_000
 _TETTO_SECONDI = 2.0
-_PEZZO = 200_000  # di ogni file si leggono i primi 200 KB
+# Fino al 21/11/2026 di ogni file nuovo si leggevano i primi 200 KB: una chiave più in basso passava (#6259,
+# S10). Ora il file si legge intero dentro il tetto comune; se il tetto lo taglia, conta come non letto.
 
 
 class _Lettura:
@@ -488,10 +490,15 @@ class _Lettura:
             return
         try:
             with open(os.path.join(self.repo, nome), "rb") as f:
-                dati = f.read(_PEZZO)
+                resta = _TETTO_BYTE - self.byte
+                dati = f.read(resta + 1)
         except OSError:
             return
-        self.letti += 1
+        if len(dati) > resta:
+            dati = dati[:resta]
+            self.saltati += 1  # tagliato dal tetto: la conferma dice che la lettura è parziale
+        else:
+            self.letti += 1
         self.byte += len(dati)
         if b"\0" in dati[:8000]:
             return  # un file binario: anche git diff --cached lo mostra solo come "Binary files differ"
@@ -561,9 +568,9 @@ def _pathspec_add(invocazioni, command: str):
         return None
     specs = []
     for sotto, args, con_c in invocazioni:
-        if con_c and sotto in ("add", "commit"):
+        if con_c and sotto in ("add", "stage", "commit"):
             return None
-        if sotto != "add":
+        if sotto not in ("add", "stage"):
             continue
         propri, dopo = [], False
         for a in args:
@@ -658,6 +665,181 @@ def _scansiona_nuova(command: str, sorgenti) -> int:
                 "verificato che non sia una credenziale reale.")
 
 
+# --- Aggiramenti del gate trovati dalla revisione del 20/11/2026 (#6259, rilievo S10) ---
+# I sottocomandi di git che la guardia conosce: un nome fuori da qui può essere un alias di commit o di add.
+_GIT_NOTI = frozenset(
+    "add am annotate apply archive bisect blame branch bundle cat-file check-attr check-ignore checkout cherry "
+    "cherry-pick clean clone commit commit-graph commit-tree config count-objects credential describe diff "
+    "diff-files diff-index diff-tree difftool fetch filter-branch for-each-ref format-patch fsck gc grep gui "
+    "hash-object help init log ls-files ls-remote ls-tree lfs maintenance merge merge-base merge-file mergetool "
+    "mktree mv name-rev notes pack-refs prune pull push range-diff read-tree rebase reflog remote repack replace "
+    "rerere reset restore rev-list rev-parse revert rm send-email shortlog show show-branch show-ref "
+    "sparse-checkout stage stash status submodule switch symbolic-ref tag update-index update-ref verify-commit "
+    "verify-tag version whatchanged worktree write-tree".split())
+_ALIAS_COMMITTA = re.compile(r"^!?\s*(?:git\s+)?commit\b|^!.*\bcommit\b", re.IGNORECASE)
+_ALIAS_AGGIUNGE = re.compile(r"^!?\s*(?:git\s+)?(?:add|stage)\b|^!.*\b(?:add|stage)\b", re.IGNORECASE)
+_ALIAS_NEL_COMANDO = re.compile(r"""alias\.([\w-]+)=(['"]?)([^'"\s;&|]*(?:\s[^'"]*)?)\2""", re.IGNORECASE)
+_BASE64_NEL_COMANDO = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{20,}={0,2}(?![A-Za-z0-9+/=])")
+_ALBERO_VUOTO = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+_PUSH_MAX_COMMIT = 300
+
+
+def _alias_di_commit(command: str, cwd: str, invocazioni):
+    """(nomi che valgono commit, nomi che valgono add). Un alias è scritto nel comando (`-c alias.ci=commit`)
+    o nella config del repository (`git config alias.salva commit`). Un nome che non è un alias non conta."""
+    ignoti = {s for s, _, _ in invocazioni if s not in _GIT_NOTI and re.match(r"^[\w-]+$", s)}
+    veri, aggiungono = set(), set()
+    for nome, _q, valore in _ALIAS_NEL_COMANDO.findall(command):
+        if nome in ignoti and _ALIAS_COMMITTA.match(valore.strip()):
+            veri.add(nome)
+        elif nome in ignoti and _ALIAS_AGGIUNGE.match(valore.strip()):
+            aggiungono.add(nome)
+    restanti = ignoti - veri - aggiungono
+    if restanti:
+        repo = _repo_for_command(command, cwd, nomi=("commit",) + tuple(sorted(ignoti)))
+        if isinstance(repo, str) and os.path.isdir(repo):
+            for nome in sorted(restanti):
+                try:
+                    r = subprocess.run(["git", "-C", repo, "config", "--get", f"alias.{nome}"], capture_output=True,
+                                       text=True, timeout=3, check=False)
+                except (OSError, subprocess.SubprocessError):
+                    continue
+                if r.returncode == 0 and _ALIAS_COMMITTA.match(r.stdout.strip()):
+                    veri.add(nome)
+                elif r.returncode == 0 and _ALIAS_AGGIUNGE.match(r.stdout.strip()):
+                    aggiungono.add(nome)
+    return veri, aggiungono
+
+
+def _decodificati(command: str) -> str:
+    """I pezzi base64 del comando, decodificati: `echo <base64> | base64 -d > f && git add f` scrive un file che
+    al momento della scansione non esiste, e il testo del comando non mostra la chiave."""
+    import base64
+    import binascii
+    parti = []
+    for pezzo in _BASE64_NEL_COMANDO.findall(command)[:50]:
+        try:
+            dati = base64.b64decode(pezzo + "=" * (-len(pezzo) % 4), validate=True)
+        except (binascii.Error, ValueError):
+            continue
+        parti.append(dati.decode("utf-8", "ignore"))
+    return "\n".join(parti)
+
+
+def _albero_commit_tree(invocazioni):
+    """L'albero di `git commit-tree`, o None se il comando non lo usa; "" se non si legge dal testo."""
+    for sotto, args, _ in invocazioni:
+        if sotto != "commit-tree":
+            continue
+        i = 0
+        while i < len(args):
+            a = args[i]
+            if a in ("-p", "-m", "-F") or a == "-S":
+                i += 1 if a == "-S" else 2
+                continue
+            if a.startswith("-"):
+                i += 1
+                continue
+            return a if re.match(r"^[\w./@^~{}-]+$", a) else ""
+        return ""
+    return None
+
+
+def _trovati(testo: str) -> list:
+    return list(dict.fromkeys(name for rx, name in COMPILED if testo.strip() and rx.search(testo)))
+
+
+def _aggiunte(diff: str) -> str:
+    return "\n".join(ln[1:] for ln in diff.splitlines()
+                     if ln.startswith("+") and not re.match(r"^\+\+\+ (?:b/|/dev/null|\"b/)", ln))
+
+
+def _scansiona_commit_tree(repo: str, albero: str) -> int:
+    """`git commit-tree <albero>` committa un albero costruito a mano (hash-object, mktree, write-tree): lo
+    stage può essere vuoto, e il gate leggeva solo quello."""
+    if not albero:
+        return _ask("scansione-fallita", "git commit-tree su un albero che la guardia non può leggere dal comando "
+                    "(una variabile o un comando dentro il comando). Se confermi, il commit parte senza controllo "
+                    "dei segreti: crea prima l'albero, poi passa il suo hash.", "errore")
+    for base in ("HEAD", _ALBERO_VUOTO):
+        r = _git(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0", base,
+                  albero], repo, encoding="utf-8", errors="replace")
+        if r.returncode == 0:
+            uniq = _trovati(_aggiunte(r.stdout))
+            if uniq:
+                return _ask(FAMIGLIA.get(uniq[0], "segreto-altro"),
+                            "Possibile secret nell'albero di git commit-tree: " + ", ".join(uniq[:5]) + ". "
+                            "Un leak pushato è irreversibile. Conferma solo dopo aver verificato che non sia una "
+                            "credenziale reale.")
+            return 0
+    return _ask("scansione-fallita", "git commit-tree su un albero che git non trova: la scansione dei segreti non "
+                "è partita. Conferma solo se sai cosa contiene.", "errore")
+
+
+def _push(data: dict) -> int:
+    """Prima di `git push`: i commit che il remoto non ha ancora si scansionano come un diff in stage. Un commit
+    fatto fuori dalla sessione, o passato da un aggiramento del gate, non usciva controllato da nessuno.
+    Tace se il repository non si legge dal testo: è la seconda rete, non la prima."""
+    command = (data.get("tool_input") or {}).get("command", "")
+    if not isinstance(command, str) or not command:
+        return 0
+    cwd = data.get("cwd") or os.path.expanduser("~")
+    try:
+        repo = _repo_for_command(command, cwd, nomi=("push",))
+    except Exception:
+        return 0
+    if not isinstance(repo, str) or not os.path.isdir(repo):
+        return 0
+    invocazioni = _invocazioni_git(command)
+    args = next((a for s, a, _ in invocazioni if s == "push"), [])
+    liberi, salta = [], False
+    for a in args:
+        if salta:
+            salta = False
+        elif a in ("-o", "--push-option", "--repo", "--receive-pack", "--exec"):
+            salta = True
+        elif not a.startswith("-") and not re.match(r"^\d*[<>]", a):
+            liberi.append(a)
+    remoto = liberi[0] if liberi and re.match(r"^[\w.-]+$", liberi[0]) else ""
+    if not remoto:
+        # senza un remoto scritto vale quello del ramo: con `origin` fisso un ramo che segue un altro remoto
+        # faceva rileggere a ogni push anche i commit già mandati
+        try:
+            ramo = subprocess.run(["git", "-C", repo, "symbolic-ref", "--short", "-q", "HEAD"], capture_output=True,
+                                  text=True, timeout=3, check=False).stdout.strip()
+            for chiave in ((f"branch.{ramo}.pushRemote", "remote.pushDefault", f"branch.{ramo}.remote") if ramo else ()):
+                r = subprocess.run(["git", "-C", repo, "config", "--get", chiave], capture_output=True, text=True,
+                                   timeout=3, check=False)
+                if r.returncode == 0 and re.match(r"^[\w.-]+$", r.stdout.strip()):
+                    remoto = r.stdout.strip()
+                    break
+        except (OSError, subprocess.SubprocessError):
+            pass
+        remoto = remoto or "origin"
+    rami = [r.lstrip("+").split(":", 1)[0] for r in liberi[1:]]
+    rami = [r for r in rami if r and re.match(r"^[\w./@^~-]+$", r)] or ["HEAD"]
+    if any(a in ("--all", "--mirror", "--branches") for a in args):
+        rami = ["--branches"]
+    try:
+        r = _git(["git", "-C", repo, "log", "-p", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0",
+                  "--format=", f"--max-count={_PUSH_MAX_COMMIT}", *rami, "--not", f"--remotes={remoto}"],
+                 repo, encoding="utf-8", errors="replace")
+    except _Fallita as fallita:
+        return _ask("scansione-fallita", f"La scansione dei commit da spingere non è partita: {fallita.causa}. "
+                    "Se confermi, il push parte senza controllo dei segreti.", fallita.tipo)
+    except Exception:
+        return 0
+    if r.returncode:
+        return 0  # fuori da un repository, o un ramo che non esiste: il push fallisce da solo
+    uniq = _trovati(_aggiunte(r.stdout))
+    if not uniq:
+        return 0
+    return _ask(FAMIGLIA.get(uniq[0], "segreto-altro"),
+                "Possibile secret nei commit che il push manda al remoto: " + ", ".join(uniq[:5]) + ". "
+                "Un leak pushato è irreversibile. Conferma solo dopo aver verificato che non sia una credenziale "
+                "reale; se lo è, toglila dai commit prima di spingere.")
+
+
 def _ask(regola: str, reason: str, causa: str = "") -> int:
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": reason}}))
     _regola(regola)
@@ -675,11 +857,26 @@ def main() -> int:
 
     if data.get("tool_name") not in ("Bash", "Monitor"):  # Monitor lancia comandi shell (19/10/2026)
         return 0
+    # Modo `push` (21/11/2026, #6259, S10): il dispatcher lo chiama su ogni git push.
+    if sys.argv[1:2] == ["push"]:
+        try:
+            return _push(data)
+        finally:
+            if hasattr(signal, "SIGALRM"):
+                signal.alarm(0)
     command = (data.get("tool_input") or {}).get("command", "")
     if not isinstance(command, str) or not command:
         return 0
     cwd = data.get("cwd") or os.path.expanduser("~")
-    repo = _repo_for_command(command, cwd)
+    # Gli alias che valgono commit e `git commit-tree` (S10): senza, il gate usciva con "nessun commit".
+    try:
+        invocazioni = _invocazioni_git(command)
+        alias, aggiungono = _alias_di_commit(command, cwd, invocazioni)
+    except Exception:
+        invocazioni, alias, aggiungono = [], set(), set()
+    albero = _albero_commit_tree(invocazioni)
+    nomi = ("commit",) + tuple(sorted(alias)) + (("commit-tree",) if albero is not None else ())
+    repo = _repo_for_command(command, cwd, nomi)
     if repo is False:
         return 0
     if isinstance(repo, tuple):
@@ -710,11 +907,22 @@ def main() -> int:
     # `git commit -a/--all` mette in stage i file tracciati modificati DURANTE il
     # commit: al momento di questo check (PreToolUse) l'index non li contiene ancora,
     # quindi il solo `diff --cached` mancherebbe un secret in un file già tracciato.
-    commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
-    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command, _RE_NOMI))
-    invocazioni = _invocazioni_git(command)
+    if albero is not None and not any(s == "commit" or s in alias for s, _, _ in invocazioni):
+        if hasattr(signal, "SIGALRM"):
+            signal.alarm(0)
+        try:
+            return _scansiona_commit_tree(repo, albero)
+        except _Fallita as fallita:
+            return _ask("scansione-fallita", f"La scansione dei segreti non è partita: {fallita.causa}. Se "
+                        "confermi, il commit parte senza controllo dei segreti.", fallita.tipo)
+    # Un alias di commit può portare -a nel suo valore: si leggono anche le modifiche non in stage.
+    commit_all = bool(alias) or bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
+    # `git stage` è `git add`; un sottocomando in una variabile (`A=add; git $A f`) o un alias di add può
+    # aggiungere file: si leggono tutti i file nuovi, come per `git add -A` (S10).
+    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\s(?:add|stage)\b", command, _RE_NOMI)) or bool(aggiungono) or \
+        any(s.startswith("$") or "`" in s for s, _, _ in invocazioni)
     percorsi = next((_percorsi_commit(a) for s, a, _ in invocazioni if s == "commit"), [])
-    forzati = [p for s, a, _ in invocazioni if s == "add" for p in _forzati_add(a)]
+    forzati = [p for s, a, _ in invocazioni if s in ("add", "stage") for p in _forzati_add(a)]
     specs = _pathspec_add(invocazioni, command) if add_prima else None
     lettura = None
     try:
@@ -751,6 +959,11 @@ def main() -> int:
         # Un file scritto nello stesso comando prima di `git add` non esiste ancora quando la guardia legge il
         # repository: si scansiona anche il testo del comando, senza il messaggio di commit (1/11/2026, F22).
         added += "\n" + re.sub(r"""(?:\s-m|\s--message)(?:=|\s+)(?:"[^"]*"|'[^']*'|\S+)""", " ", command)
+        # Anche i pezzi base64 del comando, decodificati: il file che ne nasce non esiste ancora (S10).
+        try:
+            added += "\n" + _decodificati(command)
+        except Exception:
+            pass
     found = [name for rx, name in COMPILED if added.strip() and rx.search(added)]
     if not found:
         if parziale:

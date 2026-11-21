@@ -72,14 +72,17 @@ def prova(guardia: str) -> list[str]:
         ("PL11", "allow claude-md-progetto\n", "Edit", "CLAUDE.md", None, True, True, "allow"),
         ("PL12", "allow dot-claude-progetto\n", "Edit", ".claude/settings.local.json", None, True, True, "allow"),
         ("PL13", "allow dot-claude\n", "Edit", ".claude/worktrees/w1/a.py", None, True, True, "silent"),
-        ("PL14", "allow dot-claude-progetto\n", "Write", "personale/session-start.sh", "x", False, False, "silent"),
+        # Dal 21/11/2026 (#6259, S4) personale/session-start.sh chiede una conferma: parte a ogni avvio.
+        ("PL14", "allow dot-claude-progetto\n", "Write", "personale/session-start.sh", "x", False, False, "non-aperto"),
         ("PL15", "allow dot-claude-progetto\n", "Write", ".claude/settings.local.json", "{ non json", True, True, "deny"),
         ("PL16", None, "Write", ".claude/settings.json", "{ non json", True, True, "deny"),
     ]
     for codice, local, strumento, relativo, contenuto, esiste, in_progetto, atteso in casi:
         avuto = decidi(guardia, local, strumento, relativo, contenuto, esiste, in_progetto)
         # Il CLAUDE.md esistente resta protetto: dal 3/11/2026 (#4473) chiede invece di negare.
-        if avuto != atteso and not (atteso == "protetto" and avuto in ("ask", "deny")):
+        # "non-aperto": la riga del .local non lo apre. Muto fino al 21/11/2026, poi una conferma (#6259, S4).
+        if avuto != atteso and not (atteso == "protetto" and avuto in ("ask", "deny")) \
+                and not (atteso == "non-aperto" and avuto in ("silent", "ask")):
             rossi.append(f"{codice} {strumento} {relativo}: atteso {atteso}, avuto {avuto}")
     avuto = decidi(guardia, "allow dot-claude-progetto\n", "Write", ".claude/data/a.md", "x", False, True,
                    config_altrove="progetto/.claude")

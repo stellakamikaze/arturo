@@ -246,6 +246,28 @@ def _emetti_locale(categoria, avviso="", chiede=None, percorso=None, rp="", defa
         sys.exit(0)
 
 
+# 21/11/2026 (#6259, rilievo S4 della revisione del 20/11): le stesse voci nuove di PERCORSI_PROTETTI in
+# block-dangerous.py (banco SU06). Sono file che la persona cambia anche di proposito: una conferma, senza unlock.
+_AVVIO_CASA = ('.gitconfig', '.config/git/config', '.ssh/authorized_keys', '.ssh/rc', '.zshrc', '.zshenv',
+               '.zprofile', '.zlogin', '.bashrc', '.bash_profile', '.bash_login', '.profile',
+               '.config/fish/config.fish')
+
+
+def _avvio_della_persona(rp, claude_dir):
+    """True per un file che parte da solo e che la persona può voler cambiare: i suoi script di sessione e la
+    barra in ~/.claude/personale, la config di git, i file che la shell legge a ogni apertura, le chiavi
+    ammesse da ssh."""
+    piega = (lambda s: s.casefold()) if sys.platform in ('darwin', 'win32') else (lambda s: s)
+    p = piega(rp)
+    personale = piega(os.path.join(claude_dir, 'personale'))
+    if os.path.dirname(p) == personale and (p.endswith(('.sh', '.js')) or os.path.basename(p) == 'aspetto.json'):
+        return True
+    if p.endswith(os.sep + '.git' + os.sep + 'config'):
+        return True
+    casa = os.path.realpath(os.path.expanduser('~'))
+    return any(p == piega(os.path.join(casa, *nome.split('/'))) for nome in _AVVIO_CASA)
+
+
 def _persistenza(rp):
     """True se il path installa codice che parte da solo: git hook o servizio di avvio. Su macOS e Windows
     il confronto ignora le maiuscole, come il disco (~/library/launchagents, finding 11)."""
@@ -373,6 +395,18 @@ def main():
         # Le righe per percorso del .local (21/11/2026, #6278): da qui in giù stringono la decisione della
         # categoria. Sopra, sblocchi e percorsi di avvio restano col default di Arturo.
         percorso = _percorso_locale(rp, claude_dir)
+
+        # Categoria 1-bis: i file che partono da soli e che la persona cambia anche di proposito -> una conferma
+        if _avvio_della_persona(rp, claude_dir):
+            if unlocked('system-unlock'):
+                _emit("allow", "percorso di avvio automatico sbloccato da conferma utente")
+                sys.exit(0)
+            chiede()
+            _emit("ask", (
+                f"Modifica di {rp}: è un file che parte da solo, a ogni sessione, a ogni shell aperta, a ogni "
+                "comando di git o a ogni accesso via ssh. Conferma se l'hai chiesta tu."
+            ))
+            sys.exit(0)
 
         # Categoria 2: CLAUDE.md e CLAUDE.local.md (ovunque). Il .local sono istruzioni come l'altro, e la shell
         # le chiedeva già (block-dangerous, PERCORSI_PROTETTI): via Edit e Write passavano (#5159, 10/11/2026).

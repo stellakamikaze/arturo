@@ -125,7 +125,10 @@ REGOLE = {
                                      "rm-cartella", "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs",
                                      "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile", "sblocco",
                                      "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-destinazione",
-                                     "git-stash", "git-amend", "git-worktree"}),
+                                     "git-stash", "git-amend", "git-worktree",
+                                     # 21/11/2026 (#6259): le regole degli aggiramenti S5 e S9
+                                     "scarica-esegue", "codice-nascosto", "git-scarta", "sposta-cartella",
+                                     "docker-monta"}),
     "commit-secret-gate.py": frozenset(FAMIGLIE_SEGRETI + ("scaduta", "repo-ignoto", "scansione-fallita")),
     # 21/11/2026, #5762: anche queste tre dicono la regola. exfil-guard e data-guard: i nomi passati a _ask().
     # comms-guard: la famiglia del canale (terza colonna di SEND_BINARIES, FAMIGLIA_MAILTO, FAMIGLIA_ENDPOINT),
