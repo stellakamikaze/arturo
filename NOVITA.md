@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Un rilascio vale solo con la firma SSH di Arturo
+
+**Cosa cambia**: l'aggiornamento accetta un rilascio solo se la firma è SSH e viene dalla chiave di
+Arturo. Prima un rilascio firmato con una chiave PGP passava se quella chiave stava nel tuo portachiavi
+gpg, anche se non era di Arturo. Adesso quel rilascio ferma l'aggiornamento con l'avviso di possibile
+compromissione.
+
+**Il principio**: la revisione di sicurezza del 20/11/2026 ha provato il buco. Git sceglie il programma
+dalla firma scritta nel rilascio, e una firma PGP salta il file `firme/rilasci.allowed_signers`.
+
+**Da sapere**: i rilasci di Arturo sono sempre stati firmati SSH, quindi per te non cambia niente.
+
+---
+
 ## 2026-11-21 — La privacy dice la base giuridica di ogni dato
 
 **Cosa cambia**: la pagina [privacy](docs/privacy.md) dice adesso, per ogni dato, su quale base esce e

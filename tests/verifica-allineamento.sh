@@ -253,6 +253,8 @@ BANCHI=(
   test_glob_segreti_2026_11_21.py
   # Gli aggiramenti delle guardie della revisione del 20/11, rilievi S4-S10 e S13 (21/11/2026, #6259).
   test_aggiramenti_2026_11_21.py
+  # La verifica dei rilasci accetta solo firme SSH (21/11/2026, #6258, rilievo S1 della revisione del 20/11).
+  test_firme_ssh_2026_11_21.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -542,6 +544,8 @@ BASELINE=(
   "test_glob_segreti_2026_11_21.py e794f3e radice"
   # Gli aggiramenti della revisione del 20/11 (21/11/2026, #6259): 89 forme passano mute. 02808d8, il dev prima.
   "test_aggiramenti_2026_11_21.py 02808d8 radice"
+  # Un tag firmato PGP passa dal portachiavi della persona (21/11/2026, #6258). ff920f0, il dev prima.
+  "test_firme_ssh_2026_11_21.py ff920f0"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
