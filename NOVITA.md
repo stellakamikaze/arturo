@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — le skill che hai già ricevono la lista "Finito quando" con una domanda sola
+
+**Cosa cambia**: `/system-audit` ti dice in una riga quali skill tue non hanno ancora la lista "Finito
+quando", e ti avvisa se una riga di "Attrezzi" cita un file che non c'è più. Sono avvisi, mai errori: una
+skill scritta prima funziona come prima. Per sistemarne una scrivi `/creaskill <nome>`: Claude non rifà
+tutte le domande, ti chiede solo "come capisci che è venuto bene?" e aggiunge le due sezioni in fondo
+alla skill, dopo il tuo sì. Anche `/revisione` conta queste skill, e quando trova un lavoro che ripeti
+senza una skill ti propone `/creaskill`.
+
+**Il principio**: una regola nuova vale anche per il lavoro già fatto, senza obbligarti a rifarlo.
+
+**A chi serve**: a chi ha scritto skill sue prima del 20/11. Non devi fare niente finché non ti serve.
+
+---
+
 ## 2026-11-21 — lo script che ti è servito oggi finisce nella skill, non nel cestino
 
 **Cosa cambia**: se in una sessione hai usato una skill tua e Claude ha scritto uno script in una cartella

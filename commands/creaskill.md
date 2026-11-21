@@ -1,6 +1,6 @@
 ---
 description: Crea una skill tua - cinque domande, una per volta, poi la skill in ~/.claude/skills/ che Claude usa da solo quando la richiesta torna
-argument-hint: "[il lavoro che vuoi trasformare in skill] (opzionale)"
+argument-hint: "[il lavoro che vuoi trasformare in skill, o il nome di una skill che hai già] (opzionale)"
 ---
 
 # Crea una skill
@@ -14,6 +14,26 @@ Chi ti parla **potrebbe non essere una persona tecnica**. Parla semplice, una do
 e non nominare YAML, frontmatter o trigger: sono affari tuoi.
 
 **Cosa dice la persona**: $ARGUMENTS
+
+## Se la skill c'è già
+
+Se la persona scrive il nome di una skill, o parla di una skill che ha già, guarda prima com'è:
+
+```bash
+python3 "${ARTURO_CODICE:-$HOME/.claude}/bin/skill_sezioni.py" stato "nome-della-skill"
+```
+
+- `ASSENTE`: è un lavoro nuovo, vai al Passo 1.
+- `ARTURO`: è una skill di Arturo e non si tocca. Le sue regole la persona le aggiunge in
+  `~/.claude/personale/<nome>.md`; un difetto va a chi mantiene Arturo con `/segnala`.
+- `COMPLETA`: ha già "Finito quando" e "Attrezzi". Dillo e fermati. Se la persona vuole cambiare
+  la lista, la correggi con lei riga per riga.
+- `MANCA|<sezioni>`: la skill è nata prima delle due sezioni e funziona. Non rifare le domande da
+  1 a 4 e non toccare il resto del file. Leggi il suo `SKILL.md`, poi fai solo la domanda 5 del
+  Passo 1; se manca solo "Attrezzi", nessuna domanda. Mostra le sezioni che aggiungi, con i titoli
+  e la forma del Passo 3, e dopo il sì scrivile in fondo al file. Se nella cartella della skill ci
+  sono già script o modelli, "Attrezzi" nasce con una riga per ognuno: il file e quando si usa.
+  Chiudi col controllo del Passo 4, senza la prova in una sessione nuova.
 
 ## Passo 1 — Cinque domande
 
@@ -52,7 +72,8 @@ done
 echo "$ESITO"
 ```
 
-Con `OCCUPATO` scegli un altro nome. Evita anche i nomi generici (`posta`, `scrivi`, `report`):
+Con `OCCUPATO` scegli un altro nome; se la persona voleva sistemare proprio quella skill, torna a
+"Se la skill c'è già". Evita anche i nomi generici (`posta`, `scrivi`, `report`):
 se un giorno Arturo porta una skill con lo stesso nome, il prossimo `/aggiorna` va in conflitto.
 Un nome che dice il lavoro della persona non corre questo rischio.
 

@@ -81,6 +81,9 @@ F33 gli attrezzi hanno un destino (21/11/2026, #6277): se la sessione ha usato u
 (data/correzioni/<sessione>.skill), l'inventario propone il destino "skill" per il codice temporaneo o
 fuori da un repository; un file dentro ~/.claude/skills/<nome>/ non è più escluso; la FASE 2 di /fine
 ha la riga del destino nuovo.
+F34 le skill che la persona ha già (21/11/2026, #6277): /creaskill col nome di una skill sua legge lo stato
+da bin/skill_sezioni.py, fa solo la domanda 5 e aggiunge le sezioni dopo il sì; una skill di Arturo resta
+ARTURO, anche col clone; in /system-audit il controllo dà solo WARN.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1626,6 +1629,58 @@ def test_f33(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f34(repo: Path) -> None:
+    """/creaskill su una skill che c'è già: lo stato della skill, e solo la domanda 5 dopo il sì."""
+    crea = read(serve(repo, "commands/creaskill.md", "F34"))
+    assert "## Se la skill c'è già" in crea and "## Passo 1" in crea, "F34 /creaskill non ha la sezione per la skill che c'è già"
+    gia = crea[crea.index("## Se la skill c'è già"):crea.index("## Passo 1")]
+    for pezzo in ("bin/skill_sezioni.py\" stato", "`ASSENTE`", "`ARTURO`", "`COMPLETA`", "`MANCA|<sezioni>`",
+                  "fai solo la domanda 5", "non toccare il resto del file", "dopo il sì"):
+        assert pezzo in gia, f"F34 /creaskill, skill che c'è già, non dice {pezzo!r}"
+    assert gia.index("dopo il sì") > gia.index("fai solo la domanda 5"), "F34 la scrittura viene prima della domanda"
+    script = serve(repo, "bin/skill_sezioni.py", "F34")
+    audit = read(serve(repo, "skills/system-audit/audit.sh", "F34"))
+    assert "skill_sezioni.py" in audit, "F34 /system-audit non controlla le skill della persona"
+    blocco = audit[audit.index("skill_sezioni.py"):audit.index('echo "=== System Audit ==="')]
+    assert "warning " in blocco and not re.search(r"(?m)^\s*ko ", blocco), \
+        "F34 una skill senza le sezioni nuove dà un FAIL: una skill vecchia funziona"
+
+    with tempfile.TemporaryDirectory(prefix="arturo-f34-") as tmp:
+        orsa = Path(tmp) / "casa" / ".claude"
+
+        def skill(nome: str, corpo: str) -> None:
+            (orsa / "skills" / nome).mkdir(parents=True, exist_ok=True)
+            (orsa / "skills" / nome / "SKILL.md").write_text(
+                f"---\nname: {nome}\ndescription: prova\n---\n# Prova\n\n{corpo}", encoding="utf-8")
+
+        skill("lettera-vecchia", "## Che cosa deve uscire\n\nUna lettera.\n")
+        skill("senza-attrezzi", "## Finito quando\n\n- La data c'è?\n")
+        skill("lista-vuota", "## Finito quando\n\n## Attrezzi\n")
+        skill("conti-nuovi", "## Finito quando\n\n- Il totale torna?\n\n## Attrezzi\n\nNasce vuota.\n")
+        env = {**os.environ, "HOME": str(orsa.parent), "USERPROFILE": str(orsa.parent), "CLAUDE_CONFIG_DIR": str(orsa),
+               "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1"}
+
+        def stato(nome: str) -> str:
+            r = subprocess.run([sys.executable, str(script), "stato", nome], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", env=env, timeout=60)
+            assert r.returncode == 0, f"F34 stato {nome}: exit {r.returncode}: {r.stderr[-300:]}"
+            return r.stdout.strip()
+
+        attesi = {"lettera-vecchia": "MANCA|Finito quando, Attrezzi", "senza-attrezzi": "MANCA|Attrezzi",
+                  "lista-vuota": "MANCA|Finito quando", "conti-nuovi": "COMPLETA", "skill-che-non-esiste": "ASSENTE",
+                  "todo": "ARTURO", "fine": "ARTURO", "../fuori": "ASSENTE"}
+        avuti = {nome: stato(nome) for nome in attesi}
+        assert avuti == attesi, f"F34 lo stato delle skill è sbagliato: {avuti}"
+        # Col clone le skill di Arturo stanno nella cartella della persona: decide l'elenco dei nomi.
+        r = subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import skill_sezioni as s; "
+                            "from pathlib import Path; p = Path(sys.argv[2]); "
+                            "print(s.stato('todo', p, p), s.stato('fine', p, p), s.conto(p, p)['skill'])",
+                            str(script.parent), str(repo)], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", env=env, timeout=60)
+        assert r.stdout.strip() == "ARTURO ARTURO []", \
+            f"F34 col clone una skill di Arturo passa per una skill della persona: {r.stdout!r} {r.stderr[-300:]!r}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
@@ -1633,7 +1688,7 @@ TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F0
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
          "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
-         "F33": test_f33}
+         "F33": test_f33, "F34": test_f34}
 
 
 def main() -> int:

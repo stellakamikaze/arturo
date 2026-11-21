@@ -18,6 +18,9 @@ RV09 un "senza verdetto" per un hook e un classificatore giù ("no verdict (erro
 RV10 le sessioni di prova restano fuori dall'estratto: quella col nome prova- (bin/prova.py, anche dopo un
      cambio di nome) e quella nata prima del marcatore, dal primo prompt; una vera che comincia con
      "Rispondi solo" e continua resta dentro, e estrai dice quante ne ha saltate (#5877).
+RV11 igiene ha la riga "skill tue": conta le skill della persona, nomina quelle senza "Finito quando" col
+     rimedio /creaskill <nome>, conta gli attrezzi citati e assenti; la skill nomina /creaskill nella
+     famiglia Ottimizzazione (#6277).
 
 Senza rete né Claude: transcript finti in una HOME di prova. Sulla base 8117411 (il dev prima) sono tutti rossi,
 ognuno col suo codice. --avvelena: ogni veleno toglie la riga che il suo caso sorveglia.
@@ -34,7 +37,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08", "RV09", "RV10"]
+CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08", "RV09", "RV10", "RV11"]
 SEGRETO = "sk-prova-NONDEVEUSCIRE-4242"
 
 
@@ -249,6 +252,25 @@ def prova(repo: Path, solo: str = "") -> list:
             if not (campi and nome and citati and not mancanti and tele and '"revisione"' in tele.group(1)):
                 rossi.append(f"RV08 skill: frontmatter {bool(campi and nome)}, citati {sorted(citati)}, "
                              f"mancanti {mancanti}, telemetria {bool(tele and 'revisione' in tele.group(1))}")
+        if not solo or solo == "RV11":
+            vecchia = orsa / "skills" / "lettera-vecchia"
+            vecchia.mkdir(parents=True, exist_ok=True)
+            (vecchia / "SKILL.md").write_text("---\nname: lettera-vecchia\ndescription: La lettera del mese.\n---\n"
+                                              "# Lettera\n\n## Che cosa deve uscire\n\nUna lettera.\n", encoding="utf-8")
+            nuova = orsa / "skills" / "conti-nuovi"
+            nuova.mkdir(parents=True, exist_ok=True)
+            (nuova / "SKILL.md").write_text("---\nname: conti-nuovi\ndescription: I conti del mese.\n---\n# Conti\n\n"
+                                            "## Finito quando\n\n- Il totale torna?\n\n## Attrezzi\n\n"
+                                            "- `somma-che-manca.py`: somma le righe.\n", encoding="utf-8")
+            rci, ti = esegui([sys.executable, str(script), "igiene"], env)
+            riga_skill = next((r for r in ti.splitlines() if r.startswith("skill tue:")), "")
+            ottimizzazione = skill.split("**Ottimizzazione**", 1)[-1].split("**Problema**", 1)[0]
+            ok = (rci == 0 and 'skill tue: 2, 1 senza "Finito quando" (lettera-vecchia)' in riga_skill
+                  and "/creaskill <nome>" in riga_skill and "1 attrezzi citati e assenti" in riga_skill
+                  and "**Ottimizzazione**" in skill and "`/creaskill`" in ottimizzazione)
+            if not ok:
+                rossi.append(f"RV11 skill senza Finito quando: rc {rci}, riga {riga_skill!r}, "
+                             f"/creaskill in Ottimizzazione {'`/creaskill`' in ottimizzazione}")
     return rossi
 
 
@@ -273,6 +295,13 @@ VELENI = [
     ("RV10", "bin/revisione.py", '            saltate["prova"] += 1\n        elif any(', "            pass\n        if any("),
     ("RV10", "bin/prova.py", 'MARCATO = re.compile(r"^\\s*prova-", re.I)', 'MARCATO = re.compile(r"^\\s*xprova-", re.I)'),
     ("RV10", "bin/revisione.py", "PROVA_PROMPT = 3", "PROVA_PROMPT = 9"),
+    ("RV11", "bin/revisione.py", "        c = skill_sezioni.conto(orsa, codice)",
+     '        c = {"skill": [], "senza": [], "attrezzi": []}'),
+    ("RV11", "bin/skill_sezioni.py", '        if "Finito quando" in mancanti(testo):', "        if False:"),
+    ("RV11", "bin/skill_sezioni.py", "                if not file.exists() and nome not in assenti:",
+     "                if False:"),
+    ("RV11", "skills/revisione/SKILL.md", "Per un lavoro ripetuto senza skill proponi `/creaskill`, con",
+     "Per un lavoro ripetuto senza skill proponi una skill, con"),
 ]
 
 
