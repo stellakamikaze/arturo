@@ -17,7 +17,8 @@ RV09 un "senza verdetto" per un hook e un classificatore giù ("no verdict (erro
      diversi: la raffica del 16/11/2026 era un guasto del server, non un hook (#5873);
 RV10 le sessioni di prova restano fuori dall'estratto: quella col nome prova- (bin/prova.py, anche dopo un
      cambio di nome) e quella nata prima del marcatore, dal primo prompt; una vera che comincia con
-     "Rispondi solo" e continua resta dentro, e estrai dice quante ne ha saltate (#5877).
+     "Rispondi solo" e continua resta dentro, e estrai dice quante ne ha saltate (#5877); una col prova- solo
+     nel nome inventato da Claude Code (agent-name) resta dentro (#6321).
 RV11 igiene ha la riga "skill tue": conta le skill della persona, nomina quelle senza "Finito quando" col
      rimedio /creaskill <nome>, conta gli attrezzi citati e assenti; la skill nomina /creaskill nella
      famiglia Ottimizzazione (#6277).
@@ -110,7 +111,11 @@ def sessioni_di_prova() -> dict:
         "bbbbbbbb-2222.jsonl": [
             json.dumps({"type": "custom-title", "customTitle": "altro-nome", "sessionId": "bbbbbbbb-2222"}),
             utente("PROMPT-DI-PROVA-MARCATA: scrivi un paragrafo sul mare"),
-            json.dumps({"type": "agent-name", "agentName": "prova-5877", "sessionId": "bbbbbbbb-2222"}),
+            json.dumps({"type": "custom-title", "customTitle": "prova-5877", "sessionId": "bbbbbbbb-2222"}),
+        ],
+        "eeeeeeee-5555.jsonl": [  # #6321: prova- solo nel nome inventato da Claude Code, la sessione è vera
+            json.dumps({"type": "agent-name", "agentName": "prova-risposta", "sessionId": "eeeeeeee-5555"}),
+            utente("NOME-INVENTATO-RESTA: correggi il capitolo tre"),
         ],
         "cccccccc-3333.jsonl": [utente("Rispondi solo: PROVA-VECCHIA-NON-DEVE-USCIRE")],
         "dddddddd-4444.jsonl": [utente("Rispondi solo sì o no: il preventivo SESSIONE-VERA-RESTA è partito?"),
@@ -163,7 +168,8 @@ def prova(repo: Path, solo: str = "") -> list:
                 rossi.append(f"RV01 estratto: rc {rc}, mancano {mancano}, entrati {entrati} · {testo[-200:]!r}")
         if not solo or solo == "RV10":
             fuori = [v for v in ("PROMPT-DI-PROVA-MARCATA", "PROVA-VECCHIA-NON") if v in estratto]
-            if rc != 0 or fuori or "SESSIONE-VERA-RESTA" not in estratto or "2 sessioni di prova saltate" not in testo:
+            if rc != 0 or fuori or "SESSIONE-VERA-RESTA" not in estratto or "NOME-INVENTATO-RESTA" not in estratto \
+                    or "2 sessioni di prova saltate" not in testo:
                 rossi.append(f"RV10 sessioni di prova: rc {rc}, entrate {fuori}, vera "
                              f"{'SESSIONE-VERA-RESTA' in estratto} · {testo[-160:]!r}")
         if not solo or solo == "RV02":

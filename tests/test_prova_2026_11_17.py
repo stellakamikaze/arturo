@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """PV01-PV05: le sessioni di prova, marcate dal nome prova- (#5877, prima /revisione del 17/11/2026).
 
-PV01 un transcript con agent-name prova-… (dopo un altro nome) è di prova: rc 0, anche senza claude agents;
+PV01 un transcript con custom-title prova-… (dopo un altro nome) è di prova: rc 0, anche senza claude agents;
 PV02 un nome qualunque, o nessun nome, non è di prova: rc 1; senza id di sessione rc 2;
 PV03 --elimina su una prova in background lancia claude rm del suo lavoro, staccato, dopo l'attesa;
 PV04 --elimina su una prova interattiva non lancia niente, e su una sessione vera non elimina niente;
-PV05 /fine apre con la FASE 0 che lancia prova.py --elimina, e il metodo dice di nascere con --name prova-.
+PV05 /fine apre con la FASE 0 che lancia prova.py --elimina, e il metodo dice di nascere con --name prova-;
+PV06 prova- solo nel nome che Claude Code inventa (agent-name, e name di claude agents) non è di prova: rc 1,
+     e --elimina non lancia niente (#6321: /fine eliminava una sessione vera senza handoff).
 
 Senza rete né Claude: una HOME di prova e un claude finto (ARTURO_CLAUDE) che risponde ad agents --json e
 scrive su file le chiamate rm. Sulla base 22e5935 (il dev prima) sono tutti rossi. --avvelena: ogni veleno
@@ -23,7 +25,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["PV01", "PV02", "PV03", "PV04", "PV05"]
+CASI = ["PV01", "PV02", "PV03", "PV04", "PV05", "PV06"]
 FINTO = """#!/usr/bin/env python3
 import json, os, sys
 if sys.argv[1:2] == ["agents"]:
@@ -51,12 +53,14 @@ def prova(repo: Path, solo: str = "") -> list:
         cartella.mkdir(parents=True)
         nomi = {"11111111-aaaa": ["arturo-vecchio", "prova-5877"], "22222222-bbbb": ["arturo-lavoro"],
                 "33333333-cccc": [], "44444444-dddd": ["prova-mb"], "55555555-eeee": ["prova-qui"]}
+        inventati = {"66666666-ffff": "prova-risposta", "22222222-bbbb": "prova-lavoro"}
         for sid, lista in nomi.items():
             righe = [json.dumps({"type": "user", "message": {"role": "user", "content": "Rispondi solo: ok"}})]
-            righe += [json.dumps({"type": "agent-name" if i else "custom-title",
-                                  **({"agentName": n} if i else {"customTitle": n}), "sessionId": sid})
-                      for i, n in enumerate(lista)]
+            righe += [json.dumps({"type": "custom-title", "customTitle": n, "sessionId": sid}) for n in lista]
             (cartella / f"{sid}.jsonl").write_text("\n".join(righe) + "\n", encoding="utf-8")
+        for sid, n in inventati.items():  # il nome che Claude Code inventa: agent-name, dopo il custom-title
+            with (cartella / f"{sid}.jsonl").open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"type": "agent-name", "agentName": n, "sessionId": sid}) + "\n")
         finto = tmp / "claude"
         finto.write_text(FINTO, encoding="utf-8")
         finto.chmod(0o755)
@@ -64,7 +68,8 @@ def prova(repo: Path, solo: str = "") -> list:
         agents.write_text(json.dumps([
             {"id": "ab12cd34", "kind": "background", "sessionId": "44444444-dddd", "name": "prova-mb"},
             {"kind": "interactive", "sessionId": "55555555-eeee", "name": "prova-qui"},
-            {"id": "ef56ab78", "kind": "background", "sessionId": "22222222-bbbb", "name": "arturo-lavoro"}]))
+            {"id": "ef56ab78", "kind": "background", "sessionId": "22222222-bbbb", "name": "arturo-lavoro"},
+            {"id": "aa99bb00", "kind": "background", "sessionId": "66666666-ffff", "name": "prova-risposta"}]))
         env = {**os.environ, "HOME": str(tmp / "casa"), "USERPROFILE": str(tmp / "casa"), "CLAUDE_CONFIG_DIR": str(orsa),
                "ARTURO_CLAUDE": str(finto), "FINTO_AGENTS": str(agents), "FINTO_RM": str(rm),
                "ARTURO_PROVA_ATTESA": "1", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"}
@@ -107,6 +112,13 @@ def prova(repo: Path, solo: str = "") -> list:
                     or fine.index("## FASE 0") > fine.index("## FASE 1") or "--name prova-" not in metodo:
                 rossi.append(f"PV05 testi: FASE 0 {bool(fase0)}, prova.py {'prova.py --elimina' in fase0}, "
                              f"metodo {'--name prova-' in metodo}")
+        if not solo or solo == "PV06":
+            prima = rm.read_text(encoding="utf-8") if rm.is_file() else ""
+            rc, out = lancia("--session", "66666666-ffff", "--elimina")
+            time.sleep(2)
+            dopo = rm.read_text(encoding="utf-8") if rm.is_file() else ""
+            if rc != 1 or dopo != prima:
+                rossi.append(f"PV06 nome inventato: rc {rc}, rm in più {dopo[len(prima):]!r} · {out[:120]!r}")
     return rossi
 
 
@@ -115,6 +127,8 @@ VELENI = [
     ("PV02", "bin/prova.py", 'MARCATO = re.compile(r"^\\s*prova-", re.I)', 'MARCATO = re.compile(r"^\\s*", re.I)'),
     ("PV03", "bin/prova.py", '        elif elimina_dopo(programma_claude(), lavoro):', '        elif False:'),
     ("PV04", "bin/prova.py", "    if not e_prova(nome):\n", "    if False:\n"),
+    ("PV06", "bin/prova.py", "    nome = nome_da_transcript(file)\n",
+     '    nome = str(voce_agents(sid).get("name") or "") or nome_da_transcript(file)\n'),
     ("PV05", "commands/fine.md", "`python3 ~/.claude/bin/prova.py --elimina; echo \"rc=$?\"`", "`true`"),
 ]
 

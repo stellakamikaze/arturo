@@ -13,9 +13,12 @@ Chi lo legge:
 - Volta (passoCongedo di sessioni.js, stesso prefisso): alla chiusura niente /fine, solo stop e claude rm;
 - bin/revisione.py estrai: la salta, e conta quante ne ha saltate.
 
-Il nome viene da `claude agents --json` (il campo name) o, senza, dall'ultimo custom-title o agent-name del
-transcript: Claude Code scrive lì il valore di --name. Uscita: 0 di prova, 1 non di prova, 2 id o transcript
-assenti. Solo libreria standard.
+Conta solo il nome dato a mano: l'ultimo record custom-title del transcript, che scrivono --name e /rename.
+Il nome che Claude Code inventa da sé sta in agent-name e nel campo name di `claude agents --json`: una sessione
+vera nata in una cartella prova o su un compito "prova…" si chiama prova-… da sola, e /fine la eliminava senza
+handoff né memoria (#6321, stesso difetto del B1 di Volta, #6245). `claude agents --json` serve solo a
+--elimina, per l'id del lavoro in background. Uscita: 0 di prova, 1 non di prova, 2 id o transcript assenti.
+Solo libreria standard.
 """
 from __future__ import annotations
 
@@ -44,23 +47,20 @@ def e_prova(nome) -> bool:
 
 
 def nome_da_record(r) -> str:
-    """Il nome scritto in un record del transcript, o "" se il record non ne porta uno."""
-    if not isinstance(r, dict):
-        return ""
-    if r.get("type") == "custom-title":
+    """Il nome dato a mano in un record del transcript (custom-title), o "". agent-name non conta: è il nome
+    che Claude Code inventa da sé (#6321)."""
+    if isinstance(r, dict) and r.get("type") == "custom-title":
         return str(r.get("customTitle") or "")
-    if r.get("type") == "agent-name":
-        return str(r.get("agentName") or "")
     return ""
 
 
 def nome_da_transcript(file) -> str:
-    """L'ultimo nome della sessione nel transcript: /rename lo cambia, e conta quello di adesso."""
+    """L'ultimo nome dato a mano nel transcript: /rename lo cambia, e conta quello di adesso."""
     nome = ""
     try:
         with open(file, encoding="utf-8", errors="replace") as righe:
             for line in righe:
-                if '"custom-title"' not in line and '"agent-name"' not in line:
+                if '"custom-title"' not in line:
                     continue
                 try:
                     n = nome_da_record(json.loads(line))
@@ -141,19 +141,17 @@ def main(argv: list) -> int:
     if not sid:
         print("prova: manca l'id di sessione (CLAUDE_CODE_SESSION_ID o --session)")
         return 2
-    voce = voce_agents(sid)
-    nome = str(voce.get("name") or "")
-    if not nome:
-        file = trova_transcript(sid, Path(a.projects) if a.projects else radice_projects())
-        if not file and not voce:
-            print(f"prova: transcript non trovato per {sid[:8]}")
-            return 2
-        nome = nome_da_transcript(file) if file else ""
+    file = trova_transcript(sid, Path(a.projects) if a.projects else radice_projects())
+    if not file:
+        print(f"prova: transcript non trovato per {sid[:8]}")
+        return 2
+    nome = nome_da_transcript(file)
     if not e_prova(nome):
-        print(f"prova: no · nome {nome or '(nessuno)'}")
+        print(f"prova: no · nome dato {nome or '(nessuno)'}")
         return 1
     riga = f"prova: sì · nome {nome}"
     if a.elimina:
+        voce = voce_agents(sid)
         lavoro = str(voce.get("id") or "") if voce.get("kind") == "background" else ""
         if not lavoro:
             riga += " · interattiva: niente da eliminare, chiudila"

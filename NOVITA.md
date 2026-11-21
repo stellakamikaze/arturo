@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Una sessione è di prova solo se il nome "prova-" l'hai dato tu
+
+**Cosa cambia**: `/fine` salta handoff, todo e memoria ed elimina la sessione solo se il suo nome comincia
+con `prova-` e quel nome l'hai dato tu, con `claude --name` o `/rename`. Prima bastava anche il nome che
+Claude Code sceglie da solo: una sessione vera nata in una cartella "prova" o su un compito "prova…" si
+chiamava `prova-…` da sola, e `/fine` la cancellava senza salvare niente. Lo stesso vale per `/revisione`,
+che ora tiene quelle sessioni nell'estratto.
+
+**Il principio**: un segno che fa cancellare lavoro deve venire da una persona, non da un'etichetta
+inventata. Claude Code scrive il nome dato a mano in un record a parte del transcript: Arturo legge solo
+quello.
+
+---
+
 ## 2026-11-21 — Sul Mac la sandbox è accesa da /setup
 
 **Cosa cambia**: chi installa Arturo su un Mac trova la sandbox di Claude Code già accesa da `/setup`,
