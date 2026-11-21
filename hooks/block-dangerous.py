@@ -555,11 +555,68 @@ _INNOCUI_SEGRETI = frozenset("ls stat chmod chown chgrp mkdir rmdir touch test [
                              "ssh ssh-add ssh-keygen ssh-copy-id ssh-agent ssh-keyscan rm cd pushd popd true false "
                              "exa eza tree xattr".split())
 _GLOB_CARATTERI = re.compile(r"[*?\[]")
+# Gli stessi segreti di _SEGRETI_CASA, come elenchi: un glob si confronta pezzo per pezzo con ognuno (#6279).
+_SEGRETI_CASA_FILE = (".netrc", ".git-credentials", ".pypirc", ".npmrc", ".claude.json", ".config/gh/hosts.yml",
+                      ".docker/config.json", ".kube/config")
+_SEGRETI_CASA_CARTELLE = (".ssh", ".aws", ".gnupg", ".secrets", ".claude/data/credentials")
+# `shopt -s dotglob` e `setopt globdots`: con queste `*` trova anche i nomi che cominciano col punto.
+_PUNTO_NEI_GLOB = re.compile(r"dotglob|glob_?dots", re.IGNORECASE)
+_GRAFFE_TETTO = 64
 
 
-def _segreto_di_casa(p: str, cartella: bool = False) -> bool:
+def _combacia(nome: str, pezzo: str, punto: bool = False) -> bool:
+    """True se il pezzo di glob trova `nome`, come nella shell: un nome che comincia col punto vuole il punto
+    scritto (`*.json` non trova `.claude.json`, `*` non entra in `.ssh`), salvo con dotglob."""
+    if nome.startswith(".") and not pezzo.startswith(".") and not punto:
+        return False
+    return fnmatch.fnmatchcase(nome, pezzo)
+
+
+def _espandi_graffe(t: str) -> list:
+    """Le parole che la shell ricava dalle graffe (`~/.s{sh,x}/id` dà `~/.ssh/id` e `~/.sx/id`). La shell le
+    espande prima di tilde, variabili e glob. `${VAR}` e una graffa senza virgola restano come sono; oltre
+    _GRAFFE_TETTO parole si tiene la parola scritta."""
+    fatte, coda = [], [t]
+    while coda:
+        parola = coda.pop()
+        inizio = fine = -1
+        virgole = []
+        i = 0
+        while i < len(parola) and fine < 0:
+            if parola[i] == "\\":
+                i += 2
+                continue
+            if parola[i] == "{" and not (i and parola[i - 1] == "$"):
+                livello, virgole, j = 1, [], i + 1
+                while j < len(parola) and livello:
+                    if parola[j] == "\\":
+                        j += 2
+                        continue
+                    if parola[j] == "{":
+                        livello += 1
+                    elif parola[j] == "}":
+                        livello -= 1
+                    elif parola[j] == "," and livello == 1:
+                        virgole.append(j)
+                    j += 1
+                if not livello and virgole:
+                    inizio, fine = i, j - 1
+            i += 1
+        if fine < 0:
+            fatte.append(parola)
+            continue
+        tagli = [inizio] + virgole + [fine]
+        for a, b in zip(tagli, tagli[1:]):
+            coda.append(parola[:inizio] + parola[a + 1:b] + parola[fine + 1:])
+        if len(fatte) + len(coda) > _GRAFFE_TETTO:
+            return [t]
+    return fatte
+
+
+def _segreto_di_casa(p: str, cartella: bool = False, punto: bool = False) -> bool:
     """True se il percorso assoluto `p` è un segreto della home, anche come pattern glob. La cartella ~/.ssh da
-    sola non lo è (`cat ~/.ssh` non legge niente); i lettori di cartelle li giudica _reads_secret_flat."""
+    sola non lo è (`cat ~/.ssh` non legge niente); i lettori di cartelle li giudica _reads_secret_flat.
+    `punto`: il comando accende dotglob, e `*` trova anche i nomi col punto."""
     h = os.path.normpath(_home())
     p = os.path.normpath(p)
     if not p.startswith(h + os.sep):
@@ -572,15 +629,25 @@ def _segreto_di_casa(p: str, cartella: bool = False) -> bool:
     if not _GLOB_CARATTERI.search(rel):
         return "/" in rel or rel in (".netrc", ".git-credentials", ".pypirc", ".npmrc", ".claude.json") \
             if _SEGRETI_CASA.match(rel) and not _SSH_PUBBLICI.match(rel) else False
-    # un glob: conta se una cartella dei segreti ci rientra (`.[s]sh/id_*`, `.s?h/github`)
+    # un glob: conta se un segreto ci rientra, pezzo per pezzo (`.[s]sh/id_*`, `.s?h/github`, `.np?rc`,
+    # `.d*/c*.json`). Dal 21/11/2026 (#6279) anche i file fuori dalle cartelle dei segreti e, per chi legge
+    # le cartelle, la cartella intera (`grep -r x ~/.s??`).
     parti = rel.split("/")
-    for nome in (".ssh", ".aws", ".gnupg", ".netrc", ".secrets", ".git-credentials"):
-        if fnmatch.fnmatchcase(nome, parti[0]):
-            resto = "/".join([nome] + parti[1:])
-            if nome in (".netrc", ".git-credentials") and len(parti) == 1:
+    for nome in _SEGRETI_CASA_FILE:
+        pezzi = nome.split("/")
+        if len(pezzi) == len(parti) and all(_combacia(a, b, punto) for a, b in zip(pezzi, parti)):
+            return True
+    for nome in _SEGRETI_CASA_CARTELLE:
+        pezzi = nome.split("/")
+        if len(parti) < len(pezzi) or not all(_combacia(a, b, punto) for a, b in zip(pezzi, parti)):
+            continue
+        if len(parti) == len(pezzi):
+            if cartella:
                 return True
-            if len(parti) > 1 and not re.search(r"\.pub$|^\.ssh/(?:config|known_hosts|authorized_keys)$", resto):
-                return True
+            continue
+        resto = "/".join(pezzi + parti[len(pezzi):])
+        if not re.search(r"\.pub$|^\.ssh/(?:config|known_hosts|authorized_keys)$", resto):
+            return True
     return False
 
 
@@ -590,6 +657,7 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
         voci = _programmi_con_cd(_fc.testo_shell(command))
     except Exception:
         return False
+    punto = bool(_PUNTO_NEI_GLOB.search(command))
     for nome, args, cds in voci:
         nome = _fc._nome(nome)
         if nome in _INNOCUI_SEGRETI:
@@ -601,7 +669,10 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
             continue
         # la cartella intera conta per chi la sposta, la copia o la manda (`mv ~/.ssh x`); per un lettore di
         # un file solo (`cat ~/.ssh`) no, e i lettori di cartelle li giudica _reads_secret_flat
-        cartella = nome not in _READ_BINS or nome in _LEGGONO_CARTELLE
+        cartella = nome not in _READ_BINS or nome in _LEGGONO_CARTELLE or (
+            nome in ("grep", "egrep", "fgrep") and any(
+                t in ("--recursive", "--dereference-recursive") or (t.startswith("-") and not t.startswith("--")
+                                                                    and ("r" in t or "R" in t)) for t in args))
         basi = [b for b in _basi_dopo_cd(cds, cwd) if b] if cwd else []
         j = 0
         while j < len(args):
@@ -614,19 +685,22 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
                 a = a.split("=", 1)[1]
             elif a.startswith("-") or not a or (" " in a.strip() and not a.startswith(("/", "~", "$"))):
                 continue  # un'opzione, o prosa
-            t = _expand_vars(a)
-            if t is None:
-                continue
-            t = os.path.expanduser(t)
-            for base in ([None] if os.path.isabs(t) else basi):
-                q = os.path.normpath(t if base is None else os.path.join(base, t))
-                if _segreto_di_casa(q, cartella):
-                    return True
-                try:
-                    if not _GLOB_CARATTERI.search(q) and os.path.islink(q) and _segreto_di_casa(os.path.realpath(q)):
+            # le graffe prima di tutto, come nella shell: `~/.s{sh,x}/i?_ed25519` (21/11/2026, #6279)
+            for parola in (_espandi_graffe(a) if "{" in a else [a]):
+                t = _expand_vars(parola)
+                if t is None:
+                    continue
+                t = os.path.expanduser(t)
+                for base in ([None] if os.path.isabs(t) else basi):
+                    q = os.path.normpath(t if base is None else os.path.join(base, t))
+                    if _segreto_di_casa(q, cartella, punto):
                         return True
-                except OSError:
-                    pass
+                    try:
+                        if not _GLOB_CARATTERI.search(q) and os.path.islink(q) and \
+                                _segreto_di_casa(os.path.realpath(q)):
+                            return True
+                    except OSError:
+                        pass
     return False
 
 
