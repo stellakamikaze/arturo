@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ189: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ191: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -860,6 +860,15 @@ HZ188 Cerca doppioni (#6188): le coppie scartate stanno in doppioni-scartati.jso
      frattempo, rifiuta una chiave che non è una coppia di slug e avvisa se non riesce a scrivere.
 HZ189 Cerca doppioni (#6188): il pulsante sta nella schermata Progetti solo se Arturo sa unire; il dialogo
      mostra le coppie, apre l'anteprima dell'unione, gira la coppia o la scarta, e non unisce mai da solo.
+HZ190 Cerca doppioni, ripensarci (#6268): ogni voce di doppioni-scartati.json conta i gesti sulla coppia (dispari
+     scartata, pari rimessa fra i doppioni); riprendiDoppione di dati.js alza il conto senza togliere la voce, il
+     file del 21/11 (un numero per coppia) si legge ancora, il comando doppioniriprendi arriva alla barra e il
+     dialogo ha "Rivedi le scartate" e "Rimetti fra i doppioni". "arturo.doppioniscartate" lo apre già sull'elenco
+     delle scartate, per le prove senza tastiera.
+HZ191 Cerca doppioni su tutte le macchine (#6268): il giro delle note di volta_note.py porta anche
+     doppioni-scartati.json, senza una chiamata in più; fra due copie vale il conto più alto, un file rotto non si
+     unisce e non si riscrive, due copie che dicono lo stesso non si riscrivono, e una finestra di prova non
+     manda i suoi scarti alle macchine vere.
 """
 from __future__ import annotations
 
@@ -875,7 +884,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -15346,12 +15355,283 @@ def hz189(repo: Path, casa: Path) -> str | None:
     for vietato in ("UnisciVai", "uniscivai", "unione(", "unisci(", "writeTextFile"):
         if vietato in codice:
             return f"doppioniui.js unisce o scrive da solo ({vietato}): deve solo aprire l'anteprima e mandare lo scarto alla barra"
-    if codice.count("run(") != 2:
-        return f"doppioniui.js manda {codice.count('run(')} comandi: devono essere due, l'anteprima dell'unione e lo scarto"
+    if codice.count("run(") != 3:
+        return f"doppioniui.js manda {codice.count('run(')} comandi: devono essere tre, l'anteprima dell'unione, lo scarto e il ripensamento"
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189}
+PROVA_RIPRENDI = r"""
+import { writeFileSync, readFileSync } from "node:fs";
+import { doppioniScartati, scartaDoppione, riprendiDoppione, fileDoppioni, voceScarto, scartata } from "./dati.mjs";
+import { avvisi, scritti } from "./herdr.mjs";
+import * as m from "./sessioni.mjs";
+import { instrada } from "./comandi.mjs";
+const out = {};
+const file = () => JSON.parse(readFileSync(fileDoppioni(), "utf-8"));
+if (process.env.HZ_CASO === "rotto") {
+  writeFileSync(fileDoppioni(), "{rotto", "utf-8");
+  out.rotto = [await riprendiDoppione("alfa|beta"), scritti.length, readFileSync(fileDoppioni(), "utf-8")];
+} else {
+  // il file del 21/11 (un numero per coppia) accanto alle voci nuove e a due voci storte
+  writeFileSync(fileDoppioni(), JSON.stringify({ "alfa|beta": 1763700000000, "gamma|delta": { n: 2, quando: 5 },
+    "eta|zeta": { n: 3, quando: 1763700000001 }, "iota|kappa": "ieri", "lambda|mi": { n: 0 } }), "utf-8");
+  out.prima = await doppioniScartati();
+  out.riprendi = await riprendiDoppione("alfa|beta");
+  out.dopo = [file()["alfa|beta"].n, file()["alfa|beta"].quando > 1763700000000, Object.keys(file()).sort(), file()["iota|kappa"]];
+  let n = scritti.length;
+  out.ancora = [await riprendiDoppione("alfa|beta"), await riprendiDoppione("mai|vista"), await riprendiDoppione("gamma|delta"), scritti.length - n, "mai|vista" in file()];
+  out.scartate = Object.keys(await doppioniScartati());
+  // scartare di nuovo una coppia rimessa: il conto sale ancora
+  out.dinuovo = [await scartaDoppione("alfa|beta"), await scartaDoppione("gamma|delta"), file()["alfa|beta"].n, file()["gamma|delta"].n];
+  n = scritti.length;
+  out.ferma = [await scartaDoppione("eta|zeta"), scritti.length - n, file()["eta|zeta"].n];
+  out.tutte = Object.keys(await doppioniScartati()).sort();
+  out.storte = [await riprendiDoppione("volta"), await riprendiDoppione("Volta|arturo"), await riprendiDoppione(null)];
+  out.voci = [voceScarto(5), voceScarto({ n: 2 }), voceScarto({ n: 1.5 }), voceScarto({ n: 0 }), voceScarto("x"), voceScarto(null), voceScarto(NaN), voceScarto([1])];
+  out.stati = [scartata(1), scartata({ n: 2 }), scartata({ n: 3 }), scartata(null), scartata("x")];
+  const senza = (c) => c.replace(/^arturo\./, "");
+  const riprendi = m.comandoRiprendiDoppione("volta", "herdr-arturo");
+  out.comandi = [riprendi === m.comandoRiprendiDoppione("Herdr Arturo", "volta"), riprendi.split("-")[0], riprendi.split("-").length,
+    riprendi === m.comandoScartaDoppione("volta", "herdr-arturo")];
+  out.letti = [m.leggiScartaDoppione(senza(riprendi)), m.leggiScartaDoppione(senza(m.comandoRiprendiDoppione("volta", "volta"))), m.leggiScartaDoppione("doppioniriprendi-0061"),
+    m.leggiScartaDoppione(senza(m.comandoScartaDoppione("volta", "herdr-arturo")))];
+  out.strada = [instrada(senza(riprendi)), instrada("doppioniriprendi-0061"), instrada("doppioniriprendi-zz-0061"), instrada(senza(m.comandoScartaDoppione("a", "b"))),
+    instrada(senza(m.COMANDO_DOPPIONI_SCARTATE)), instrada("doppioniscartate-")].map((x) => [x.verbo, x.lungo]);
+}
+out.avvisi = avvisi.map((a) => [a.level, a.title, a.body ?? ""]);
+console.log(JSON.stringify(out));
+"""
+
+
+def hz190(repo: Path, casa: Path) -> str | None:
+    """Cerca doppioni, ripensarci (#6268): il conto dei gesti nel file, riprendiDoppione, il comando e il dialogo."""
+    mod_vero = repo / "shared/volta/mods/arturo"
+    for file, pezzi in (
+        ("barra.js", ('else if (c === "doppioni-scartate") apriDoppioni(true);',
+                      'else if (c === "doppioni-riprendi") { const x = leggiScartaDoppione(arg); if (x) this.lungo(c, cx, () => riprendiDoppione(chiaveCoppia(x.a, x.b))); }',)),
+        ("doppioniui.js", ('setShared("arturo.doppioni.rivedi", Boolean(rivedi));',
+                           'this.rivedi = shared("arturo.doppioni.rivedi") === true;',
+                           "this.via = { ...via };",
+                           "this.via[c.chiave] = Date.now();",
+                           "run(comandoRiprendiDoppione(a, b));",
+                           "delete this.via[chiave];",
+                           "this.coppie = doppioni(this.memoria, this.via);",
+                           "const l = rivedi ? [] : this.coppie ?? [];",
+                           'bottone(`dp-riprendi-${k}`, "Rimetti fra i doppioni", (cx) => this.riprendi(k, cx), false)',
+                           'bottone("dp-rivedi", rivedi ? "Torna ai doppioni" : "Rivedi le scartate", (cx) => this.volta(cx), false)',
+                           ".children(scartate.map(rigaScartata))")),
+    ):
+        testo = (mod_vero / file).read_text(encoding="utf-8")
+        for pezzo in pezzi:
+            if pezzo not in testo:
+                return f"{file} non porta il ripensamento di Cerca doppioni: manca {pezzo[:80]!r}"
+    dialogo = (mod_vero / "doppioniui.js").read_text(encoding="utf-8")
+    corpo = dialogo.split("  riprendi(chiave, cx) {", 1)[1].split("\n  }\n", 1)[0]
+    if "if (adesso - this.ultimoScarto < SCARTO_PAUSA_MS) return;" not in corpo or "this.ultimoScarto = adesso;" not in corpo:
+        return "doppioniui.js: Rimetti fra i doppioni non ha la pausa dello scarto, e un doppio clic rimette la coppia sotto"
+    node = shutil.which("node")
+    if not node:
+        return None
+    dati = (mod_vero / "dati.js").read_text(encoding="utf-8")
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, dati)
+    shutil.copyfile(mod_vero / "comandi.js", mod / "comandi.mjs")
+    (mod / "comandi.mjs").write_text((mod / "comandi.mjs").read_text(encoding="utf-8").replace('from "./sessioni.js";', 'from "./sessioni.mjs";'), encoding="utf-8")
+    (mod / "prova.mjs").write_text(PROVA_RIPRENDI, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+
+    def gira(caso: str) -> dict:
+        env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso}
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-200:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    try:
+        d = gira("giro")
+        if d["prima"] != {"alfa|beta": 1763700000000, "eta|zeta": 1763700000001}:
+            return f"le coppie scartate: il file del 21/11 non si legge più, o una coppia rimessa o una voce storta passa per scartata: {d['prima']}"
+        if d["riprendi"] is not True or d["dopo"] != [2, True, ["alfa|beta", "eta|zeta", "gamma|delta", "iota|kappa", "lambda|mi"], "ieri"]:
+            return f"riprendiDoppione non alza il conto a 2, toglie la voce o porta via le altre: {d['riprendi']} {d['dopo']}"
+        if d["ancora"] != [True, True, True, 0, False]:
+            return f"una coppia già rimessa, o mai scartata, riscrive il file: {d['ancora']}"
+        if d["scartate"] != ["eta|zeta"]:
+            return f"una coppia rimessa fra i doppioni resta fra le scartate: {d['scartate']}"
+        if d["dinuovo"] != [True, True, 3, 3]:
+            return f"scartare di nuovo una coppia rimessa non alza il conto: {d['dinuovo']}"
+        if d["ferma"] != [True, 0, 3]:
+            return f"una coppia già scartata riscrive il file: {d['ferma']}"
+        if d["tutte"] != ["alfa|beta", "eta|zeta", "gamma|delta"]:
+            return f"le coppie scartate alla fine: {d['tutte']}"
+        if d["storte"] != [False, False, False]:
+            return f"riprendiDoppione prende una chiave che non è una coppia di slug: {d['storte']}"
+        if d["voci"] != [{"n": 1, "quando": 5}, {"n": 2, "quando": 0}, None, None, None, None, None, None]:
+            return f"voceScarto legge male una voce: {d['voci']}"
+        if d["stati"] != [True, False, True, False, False]:
+            return f"scartata: dispari è scartata, pari è rimessa: {d['stati']}"
+        if d["comandi"] != [True, "arturo.doppioniriprendi", 3, False]:
+            return f"il comando del ripensamento (lo stesso nei due versi, diverso dallo scarto): {d['comandi']}"
+        if d["letti"] != [{"a": "herdr-arturo", "b": "volta"}, None, None, {"a": "herdr-arturo", "b": "volta"}]:
+            return f"leggiScartaDoppione non legge il comando del ripensamento, o ne prende uno storto: {d['letti']}"
+        if d["strada"] != [["doppioni-riprendi", True], [None, False], [None, False], ["doppioni-scarta", True], ["doppioni-scartate", False], [None, False]]:
+            return f"instrada non porta doppioniriprendi e doppioniscartate alla barra, o ne prende uno a metà: {d['strada']}"
+        if d["avvisi"]:
+            return f"un giro buono avvisa: {d['avvisi']}"
+        d = gira("rotto")
+        if d["rotto"] != [False, 0, "{rotto"] or [a[:2] for a in d["avvisi"]] != [["warning", "Non ho rimesso la coppia fra i doppioni"]] or "non si legge" not in d["avvisi"][0][2]:
+            return f"con un file rotto il ripensamento lo riscrive, o non lo dice: {d['rotto']} {d['avvisi']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+PROVA_SCARTI_MACCHINE = r'''
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+qua, la, altrove = sys.argv[2], sys.argv[3], sys.argv[4]
+os.environ["HERDR_APP_HOME"] = qua
+import volta_note as vn
+
+FILE = "doppioni-scartati.json"
+
+
+class Finta:
+    """L'altra macchina: lo stesso CODICE, con la cartella di Volta in `dove`."""
+
+    def __init__(self, dove):
+        self.sp, self.chiamate = vn.locale(), []
+        self.sp["app"] = lambda: dove
+
+    def chiama(self, modo, arg="", stdin=None):
+        self.chiamate.append(modo)
+        if modo == "doppioni":
+            return self.sp["doppioni_scrivi"](json.loads(stdin))
+        return self.sp["esegui"](modo, arg)
+
+
+def metti(dove, cosa):
+    with open(os.path.join(dove, FILE), "w", encoding="utf-8") as f:
+        f.write(cosa if isinstance(cosa, str) else json.dumps(cosa))
+
+
+def testo(dove):
+    try:
+        with open(os.path.join(dove, FILE), encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def letto(dove):
+    return vn.scarti(testo(dove))
+
+
+out = {}
+qui = vn.locale()
+# una finestra di prova (HERDR_APP_HOME fuori da ~/.config/herdr-app) non manda i suoi scarti
+metti(qua, {"alfa|beta": 1763700000000})
+r = Finta(la)
+conto = vn.giro(qui, r)
+out["prova"] = [vn.di_prova(), "doppioni" in conto, testo(la), r.chiamate]
+serie = os.path.join(os.path.expanduser("~"), ".config", "herdr-app")
+os.environ["HERDR_APP_HOME"] = serie
+out["serie"] = vn.di_prova()
+del os.environ["HERDR_APP_HOME"]
+out["senza"] = vn.di_prova()
+os.environ["HERDR_APP_HOME"] = qua
+vn.di_prova = lambda: False
+# il giro vero: il file di prima (un numero), un ripensamento fatto qui con l'ora più bassa, uno scarto di là
+metti(qua, {"alfa|beta": 1763700000000, "gamma|delta": {"n": 2, "quando": 10}})
+metti(la, {"gamma|delta": {"n": 1, "quando": 50}, "eta|zeta": {"n": 1, "quando": 7}, "X y": 3, "iota|kappa": "ieri"})
+r = Finta(la)
+conto = vn.giro(qui, r)
+atteso = {"alfa|beta": {"n": 1, "quando": 1763700000000}, "gamma|delta": {"n": 2, "quando": 10}, "eta|zeta": {"n": 1, "quando": 7}}
+out["giro"] = [conto.get("doppioni"), letto(qua) == atteso, letto(la) == atteso, r.chiamate, json.loads(testo(la)) == atteso]
+r = Finta(la)
+out["fermo"] = [vn.giro(qui, r).get("doppioni"), r.chiamate]
+# lo stesso contenuto scritto in due modi (il numero di prima e la voce nuova) non si riscrive
+metti(qua, {"alfa|beta": 5})
+metti(la, {"alfa|beta": {"n": 1, "quando": 5}})
+prima = [testo(qua), testo(la)]
+r = Finta(la)
+out["uguali"] = [vn.giro(qui, r).get("doppioni"), [testo(qua), testo(la)] == prima, r.chiamate]
+# di là il file non c'è: nasce. Di là non c'è Volta (manca la cartella): niente
+os.remove(os.path.join(la, FILE))
+r = Finta(la)
+out["nuovo"] = [vn.giro(qui, r).get("doppioni"), letto(la), testo(qua) == prima[0]]
+r = Finta(altrove)
+out["senza_volta"] = [vn.giro(qui, r).get("doppioni"), os.path.exists(altrove), r.sp["doppioni_scrivi"]({"atteso": None, "json": "{}"})]
+# un file rotto, di qua o di là: non si unisce e non si riscrive
+metti(qua, "{rotto")
+metti(la, {"eta|zeta": 9})
+r = Finta(la)
+out["rotto_qua"] = [vn.giro(qui, r).get("doppioni"), testo(qua), letto(la), r.chiamate]
+metti(qua, {"alfa|beta": 5})
+metti(la, "[1, 2]")
+r = Finta(la)
+out["rotto_la"] = [vn.giro(qui, r).get("doppioni"), letto(qua), testo(la), r.chiamate]
+# la scrittura è un compare-and-swap: se il file è cambiato dopo la lettura non si tocca
+metti(la, {"eta|zeta": 9})
+out["cas"] = [Finta(la).sp["doppioni_scrivi"]({"atteso": "altro", "json": "{}"}), letto(la)]
+a = {"alfa|beta": {"n": 1, "quando": 9}, "gamma|delta": {"n": 3, "quando": 1}}
+b = {"alfa|beta": {"n": 1, "quando": 4}, "gamma|delta": {"n": 2, "quando": 8}, "eta|zeta": {"n": 2, "quando": 0}}
+u = vn.unisci_scarti(a, b)
+out["unione"] = [u == vn.unisci_scarti(b, a), u == vn.unisci_scarti(u, a) == vn.unisci_scarti(b, u), u["alfa|beta"], u["gamma|delta"], u["eta|zeta"], vn.unisci_scarti({}, {})]
+out["scarti"] = [vn.scarti(None), vn.scarti("{rotto"), vn.scarti("[]"), vn.scarti(json.dumps({"alfa|beta": True, "gamma|delta": {"n": True}, "eta|zeta": {"n": 2, "quando": "x"},
+                                                                                  "iota|kappa": {"n": 1.5}, "Alfa|beta": 1, "alfa": 1, "lambda|mi": {"n": 0}}))]
+print(json.dumps(out))
+'''
+
+
+def hz191(repo: Path, casa: Path) -> str | None:
+    """Cerca doppioni su tutte le macchine (#6268): volta_note.py porta doppioni-scartati.json col giro delle note."""
+    mod = repo / "shared/volta/mods/arturo"
+    qua, la = casa / "qua", casa / "la"
+    qua.mkdir()
+    la.mkdir()
+    conf = casa / "conf"
+    conf.mkdir()
+    env = {**os.environ, "CLAUDE_CONFIG_DIR": str(conf), "PYTHONIOENCODING": "utf-8"}
+    env.pop("VOLTA_HC", None)
+    r = subprocess.run([sys.executable, "-c", PROVA_SCARTI_MACCHINE, str(mod), str(qua), str(la), str(casa / "altrove")], capture_output=True, text=True,
+                       encoding="utf-8", cwd=str(casa), env=env, timeout=60)
+    if r.returncode != 0:
+        return f"il giro delle coppie scartate non gira: {(r.stderr or r.stdout).strip()[-300:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["prova"] != [True, False, None, ["leggi"]]:
+        return f"una finestra di prova manda i suoi scarti alle altre macchine: {d['prova']}"
+    if d["serie"] is not False or d["senza"] is not False:
+        return f"di_prova prende per prova la cartella di Volta di serie: {d['serie']} {d['senza']}"
+    if d["giro"] != ["scritte", True, True, ["leggi", "doppioni"], True]:
+        return (f"il giro non porta le coppie scartate da tutte e due le parti, non legge il file di prima, tiene una chiave storta, "
+                f"o fa vincere l'ora sul conto: {d['giro']}")
+    if d["fermo"] != ["uguali", ["leggi"]]:
+        return f"due copie uguali si riscrivono a ogni giro: {d['fermo']}"
+    if d["uguali"] != ["uguali", True, ["leggi"]]:
+        return f"lo stesso contenuto scritto in due modi si riscrive: {d['uguali']}"
+    if d["nuovo"] != ["scritte", {"alfa|beta": {"n": 1, "quando": 5}}, True]:
+        return f"su una macchina senza il file le coppie scartate non arrivano, o il giro riscrive anche la copia che era già giusta: {d['nuovo']}"
+    if d["senza_volta"] != ["scritte", False, {"scritto": False}]:
+        return f"su una macchina senza Volta il giro crea la cartella o scrive: {d['senza_volta']}"
+    if d["rotto_qua"] != ["salta", "{rotto", {"eta|zeta": {"n": 1, "quando": 9}}, ["leggi"]]:
+        return f"un file rotto di qua viene riscritto o mandato di là: {d['rotto_qua']}"
+    if d["rotto_la"] != ["salta", {"alfa|beta": {"n": 1, "quando": 5}}, "[1, 2]", ["leggi"]]:
+        return f"un file rotto di là viene riscritto: {d['rotto_la']}"
+    if d["cas"] != [{"scritto": False}, {"eta|zeta": {"n": 1, "quando": 9}}]:
+        return f"la scrittura non controlla che il file sia quello letto: {d['cas']}"
+    if d["unione"] != [True, True, {"n": 1, "quando": 9}, {"n": 3, "quando": 1}, {"n": 2, "quando": 0}, {}]:
+        return f"unisci_scarti non è commutativa e idempotente, o non fa vincere il conto più alto: {d['unione']}"
+    if d["scarti"] != [{}, None, None, {"eta|zeta": {"n": 2, "quando": 0}}]:
+        return f"scarti legge una voce storta, o dà vuoto per un file rotto: {d['scarti']}"
+    testo = (mod / "volta_note.py").read_text(encoding="utf-8")
+    if 'return {"note": leggi(), "doppioni": doppioni_leggi()}' not in testo:
+        return "volta_note.py non porta più le coppie scartate nella lettura delle note: una chiamata in più per macchina a ogni giro"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -15396,6 +15676,36 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', '    const voce = { n: (voceScarto(d[chiave])?.n ?? 0) + 1, quando: Date.now() };', '    const voce = { n: 1, quando: Date.now() };'),
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', 'export const scartata = (v) => (voceScarto(v)?.n ?? 0) % 2 === 1;', 'export const scartata = (v) => Boolean(voceScarto(v));'),
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', '  if (typeof v === "number" && Number.isFinite(v)) return { n: 1, quando: v };\n', ''),
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', '  if (!v || typeof v !== "object" || !Number.isInteger(v.n) || v.n < 1) return null;', '  if (!v || typeof v !== "object") return null;'),
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', 'export const riprendiDoppione = (chiave) => segnaDoppione(chiave, "riprendi");', 'export const riprendiDoppione = (chiave) => segnaDoppione(chiave, "scarta");'),
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', '.filter(([, v]) => scartata(v))', '.filter(([, v]) => voceScarto(v))'),
+    ('HZ190', 'shared/volta/mods/arturo/dati.js', '  riprendi: { titolo: "Non ho rimesso la coppia fra i doppioni",', '  riprendi: { titolo: "Non ho salvato lo scarto",'),
+    ('HZ190', 'shared/volta/mods/arturo/sessioni.js', 'coppia("doppioniriprendi", ...[slug(a), slug(b)].sort());', 'coppia("doppioniriprendi", slug(a), slug(b));'),
+    ('HZ190', 'shared/volta/mods/arturo/sessioni.js', '/^doppioni(?:scarta|riprendi)-((?:[0-9a-f]{4})+)', '/^doppioniscarta-((?:[0-9a-f]{4})+)'),
+    ('HZ190', 'shared/volta/mods/arturo/comandi.js', 'if (/^doppioniriprendi-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c))', 'if (c.startsWith("doppioniriprendi-"))'),
+    ('HZ190', 'shared/volta/mods/arturo/comandi.js', 'return { verbo: "doppioni-riprendi", arg: c, lungo: true };', 'return { verbo: "doppioni-riprendi", arg: c, lungo: false };'),
+    ('HZ190', 'shared/volta/mods/arturo/barra.js', 'this.lungo(c, cx, () => riprendiDoppione(chiaveCoppia(x.a, x.b)));', 'this.lungo(c, cx, () => null);'),
+    ('HZ190', 'shared/volta/mods/arturo/barra.js', '    else if (c === "doppioni-scartate") apriDoppioni(true);\n', ''),
+    ('HZ190', 'shared/volta/mods/arturo/comandi.js', 'if (c === "doppioniscartate") return { verbo: "doppioni-scartate", arg: null, lungo: false };', 'if (c === "doppioniscartate") return { verbo: "doppioni", arg: null, lungo: false };'),
+    ('HZ190', 'shared/volta/mods/arturo/doppioniui.js', 'setShared("arturo.doppioni.rivedi", Boolean(rivedi));', 'setShared("arturo.doppioni.rivedi", true);'),
+    ('HZ190', 'shared/volta/mods/arturo/doppioniui.js', 'this.rivedi = shared("arturo.doppioni.rivedi") === true;', 'this.rivedi = false;'),
+    ('HZ190', 'shared/volta/mods/arturo/doppioniui.js', '    run(comandoRiprendiDoppione(a, b));\n', ''),
+    ('HZ190', 'shared/volta/mods/arturo/doppioniui.js', '    this.ultimoScarto = adesso;\n', ''),
+    ('HZ190', 'shared/volta/mods/arturo/doppioniui.js', '    if (adesso - this.ultimoScarto < SCARTO_PAUSA_MS) return;\n', ''),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', 'key=lambda v: (v["n"], v["quando"]))', 'key=lambda v: (v["quando"], v["n"]))'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    d = _dati(testo)\n    if d is None:\n        return None\n    out = {}', '    d = _dati(testo)\n    if d is None:\n        return {}\n    out = {}'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    if not os.path.isdir(app()) or doppioni_leggi() != v.get("atteso"):', '    if not os.path.isdir(app()):'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    if not os.path.isdir(app()) or doppioni_leggi() != v.get("atteso"):', '    os.makedirs(app(), exist_ok=True)\n    if doppioni_leggi() != v.get("atteso"):'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    if not di_prova():\n', '    if True:\n'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    if u == a and u == b:\n        return "uguali"\n', ''),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    if u != a:\n        qui["doppioni_scrivi"]', '    if True:\n        qui["doppioni_scrivi"]'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', 'if isinstance(v, dict) else (1, v)', 'if isinstance(v, dict) else (0, v)'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', 'return {"note": leggi(), "doppioni": doppioni_leggi()}', 'return {"note": leggi(), "doppioni": None}'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '        if not COPPIA.match(k) or isinstance(n, bool)', '        if isinstance(n, bool)'),
+    ('HZ191', 'shared/volta/mods/arturo/volta_note.py', '    return os.path.normcase(os.path.abspath(app)) != os.path.normcase(os.path.abspath(serie))', '    return bool(os.environ.get("HERDR_APP_HOME"))'),
     ('HZ187', 'shared/volta/mods/arturo/doppioni.js', 'export const DOPPIONI_SOGLIA = 2;', 'export const DOPPIONI_SOGLIA = 3;'),
     ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    if (a.slug === b.slug || chiave in via) continue;', '    if (a.slug === b.slug) continue;'),
     ('HZ187', 'shared/volta/mods/arturo/doppioni.js', '    const orfano = senzaScheda(lungo) ? lungo : senzaScheda(corto) ? corto : null;', '    const orfano = lungo;'),
@@ -15421,14 +15731,14 @@ VELENI = [
     ('HZ187', 'shared/volta/mods/arturo/comandi.js', 'if (/^doppioniscarta-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c))', 'if (c.startsWith("doppioniscarta-"))'),
     ('HZ187', 'shared/volta/mods/arturo/comandi.js', 'return { verbo: "doppioni-scarta", arg: c, lungo: true };', 'return { verbo: "doppioni-scarta", arg: c, lungo: false };'),
     ('HZ188', 'shared/volta/mods/arturo/dati.js', '  for (let i = 0; i < SCARTA_TENTATIVI; i += 1) {', '  for (let i = 0; i < 1; i += 1) {'),
-    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'JSON.stringify({ ...d, [chiave]: Date.now() }, null, 1), prima ?? null); return true; }', 'JSON.stringify({ [chiave]: Date.now() }, null, 1), prima ?? null); return true; }'),
-    ('HZ188', 'shared/volta/mods/arturo/dati.js', '    if (d[chiave]) return true;\n', ''),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'JSON.stringify({ ...d, [chiave]: voce }, null, 1), prima ?? null); return true; }', 'JSON.stringify({ [chiave]: voce }, null, 1), prima ?? null); return true; }'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '    if (scartata(d[chiave]) === (verso === "scarta")) return true;\n', ''),
     ('HZ188', 'shared/volta/mods/arturo/dati.js', '  if (!/^[a-z0-9][a-z0-9-]*\\|[a-z0-9][a-z0-9-]*$/.test(String(chiave ?? ""))) return false;\n', ''),
     ('HZ188', 'shared/volta/mods/arturo/dati.js', 'return d && typeof d === "object" && !Array.isArray(d) ? d : null; }', 'return d && typeof d === "object" ? d : null; }'),
-    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  catch { return null; }\n};\nexport async function doppioniScartati', '  catch { return {}; }\n};\nexport async function doppioniScartati'),
-    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'non si legge: sistemalo o toglilo, poi scarta di nuovo la coppia.`, level: "warning" });\n      return false;', 'non si legge: sistemalo o toglilo, poi scarta di nuovo la coppia.`, level: "warning" });\n      return true;'),
-    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  notify({ title: "Non ho salvato lo scarto", body: `La coppia', '  if (false) notify({ title: "Non ho salvato lo scarto", body: `La coppia'),
-    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'tornerà fra i doppioni probabili.`, level: "warning" });\n  return false;', 'tornerà fra i doppioni probabili.`, level: "warning" });\n  return true;'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  catch { return null; }\n};\n// Le coppie scartate adesso', '  catch { return {}; }\n};\n// Le coppie scartate adesso'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', 'non si legge: sistemalo o toglilo, poi ${detto.poi}.`, level: "warning" });\n      return false;', 'non si legge: sistemalo o toglilo, poi ${detto.poi}.`, level: "warning" });\n      return true;'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '  notify({ title: detto.titolo, body: `La coppia', '  if (false) notify({ title: detto.titolo, body: `La coppia'),
+    ('HZ188', 'shared/volta/mods/arturo/dati.js', '${detto.esito}.`, level: "warning" });\n  return false;', '${detto.esito}.`, level: "warning" });\n  return true;'),
     ('HZ188', 'shared/volta/mods/arturo/dati.js', 'export const fileDoppioni = () => `${appHome()}/doppioni-scartati.json`;', 'export const fileDoppioni = () => `${appHome()}/doppioni.json`;'),
     ('HZ189', 'shared/volta/mods/arturo/casa.js', '            .on_click(() => run(COMANDO_DOPPIONI))\n', ''),
     ('HZ189', 'shared/volta/mods/arturo/casa.js', '.when(sa(shared("arturo.capacita"), "unisci"), (el) => el.child(h_flex().id("casa-doppioni")', '.when(true, (el) => el.child(h_flex().id("casa-doppioni")'),

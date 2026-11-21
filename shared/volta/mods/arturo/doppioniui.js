@@ -5,16 +5,18 @@
 //   l'unione vera parte solo dal suo pulsante Unisci.
 // - "Al contrario": resta l'altro progetto.
 // - "Non sono doppioni": la coppia sparisce e non torna (doppioni-scartati.json, lo scrive la barra).
+// Le coppie scartate valgono su tutte le macchine (volta_note.py porta il file, #6268). Per ripensarci: "Rivedi le
+// scartate" mostra l'elenco, e "Rimetti fra i doppioni" riporta la coppia fra le probabili, anche lì dappertutto.
 // Quali coppie, con che motivo e chi resta lo decide doppioni.js, senza Herdr. Qui non si unisce niente.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { theme, props, closeOverlay, openOverlay, run, shared } from "herdr";
+import { theme, props, closeOverlay, openOverlay, run, shared, setShared } from "herdr";
 import { progettiMemoria, doppioniScartati } from "./dati.js";
 import { ICONA } from "./comuni.js";
 import { SPAZIO, TESTO, RAGGIO, ICONA_MISURA } from "./misure.js";
 import { doppioni, alContrario } from "./doppioni.js";
-import { comandoUnisciProva, comandoScartaDoppione, impostaProgetti, nomeProgetto, slug } from "./sessioni.js";
+import { comandoUnisciProva, comandoScartaDoppione, comandoRiprendiDoppione, impostaProgetti, nomeProgetto, slug } from "./sessioni.js";
 
 // L'altezza dell'elenco: quattro coppie intere, le altre scorrono.
 const ALTO = 420;
@@ -24,8 +26,10 @@ export const SCARTO_PAUSA_MS = 500;
 
 // Uno solo aperto.
 let aperto = null;
-export function apriDoppioni() {
+export function apriDoppioni(rivedi = false) {
   if (aperto) closeOverlay(aperto);
+  // "arturo.doppioniscartate" apre il dialogo già sull'elenco delle scartate (prove senza tastiera, herdr-app do)
+  setShared("arturo.doppioni.rivedi", Boolean(rivedi));
   aperto = openOverlay({ mod: "arturo", props: { parte: "doppioni" }, kind: "dialog", width: 640 });
   return true;
 }
@@ -35,7 +39,9 @@ export class Doppioni {
     this.coppie = null;      // null mentre cerca
     this.errore = null;
     this.quanti = 0;         // i progetti guardati
-    this.scartate = 0;       // le coppie già scartate, su questa macchina
+    this.memoria = [];       // i progetti di Arturo: servono a rifare le coppie dopo un ripensamento
+    this.via = {};           // le coppie scartate, { chiave: quando }: valgono su tutte le macchine
+    this.rivedi = shared("arturo.doppioni.rivedi") === true; // l'elenco delle coppie scartate al posto delle probabili
     this.titoli = {};        // slug → titolo, dalla memoria di Arturo
     this.ultimoScarto = 0;
     this.at = 0;
@@ -47,7 +53,8 @@ export class Doppioni {
       if (!memoria) this.errore = "Arturo non ha dato l'elenco dei progetti. Riprova fra poco; se resta così, l'Arturo di questa Volta va aggiornato.";
       else {
         this.quanti = memoria.length;
-        this.scartate = Object.keys(via).length;
+        this.memoria = memoria;
+        this.via = { ...via };
         // i titoli si leggono dalla stessa lista delle coppie: un progetto che la barra non mostra ha il suo qui
         this.titoli = Object.fromEntries(memoria.filter((m) => m?.slug && m.titolo).map((m) => [m.slug, String(m.titolo)]));
         this.coppie = doppioni(memoria, via);
@@ -77,14 +84,39 @@ export class Doppioni {
     this.ultimoScarto = Date.now();
     run(comandoScartaDoppione(c.perdente, c.vincitore));
     this.coppie = this.coppie.filter((x) => x.chiave !== c.chiave);
-    this.scartate += 1;
+    this.via[c.chiave] = Date.now();
+    cx.notify();
+  }
+
+  // Ripensarci (#6268): la coppia `chiave` torna fra le probabili, qui subito e sulle altre macchine al giro delle
+  // note. Le coppie si rifanno da capo: una coppia girata con "Al contrario" torna col verso di Volta. La stessa
+  // pausa dello scarto: la riga sotto sale sotto il puntatore.
+  riprendi(chiave, cx) {
+    const adesso = Date.now();
+    if (adesso - this.ultimoScarto < SCARTO_PAUSA_MS) return;
+    this.ultimoScarto = adesso;
+    const [a, b] = chiave.split("|");
+    run(comandoRiprendiDoppione(a, b));
+    delete this.via[chiave];
+    this.coppie = doppioni(this.memoria, this.via);
+    if (!Object.keys(this.via).length) this.rivedi = false;
+    cx.notify();
+  }
+
+  // Fra le coppie probabili e l'elenco delle scartate.
+  volta(cx) {
+    this.rivedi = !this.rivedi;
+    this.at = 0;
     cx.notify();
   }
 
   render() {
     const t = theme();
     impostaProgetti(shared("arturo.progetti"));
-    const l = this.coppie ?? [];
+    // le scartate, dalla più recente; con l'elenco delle scartate aperto le probabili non si scelgono
+    const scartate = Object.keys(this.via).sort((x, y) => this.via[y] - this.via[x] || (x < y ? -1 : 1));
+    const rivedi = this.rivedi && scartate.length > 0;
+    const l = rivedi ? [] : this.coppie ?? [];
     this.at = Math.max(0, Math.min(this.at, l.length - 1));
 
     const bottone = (id, testo, azione, forte) => div().id(id).px(SPAZIO.l).py(SPAZIO.s + 1).rounded(RAGGIO.controllo).text_size(TESTO.etichetta).cursor_pointer()
@@ -123,14 +155,29 @@ export class Doppioni {
         .child(div().flex_1())
         .child(bottone(`dp-scarta-${c.chiave}`, "Non sono doppioni", (cx) => this.scarta(c, cx), false)));
 
+    // Una coppia scartata: i due progetti e il pulsante per ripensarci.
+    const rigaScartata = (k) => {
+      const [a, b] = k.split("|");
+      const uguali = slug(nome(a)) === slug(nome(b));
+      return h_flex().id(`dp-via-${k}`).p(SPAZIO.l).gap(SPAZIO.m).items_center().rounded(RAGGIO.riga).border_1().border_color(t.border)
+        .child(svg(ICONA("folder")).size(ICONA_MISURA.piccola).flex_none().text_color(t.muted))
+        .child(v_flex().flex_1().min_w(0).gap(SPAZIO.xs)
+          .child(div().truncate().text_size(TESTO.riga).text_color(t.foreground).child(uguali ? `${a} e ${b}` : `${nome(a)} e ${nome(b)}`))
+          .when(!uguali && (nome(a) !== a || nome(b) !== b), (el) => el
+            .child(div().truncate().text_size(TESTO.nota).text_color(t.dim).child(`${a} e ${b}`))))
+        .child(bottone(`dp-riprendi-${k}`, "Rimetti fra i doppioni", (cx) => this.riprendi(k, cx), false));
+    };
+
     const conto = (n, uno, tanti) => `${n} ${n === 1 ? uno : tanti}`;
     const sotto = this.errore ? ""
       : this.coppie === null ? "Guardo nomi, titoli, righe di stato e repository dei tuoi progetti."
+      : rivedi ? `${conto(scartate.length, "coppia scartata", "coppie scartate")}: non ${scartate.length === 1 ? "torna" : "tornano"} su nessuna delle tue macchine, finché non la rimetti fra i doppioni.`
       : `${conto(l.length, "coppia probabile", "coppie probabili")} su ${conto(this.quanti, "progetto", "progetti")}`
-        + (this.scartate ? ` · ${conto(this.scartate, "coppia scartata", "coppie scartate")}, che non ${this.scartate === 1 ? "torna" : "tornano"}` : "");
+        + (scartate.length ? ` · ${conto(scartate.length, "coppia scartata", "coppie scartate")}, che non ${scartate.length === 1 ? "torna" : "tornano"}` : "");
 
     const corpo = this.errore ? div().whitespace_normal().text_size(TESTO.corpo).text_color(t.blocked).child(this.errore)
       : this.coppie === null ? div().text_size(TESTO.riga).text_color(t.muted).child("Cerco i doppioni…")
+      : rivedi ? v_flex().id("dp-scartate").max_h(ALTO).overflow_y_scroll().gap(SPAZIO.m).children(scartate.map(rigaScartata))
       : !l.length ? v_flex().gap(SPAZIO.s)
         .child(div().text_size(TESTO.riga).text_color(t.foreground).child("Nessun doppione probabile"))
         .child(div().whitespace_normal().text_size(TESTO.etichetta).text_color(t.muted)
@@ -154,6 +201,8 @@ export class Doppioni {
       .child(corpo)
       .child(h_flex().items_center()
         .child(div().flex_1().text_size(TESTO.etichetta).text_color(t.dim)
-          .child(l.length ? "Invio mostra l'unione, senza scrivere niente · ↑↓ scegli · Esc chiude" : "Esc chiude")));
+          .child(l.length ? "Invio mostra l'unione, senza scrivere niente · ↑↓ scegli · Esc chiude" : "Esc chiude"))
+        .when(this.coppie !== null && scartate.length > 0, (el) => el
+          .child(bottone("dp-rivedi", rivedi ? "Torna ai doppioni" : "Rivedi le scartate", (cx) => this.volta(cx), false))));
   }
 }

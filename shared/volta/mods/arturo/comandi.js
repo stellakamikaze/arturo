@@ -47,6 +47,10 @@ export function instrada(c) {
   // comando intero: lo legge leggiScartaDoppione di sessioni.js.
   if (c === "doppioni") return { verbo: "doppioni", arg: null, lungo: false };
   if (/^doppioniscarta-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "doppioni-scarta", arg: c, lungo: true };
+  // "doppioniscartate": la revisione aperta già sull'elenco delle coppie scartate (prove senza tastiera, #6268).
+  if (c === "doppioniscartate") return { verbo: "doppioni-scartate", arg: null, lungo: false };
+  // "doppioniriprendi-<esadecimale>-<esadecimale>": la coppia scartata torna fra le probabili (#6268).
+  if (/^doppioniriprendi-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "doppioni-riprendi", arg: c, lungo: true };
   // "menuprogetto-<slug>" e "menutessera-<slug>": il menu del tasto destro su un progetto della colonna e su una
   // tessera di ⌘T, senza clic (prove, herdr-app do).
   const mp = /^menu(progetto|tessera)-([a-z0-9][a-z0-9-]*)$/.exec(c);

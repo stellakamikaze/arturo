@@ -18,7 +18,7 @@ import { rigaMod, decodifica, leggiProvaChecklist, appesa } from "./sessioni.js"
 import { leggiGesto, leggiCompito } from "./sessioni.js";
 import { compito } from "./dati.js";
 import { apriCompito } from "./comuni.js";
-import { unisci, scartaDoppione } from "./dati.js";
+import { unisci, scartaDoppione, riprendiDoppione } from "./dati.js";
 import { leggiUnisci, leggiScartaDoppione, sa } from "./sessioni.js";
 import { apriUnisci } from "./unisci.js";
 import { apriDoppioni } from "./doppioniui.js";
@@ -106,6 +106,8 @@ export class Barra {
     // Cerca doppioni (#6188): la revisione delle coppie probabili; lo scarto di una coppia lo scrive la barra.
     else if (c === "doppioni") apriDoppioni();
     else if (c === "doppioni-scarta") { const x = leggiScartaDoppione(arg); if (x) this.lungo(c, cx, () => scartaDoppione(chiaveCoppia(x.a, x.b))); }
+    else if (c === "doppioni-scartate") apriDoppioni(true);
+    else if (c === "doppioni-riprendi") { const x = leggiScartaDoppione(arg); if (x) this.lungo(c, cx, () => riprendiDoppione(chiaveCoppia(x.a, x.b))); }
     else if (c === "chiedi") apriSuggerimenti();
     else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }
     else if (c === "settimana") apriRevisione();

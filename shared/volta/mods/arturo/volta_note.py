@@ -14,6 +14,10 @@ cambiato nel frattempo (Claude ha appena risposto, il velo ha chiuso la nota) sa
 l'unione sul testo nuovo. L'unione non guarda gli orologi ed è commutativa: due Volta aperte che fanno lo
 stesso giro insieme arrivano alla stessa nota.
 
+Lo stesso giro porta le coppie scartate in Cerca doppioni (#6268, 21/11/2026): doppioni-scartati.json nella
+cartella di Volta di ogni macchina. La lettura delle note porta anche quel file, senza una chiamata in più; se
+le due copie dicono cose diverse, su ogni lato va l'unione (unisci_scarti), con lo stesso compare-and-swap.
+
 Le note non si cancellano: una cartella tolta a mano torna dall'altra macchina. Si chiude con Risolta o Scarta.
 I comandi sull'altra macchina passano da herdr-core (hc exec --on, -i per il pacco su stdin), come in
 volta_sonda.py, da cui vengono hc(), macchine() e le altre funzioni di servizio. Niente nomi di macchine qui.
@@ -22,6 +26,7 @@ Per le prove: VOLTA_HC (il comando hc), CLAUDE_CONFIG_DIR (la cartella della per
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -108,9 +113,28 @@ def scrivi(pacco):
         scritte.append(ident)
     return {"scritte": scritte, "saltate": saltate}
 
+def app():
+    return os.environ.get("HERDR_APP_HOME") or os.path.join(os.path.expanduser("~"), ".config", "herdr-app")
+
+def doppioni_leggi():
+    try:
+        with open(os.path.join(app(), "doppioni-scartati.json"), encoding="utf-8", newline="") as f:
+            return f.read()
+    except OSError:
+        return None
+
+def doppioni_scrivi(v):
+    # senza la cartella di Volta la macchina non ha Volta: niente da scrivere
+    if not os.path.isdir(app()) or doppioni_leggi() != v.get("atteso"):
+        return {"scritto": False}
+    _sostituisci(os.path.join(app(), "doppioni-scartati.json"), v["json"])
+    return {"scritto": True}
+
 def esegui(modo, arg):
     if modo == "leggi":
-        return {"note": leggi()}
+        return {"note": leggi(), "doppioni": doppioni_leggi()}
+    if modo == "doppioni":
+        return doppioni_scrivi(json.loads(sys.stdin.read() or "{}"))
     if modo == "png":
         return {"png": png(arg)}
     if modo == "scrivi":
@@ -204,6 +228,68 @@ def testo(d):
     return json.dumps(d, ensure_ascii=False, indent=2)
 
 
+# --- Le coppie scartate in Cerca doppioni (#6268) ------------------------------------------------------
+# doppioni-scartati.json: { "<slug>|<slug>": { "n": N, "quando": ms } }. `n` conta i gesti della persona sulla
+# coppia (dispari scartata, pari rimessa fra i doppioni, dati.js): fra due copie vale il conto più alto. Un
+# numero solo è il file di prima del 21/11/2026 e vale n 1.
+COPPIA = re.compile(r"^[a-z0-9][a-z0-9-]*\|[a-z0-9][a-z0-9-]*$")
+
+
+def scarti(testo):
+    """Le voci buone del file come { chiave: { n, quando } }. {} se il file non c'è, None se non si legge:
+    un file rotto non si unisce e non si riscrive, porterebbe via gli scarti di prima."""
+    if testo is None:
+        return {}
+    d = _dati(testo)
+    if d is None:
+        return None
+    out = {}
+    for k, v in d.items():
+        n, quando = (v.get("n"), v.get("quando")) if isinstance(v, dict) else (1, v)
+        if not COPPIA.match(k) or isinstance(n, bool) or not isinstance(n, int) or n < 1:
+            continue
+        if isinstance(quando, bool) or not isinstance(quando, (int, float)):
+            if not isinstance(v, dict):
+                continue
+            quando = 0
+        out[k] = {"n": n, "quando": quando}
+    return out
+
+
+def unisci_scarti(a, b):
+    """Una lista sola da due copie. Commutativa e idempotente: per ogni coppia vale il conto più alto, e a
+    pari conto (lo stesso gesto fatto su due macchine) l'ora più alta, che non cambia lo stato."""
+    out = {}
+    for k in set(a) | set(b):
+        out[k] = max((v for v in (a.get(k), b.get(k)) if v), key=lambda v: (v["n"], v["quando"]))
+    return out
+
+
+def di_prova():
+    """Vero per una finestra di prova (HERDR_APP_HOME fuori da ~/.config/herdr-app): i suoi scarti non vanno
+    sulle macchine vere."""
+    serie = os.path.join(os.path.expanduser("~"), ".config", "herdr-app")
+    app = os.environ.get("HERDR_APP_HOME") or serie
+    return os.path.normcase(os.path.abspath(app)) != os.path.normcase(os.path.abspath(serie))
+
+
+def giro_doppioni(qui, remota, testo_la):
+    """Le coppie scartate uguali da tutte e due le parti: "uguali", "scritte" o "salta" (un file rotto)."""
+    testo_qua = qui["doppioni_leggi"]()
+    a, b = scarti(testo_qua), scarti(testo_la)
+    if a is None or b is None:
+        return "salta"
+    u = unisci_scarti(a, b)
+    if u == a and u == b:
+        return "uguali"
+    nuovo = json.dumps(u, ensure_ascii=False, indent=1, sort_keys=True)
+    if u != a:
+        qui["doppioni_scrivi"]({"atteso": testo_qua, "json": nuovo})
+    if u != b:
+        remota.chiama("doppioni", stdin=json.dumps({"atteso": testo_la, "json": nuovo}))
+    return "scritte"
+
+
 class Remota:
     """Le tre chiamate a un'altra macchina, con remoto() di volta_sonda.py: il Python buono lo ricorda lui."""
 
@@ -228,7 +314,11 @@ class Remota:
 def giro(qui, remota):
     """Un giro con una macchina: {scaricate, spinte, unite, saltate}."""
     conto = {"scaricate": 0, "spinte": 0, "unite": 0, "saltate": 0}
-    di_qua, di_la = qui["leggi"](), remota.chiama("leggi")["note"]
+    letto = remota.chiama("leggi")
+    di_qua, di_la = qui["leggi"](), letto["note"]
+    # le coppie scartate prima delle note: sono un file solo, e un guasto sulle note non le ferma
+    if not di_prova():
+        conto["doppioni"] = giro_doppioni(qui, remota, letto.get("doppioni"))
     pacco_qua, pacco_la = [], []
     for ident in sorted(set(di_qua) | set(di_la)):
         a, b = di_qua.get(ident), di_la.get(ident)

@@ -2421,9 +2421,14 @@ export const comandoUnisciVai = (perdente, vincitore) => coppia("uniscivai", per
 // doppioni, e la coppia non torna; i due slug vanno in ordine alfabetico, così i due versi danno lo stesso comando.
 export const COMANDO_DOPPIONI = "arturo.doppioni";
 export const comandoScartaDoppione = (a, b) => coppia("doppioniscarta", ...[slug(a), slug(b)].sort());
-// I due progetti di un comando "doppioniscarta-…" (senza "arturo."), o null: due slug veri e diversi.
+// "arturo.doppioniscartate" (#6268): la revisione aperta già sull'elenco delle coppie scartate.
+export const COMANDO_DOPPIONI_SCARTATE = "arturo.doppioniscartate";
+// "arturo.doppioniriprendi-<esadecimale>-<esadecimale>" (#6268): la coppia scartata torna fra le probabili.
+export const comandoRiprendiDoppione = (a, b) => coppia("doppioniriprendi", ...[slug(a), slug(b)].sort());
+// I due progetti di un comando "doppioniscarta-…" o "doppioniriprendi-…" (senza "arturo."), o null: due slug
+// veri e diversi.
 export function leggiScartaDoppione(c) {
-  const m = /^doppioniscarta-((?:[0-9a-f]{4})+)-((?:[0-9a-f]{4})+)$/.exec(String(c ?? ""));
+  const m = /^doppioni(?:scarta|riprendi)-((?:[0-9a-f]{4})+)-((?:[0-9a-f]{4})+)$/.exec(String(c ?? ""));
   if (!m) return null;
   const a = decodifica(m[1]), b = decodifica(m[2]);
   if (!a || !b || slug(a) !== a || slug(b) !== b || a === b) return null;

@@ -1722,38 +1722,60 @@ export async function unisci(perdente, vincitore) {
 }
 
 // Cerca doppioni (#6188): le coppie che la persona ha scartato ("Non sono doppioni") stanno in
-// doppioni-scartati.json nella cartella di Volta, { "<slug>|<slug>": quando }. Su questa macchina: una coppia
-// scartata qui torna a comparire su un'altra finché non la scarti anche lì.
+// doppioni-scartati.json nella cartella di Volta, { "<slug>|<slug>": { n, quando } }. `n` conta i gesti della
+// persona sulla coppia: dispari è scartata, pari è rimessa fra i doppioni ("Rimetti fra i doppioni", #6268).
+// volta_note.py porta il file sulle altre macchine a ogni giro delle note, e fra due copie vale il conto più
+// alto: uno scarto e un ripensamento arrivano dappertutto senza guardare gli orologi delle macchine. Un numero
+// solo (il file del 21/11/2026, per macchina) vale { n: 1, quando: quel numero }.
 export const fileDoppioni = () => `${appHome()}/doppioni-scartati.json`;
+// Una voce del file come { n, quando }, o null se non è una voce.
+export function voceScarto(v) {
+  if (typeof v === "number" && Number.isFinite(v)) return { n: 1, quando: v };
+  if (!v || typeof v !== "object" || !Number.isInteger(v.n) || v.n < 1) return null;
+  return { n: v.n, quando: Number.isFinite(v.quando) ? v.quando : 0 };
+}
+export const scartata = (v) => (voceScarto(v)?.n ?? 0) % 2 === 1;
 // null se il file c'è e non si legge come un oggetto: chi scrive non lo sostituisce.
 const leggiScartati = (testo) => {
   try { const d = JSON.parse(testo ?? "{}"); return d && typeof d === "object" && !Array.isArray(d) ? d : null; }
   catch { return null; }
 };
+// Le coppie scartate adesso, { chiave: quando }: quelle rimesse fra i doppioni restano nel file e non stanno qui.
 export async function doppioniScartati() {
-  return leggiScartati(await readTextFile(fileDoppioni()).catch(() => null)) ?? {};
+  const d = leggiScartati(await readTextFile(fileDoppioni()).catch(() => null)) ?? {};
+  return Object.fromEntries(Object.entries(d).filter(([, v]) => scartata(v)).map(([k, v]) => [k, voceScarto(v).quando]));
 }
-// Scarta la coppia `chiave` (chiaveCoppia di doppioni.js). La esegue la barra: due scarti di fila si scrivono
-// uno sull'altro, e writeTextFile rifiuta chi ha letto il file prima dell'altro. Allora rilegge e riprova.
-// Un file che non si legge (una virgola sbagliata dopo una correzione a mano) non si riscrive: porterebbe via
-// tutti gli scarti di prima. L'avviso dice di sistemarlo.
+// Scarta la coppia `chiave` (chiaveCoppia di doppioni.js), o la rimette fra i doppioni. La esegue la barra: due
+// gesti di fila si scrivono uno sull'altro, e writeTextFile rifiuta chi ha letto il file prima dell'altro. Allora
+// rilegge e riprova. Un file che non si legge (una virgola sbagliata dopo una correzione a mano) non si riscrive:
+// porterebbe via tutti gli scarti di prima. L'avviso dice di sistemarlo. La voce non si toglie mai: il conto sale
+// di uno, e così il gesto vince sulle copie delle altre macchine.
 export const SCARTA_TENTATIVI = 4;
-export async function scartaDoppione(chiave) {
+const DETTO = {
+  scarta: { titolo: "Non ho salvato lo scarto", poi: "scarta di nuovo la coppia", esito: "tornerà fra i doppioni probabili" },
+  riprendi: { titolo: "Non ho rimesso la coppia fra i doppioni", poi: "rimettila di nuovo", esito: "resta fra le scartate" },
+};
+async function segnaDoppione(chiave, verso) {
+  const detto = DETTO[verso];
   if (!/^[a-z0-9][a-z0-9-]*\|[a-z0-9][a-z0-9-]*$/.test(String(chiave ?? ""))) return false;
   for (let i = 0; i < SCARTA_TENTATIVI; i += 1) {
     const prima = await readTextFile(fileDoppioni()).catch(() => null);
     const d = leggiScartati(prima);
     if (!d) {
-      notify({ title: "Non ho salvato lo scarto", body: `${fileDoppioni()} non si legge: sistemalo o toglilo, poi scarta di nuovo la coppia.`, level: "warning" });
+      notify({ title: detto.titolo, body: `${fileDoppioni()} non si legge: sistemalo o toglilo, poi ${detto.poi}.`, level: "warning" });
       return false;
     }
-    if (d[chiave]) return true;
-    try { await writeTextFile(fileDoppioni(), JSON.stringify({ ...d, [chiave]: Date.now() }, null, 1), prima ?? null); return true; }
-    catch { /* un altro scarto ha scritto nel frattempo: si rilegge */ }
+    if (scartata(d[chiave]) === (verso === "scarta")) return true;
+    const voce = { n: (voceScarto(d[chiave])?.n ?? 0) + 1, quando: Date.now() };
+    try { await writeTextFile(fileDoppioni(), JSON.stringify({ ...d, [chiave]: voce }, null, 1), prima ?? null); return true; }
+    catch { /* un altro gesto ha scritto nel frattempo: si rilegge */ }
   }
-  notify({ title: "Non ho salvato lo scarto", body: `La coppia ${chiave.replace("|", " e ")} tornerà fra i doppioni probabili.`, level: "warning" });
+  notify({ title: detto.titolo, body: `La coppia ${chiave.replace("|", " e ")} ${detto.esito}.`, level: "warning" });
   return false;
 }
+export const scartaDoppione = (chiave) => segnaDoppione(chiave, "scarta");
+// "Rimetti fra i doppioni" (#6268): la coppia scartata torna fra le probabili, su tutte le macchine.
+export const riprendiDoppione = (chiave) => segnaDoppione(chiave, "riprendi");
 
 // Le cartelle della base dei progetti, dalla più recente.
 export async function cartelle() {
