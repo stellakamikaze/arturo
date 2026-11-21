@@ -97,6 +97,8 @@ Il destino proposto è un punto di partenza, il giudizio è tuo. Ogni file finis
 - **archivia**: un documento fuori da un repository. Chiedi alla persona dove lo tiene e spostalo lì dopo il sì.
 - **resta**: un file pesante (video, immagini grandi) o creato online. L'handoff scrive dove sta.
 - **scarto**: un file temporaneo. La chiusura lo nomina, non lo cancella.
+- **skill**: uno script o un modello nato mentre era in uso una skill della persona. Se serve di nuovo, copialo
+  in `~/.claude/skills/<nome>/` e aggiungi la sua riga in `## Attrezzi` del `SKILL.md`. Se serve solo oggi, è scarto.
 
 Nessun handoff indica scratchpad o `/tmp` come posizione: si perdono al riavvio. Una bozza di email della
 sessione riceve un esito nell'handoff (mandata, da mandare, scartata).

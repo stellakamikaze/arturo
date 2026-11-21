@@ -77,6 +77,10 @@ F32 la correzione porta la skill e la skill corretta non esce (21/11/2026, #6277
 "[skill: <nome>]" dall'elenco delle correzioni; verso un remote non privato la coda lascia fuori dal commit
 anche una skill della persona già tracciata e modificata, e la nomina in SKILL TUE NON SALVATE; una skill
 di Arturo modificata passa; verso un remote privato passano tutte e due.
+F33 gli attrezzi hanno un destino (21/11/2026, #6277): se la sessione ha usato una skill della persona
+(data/correzioni/<sessione>.skill), l'inventario propone il destino "skill" per il codice temporaneo o
+fuori da un repository; un file dentro ~/.claude/skills/<nome>/ non è più escluso; la FASE 2 di /fine
+ha la riga del destino nuovo.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1547,13 +1551,89 @@ def test_f32(repo: Path) -> None:
         f"F32 /fine non salva le skill modificate verso un remote privato: {uscita[-400:]}"
 
 
+def test_f33(repo: Path) -> None:
+    """Il destino "skill": lo script riusabile di una sessione che ha usato una skill della persona."""
+    fine = read(serve(repo, "commands/fine.md", "F33"))
+    assert "## FASE 2" in fine and "## FASE 3" in fine, "F33 mancano le fasi 2 e 3 di /fine"
+    fase2 = fine[fine.index("## FASE 2"):fine.index("## FASE 3")]
+    for pezzo in ("- **skill**:", "~/.claude/skills/<nome>/", "## Attrezzi"):
+        assert pezzo in fase2, f"F33 la FASE 2 di /fine non dice {pezzo!r}"
+    script = serve(repo, "bin/inventario-sessione.py", "F33")
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        (progetto / "impagina.py").write_text("print(1)\n", encoding="utf-8")
+        fuori = lab.home / "conta-battute.py"
+        fuori.write_text("print(2)\n", encoding="utf-8")
+        skill = lab.home / ".claude" / "skills" / "lettera-cliente"
+        skill.mkdir(parents=True)
+        (skill / "modello.py").write_text("print(3)\n", encoding="utf-8")
+        (lab.home / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+        # Lo scratchpad come lo crea Claude Code (F11): un file che si perde al riavvio.
+        base = Path(tempfile.gettempdir()) / "claude" / f"arturo-banco-f33-{os.getpid()}"
+        base.mkdir(parents=True)
+        (base / "estrai.py").write_text("print(4)\n", encoding="utf-8")
+        (base / "appunti.md").write_text("note\n", encoding="utf-8")
+        try:
+            sid = "sessione-attrezzi"
+            cartella = lab.home / ".claude" / "projects" / "libro"
+            cartella.mkdir(parents=True)
+            scritti = (progetto / "impagina.py", fuori, skill / "modello.py", lab.home / ".claude" / "settings.json",
+                       base / "estrai.py", base / "appunti.md")
+            righe = [{"timestamp": "2026-11-21T09:00:00.000Z", "cwd": str(progetto), "message": {"content": [
+                {"type": "tool_use", "id": f"t{i}", "name": "Write", "input": {"file_path": str(p)}}]}}
+                for i, p in enumerate(scritti)]
+            (cartella / f"{sid}.jsonl").write_text("\n".join(json.dumps(x) for x in righe) + "\n", encoding="utf-8")
+            segno = lab.home / ".claude" / "data" / "correzioni" / f"{sid}.skill"
+            segno.parent.mkdir(parents=True)
+
+            def inventario(*altro: str):
+                r = lab.run([sys.executable, "-B", str(script), *altro, "--session", sid,
+                             "--projects", str(lab.home / ".claude" / "projects"), "--home", str(lab.home)])
+                assert r.returncode == 0, f"F33 exit {r.returncode}: {r.stderr}"
+                return r.stdout
+
+            def destini() -> tuple:
+                inv = json.loads(inventario("--json"))
+                return inv, {Path(f["path"]).name: (f["destino"], f["motivo"]) for f in inv["file"]}
+
+            # Senza una skill in uso niente cambia, ma un file dentro una skill non è più escluso.
+            inv, d = destini()
+            assert not inv.get("skill") and d["conta-battute.py"][0] == "scarto" and d["estrai.py"][0] == "scarto", \
+                f"F33 senza skill in uso il codice sciolto non è scarto: {d}"
+            assert d.get("modello.py", ("",))[0] == "skill" and "lettera-cliente" in d["modello.py"][1], \
+                f"F33 l'inventario esclude o non riconosce un file nella cartella di una skill: {d}"
+            assert "settings.json" not in d and inv["esclusi"]["~/.claude"] == 1, \
+                f"F33 il resto di ~/.claude non è più escluso: {inv['esclusi']}"
+            # Con la skill in uso lo script temporaneo e quello fuori da un repository vanno nella skill.
+            segno.write_text("lettera-cliente\n", encoding="utf-8")
+            inv, d = destini()
+            assert inv.get("skill") == "lettera-cliente", f"F33 l'inventario non legge la skill in uso: {inv.get('skill')!r}"
+            for nome in ("conta-battute.py", "estrai.py"):
+                assert d[nome][0] == "skill" and "cartella della skill lettera-cliente" in d[nome][1] \
+                    and "Attrezzi" in d[nome][1], f"F33 {nome} non va nella cartella della skill: {d[nome]}"
+            assert d["impagina.py"][0] == "repo", f"F33 il codice del progetto lascia il repo: {d['impagina.py']}"
+            assert d["appunti.md"][0] == "scarto", f"F33 un appunto temporaneo va nella skill: {d['appunti.md']}"
+            assert "skill in uso: lettera-cliente" in inventario(), "F33 la tabella non nomina la skill in uso"
+            # Un nome che non è il nome di una skill non entra nel motivo stampato.
+            segno.write_text("../../etc\n", encoding="utf-8")
+            inv, d = destini()
+            assert not inv.get("skill") and d["estrai.py"][0] == "scarto", f"F33 un nome di skill non valido passa: {inv.get('skill')!r}"
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
-         "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32}
+         "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
+         "F33": test_f33}
 
 
 def main() -> int:

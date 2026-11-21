@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — lo script che ti è servito oggi finisce nella skill, non nel cestino
+
+**Cosa cambia**: se in una sessione hai usato una skill tua e Claude ha scritto uno script in una cartella
+temporanea o fuori da un progetto, `/fine` gli propone un destino nuovo: la cartella di quella skill, con
+una riga in "Attrezzi". Prima lo stesso file risultava da scartare. L'inventario di `/fine` mostra anche
+i file che stanno già in `~/.claude/skills/<nome>/`, che prima saltava. Se lo script serve solo oggi,
+resta uno scarto: decide Claude, e te lo dice nella chiusura.
+
+**Il principio**: un attrezzo fatto una volta si ritrova la volta dopo. Se resta in `/tmp`, la prossima
+sessione lo riscrive da capo.
+
+**A chi serve**: a chi ha skill sue e ci lavora con script o modelli. Non devi fare niente.
+
+---
+
 ## 2026-11-21 — una conferma sui file che decidono i permessi, senza chiudere tutta la cartella
 
 **Cosa cambia**: in `arturo/protect_claude_md.local` puoi scrivere una riga per percorso:
