@@ -118,7 +118,9 @@ legge e la corregge, e Claude non consegna finché una riga dice no.
 bash ~/.claude/skills/system-audit/audit.sh 2>&1 | grep -iE "skill|fantasma|peso|FAIL" | head -20
 ```
 
-Nessun FAIL sulla skill nuova. Poi la prova vera, che fa la persona: apre una sessione nuova
+Nessun FAIL sulla skill nuova. Rileggi il file scritto: ha le quattro sezioni ("Che cosa deve uscire",
+"Cosa non fare", "Finito quando", "Attrezzi"), e a ogni riga di "Finito quando" si risponde sì o no.
+Poi la prova vera, che fa la persona: apre una sessione nuova
 di Claude Code e scrive una delle frasi del Passo 1. Se Claude non apre la skill, riscrivi il
 `when_to_use` con le parole che ha usato davvero, e riprova.
 

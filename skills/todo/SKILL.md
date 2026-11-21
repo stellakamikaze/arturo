@@ -162,3 +162,13 @@ vedi con `arturo todo`, e quello che scrivi tu compare nella pagina entro 20 sec
 solo su questo computer, e la chiave cambia a ogni avvio. Si spegne da sola dopo 30 minuti senza
 la pagina aperta, con il bottone "Spegni la pagina" o con Ctrl+C. Non proporre la pagina se la
 persona non la chiede.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Prima di aggiungere hai controllato i doppioni con `arturo todo --progetto .`?
+- Il titolo comincia con un verbo all'infinito?
+- `--perche` c'è solo con parole della persona?
+- Hai confermato il numero in una riga?
+- Su un numero letto prima hai usato `--titolo-atteso`?

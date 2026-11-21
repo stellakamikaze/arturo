@@ -186,3 +186,13 @@ Ogni persona adatta /monitor al suo lavoro. Il modello sta in `~/.claude/docs/mo
   `creati.jsonl` e la cartella `giri/`, tutti in `~/.claude/data/monitor/`.
 - **Non applichi una modifica appresa senza dirla.** Ogni modifica compare nel report con il suo
   annullo, anche nel modo automatico.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Il report apre con il riepilogo di `impara.py` e con le fonti non lette, ognuna col motivo?
+- Nessun todo è nato senza il sì, salvo quelli con esito `auto`?
+- Le voci numerate sono al massimo dieci, e la chiusura è **aggiungi N / scarta N / ok**?
+- `giro chiudi` è stato lanciato dopo il report?
+- Ogni modifica appresa compare nel report col suo annullo?

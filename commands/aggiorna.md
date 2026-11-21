@@ -458,3 +458,13 @@ precedente. I passi 1-4 qui sopra non c'entrano.
    - `RIPRISTINO NON RIUSCITO`: **fermati**, come nel Passo 3.
 
 4. Digli di **chiudere e riaprire Claude Code**, come dopo ogni aggiornamento.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Prima del sì hai letto interi i diff di `hooks`, di `settings.json` e di ogni file che gira da solo, senza output tagliato?
+- Con `POSSIBILE COMPROMISSIONE`, `STORIA RISCRITTA` o `FIRMA NON VERIFICABILE` non hai applicato niente?
+- Hai detto alla persona la prima parola dell'esito (`APPLICATO`, `ANNULLATA` e le altre)?
+- Nessuna sua modifica è andata persa, e non hai usato `reset --hard` né `--force`?
+- Le hai detto di chiudere e riaprire Claude Code, e poi `/novita`?

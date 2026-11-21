@@ -44,7 +44,15 @@ Rispondi in italiano, con l'impatto pratico prima del dettaglio tecnico. Il repo
 **Report Format:**
 
 Categorize findings as "Accessibilita'", "Usabilita'", "Responsive", "Pattern componenti".
-Include file:line references. Prioritize: Critical > Warning > Suggestion.
+Prioritize: Critical > Warning > Suggestion. For each issue:
+```
+### [Priority] Issue Title
+- **Category**: una delle quattro
+- **Location**: `file:line`
+- **Problem**: cosa non va, e per chi
+- **Fix**: la modifica proposta
+```
+Chiudi con una riga per categoria senza rilievi: "nessun rilievo".
 
 **Obiettivo**: copri le aree rilevanti per l'interfaccia in esame, non tutte in modo meccanico; porta evidenza dal codice. Priorità alle violazioni WCAG AA nei flussi critici.
 

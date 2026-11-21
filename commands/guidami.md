@@ -132,3 +132,12 @@ progetto e fai il primo passo.
   che rifà sempre uguale, con la scheda qui sopra.
 - **Le conversazioni sono materiale privato.** Le leggi per proporre lavoro a chi le ha scritte, non
   le riassumi altrove e non le mandi da nessuna parte.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Le voci sono da 3 a 5, oppure 2 con "ho trovato poco", ognuna con cosa, perché adesso con la fonte, e primo passo?
+- Ogni voce è passata dal confronto col `git log` e non è già fatta?
+- Nessun file è stato toccato prima della scelta della persona?
+- La quota compare solo se la lettura è recente?

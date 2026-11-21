@@ -326,10 +326,32 @@ def test_q12(repo: Path) -> None:
         assert lunghezza <= 1024, f"Q12 {f.relative_to(repo)}: description e when_to_use fanno {lunghezza} caratteri"
 
 
+FINITO_QUANDO = ("commands/aggiorna.md", "commands/diagnosi.md", "commands/guidami.md", "commands/proponi.md",
+                 "commands/segnala.md", "skills/monitor/SKILL.md", "skills/revisione/SKILL.md", "skills/todo/SKILL.md")
+
+
+def test_q13(repo: Path) -> None:
+    # 21/11/2026: Arturo chiede "Finito quando" alle skill della persona (/creaskill), quindi lo dà alle sue che
+    # producono un risultato che si può sbagliare. Ogni riga è una domanda da sì o no.
+    for nome in FINITO_QUANDO:
+        assert (repo / nome).is_file(), f"Q13 manca {nome}"
+        testo = read(repo / nome)
+        assert "\n## Finito quando\n" in testo, f"Q13 {nome} non ha la sezione Finito quando"
+        sezione = testo.split("\n## Finito quando\n", 1)[1].split("\n## ", 1)[0]
+        righe = [r for r in sezione.splitlines() if r.startswith("- ")]
+        assert len(righe) >= 3, f"Q13 {nome}: Finito quando ha {len(righe)} righe, ne servono almeno 3"
+        for r in righe:
+            assert r.endswith("?"), f"Q13 {nome}: una riga di Finito quando non è una domanda: {r[:60]}"
+    crea = read(repo / "commands" / "creaskill.md")
+    assert "ha le quattro sezioni" in crea, "Q13 /creaskill non rilegge le quattro sezioni della skill scritta"
+    assert "### [Priority] Issue Title" in read(repo / "agents" / "ui-ux-consultant.md"), \
+        "Q13 l'agente ui-ux-consultant non ha un modello d'uscita"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
     "Q05": test_q05, "Q06": test_q06, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
-    "Q10": test_q10, "Q11": test_q11, "Q12": test_q12,
+    "Q10": test_q10, "Q11": test_q11, "Q12": test_q12, "Q13": test_q13,
 }
 
 

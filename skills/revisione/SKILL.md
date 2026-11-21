@@ -109,3 +109,13 @@ Scrivi le proposte anche in `$S/proposte.json`:
 
 Il registro resta su questo computer, fuori da ogni repository. L'estratto sta nello scratchpad e non parte
 mai. Cosa resta e cosa parte: `~/.claude/docs/privacy.md`, sezione "La revisione".
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Ogni proposta nasce da almeno due sessioni diverse, salvo un errore di Arturo con causa certa?
+- Le proposte sono al massimo 7, ognuna con le prove (data e parole fra virgolette dritte) e chi agisce?
+- `proposte.json` è scritto nello schema?
+- Niente è partito con `segnala manda`, e l'invio è venuto solo dopo **mando**?
+- `revisione salva` è stato lanciato con l'esito di ogni proposta?

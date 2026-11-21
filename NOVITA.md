@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — anche i comandi di Arturo chiudono con "Finito quando"
+
+**Cosa cambia**: otto comandi e skill di Arturo hanno ora la sezione "Finito quando", come le skill che
+crei tu con `/creaskill`: `/aggiorna`, `/diagnosi`, `/guidami`, `/proponi`, `/segnala`, `/monitor`,
+`/revisione` e i todo. Prima di dirti "fatto" Claude controlla quelle righe una per una. Le righe
+non portano regole nuove: raccolgono in un punto i controlli che il testo chiedeva già qua e là.
+`/creaskill` rilegge la skill appena scritta e controlla che abbia le sue quattro sezioni.
+
+**Il principio**: Arturo segue la regola che dà a te. Un controllo scritto in fondo si fa, uno sparso
+nel testo si salta.
+
+**A chi serve**: a tutti. Non devi fare niente.
+
+---
+
 ## 2026-11-20 — le guardie vedono git e gpatch anche attraverso un link
 
 **Cosa cambia**: un `git checkout`, `git restore` o `git reset --hard` che riscrive la config passando da

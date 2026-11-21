@@ -217,3 +217,13 @@ Codice        —       nessun bug descritto
 
 Poi le proposte numerate, prima quelle rosse. Chiudi con le parole di risposta in grassetto:
 **tutto**, i numeri, oppure **niente**.
+
+## Finito quando
+
+Prima di chiudere controlla ogni riga. Se una dice no, sistemala o dillo alla persona.
+
+- Il referto ha una riga per parte, nell'ordine, ognuna con colore e motivo?
+- `CONFIG ROTTA`, i FAIL dell'audit e una `DERIVA` da compromissione stanno per primi?
+- Nelle parti da 1 a 4 nessun file è cambiato o si è spostato senza il sì?
+- Ogni `MANCA:` ha avuto la sua domanda alla persona?
+- Se c'era un bug, la correzione ha un test che lo riproduce?
