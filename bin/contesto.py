@@ -331,7 +331,7 @@ def sezione_handoff(elenco: list, giorni: int, ir) -> list:
             # ha scritto questo handoff dal transcript. /inizio lo dice, e il primo /fine lo completa.
             righe.append("    SALVATO IN AUTOMATICO: L'ultima volta non hai chiuso con /fine: ecco cosa stavi facendo. "
                          "Il primo /fine di questa sessione completa questo handoff, senza farne un altro.")
-            for sez in ("Ultime richieste", "Lavoro aperto nella sessione"):
+            for sez in ("Ultime richieste", "Lavoro aperto nella sessione", "Correzioni"):
                 voci = [r.strip() for r in ir.sezione(testo, sez).splitlines() if r.strip()]
                 if voci:
                     righe.append(f"    {sez}: " + " · ".join(corto(v, 200) for v in voci[-5:]))

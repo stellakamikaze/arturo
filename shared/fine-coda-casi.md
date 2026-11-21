@@ -23,7 +23,8 @@ aggiunte).
 ## SKILL TUE NON SALVATE
 
 Dillo alla persona con i nomi delle skill: il repository della sua config non risulta privato, e
-pubblicarle lì le rende visibili a tutti. Chiedi se vuole pubblicarle. Col suo sì, per ognuna:
+pubblicarle lì le rende visibili a tutti. L'elenco porta le skill nuove e quelle sue già salvate che la
+sessione ha modificato, per esempio con una correzione. Chiedi se vuole pubblicarle. Col suo sì, per ognuna:
 1. `git -C ~/.claude add -- skills/<nome>`;
 2. `git -C ~/.claude commit -m "skill <nome>"`;
 3. `git -C ~/.claude push origin main`.

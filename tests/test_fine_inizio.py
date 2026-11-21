@@ -73,6 +73,10 @@ F31 il lavoro che torna ha la sua prova e i suoi attrezzi (20/11/2026): /creaski
 ("come capisci che è venuto bene?") e la skill nasce con "Finito quando" e "Attrezzi"; il metodo dice di
 chiudere con quella lista e di salvare script e modelli nella skill; la FASE 8 di /fine manda la correzione
 di un lavoro nella skill della persona, non in memoria, e non tocca le skill di Arturo.
+F32 la correzione porta la skill e la skill corretta non esce (21/11/2026, #6277): la FASE 8 legge
+"[skill: <nome>]" dall'elenco delle correzioni; verso un remote non privato la coda lascia fuori dal commit
+anche una skill della persona già tracciata e modificata, e la nomina in SKILL TUE NON SALVATE; una skill
+di Arturo modificata passa; verso un remote privato passano tutte e due.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1489,13 +1493,67 @@ def test_f31(repo: Path) -> None:
         assert pezzo in fase8, f"F31 la FASE 8 di /fine non dice {pezzo!r}"
 
 
+def test_f32(repo: Path) -> None:
+    """La skill della correzione nella FASE 8, e la skill modificata che resta fuori da un remote non privato."""
+    fine = read(serve(repo, "commands/fine.md", "F32"))
+    assert "## FASE 8" in fine and "## FASE 9 · Config Sync" in fine, "F32 mancano le fasi 8 e 9 di /fine"
+    fase8 = fine[fine.index("## FASE 8"):fine.index("## FASE 9")]
+    for pezzo in ("[skill: <nome>]", "mentre quella skill era in uso"):
+        assert pezzo in fase8, f"F32 la FASE 8 di /fine non dice {pezzo!r}"
+    casi = read(serve(repo, "shared/fine-coda-casi.md", "F32"))
+    assert "già salvate" in casi and "modificato" in casi, "F32 fine-coda-casi.md non parla delle skill modificate"
+    inizio = fine.index("## FASE 9 · Config Sync")
+    blocco = fine[fine.index("```bash\n", inizio) + 8:fine.index("\n```", fine.index("```bash\n", inizio))]
+    assert (repo / "skills" / "todo" / "SKILL.md").is_file(), "F32 manca skills/todo/SKILL.md"
+
+    def sync(visibilita: str) -> tuple:
+        with tempfile.TemporaryDirectory(prefix="arturo-f32-") as tmp:
+            lab = Lab(repo, Path(tmp))
+            config = lab.home / ".claude"
+            shutil.copytree(str(repo), str(config), ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"),
+                            dirs_exist_ok=True)
+            (config / "skills" / "lettera-cliente").mkdir()
+            (config / "skills" / "lettera-cliente" / "SKILL.md").write_text("Scrivi la lettera.\n", encoding="utf-8")
+            remoto = Path(tmp) / "config.git"
+            lab.git(Path(tmp), "init", "-q", "--bare", "-b", "main", str(remoto))
+            lab.git(config, "init", "-q", "-b", "main")
+            lab.git(config, "add", "-A")
+            lab.git(config, "commit", "-q", "-m", "config")
+            lab.git(config, "remote", "add", "origin", str(remoto))
+            lab.git(config, "push", "-q", "origin", "main")
+            # La sessione scrive una correzione nella skill della persona e tocca una skill di Arturo.
+            with open(config / "skills" / "lettera-cliente" / "SKILL.md", "a", encoding="utf-8") as fh:
+                fh.write("Il saluto alla signora Rossi è Gentile.\n")
+            with open(config / "skills" / "todo" / "SKILL.md", "a", encoding="utf-8") as fh:
+                fh.write("\nRIGA-DI-ARTURO\n")
+            finti = Path(tmp) / "finti"
+            finti.mkdir()
+            (finti / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n", encoding="utf-8")
+            (finti / "gh").chmod(0o755)
+            r = lab.run([BASH, "-c", blocco], cwd=lab.home, PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}")
+            mostra = lambda percorso: lab.run(["git", "-C", str(remoto), "show", f"main:{percorso}"]).stdout
+            return (r.stdout + r.stderr, "signora Rossi" in mostra("skills/lettera-cliente/SKILL.md"),
+                    "RIGA-DI-ARTURO" in mostra("skills/todo/SKILL.md"))
+
+    uscita, persona, arturo = sync("PUBLIC")
+    assert not persona, f"F32 /fine pubblica la skill modificata della persona su un remote pubblico: {uscita[-400:]}"
+    assert "SKILL TUE NON SALVATE" in uscita and "skills/lettera-cliente/" in uscita, \
+        f"F32 /fine non dice quale skill modificata non ha salvato: {uscita[-400:]}"
+    riga = next(x for x in uscita.splitlines() if "SKILL TUE NON SALVATE" in x)
+    assert arturo and "skills/todo/" not in riga, \
+        f"F32 una skill di Arturo modificata resta fuori dal commit o risulta della persona: {uscita[-400:]}"
+    uscita, persona, arturo = sync("PRIVATE")
+    assert persona and arturo and "SKILL TUE NON SALVATE" not in uscita, \
+        f"F32 /fine non salva le skill modificate verso un remote privato: {uscita[-400:]}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
-         "F29": test_f29, "F30": test_f30, "F31": test_f31}
+         "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32}
 
 
 def main() -> int:

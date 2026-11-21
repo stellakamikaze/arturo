@@ -29,6 +29,24 @@ ha un `protect_claude_md.local` non cambia niente.
 
 ---
 
+## 2026-11-21 — la tua skill ricorda la sua lista, e la correzione sa a quale skill appartiene
+
+**Cosa cambia**: quando parte una skill tua, Claude riceve subito la sua lista "Finito quando" e l'elenco
+degli "Attrezzi", anche se la skill l'hai scritta a mano con `/nome`. Una correzione che fai mentre la
+skill è in uso porta il nome della skill: `arturo correzione elenco` la mostra come `[skill: nome]`, e
+`/fine` ti propone di scriverla lì. Se chiudi senza `/fine`, le correzioni restano nell'handoff
+automatico. Se ripeti la stessa correzione in tre sessioni dentro la stessa skill, Arturo propone la
+skill e non il tuo `CLAUDE.md`. Una skill tua già salvata e modificata non esce più verso un repository
+non privato: `/fine` la nomina e chiede a te.
+
+**Il principio**: una regola scritta vale se qualcuno la ricorda al momento giusto. La lista serve
+all'apertura del lavoro, la correzione serve nel posto dove quel lavoro è descritto.
+
+**A chi serve**: a chi ha skill sue. Non devi fare niente: se una skill non ha ancora "Finito quando",
+continua a funzionare come prima.
+
+---
+
 ## 2026-11-21 — anche i comandi di Arturo chiudono con "Finito quando"
 
 **Cosa cambia**: otto comandi e skill di Arturo hanno ora la sezione "Finito quando", come le skill che

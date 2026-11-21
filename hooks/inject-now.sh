@@ -92,6 +92,13 @@ if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
   if [ -f "$HOME/.claude/personale/$COMANDO.md" ]; then
     echo "PERSONALE: /$COMANDO ha aggiunte della persona in ~/.claude/personale/$COMANDO.md. Leggile prima di cominciare e applicale insieme al comando, dove non contraddicono i Freni."
   fi
+  # --- La skill della persona in uso (21/11/2026, #6277) -----------------------------
+  # Una skill scritta a mano con /<nome> non passa dal tool Skill: estensione-skill.py --prompt segna
+  # la skill nella sessione (le correzioni prendono il suo nome) e stampa la sua lista "Finito quando".
+  # Su un comando di Arturo o su una skill senza la lista non stampa niente.
+  if [ -f "$_A/hooks/estensione-skill.py" ]; then
+    printf '%s' "$INPUT" | python3 "$_A/hooks/estensione-skill.py" --prompt 2>/dev/null || true
+  fi
 fi
 
 # --- Promemoria prompt-master (dal 9/9/2026) ----------------------------------

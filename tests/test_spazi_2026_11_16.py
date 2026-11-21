@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SP01-SP12: bin/spazi.py e bin/nome.py, la crescita con ordine (16/11/2026, Fase F1 e F3, #5711).
+"""SP01-SP13: bin/spazi.py e bin/nome.py, la crescita con ordine (16/11/2026, Fase F1 e F3, #5711).
 
 La voce "Arturo ti propone uno spazio quando ti serve" (ROADMAP.md) promette: Arturo propone Melchior o
 l'Orsa quando vede un segnale nel lavoro, una volta sola e dicendo quale segnale ha visto; nell'Orsa entra
@@ -18,6 +18,9 @@ SP09 arturo nome scrive il nome nell'Orsa, e l'avvio (session-start.sh) lo dice 
 SP10 un nome con un a capo, troppo lungo o con simboli non si scrive; un file manomesso non entra nell'avvio.
 SP11 arturo spazi e arturo nome passano da bin/arturo; /inizio racconta la proposta e il nome.
 SP12 spazi.py e nome.py non importano rete né telemetria.
+SP13 una correzione ripetuta nata dentro una skill della persona (campo `skill`, 21/11/2026, #6277) propone
+     di scriverla in quella skill, non nel CLAUDE.md; se la skill non c'è più, o il campo sta in una sessione
+     su tre, vale il CLAUDE.md.
 
 Con --avvelena ogni controllo riceve una copia del repository rotta nel punto che sorveglia, e deve
 fallire col suo codice e il motivo atteso (VELENI).
@@ -68,10 +71,13 @@ class Banco:
         comando = [sys.executable, str((repo or self.repo) / "bin" / script), *argomenti]
         return subprocess.run(comando, env=env, input=stdin, capture_output=True, text=True, timeout=120)
 
-    def correzione(self, sessione: str, testo: str) -> None:
+    def correzione(self, sessione: str, testo: str, skill: str = "") -> None:
         c = self.claude / "data" / "correzioni"
         c.mkdir(parents=True, exist_ok=True)
-        (c / f"{sessione}.json").write_text(json.dumps([{"testo": testo, "quando": 0}]), encoding="utf-8")
+        voce = {"testo": testo, "quando": 0}
+        if skill:
+            voce["skill"] = skill
+        (c / f"{sessione}.json").write_text(json.dumps([voce]), encoding="utf-8")
 
     def sessione(self, nome: str, frasi) -> None:
         d = self.claude / "projects" / "-Users-prova-libro"
@@ -257,9 +263,38 @@ def test_sp12(b: Banco) -> None:
         assert not vietati, f"SP12 {nome} importa rete o telemetria: {vietati}"
 
 
+def test_sp13(b: Banco) -> None:
+    def proposta(passo: str) -> str:
+        r = b.lancia("stato", "--json")
+        assert r.returncode == 0, f"SP13 {passo}: spazi stato esce {r.returncode}: {r.stderr[-200:]}"
+        r = b.lancia("proponi")
+        assert _spazio(r.stdout) == "orsa", f"SP13 {passo}: la correzione ripetuta non propone niente: {r.stdout[-300:]}"
+        (b.claude / "data" / "spazi" / "stato.json").unlink()  # la stessa correzione si ripropone al passo dopo
+        return r.stdout
+
+    b.correzione("s1", CORREZIONE, "lettera-cliente")
+    b.correzione("s2", SIMILE, "lettera-cliente")
+    b.correzione("s3", CORREZIONE)
+    # La skill non esiste più sul disco: resta il CLAUDE.md.
+    uscita = proposta("skill assente")
+    assert "CLAUDE.md" in uscita and "lettera-cliente" not in uscita, \
+        f"SP13 propone una skill che non c'è: {uscita[-300:]}"
+    cartella = b.claude / "skills" / "lettera-cliente"
+    cartella.mkdir(parents=True)
+    (cartella / "SKILL.md").write_text("---\nname: lettera-cliente\n---\n", encoding="utf-8")
+    uscita = proposta("skill presente")
+    assert "skills/lettera-cliente/SKILL.md" in uscita and "tuo CLAUDE.md" not in uscita and "3 sessioni" in uscita, \
+        f"SP13 la correzione nata nella skill non propone la skill: {uscita[-400:]}"
+    # Il campo in una sessione su tre non basta: la regola vale oltre quella skill.
+    b.correzione("s2", SIMILE)
+    uscita = proposta("una sessione su tre")
+    assert "tuo CLAUDE.md" in uscita and "lettera-cliente" not in uscita, \
+        f"SP13 una sessione su tre porta la regola nella skill: {uscita[-300:]}"
+
+
 CASI = [(f"SP{n:02d}", f) for n, f in enumerate(
     (test_sp01, test_sp02, test_sp03, test_sp04, test_sp05, test_sp06, test_sp07, test_sp08, test_sp09,
-     test_sp10, test_sp11, test_sp12), start=1)]
+     test_sp10, test_sp11, test_sp12, test_sp13), start=1)]
 
 VELENI = (
     ("SP01", [("bin/spazi.py", 'if len(g["sessioni"]) >= SOGLIA_ORSA]', 'if len(g["sessioni"]) >= 2]')],
@@ -281,6 +316,8 @@ VELENI = (
     ("SP10", [("bin/nome.py", " or len(nome.split()) > 3", "")], "non valido"),
     ("SP11", [("bin/arturo", '    "nome": ("nome",', '    "nome-vecchio": ("nome",')], "non arriva"),
     ("SP12", [("bin/nome.py", "import os\n", "import os\nimport socket\n")], "rete o telemetria"),
+    ("SP13", [("bin/spazi.py", '        if skill:\n            g["skill"]', '        if False:\n            g["skill"]')],
+     "non propone la skill"),
 )
 
 

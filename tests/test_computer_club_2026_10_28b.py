@@ -22,6 +22,10 @@ CC12 prima di provarci Claude dice dove non arriva ([0:08:46]-[0:09:09], #4102):
 CC13 arturo sessione dice "Aperta" solo se il terminale parte (review del 7/11/2026, finding 29): con
      osascript che esce 1 (permesso negato) esce 1, dice perché e mette il comando negli appunti.
      Su Windows il controllo è statico (i finti sono script sh). Sulla base 0b083f5 è rosso.
+CC14 la correzione ricorda la skill in uso (21/11/2026, #6277): dopo l'apertura di una skill della persona
+     (hooks/estensione-skill.py) `arturo correzione aggiungi` salva il campo `skill`, e elenco e blocco lo
+     mostrano come "[skill: <nome>]". Una skill di Arturo, nessuna skill o un file .skill manomesso non
+     lasciano il campo. Sulla base 9641c7c è rosso.
 
 Sulla base 5bdec48 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -287,8 +291,53 @@ def test_cc13(repo: Path) -> None:
                 f"CC13 un terminale partito non risulta aperto: {r.returncode} {r.stdout!r} {r.stderr!r}"
 
 
+def test_cc14(repo: Path) -> None:
+    script = repo / "hooks" / "estensione-skill.py"
+    assert script.is_file(), "CC14 manca hooks/estensione-skill.py"  # base vecchia
+    lab = banco_telemetria().Lab(repo)
+    correzioni = lab.home / ".claude" / "data" / "correzioni"
+    skill = lab.home / ".claude" / "skills" / "lettera-cliente"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: lettera-cliente\ndescription: la lettera\n---\n\n# Lettera\n",
+                                    encoding="utf-8")
+
+    def apre(sessione: str, nome: str) -> None:
+        dati = {"tool_name": "Skill", "tool_input": {"skill": nome}, "session_id": sessione}
+        r = subprocess.run([sys.executable, "-B", str(script)], input=json.dumps(dati), capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=lab.env, timeout=60)
+        assert r.returncode == 0, f"CC14 l'hook della skill esce {r.returncode}: {r.stderr!r}"
+
+    regola = "Il saluto è Gentile, mai Egregio"
+    apre("sessione-skill", "lettera-cliente")
+    lab.env["CLAUDE_CODE_SESSION_ID"] = "sessione-skill"
+    r = lab.arturo("correzione", "aggiungi", regola)
+    assert r.returncode == 0 and "[skill: lettera-cliente]" in r.stdout, \
+        f"CC14 la correzione non dice la skill in uso: {r.stdout!r} {r.stderr!r}"
+    voce = f"1. {regola} [skill: lettera-cliente]"
+    r = lab.arturo("correzione", "elenco")
+    assert voce in r.stdout, f"CC14 l'elenco non mostra la skill della correzione: {r.stdout!r}"
+    salvate = json.loads((correzioni / "sessione-skill.json").read_text(encoding="utf-8"))
+    assert salvate[0].get("skill") == "lettera-cliente", f"CC14 la voce non ha il campo skill: {salvate}"
+    r = lab.hook("inject-now.sh", json.dumps({"prompt": "rifai la lettera", "session_id": "sessione-skill"}))
+    assert voce in r.stdout, f"CC14 il blocco a ogni messaggio non mostra la skill: {r.stdout!r}"
+
+    # Una sessione che non ha aperto una skill della persona, o che ha aperto una skill di Arturo: nessun campo.
+    apre("sessione-arturo", "todo")
+    for sessione in ("sessione-nuda", "sessione-arturo"):
+        lab.env["CLAUDE_CODE_SESSION_ID"] = sessione
+        r = lab.arturo("correzione", "aggiungi", regola)
+        assert r.returncode == 0 and "[skill:" not in r.stdout, \
+            f"CC14 {sessione}: una correzione senza skill della persona prende una skill: {r.stdout!r}"
+    # Un file .skill manomesso non entra nella voce né nel blocco.
+    (correzioni / "sessione-rotta.skill").write_text("../../CLAUDE\n", encoding="utf-8")
+    lab.env["CLAUDE_CODE_SESSION_ID"] = "sessione-rotta"
+    r = lab.arturo("correzione", "aggiungi", regola)
+    assert r.returncode == 0 and "[skill:" not in r.stdout and "CLAUDE" not in r.stdout, \
+        f"CC14 un nome di skill non valido entra nella correzione: {r.stdout!r}"
+
+
 TESTS = {"CC06": test_cc06, "CC07": test_cc07, "CC08": test_cc08, "CC09": test_cc09, "CC10": test_cc10,
-         "CC11": test_cc11, "CC12": test_cc12, "CC13": test_cc13}
+         "CC11": test_cc11, "CC12": test_cc12, "CC13": test_cc13, "CC14": test_cc14}
 
 
 def main() -> int:

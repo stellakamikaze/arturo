@@ -15,6 +15,8 @@ SV10 a memoria spenta (ARTURO_MEMORIA=0) nessun file.
 SV11 dalla home vale l'ultimo /inizio <nome> che porta a un progetto con handoff.
 SV12 una scheda che ha la cartella fra i suoi alias decide lo slug: gli handoff vanno nella cartella del progetto,
      non in una seconda col nome della cartella di lavoro (18/11/2026).
+SV13 le correzioni della sessione (arturo correzione) entrano nell'handoff nella sezione "## Correzioni", con la
+     skill in uso; una correzione con un segreto non entra; /inizio le riporta; il gate resta verde (21/11/2026, #6277).
 
 Veleno: --avvelena rompe bin/salva-automatico.py (o il punto sorvegliato) nella copia di prova, un punto per caso,
 ed esce 0 solo se ogni rottura fa rosso il suo caso (VELENI del gate).
@@ -31,7 +33,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12"]
+CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12", "SV13"]
 SA = "bin/salva-automatico.py"
 # caso -> (file, testo, testo rotto)
 VELENI = {
@@ -48,6 +50,7 @@ VELENI = {
     "SV10": (SA, "and not mm.memoria_accesa():", "and False:"),
     "SV11": (SA, "            return slug(m.group(1)), None", "            return \"\", None"),
     "SV12": (SA, "        return slug_del_progetto(cartella), cartella", "        return slug(cartella.name), cartella"),
+    "SV13": (SA, "                             correzioni_della_sessione(sid, scanner)))", "                             []))"),
 }
 SEGRETO = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 
@@ -243,6 +246,31 @@ def prova(lab: Lab) -> list:
     if len(nel_progetto) != 1 or any("- Sessione: s-alias" in p.read_text(encoding="utf-8") for p in lab.handoff()):
         rossi.append(f"SV12 slug dalla scheda: {r.stdout.strip()!r} {r.stderr.strip()[-200:]!r}")
     scheda.unlink()
+
+    # SV13: le correzioni della sessione
+    correzioni = lab.cl / "data" / "correzioni"
+    correzioni.mkdir(parents=True, exist_ok=True)
+    (correzioni / "s-corretta.json").write_text(json.dumps([
+        {"testo": "Il saluto è Gentile, mai Egregio", "quando": "2026-11-21T10:00:00", "skill": "lettera-cliente"},
+        {"testo": f"il token è {SEGRETO}", "quando": "2026-11-21T10:01:00"},
+        {"testo": "Le date per esteso", "quando": "2026-11-21T10:02:00", "skill": "../fuori"}]), encoding="utf-8")
+    lab.transcript("s-corretta", [utente("scrivi la lettera alla signora Rossi")])
+    r = lab.salva("s-corretta", lab.progetto)
+    con = [p for p in lab.handoff() if "- Sessione: s-corretta" in p.read_text(encoding="utf-8")]
+    testo = con[0].read_text(encoding="utf-8") if len(con) == 1 else ""
+    gate = subprocess.run(["bash", str(lab.cl / "bin" / "handoff-gate.sh"), str(con[0])], capture_output=True,
+                          text=True, env=lab.env(), timeout=60) if con else None
+    c = subprocess.run([sys.executable, "-B", str(lab.cl / "bin" / "contesto.py"), "mio-libro"], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=lab.env(), timeout=60, cwd=str(lab.home))
+    righe = testo.splitlines()
+    if "## Correzioni" not in righe or "1. Il saluto è Gentile, mai Egregio [skill: lettera-cliente]" not in righe \
+            or "3. Le date per esteso" not in righe or SEGRETO in testo or "fuori" in testo \
+            or not gate or gate.returncode != 0 or "Il saluto è Gentile" not in c.stdout:
+        rossi.append(f"SV13 correzioni: {testo[-500:]!r} gate={gate.returncode if gate else None} "
+                     f"{r.stdout.strip()!r} {r.stderr.strip()[-200:]!r} inizio={c.stdout[-300:]!r}")
+    senza = [p for p in lab.tutti() if "- Sessione: s-segreto" in p.read_text(encoding="utf-8")]
+    if senza and "## Correzioni" in senza[0].read_text(encoding="utf-8"):
+        rossi.append("SV13 correzioni: la sezione esce anche per una sessione senza correzioni")
 
     # SV08: session-end.sh lo lancia
     lab.transcript("s-hook", [utente("chiudi il capitolo tre")])

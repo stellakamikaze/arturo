@@ -273,6 +273,8 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
   Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.
 - Vale per un lavoro che ha una skill della persona (`~/.claude/skills/<nome>/`): la correzione va in quella
   skill, in "Cosa non fare" o in "Finito quando", e non in memoria. Mostra la riga e scrivila dopo il sì.
+  Una correzione che l'elenco chiude con `[skill: <nome>]` è nata mentre quella skill era in uso: la skill è
+  quella, salvo che la regola non riguardi il suo lavoro.
   Una skill di Arturo non si tocca: lì la correzione parte con `/segnala`.
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento

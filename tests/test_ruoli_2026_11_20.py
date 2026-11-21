@@ -16,6 +16,10 @@ RL07 l'avvio stampa la riga RUOLI con il triage verso monitor;
 RL08 ogni file di tests/scelta-skill/ ha almeno 30 prove, un quarto da non chiamare, e nomina una skill
      che dichiara il suo ruolo; tests/scelta_skill.py legge dallo stream-json solo le chiamate al tool Skill.
      Il banco vero sul modello (tests/scelta_skill.py) costa sessioni e non sta nel gate.
+RL09 una skill della persona (21/11/2026, #6277): l'hook la segna in data/correzioni/<sessione>.skill e, se
+     ha "## Finito quando", mette nel contesto quella lista e "## Attrezzi", non il resto del corpo. Con
+     --prompt fa lo stesso per /<nome> scritto a mano, e inject-now.sh lo lancia. Col clone una skill di
+     Arturo non risulta della persona. Un id di sessione con un percorso non scrive niente.
 
 Sulla base 0c1daea ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -215,8 +219,82 @@ def test_rl08(repo: Path) -> None:
         f"RL08 lettura delle chiamate sbagliata: {modulo.skill_chiamate(stream)}"
 
 
+LETTERA = ("---\nname: lettera-cliente\ndescription: la lettera al cliente\n---\n\n# Lettera\n\n"
+           "## Cosa fare\nScrivi la lettera.\n\n"
+           "## Finito quando\n- Il saluto è Gentile: sì o no\n- La lettera sta in una pagina: sì o no\n\n"
+           "## Attrezzi\n- `modello.docx`: il modello della carta intestata\n\n"
+           "## Cosa non fare\n- RIGA-FUORI-LISTA\n")
+
+
+def apre(script: Path, radice: Path, codice: str, dati: dict, *argomenti: str) -> str:
+    assert script.is_file(), f"{codice} manca hooks/estensione-skill.py"
+    r = subprocess.run([sys.executable, str(script), *argomenti], input=json.dumps(dati), env=ambiente(radice),
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 0, f"{codice} l'hook esce {r.returncode}: {r.stderr!r}"
+    return r.stdout
+
+
+def in_uso(radice: Path, sessione: str) -> str:
+    file = radice / "data" / "correzioni" / f"{sessione}.skill"
+    return file.read_text(encoding="utf-8").strip() if file.is_file() else ""
+
+
+def test_rl09(repo: Path) -> None:
+    script = repo / "hooks" / "estensione-skill.py"
+    radice = casa()
+    try:
+        skill(radice, "lettera-cliente", "description: x\n")
+        (radice / "skills" / "lettera-cliente" / "SKILL.md").write_text(LETTERA, encoding="utf-8")
+        skill(radice, "senza-lista", "description: una skill vecchia\n")
+        chiamata = {"tool_name": "Skill", "tool_input": {"skill": "lettera-cliente"}, "session_id": "s-uno"}
+        testo = contesto(apre(script, radice, "RL09", chiamata), "RL09")
+        for pezzo in ("FINITO QUANDO", "lettera-cliente", "Il saluto è Gentile", "sta in una pagina", "ATTREZZI",
+                      "modello.docx"):
+            assert pezzo in testo, f"RL09 il promemoria della skill della persona non dice {pezzo!r}: {testo[:300]!r}"
+        assert "RIGA-FUORI-LISTA" not in testo and "Scrivi la lettera" not in testo, \
+            f"RL09 il promemoria ripete il corpo della skill: {testo[:400]!r}"
+        assert in_uso(radice, "s-uno") == "lettera-cliente", "RL09 la skill in uso non è segnata nella sessione"
+        # Una skill senza la lista: segnata, nessun promemoria.
+        chiamata = {"tool_name": "Skill", "tool_input": {"skill": "senza-lista"}, "session_id": "s-uno"}
+        assert apre(script, radice, "RL09", chiamata) == "", "RL09 parla per una skill senza Finito quando"
+        assert in_uso(radice, "s-uno") == "senza-lista", "RL09 vale la prima skill aperta, non l'ultima"
+        # Una skill scritta a mano con /<nome>: testo semplice, anche attraverso inject-now.sh.
+        scritta = {"prompt": "/lettera-cliente per la signora Rossi", "session_id": "s-due"}
+        testo = apre(script, radice, "RL09", scritta, "--prompt")
+        assert testo.startswith("FINITO QUANDO") and "Il saluto è Gentile" in testo, \
+            f"RL09 con --prompt il promemoria non esce come testo: {testo[:200]!r}"
+        assert in_uso(radice, "s-due") == "lettera-cliente", "RL09 la skill scritta a mano non è segnata"
+        assert apre(script, radice, "RL09", {"prompt": "scrivi /lettera-cliente", "session_id": "s-tre"},
+                    "--prompt") == "" and not in_uso(radice, "s-tre"), "RL09 un nome in mezzo al messaggio apre la skill"
+        r = subprocess.run([BASH, str(repo / "hooks" / "inject-now.sh")], input=json.dumps(scritta),
+                           env=ambiente(radice), capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60)
+        assert "FINITO QUANDO" in r.stdout and "Il saluto è Gentile" in r.stdout, \
+            f"RL09 inject-now.sh non porta il promemoria di una skill scritta a mano: {r.stdout[-300:]!r}"
+        # Un id di sessione con un percorso non scrive niente.
+        chiamata = {"tool_name": "Skill", "tool_input": {"skill": "lettera-cliente"}, "session_id": "../../fuori"}
+        apre(script, radice, "RL09", chiamata)
+        assert not list(radice.parent.rglob("fuori.skill")), "RL09 un id di sessione con percorso scrive un file"
+        # Col clone le skill di Arturo e quelle della persona stanno nella stessa cartella: decide il nome.
+        for cartella in ("hooks", "bin", "skills"):
+            shutil.copytree(repo / cartella, radice / cartella, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns("__pycache__"))
+        clone = radice / "hooks" / "estensione-skill.py"
+        chiamata = {"tool_name": "Skill", "tool_input": {"skill": "lettera-cliente"}, "session_id": "s-clone"}
+        assert "FINITO QUANDO" in contesto(apre(clone, radice, "RL09", chiamata), "RL09"), \
+            "RL09 col clone la skill della persona non riceve il promemoria"
+        assert "## Finito quando" in (radice / "skills" / "todo" / "SKILL.md").read_text(encoding="utf-8"), \
+            "RL09 la skill todo non ha più Finito quando: caso da rifare"
+        chiamata = {"tool_name": "Skill", "tool_input": {"skill": "todo"}, "session_id": "s-clone"}
+        assert "FINITO QUANDO" not in apre(clone, radice, "RL09", chiamata), \
+            "RL09 col clone una skill di Arturo riceve il promemoria della persona"
+        assert in_uso(radice, "s-clone") == "lettera-cliente", "RL09 col clone una skill di Arturo risulta della persona"
+    finally:
+        pulisci(radice)
+
+
 TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04, "RL05": test_rl05,
-         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08}
+         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09}
 
 
 def main() -> int:
