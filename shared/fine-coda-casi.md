@@ -20,7 +20,10 @@ aggiunte).
 6. Ferma il commit se la guardia dei segreti trova una chiave nelle righe nuove dello stage (exit 7).
 7. Fa due commit: la memoria a parte ("memoria: applicata da /fine"), così si annulla da sola, poi il sync.
 8. Ferma il push se la guardia trova una chiave nei commit che il remote non ha ancora (exit 7).
-9. Fa il push. Se il push è rifiutato, fa un pull `--rebase --autostash` e riprova una volta. Non pusha
+9. Fa il push. Se il push è rifiutato, rifà i commit sopra quelli del remote in una copia di prova dentro
+   `.git`, mai nei file che Claude Code sta leggendo, e riprova una volta. In `~/.claude` arriva solo una
+   copia integra. Con un conflitto vero, o con un file modificato qui che il remote cambia, `~/.claude` resta
+   com'era, i commit restano in locale e la riga dice "push non riuscito" col motivo. Non pusha
    se origin è il repository pubblico di Arturo.
 
 ## SEGRETO (exit 7)

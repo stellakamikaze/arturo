@@ -10,7 +10,7 @@ FC04 retention: senza dry-run non esce niente e la riga dice "NON applicata"; do
 FC05 aggancio personale: riceve fase e argomenti dopo --, i suoi path entrano nel commit; exit 4 blocca.
 FC06 marcatori di conflitto in un file in stage: exit 4, niente commit.
 FC07 ~/.claude a metà di un rebase: exit 4 prima del gate.
-FC08 push rifiutato perché un'altra macchina ha pushato: pull --rebase --autostash e secondo push riuscito.
+FC08 push rifiutato perché un'altra macchina ha pushato: unione nella copia di prova e secondo push riuscito.
 FC09 origin è il repository pubblico di Arturo: niente push, "solo locale".
 Review del 7/11/2026 (lotto L7), sulla base 0b083f5 rossi:
 FC10 (finding 25) verso un remote privato .env, .key, credentials.json, secrets/, __pycache__ e .venv di
@@ -26,6 +26,12 @@ FC14 (#5878, revisione del 17/11/2026) in rotazione (--leggero o --rotazione) un
      commit, la riga citata. Restano verdi: il passo con "io" come soggetto che nomina /clear, la riapertura
      per un rilascio (solo /inizio), il /fine scritto dalla persona e il mod spento (ARTURO_ROTAZIONE=0).
      Sulla base e0ec624 è rosso.
+Revisione del 20/11/2026, A1 (#6248), sulla base 6bed550 rossi:
+FC15 push rifiutato con un conflitto vero su settings.json: ~/.claude resta com'era (settings.json è JSON, senza
+     marcatori, nessun rebase a metà), i commit restano in locale, la copia di prova non resta, la riga nomina
+     il file. Prima il pull --rebase dentro ~/.claude lasciava settings.json coi marcatori ed exit 4.
+FC16 push rifiutato con un file tracciato modificato e non salvato: se l'altra macchina non lo tocca, l'unione
+     entra, il push riesce e la modifica resta; se lo tocca, ~/.claude resta com'era e il push non parte.
 
 Sulla base 875109c bin/fine-coda.py non esiste: rossi tutti i casi.
 """
@@ -41,7 +47,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09", "FC10", "FC11", "FC12", "FC13",
-        "FC14"]
+        "FC14", "FC15", "FC16"]
 FILE = ["bin/fine-coda.py", "bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/handoff_profilo.py",
         "bin/index-rigenera.py", "bin/todo_store.py", "hooks/melchior_match.py", "hooks/radici.py", "hooks/controlla-config.py",
         # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
@@ -370,12 +376,89 @@ def fc14(lab: Lab):
     return "; ".join(errori) or None
 
 
+def altra_macchina(lab: Lab, rel: str, testo: str) -> Path:
+    """Un clone che cambia `rel` e pusha prima della coda."""
+    altra = lab.tmp / "altra"
+    if not altra.exists():
+        lab.git(lab.tmp, "clone", "-q", str(lab.remoto), str(altra))
+    else:
+        lab.git(altra, "pull", "-q", "--ff-only")
+    (altra / rel).parent.mkdir(parents=True, exist_ok=True)
+    (altra / rel).write_text(testo, encoding="utf-8")
+    lab.git(altra, "add", "-f", "--", rel)
+    lab.git(altra, "commit", "-q", "-m", f"altra: {rel}")
+    lab.git(altra, "push", "-q", "origin", "main")
+    return altra
+
+
+def integra_pulita(lab: Lab) -> str:
+    """"" se ~/.claude non ha rebase a metà, copie di prova rimaste o worktree in più; altrimenti cosa resta."""
+    resti = []
+    if (lab.cl / ".git" / "rebase-merge").exists() or (lab.cl / ".git" / "rebase-apply").exists():
+        resti.append("rebase a metà")
+    alberi = [r for r in lab.git(lab.cl, "worktree", "list", "--porcelain").splitlines() if r.startswith("worktree ")]
+    if len(alberi) != 1:
+        resti.append(f"{len(alberi)} worktree")
+    casa = lab.cl / ".git" / "arturo-fine-coda"
+    if casa.is_dir() and any(casa.iterdir()):
+        resti.append("copie di prova rimaste")
+    return ", ".join(resti)
+
+
+def fc15(lab: Lab):
+    lab.scrivi("settings.json", '{"modello": "uno"}\n')
+    lab.git(lab.cl, "add", "settings.json")
+    lab.git(lab.cl, "commit", "-q", "-m", "settings")
+    lab.git(lab.cl, "push", "-q", "origin", "main")
+    altra_macchina(lab, "settings.json", '{"modello": "due"}\n')
+    lab.scrivi("settings.json", '{"modello": "tre"}\n')
+    prima = lab.commit()
+    r = lab.coda(lab.handoff())
+    testo = (lab.cl / "settings.json").read_text(encoding="utf-8")
+    try:
+        valido = json.loads(testo) == {"modello": "tre"}
+    except ValueError:
+        valido = False
+    avanti = lab.git(lab.cl, "rev-list", "--count", "origin/main..HEAD").strip()
+    remoto = lab.git(lab.remoto, "show", "main:settings.json")
+    resti = integra_pulita(lab)
+    if r.returncode != 0 or not valido or "<<<<<<<" in testo or resti or lab.commit() <= prima or avanti == "0" \
+            or '"due"' not in remoto or "conflitto" not in r.stdout or "settings.json" not in r.stdout \
+            or "push non riuscito" not in r.stdout:
+        return (f"rc={r.returncode} settings valido={valido} resti=[{resti}] avanti={avanti} "
+                f"{r.stdout.strip()[-240:]!r}")
+
+
+def fc16(lab: Lab):
+    lab.scrivi("plugins/stato.json", '{"mio": 1}\n')
+    lab.git(lab.cl, "add", "-f", "plugins/stato.json")
+    lab.git(lab.cl, "commit", "-q", "-m", "stato")
+    lab.git(lab.cl, "push", "-q", "origin", "main")
+    lab.scrivi("plugins/stato.json", '{"mio": 2}\n')  # modificato, fuori dal commit della coda
+    altra_macchina(lab, "altra.md", "dall'altra macchina\n")
+    r1 = lab.coda(lab.handoff())
+    resta = (lab.cl / "plugins" / "stato.json").read_text(encoding="utf-8") == '{"mio": 2}\n'
+    entrato = "data/handoffs/libro/HANDOFF_2026-10-30_20-00.md" in lab.nel_remoto() and (lab.cl / "altra.md").is_file()
+    altra_macchina(lab, "plugins/stato.json", '{"altra": 1}\n')
+    testa = lab.git(lab.cl, "rev-parse", "HEAD").strip()
+    r2 = lab.coda(lab.handoff("HANDOFF_2026-10-30_21-00.md"))
+    fermo = (lab.cl / "plugins" / "stato.json").read_text(encoding="utf-8") == '{"mio": 2}\n' \
+        and lab.git(lab.cl, "rev-parse", "HEAD~1").strip() == testa \
+        and "HANDOFF_2026-10-30_21-00.md" not in " ".join(lab.nel_remoto())
+    resti = integra_pulita(lab)
+    if r1.returncode != 0 or "push riuscito" not in r1.stdout or not resta or not entrato \
+            or r2.returncode != 0 or not fermo or "push non riuscito" not in r2.stdout or resti:
+        return (f"primo rc={r1.returncode} modifica restata={resta} entrato={entrato} {r1.stdout.strip()[-160:]!r}; "
+                f"secondo rc={r2.returncode} fermo={fermo} resti=[{resti}] {r2.stdout.strip()[-200:]!r}")
+
+
 def prova(repo: Path, ref: str | None) -> list:
     rossi = []
     for codice, fn, k in (("FC01", fc01, {}), ("FC02", fc02, {}), ("FC03", fc03, {"visibilita": "PUBLIC"}),
                           ("FC04", fc04, {}), ("FC05", fc05, {}), ("FC06", fc06, {}), ("FC07", fc07, {}),
                           ("FC08", fc08, {}), ("FC09", fc09, {}), ("FC10", fc10, {}), ("FC11", fc11, {}),
-                          ("FC12", fc12, {}), ("FC13", fc13, {}), ("FC14", fc14, {})):
+                          ("FC12", fc12, {}), ("FC13", fc13, {}), ("FC14", fc14, {}), ("FC15", fc15, {}),
+                          ("FC16", fc16, {})):
         esito = con_lab(repo, ref, fn, **k)
         if esito:
             rossi.append(f"{codice} {esito}")

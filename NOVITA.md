@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — /fine non rompe più la config quando un'altra macchina ha salvato prima
+
+**Cosa cambia**: se lavori su due computer, a volte `/fine` trova su GitHub un salvataggio dell'altro
+computer. Prima univa i due salvataggi direttamente nella tua config. Adesso li unisce in una copia a
+parte, e la tua config cambia solo se l'unione è riuscita e la config resta integra. Se i due computer
+hanno cambiato la stessa riga, la tua config resta com'era e il salvataggio aspetta sul computer:
+`/fine` lo dice, il prossimo `/inizio` riprova e, se il conflitto resta, te lo segnala.
+
+**Il principio**: la revisione di sicurezza del 20/11/2026 ha riprodotto il guasto. Con due modifiche
+diverse a `settings.json`, l'unione lasciava nel file i segni del conflitto. Il file non si leggeva più,
+e Claude Code spegneva tutte le protezioni di Arturo fino alla riparazione a mano.
+
+---
+
 ## 2026-11-21 — /fine controlla le chiavi prima di salvare la config
 
 **Cosa cambia**: a fine sessione `/fine` salva la tua config su GitHub. Adesso, prima di salvare, cerca
