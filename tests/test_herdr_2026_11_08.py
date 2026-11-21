@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ193: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ194: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -765,8 +765,9 @@ HZ166 Documenti appeso da un permesso di macOS senza risposta (18/11/2026, Amalt
      ~/Documents al più una volta al minuto e segna la macchina (nascita.permesso); avviso e nota della barra
      dicono del permesso in attesa.
 HZ167 La Coda come elenco e "A Claude" che parte (18/11/2026, Federico: "non mi permette di capire quali sono
-     le cose pending" e "quando dò l'ok a far partire dei task non partono mai"): gruppiCoda e ordineVisto
-     dividono le carte per chi agisce, nell'ordine della Coda, senza gruppi vuoti né chiusi; "A Claude" su un
+     le cose pending" e "quando dò l'ok a far partire dei task non partono mai"): gruppoCarta e ordineVisto
+     dividono le carte per chi agisce, nell'ordine della Coda, senza gruppi vuoti né chiusi (dal 21/11/2026 i
+     gruppi li fa gruppiOrchestra: gruppiCoda è tolto, #6075); "A Claude" su un
      task porta `poi` col progetto e il todo, e volta.js dopo il todo riuscito porta Claude sul task.
 HZ168 "Non letto" vale "occupato", non "libero" (#6110, 19/11/2026): TROVA di volta_sposta.py con claude agents
      che cade, scade o stampa altro dà {errore, nonLetto}, e "nessuno" solo con un elenco letto; Sposta su
@@ -878,6 +879,11 @@ HZ193 più compiti di fila da ⌘N (#6198): un compito mandato durante una nasci
      nell'ordine, e chi aspetta riceve un avviso che dice quanti ne ha davanti; un compito mandato durante la
      nascita di un clic aspetta che finisca; oltre otto in attesa il compito si rifiuta e lo dice; senza
      orologio né Python l'attesa non gira a vuoto.
+HZ194 i resti della Coda a elenco (#6075, 21/11/2026): gruppiCoda e GRUPPI_CODA non ci sono più; il pallino e
+     l'altezza dei pulsanti dentro una riga (PULSANTE.fitto) vengono da misure.js, e le pastiglie Sposta tutto
+     e Nasce su stanno sulla scala comune; il testo che porta Claude su un todo sta solo in testoTodo di
+     sessioni.js, e Apri e A Claude dell'Orchestratore passano da portaSulTodo di dati.js; i commenti non
+     descrivono più la Coda a una carta per volta.
 """
 from __future__ import annotations
 
@@ -893,7 +899,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -13588,14 +13594,14 @@ const l = [
   { chiave: "uf:3", origine: "uf", fonte: "task", gruppo: "tu" },
   null,
 ];
-const gg = m.gruppiCoda(l);
+const gg = m.gruppiOrchestra(l, []);
 const t = { chiave: "uf:9", origine: "uf", fonte: "task", gruppo: "tu", opzioni: gesti, progetto: "uf", todo: { id: 9, titolo: "Mandare X" } };
 console.log(JSON.stringify({
   gruppi: gg.map((g) => [g.chiave, g.nome, g.carte.map((c) => c.chiave)]),
-  soloUf: m.gruppiCoda(l.filter((c) => c?.origine === "uf")).map((g) => g.chiave),
-  vuota: m.gruppiCoda(null).length,
+  soloUf: m.gruppiOrchestra(l.filter((c) => c?.origine === "uf"), []).map((g) => g.chiave),
+  vuota: m.gruppiOrchestra(null, null).length,
   visto: m.ordineVisto(gg).map((c) => c.chiave),
-  chiuso: m.ordineVisto(gg, new Set(["sessioni", "tu"])).map((c) => c.chiave),
+  chiuso: m.ordineVisto(gg, new Set(["aspettano", "tu"])).map((c) => c.chiave),
   aClaude: a.gestoUf(t, "A Claude"),
   aClaudeSenza: a.gestoUf({ ...t, progetto: null }, "A Claude").poi,
   fatto: a.gestoUf(t, "Fatto").poi ?? null,
@@ -13612,8 +13618,7 @@ def hz167(repo: Path, casa: Path) -> str | None:
         if pezzo not in coda:
             return f"coda.js non mostra l'elenco per gruppi o non segue la riga scelta: manca {pezzo[:70]}"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("if (r.ok && g.poi) {", "if (g.poi.progetto) await apriProgetto(g.poi.progetto, g.poi.todo);",
-                  "else await nuova(`Lavoriamo sul todo #${g.poi.todo.id}: ${g.poi.todo.titolo}`);"):
+    for pezzo in ("if (r.ok && g.poi) {", "await portaSulTodo(g.poi.progetto, g.poi.todo);"):
         if pezzo not in volta:
             return f"volta.js non porta Claude sul task dopo A Claude: manca {pezzo[:70]}"
     node = shutil.which("node")
@@ -13626,7 +13631,7 @@ def hz167(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"sessioni.js o azioni.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
-    if d["gruppi"] != [["sessioni", "Sessioni che ti aspettano", ["amaltea:s1", "amaltea:s2"]], ["bozze", "Bozze da mandare", ["bozza:b1"]],
+    if d["gruppi"] != [["aspettano", "Ti aspettano", ["amaltea:s1", "amaltea:s2"]], ["bozze", "Bozze da mandare", ["bozza:b1"]],
                        ["tu", "Tocca a te", ["uf:1", "uf:3"]], ["decidi", "Decidi tu", ["uf:2"]]]:
         return f"i gruppi della Coda non seguono chi agisce o perdono l'ordine: {d['gruppi']}"
     if d["soloUf"] != ["bozze", "tu", "decidi"] or d["vuota"] != 0:
@@ -15778,7 +15783,59 @@ def hz193(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193}
+PROVA_TESTO_TODO = r"""
+import * as m from %s;
+console.log(JSON.stringify({ testo: m.testoTodo({ id: 9, titolo: "Mandare X" }), nomi: Object.keys(m).filter((k) => /gruppi_?coda/i.test(k)) }));
+"""
+
+
+def hz194(repo: Path, casa: Path) -> str | None:
+    """I resti della Coda a elenco (#6075): un posto solo per le misure e per portare Claude su un todo."""
+    mod = repo / "shared/volta/mods/arturo"
+    js = {f.name: f.read_text(encoding="utf-8") for f in sorted(mod.glob("*.js"))}
+    for nome, testo in js.items():
+        if "gruppiCoda" in testo or "GRUPPI_CODA" in testo:
+            return f"{nome} nomina ancora gruppiCoda o GRUPPI_CODA, che nessuno usa più"
+        if nome != "misure.js" and "const PALLINO = " in testo:
+            return f"{nome} si rifà il pallino a mano invece di prenderlo da misure.js"
+    if "export const PULSANTE = { grande: 36, piccolo: 28, fitto: 24 };" not in js["misure.js"]:
+        return "misure.js non ha le tre altezze dei pulsanti (grande 36, piccolo 28, fitto 24)"
+    for nome, pezzo, perche in (
+        ("coda.js", 'import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";', "il pallino non viene da misure.js"),
+        ("coda.js", "const CHIP = PULSANTE.fitto;", "i pulsanti dentro una riga non prendono l'altezza da misure.js"),
+        ("checklist.js", ".px(SPAZIO.m).h(PULSANTE.fitto).flex()", "i pulsanti piccoli della checklist non prendono l'altezza da misure.js"),
+        ("sposta.js", 'h_flex().id("sposta-tutto").h(PULSANTE.piccolo).px(SPAZIO.m).gap(SPAZIO.s + 2).items_center().rounded(RAGGIO.controllo).text_size(TESTO.etichetta)',
+         "la pastiglia Sposta tutto non sta sulla scala comune"),
+        ("comuni.js", 'h_flex().id("dove-scelta").h(PULSANTE.piccolo).px(SPAZIO.m).gap(SPAZIO.s + 2).items_center().rounded(RAGGIO.controllo).cursor_pointer().text_size(TESTO.etichetta)',
+         "la pastiglia Nasce su non sta sulla scala comune"),
+        ("dati.js", "    const testo = testoTodo(todoScelto);\n", "apri() non prende il testo del todo da testoTodo"),
+        ("dati.js", "  return progetto ? apri(progetto, t) : nuova(testoTodo(t));\n", "portaSulTodo non sceglie fra la sessione del progetto e una richiesta nuova"),
+        ("volta.js", "        await portaSulTodo(g.progetto, g.todo);\n", "Apri di una carta UF non passa da portaSulTodo"),
+        ("volta.js", "        await portaSulTodo(g.poi.progetto, g.poi.todo);\n", "A Claude non passa da portaSulTodo"),
+        ("barra.js", "di ripartire dalla prima riga.", "il commento del comando coda parla ancora della prima carta"),
+    ):
+        if pezzo not in js[nome]:
+            return f"{nome}: {perche}"
+    quanti = sum(t.count("Lavoriamo sul todo #") for t in js.values())
+    if quanti != 1 or "Lavoriamo sul todo #" not in js["sessioni.js"]:
+        return f"il testo che porta Claude su un todo sta in {quanti} punti del mod: deve stare solo in testoTodo di sessioni.js"
+    if "una carta per volta, risposta in un tasto" in js["sessioni.js"]:
+        return "sessioni.js descrive ancora la Coda a una carta per volta"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_TESTO_TODO % json.dumps((casa / "sessioni.mjs").as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30, cwd=casa)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["testo"] != "Lavoriamo sul todo #9: Mandare X" or d["nomi"]:
+        return f"testoTodo scrive altro, o sessioni.js esporta ancora i gruppi della Coda: {d}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -15823,6 +15880,20 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ194', 'shared/volta/mods/arturo/sessioni.js', 'export const testoTodo = (t) => `Lavoriamo sul todo #${t.id}: ${t.titolo}`;', 'export const testoTodo = (t) => `Lavoriamo sul todo ${t.id}: ${t.titolo}`;'),
+    ('HZ194', 'shared/volta/mods/arturo/sessioni.js', 'export function gruppoCarta(c) {', 'export const GRUPPI_CODA = [];\nexport function gruppoCarta(c) {'),
+    ('HZ194', 'shared/volta/mods/arturo/sessioni.js', 'scelta risponde in un tasto. Qui stanno le decisioni', 'una carta per volta, risposta in un tasto. Qui stanno le decisioni'),
+    ('HZ194', 'shared/volta/mods/arturo/dati.js', '    const testo = testoTodo(todoScelto);\n', '    const testo = `Lavoriamo sul todo #${todoScelto.id}: ${todoScelto.titolo}`;\n'),
+    ('HZ194', 'shared/volta/mods/arturo/dati.js', '  return progetto ? apri(progetto, t) : nuova(testoTodo(t));\n', '  return nuova(testoTodo(t));\n'),
+    ('HZ194', 'shared/volta/mods/arturo/volta.js', '        await portaSulTodo(g.progetto, g.todo);\n', '        await apriProgetto(g.progetto, g.todo);\n'),
+    ('HZ194', 'shared/volta/mods/arturo/volta.js', '        await portaSulTodo(g.poi.progetto, g.poi.todo);\n', '        await apriProgetto(g.poi.progetto, g.poi.todo);\n'),
+    ('HZ194', 'shared/volta/mods/arturo/coda.js', 'const CHIP = PULSANTE.fitto;', 'const CHIP = 24;'),
+    ('HZ194', 'shared/volta/mods/arturo/coda.js', 'import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";', 'import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";\nconst PALLINO = 7;'),
+    ('HZ194', 'shared/volta/mods/arturo/checklist.js', '.px(SPAZIO.m).h(PULSANTE.fitto).flex()', '.px(SPAZIO.m).h(24).flex()'),
+    ('HZ194', 'shared/volta/mods/arturo/misure.js', 'piccolo: 28, fitto: 24 };', 'piccolo: 28, fitto: 26 };'),
+    ('HZ194', 'shared/volta/mods/arturo/sposta.js', 'id("sposta-tutto").h(PULSANTE.piccolo).px(SPAZIO.m)', 'id("sposta-tutto").h(28).px(SPAZIO.m)'),
+    ('HZ194', 'shared/volta/mods/arturo/comuni.js', 'id("dove-scelta").h(PULSANTE.piccolo).px(SPAZIO.m).gap(SPAZIO.s + 2)', 'id("dove-scelta").h(PULSANTE.piccolo).px(8).gap(6)'),
+    ('HZ194', 'shared/volta/mods/arturo/barra.js', 'di ripartire dalla prima riga.', 'di ripartire dalla prima carta.'),
     ('HZ193', 'shared/volta/mods/arturo/dati.js', '  if (filaGira) return { ok: true, attesa: prima };', '  if (false) return { ok: true, attesa: prima };'),
     ('HZ193', 'shared/volta/mods/arturo/dati.js', '        while (inNascita()) {\n          const t0 = Date.now();', '        while (false) {\n          const t0 = Date.now();'),
     ('HZ193', 'shared/volta/mods/arturo/dati.js', '          if (Date.now() - t0 < FILA_OGNI_MS / 2) break;\n', ''),
@@ -16056,7 +16127,6 @@ VELENI = [
     ('HZ167', 'shared/volta/mods/arturo/azioni.js', ',\n    poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };', ' };'),
     ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '  if (c.fonte === "bozza") return "bozze";\n', ''),
     ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '(chiusi.has(g.chiave) ? [] : g.carte)', '(g.carte)'),
-    ('HZ167', 'shared/volta/mods/arturo/sessioni.js', '  return GRUPPI_CODA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) })).filter((g) => g.carte.length);', '  return GRUPPI_CODA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) }));'),
     ('HZ167', 'shared/volta/mods/arturo/volta.js', '      if (r.ok && g.poi) {', '      if (false) {'),
     ('HZ166', 'shared/volta/mods/arturo/sessioni.js', "m.nascita.permesso === true ?", "false ?"),
     ('HZ171', 'shared/volta/mods/arturo/sessioni.js', "  return (giro?.n ?? 0) < PROVA_TENTATIVI && ora >= (giro?.dopo ?? 0);", "  return false;"),

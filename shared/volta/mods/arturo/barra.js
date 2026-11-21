@@ -128,8 +128,8 @@ export class Barra {
     else if (c === "casa" && senzaTessere(layout())) this.lungo("volta-nuova", cx, () => nuovaScheda());
     else if (c === "casa") { run("layout.select", { stack: STACK, child: CASA }); setShared("arturo.casa.apri", Date.now()); }
     else if (c === "casa-chiudi") terminale();
-    // ⌘⇧J: la Coda delle decisioni al posto del terminale (#5720); il segno dice alla parte di ripartire
-    // dalla prima carta. Un layout di prima del 15/11 non ha la Coda: lo dice, senza avviso d'errore.
+    // ⌘⇧J: l'Orchestratore (la Coda, coda.js) al posto del terminale (#5720, #6185); il segno dice alla parte
+    // di ripartire dalla prima riga. Un layout di prima del 15/11 non ha la Coda: lo dice, senza avviso d'errore.
     else if (c === "coda" && senzaCoda(layout())) notify({ title: "La Coda non c'è in questa finestra", body: "Il layout è di prima della Coda: aggiorna Volta e riaprila.", level: "warning" });
     else if (c === "coda") { run("layout.select", { stack: STACK, child: CODA }); setShared("arturo.coda.apri", Date.now()); }
     else if (c === "coda-rispondi") this.volta.rispondiCoda(arg.chiave, decodifica(arg.testo), cx);

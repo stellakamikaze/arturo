@@ -2,7 +2,7 @@
 // terminale, tutto ciò che le sessioni e i task aspettano dalla persona, di ogni macchina.
 // Dal 18/11/2026 è un elenco e non più una carta per volta (richiesta: "non mi permette di capire chiaramente
 // quali sono le cose pending, come nella schermata Su cosa lavorare"): i gruppi per chi agisce come nella
-// checklist (gruppiCoda di sessioni.js), una riga per carta con le opzioni in pulsanti piccoli, e la riga
+// checklist (gruppoCarta di sessioni.js), una riga per carta con le opzioni in pulsanti fitti, e la riga
 // scelta aperta con la domanda intera, le prove e i gesti. Le carte le mette in ordine la barra (volta.js,
 // shared arturo.coda, carte() e ordineCoda() di sessioni.js); ⌘⇧J scrive il segno arturo.coda.apri
 // (barra.js) e la vista riparte dalla prima riga.
@@ -25,17 +25,15 @@ import { config, apriFile, nomeMacchina } from "./dati.js";
 import { passoCoda, cartaDavanti, raccomandata, tipoProva, copiaProva, comandoRisposta, daQuanto, nomeProgetto, testoPiano, etichettaOpzione, CODA_OPZIONI } from "./sessioni.js";
 import { comandoGesto, comandoChecklist, GIA_FATTO, SCARTA, NOTE, UMANI, ordineVisto } from "./sessioni.js";
 import { gruppiOrchestra, tastoOrchestra, dettaglioRiga, CHIUSI_DI_SERIE } from "./sessioni.js";
-import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
+import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
 import { tettoDi, entroDi, daCopiare, PROVA_RIPROVA_MS } from "./sessioni.js";
 
 // Altezza massima di uno screenshot nella riga aperta: il resto della riga deve restare in vista.
 const PROVA_H = 300;
-// Il pallino della riga, come quello delle sessioni (PALLINO di DESIGN.md).
-const PALLINO = 7;
 // Il rientro di tutto ciò che sta sotto il titolo: pallino più il suo spazio.
 const RIENTRO = PALLINO + SPAZIO.m + 2;
 // I pulsanti dentro una riga: più bassi del piccolo, come quelli della checklist (piccolo() di checklist.js).
-const CHIP = 24;
+const CHIP = PULSANTE.fitto;
 
 export class Coda {
   init(_p, cx) {

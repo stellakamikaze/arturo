@@ -324,7 +324,7 @@ export class Checklist {
   }
 
   piccolo(t, id, testo, azione, acceso = false) {
-    return div().id(id).flex_none().px(SPAZIO.m).h(24).flex().items_center().rounded(RAGGIO.controllo).cursor_pointer()
+    return div().id(id).flex_none().px(SPAZIO.m).h(PULSANTE.fitto).flex().items_center().rounded(RAGGIO.controllo).cursor_pointer()
       .text_size(TESTO.nota).border_1().border_color(acceso ? t.accent : t.border)
       .bg(acceso ? t.accent : t.background).text_color(acceso ? t.accent_foreground : t.muted)
       .hover((st) => st.border_color(t.accent))

@@ -250,9 +250,9 @@ export function ordineCoda(lista) {
     .sort((a, b) => a.r - b.r || a.q - b.q || a.i - b.i).map((x) => x.c);
 }
 
-// La vista Coda (#5720, step 3 del piano): una carta per volta, risposta in un tasto. Qui stanno le
-// decisioni senza Herdr (coda.js disegna): quale opzione è la raccomandata, cosa fa un tasto, dove va una
-// prova. Al più CODA_OPZIONI opzioni, come i tetti della sonda.
+// La vista Coda (#5720, step 3 del piano; dal 18/11/2026 un elenco, dal 20/11 l'Orchestratore): la riga
+// scelta risponde in un tasto. Qui stanno le decisioni senza Herdr (coda.js disegna): quale opzione è la
+// raccomandata, cosa fa un tasto, dove va una prova. Al più CODA_OPZIONI opzioni, come i tetti della sonda.
 export const CODA_OPZIONI = 6;
 const piana = (t) => String(t ?? "").toLowerCase().replace(/[*_`"'.!?:;,()]+/g, " ").replace(/\s+/g, " ").trim();
 // L'indice dell'opzione che la raccomandazione indica, o -1: prima l'opzione uguale, poi quella che la
@@ -296,27 +296,19 @@ export function tastoCoda(k, c) {
   if (k === "escape") return { azione: "esci" };
   return null;
 }
-// La Coda come elenco (18/11/2026: "non mi permette di capire chiaramente quali sono le cose
-// pending, come nella schermata Su cosa lavorare"): i gruppi per chi agisce, come la checklist, e dentro
-// l'ordine di ordineCoda. Un gruppo vuoto non c'è. Torna [{ chiave, nome, carte }].
-export const GRUPPI_CODA = [
-  ["sessioni", "Sessioni che ti aspettano"],
-  ["bozze", "Bozze da mandare"],
-  ["tu", "Tocca a te"],
-  ["decidi", "Decidi tu"],
-];
+// Il gruppo di una carta, per chi agisce (18/11/2026: "non mi permette di capire chiaramente quali sono le
+// cose pending, come nella schermata Su cosa lavorare"): "sessioni", "bozze", "tu" o "decidi". I gruppi
+// dell'elenco, coi nomi, li fa gruppiOrchestra qui sotto.
 export function gruppoCarta(c) {
   if (c?.origine !== "uf") return "sessioni";
   if (c.fonte === "bozza") return "bozze";
   return c.gruppo === "tu" ? "tu" : "decidi";
 }
-export function gruppiCoda(lista) {
-  const per = new Map(GRUPPI_CODA.map(([k]) => [k, []]));
-  for (const c of lista ?? []) if (c) per.get(gruppoCarta(c)).push(c);
-  return GRUPPI_CODA.map(([chiave, nome]) => ({ chiave, nome, carte: per.get(chiave) })).filter((g) => g.carte.length);
-}
 // Le carte nell'ordine in cui l'elenco le mostra, senza i gruppi chiusi: è l'ordine delle frecce.
 export const ordineVisto = (gruppi, chiusi = new Set()) => (gruppi ?? []).flatMap((g) => (chiusi.has(g.chiave) ? [] : g.carte));
+// Il testo che porta Claude su un todo, in una sessione già aperta o in una nuova senza progetto (Lavoraci,
+// Apri e A Claude dell'Orchestratore: apri e portaSulTodo di dati.js).
+export const testoTodo = (t) => `Lavoriamo sul todo #${t.id}: ${t.titolo}`;
 // L'Orchestratore (Fase 2 del piano del 20/11/2026, #6185): la Coda diventa il posto da cui si guidano tutte le
 // sessioni. In cima le sessioni per stato, sotto i gruppi di prima (bozze, tocca a te, decidi tu), in fondo i
 // permessi approvati da Arturo oggi, chiusi di serie. Le chiuse e le addormentate restano fuori. Le righe di

@@ -45,7 +45,7 @@ import { apriContesto } from "./contestoui.js";
 import { apriMenuProgetto } from "./menusessione.js";
 import { carte, ordineCoda, canaleRisposta, rigaRisposta, senzaRisposte, carteUf, LETTURA_UF_MS, RIMANDA_MS, conCapo, fondiDoppie, testoPerSessione, rigaMisura } from "./sessioni.js";
 import { gestoCoda, senzaScartate } from "./sessioni.js";
-import { schedeRisposta, rispondiSessione, registraRisposta, prendiCarteUf, apriLink, todo, nuova, scartaCarta, leggiScartate } from "./dati.js";
+import { schedeRisposta, rispondiSessione, registraRisposta, prendiCarteUf, apriLink, todo, nuova, portaSulTodo, scartaCarta, leggiScartate } from "./dati.js";
 import { leggiRecenti, riprendiDaSola } from "./dati.js";
 import { daRiprendere, testoRipresa } from "./sessioni.js";
 import { gestoUf } from "./azioni.js";
@@ -1258,10 +1258,10 @@ export class Volta {
     if (s) this.premi(s, cx);
   }
 
-  // Le carte della Coda (#5720), già in ordine, senza quelle appena risposte (senzaRisposte): la parte
-  // coda.js e la barra di stato le leggono da shared arturo.coda. Il capo (#5723) mette i suoi giudizi
+  // Le carte della Coda (#5720), già in ordine, senza quelle appena risposte (senzaRisposte) o scartate: la
+  // parte coda.js e la barra di stato le leggono da shared arturo.coda. Il capo (#5723) mette i suoi giudizi
   // sulle carte delle sessioni (conCapo) e fonde le doppie; la misura della settimana va in
-  // arturo.coda.misura, per la testata della Coda.
+  // arturo.coda.misura, per la testata. Le righe delle sessioni dell'Orchestratore vanno in arturo.orchestra.
   aggiornaCoda() {
     const cc = fondiDoppie(senzaScartate(senzaRisposte(ordineCoda([...conCapo(carte(this.dati?.sessioni), this.uf), ...carteUf(this.uf)]), this.risposte), this.scartate));
     if (JSON.stringify(cc) !== JSON.stringify(shared("arturo.coda") ?? [])) setShared("arturo.coda", cc);
@@ -1418,8 +1418,7 @@ export class Volta {
       }
       if (g.azione === "apri") {
         terminale();
-        if (g.progetto) await apriProgetto(g.progetto, g.todo);
-        else await nuova(`Lavoriamo sul todo #${g.todo.id}: ${g.todo.titolo}`);
+        await portaSulTodo(g.progetto, g.todo);
         return;
       }
       const r = await todo(g.argv);
@@ -1428,8 +1427,7 @@ export class Volta {
       // altrimenti in una nuova con /inizio. La persona resta nella Coda.
       if (r.ok && g.poi) {
         notify({ title: g.esito, body: c.domanda, level: "success", timeout: 5000 });
-        if (g.poi.progetto) await apriProgetto(g.poi.progetto, g.poi.todo);
-        else await nuova(`Lavoriamo sul todo #${g.poi.todo.id}: ${g.poi.todo.titolo}`);
+        await portaSulTodo(g.poi.progetto, g.poi.todo);
         return;
       }
       if (r.ok) return notify({ title: g.esito, body: c.domanda, level: "success", timeout: 4000 });

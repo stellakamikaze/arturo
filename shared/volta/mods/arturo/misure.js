@@ -14,8 +14,9 @@ export const RAGGIO = { controllo: 6, riga: 8, riquadro: 10 };
 // Corpi del testo.
 export const TESTO = { nota: 11.5, etichetta: 12.5, corpo: 13.5, riga: 14, testata: 16, titolo: 20 };
 
-// Pulsanti in due altezze: grande per le azioni della colonna, piccolo per quelli dentro una riga.
-export const PULSANTE = { grande: 36, piccolo: 28 };
+// Pulsanti in tre altezze: grande per le azioni della colonna, piccolo per quelli dentro una riga o un
+// pannello, fitto per le file di opzioni dentro una riga dell'Orchestratore e della checklist.
+export const PULSANTE = { grande: 36, piccolo: 28, fitto: 24 };
 
 // Icone e pallino di stato.
 export const ICONA_MISURA = { piccola: 14, grande: 16 };

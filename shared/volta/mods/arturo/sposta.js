@@ -13,6 +13,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, run } from "herdr";
 import { vociMacchina } from "./comuni.js";
 import { titolo, nonSiSposta, aFineTurno, spostabili, perSposta, contoTutto, chiave } from "./sessioni.js";
+import { SPAZIO, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 
 // Le regole di Sposta stanno in sessioni.js (pure, provate con node): qui per chi le prende da sposta.js.
 export { nonSiSposta, aFineTurno, spostabili, perSposta, contoTutto };
@@ -48,7 +49,7 @@ export function pastigliaTutto(t, sessioni, coda = 0) {
   const voci = vociMacchina();
   if (voci.length < 2) return null;
   if (!coda && !voci.some((m) => spostabili(sessioni, m.host).length > 0)) return null;
-  return h_flex().child(h_flex().id("sposta-tutto").h(28).px(8).gap(6).items_center().rounded(6).text_size(12.5)
+  return h_flex().child(h_flex().id("sposta-tutto").h(PULSANTE.piccolo).px(SPAZIO.m).gap(SPAZIO.s + 2).items_center().rounded(RAGGIO.controllo).text_size(TESTO.etichetta)
     .border_1().border_color(t.border)
     .when(!coda, (el) => el.cursor_pointer().hover((s) => s.bg(t.hover))
       .on_click(() => apriSpostaTutto((sessioni ?? []).map(perSposta))))

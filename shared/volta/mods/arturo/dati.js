@@ -3,7 +3,7 @@
 
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale, schedaDelProgetto } from "./sessioni.js";
-import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
+import { tettoDi, entroDi, servizioAcceso, claudeDavanti, testoTodo } from "./sessioni.js";
 import { promptCompito, avvisoCompito, avvisoAttesa, nomeProgetto as nomeProgettoDi, nomeChi, sa } from "./sessioni.js";
 import { leggiUnione, vistaUnione, percheNonUnire, UNIONE_PROVA_MS, UNIONE_MS } from "./sessioni.js";
 
@@ -514,7 +514,7 @@ export async function apri(nome, todoScelto) {
   if (s) {
     run("space.select", { id: s.id });
     if (!todoScelto) return;
-    const testo = `Lavoriamo sul todo #${todoScelto.id}: ${todoScelto.titolo}`;
+    const testo = testoTodo(todoScelto);
     // Il todo va solo a una scheda la cui sessione lavora su questo progetto (#5485): Claude in una
     // scheda (agente di Herdr) o la scheda che aggancia una sessione in background. Senza, nasce sotto.
     const schede = schedeDiClaude(s);
@@ -554,6 +554,12 @@ export async function apri(nome, todoScelto) {
 // parlano dei suoi progetti, dei suoi todo e della sua configurazione (chiedi()).
 export async function nuova(prompt, soloQui = false) {
   return nasciSu(soloQui ? "qui" : dove(), prompt, null);
+}
+
+// Porta Claude su un todo (Apri e A Claude dell'Orchestratore, volta.js rispondiUf): nella sessione del
+// progetto se il todo ne ha uno (apri), altrimenti in una richiesta nuova senza progetto.
+export async function portaSulTodo(progetto, t) {
+  return progetto ? apri(progetto, t) : nuova(testoTodo(t));
 }
 
 // Una conversazione nuova in un progetto (la tessera di ⌘T, 12/11/2026): sempre una sessione nuova

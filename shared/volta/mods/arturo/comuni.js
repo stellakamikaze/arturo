@@ -153,7 +153,7 @@ export function nasceSu(t) {
   const d = dove();
   const nascita = inNascita();
   const scelta = voci.find((m) => m.host === d) ?? voci[0];
-  return h_flex().child(h_flex().id("dove-scelta").h(PULSANTE.piccolo).px(8).gap(6).items_center().rounded(6).cursor_pointer().text_size(12.5)
+  return h_flex().child(h_flex().id("dove-scelta").h(PULSANTE.piccolo).px(SPAZIO.m).gap(SPAZIO.s + 2).items_center().rounded(RAGGIO.controllo).cursor_pointer().text_size(TESTO.etichetta)
     .border_1().border_color(t.border).hover((s) => s.bg(t.hover))
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
     .on_click(() => apriSceltaMacchina())
