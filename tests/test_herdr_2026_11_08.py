@@ -385,7 +385,8 @@ HZ88 il terminale si legge (12/11/2026, #5365): nei due temi (notte e carta) il 
 HZ89 chiudere una sessione la chiude davvero (12/11/2026, decisione di Federico): ⌘W, la X o Chiudi del
      menu fanno il congedo, /fine e poi claude stop. sessioni.js con node: visibili() toglie dall'elenco
      le chiuse e quelle in congedo, sparite() trova le schede chiuse da chi usa la finestra (non quelle
-     tolte da Volta, non una sessione che ha ancora un'altra scheda), passoCongedo() aspetta il turno,
+     tolte da Volta, non una sessione che ha ancora un'altra scheda, non quelle di una macchina muta che il
+     core toglie da solo, #6246), passoCongedo() aspetta il turno,
      riprende con /fine, ferma a /fine finito e ferma lo stesso dopo una domanda o un tetto; segna
      salvata solo a /fine finito, e solo una salvata e chiusa va eliminata con claude rm (#5401). La sonda:
      congeda fa claude stop e poi --resume della stessa conversazione col solo /fine, senza
@@ -661,7 +662,8 @@ HZ149 la scheda di una sessione di un'altra macchina nasce nel core di quella ma
 HZ150 una sessione di prova (nome prova-, #5877, 17/11/2026, prima /revisione: Volta mandava /fine a una prova;
      con node): alla chiusura passoCongedo non chiede /fine, la ferma subito anche se lavora e la segna salvata,
      così poi va claude rm; una sessione vera, anche con prova nel mezzo del nome, fa ancora /fine; la chiusura
-     automatica di una prova lo dice ("è una prova, la elimino").
+     automatica di una prova lo dice ("è una prova, la elimino"). Conta il nome dato a mano (nomeDato, #6245,
+     21/11/2026): un nome prova-… inventato da Claude Code fa /fine.
 HZ151 il capo non lancia lead su task fermi, in attesa o in pausa, e al più uno per task (#5876, 17/11/2026, prima
      /revisione; assorbe #5788): niente lead su un progetto con la parola "fermo", su un task fermo o che aspetta
      un altro task; un task che ha avuto un lead nelle ultime 24 ore non ne ha un altro anche se la sessione è
@@ -716,7 +718,7 @@ HZ158 le letture incrementali delle trascrizioni (17/11/2026, #5489): la sonda t
      cache/volta-letture.json file, ino, punto letto e stato del calcolo. Un file fermo non si rilegge
      (un contenuto cambiato a pari lunghezza non si vede), uno cresciuto si legge dal punto, con
      risposta, chi, fineFatta e persona giusti, e una riga ancora a metà conta ma non entra nel punto;
-     un file più corto riparte da capo.
+     un file più corto riparte da capo. nomeDato viene solo da un custom-title, mai da agent-name (#6245).
 HZ162 la cache di claude agents nella lettura locale (17/11/2026, #5946): la sonda non richiama claude
      agents se i file di stato di lavori e sessioni non cambiano, a parte detail, tokens e le ore
      di aggiornamento; rilegge se cambia uno stato, nasce un lavoro, cambia il programma claude, muore
@@ -8939,7 +8941,7 @@ def hz88(repo: Path, casa: Path) -> str | None:
 
 
 PROVA_CONGEDO = r"""
-import { visibili, sparite, passoCongedo } from "./sessioni.mjs";
+import { visibili, sparite, passoCongedo, mute } from "./sessioni.mjs";
 const T = Date.parse("2026-11-12T10:00:00Z");
 const s = (x) => ({ tipo: "background", id: "aaaa1111", sessionId: "S1", host: "qui", macchina: "M", stato: "ferma", ultimo: "2026-11-12T09:00:00Z", ...x });
 const c = (x) => ({ sessionId: "S1", fase: "attende", da: T, dal: T, ...x });
@@ -8950,6 +8952,12 @@ const sc = (n) => ({ sessionId: `S${n}`, id: `i${n}`, host: "qui" });
 out.sparite = sparite({ t1: sc(1), t2: sc(2), t3: sc(3), t4: sc(4) }, { t3: sc(3), t9: sc(4) }, { t2: T - 1000 }, T).map((x) => x.sessionId);
 out.vecchioTolto = sparite({ t2: sc(2) }, {}, { t2: T - 120000 }, T).map((x) => x.sessionId);
 out.primo = sparite(null, { t1: sc(1) }).length;
+// #6246: le schede di una macchina muta le toglie il core dopo DIMENTICA_MS, nessuno le ha chiuse
+const sm = (n) => ({ sessionId: `S${n}`, id: `i${n}`, host: "torre" });
+out.muta = sparite({ t1: sc(1), t5: sm(5) }, {}, {}, T, {}, mute({ sessioni: [{ ...sm(5), vecchia: true }] })).map((x) => x.sessionId);
+out.mutaGiu = sparite({ t5: sm(5) }, {}, {}, T, {}, mute({ giuDa: { torre: T - 700000 } })).map((x) => x.sessionId);
+out.mutaIrr = sparite({ t5: sm(5) }, {}, {}, T, {}, mute({ macchine: [{ host: "torre", irraggiungibile: "spenta" }] })).map((x) => x.sessionId);
+out.vivaAltrove = sparite({ t5: sm(5) }, {}, {}, T, {}, mute({ sessioni: [sm(5)] })).map((x) => x.sessionId);
 out.lavora = passoCongedo(c({}), s({ stato: "lavora" }), T + 1000).fai;
 out.lavoraTroppo = passoCongedo(c({}), s({ stato: "lavora" }), T + 21 * 60000).fai;
 out.ferma = passoCongedo(c({}), s({}), T + 1000);
@@ -8964,6 +8972,9 @@ out.salvataViva = passoCongedo(c({ fase: "ferma", salvata: true }), s({}), T + 5
 out.riprova = passoCongedo(c({ fase: "ferma" }), s({}), T + 130000).fai;
 out.giaChiusa = passoCongedo(c({}), s({ chiusa: true }), T + 1000).fai;
 out.giu = passoCongedo(c({ fase: "fine" }), s({ vecchia: true }), T + 3600000).fai;
+// #6246 (B3): dopo CONGEDO_VECCHIO_MS il congedo di una macchina muta scade, e lo dice; una sessione sparita no
+out.scaduto = passoCongedo(c({ fase: "fine" }), s({ vecchia: true }), T + 7 * 3600000);
+out.sparita = passoCongedo(c({ fase: "fine" }), undefined, T + 2 * 3600000);
 console.log(JSON.stringify(out));
 """
 
@@ -8984,6 +8995,14 @@ def hz89(repo: Path, casa: Path) -> str | None:
             return f"visibili() non toglie le chiuse e quelle in congedo, o toglie quella in errore: {d['vis']}"
         if d["sparite"] != ["S1"] or d["vecchioTolto"] != ["S2"] or d["primo"] != 0:
             return f"sparite() sbaglia le schede chiuse dalla persona: {d['sparite']}, {d['vecchioTolto']}, {d['primo']}"
+        if d["scaduto"] != {"fai": "togli", "scaduto": True} or d["sparita"] != {"fai": "togli"}:
+            return f"il congedo di una macchina muta da ore non scade col segno scaduto (#6246, B3): {d['scaduto']}, {d['sparita']}"
+        vj89 = (mod / "volta.js").read_text(encoding="utf-8")
+        if 'if (p.fai === "togli" && p.scaduto) {' not in vj89 or 'esito: "scaduto" });' not in vj89:
+            return "volta.js segna chiusa e nasconde senza avviso la sessione di un congedo scaduto (#6246, B3)"
+        if d["muta"] != ["S1"] or d["mutaGiu"] != [] or d["mutaIrr"] != [] or d["vivaAltrove"] != ["S5"]:
+            return (f"sparite() manda in congedo le schede di una macchina muta, o salta quelle di una macchina viva (#6246): "
+                    f"{d['muta']}, {d['mutaGiu']}, {d['mutaIrr']}, {d['vivaAltrove']}")
         attesi = {"lavora": "attendi", "lavoraTroppo": "fine", "avvio": "attendi", "chiusaOk": "togli", "chiusaSalvata": "rm",
                   "salvataViva": "attendi", "riprova": "stop", "giaChiusa": "togli", "giu": "attendi"}
         for k, v in attesi.items():
@@ -11521,7 +11540,7 @@ def hz121(repo: Path, casa: Path) -> str | None:
     """Solo le schede vere contano per il congedo (S2 del piano F3·S, #5630)."""
     mod = repo / "shared/volta/mods/arturo"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    if 'sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro);' not in vj:
+    if 'sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro, muti);' not in vj:
         return "volta.js: la guardia delle schede non passa a sparite() le schede occupate da un'altra sessione"
     node = shutil.which("node")
     if not node:
@@ -11785,12 +11804,14 @@ const T = Date.parse("2026-11-17T10:00:00Z");
 const s = (x) => ({ tipo: "background", id: "aaaa1111", sessionId: "S1", host: "qui", macchina: "M", stato: "ferma", ultimo: "2026-11-17T09:00:00Z", ...x });
 const c = (x) => ({ sessionId: "S1", fase: "attende", da: T, dal: T, ...x });
 console.log(JSON.stringify({
-  ferma: passoCongedo(c({}), s({ nome: "prova-5877" }), T + 1000),
-  lavora: passoCongedo(c({}), s({ nome: "Prova-mb", stato: "lavora" }), T + 1000),
-  poi: passoCongedo(c({ fase: "ferma", salvata: true }), s({ nome: "prova-5877", chiusa: true }), T + 5000).fai,
-  vera: passoCongedo(c({}), s({ nome: "arturo-prova-x" }), T + 1000).fai,
+  ferma: passoCongedo(c({}), s({ nome: "prova-5877", nomeDato: "prova-5877" }), T + 1000),
+  lavora: passoCongedo(c({}), s({ nome: "Prova-mb", nomeDato: "Prova-mb", stato: "lavora" }), T + 1000),
+  poi: passoCongedo(c({ fase: "ferma", salvata: true }), s({ nome: "prova-5877", nomeDato: "prova-5877", chiusa: true }), T + 5000).fai,
+  vera: passoCongedo(c({}), s({ nome: "arturo-prova-x", nomeDato: "arturo-prova-x" }), T + 1000).fai,
+  inventato: passoCongedo(c({}), s({ nome: "prova-installazione-volta" }), T + 1000).fai,
   senzaNome: passoCongedo(c({}), s({}), T + 1000).fai,
-  di: [diProva({ nome: "prova-a" }), diProva({ nome: " PROVA-b" }), diProva({ nome: "arturo-prova" }), diProva({}), diProva(null)],
+  di: [diProva({ nomeDato: "prova-a" }), diProva({ nomeDato: " PROVA-b" }), diProva({ nomeDato: "arturo-prova" }), diProva({}), diProva(null),
+       diProva({ nome: "prova-cartella" }), diProva({ nome: "prova-x", nomeDato: "" })],
 }));
 """
 
@@ -11802,6 +11823,8 @@ def hz150(repo: Path, casa: Path) -> str | None:
     if not re.search(r"import \{[^}]*\bdiProva\b[^}]*\} from \"\./sessioni\.js\"", volta) \
             or 'diProva(s) ? "è una prova, la elimino."' not in volta:
         return "la chiusura automatica di volta.js non riconosce una sessione di prova"
+    if '"nomeDato": s.get("nomeDato") if isinstance(s.get("nomeDato"), str) else "",' not in (mod / "volta_sonda.py").read_text(encoding="utf-8"):
+        return "le righe della sonda non portano a Volta il nome dato a mano (nomeDato, #6245)"
     node = shutil.which("node")
     if not node:
         return None
@@ -11820,8 +11843,10 @@ def hz150(repo: Path, casa: Path) -> str | None:
         return f"una sessione di prova ferma non si elimina: {d['poi']}"
     if d["vera"] != "fine" or d["senzaNome"] != "fine":
         return f"una sessione vera non fa più /fine alla chiusura: {d['vera']}, {d['senzaNome']}"
-    if d["di"] != [True, True, False, False, False]:
-        return f"diProva riconosce male il nome: {d['di']}"
+    if d["inventato"] != "fine":
+        return f"una sessione col nome inventato da Claude Code (prova-…) si chiude senza /fine (#6245): {d['inventato']}"
+    if d["di"] != [True, True, False, False, False, False, False]:
+        return f"diProva riconosce male il nome dato: {d['di']}"
     return None
 
 
@@ -12436,13 +12461,17 @@ def hz158(repo: Path, casa: Path) -> str | None:
     def persona(ts, tx):
         return riga(type="user", timestamp=ts, message={"role": "user", "content": tx})
 
-    primo = persona("2026-11-17T09:00:00Z", "ciao") + testo_claude("2026-11-17T09:01:00Z", "Prima risposta.")
+    # il nome inventato da Claude Code sta solo in agent-name: non è un nome dato (#6245)
+    primo = (riga(type="agent-name", agentName="prova-inventato", sessionId="sid-inc")
+             + persona("2026-11-17T09:00:00Z", "ciao") + testo_claude("2026-11-17T09:01:00Z", "Prima risposta."))
     trascr.write_text(primo, encoding="utf-8")
     v, e = giro()
     if e:
         return e
     if v.get("risposta") != "Prima risposta." or v.get("persona") != "2026-11-17T09:00:00Z":
         return f"primo giro: risposta {v.get('risposta')!r}, persona {v.get('persona')!r}"
+    if v.get("nomeDato") != "":
+        return f"un nome inventato (agent-name) passa per nome dato: {v.get('nomeDato')!r} (#6245)"
     try:
         reg = json.loads(letture.read_text(encoding="utf-8"))["sid-inc"]
     except (OSError, ValueError, KeyError):
@@ -12459,6 +12488,7 @@ def hz158(repo: Path, casa: Path) -> str | None:
         return f"un file fermo è stato riletto: risposta {v.get('risposta')!r}"
     # file cresciuto: si legge dal punto. Più una riga a metà, senza a capo.
     with open(trascr, "a", encoding="utf-8") as fh:
+        fh.write(riga(type="custom-title", customTitle="prova-5877", sessionId="sid-inc"))
         fh.write(persona("2026-11-17T09:05:00Z", "<command-message>fine</command-message>\n<command-name>/fine</command-name>"))
         fh.write(testo_claude("2026-11-17T09:06:00Z", "Handoff scritto."))
         fh.write(testo_claude("2026-11-17T09:07:00Z", "Riga a meta.").rstrip("\n"))
@@ -12466,7 +12496,7 @@ def hz158(repo: Path, casa: Path) -> str | None:
     if e:
         return e
     attesi = {"risposta": "Riga a meta.", "chi": "claude", "fineFatta": True, "persona": "2026-11-17T09:00:00Z",
-              "interazione": "2026-11-17T09:07:00Z"}
+              "interazione": "2026-11-17T09:07:00Z", "nomeDato": "prova-5877"}
     for k, x in attesi.items():
         if v.get(k) != x:
             return f"file cresciuto, campo {k}: {v.get(k)!r}, atteso {x!r}"
@@ -16520,6 +16550,9 @@ VELENI = [
     ('HZ150', 'shared/volta/mods/arturo/sessioni.js', '    if (diProva(s)) return { fai: "stop", fase: "ferma", salvata: true };\n', ''),
     ('HZ150', 'shared/volta/mods/arturo/sessioni.js', 'export const PROVA = /^\\s*prova-/i;', 'export const PROVA = /prova-/i;'),
     ('HZ150', 'shared/volta/mods/arturo/volta.js', 'diProva(s) ? "è una prova, la elimino." : ', ''),
+    ('HZ150', 'shared/volta/mods/arturo/sessioni.js', 'PROVA.test(String(s?.nomeDato ?? ""))', 'PROVA.test(String(s?.nome ?? ""))'),
+    ('HZ150', 'shared/volta/mods/arturo/volta_sonda.py', '                "nomeDato": s.get("nomeDato") if isinstance(s.get("nomeDato"), str) else "",\n', ''),
+    ('HZ158', 'shared/volta/mods/arturo/volta_sonda.py', '            st["nomeDato"] = str(d.get("customTitle") or "")[:80]\n', '            pass\n'),
     ('HZ148', 'shared/volta/mods/arturo/sessioni.js', ' && !chiusaDaTe(s, chiuse));\n  return { ...dati, sessioni: unaPerConversazione(l) };', ');\n  return { ...dati, sessioni: unaPerConversazione(l) };'),
     ('HZ148', 'shared/volta/mods/arturo/sessioni.js', '  if (!v || s.stato === "lavora" || chiestaInFine(s)) return false;', '  if (!v) return false;'),
     ('HZ148', 'shared/volta/mods/arturo/sessioni.js', '  return tempo(s) <= (Number(v.da) || 0) + CHIUSE_MARGINE_MS;', '  return true;'),
@@ -16652,7 +16685,12 @@ VELENI = [
     ('HZ123', 'shared/volta/mods/arturo/volta.js', ' && visti.has(s.questa ? s.terminale : `${s.host}/${s.terminale}`))', ')'),
     ('HZ121', 'shared/volta/mods/arturo/dati.js', '    if (!visti.has(x.address) || !mia(x, io) || (x.state', '    if (!mia(x, io) || (x.state'),
     ('HZ121', 'shared/volta/mods/arturo/sessioni.js', 'if (ind in (adesso ?? {}) || occupate?.[ind] ||', 'if (ind in (adesso ?? {}) ||'),
-    ('HZ121', 'shared/volta/mods/arturo/volta.js', '    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro);', '    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {});'),
+    ('HZ121', 'shared/volta/mods/arturo/volta.js', '    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro, muti);', '    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {});'),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (muti?.[s.host ?? "qui"]) continue;\n', ''),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '  for (const s of dati?.sessioni ?? []) if (s?.vecchia) out[s.host ?? "qui"] = true;\n', ''),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '  for (const h of Object.keys(dati?.giuDa ?? {})) out[h] = true;\n', ''),
+    ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '{ fai: "togli", ...(s ? { scaduto: true } : {}) }', '{ fai: "togli" }'),
+    ('HZ89', 'shared/volta/mods/arturo/volta.js', 'if (p.fai === "togli" && p.scaduto) {', 'if (p.fai === "togli" && p.scaduto && false) {'),
     ('HZ120', 'shared/volta/mods/arturo/comandi.js', '  if (sk) return { verbo: "volta-sposta", arg: { macchina: sk[2], id: sk[1] }, lungo: false };\n', ''),
     ('HZ120', 'shared/volta/mods/arturo/comandi.js', '  const sp = /^volta-sposta-([^:]+)-([0-9A-Za-z]+)$/.exec(c);', '  const sp = null;'),
     ('HZ120', 'shared/volta/mods/arturo/menusessione.js', '${v.verbo}-${chiaveSessione(s)}`;', '${v.verbo}-${s.id}`;'),

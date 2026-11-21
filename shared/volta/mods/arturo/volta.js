@@ -27,7 +27,7 @@ import { ICONA, colore, segno, motoDi, movimento, tasti } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, chiudiAltrui, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { libero, schedeDi, cacheVolta, spostaSessione, tracciaSposta, nomeMacchina, riprendiSposta, spostamentiInVolo, togliVolo, leggiNomiSchede, salvaNomiSchede, registra, svuotaRegistro, staccaAggancio, nuda, ioQui } from "./dati.js";
-import { voloSposta, VOLO_FRESCO_MS, giuDa, dimenticata, testoHandoff, promptRipresa } from "./sessioni.js";
+import { voloSposta, VOLO_FRESCO_MS, giuDa, dimenticata, testoHandoff, promptRipresa, mute } from "./sessioni.js";
 import { righeOrchestra, siOggi, statoGiudice, giudiceDopo } from "./sessioni.js";
 import { giudiceSu } from "./dati.js";
 import { cartellaHandoff, nomeFile, creaCartella, leggiGiu, scriviGiu, riprendiSu, conArturo } from "./dati.js";
@@ -388,7 +388,9 @@ export class Volta {
     // chi gira davvero nel terminale vince sull'aggancio con cui la scheda è nata (occupanti): una scheda
     // occupata da un'altra sessione non è chiusa, e quella di prima non va in congedo (#5630)
     const dentro = occupanti(this.dati.sessioni);
-    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro);
+    // le macchine che non rispondono (#6246): il core toglie da solo le loro schede dopo DIMENTICA_MS
+    const muti = mute(this.dati);
+    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {}, Date.now(), dentro, muti);
     if (ora.length > SPARITE_MAX) {
       this.troppe = (this.troppe ?? 0) + 1;
       if (this.troppe < 3) return;
@@ -485,6 +487,13 @@ export class Volta {
         this.riapri(s);
         registra("congedo", { macchina: s?.host, sid: s?.id ?? c.id, esito: "riaperta" });
         notify({ title: `${c.titolo ?? "Sessione"}: resta aperta`, body: "L'hai riaperta durante la chiusura: non la fermo.", level: "info" });
+        continue;
+      }
+      if (p.fai === "togli" && p.scaduto) {
+        // la macchina tace da ore (#6246, B3): niente /fine, e la sessione torna nell'elenco quando risponde
+        scrivi(null);
+        registra("congedo", { macchina: c.host, sid: c.id, esito: "scaduto" });
+        notify({ title: `${c.titolo ?? "Sessione"}: non chiusa`, body: `${c.macchina ?? "La sua macchina"} non risponde da ore: la sessione resta aperta là. Chiudila quando la macchina torna.`, level: "warning" });
         continue;
       }
       if (p.fai === "togli") { scrivi(null); this.ricorda(c); continue; }

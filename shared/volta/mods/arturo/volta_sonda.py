@@ -428,7 +428,7 @@ fletture = os.path.join(radice, "cache", "volta-letture.json")
 letture = leggi(fletture)
 letture = letture if isinstance(letture, dict) else {}
 prima_letture = json.dumps(letture, sort_keys=True)
-VUOTO = {"risposta": "", "azione": "", "ultimo": "", "interazione": "", "coda": "", "chi": "", "fineFatta": False, "persona": "", "errore": None, "riuscita": ""}
+VUOTO = {"risposta": "", "azione": "", "ultimo": "", "interazione": "", "coda": "", "chi": "", "fineFatta": False, "persona": "", "errore": None, "riuscita": "", "nomeDato": ""}
 def errore_api(d):
     # La ripresa da sola (#5882): un turno finito col limite d'uso (rate_limit, con l'ora di sblocco) o con
     # la connessione persa (server_error). Gli altri errori (login scaduto) aspettano la persona.
@@ -450,12 +450,19 @@ def passa(st, righe):
     # messaggi di un'altra sessione. Dopo l'ora di un congedo vuol dire che qualcuno l'ha riaperta.
     # `errore` (#5882): il turno è finito con un errore da cui si riparte (errore_api), finché non arriva
     # un messaggio vero; `riuscita` l'ora dell'ultimo messaggio di Claude che non è un errore.
+    # `nomeDato` (#6245, 21/11/2026): l'ultimo nome dato a mano, con --name o /rename. Claude Code lo scrive
+    # in un record custom-title; il nome che inventa da sé sta solo in agent-name. Una prova si riconosce da
+    # questo nome: un nome inventato che comincia per "prova-" (una cartella prova, un compito "prova…")
+    # non è una prova, e Volta la chiudeva senza /fine.
     for l in righe:
         try:
             d = json.loads(l)
         except ValueError:
             continue
         if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa
+            continue
+        if d.get("type") == "custom-title":
+            st["nomeDato"] = str(d.get("customTitle") or "")[:80]
             continue
         st["ultimo"] = d.get("timestamp", st["ultimo"])
         m = d.get("message") or {}
@@ -1884,6 +1891,8 @@ def righe(voci):
                 "chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,
                 # l'ultimo messaggio della persona che non è /fine: una sessione riaperta durante il congedo
                 "persona": s.get("persona") if isinstance(s.get("persona"), str) else "",
+                # il nome dato a mano (--name, /rename): solo da qui si riconosce una prova (#6245)
+                "nomeDato": s.get("nomeDato") if isinstance(s.get("nomeDato"), str) else "",
                 # la ripresa da sola (#5882): l'errore che ha chiuso il turno, l'ultimo turno riuscito e
                 # i tentativi già fatti su quella macchina
                 "errore": errore_riga(s.get("errore")),

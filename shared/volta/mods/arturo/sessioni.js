@@ -939,13 +939,26 @@ export function unaPerConversazione(l) {
 // `occupate`: { indirizzo: sessione } di occupanti(). Una scheda dove ora gira un'altra sessione (claude
 // lanciato a mano nella shell rimasta dopo lo stacco) non è chiusa: la scheda c'è ancora, mostra solo
 // un'altra sessione, e quella di prima non va in congedo (#5630).
+// `muti`: { host: vero } delle macchine che non rispondono (#6246, 21/11/2026). Dopo DIMENTICA_MS il core
+// toglie da solo le loro schede: nessuno le ha chiuse, e le loro sessioni non vanno in congedo. Prima
+// Volta le metteva in congedo e, al ritorno della macchina, faceva /fine e stop a sessioni ancora in uso.
 export const TOLTI_MS = 60000;
-export function sparite(prima, adesso, tolti = {}, ora = Date.now(), occupate = {}) {
+// Le macchine che non rispondono, per sparite(): giù da giuDa, irraggiungibili nell'ultima lettura, o con
+// righe vecchie (l'ultima lettura buona). { host: true }.
+export function mute(dati) {
+  const out = {};
+  for (const h of Object.keys(dati?.giuDa ?? {})) out[h] = true;
+  for (const m of dati?.macchine ?? []) if (m?.irraggiungibile && m.host) out[m.host] = true;
+  for (const s of dati?.sessioni ?? []) if (s?.vecchia) out[s.host ?? "qui"] = true;
+  return out;
+}
+export function sparite(prima, adesso, tolti = {}, ora = Date.now(), occupate = {}, muti = {}) {
   if (prima == null) return [];  // il primo giro dopo l'apertura solo guarda
   const viste = new Set();
   const out = [];
   for (const [ind, s] of Object.entries(prima)) {
     if (ind in (adesso ?? {}) || occupate?.[ind] || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.id || viste.has(chiave(s))) continue;
+    if (muti?.[s.host ?? "qui"]) continue;
     // un'altra scheda aggancia ancora la stessa sessione: chiusa una copia, la sessione resta aperta
     if (Object.values(adesso ?? {}).some((x) => x?.id && chiave(x) === chiave(s))) continue;
     viste.add(chiave(s));
@@ -1082,8 +1095,11 @@ export function congedoSullaCopia(c, copia, ora = Date.now()) {
 // Le sessioni di prova (#5877, 17/11/2026): nate da una sonda o da un banco col nome prova- (bin/prova.py di
 // Arturo, stesso prefisso). Alla chiusura non hanno niente da salvare: niente /fine, stop subito anche se
 // lavorano, poi claude rm come una salvata. Sul MacBook erano circa 30 sessioni su 143 in una settimana.
+// Conta il nome dato a mano (`nomeDato` della sonda: --name o /rename), non quello che Claude Code inventa
+// (#6245, 21/11/2026): una sessione nata in una cartella prova o su un compito "prova…" si chiamava
+// prova-… da sola, e Volta la chiudeva senza /fine. Senza nome dato, nessuna sessione è una prova.
 export const PROVA = /^\s*prova-/i;
-export const diProva = (s) => PROVA.test(String(s?.nome ?? ""));
+export const diProva = (s) => PROVA.test(String(s?.nomeDato ?? ""));
 
 // Riaperta durante il congedo (#5633, 14/11/2026: quattro sessioni chiuse per sbaglio, riprese a mano con
 // claude --bg --resume e richiuse da Volta due minuti dopo). La sonda dà in `persona` l'ora dell'ultimo
@@ -1122,7 +1138,9 @@ export function passoCongedo(c, s, ora = Date.now()) {
   if (inAnnullo(c, ora)) return { fai: "attendi" };
   const da = Number(c?.da) || ora, dal = Number(c?.dal) || da;
   const nome = s ? titolo(s) : "La sessione";
-  if (!s || s.vecchia) return ora - da > (s ? CONGEDO_VECCHIO_MS : 3600000) ? { fai: "togli" } : { fai: "attendi" };
+  // `scaduto` (#6246, B3): la macchina tace da CONGEDO_VECCHIO_MS e la sessione è ancora viva là. Il congedo si
+  // lascia andare, ma la sessione non si segna chiusa (resterebbe nascosta per giorni) e Volta lo dice.
+  if (!s || s.vecchia) return ora - da > (s ? CONGEDO_VECCHIO_MS : 3600000) ? { fai: "togli", ...(s ? { scaduto: true } : {}) } : { fai: "attendi" };
   if (riaperta(c, s)) return { fai: "togli", riaperta: true };
   if (c.fase === "attende") {
     if (chiusa(s)) return { fai: "togli" };
