@@ -35,7 +35,7 @@ function trova(nodo, id) {
   return null;
 }
 
-// La testata (12/11/2026 sera, Federico: "si affastellano tante cose, non si capisce"): a sinistra il
+// La testata (12/11/2026 sera: "si affastellano tante cose, non si capisce"): a sinistra il
 // titolo del progetto, che non si taglia, e sotto cosa succede adesso nella sessione aperta, in al più
 // cinque parole (la sintesi di titolo-sessione.py, sintesiTestata di sessioni.js), con macchina e stato.
 // A destra solo icone: Sposta su, Contesto del progetto, Da fare. Le schede stanno nella fila sotto
@@ -73,7 +73,7 @@ export class Testata {
           .child(div().id("testata-dove").min_w(0).truncate().text_size(TESTO.etichetta).text_color(t.dim)
             .child(rigaDove(Boolean(sintesi), macchina ? macchinaBreve(macchina) : null, f ? f.testo : null))))))
       // La checklist (checklist.js, 17/11/2026): per ogni sessione con un progetto, perché il blocco in basso a
-      // destra non c'è più (Federico, 17/11 sera: "teniamolo solo in alto a dx"). Col numero e acceso finché una
+      // destra non c'è più (17/11 sera: "teniamolo solo in alto a dx"). Col numero e acceso finché una
       // ripartenza di /inizio aspetta la scelta; senza, apre i task del progetto della sessione.
       .when(Boolean(davanti?.checklist) || Boolean(davanti?.progetto), (el) => el.child(div().flex_none().pr(SPAZIO.s)
         .child(pulsante("checklist", "circle-check", davanti.checklist ? `Su cosa lavorare · ${davanti.checklist}` : "Su cosa lavorare",
@@ -162,6 +162,7 @@ export class Stato {
     cx.spawn(async (cx) => {
       const c = await config();
       this.py = c.arturo[0];
+      this.chi = c.chi;
       this.scelto = c.note_progetto;
       await this.leggi();
       cx.notify();
@@ -214,7 +215,7 @@ export class Stato {
     try {
       do {
         this.ancora = false;
-        const tutte = await leggiTutte(this.py);
+        const tutte = await leggiTutte(this.py, this.chi);
         if (!tutte) continue;
         const note = tutte.map((x) => ({ ...x.nota, dove: { ...x.nota.dove, testo_terminale: null } }));
         const nuove = risposteNuove(this.viste, note);

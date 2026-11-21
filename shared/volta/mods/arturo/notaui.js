@@ -1,6 +1,6 @@
 // La parte "nota": il velo su tutta la finestra per lasciare a Claude una nota su un punto preciso (⌘⇧N).
 // All'apertura il velo mostra le note aperte del progetto come segni numerati: un clic su un segno apre la
-// nota col suo filo, e da lì Federico risponde, la dà per risolta o la scarta. Un clic altrove sceglie il
+// nota col suo filo, e da lì chi usa la finestra risponde, la dà per risolta o la scarta. Un clic altrove sceglie il
 // punto di una nota nuova: il segno nel punto, le pastiglie del tipo e il campo accanto; Invio manda, Esc
 // annulla. Lo screenshot lo fa barra.js prima di aprire il velo, nella cartella che arriva nei props.
 
@@ -9,6 +9,7 @@ import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay, notify, setShared, shared, spaces, writeTextFile, layout, focused, panes, hc,
   exec, home } from "herdr";
 import { todo, gestoNota, config } from "./dati.js";
+import { sa } from "./sessioni.js";
 import { nota, progettoNota, evidenza, misureDaLayout, ultimeRighe, TIPI, TIPO_PREDEFINITO, etichettaTipo,
   leggiNota, noteAperte, prossimoNumero, segno, cartellaNote, LEGGI_NOTE } from "./nota.js";
 
@@ -63,11 +64,11 @@ async function doveNota(punto, misura) {
 // Tutte le note della cartella: [{ nota, testo }] con il testo del file com'era, che serve per riscriverlo
 // solo se nessun altro (la CLI di Claude) l'ha cambiato nel frattempo. null se la lettura non riesce: chi
 // conta le risposte di Claude (la barra di stato) tiene allora l'ultima lettura buona.
-export async function leggiTutte(py) {
+export async function leggiTutte(py, chi) {
   try {
     const r = await exec(py, ["-c", LEGGI_NOTE, cartellaNote(home())], { timeout: 10000 });
     if (r.code !== 0) return null;
-    return JSON.parse(r.stdout).map(([id, testo]) => ({ nota: leggiNota(testo, id), testo })).filter((x) => x.nota);
+    return JSON.parse(r.stdout).map(([id, testo]) => ({ nota: leggiNota(testo, id, chi), testo })).filter((x) => x.nota);
   } catch {
     return null;
   }
@@ -97,6 +98,7 @@ export class Nota {
     cx.spawn(async (cx) => {
       const c = await config();
       this.py = c.arturo[0];
+      this.chi = c.chi;
       const s = spaces().find((x) => x.active);
       this.progetto = progettoNota(c.note_progetto, s && !s.machine && s.named ? s.name : null);
       await this.ricarica();
@@ -108,7 +110,7 @@ export class Nota {
   }
 
   async ricarica() {
-    this.tutte = (await leggiTutte(this.py)) ?? [];
+    this.tutte = (await leggiTutte(this.py, this.chi)) ?? [];
     this.aperte = noteAperte(this.tutte.map((x) => x.nota), this.progetto);
     if (this.aperta) this.aperta = this.aperte.find((n) => n.id === this.aperta.id) ?? null;
   }
@@ -129,7 +131,7 @@ export class Nota {
       const dove = await doveNota(this.punto, this.misura);
       const aperte = progetto === this.progetto ? this.aperte : noteAperte(this.tutte.map((x) => x.nota), progetto);
       const n = nota({ testo: this.input.value(), ...this.punto, ...this.misura, progetto, cartella, schermo,
-        quando: new Date().toISOString(), dove, tipo: this.tipo, numero: prossimoNumero(aperte) });
+        quando: new Date().toISOString(), dove, tipo: this.tipo, numero: prossimoNumero(aperte), chi: c.chi });
       if (!n) { this.invio = false; cx.notify(); return; }
       const file = `${cartella}/nota.json`;
       let scritto = null;
@@ -148,7 +150,7 @@ export class Nota {
     });
   }
 
-  // Rispondi, Risolta o Scarta sulla nota aperta: tutto passa da `arturo note <verbo> --chi federico`, lo
+  // Rispondi, Risolta o Scarta sulla nota aperta: tutto passa da `arturo note <verbo> --chi <chi>`, lo
   // stesso codice con cui Claude chiude le note. La CLI riscrive nota.json e porta il gesto sul todo
   // collegato (una nota, fatto o scartato); se Claude l'ha già chiusa, lo dice e il velo rilegge.
   azione(cx, che) {
@@ -257,12 +259,14 @@ export class Nota {
         .child(div().px(8).py(1).rounded_full().bg(t.raised).text_size(11.5).text_color(t.muted).child(etichettaTipo(n.tipo)))
         .when(n.stato === "presa", (el) => el.child(div().text_size(11.5).text_color(t.accent).child("Claude ci lavora"))))
       .child(v_flex().gap(8).children(n.filo.slice(-6).map(voce)))
+      // Rispondi, Risolta e Scarta passano da `arturo note`: senza le note nell'Arturo installato non ci sono (#6217)
+      .when(sa(shared("arturo.capacita"), "note"), (el) => el
       .child(h_flex().h(36).px(10).items_center().rounded(8).border_1().border_color(t.border).bg(t.raised)
         .child(Input.new(this.risposta).flex_1().h_full().text_size(13).text_color(t.foreground)))
       .child(h_flex().gap(6).justify_end()
         .child(bottone("nota-scarta", "Scarta", false, (cx) => this.azione(cx, "scarta")))
         .child(bottone("nota-risolta", "Risolta", false, (cx) => this.azione(cx, "risolta")))
-        .child(bottone("nota-rispondi", this.invio ? "Scrivo…" : "Rispondi", true, (cx) => this.azione(cx, "rispondi"))));
+        .child(bottone("nota-rispondi", this.invio ? "Scrivo…" : "Rispondi", true, (cx) => this.azione(cx, "rispondi")))));
   }
 
   render() {

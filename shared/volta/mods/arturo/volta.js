@@ -308,7 +308,7 @@ export class Volta {
   }
 
   // Segna chiuse le sessioni di un congedo finito: la sessione e, se il congedo era passato alla copia,
-  // l'originale. Senza claude rm restano in claude agents, e l'elenco le rimostrava (Federico, 16/11/2026).
+  // l'originale. Senza claude rm restano in claude agents, e l'elenco le rimostrava (16/11/2026).
   ricorda(c) {
     if (!c?.id) return;
     const voci = [{ host: c.host, id: c.id }, ...(c.copiaDi ? [{ host: c.host, id: c.copiaDi }] : [])];
@@ -414,7 +414,7 @@ export class Volta {
     if (Object.keys(this.congedi()).length) this.passiCongedo(cx);
   }
 
-  // Mette una sessione in congedo: /fine, poi claude stop (decisione di Federico, 12/11/2026). Se lavora
+  // Mette una sessione in congedo: /fine, poi claude stop (decisione, 12/11/2026). Se lavora
   // aspetta che finisca il turno. Una sessione già chiusa non ha niente da salvare. `c.auto`: la chiusura
   // automatica (#5366); con `c.fineFatta` la sessione ha già fatto /fine e si ferma soltanto. `c` porta id e
   // macchina della sessione: dopo Sposta su il solo sessionId c'è anche sulla copia ferma (#5634).
@@ -534,7 +534,7 @@ export class Volta {
     }
   }
 
-  // La ripresa da sola (#5882, Federico 17/11/2026): dopo ogni giro, una sessione col turno chiuso dal limite
+  // La ripresa da sola (#5882, 17/11/2026): dopo ogni giro, una sessione col turno chiuso dal limite
   // d'uso o dalla connessione persa riparte quando è ora (daRiprendere di sessioni.js). Una alla volta; la
   // stessa sessione non si riprova per RIPROVA_MS (la rete ancora giù, un'altra finestra), e il conto dei
   // tentativi lo tiene la macchina della sessione. Ogni esito va nel registro, la ripresa riuscita anche
@@ -562,7 +562,7 @@ export class Volta {
     });
   }
 
-  // La chiusura automatica (#5366, nota di Federico dell'11/11): una sessione di questa macchina che
+  // La chiusura automatica (#5366, nota dell'11/11): una sessione di questa macchina che
   // aspetta un comando da più di un'ora va in congedo da sola, una alla volta, al più 3 all'ora e 12 al
   // giorno (arturo.json: congedo, congedo_dopo_min, congedo_ora, congedo_giorno). In modo "prova" scrive
   // soltanto chi chiuderebbe. Il registro sta in congedo-auto.json di cacheVolta(): lo scrive solo chi lo
@@ -1425,7 +1425,7 @@ export class Volta {
       const r = await todo(g.argv);
       setShared("arturo.scritto", Date.now());
       // "A Claude": il task passa a Claude e Claude ci lavora subito, nella sessione del progetto se c'è,
-      // altrimenti in una nuova con /inizio. Federico resta nella Coda.
+      // altrimenti in una nuova con /inizio. La persona resta nella Coda.
       if (r.ok && g.poi) {
         notify({ title: g.esito, body: c.domanda, level: "success", timeout: 5000 });
         if (g.poi.progetto) await apriProgetto(g.poi.progetto, g.poi.todo);
@@ -1527,7 +1527,7 @@ export class Volta {
     });
   }
 
-  // ⌘W (Ctrl+W su Windows): il comando "arturo.volta-chiudi" (Federico, 12/11/2026: "quella sessione va
+  // ⌘W (Ctrl+W su Windows): il comando "arturo.volta-chiudi" (12/11/2026: "quella sessione va
   // in chiusura e non deve più apparirmi nelle freccette e nell'elenco"). Se la scheda davanti aggancia
   // una sessione in background non chiusa, anche di una macchina che non risponde, è Chiudi del menu: via
   // la scheda, congedo, fuori da elenco e giro subito. Una scheda senza sessione (una shell,
@@ -1541,7 +1541,7 @@ export class Volta {
     const s = t ? sessioneDi(t, this.dati?.sessioni ?? []) : null;
     // anche la sessione di una macchina che non risponde: il congedo aspetta che torni (passoCongedo, fino a
     // CONGEDO_VECCHIO_MS). Prima ⌘W chiudeva solo la scheda, e la sessione restava accesa su quella macchina
-    // e tornava nell'elenco (Federico, 14/11/2026: "con CMD + W non chiude davvero alcune schede").
+    // e tornava nell'elenco (14/11/2026: "con CMD + W non chiude davvero alcune schede").
     // Una scheda aperta dalla finestra di un'altra macchina (#5802) si chiude soltanto: il congedo lo fa la
     // finestra che l'ha aperta, quando la vede sparire. Due congedi della stessa sessione farebbero due /fine.
     if (s && s.tipo === "background" && !chiusa(s) && mia(t, ioQui())) return this.fare(s, { verbo: "chiudi", testo: "Chiudi" }, cx);
@@ -1670,7 +1670,7 @@ export class Volta {
     const az = s.annullo ? [] : azioni(s);
     const aperto = this.menu === k && az.length > 0;
     // La X compare col puntatore sopra la riga, e il primo clic chiede la conferma (xRiga di sessioni.js).
-    // Su una sessione viva chiude con /fine e la toglie dall'elenco, come ⌘W (Federico, 12/11/2026); su una
+    // Su una sessione viva chiude con /fine e la toglie dall'elenco, come ⌘W (12/11/2026); su una
     // chiusa o in errore la elimina (claude rm, lo stesso Elimina di "Altro"). Nascosta tiene il suo posto:
     // il titolo non va a capo in modo diverso quando appare.
     const xa = s.annullo ? null : xRiga(s);

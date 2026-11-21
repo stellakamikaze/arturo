@@ -34,7 +34,8 @@ import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
 import { Contesto } from "./contestoui.js";
 import { Compito } from "./compito.js";
 import { Unisci } from "./unisci.js";
-import { impostaDormi } from "./dati.js";
+import { impostaDormi, config } from "./dati.js";
+import { impostaChi } from "./sessioni.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
@@ -46,6 +47,12 @@ export default class Arturo extends View {
   init(p, cx) {
     // le attese di dati.js (pausa) con cx.sleep invece di un processo Python (#5579)
     impostaDormi((/** @type {number} */ ms) => cx.sleep(ms));
+    // Chi usa la finestra e cosa sa fare l'Arturo installato (#6217): ogni copia del mod li legge da
+    // config(). Le capacità vanno in shared arturo.capacita, per le parti che disegnano senza aspettare.
+    config().then((c) => {
+      impostaChi(c.chi);
+      if (JSON.stringify(shared("arturo.capacita") ?? null) !== JSON.stringify(c.capacita)) setShared("arturo.capacita", c.capacita);
+    }).catch(() => { /* restano il nome di serie e tutti i gesti */ });
     const Parte = PARTI[props()?.parte] ?? (props()?.overlay ? Apri : Barra);
     this.nome = props()?.parte;
     this.parte = new Parte();

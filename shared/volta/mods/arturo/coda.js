@@ -1,6 +1,6 @@
 // La Coda delle decisioni (#5720, step 3 del piano della Coda di Volta, 15/11/2026): al posto del
 // terminale, tutto ciò che le sessioni e i task aspettano dalla persona, di ogni macchina.
-// Dal 18/11/2026 è un elenco e non più una carta per volta (Federico: "non mi permette di capire chiaramente
+// Dal 18/11/2026 è un elenco e non più una carta per volta (richiesta: "non mi permette di capire chiaramente
 // quali sono le cose pending, come nella schermata Su cosa lavorare"): i gruppi per chi agisce come nella
 // checklist (gruppiCoda di sessioni.js), una riga per carta con le opzioni in pulsanti piccoli, e la riga
 // scelta aperta con la domanda intera, le prove e i gesti. Le carte le mette in ordine la barra (volta.js,

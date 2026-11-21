@@ -7,7 +7,20 @@
 # ARTURO_HERDR_SISTEMA (mac-arm, mac-intel, windows, linux), ARTURO_HERDR_NON_APRIRE=1,
 # ARTURO_HERDR_FIRMA (assente o presente: l'identità di firma locale senza chiedere al portachiavi),
 # ARTURO_HERDR_VERSIONE (la versione di Herdr, senza chiederla a herdr-app --version).
+#
+# ARTURO_HERDR_PLUGIN=1 (#6217): per chi ha Arturo come plugin di Claude Code e riceve questa cartella da
+# un'altra parte (i tester di Volta). La voce arturo di arturo.json non nomina una cartella: cerca Arturo a
+# ogni chiamata in ~/.claude/arturo/radice, che il plugin riscrive a ogni sessione, così un aggiornamento
+# del plugin non la lascia puntata a una versione tolta. Niente radice, e niente proposte HERDR NASCITA e
+# HERDR SERVIZIO: i loro comandi li conosce /setup del clone. Senza la variabile non cambia niente.
+#
+# ARTURO_HERDR_PROGRAMMA=<eseguibile> (#6217): l'app è già installata da chi chiama (l'installatore dei
+# tester mette Volta.app) e questo è il suo eseguibile. Herdr non si scarica, Arturo.app non si costruisce,
+# la versione e il controllo del mod li dà quell'eseguibile e non l'herdr-app del PATH, e l'app non si apre:
+# la apre chi chiama. Senza la variabile non cambia niente.
 set -eu
+plugin=${ARTURO_HERDR_PLUGIN:-0}
+programma=${ARTURO_HERDR_PROGRAMMA:-}
 
 qui=$(cd "$(dirname "$0")" && pwd)
 # La cartella di Arturo (clone in ~/.claude o plugin): shared/volta sta due livelli sotto.
@@ -36,6 +49,7 @@ app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
 
 # 1. Herdr, dall'installer ufficiale (verifica sha256 e firma), solo se manca.
 ha_herdr() {
+  [ -n "$programma" ] && return 0
   [ -n "${ARTURO_HERDR_INSTALLER:-}" ] && return 1
   command -v herdr-app >/dev/null 2>&1 || [ -x "$HOME/.local/bin/herdr-app" ] || [ -d "$HOME/Applications/Herdr.app" ] || [ -d /Applications/Herdr.app ]
 }
@@ -79,8 +93,10 @@ serie=keys-herdr-macos.json
 [ "$sistema" = mac-arm ] || { tasti=keys-ctrl.json; serie=keys-herdr.json; }
 base=${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}
 mkdir -p "$base"
-versione=$(herdr-app --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
-[ -n "$versione" ] || versione=$("$HOME/.local/bin/herdr-app" --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
+versione=""
+[ -z "$programma" ] || versione=$("$programma" --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
+[ -n "$versione" ] || [ -n "$programma" ] || versione=$(herdr-app --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
+[ -n "$versione" ] || [ -n "$programma" ] || versione=$("$HOME/.local/bin/herdr-app" --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
 ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_TASTI="$tasti" ARTURO_SERIE="$serie" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_RADICE="$(percorso "$radice")" ARTURO_BASE="$(percorso "$base")" \
 "$py" - "$qui" "$app_home" <<'PY'
 import json, os, sys
@@ -104,6 +120,27 @@ def leggi(nome):
 # radice è la cartella di Arturo: i suggerimenti la usano per i file di istruzioni, che non sempre stanno in ~/.claude.
 arturo = leggi("arturo.json") or {}
 arturo.update({"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "radice": os.environ["ARTURO_RADICE"], "base": os.environ["ARTURO_BASE"]})
+# Arturo come plugin (ARTURO_HERDR_PLUGIN=1, #6217): la voce cerca Arturo a ogni chiamata nel file che il
+# plugin riscrive a ogni sessione. Resta un argv che comincia col Python (il mod lancia i suoi script con
+# arturo[0]) e che nomina "arturo" (conArturo di dati.js), ma non finisce in bin/arturo: così il mod e
+# volta_mod.py prendono la cartella dallo stesso file. Su Windows execv non aspetta il figlio: lì si lancia.
+LANCIA = """import os, subprocess, sys
+f = os.path.join(os.path.expanduser("~"), ".claude", "arturo", "radice")
+try:
+    r = open(f, encoding="utf-8").read().strip()
+except (OSError, ValueError):
+    r = ""
+b = os.path.join(os.path.expanduser(r), "bin", "arturo") if r else ""
+if not os.path.isfile(b):
+    sys.exit("Arturo non trovato: " + f + " non dice dove sta. Apri una sessione di Claude Code e riprova.")
+argv = [sys.executable, b] + sys.argv[2:]
+if os.name == "nt":
+    sys.exit(subprocess.call(argv))
+os.execv(sys.executable, argv)
+"""
+if os.environ.get("ARTURO_HERDR_PLUGIN") == "1":
+    arturo["arturo"] = [os.environ["ARTURO_PY"], "-c", LANCIA, "arturo"]
+    arturo.pop("radice", None)
 scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.
@@ -163,7 +200,7 @@ fi
 
 # 5. Sul Mac, Arturo.app: Herdr col nome e l'icona di Arturo, riallineata dopo ogni aggiornamento.
 app_arturo=""
-if [ "$sistema" = mac-arm ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ] && [ -d "$HOME/Applications/Herdr.app" ]; then
+if [ "$sistema" = mac-arm ] && [ -z "$programma" ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ] && [ -d "$HOME/Applications/Herdr.app" ]; then
   sh "$qui/arturo-app.sh" --agente || say "Arturo.app non è pronta: Herdr funziona lo stesso col suo nome."
   [ -d "$HOME/Applications/Arturo.app" ] && app_arturo="$HOME/Applications/Arturo.app"
 fi
@@ -190,6 +227,8 @@ if [ "$sistema" = mac-arm ] || [ "$sistema" = windows ]; then
   [ "$sistema" = windows ] && cp "$qui/volta-claude.ps1" "$app_home/volta-claude.ps1"
   nascita=$(percorso "$app_home/volta-nascita.sh")
   stato_nascita=$(sh "$app_home/volta-nascita.sh" stato)
+  # Arturo come plugin: i file si copiano, la nascita non si propone (nessuno stato, nessuna riga).
+  [ "$plugin" = 1 ] && stato_nascita=""
   if printf '%s\n' "$stato_nascita" | grep -q '^assente' && ! printf '%s\n' "$stato_nascita" | grep -q '^rifiutata'; then
     say "HERDR NASCITA: perché Volta apra da ogni macchina le sessioni che apri nel terminale, il comando claude può farle nascere in background. Si accende con: sh \"$nascita\" metti (per non sentirtelo riproporre: sh \"$nascita\" no)"
   fi
@@ -208,7 +247,9 @@ if [ "$sistema" = mac-arm ] || [ "$sistema" = windows ]; then
   # servizi-gui.sh, che vuole prima l'accesso di claude a Documenti: qui lo si propone soltanto, e /setup
   # sa cosa farne (shared/setup-herdr.md). I due nomi sono quelli di servizio-claude.ps1 e servizi-gui.sh
   # (banco HZ43).
-  if [ "$sistema" = windows ]; then
+  if [ "$plugin" = 1 ]; then
+    : # Arturo come plugin: il servizio non si propone
+  elif [ "$sistema" = windows ]; then
     cp "$qui/servizio-claude.ps1" "$app_home/servizio-claude.ps1"
     if ! MSYS_NO_PATHCONV=1 schtasks /query /tn ArturoServizioClaude >/dev/null 2>&1; then
       say "HERDR SERVIZIO: perché le sessioni in background non muoiano con chi le fa nascere, il servizio di Claude può partire a ogni accesso. Si accende con: powershell -NoProfile -ExecutionPolicy Bypass -File \"$(percorso "$app_home/servizio-claude.ps1")\""
@@ -219,10 +260,12 @@ if [ "$sistema" = mac-arm ] || [ "$sistema" = windows ]; then
 fi
 
 # 6. Controllo del mod e apertura.
-if command -v herdr-app >/dev/null 2>&1 && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]; then
+if [ -n "$programma" ]; then
+  "$programma" check "$app_home/mods/arturo" >/dev/null || { say "HERDR ERRORE: il mod di Arturo non si carica ($(basename "$programma") check)."; exit 1; }
+elif command -v herdr-app >/dev/null 2>&1 && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]; then
   herdr-app check "$app_home/mods/arturo" >/dev/null || { say "HERDR ERRORE: il mod di Arturo non si carica (herdr-app check)."; exit 1; }
 fi
-if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ]; then
+if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ] && [ -z "$programma" ]; then
   if [ "$sistema" = mac-arm ]; then
     if [ -n "$app_arturo" ]; then open "$app_arturo" 2>/dev/null || true
     else open -a Herdr 2>/dev/null || open "$HOME/Applications/Herdr.app" 2>/dev/null || true; fi

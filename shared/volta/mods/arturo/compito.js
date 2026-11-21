@@ -1,5 +1,5 @@
 // Il dialogo "Compito nuovo" (⌘N, Ctrl+Shift+N su Windows, #6186, 20/11/2026): scrivi il compito, Volta
-// propone il progetto mentre scrivi, Invio fa nascere la sessione che ci lavora. Decisione di Federico del
+// propone il progetto mentre scrivi, Invio fa nascere la sessione che ci lavora. Decisione del
 // 20/11: "Volta propone il progetto e Invio conferma".
 // - La proposta viene dalle parole del testo (scelteCompito di sessioni.js): slug, titolo, nomi alternativi e
 //   riga di stato dei progetti. "nome: compito" dice il progetto a mano. Quando il testo non nomina un

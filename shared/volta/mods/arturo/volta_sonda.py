@@ -703,8 +703,10 @@ for s in sessioni:
             s["congedo"] = True
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 uscita = {"claude": cl, "sessioni": sessioni}
-# il giudice dei permessi di questa macchina: spento dal file cache/giudice-spento (tasto G dell'Orchestratore)
-uscita["giudice"] = "spento" if os.path.exists(os.path.join(radice, "cache", "giudice-spento")) else "acceso"
+# il giudice dei permessi di questa macchina: spento dal file cache/giudice-spento (tasto G dell'Orchestratore).
+# Il campo c'e solo dove l'hook esiste (#6217): senza hook nessuno giudica, e la riga Permessi non compare.
+if os.path.exists(os.path.join(radice, "hooks", "giudice-permessi.py")):
+    uscita["giudice"] = "spento" if os.path.exists(os.path.join(radice, "cache", "giudice-spento")) else "acceso"
 rotta = nascite()
 # Documenti appeso: al più una prova al minuto, e "da" resta l'ora della prima volta finché dura
 #PERMESSO#
@@ -891,7 +893,7 @@ def copia_di(r):
     if not m_ or str(a["riprendi"]).startswith(m_.group(1)) or m_.group(1) == a.get("lavoro"):
         return None
     return m_.group(1)
-# Ha un processo la sessione ripresa: per sessionId o per id del lavoro (16/11/2026, Federico: le sessioni
+# Ha un processo la sessione ripresa: per sessionId o per id del lavoro (16/11/2026: le sessioni
 # chiuse riapparivano). Una sessione ruotata svegliata dalla ripresa ha il processo sotto l'id del lavoro:
 # cercata solo per sessionId sembrava ferma, partiva una seconda ripresa e nasceva una copia che faceva
 # un altro /fine; Volta seguiva la copia, e l'originale restava aperta nell'elenco.
@@ -1022,7 +1024,7 @@ if titolo:
 esci(ok=True, progetto=valore, iniziato=nuovo.get("inizio") is not False)
 '''
 
-# La ripresa da sola (#5882, Federico 17/11/2026): gira sulla macchina della sessione prima di ogni
+# La ripresa da sola (#5882, 17/11/2026): gira sulla macchina della sessione prima di ogni
 # tentativo e lo conta PRIMA di riprendere, così un processo ucciso a metà non lascia il conto indietro.
 # Rifiuta se la rete non arriva ad Anthropic (si riprova al giro dopo, senza contare), se questo errore
 # ha già avuto il suo tentativo (due finestre di Volta vedono la stessa sessione), se la fermata ha già
@@ -2418,7 +2420,7 @@ def congeda(nome, sid_lavoro, session_id, cartella=None, auto=False):
 
 def inizia(nome, sid_lavoro, session_id, slug, cartella=None):
     """Una sessione in background spostata in un altro progetto riparte da /inizio di quel progetto
-    (#5465, Federico 12/11/2026). Come il congedo: claude stop, poi la stessa conversazione ripresa
+    (#5465, 12/11/2026). Come il congedo: claude stop, poi la stessa conversazione ripresa
     col solo /inizio. Volta lo chiede solo a sessione ferma e senza una scheda che la mostri: con la
     scheda aperta scrive /inizio lì dentro."""
     if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):

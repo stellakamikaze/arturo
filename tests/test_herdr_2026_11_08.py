@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ178: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ186: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -25,8 +25,9 @@ HZ07 il mod: ogni modulo importato esiste, ogni parte nominata dal layout esiste
 HZ08 chi ha già Arturo (setup fatto) e non ha Herdr riceve all'avvio l'invito `HERDR:` una volta sola;
      chi non ha finito /setup non lo riceve.
 HZ09 i suggerimenti della finestra puntano a cose che esistono: ogni comando slash a un file di
-     commands/, "Trova i miei progetti" a trova-progetti.md, che usa la parte 2c del ritratto e i
-     sottocomandi veri di ritratto.py.
+     commands/, "Trova i miei progetti" alla prima guida di TROVA_PROGETTI che esiste ({trova}, #6217): quella
+     di Arturo c'è nel repository, e l'elenco porta anche la copia accanto al mod. trova-progetti.md usa la
+     parte 2c del ritratto e i sottocomandi veri di ritratto.py.
 HZ10 "Da dove partire" in cima al pannello Da fare (partenza.js, con node): il todo di da_dove col motivo,
      poi al massimo tre passi della catena dopo di lui, senza i todo segnati fatti; niente scheda senza
      da_dove o col todo già fatto. Senza node il caso si salta.
@@ -824,6 +825,29 @@ HZ179 il nome della scheda dopo /inizio o una rotazione (20/11/2026, #5547): daR
      sessione ha cambiato sessionId e il nome è uno che Volta le ha dato; mai un nome dato dalla persona, mai
      un titolo rifatto a metà lavoro, mai una scheda con due riquadri o che daAllineare riapre; volta.js
      rinomina con tab.rename a ogni giro di allineaSpazi.
+HZ180 autore e nome da `chi` (#6217): la nota nuova e una nota di prima portano l'autore configurato, gestoNota
+     passa --chi a arturo note, chiede() cerca in "Prossimo passo:" il nome configurato (impostaChi, da main.js),
+     e un progetto nuovo di ⌘N senza la skill dei task chiede solo la cartella.
+HZ181 senza capacità il gesto sparisce (#6217): "Unisci a…" esce dal menu del progetto, il pulsante Note dal
+     piede, Rispondi, Risolta e Scarta dalla scheda di una nota, e ⌘⇧N dice che le note non ci sono. Una capacità
+     non ancora letta vale sì. Senza il campo `giudice` la riga Permessi non ha niente da dire.
+HZ182 installa-herdr.sh per chi ha Arturo come plugin (#6217, step 5): con ARTURO_HERDR_PLUGIN=1 la voce arturo
+     di arturo.json comincia col Python, nomina "arturo" e cerca la cartella in ~/.claude/arturo/radice a ogni
+     chiamata (argomenti e uscita passano com'erano, "~/" si apre, senza file lo dice ed esce diversa da 0);
+     `radice` non si scrive e una di prima se ne va; HERDR NASCITA e HERDR SERVIZIO non si propongono. Senza la
+     variabile, o con 0, la voce resta il bin di Arturo con `radice` e le due proposte.
+HZ183 il mod fuori dalle macchine di chi l'ha scritto (#6217, step 4 del piano dei tester): config() di dati.js
+     trova Arturo da `radice` o dal bin di arturo.json, poi da ~/.claude/arturo/radice, poi dalla voce del plugin;
+     `chi` vale "tu" senza chiave o con una chiave storta; le capacità (note, unisci, tasks) vengono dai
+     file dell'Arturo installato; "Trova i miei progetti" segue la prima guida che esiste, anche accanto al mod.
+HZ184 installa-herdr.sh con l'app già installata da chi chiama (#6217, step 6): con ARTURO_HERDR_PROGRAMMA
+     Herdr non si scarica, la versione e il controllo del mod li dà quell'eseguibile e non l'herdr-app del
+     PATH, Arturo.app non si costruisce e l'app non si apre; un controllo rosso ferma l'installazione.
+HZ185 nessun nome di persona nel mod (#6212): nei file di shared/volta il nome di chi l'ha scritto non c'è; senza
+     chiave `chi` l'autore di una nota e il nome di "Prossimo passo:" valgono "tu"; una nota scritta prima, col
+     nome di allora nel filo, si legge intera e la finestra mostra "Tu" per ogni autore diverso da claude.
+HZ186 arturo note senza nome di persona (#6212): --chi accetta claude o un nome di persona e rifiuta un nome
+     storto, la firma è il nome scritto nel filo (una nota di prima tiene il suo), una nota senza filo va a "tu".
 """
 from __future__ import annotations
 
@@ -839,7 +863,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1114,7 +1138,16 @@ def hz09(repo: Path, casa: Path) -> str | None:
         for rel in re.findall(r"\{radice\}/([\w./-]+\.md)", p):
             if not (repo / rel).exists():
                 return f"il suggerimento rimanda a {rel}, che non c'è"
-    trova = (repo / "shared/volta/trova-progetti.md").read_text(encoding="utf-8")
+    # "Trova i miei progetti" segue la prima guida che esiste (#6217): la prima dell'elenco è quella di Arturo
+    if not any("Segui {trova}" in p for p in prompt):
+        return "nessun suggerimento segue {trova}, la guida di Trova i miei progetti"
+    elenco = re.search(r"export const TROVA_PROGETTI = \[(.*?)\];", dati)
+    guide = re.findall(r'"([^"]+)"', elenco.group(1)) if elenco else []
+    if not guide or not guide[0].startswith("{radice}/") or not (repo / guide[0][len("{radice}/"):]).exists():
+        return f"la prima guida di TROVA_PROGETTI non è un file di Arturo che esiste: {guide[:1]}"
+    if any("~/.claude" in g for g in guide) or "{app}/trova-progetti.md" not in guide:
+        return f"TROVA_PROGETTI scrive ~/.claude a mano, o non porta la copia accanto al mod: {guide}"
+    trova =(repo / "shared/volta/trova-progetti.md").read_text(encoding="utf-8")
     ritratto = (repo / "shared/setup-ritratto.md").read_text(encoding="utf-8")
     if "2c. Le cartelle" not in trova or "## 2c. Le cartelle" not in ritratto:
         return "trova-progetti.md non usa la parte 2c del ritratto"
@@ -1867,7 +1900,7 @@ def hz27(repo: Path, casa: Path) -> str | None:
     d = g["nuova"]
     if (d["versione"], d["id"], d["numero"], d["tipo"], d["stato"], d["todo"], d["filo"]) != (
             2, "2026-11-10_07-00-00", 4, "correggere", "aperta", None,
-            [{"chi": "federico", "quando": "2026-11-10T06:00:00Z", "testo": "Il bottone è storto"}]):
+            [{"chi": "tu", "quando": "2026-11-10T06:00:00Z", "testo": "Il bottone è storto"}]):
         return f"nota.json versione 2 sbagliata: {d}"
     if g["tipo"] != ["domanda", "correggere"]:
         return f"il tipo della nota non si tiene o non ricade sul predefinito: {g['tipo']}"
@@ -2131,8 +2164,8 @@ def hz31(repo: Path, casa: Path) -> str | None:
     for testo, pezzo, perche in [
         (ui, "const r = await gestoNota(VERBI[che], n.id, testo);", "i bottoni della scheda non passano da arturo note"),
         (ui, 'const VERBI = { rispondi: "rispondi", risolta: "risolvi", scarta: "scarta" };', "un bottone porta al verbo sbagliato"),
-        (dati, 'arturo("note", [verbo, id, "--chi", "federico", "--json", ...(t ? ["--", t] : [])]',
-         "gestoNota non chiama arturo note con --chi federico, --json e il testo dopo --")]:
+        (dati, 'arturo("note", [verbo, id, "--chi", (await config()).chi, "--json", ...(t ? ["--", t] : [])]',
+         "gestoNota non chiama arturo note con --chi (chi di arturo.json), --json e il testo dopo --")]:
         if pezzo not in testo:
             return perche
     corpo = ui[ui.index("  azione(cx, che) {"):ui.index("  // Un riquadro largo w e alto h")]
@@ -6803,7 +6836,7 @@ def hz138(repo: Path, casa: Path) -> str | None:
     ap, rim, ris, ind, senza = d["bozza"]
     if ap != {"azione": "link", "url": "https://mail.google.com/mail/u/f@uf.it/#drafts?compose=m1", "esito": "Aperta in Gmail"} or rim["azione"] != "rimanda" or senza is not None:
         return f"Apri e Rimanda di una bozza: {[ap, rim, senza]}"
-    if ris["azione"] != "nuova" or not ris["prompt"].startswith("/posta riscrivi la bozza \"Re: Z\" (thread abc1") or "Indicazioni di Federico: più corta" not in ind["prompt"]:
+    if ris["azione"] != "nuova" or not ris["prompt"].startswith("/posta riscrivi la bozza \"Re: Z\" (thread abc1") or "Indicazioni della persona: più corta" not in ind["prompt"]:
         return f"Riscrivi di una bozza non fa nascere Claude con /posta e le indicazioni: {[ris, ind]}"
     if d["nulli"] != [None, None, None, None]:
         return f"un gesto parte su una carta che non è UF, senza testo o senza numero di task: {d['nulli']}"
@@ -7095,7 +7128,7 @@ def hz143(repo: Path, casa: Path) -> str | None:
     b1, b2, b3, b4, b5 = d["bozza"]
     if b1 != {"azione": "scarta", "scelta": "Scarta", "nota": "mai"} or b2 != {"azione": "giafatto", "esito": "Tolta dalla Coda"}:
         return f"Scarta e Già fatto su una bozza: {b1}, {b2}"
-    if "Indicazioni di Federico: più corta" not in b3.get("prompt", "") or "Indicazioni di Federico: tono più caldo" not in b4.get("prompt", "") or b5.get("azione") != "link":
+    if "Indicazioni della persona: più corta" not in b3.get("prompt", "") or "Indicazioni della persona: tono più caldo" not in b4.get("prompt", "") or b5.get("azione") != "link":
         return f"Riscrivi e Note su una bozza portano le indicazioni: {[b3, b4, b5]}"
     if d["nulli"] != [None, None, None]:
         return f"un gesto parte senza carta, senza nome o con una nota vuota: {d['nulli']}"
@@ -13908,6 +13941,11 @@ def hz174(repo: Path, casa: Path) -> str | None:
         r = subprocess.run([sys.executable, str(sonda), "volta"], capture_output=True, text=True, timeout=40,
                            env={**env, "HZ_SESSIONI": "[]"})
         return next((m for m in json.loads(r.stdout)["macchine"] if m["host"] == "qui"), {})
+    # il campo c'è solo dove l'hook del giudice esiste (#6217)
+    if "giudice" in macchina():
+        return "senza hooks/giudice-permessi.py la voce della macchina dice lo stesso lo stato del giudice"
+    (Path(env["CLAUDE_CONFIG_DIR"]) / "hooks").mkdir(parents=True, exist_ok=True)
+    (Path(env["CLAUDE_CONFIG_DIR"]) / "hooks" / "giudice-permessi.py").write_text("", encoding="utf-8")
     if macchina().get("giudice") != "acceso":
         return "la voce della macchina non dice che il giudice è acceso"
     r = subprocess.run([sys.executable, str(sonda), "giudice", "qui", "spento"], capture_output=True, text=True, timeout=40, env=env)
@@ -14167,7 +14205,7 @@ def hz175(repo: Path, casa: Path) -> str | None:
         ("main.js", ("compito: Compito,",)),
         ("coda.js", ('.on_click(() => run("arturo.compito"))', "tasti().compito")),
         ("dati.js", ("return nasciSu(sua ?? d, promptCompito({ ...x, slug: nome }), nome, null, null, !x.apri);",
-                     'return nasciSu(d, promptCompito(x), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);',
+                     'return nasciSu(d, promptCompito(x, sa((await config()).capacita, "tasks")), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);',
                      "      if (dietro) {\n        notify({ title: \"Compito partito\"",
                      'compito_modello: c.compito_modello === "spento" ? "spento" : "acceso",')),
         ("compito.js", ("run(comandoCompito(r, this.testo, apri));\n    this.chiudi();",
@@ -14456,7 +14494,7 @@ def hz178(repo: Path, casa: Path) -> str | None:
                              'export const VOCI_TESSERA = VOCI_PROGETTO.filter((v) => v.verbo !== "apri");',
                              'export const apriMenuTessera = (chiave, titoloProgetto) => apriMenuProgetto(chiave, titoloProgetto, "tessera");',
                              'export const comandoProgetto = (chiave, v) => (["apri", "contesto", "unisci"].includes(v?.verbo) ? `arturo.${v.verbo}-${chiave}` : null);',
-                             "this.voci = vociProgetto(props()?.dove);", ".children(this.voci.map((v) => h_flex()")),
+                             'this.voci = vociCon(vociProgetto(props()?.dove), shared("arturo.capacita"));', ".children(this.voci.map((v) => h_flex()")),
         ("casa.js", ('.on_mouse_down("right", (_e, cx) => { if (tt.tipo !== "nuova" && apriMenuTessera(tt.chiave, tt.titolo)) cx.stop_propagation(); })',)),
         ("volta.js", ('.on_mouse_down("right", (_e, cx) => { if (apriMenuProgetto(slug(g.chiave), g.titolo)) cx.stop_propagation(); }))',)),
         ("main.js", ("unisci: Unisci }",)),
@@ -14553,7 +14591,492 @@ def hz179(repo: Path, casa: Path) -> str | None:
         return f"i segnaposto della nascita non prendono il titolo, o si rinominano schede da lasciare: {d['due']}"
     return None
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179}
+
+PROVA_FUORI = r"""
+import { config, chiedi, gestoNota, compito, SUGGERIMENTI } from "./dati.mjs";
+import { eseguiti } from "./herdr.mjs";
+const c = await config();
+const out = { radice: c.radice, chi: c.chi, capacita: c.capacita };
+if (process.env.HZ_CASO === "trova") { await chiedi(SUGGERIMENTI.find((s) => s.id === "trova")); out.prompt = eseguiti[0]?.at(-1) ?? null; }
+if (process.env.HZ_CASO === "nota") { await gestoNota("rispondi", "n1", " ecco "); out.argv = eseguiti[0] ?? null; }
+if (process.env.HZ_CASO === "compito") { await compito({ tipo: "nuovo", slug: "orto", testo: "pianta i pomodori" }); out.prompt = eseguiti[0]?.at(-1) ?? null; }
+console.log(JSON.stringify(out));
+"""
+
+
+def dati_fuori(repo: Path, casa: Path):
+    """dati.js per node in una casa finta: gira(conf, caso) scrive arturo.json e torna l'uscita di PROVA_FUORI.
+    None senza node."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, (repo / "shared/volta/mods/arturo/dati.js").read_text(encoding="utf-8"))
+    (mod / "prova.mjs").write_text(PROVA_FUORI, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (casa / "casa").mkdir()
+
+    def gira(conf: dict, caso: str = "") -> dict:
+        (app / "arturo.json").write_text(json.dumps(conf), encoding="utf-8")
+        env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso}
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=env)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-200:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    return gira
+
+
+def hz183(repo: Path, casa: Path) -> str | None:
+    """Il mod fuori dalle macchine di chi l'ha scritto (#6217): dove sta Arturo, chi, capacità, guida dei progetti."""
+    gira = dati_fuori(repo, casa)
+    if gira is None:
+        return None
+    home = casa / "casa"
+    clone, plugin, voce = casa / "clone", casa / "plugin-in-cache", casa / "plugin-della-voce"
+    lanciatore = ["sh", str(casa / "lancia-arturo")]  # l'argv del plugin: non finisce in bin/arturo
+    try:
+        d = gira({"arturo": lanciatore})
+        if d["radice"] != f"{home}/.claude" or d["chi"] != "tu":
+            return f"senza niente che lo dica, Arturo non sta in ~/.claude o chi non è quello di serie: {d}"
+        if d["capacita"] != {"note": False, "unisci": False, "tasks": False}:
+            return f"un Arturo senza note, unione e task dichiara capacità che non ha: {d['capacita']}"
+        (home / ".claude/plugins").mkdir(parents=True)
+        (home / ".claude/plugins/installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [{"installPath": str(voce)}]}}), encoding="utf-8")
+        d = gira({"arturo": lanciatore})
+        if d["radice"] != str(voce):
+            return f"senza il file del plugin la cartella non viene da installed_plugins.json: {d['radice']}"
+        (home / ".claude/arturo").mkdir(parents=True)
+        (home / ".claude/arturo/radice").write_text(f"{plugin}\n", encoding="utf-8")
+        (plugin / "bin").mkdir(parents=True)
+        (plugin / "bin/note_finestra.py").write_text("", encoding="utf-8")
+        d = gira({"arturo": lanciatore, "chi": "filippo"})
+        if d["radice"] != str(plugin) or d["chi"] != "filippo":
+            return f"il file ~/.claude/arturo/radice non vince sulla voce del plugin, o chi non si legge: {d}"
+        if d["capacita"] != {"note": True, "unisci": False, "tasks": False}:
+            return f"le capacità non vengono dai file dell'Arturo installato: {d['capacita']}"
+        # arturo.json vince sul file: sulle macchine col clone il file c'è e punta al plugin in cache
+        for conf in ({"arturo": ["python3", str(clone / "bin" / "arturo")]}, {"arturo": lanciatore, "radice": str(clone)}):
+            d = gira(conf)
+            if d["radice"] != str(clone):
+                return f"con {sorted(conf)} in arturo.json la cartella viene dal file del plugin: {d['radice']}"
+        d = gira({})
+        if d["radice"] != f"{home}/.claude":
+            return f"senza voce arturo (il clone in ~/.claude) la cartella viene dal file del plugin: {d['radice']}"
+        (clone / "bin").mkdir(parents=True)
+        (clone / "bin/unisci.py").write_text("", encoding="utf-8")
+        (home / ".claude/skills/tasks").mkdir(parents=True)
+        (home / ".claude/skills/tasks/SKILL.md").write_text("x", encoding="utf-8")
+        d = gira({"radice": str(clone)})
+        if d["capacita"] != {"note": False, "unisci": True, "tasks": True}:
+            return f"unisci.py e la skill dei task della persona non danno le loro capacità: {d['capacita']}"
+        for storto in ("Filippo Moia", "", 7, "a|b", "x" * 40):
+            if gira({"chi": storto})["chi"] != "tu":
+                return f"un chi storto ({storto!r}) non torna a quello di serie"
+        # la guida dei progetti: la prima che esiste, e la prima dell'elenco se non ce n'è nessuna
+        conf = {"arturo": lanciatore}
+        attesa = plugin / "shared/volta/trova-progetti.md"
+        if str(attesa) not in (gira(conf, "trova")["prompt"] or ""):
+            return "senza nessuna guida il prompt non nomina quella di Arturo"
+        (casa / "app/trova-progetti.md").write_text("x", encoding="utf-8")
+        p = gira(conf, "trova")["prompt"] or ""
+        if f"Segui {casa / 'app/trova-progetti.md'}: la cartella di Arturo è {plugin}." not in p:
+            return f"con la sola guida accanto al mod il prompt non la segue: {p[:200]}"
+        vecchia = plugin / "shared/volta-celeste/trova-progetti.md"
+        vecchia.parent.mkdir(parents=True)
+        vecchia.write_text("x", encoding="utf-8")
+        if f"Segui {vecchia}:" not in (gira(conf, "trova")["prompt"] or ""):
+            return "la guida di un Arturo di prima non vince su quella accanto al mod"
+        attesa.parent.mkdir(parents=True)
+        attesa.write_text("x", encoding="utf-8")
+        p = gira(conf, "trova")["prompt"] or ""
+        if f"Segui {attesa}:" not in p or "{" in p:
+            return f"la guida dell'Arturo di oggi non è la prima, o il prompt ha un segnaposto: {p[:200]}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+PROVA_AUTORE = r"""
+import * as m from "./sessioni.mjs";
+import { nota, leggiNota } from "./nota.mjs";
+const fed = "Fatto.\nProssimo passo: Federico manda l'email.", fil = "Fatto.\nProssimo passo: Filippo manda l'email.";
+const out = { serie: [m.chiede(fed), m.chiede(fil), m.chiede("Prossimo passo: tu apri la pagina."), m.chiede("Niente da fare per te.")] };
+out.imposta = [m.impostaChi("filippo"), m.chiede(fed), m.chiede(fil), m.chiede("Prossimo passo: tu apri la pagina.")];
+out.storto = [m.impostaChi("a|b("), m.chiede(fed), m.chiede("Prossimo passo: a"), m.impostaChi(undefined)];
+out.nomi = ["filippo", "ada-2", "Filippo", "", null, 7, "x".repeat(40)].map(m.nomeChi);
+const n = { tipo: "nuovo", slug: "orto", testo: "pianta" };
+out.prompt = [m.promptCompito(n), m.promptCompito(n, true), m.promptCompito(n, false), m.promptCompito({ tipo: "progetto", slug: "volta", testo: "x" }, false)];
+const base = { testo: "storto", x: 1, y: 2, larghezza: 10, altezza: 10, cartella: "/n/n1", quando: "t" };
+const v1 = JSON.stringify({ testo: "vecchia", punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 }, quando: "q" });
+const v2 = JSON.stringify({ testo: "nuova", punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 }, filo: [{ chi: "ada", testo: "nuova" }] });
+out.autori = [nota(base).dati.filo[0].chi, nota({ ...base, chi: "filippo" }).dati.filo[0].chi,
+  leggiNota(v1, "n1").filo[0].chi, leggiNota(v1, "n1", "filippo").filo[0].chi, leggiNota(v2, "n2", "filippo").filo[0].chi];
+console.log(JSON.stringify(out));
+"""
+
+
+def hz180(repo: Path, casa: Path) -> str | None:
+    """Autore e nome da `chi` (#6217): note, arturo note, "Prossimo passo:", il progetto nuovo di ⌘N."""
+    node = shutil.which("node")
+    mod = repo / "shared/volta/mods/arturo"
+    if node:
+        puro = casa / "puro"
+        puro.mkdir()
+        shutil.copyfile(mod / "sessioni.js", puro / "sessioni.mjs")
+        shutil.copyfile(mod / "nota.js", puro / "nota.mjs")
+        (puro / "prova.mjs").write_text(PROVA_AUTORE, encoding="utf-8")
+        r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js o nota.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        if d["serie"] != [False, False, True, False]:
+            return f"di serie chiede() cerca un nome di persona, o non cerca tu: {d['serie']}"
+        if d["imposta"] != ["filippo", False, True, True]:
+            return f"dopo impostaChi chiede() non cerca il nome configurato: {d['imposta']}"
+        if d["storto"] != ["tu", False, False, "tu"]:
+            return f"un chi storto entra nell'espressione di chiede(), o non torna a quello di serie: {d['storto']}"
+        if d["nomi"] != ["filippo", "ada-2", "tu", "tu", "tu", "tu", "tu"]:
+            return f"nomeChi: {d['nomi']}"
+        con = "Progetto nuovo orto: crea la scheda e la voce dei task (procedura Nuovo progetto di /tasks), poi esegui: pianta"
+        if d["prompt"] != [con, con, "Progetto nuovo orto: crea la cartella del progetto, poi esegui: pianta", "/inizio volta -- x"]:
+            return f"promptCompito senza la skill dei task: {d['prompt']}"
+        if d["autori"] != ["tu", "filippo", "tu", "filippo", "ada"]:
+            return f"l'autore di una nota non viene da chi, o una nota col suo filo lo perde: {d['autori']}"
+        gira = dati_fuori(repo, casa)
+        try:
+            for conf, chi in (({}, "tu"), ({"chi": "filippo"}, "filippo")):
+                argv = gira({"arturo": ["python3", "/x/bin/arturo"], **conf}, "nota")["argv"]
+                if argv != ["python3", "/x/bin/arturo", "note", "rispondi", "n1", "--chi", chi, "--json", "--", "ecco"]:
+                    return f"gestoNota non passa --chi {chi} a arturo note: {argv}"
+            p = gira({"arturo": ["python3", "/x/bin/arturo"]}, "compito")["prompt"] or ""
+            if p != "Progetto nuovo orto: crea la cartella del progetto, poi esegui: pianta i pomodori":
+                return f"senza la skill dei task il progetto nuovo di ⌘N chiede ancora /tasks: {p!r}"
+            (casa / "casa/.claude/skills/tasks").mkdir(parents=True)
+            (casa / "casa/.claude/skills/tasks/SKILL.md").write_text("x", encoding="utf-8")
+            p = gira({"arturo": ["python3", "/x/bin/arturo"]}, "compito")["prompt"] or ""
+            if "procedura Nuovo progetto di /tasks" not in p:
+                return f"con la skill dei task il progetto nuovo di ⌘N non la usa: {p!r}"
+        except RuntimeError as e:
+            return f"dati.js non gira: {e}"
+    for file, pezzi in (
+        ("main.js", ("impostaChi(c.chi);",)),
+        ("notaui.js", ("numero: prossimoNumero(aperte), chi: c.chi });", "this.tutte = (await leggiTutte(this.py, this.chi)) ?? [];",
+                       "nota: leggiNota(testo, id, chi), testo")),
+        ("testata.js", ("const tutte = await leggiTutte(this.py, this.chi);",)),
+        ("noteui.js", ("leggiTutte(c.arturo[0], c.chi)",)),
+    ):
+        testo = (mod / file).read_text(encoding="utf-8")
+        for pezzo in pezzi:
+            if pezzo not in testo:
+                return f"{file} non porta chi: manca {pezzo[:80]!r}"
+    return None
+
+
+PROVA_CAPACITA = r"""
+import * as m from "./sessioni.mjs";
+const voci = [{ verbo: "apri" }, { verbo: "contesto" }, { verbo: "unisci" }];
+const v = (c) => m.vociCon(voci, c).map((x) => x.verbo).join(" ");
+console.log(JSON.stringify({
+  sa: [m.sa(undefined, "note"), m.sa(null, "note"), m.sa({}, "note"), m.sa({ note: true }, "note"), m.sa({ note: false }, "note"), m.sa({ note: false }, "unisci")],
+  voci: [v(undefined), v({ unisci: true }), v({ unisci: false }), v({ note: false })],
+  giudice: [m.statoGiudice([{ host: "qui", questa: true }]), m.statoGiudice([{ host: "qui", giudice: "acceso" }])?.testo ?? null],
+}));
+"""
+
+
+def hz181(repo: Path, casa: Path) -> str | None:
+    """Senza capacità il gesto sparisce (#6217): Unisci a…, le note, Rispondi, Risolta e Scarta, la riga Permessi."""
+    node = shutil.which("node")
+    mod = repo / "shared/volta/mods/arturo"
+    if node:
+        shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+        (casa / "prova.mjs").write_text(PROVA_CAPACITA, encoding="utf-8")
+        r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        if d["sa"] != [True, True, True, True, False, True]:
+            return f"sa(): una capacità non letta deve valere sì, una negata no: {d['sa']}"
+        tutte = "apri contesto unisci"
+        if d["voci"] != [tutte, tutte, "apri contesto", tutte]:
+            return f"vociCon non toglie Unisci a… solo dove l'Arturo installato non sa unire: {d['voci']}"
+        if d["giudice"] != [None, "decide Arturo"]:
+            return f"una macchina senza il campo giudice fa comparire la riga Permessi: {d['giudice']}"
+    for file, pezzi in (
+        ("main.js", ('if (JSON.stringify(shared("arturo.capacita") ?? null) !== JSON.stringify(c.capacita)) setShared("arturo.capacita", c.capacita);',)),
+        ("menusessione.js", ('this.voci = vociCon(vociProgetto(props()?.dove), shared("arturo.capacita"));',)),
+        ("barra.js", ('else if ((c === "nota" || c === "note") && !sa(shared("arturo.capacita"), "note")) notify({ title: "Le note sulla finestra non ci sono"',
+                      '.when(sa(shared("arturo.capacita"), "note"), (el) => el\n      .child(pulsanteIcona("note", "pin",')),
+        ("notaui.js", ('.when(sa(shared("arturo.capacita"), "note"), (el) => el\n      .child(h_flex().h(36).px(10)',)),
+        ("coda.js", ('.when(Boolean(permessi), (el) => el.child(h_flex().id("coda-giudice")',)),
+    ):
+        testo = (mod / file).read_text(encoding="utf-8")
+        for pezzo in pezzi:
+            if pezzo not in testo:
+                return f"{file} non nasconde il gesto senza capacità: manca {pezzo[:80]!r}"
+    # il rifiuto delle note sta prima dei due comandi che le aprono
+    barra = (mod / "barra.js").read_text(encoding="utf-8")
+    if not barra.index('!sa(shared("arturo.capacita"), "note")) notify(') < barra.index('else if (c === "nota") this.lungo(') < barra.index('else if (c === "note") apriElenco();'):
+        return "barra.js: il controllo delle note viene dopo i comandi che le aprono"
+    return None
+
+
+def hz182(repo: Path, casa: Path) -> str | None:
+    """installa-herdr.sh per chi ha Arturo come plugin (#6217, step 5): la voce arturo, niente radice, niente proposte."""
+    if os.name == "nt":
+        return None  # i tester della prima versione hanno un Mac: non_gira_qui lo dichiara
+    fisso = {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh"}
+    proposte = ("HERDR NASCITA", "HERDR SERVIZIO")
+    senza, zero, con = casa / "senza", casa / "zero", casa / "con"
+    esiti = {}
+    for c, extra in ((senza, {}), (zero, {"ARTURO_HERDR_PLUGIN": "0"}), (con, {"ARTURO_HERDR_PLUGIN": "1"})):
+        c.mkdir()
+        r = installa(repo, c, "mac-arm", {**fisso, **extra})
+        if r.returncode != 0 or "HERDR OK" not in r.stdout:
+            return f"{c.name}: installazione fallita rc={r.returncode}: {(r.stdout + r.stderr)[-200:]}"
+        esiti[c.name] = (r, leggi(c / "app" / "arturo.json"))
+    for nome in ("senza", "zero"):
+        r, conf = esiti[nome]
+        voce = conf["arturo"]
+        if len(voce) != 2 or not str(voce[1]).endswith("/bin/arturo") or Path(conf.get("radice") or "/x").resolve() != repo.resolve():
+            return f"{nome} la variabile la voce o la radice non sono quelle del clone: {voce} {conf.get('radice')}"
+        for riga in proposte:
+            if f"{riga}:" not in r.stdout:
+                return f"{nome} la variabile manca la proposta {riga}: {r.stdout[-300:]}"
+    r, conf = esiti["con"]
+    voce = conf["arturo"]
+    if "radice" in conf:
+        return f"col plugin arturo.json dice una radice: {conf['radice']}"
+    for riga in proposte:
+        if riga in r.stdout:
+            return f"col plugin c'è la proposta {riga}"
+    # il resto dell'uscita e degli altri file è quello di sempre
+    resto = [x for x in esiti["senza"][0].stdout.splitlines() if not x.startswith(proposte)]
+    if r.stdout.splitlines() != resto:
+        return f"col plugin l'uscita cambia oltre le due proposte: {r.stdout[-300:]}"
+    if Path(conf.get("base") or "/x").resolve() != (con / "progetti").resolve() or not (con / "app/volta-claude").exists():
+        return "col plugin mancano la base dei progetti o i file della nascita"
+    for nome in ("keys.json", "settings.json", "shared.json", "update-notes.json"):
+        if (con / "app" / nome).read_bytes() != (senza / "app" / nome).read_bytes():
+            return f"col plugin {nome} non è quello di sempre"
+    # la voce: il mod lancia i suoi script con arturo[0], conArturo cerca "arturo", e nessuno ci legge una cartella
+    if voce[0] != esiti["senza"][1]["arturo"][0]:
+        return f"col plugin la voce non comincia col Python: {voce[0]}"
+    if not any(re.search(r"(^|[\\/])arturo(\.cmd|\.exe)?$", str(a)) for a in voce):
+        return "col plugin la voce non nomina arturo: la ripresa di Volta non partirebbe da /inizio"
+    if re.search(r"[\\/]bin[\\/]arturo$", str(voce[-1])):
+        return "col plugin la voce finisce in bin/arturo: il mod ci leggerebbe la cartella"
+    home = con / "home"
+
+    def finto(d: Path) -> Path:
+        (d / "bin").mkdir(parents=True)
+        (d / "bin" / "arturo").write_text(
+            f"import json, sys\nprint(json.dumps([{d.name!r}] + sys.argv[1:]))\nsys.exit(3 if 'esci' in sys.argv else 0)\n", encoding="utf-8")
+        return d
+
+    def chiama(*a):
+        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home)}
+        return subprocess.run([*voce, *a], capture_output=True, text=True, timeout=30, env=env)
+
+    uno, due, tre = finto(casa / "plugin-uno"), finto(casa / "plugin-due"), finto(home / "plugin-tre")
+    r = chiama("todo", "--json")
+    if r.returncode == 0 or "Arturo non trovato" not in r.stderr:
+        return f"senza ~/.claude/arturo/radice la voce non dice che Arturo manca: rc={r.returncode} {r.stderr[-160:]}"
+    file = home / ".claude" / "arturo" / "radice"
+    file.parent.mkdir(parents=True)
+    for scritto, atteso in ((f"{uno}\n", uno.name), (str(due), due.name), ("~/plugin-tre\n", tre.name)):
+        file.write_text(scritto, encoding="utf-8")
+        r = chiama("todo", "lista", "--json", "due parole")
+        try:
+            avuto = json.loads(r.stdout)
+        except ValueError:
+            avuto = None
+        if r.returncode != 0 or avuto != [atteso, "todo", "lista", "--json", "due parole"]:
+            return f"con {scritto.strip()!r} nel file la voce non chiama quell'Arturo coi suoi argomenti: rc={r.returncode} {(r.stdout + r.stderr)[-200:]}"
+    if chiama("esci").returncode != 3:
+        return "l'uscita di Arturo non passa dalla voce"
+    file.write_text(f"{casa / 'tolto'}\n", encoding="utf-8")
+    r = chiama("todo")
+    if r.returncode == 0 or "Arturo non trovato" not in r.stderr:
+        return f"con una cartella tolta nel file la voce non dice che Arturo manca: rc={r.returncode} {r.stderr[-160:]}"
+    # una radice scritta da un giro di prima se ne va, le altre chiavi della persona restano
+    conf = leggi(senza / "app" / "arturo.json")
+    (senza / "app" / "arturo.json").write_text(json.dumps({**conf, "note_progetto": "orto"}), encoding="utf-8")
+    installa(repo, senza, "mac-arm", {**fisso, "ARTURO_HERDR_PLUGIN": "1"})
+    conf = leggi(senza / "app" / "arturo.json")
+    if "radice" in conf or conf.get("note_progetto") != "orto" or conf["arturo"] != voce:
+        return f"sopra un giro del clone il plugin lascia la radice o perde una chiave: {sorted(conf)}"
+    # il mod, con quell'arturo.json, prende la cartella dal file del plugin
+    gira = dati_fuori(repo, casa)
+    if gira is not None:
+        (casa / "casa/.claude/arturo").mkdir(parents=True)
+        (casa / "casa/.claude/arturo/radice").write_text(f"{uno}\n", encoding="utf-8")
+        d = gira(leggi(con / "app" / "arturo.json"))
+        if d["radice"] != str(uno):
+            return f"con la voce del plugin il mod non prende la cartella dal file: {d['radice']}"
+    return None
+
+
+def hz184(repo: Path, casa: Path) -> str | None:
+    """installa-herdr.sh con l'app già installata da chi chiama (#6217, step 6): ARTURO_HERDR_PROGRAMMA."""
+    if os.name == "nt":
+        return None  # l'installatore dei tester è per il Mac: non_gira_qui lo dichiara
+    testo = (repo / INSTALLA).read_text(encoding="utf-8")
+    # Arturo.app non si prova dal vero: arturo-app.sh scriverebbe un LaunchAgent. Qui basta la condizione.
+    if 'if [ "$sistema" = mac-arm ] && [ -z "$programma" ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ] && [ -d "$HOME/Applications/Herdr.app" ]; then' not in testo:
+        return "con ARTURO_HERDR_PROGRAMMA lo script costruirebbe Arturo.app"
+    finti = casa / "finti"
+    finti.mkdir()
+
+    def finto(nome: str, corpo: str) -> Path:
+        p = finti / nome
+        p.write_text("#!/bin/sh\n" + corpo, encoding="utf-8")
+        p.chmod(0o755)
+        return p
+
+    for nome in ("open", "curl"):
+        finto(nome, f"printf '%s\\n' \"$*\" >> '{casa}/{nome}.log'\n")
+    finto("python3", f'exec "{sys.executable}" "$@"\n')
+
+    def programma(nome: str, controllo: int) -> Path:
+        return finto(nome, f"printf '%s\\n' \"$*\" >> '{casa}/{nome}.log'\n"
+                           f"case \"${{1:-}}\" in --version) echo 'herdr-app 0.7.7' ;; check) exit {controllo} ;; esac\nexit 0\n")
+
+    def righe(nome: str) -> list:
+        p = casa / f"{nome}.log"
+        return p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+
+    buono, rosso = programma("volta-finta", 0), programma("volta-rossa", 1)
+    percorso = f"{finti}:/usr/bin:/bin:/usr/sbin:/sbin"
+    fisso = {"ARTURO_HERDR_INSTALLER": "", "ARTURO_HERDR_VERSIONE": "", "ARTURO_HERDR_NON_APRIRE": "0",
+             "ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh", "PATH": percorso}
+    # senza nessun herdr-app nel PATH: niente scarico, versione e controllo dal programma, nessuna apertura
+    uno = casa / "uno"
+    uno.mkdir()
+    r = installa(repo, uno, "mac-arm", {**fisso, "ARTURO_HERDR_PROGRAMMA": str(buono)})
+    if r.returncode != 0 or "HERDR OK" not in r.stdout:
+        return f"col programma di chi chiama l'installazione fallisce: rc={r.returncode} {(r.stdout + r.stderr)[-200:]}"
+    if righe("curl") or (uno / "scaricato").exists():
+        return f"col programma di chi chiama Herdr si scarica lo stesso: {righe('curl')}"
+    if righe("volta-finta") != ["--version", f"check {uno / 'app' / 'mods' / 'arturo'}"]:
+        return f"versione e controllo del mod non passano dal programma di chi chiama: {righe('volta-finta')}"
+    if leggi(uno / "app" / "update-notes.json") != {"last_run": "0.7.7", "presented": ["0.7.7"]}:
+        return "la versione scritta non è quella del programma di chi chiama"
+    if righe("open"):
+        return f"col programma di chi chiama l'app si apre lo stesso: {righe('open')}"
+    # con un altro herdr-app nel PATH, che boccia il mod e dice un'altra versione: non lo si ascolta
+    finto("herdr-app", f"printf '%s\\n' \"$*\" >> '{casa}/herdr-app.log'\n"
+                       "case \"${1:-}\" in --version) echo 'herdr-app 9.9.9' ;; check) exit 1 ;; esac\nexit 0\n")
+    due = casa / "due"
+    due.mkdir()
+    r = installa(repo, due, "mac-arm", {**fisso, "ARTURO_HERDR_PROGRAMMA": str(buono)})
+    if r.returncode != 0 or righe("herdr-app") or leggi(due / "app" / "update-notes.json")["last_run"] != "0.7.7":
+        return f"con un altro herdr-app nel PATH lo script ascolta quello: rc={r.returncode} {righe('herdr-app')}"
+    # un controllo rosso del programma ferma l'installazione
+    tre = casa / "tre"
+    tre.mkdir()
+    r = installa(repo, tre, "mac-arm", {**fisso, "ARTURO_HERDR_PROGRAMMA": str(rosso)})
+    if r.returncode != 1 or "HERDR ERRORE: il mod di Arturo non si carica (volta-rossa check)" not in r.stdout or "HERDR OK" in r.stdout:
+        return f"un controllo rosso del programma non ferma l'installazione: rc={r.returncode} {r.stdout[-200:]}"
+    return None
+
+
+NOME_DI_PRIMA = "federico"  # il nome di serie fino al 20/11/2026: resta solo nelle note già scritte
+PROVA_SENZA_NOME = r"""
+import * as m from "./sessioni.mjs";
+import { nota, leggiNota, AUTORE_DI_SERIE } from "./nota.mjs";
+const base = { testo: "storto", x: 1, y: 2, larghezza: 10, altezza: 10, cartella: "/n/n1", quando: "t" };
+const prima = JSON.stringify({ testo: "di prima", punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 },
+  filo: [{ chi: "NOME", testo: "di prima" }, { chi: "claude", testo: "fatto" }] });
+console.log(JSON.stringify({
+  serie: [m.CHI_DI_SERIE, AUTORE_DI_SERIE, m.nomeChi(undefined), nota(base).dati.filo[0].chi],
+  mossa: [m.chiede("Fatto.\nProssimo passo: NOME manda l'email."), m.chiede("Fatto.\nProssimo passo: tu mandi l'email.")],
+  prima: leggiNota(prima, "n1", "ada").filo.map((v) => v.chi),
+}));
+"""
+
+PROVA_FIRMA = r"""
+import contextlib, io, json, os, sys
+sys.path.insert(0, sys.argv[1])
+import note_finestra as nf
+prima = sys.argv[2]
+base = nf.cartella() / "2026-11-10_07-00-00"
+base.mkdir(parents=True)
+nota = {"testo": "storto", "punto": {"x": 1, "y": 1}, "finestra": {"larghezza": 10, "altezza": 10}, "quando": "q"}
+(base / "nota.json").write_text(json.dumps(nota), encoding="utf-8")
+out = {"firme": [nf.firma(x) for x in ("claude", prima, "tu", "ada-2", "Ada Bo", None)],
+       "senza_filo": nf.leggi_nota(json.dumps(nota), "n1")["filo"][0]["chi"], "esiti": [], "errori": []}
+for chi in ("claude", "ada", prima, "Ada Bo", "a|b"):
+    err = io.StringIO()
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+        try:
+            rc = nf.main(["rispondi", "2026-11-10_07-00-00", "--chi", chi, "--", "ecco"])
+        except SystemExit as e:
+            rc = e.code
+        except nf.ErroreNota as e:
+            rc = 1
+            err.write(str(e))
+    out["esiti"].append(0 if rc in (0, None) else 1)
+    out["errori"].append(err.getvalue().strip()[-80:])
+out["filo"] = [v["chi"] for v in json.loads((base / "nota.json").read_text(encoding="utf-8"))["filo"]]
+print(json.dumps(out))
+"""
+
+
+def hz185(repo: Path, casa: Path) -> str | None:
+    """Nessun nome di persona nel mod (#6212): di serie vale "tu", e le note di prima restano leggibili."""
+    volta = repo / "shared/volta"
+    con = sorted(f.relative_to(repo).as_posix() for f in volta.rglob("*")
+                 if f.is_file() and f.suffix in (".md", ".py", ".sh", ".js", ".ts", ".json")
+                 and NOME_DI_PRIMA in f.read_text(encoding="utf-8", errors="replace").lower())
+    if con:
+        return f"il nome di chi ha scritto il mod sta nei file di Volta: {', '.join(con[:6])}"
+    mod = volta / "mods/arturo"
+    for file in ("notaui.js", "noteui.js"):
+        if 'v.chi === "claude" ? "Claude" : "Tu"' not in (mod / file).read_text(encoding="utf-8"):
+            return f"{file} non mostra Tu per ogni autore diverso da claude: una nota di prima perde chi l'ha scritta"
+    node = shutil.which("node")
+    if not node:
+        return None
+    shutil.copyfile(mod / "sessioni.js", casa / "sessioni.mjs")
+    shutil.copyfile(mod / "nota.js", casa / "nota.mjs")
+    (casa / "prova.mjs").write_text(PROVA_SENZA_NOME.replace("NOME", NOME_DI_PRIMA), encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js o nota.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["serie"] != ["tu", "tu", "tu", "tu"]:
+        return f"senza chiave chi il nome di serie non è tu: {d['serie']}"
+    if d["mossa"] != [False, True]:
+        return f"di serie chiede() cerca ancora il nome di prima, o non cerca tu: {d['mossa']}"
+    if d["prima"] != [NOME_DI_PRIMA, "claude"]:
+        return f"una nota scritta col nome di prima non si legge col suo filo: {d['prima']}"
+    return None
+
+
+def hz186(repo: Path, casa: Path) -> str | None:
+    """arturo note senza nome di persona (#6212): --chi, la firma e la nota senza filo."""
+    (casa / "prova.py").write_text(PROVA_FIRMA, encoding="utf-8")
+    r = subprocess.run([sys.executable, str(casa / "prova.py"), str(repo / "bin"), NOME_DI_PRIMA], capture_output=True,
+                       text=True, encoding="utf-8", timeout=30, env={**os.environ, "HOME": str(casa), "USERPROFILE": str(casa)})
+    if r.returncode != 0:
+        return f"note_finestra.py non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["firme"] != ["Claude", NOME_DI_PRIMA.capitalize(), "Tu", "Ada-2", "Tu", "Tu"]:
+        return f"arturo note non firma col nome scritto nel filo, o firma un nome storto: {d['firme']}"
+    if d["senza_filo"] != "tu":
+        return f"una nota senza filo non va alla persona di serie: {d['senza_filo']}"
+    if d["esiti"] != [0, 0, 0, 1, 1]:
+        return f"arturo note rispondi non accetta claude e un nome di persona, o accetta un nome storto: {d['esiti']} {d['errori']}"
+    if d["filo"] != ["tu", "claude", "ada", NOME_DI_PRIMA]:
+        return f"le risposte non portano l'autore passato con --chi: {d['filo']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -14598,12 +15121,73 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ184', 'shared/volta/installa-herdr.sh', '  [ -n "$programma" ] && return 0\n', ''),
+    ('HZ184', 'shared/volta/installa-herdr.sh', '[ -z "$programma" ] || versione=$("$programma" --version', '[ -z "$programma" ] || versione=$(herdr-app --version'),
+    ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ -n "$programma" ]; then\n  "$programma" check', 'if false; then\n  "$programma" check'),
+    ('HZ184', 'shared/volta/installa-herdr.sh', '"$programma" check "$app_home/mods/arturo" >/dev/null || {', '"$programma" check "$app_home/mods/arturo" >/dev/null || true || {'),
+    ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ] && [ -z "$programma" ]; then', 'if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ]; then'),
+    ('HZ184', 'shared/volta/installa-herdr.sh', 'if [ "$sistema" = mac-arm ] && [ -z "$programma" ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]', 'if [ "$sistema" = mac-arm ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]'),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (!fermo || !t || v.letto === letto || !scheda?.id", "    if (!fermo || !t || !scheda?.id"),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && nomi.includes(nome);", "    const giro = nomi.includes(nome);"),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    const giro = sid !== v.sid0 && nomi.includes(nome);", "    const giro = sid !== v.sid0;"),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (scheda.panes !== 1) continue;\n", ""),
     ('HZ179', 'shared/volta/mods/arturo/sessioni.js', "    if (!s?.id || s.vecchia) continue;\n    const k = chiave(s), v = prima[k];\n    const t =", "    if (!s?.id) continue;\n    const k = chiave(s), v = prima[k];\n    const t ="),
     ('HZ179', 'shared/volta/mods/arturo/volta.js', '        run("tab.rename", { id: tab, name: nome });\n', ''),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'if os.environ.get("ARTURO_HERDR_PLUGIN") == "1":', 'if False:'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'if os.environ.get("ARTURO_HERDR_PLUGIN") == "1":', 'if os.environ.get("ARTURO_HERDR_PLUGIN") != "0":'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'if os.environ.get("ARTURO_HERDR_PLUGIN") == "1":', 'if os.environ.get("ARTURO_HERDR_PLUGIN"):'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', '    arturo.pop("radice", None)\n', ''),
+    ('HZ182', 'shared/volta/installa-herdr.sh', '[os.environ["ARTURO_PY"], "-c", LANCIA, "arturo"]', '["sh", "-c", LANCIA, "arturo"]'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', '[os.environ["ARTURO_PY"], "-c", LANCIA, "arturo"]', '[os.environ["ARTURO_PY"], "-c", LANCIA, "volta"]'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', '  [ "$plugin" = 1 ] && stato_nascita=""\n', ''),
+    ('HZ182', 'shared/volta/installa-herdr.sh', '  if [ "$plugin" = 1 ]; then\n    : #', '  if false; then\n    : #'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'plugin=${ARTURO_HERDR_PLUGIN:-0}', 'plugin=${ARTURO_HERDR_PLUGIN:-1}'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'plugin=${ARTURO_HERDR_PLUGIN:-0}', 'plugin=1'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'argv = [sys.executable, b] + sys.argv[2:]', 'argv = [sys.executable, b] + sys.argv[1:]'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'os.path.join(os.path.expanduser(r), "bin", "arturo") if r else ""', 'os.path.join(r, "bin", "arturo") if r else ""'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'if not os.path.isfile(b):', 'if False:'),
+    ('HZ182', 'shared/volta/installa-herdr.sh', 'if not os.path.isfile(b):', 'if not r:'),
+    ('HZ185', 'shared/volta/mods/arturo/sessioni.js', 'export const CHI_DI_SERIE = "tu";', 'export const CHI_DI_SERIE = "federico";'),
+    ('HZ185', 'shared/volta/mods/arturo/nota.js', 'export const AUTORE_DI_SERIE = "tu";', 'export const AUTORE_DI_SERIE = "ada";'),
+    ('HZ185', 'shared/volta/mods/arturo/nota.js', 'const filo = Array.isArray(d.filo) && d.filo.length ? d.filo : [', 'const filo = false ? d.filo : ['),
+    ('HZ185', 'shared/volta/mods/arturo/notaui.js', 'v.chi === "claude" ? "Claude" : "Tu"', 'v.chi === "claude" ? "Claude" : v.chi'),
+    ('HZ185', 'shared/volta/mods/arturo/noteui.js', 'v.chi === "claude" ? "Claude" : "Tu"', 'v.chi === "claude" ? "Claude" : v.chi'),
+    ('HZ185', 'shared/volta/mods/arturo/volta.js', 'con /inizio. La persona resta nella Coda.', 'con /inizio. Federico resta nella Coda.'),
+    ('HZ186', 'bin/note_finestra.py', 'PERSONA_DI_SERIE = "tu"', 'PERSONA_DI_SERIE = "ada"'),
+    ('HZ186', 'bin/note_finestra.py', '        if chi != "claude" and not NOME_PERSONA.fullmatch(chi):', '        if chi not in ("claude", "tu"):'),
+    ('HZ186', 'bin/note_finestra.py', '        if chi != "claude" and not NOME_PERSONA.fullmatch(chi):', '        if False:'),
+    ('HZ186', 'bin/note_finestra.py', '    return chi.capitalize() if isinstance(chi, str) and NOME_PERSONA.fullmatch(chi) else', '    return "Tu" if isinstance(chi, str) and NOME_PERSONA.fullmatch(chi) else'),
+    ('HZ186', 'bin/note_finestra.py', '    if chi == "claude":\n        return "Claude"\n', ''),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '    ?? (await radicePlugin())\n', ''),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '    if (r) return casa(r);\n', ''),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '    ?? RADICE_BIN.exec(String(arturo[arturo.length - 1] ?? ""))?.[1]\n', ''),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '  const radice = (typeof c.radice === "string" && c.radice ? c.radice : null)\n', '  const radice = null\n'),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '    if (typeof p === "string" && p) return casa(p);\n', ''),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '    chi: nomeChi(c.chi),', '    chi: c.chi ?? "federico",'),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '  try { return (await readTextFile(p)) != null; } catch { return false; }', '  return true;'),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '  const valore = { note, unisci, tasks: sue || diArturo };', '  const valore = { note, unisci: note, tasks: sue || diArturo };'),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '  const valore = { note, unisci, tasks: sue || diArturo };', '  const valore = { note, unisci, tasks: diArturo };'),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '  for (const p of candidati) if (await esiste(p)) return p;\n', ''),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '  return candidati[0];\n}', '  return candidati[candidati.length - 1];\n}'),
+    ('HZ183', 'shared/volta/mods/arturo/dati.js', '"{radice}/shared/volta-celeste/trova-progetti.md", "{app}/trova-progetti.md"];', '"{app}/trova-progetti.md", "{radice}/shared/volta-celeste/trova-progetti.md"];'),
+    ('HZ180', 'shared/volta/mods/arturo/sessioni.js', '  MOSSA = mossaDi(nomeChi(chi));\n', ''),
+    ('HZ180', 'shared/volta/mods/arturo/sessioni.js', '  MOSSA = mossaDi(nomeChi(chi));\n', '  MOSSA = mossaDi(chi);\n'),
+    ('HZ180', 'shared/volta/mods/arturo/sessioni.js', '/^[a-z][a-z0-9-]{0,31}$/.test(chi) ? chi : CHI_DI_SERIE);', '/^[a-z]/.test(chi) ? chi : CHI_DI_SERIE);'),
+    ('HZ180', 'shared/volta/mods/arturo/sessioni.js', '  if (x?.tipo === "nuovo" && !conTasks) return', '  if (false) return'),
+    ('HZ180', 'shared/volta/mods/arturo/nota.js', '    filo: [{ chi: chi || AUTORE_DI_SERIE, quando, testo: t }]', '    filo: [{ chi: AUTORE_DI_SERIE, quando, testo: t }]'),
+    ('HZ180', 'shared/volta/mods/arturo/nota.js', ': [{ chi: chi || AUTORE_DI_SERIE, quando: d.quando ?? null, testo: d.testo }];', ': [{ chi: AUTORE_DI_SERIE, quando: d.quando ?? null, testo: d.testo }];'),
+    ('HZ180', 'shared/volta/mods/arturo/dati.js', '"--chi", (await config()).chi, "--json"', '"--chi", "federico", "--json"'),
+    ('HZ180', 'shared/volta/mods/arturo/dati.js', 'promptCompito(x, sa((await config()).capacita, "tasks"))', 'promptCompito(x)'),
+    ('HZ180', 'shared/volta/mods/arturo/main.js', '      impostaChi(c.chi);\n', ''),
+    ('HZ180', 'shared/volta/mods/arturo/notaui.js', 'numero: prossimoNumero(aperte), chi: c.chi });', 'numero: prossimoNumero(aperte) });'),
+    ('HZ181', 'shared/volta/mods/arturo/sessioni.js', 'export const sa = (capacita, cosa) => capacita?.[cosa] !== false;', 'export const sa = (capacita, cosa) => capacita?.[cosa] === true;'),
+    ('HZ181', 'shared/volta/mods/arturo/sessioni.js', 'export const sa = (capacita, cosa) => capacita?.[cosa] !== false;', 'export const sa = (capacita, cosa) => true;'),
+    ('HZ181', 'shared/volta/mods/arturo/sessioni.js', '.filter((v) => v?.verbo !== "unisci" || sa(capacita, "unisci"));', '.filter((v) => sa(capacita, "unisci"));'),
+    ('HZ181', 'shared/volta/mods/arturo/menusessione.js', 'this.voci = vociCon(vociProgetto(props()?.dove), shared("arturo.capacita"));', 'this.voci = vociProgetto(props()?.dove);'),
+    ('HZ181', 'shared/volta/mods/arturo/barra.js', '      .when(sa(shared("arturo.capacita"), "note"), (el) => el\n      .child(pulsanteIcona("note", "pin",', '      .when(true, (el) => el\n      .child(pulsanteIcona("note", "pin",'),
+    ('HZ181', 'shared/volta/mods/arturo/notaui.js', '      .when(sa(shared("arturo.capacita"), "note"), (el) => el\n      .child(h_flex().h(36)', '      .when(true, (el) => el\n      .child(h_flex().h(36)'),
+    ('HZ181', 'shared/volta/mods/arturo/main.js', ' setShared("arturo.capacita", c.capacita);', ';'),
+    ('HZ174', 'shared/volta/mods/arturo/volta_sonda.py', 'if os.path.exists(os.path.join(radice, "hooks", "giudice-permessi.py")):\n    uscita["giudice"]', 'if True:\n    uscita["giudice"]'),
     ('HZ172', 'shared/volta/mods/arturo/sessioni.js', '    return Boolean(s?.progetto) && progettoDi(s.progetto, noti).chiave === k;', '    return Boolean(s);'),
     ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  if (r.fase === "stasi" && inCoda.has(r.sessione)) return null;', ''),
     ('HZ173', 'shared/volta/mods/arturo/sessioni.js', '  return (sessioni ?? []).filter((s) => s && !chiusa(s) && !dorme(s)).map((s) => ({', '  return (sessioni ?? []).filter((s) => s).map((s) => ({'),
@@ -15107,7 +15691,7 @@ VELENI = [
     ('HZ94', 'shared/volta/mods/arturo/volta.js', '    if (!movimento()) return false;\n    const k = chiave(s);', '    const k = chiave(s);'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";', '  if (chiede(s.coda)) return "stasi";'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\b(scrivimi|scrivi|dimmi|', '  /\\b(xscrivimi|xscrivi|dimmi|'),
-    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /prossimo passo:[^\\n]*(\\btu\\b|\\btuo\\b|\\btua\\b|\\bfederico\\b|\\(tu\\))/i,\n', ''),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  return CHIEDE.some((re) => re.test(c)) || MOSSA.test(c);', '  return CHIEDE.some((re) => re.test(c));'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\?[\\s*_`)]*$/,\n  /\\?\\s*\\n/,\n', ''),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.stato === "aspetta" || s.aspetta) return "stasi";', '  if (s.stato === "aspetta") return "stasi";'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  const vive = g.sessioni.filter((s) => !inAttesa(s) || s.annullo);', '  const vive = g.sessioni.filter((s) => s.stato !== "ferma");'),
@@ -15573,7 +16157,7 @@ VELENI = [
     ("HZ30", "bin/note_finestra.py", "        if ora != letto:", "        if False:"),
     ("HZ31", "shared/volta/mods/arturo/notaui.js", "const r = await gestoNota(VERBI[che], n.id, testo);", "const r = { ok: true };"),
     ("HZ31", "shared/volta/mods/arturo/notaui.js", 'risolta: "risolvi"', 'risolta: "scarta"'),
-    ("HZ31", "shared/volta/mods/arturo/dati.js", '"--chi", "federico", "--json"', '"--json"'),
+    ("HZ31", "shared/volta/mods/arturo/dati.js", '"--chi", (await config()).chi, "--json"', '"--json"'),
     ("HZ31", "shared/volta/mods/arturo/dati.js", '...(t ? ["--", t] : [])', '...(t ? [t] : [])'),
     ("HZ31", "bin/note_finestra.py", 'if not testo and chi == "claude":', "if not testo:"),
     ("HZ32", "shared/volta/mods/arturo/nota.js", '{ id: "va-bene", etichetta: "Va bene così" }', '{ id: "va-bene", etichetta: "Va bene" }'),
@@ -15582,10 +16166,12 @@ VELENI = [
     ("HZ32", "shared/volta/mods/arturo/nota.js", 'export const TIPO_PREDEFINITO = "correggere";', 'export const TIPO_PREDEFINITO = "domanda";'),
     ("HZ32", "bin/note_finestra.py", '"cwd": None, "testo_terminale": None}', '"cwd": None}'),
     ("HZ32", "docs/volta.md", "dice a chi l'ha scritta che ci lavori", "dice a Federico che ci lavori"),
-    ("HZ09", "shared/volta/mods/arturo/dati.js", "Segui {radice}/shared/volta/trova-progetti.md", "Segui ~/.claude/shared/volta/trova-progetti.md"),
+    ("HZ09", "shared/volta/mods/arturo/dati.js", "Segui {trova}: la cartella", "Segui ~/.claude/shared/volta/trova-progetti.md: la cartella"),
+    ("HZ09", "shared/volta/mods/arturo/dati.js", '["{radice}/shared/volta/trova-progetti.md", ', '["{radice}/shared/volta/trova-progetto.md", '),
+    ("HZ09", "shared/volta/mods/arturo/dati.js", ', "{app}/trova-progetti.md"];', '];'),
     ("HZ01", "shared/volta/installa-herdr.sh", '"radice": os.environ["ARTURO_RADICE"], ', ""),
-    ("HZ33", "shared/volta/mods/arturo/dati.js", "const prompt = richiesta(sug.prompt, (await config()).radice);", "const prompt = sug.prompt;"),
-    ("HZ33", "shared/volta/mods/arturo/dati.js", ": radiceDa(arturo[arturo.length - 1]),", ": `${home()}/.claude`,"),
+    ("HZ33", "shared/volta/mods/arturo/dati.js", "testo, c.radice);", "testo, \"{radice}\");"),
+    ("HZ33", "shared/volta/mods/arturo/dati.js", "    ?? RADICE_BIN.exec(String(arturo[arturo.length - 1] ?? \"\"))?.[1]\n", ""),
     ("HZ33", "shared/volta/mods/arturo/dati.js", "[\\\\/]bin[\\\\/]arturo", "[/]bin[/]arturo"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
     ("HZ34", "shared/volta/mods/arturo/volta_sonda.py", 'PYTHON = ("python3", "python")\n', 'PYTHON = ("python3",)\n'),
@@ -15904,6 +16490,8 @@ def non_gira_qui(caso: str) -> str | None:
     if caso == "HZ08" and not (mac and subprocess.run(["sysctl", "-n", "hw.optional.arm64"],
                                                       capture_output=True, text=True).stdout.strip() == "1"):
         return "l'invito a Herdr parte solo sui Mac Apple Silicon"
+    if caso in ("HZ182", "HZ184") and os.name == "nt":
+        return "Arturo come plugin si installa per ora solo sul Mac"
     if caso == "HZ36" and os.name == "nt":
         return "su Windows la nascita va nel profilo di PowerShell, non nei file di zsh e bash"
     if caso == "HZ38" and not (shutil.which("pwsh") or shutil.which("powershell")):

@@ -1,4 +1,4 @@
-// La checklist di Volta (17/11/2026). Federico: "voglio poter vedere una checklist con spazio per eventuali
+// La checklist di Volta (17/11/2026). Richiesta: "voglio poter vedere una checklist con spazio per eventuali
 // note per poter indicare ad Arturo e Volta su cosa lavorare"; "vorrei si vedesse in sovrimpressione con un
 // pulsante cliccabile, in maniera semplice"; "deve funzionare associandola a tutte le convo e i progetti,
 // inoltre la lista dei todo deve prevedere uno scarta e un già fatto e simili".
@@ -10,7 +10,7 @@
 //   ripartenza  blocco sovrapposto alla sessione davanti (floating del blocco "main" in layouts/arturo.json,
 //               in basso a destra). Chiuso è una barra "Su cosa lavoro adesso? · N · Apri"; dopo /inizio si
 //               apre da solo. Lo stato aperto o chiuso resta per sessione (shared arturo.checklist.aperte).
-//               Dal 17/11 sera il layout non lo mostra più (Federico: "teniamolo solo in alto a dx"): resta
+//               Dal 17/11 sera il layout non lo mostra più (richiesta: "teniamolo solo in alto a dx"): resta
 //               la parte, per chi ha un layout suo che la nomina.
 //   checklist   lo stesso elenco come dialogo: ⌘⇧S, il pulsante della testata, la carta della Coda.
 //
@@ -217,7 +217,7 @@ export class Checklist {
   }
 
   // Il campo nasce col render dopo: il fuoco dato subito non resta, e i tasti andavano al terminale sotto
-  // (17/11/2026, Federico: "la sezione Note non funziona"). Si ridà al giro dopo, come in cambio.js.
+  // (17/11/2026: "la sezione Note non funziona"). Si ridà al giro dopo, come in cambio.js.
   apriNota(n, cx) {
     this.aperte.add(n);
     this.campi[n]?.focus();

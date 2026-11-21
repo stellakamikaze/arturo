@@ -119,22 +119,39 @@ export function daQuanto(iso, adesso = Date.now()) {
   return `da ${gg} ${gg === 1 ? "giorno" : "giorni"}`;
 }
 
-// Le fasi di una sessione (#5366, nota di Federico dell'11/11: "le ferme devono essere diverse").
+// Le fasi di una sessione (#5366, nota dell'11/11: "le ferme devono essere diverse").
 // "ferma" della sonda tiene insieme due casi: Claude ha chiuso il turno chiedendo qualcosa alla persona
 // (stasi: ti aspetta) oppure ha finito e aspetta un comando nuovo (attesa). Lo dice la fine dell'ultimo
 // testo di Claude (campo coda). Nel dubbio vale stasi: una sessione in stasi non si chiude da sola.
-// "Prossimo passo:" conta solo se la mossa è della persona ("tu", "Federico"); "Niente da fare per te" no.
+// "Prossimo passo:" conta solo se la mossa è della persona ("tu", o il suo nome); "Niente da fare per te" no.
 const CHIEDE = [
   /\?[\s*_`)]*$/,
   /\?\s*\n/,
   /^\s*!\s*\S/m,
   /\b(scrivimi|scrivi|dimmi|dimmelo|rispondi|rispondimi|fammi sapere|conferma|confermi|scegli|decidi|lancia|tocca a te|serve il tuo|il tuo s[iì]|aspetto la tua|attendo la tua)\b/i,
-  /prossimo passo:[^\n]*(\btu\b|\btuo\b|\btua\b|\bfederico\b|\(tu\))/i,
 ];
+// Chi usa la finestra (#6217): la chiave `chi` di arturo.json, lettere minuscole, cifre e trattini. Senza
+// chiave, o con una chiave storta, vale "tu": nessun nome di persona sta nel mod (#6212). Una nota scritta
+// prima col nome di allora resta leggibile: nel filo ogni autore diverso da "claude" è la persona.
+export const CHI_DI_SERIE = "tu";
+export const nomeChi = (chi) => (typeof chi === "string" && /^[a-z][a-z0-9-]{0,31}$/.test(chi) ? chi : CHI_DI_SERIE);
+const mossaDi = (nome) => new RegExp(`prossimo passo:[^\\n]*(\\btu\\b|\\btuo\\b|\\btua\\b|\\b${nome}\\b|\\(tu\\))`, "i");
+let MOSSA = mossaDi(CHI_DI_SERIE);
+// Ogni copia del mod lo chiama all'avvio (main.js) col `chi` di config(): da lì chiede() cerca quel nome.
+export function impostaChi(chi) {
+  MOSSA = mossaDi(nomeChi(chi));
+  return nomeChi(chi);
+}
 export function chiede(coda) {
   const c = String(coda ?? "").slice(-220);
-  return CHIEDE.some((re) => re.test(c));
+  return CHIEDE.some((re) => re.test(c)) || MOSSA.test(c);
 }
+
+// Cosa sa fare l'Arturo installato (capacita di config() in dati.js, che main.js pubblica in shared
+// arturo.capacita): note, unisci, tasks. Una voce che manca vale sì: prima della prima lettura i gesti restano.
+export const sa = (capacita, cosa) => capacita?.[cosa] !== false;
+// Le voci del menu di un progetto senza quelle che l'Arturo installato non sa fare ("Unisci a…").
+export const vociCon = (voci, capacita) => (voci ?? []).filter((v) => v?.verbo !== "unisci" || sa(capacita, "unisci"));
 
 // Un lavoro lasciato in corso: Claude aspetta l'esito di qualcosa che gira da solo (un comando in
 // background, un altro agente) e riprenderà da sé. Una sessione così non va chiusa, anche se tace.
@@ -279,7 +296,7 @@ export function tastoCoda(k, c) {
   if (k === "escape") return { azione: "esci" };
   return null;
 }
-// La Coda come elenco (18/11/2026, Federico: "non mi permette di capire chiaramente quali sono le cose
+// La Coda come elenco (18/11/2026: "non mi permette di capire chiaramente quali sono le cose
 // pending, come nella schermata Su cosa lavorare"): i gruppi per chi agisce, come la checklist, e dentro
 // l'ordine di ordineCoda. Un gruppo vuoto non c'è. Torna [{ chiave, nome, carte }].
 export const GRUPPI_CODA = [
@@ -539,7 +556,7 @@ export function testoPerSessione(t) {
   return x.startsWith(`${LASCIA} · `) ? TESTO_LASCIA + x.slice(LASCIA.length) : x;
 }
 
-// I gesti di ogni carta (16/11/2026, Federico): Già fatto, Scarta e Note, più il commento che C apre sul
+// I gesti di ogni carta (16/11/2026): Già fatto, Scarta e Note, più il commento che C apre sul
 // pulsante sotto il cursore. Il comando porta gesto e commento insieme, in JSON esadecimale:
 // "arturo.coda-gesto-<chiave>-<esadecimale>". gestoCoda() dice cosa fa il gesto su ogni tipo di carta:
 //   sessione  un'opzione o la raccomandazione col commento "· Nota: …"; Già fatto scrive "L'ho già fatto io.";
@@ -617,7 +634,7 @@ export function daCongedare(dati, adesso, opz = {}) {
     .sort((a, b) => interazione(a) - interazione(b));
 }
 
-// La ripresa da sola (#5882, Federico 17/11/2026, dalla prima /revisione: "Riprendi" dopo Connection lost,
+// La ripresa da sola (#5882, 17/11/2026, dalla prima /revisione: "Riprendi" dopo Connection lost,
 // "Ho resettato, procedi" dopo il limite). Volta fa ripartire una sessione solo se il turno è finito con un
 // errore (campo errore della sonda): il limite d'uso all'ora di sblocco, la connessione persa (anche il Mac
 // andato in stop) quando la rete torna, cioè quando RIPRESA sulla sua macchina raggiunge Anthropic. Mai se
@@ -692,7 +709,7 @@ export function restanti(fatti, adesso, opz = {}) {
 }
 
 // Il registro del modo "prova": cosa la chiusura automatica avrebbe chiuso, una voce per sessione, con
-// la prima e l'ultima volta che l'ha vista. Al più 40 voci, le più recenti. Lo legge Federico prima di
+// la prima e l'ultima volta che l'ha vista. Al più 40 voci, le più recenti. Lo legge la persona prima di
 // accendere la chiusura vera (arturo.json, "congedo": "acceso").
 export function registroProva(prima, scelte, adesso) {
   const per = new Map((prima ?? []).map((v) => [v.sessionId, v]));
@@ -713,7 +730,7 @@ export const macchinaQui = (dati) => (Array.isArray(dati) ? dati : dati?.macchin
 export const nomeMacchina = (m, macchine) => (m === "qui" ? macchinaQui(macchine) ?? "questa macchina" : m);
 
 // Il nome di una macchina in una riga stretta: senza il proprietario e senza la coda fra parentesi che
-// macOS aggiunge ("MacBook Air di Federico (156)" → "MacBook Air"). Il nome intero resta nei gruppi.
+// macOS aggiunge ("MacBook Air di Ada (156)" → "MacBook Air"). Il nome intero resta nei gruppi.
 export function macchinaBreve(nome) {
   const s = String(nome ?? "").trim();
   const b = s.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s+(di|de|of)\s+\S+$/i, "").replace(/^\S+['’]s\s+/, "").trim();
@@ -727,7 +744,7 @@ export function dettaglio(s, modo, adesso = Date.now()) {
   return { testo: dove ? `${dove} · ${f.testo}` : f.testo, colore: f.colore };
 }
 
-// Le macchine che non rispondono (14/11/2026, Federico: le schede di una macchina spenta non si chiudono,
+// Le macchine che non rispondono (14/11/2026: le schede di una macchina spenta non si chiudono,
 // "deve dimenticarle automaticamente, salvando però un handoff di quelle sessioni"). Dopo DIMENTICA_MS il
 // core di Volta toglie le sue schede da questa finestra (mirror_sync.rs, stessa soglia), il mod salva un
 // handoff per ogni sua sessione dall'ultima lettura e piega il suo gruppo in una riga. Al ritorno tutto
@@ -790,7 +807,7 @@ export function gruppi(dati, modo = "macchina", ora = Date.now()) {
   };
   if (modo === "progetto") {
     // le sessioni di una macchina giù da DIMENTICA_MS escono dai progetti e vanno in fondo, in un gruppo
-    // piegato per macchina: il menu si pulisce anche per progetto (Federico, 14/11/2026, vista Per progetto)
+    // piegato per macchina: il menu si pulisce anche per progetto (14/11/2026, vista Per progetto)
     const via = new Set((dati?.macchine ?? []).filter((m) => m.irraggiungibile && dimenticata(dati?.giuDa, m.host, ora)).map((m) => m.host));
     const ferme = new Map();
     for (const s of righe) {
@@ -832,7 +849,7 @@ export function gruppi(dati, modo = "macchina", ora = Date.now()) {
   return out.concat([...per.values()].filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));
 }
 
-// Chiudere una sessione (12/11/2026, decisione di Federico): ⌘W, la X della scheda o Chiudi del menu
+// Chiudere una sessione (12/11/2026, decisione): ⌘W, la X della scheda o Chiudi del menu
 // fanno il congedo, cioè /fine e poi claude stop. Una sessione chiusa o in congedo non compare più
 // nell'elenco: si ritrova con Apri un progetto. Chiusa = in background, senza processo e senza status,
 // fermata con claude stop o dopo /fine (il campo `chiusa` di volta_sonda.py); una in errore resta,
@@ -840,18 +857,18 @@ export function gruppi(dati, modo = "macchina", ora = Date.now()) {
 // Claude dopo un'ora ferma (#5495, 13/11/2026): resta nell'elenco e nel giro, e claude attach la riprende.
 export const chiusa = (s) => Boolean(s) && s.tipo === "background" && s.chiusa === true;
 export const dorme = (s) => Boolean(s) && s.tipo === "background" && s.dorme === true && !chiusa(s);
-// Ferma su una domanda di /fine (#5760, 16/11/2026, Federico: sì): senza processo, /fine in fondo e
+// Ferma su una domanda di /fine (#5760, 16/11/2026: sì): senza processo, /fine in fondo e
 // claude agents la dice in attesa. La sonda non la segna più chiusa: resta nell'elenco e nella Coda con
 // la sua domanda, così la persona risponde (clic, claude attach) o la chiude (il congedo la ferma e la
 // elimina, senza un secondo /fine).
 export const chiestaInFine = (s) => dorme(s) && s.fineFatta === true && s.stato === "aspetta";
-// Una sessione chiusa non riappare mentre fa il /fine di chiusura (16/11/2026, Federico: "mentre fanno il
+// Una sessione chiusa non riappare mentre fa il /fine di chiusura (16/11/2026: "mentre fanno il
 // fine di chiusura non devono riapparire"). Restano fuori: la sessione nata da un congedo di Volta (la
 // sonda la segna `congedo`) finché /fine è il suo ultimo messaggio, anche mentre lavora, salvo errore
 // (Riavvia) o una domanda di /fine (#5760); riaperta e usata dopo, torna. E l'originale di un congedo
 // passato alla copia (`copiaDi`), finché quel congedo c'è.
 export const inChiusura = (s) => Boolean(s) && s.congedo === true && s.fineFatta === true && s.stato !== "errore" && !chiestaInFine(s);
-// Le sessioni chiuse da chi usa la finestra e rimaste in claude agents (16/11/2026, Federico: "continua ad
+// Le sessioni chiuse da chi usa la finestra e rimaste in claude agents (16/11/2026: "continua ad
 // aprire schede che ho chiuso", a sinistra, dopo un po'). Un congedo che finisce senza claude rm (la ripresa
 // che non parte, /fine senza salvataggio, un errore, un tetto, un rm che non va) lascia la sessione ferma
 // ma non chiusa, e appena il congedo usciva dal registro l'elenco la rimostrava; così anche l'originale di
@@ -879,7 +896,7 @@ export function visibili(dati, congedi = {}, chiuse = {}) {
   return { ...dati, sessioni: unaPerConversazione(l) };
 }
 
-// Al più `n` parole: la sintesi della testata ne vuole cinque (Federico, 12/11/2026). Oltre, "…".
+// Al più `n` parole: la sintesi della testata ne vuole cinque (12/11/2026). Oltre, "…".
 export function cinqueParole(testo, n = 5) {
   const p = String(testo ?? "").trim().split(/\s+/).filter(Boolean);
   return p.length > n ? `${p.slice(0, n).join(" ")}…` : p.join(" ");
@@ -894,7 +911,7 @@ export function sintesiTestata(davanti, nomeScheda = null) {
 }
 
 // Il titolo della testata: il progetto della sessione in primo piano, se l'elenco gliene dà uno, altrimenti
-// lo spazio (14/11/2026, Federico: "a sinistra è correttamente sistemato, mentre in alto no"). La scheda in
+// lo spazio (14/11/2026: "a sinistra è correttamente sistemato, mentre in alto no"). La scheda in
 // primo piano non cambia spazio sotto le mani (daAllineare), quindi lo spazio può restare "Senza progetto"
 // mentre la colonna dice già il progetto. `noti` è la mappa di shared arturo.progetti.
 export function titoloTestata(nomeSpazio, davanti, noti) {
@@ -945,7 +962,7 @@ export function sparite(prima, adesso, tolti = {}, ora = Date.now(), occupate = 
   return out;
 }
 
-// Lo stacco delle schede ferme (F3.2 di #5587, deciso da Federico il 14/11/2026): un claude attach aperto
+// Lo stacco delle schede ferme (F3.2 di #5587, deciso il 14/11/2026): un claude attach aperto
 // impedisce al servizio di Claude di ritirare la sessione dopo un'ora ferma, e la sessione tiene 350-600 MB.
 // Una scheda che aggancia una sessione ferma da STACCA_DOPO_MS si stacca con Ctrl+Z di claude attach: esce
 // pulito, spegne i modi del terminale e la bozza resta nella sessione. La scheda resta con la shell, e il
@@ -969,7 +986,7 @@ export function daStaccare(schede, sessioni, adesso, opz = {}) {
   return out.sort((a, b) => a.t - b.t).map(({ indirizzo, s }) => ({ indirizzo, s }));
 }
 
-// La scheda che va nello spazio del suo progetto (14/11/2026, Federico: "il progetto associato alle sessioni
+// La scheda che va nello spazio del suo progetto (14/11/2026: "il progetto associato alle sessioni
 // non viene aggiornato in tempo reale"). aggancia() di dati.js sceglie lo spazio solo quando apre la scheda:
 // se il progetto arriva dopo (un file scritto, il progetto dedotto dal contenuto), la scheda restava in
 // "Senza progetto" o nello spazio di prima. `voci`: [{ indirizzo, s, spazio: { nome, libero } }], una per
@@ -1042,7 +1059,7 @@ export function daRinominare(voci, opz = {}) {
 // stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, salvata?, avviso? } con fai:
 // "attendi" | "fine" (stop e ripresa con /fine) | "stop" | "togli" (via dal registro) | "rm" (claude rm,
 // poi via dal registro). `salvata` va nel registro quando /fine ha finito il turno: solo allora la sessione
-// chiusa si elimina anche da claude agents (#5401, Federico, 12/11: "aggiungi rm"). Dopo una domanda, un
+// chiusa si elimina anche da claude agents (#5401, 12/11: "aggiungi rm"). Dopo una domanda, un
 // tetto o un /fine mai partito la sessione resta in claude agents, da riaprire o eliminare a mano.
 // Tetti: CONGEDO_MAX_MS per il turno in corso e per /fine; dopo, la sessione si ferma lo stesso e Volta lo
 // dice. Una macchina che non risponde tiene il congedo fino a CONGEDO_VECCHIO_MS.
@@ -1071,7 +1088,7 @@ export const diProva = (s) => PROVA.test(String(s?.nome ?? ""));
 export const RIAPERTA_MARGINE_MS = 30000;
 export const riaperta = (c, s) => Boolean(s) && Number(c?.da) > 0 && (Date.parse(s.persona || "") || 0) > Number(c.da) + RIAPERTA_MARGINE_MS;
 
-// ⌘W da annullare (#5883, Federico, 17/11/2026: "chiusa da Volta per sbaglio alle 17:06"). La scheda si chiude
+// ⌘W da annullare (#5883, 17/11/2026: "chiusa da Volta per sbaglio alle 17:06"). La scheda si chiude
 // subito; /fine, stop e rm aspettano ANNULLA_MS. Il congedo di un gesto della persona porta in `annulla` l'ora
 // in cui parte; fino ad allora la riga resta nell'elenco con "Si chiude fra N s · Annulla", e il clic sulla
 // riga o ⌘Z (Ctrl+Alt+Z su Windows) toglie il congedo e riapre la sessione. Niente conferma prima. La
@@ -1302,7 +1319,7 @@ export function mostrate(g, aperto) {
 // Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows), nell'ordine dell'elenco: le sessioni
 // che hanno una scheda in questa finestra (`conScheda`, le chiavi), in ogni stato, e quelle in
 // background senza scheda che lavorano o ti aspettano (fase attiva o stasi), che il tasto apre. Una
-// ferma senza scheda resta fuori: l'hai chiusa, e il tasto la riaprirebbe (Federico, 14/11/2026: "mi apre
+// ferma senza scheda resta fuori: l'hai chiusa, e il tasto la riaprirebbe (14/11/2026: "mi apre
 // schede chiuse"). Alle 20:27 dello stesso giorno, con le sole schede, il tasto non arrivava a una
 // sessione che lavorava ("non mi apre Eseguire S4") e saltava quelle di un'altra macchina che ti
 // aspettavano. Un'interattiva entra solo con la scheda: in un terminale senza pannello (un hc run) il
@@ -1319,7 +1336,7 @@ export function ordineGiro(lista, aperti = {}, conScheda = new Set()) {
 
 // Le schede di questa finestra che mostrano una sessione chiusa o di una macchina che non risponde: nel
 // giro vengono dopo le sessioni, nell'ordine dei pannelli, come "scheda:<indirizzo>", e il tasto le porta
-// davanti senza riagganciare niente (Federico, 14/11/2026: "non va su determinate schede"). Prima il giro
+// davanti senza riagganciare niente (14/11/2026: "non va su determinate schede"). Prima il giro
 // le saltava: restavano aperte e non si raggiungevano coi tasti. `terminali`: quelli dei pannelli, in ordine.
 // `uscita`: le sessioni che stanno uscendo (uscenti(), lo stesso filtro di visGiro): dopo ⌘W su una sessione
 // di una macchina giù la sua scheda non rientra nel giro mentre il pannello sparisce.
@@ -1344,7 +1361,7 @@ export function statoGiro(prima, adesso, ora) {
   return { ids: ids.length ? ids : adesso, ultimo: tiene ? prima.ultimo ?? null : null, quando: ora };
 }
 
-// La sessione che l'elenco accende a sinistra (Federico, 12/11/2026: "evidenziarmi su quale sto
+// La sessione che l'elenco accende a sinistra (12/11/2026: "evidenziarmi su quale sto
 // lavorando"). Dentro una raffica di ⌘↓ e ⌘↑ è l'ultima chiesta col giro, perché la scheda ci mette
 // qualche secondo ad aprirsi; fuori dalla raffica è quella della scheda in primo piano. Chiavi (chiave()),
 // null se nessuna. Il giro può stare su una scheda spenta ("scheda:<indirizzo>", schedeSpente): lì si accende
@@ -1659,7 +1676,7 @@ export function azioni(s) {
 // Il menu del tasto destro su una sessione (#5291), in tre gruppi (menusessione.js). Primo: Apri è il
 // clic; Duplica ne apre una nuova e vuota nella stessa cartella, sulla stessa macchina, nello stesso
 // progetto; Fork ne apre una con una copia della conversazione; "Sposta in un progetto…" è il taglia e
-// incolla (Federico, 12/11/2026: "tagliare"), il dialogo di cambio.js (#5292). Secondo: Rinomina e il
+// incolla (12/11/2026: "tagliare"), il dialogo di cambio.js (#5292). Secondo: Rinomina e il
 // contesto del progetto (contestoui.js), se la sessione ne ha uno. Terzo: Chiudi (/fine, poi stop, come
 // ⌘W) e i gesti di "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un lavoro in
 // background da fermare: resta senza Chiudi. Una riga vecchia ha solo Riprendi su… e Chiudi.
@@ -1685,7 +1702,7 @@ export function menu(s) {
 // I primi due gruppi del menu (copiare e spostare, nome e contesto); il resto va nel terzo, chiudere.
 export const GRUPPI_MENU = [["apri", "duplica", "fork", "progetto", "sposta", "riprendi"], ["rinomina", "contesto"]];
 
-// La X della riga (Federico, 12/11/2026: "la X per chiudere e innescare il processo di fine"): su una
+// La X della riga (12/11/2026: "la X per chiudere e innescare il processo di fine"): su una
 // sessione in background viva è Chiudi con /fine, con la conferma; su una chiusa o in errore è Elimina.
 // Anche la riga di una macchina che non risponde ha Chiudi, come ⌘W: il congedo aspetta che torni.
 // Un'interattiva non ha X: non ha un congedo. Una riga vecchia già chiusa neanche: Elimina vuole la macchina.
@@ -1735,7 +1752,7 @@ export function filtraProgetti(noti, testo, quanti = 8) {
   return presi.slice(0, quanti);
 }
 
-// La ricerca di ⌘K e ⌘O (#5369, nota di Federico dell'11/11: "accedere a chat e progetti"): un elenco
+// La ricerca di ⌘K e ⌘O (#5369, nota dell'11/11: "accedere a chat e progetti"): un elenco
 // solo di sessioni e progetti. Il testo si confronta senza maiuscole, accenti e trattini, col titolo e il
 // nome della sessione, col suo progetto e col titolo, lo slug e i nomi alternativi (NOTI) di un progetto.
 // Prima chi comincia col testo, poi chi lo contiene; le sessioni chiuse in fondo, perché si riaprono ma
@@ -1783,7 +1800,7 @@ export const TESTO_CHECKLIST_MAX = 1000;
 export const comandoNuova = (testo) => `arturo.nuova-${codifica(String(testo ?? "").trim().slice(0, TESTO_NUOVA_MAX))}`;
 
 // ⌘N, un compito nuovo (#6186, 20/11/2026): la persona scrive il compito e Volta propone il progetto mentre
-// scrive (decisione di Federico: "Volta propone il progetto e Invio conferma"). progettoProbabile dà i progetti
+// scrive (decisione: "Volta propone il progetto e Invio conferma"). progettoProbabile dà i progetti
 // più probabili per un testo, dal più probabile. `progetti`: [{ chiave, titolo, alias, riga }] nell'ordine
 // della barra, che decide i pari. Il testo si confronta senza maiuscole e accenti, a parole intere:
 // - "nome: compito": il nome prima dei due punti vale più di tutto (PESO.detto);
@@ -1919,9 +1936,11 @@ export function leggiCompito(c, noti = NOTI) {
 }
 // L'avviso dopo Invio: dove è nata la sessione che lavora dietro.
 export const avvisoCompito = (progetto, macchina) => `${progetto || "Senza progetto"} · ${macchina}. Claude ci lavora: la trovi nell'elenco e nell'Orchestratore.`;
-// Il primo messaggio della sessione nata da ⌘N.
-export function promptCompito(x) {
+// Il primo messaggio della sessione nata da ⌘N. `conTasks`: l'Arturo di questa macchina ha la skill dei task
+// (capacita.tasks di config()); senza, un progetto nuovo è la sua cartella (#6217).
+export function promptCompito(x, conTasks = true) {
   if (x?.tipo === "progetto") return `/inizio ${x.slug} -- ${x.testo}`;
+  if (x?.tipo === "nuovo" && !conTasks) return `Progetto nuovo ${x.slug}: crea la cartella del progetto, poi esegui: ${x.testo}`;
   if (x?.tipo === "nuovo") return `Progetto nuovo ${x.slug}: crea la scheda e la voce dei task (procedura Nuovo progetto di /tasks), poi esegui: ${x.testo}`;
   return String(x?.testo ?? "");
 }
@@ -1983,7 +2002,7 @@ export const daPortare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeo
 export const daIniziare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daIniziare === "string"
   && /^[a-z0-9][a-z0-9-]{0,39}$/.test(s.daIniziare) ? s.daIniziare : null);
 
-// Trascinare una sessione su un altro progetto, nella vista per progetto (Federico, 12/11/2026: "voglio
+// Trascinare una sessione su un altro progetto, nella vista per progetto (12/11/2026: "voglio
 // poter fare drag & drop"). Herdr non ha un trascinamento per i mod: volta.js lo costruisce con
 // pressione, movimento e rilascio del mouse. Sotto MOSSA_PX di movimento è un clic, che apre la sessione.
 export const MOSSA_PX = 6;
@@ -2142,13 +2161,13 @@ export function macchinaDelProgetto(etichette, macchine) {
 
 // La checklist della ripartenza (17/11/2026). /inizio scrive l'elenco numerato (ripartenza-scrivi.py della
 // config), la sonda lo porta in s.ripartenza, il dialogo di checklist.js lo mostra con una casella e una
-// nota per riga. Federico: "voglio poter vedere una checklist con spazio per eventuali note per poter
+// nota per riga. Richiesta: "voglio poter vedere una checklist con spazio per eventuali note per poter
 // indicare ad Arturo e Volta su cosa lavorare".
 
 // Le voci della ripartenza, in fila come nel terminale.
 export const vociRipartenza = (r) => (Array.isArray(r?.filoni) ? r.filoni : []).flatMap((f) => (Array.isArray(f?.voci) ? f.voci : []));
 
-// La lista della checklist, da due fonti (Federico, 17/11: "deve funzionare associandola a tutte le convo e i
+// La lista della checklist, da due fonti (17/11: "deve funzionare associandola a tutte le convo e i
 // progetti"). Con la ripartenza di /inizio vale quella, coi suoi numeri. Senza, le voci sono i task aperti del
 // progetto della sessione (`vista`: l'uscita di `arturo todo --progetto X --json`, la stessa del pannello Da
 // fare), divisi per chi agisce e numerati da 1. Ogni voce con un ID si lega al todo della vista (`todo`): da lì
@@ -2226,7 +2245,7 @@ export function testoChecklist(lista, scelte = {}, generale = "") {
 // Un /inizio nuovo scrive un quando nuovo: la checklist torna.
 export const checklistMandata = (s, mandate) => Boolean(s?.ripartenza && mandate?.[s.sessionId] === s.ripartenza.quando);
 
-// La checklist mandata resta in bozza finché la risposta non arriva (17/11/2026, Federico: "in tante
+// La checklist mandata resta in bozza finché la risposta non arriva (17/11/2026: "in tante
 // sessioni la lista dei todo inviati non arriva"). Prima "Manda" segnava la ripartenza come mandata e
 // azzerava scelte e note anche quando rispondiCoda falliva: la lista spariva. `stato`: { bozze, mandate,
 // aperte } di shared arturo.checklist.*; `bozza` di una sessione: { quando, ripartenza, lista, scelte,

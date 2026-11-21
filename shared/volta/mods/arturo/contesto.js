@@ -1,4 +1,4 @@
-// Il contesto di un progetto, come lo legge /inizio (Federico, 12/11/2026: "una sorta di back-end del
+// Il contesto di un progetto, come lo legge /inizio (12/11/2026: "una sorta di back-end del
 // catalogo dei progetti che mi permette di vedere come è formato il contesto"). I dati li dà
 // `arturo contesto <slug> --json`: le fonti nell'ordine in cui Claude le legge, ognuna col suo file, la
 // data, il peso. Qui solo il conto e le parole: niente Herdr, così il banco lo prova con node.

@@ -19,7 +19,7 @@ import { leggiGesto, leggiCompito } from "./sessioni.js";
 import { compito } from "./dati.js";
 import { apriCompito } from "./comuni.js";
 import { unisci } from "./dati.js";
-import { leggiUnisci } from "./sessioni.js";
+import { leggiUnisci, sa } from "./sessioni.js";
 import { apriUnisci } from "./unisci.js";
 import { apriMenuProgetto } from "./menusessione.js";
 import { instrada } from "./comandi.js";
@@ -108,6 +108,8 @@ export class Barra {
     else if (c === "nuova") this.lungo(c, cx, () => (arg ? nuova(decodifica(arg)) : nuova()));
     else if (c === "dove-scelta") apriSceltaMacchina();
     else if (c === "dove") setShared("arturo.dove", arg);
+    // le note sulla finestra chiedono bin/note_finestra.py nell'Arturo installato (#6217): senza, lo dice
+    else if ((c === "nota" || c === "note") && !sa(shared("arturo.capacita"), "note")) notify({ title: "Le note sulla finestra non ci sono", body: "L'Arturo di questa Volta non le porta ancora.", level: "info" });
     else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));
     else if (c === "note") apriElenco();
     else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
@@ -205,7 +207,7 @@ export class Barra {
     return { cartelle: this.cartelle ?? [], stati: this.stati ?? {}, memoria: this.memoria ?? null };
   }
 
-  // Una colonna sola (12/11/2026, scelta di Federico): sotto i pulsanti, l'elenco di Volta per progetto a
+  // Una colonna sola (12/11/2026, scelta): sotto i pulsanti, l'elenco di Volta per progetto a
   // tutta altezza. La sezione dei progetti aperti ("Adesso") doppiava i gruppi e lasciava all'elenco
   // metà colonna: un progetto senza sessioni si apre da Apri un progetto. I progetti si leggono ancora
   // qui (carica), per i titoli in shared arturo.progetti e per lo stato vuoto.
@@ -215,7 +217,7 @@ export class Barra {
     const quanti = this.quanti ?? 0;
     const v = this.volta ? this.volta.render(cx) : null;
     const dove = nasceSu(t);
-    // "Sposta tutto su…" sotto "Nasce su" (Federico, 12/11/2026): le sessioni delle altre macchine su una sola.
+    // "Sposta tutto su…" sotto "Nasce su" (12/11/2026): le sessioni delle altre macchine su una sola.
     const tutto = dove && this.volta ? pastigliaTutto(t, this.volta.vis()?.sessioni ?? [], this.volta.inCoda()) : null;
     let vuoto = null;
     if (this.vista === null && !this.errore && !v) vuoto = div().id("progetti-vuoto").px(MARGINE + SPAZIO.m).py(SPAZIO.s + 2).text_size(TESTO.corpo).text_color(t.muted).child("Leggo i tuoi progetti…");
@@ -272,7 +274,9 @@ export class Piede {
       .child(pulsanteIcona("settimana", "mods/arturo/settimana.svg", "La settimana", () => apriRevisione(), { misura: "piccolo" }))
       // Le note alla maniera di Agentation: il clic apre l'elenco; la nota nuova parte dallo scatto della
       // finestra, col tasto scritto nel suggerimento (#5156).
-      .child(pulsanteIcona("note", "pin", `Note · ${tasti().nota} nuova · ${tasti().elenco} elenco`, () => apriElenco(), { misura: "piccolo", numero: note }))
+      // Senza le note nell'Arturo installato il pulsante non c'è (#6217).
+      .when(sa(shared("arturo.capacita"), "note"), (el) => el
+      .child(pulsanteIcona("note", "pin", `Note · ${tasti().nota} nuova · ${tasti().elenco} elenco`, () => apriElenco(), { misura: "piccolo", numero: note })))
       .child(pulsanteIcona("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida(), { misura: "piccolo" }))
       .child(div().flex_1())
       // Un clic apre il menu col movimento, le impostazioni dell'app (⌘, le apre dirette) e la versione del mod.

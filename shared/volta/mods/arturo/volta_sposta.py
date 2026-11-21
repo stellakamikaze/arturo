@@ -1,4 +1,4 @@
-"""Volta: sposta una sessione in background da una macchina a un'altra (Federico, 12/11/2026).
+"""Volta: sposta una sessione in background da una macchina a un'altra (12/11/2026).
 
   python3 volta_sonda.py sposta DA A ID SESSIONID --cartella DIR [--progetto SLUG] [--titolo NOME]
 
@@ -420,7 +420,7 @@ esci(ok=True, nessuno=True, claude=cl)
 
 # Su A: il progetto della sessione spostata nella sua scheda (cache/scheda/<sid>.json, la legge la sonda).
 # Il registro per lavoro della macchina di partenza non viaggia: il lavoro qui ha un altro id (12/11/2026,
-# Federico: "questa sessione è categorizzata senza progetto anche se dovrebbe essere su Volta").
+# Richiesta: "questa sessione è categorizzata senza progetto anche se dovrebbe essere su Volta").
 SEGNA = COMUNE + r'''
 f = os.path.join(radice, "cache", "scheda", a["sid"] + ".json")
 try:

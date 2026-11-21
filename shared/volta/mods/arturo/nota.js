@@ -214,7 +214,9 @@ const ultimo = (c) => String(c ?? "").split(/[\\/]/).filter(Boolean).pop() ?? nu
 
 // { dati, argv } oppure null se il testo è vuoto. argv è null senza progetto: la nota resta nella cartella.
 // nota.json versione 2: id, numero fra le note aperte, tipo, dove, stato, filo delle risposte, todo.
-export function nota({ testo, x, y, larghezza, altezza, progetto, cartella, schermo, quando, dove, tipo, numero }) {
+// `chi`: l'autore, cioè chi usa la finestra (chiave chi di arturo.json; senza, il nome di serie).
+export const AUTORE_DI_SERIE = "tu";
+export function nota({ testo, x, y, larghezza, altezza, progetto, cartella, schermo, quando, dove, tipo, numero, chi }) {
   const t = String(testo ?? "").replace(/\s+/g, " ").trim();
   if (!t) return null;
   const punto = { x: Math.round(x), y: Math.round(y) };
@@ -223,7 +225,7 @@ export function nota({ testo, x, y, larghezza, altezza, progetto, cartella, sche
   const dati = { versione: 2, id: ultimo(cartella), numero: Number.isInteger(numero) ? numero : 1, quando, tipo: k,
     testo: t, punto, finestra, progetto: progetto || null, schermo: schermo || null, dove: { ...VUOTO, ...(dove ?? {}) },
     stato: "aperta", chiusa_quando: null, riassunto: null, motivo: null,
-    filo: [{ chi: "federico", quando, testo: t }], todo: null, screenshot: "finestra.png" };
+    filo: [{ chi: chi || AUTORE_DI_SERIE, quando, testo: t }], todo: null, screenshot: "finestra.png" };
   const breve = t.length > 110 ? t.slice(0, 110).replace(/\s+\S*$/, "") + "…" : t;
   const riga = `Tipo: ${etichettaTipo(k).toLowerCase()}. Punto ${punto.x},${punto.y} su una finestra di ${finestra.larghezza}x${finestra.altezza}` +
     (schermo ? `, schermata ${schermo}` : "") +
@@ -237,12 +239,12 @@ export function nota({ testo, x, y, larghezza, altezza, progetto, cartella, sche
 }
 
 // Il testo di un nota.json, versione 1 o 2, come nota versione 2; null se non si legge. Una nota versione 1
-// è aperta, di tipo predefinito, senza dove, col suo testo come prima voce del filo.
-export function leggiNota(testo, id) {
+// è aperta, di tipo predefinito, senza dove, col suo testo come prima voce del filo, a nome di `chi`.
+export function leggiNota(testo, id, chi) {
   let d;
   try { d = JSON.parse(testo); } catch { return null; }
   if (!d || typeof d !== "object" || !d.punto || !d.finestra || typeof d.testo !== "string") return null;
-  const filo = Array.isArray(d.filo) && d.filo.length ? d.filo : [{ chi: "federico", quando: d.quando ?? null, testo: d.testo }];
+  const filo = Array.isArray(d.filo) && d.filo.length ? d.filo : [{ chi: chi || AUTORE_DI_SERIE, quando: d.quando ?? null, testo: d.testo }];
   return { ...d, versione: 2, id: d.id || id, numero: Number.isInteger(d.numero) ? d.numero : null,
     tipo: tipoValido(d.tipo), dove: { ...VUOTO, ...(d.dove ?? {}) },
     stato: Object.hasOwn(STATI, d.stato) ? d.stato : "aperta",

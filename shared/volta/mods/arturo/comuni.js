@@ -95,7 +95,7 @@ export function segnaleImpostazioni(app = false) {
   return app ? "accent" : null;
 }
 export const PULSA = { from: 0.45, to: 1, period: 2000 };
-// Segni fermi (Federico, 13/11/2026, #5488): ogni segno che girava o pulsava faceva ridisegnare tutta la
+// Segni fermi (13/11/2026, #5488): ogni segno che girava o pulsava faceva ridisegnare tutta la
 // finestra 30 volte al secondo, il 35% di un processore contro il 4% (misura del 12/11). Chi lavora ha la
 // stella, gli altri il pallino; il colore dice lo stato. `moto` resta per chi chiama: "gira" = la stella.
 export function segno(colore, moto = null, d = 8) {

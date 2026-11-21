@@ -1,6 +1,6 @@
 """arturo note: il lato di Claude delle note sulla finestra di Volta (⌘⇧N).
 
-Federico lascia una nota su un punto della finestra: il mod scrive una cartella per nota in
+Chi usa la finestra lascia una nota su un suo punto: il mod scrive una cartella per nota in
 ~/.claude/data/note-finestra/<data-ora>/ con nota.json (versione 2) e finestra.png, e un todo di Claude.
 Da qui Claude legge le note, guarda il ritaglio dello scatto attorno al punto, le prende, risponde e le
 chiude. È il server MCP di Agentation (get_pending, acknowledge, reply, resolve, dismiss) fatto CLI: niente
@@ -61,8 +61,9 @@ AIUTO = """arturo note: le note sulla finestra di Volta (⌘⇧N), dal lato di C
 ID è il nome della cartella della nota (2026-11-10_07-00-00), oppure il suo numero se fra le note
 aperte un solo segno ha quel numero. Il giro di Claude: elenco, mostra, prendi, lavoro, risolvi.
 
---chi dice chi scrive: claude (il predefinito) o federico, cioè la persona che ha lasciato la nota.
-I bottoni della finestra usano --chi federico, e con lui risolvi e scarta vanno anche senza testo.
+--chi dice chi scrive: claude (il predefinito) o il nome della persona che ha lasciato la nota (minuscole,
+cifre e trattini; "tu" se la finestra non ne ha uno). I bottoni della finestra passano quel nome, e con
+lui risolvi e scarta vanno anche senza testo.
 --json stampa la nota dopo il gesto, con todo_esito: cosa è successo al todo collegato.
 Un testo che comincia con due trattini va dopo --: arturo note rispondi 3 -- "--tutte non serve"."""
 
@@ -106,6 +107,20 @@ def eta(quando, ora: dt.datetime | None = None) -> str:
     return "ieri" if giorni == 1 else f"{giorni} giorni fa"
 
 
+# Chi scrive nel filo: "claude", oppure la persona che usa la finestra. Il suo nome è la chiave `chi` di
+# arturo.json del mod (nomeChi di sessioni.js); senza chiave vale "tu". Ogni autore diverso da "claude" è la
+# persona: una nota scritta prima, col nome di allora, si legge e si firma con quel nome.
+PERSONA_DI_SERIE = "tu"
+NOME_PERSONA = re.compile(r"[a-z][a-z0-9-]{0,31}")
+
+
+def firma(chi) -> str:
+    """Il nome da mostrare per una voce del filo: Claude, il nome della persona, oppure Tu."""
+    if chi == "claude":
+        return "Claude"
+    return chi.capitalize() if isinstance(chi, str) and NOME_PERSONA.fullmatch(chi) else PERSONA_DI_SERIE.capitalize()
+
+
 def leggi_nota(testo: str, ident: str) -> dict | None:
     """Come leggiNota() di nota.js: una nota versione 1 o 2 come versione 2, None se non si legge."""
     try:
@@ -115,7 +130,7 @@ def leggi_nota(testo: str, ident: str) -> dict | None:
     if not isinstance(d, dict) or not d.get("punto") or not d.get("finestra") or not isinstance(d.get("testo"), str):
         return None
     filo = d.get("filo") if isinstance(d.get("filo"), list) and d.get("filo") else \
-        [{"chi": "federico", "quando": d.get("quando"), "testo": d["testo"]}]
+        [{"chi": PERSONA_DI_SERIE, "quando": d.get("quando"), "testo": d["testo"]}]
     numero = d.get("numero")
     return {**d, "versione": 2, "id": d.get("id") or ident,
             "numero": numero if isinstance(numero, int) and not isinstance(numero, bool) else None,
@@ -437,7 +452,7 @@ def stampa_nota(n: dict, rit: dict) -> None:
     print("  filo")
     for v in n["filo"]:
         if isinstance(v, dict):
-            print(f"    {'Claude' if v.get('chi') == 'claude' else 'Federico'}: {v.get('testo')}")
+            print(f"    {firma(v.get('chi'))}: {v.get('testo')}")
     if rit["file"]:
         r = rit["riquadro"]
         dove = f", il punto è a {r['punto']['x']},{r['punto']['y']} nel ritaglio" if r else ""
@@ -524,8 +539,8 @@ def _esegui(verbo: str, resto: list) -> int:
     if verbo in ("prendi", "rispondi", "risolvi", "scarta"):
         pos, op = _opzioni(resto, valori=("chi",), interruttori=("json",))
         chi = op.get("chi", "claude")
-        if chi not in ("claude", "federico"):
-            raise ErroreNota(f'--chi vuole claude o federico, non "{chi}"')
+        if chi != "claude" and not NOME_PERSONA.fullmatch(chi):
+            raise ErroreNota(f'--chi vuole claude o il nome di chi usa la finestra (minuscole, cifre, trattini), non "{chi}"')
         if not pos:
             raise ErroreNota(f"scrivi la nota: arturo note {verbo} ID" + ("" if verbo == "prendi" else ' "testo"'))
         ident, testo = pos[0], _pulito(" ".join(pos[1:]))
@@ -540,7 +555,7 @@ def _esegui(verbo: str, resto: list) -> int:
                 raise ErroreNota('scrivi la risposta: arturo note rispondi ID "testo"')
             n = aggiorna(ident, lambda x: rispondi(x, testo, chi))
             esito = f"Risposta scritta sulla nota {n['numero']} ({n['id']})"
-            todo_msg = sul_todo(n, ["nota", f"{'Claude' if chi == 'claude' else 'Federico'} sulla nota {n['numero']}: {testo}"])
+            todo_msg = sul_todo(n, ["nota", f"{firma(chi)} sulla nota {n['numero']}: {testo}"])
         else:
             stato = "risolta" if verbo == "risolvi" else "scartata"
             if not testo and chi == "claude":

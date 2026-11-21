@@ -680,7 +680,7 @@ def collegate(scheda: Path | None, radici: list) -> list:
 
 
 def contesto_json(nome: str) -> dict:
-    """Come si forma il contesto di un progetto, per la finestra di Volta (Federico, 12/11/2026): le
+    """Come si forma il contesto di un progetto, per la finestra di Volta (12/11/2026): le
     fonti nell'ordine in cui una sessione aperta con /inizio le legge. Sola lettura, come il resto."""
     prog = importlib.util.spec_from_file_location("progetti_arturo", str(QUI / "progetti.py"))
     pm = importlib.util.module_from_spec(prog)

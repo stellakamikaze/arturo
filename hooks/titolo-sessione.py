@@ -11,7 +11,7 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
     cresciuta. Una risposta che non è una riga da 2 a 60 caratteri si scarta: resta il titolo di prima.
   - Fonte "persona": il nome che la persona ha scritto dalla finestra di Volta (volta_sonda.py rinomina,
     #5292). Nessuno dei due eventi lo riscrive, e resta finché la sessione ha una trascrizione.
-  - La sintesi (12/11/2026, Federico: "5 parole massimo per descrivere che cosa sta succedendo nella
+  - La sintesi (12/11/2026: "5 parole massimo per descrivere che cosa sta succedendo nella
     sessione, aggiornati costantemente"): la stessa chiamata dà anche la riga ADESSO, da 2 a 5 parole,
     nel campo "sintesi" con "quando_sintesi" e "peso_sintesi". Si rifà ogni OGNI_SINTESI secondi se la
     trascrizione è cresciuta, anche su PostToolUse, così cambia durante un turno lungo; il titolo resta
@@ -19,7 +19,7 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
     hook partiti insieme non chiamano il modello due volte: il primo segna "chiede" nel file.
 Il file è a parte da quello della scheda (cache/scheda), che scheda-terminale.py riscrive per intero e
 toglie a fine sessione. Lo leggono la sonda di Volta (volta_sonda.py) e chi elenca le sessioni.
-Richiesta di Federico del 10/11/2026: aprire Volta e capire dal titolo cosa fa ogni sessione.
+Richiesta del 10/11/2026: aprire Volta e capire dal titolo cosa fa ogni sessione.
 Si spegne con ARTURO_TITOLI=0. ARTURO_TITOLI_OGNI cambia l'intervallo in secondi (prove). La chiamata
 al modello porta ARTURO_TITOLO_FIGLIO=1: se un hook partisse dentro di lei, questo esce subito.
 Misurato il 10/11/2026: 6 secondi e circa 4.000 token di Haiku per titolo, nessuna sessione in più

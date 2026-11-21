@@ -29,7 +29,7 @@ export class Note {
     cx.spawn(async (cx) => {
       const c = await config();
       this.scelto = c.note_progetto;
-      if (!shared("arturo.note")) this.proprie = ((await leggiTutte(c.arturo[0])) ?? []).map((x) => x.nota);
+      if (!shared("arturo.note")) this.proprie = ((await leggiTutte(c.arturo[0], c.chi)) ?? []).map((x) => x.nota);
       this.pronto = true;
       cx.notify();
     });

@@ -1,11 +1,11 @@
-// "Sposta su un'altra macchina" (Federico, 12/11/2026: la RAM di una macchina finisce, la sessione
+// "Sposta su un'altra macchina" (12/11/2026: la RAM di una macchina finisce, la sessione
 // continua su un'altra). Tre ingressi: il pulsante della testata, per la sessione della scheda in primo
 // piano (shared arturo.volta.davanti di volta.js); "Sposta su…" nel menu del tasto destro di una sessione;
 // "Sposta tutto su…" sotto "Nasce su" nella barra, per tutte le sessioni in background delle altre
 // macchine. I popup sono altre copie del mod: elencano le macchine, chiedono conferma col secondo clic e
 // mandano alla barra "arturo.volta-sposta-<chiave>-<macchina>" o "arturo.volta-spostatutto-<macchina>"
 // (spostaId e spostaTutto di volta.js). Lo spostamento non interrompe un turno: una sessione che lavora
-// aspetta in coda la fine del turno (Federico: "dando continuità al task in corso e senza interromperlo").
+// aspetta in coda la fine del turno (richiesta: "dando continuità al task in corso e senza interromperlo").
 // Lo spostamento vero sta in volta_sposta.py.
 
 import { div, svg } from "gpui-kit";

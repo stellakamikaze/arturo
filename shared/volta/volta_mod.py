@@ -9,10 +9,12 @@ il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
                                            non aspetta le ore di un mod installato a mano (volta/dirama.py)
   python3 volta_mod.py installa --da DIR    installa da una cartella `arturo/` locale (prove, /setup)
   python3 volta_mod.py attiva URL [--ramo R]  scrive la sorgente in arturo.json e mette il controllo orario
+  python3 volta_mod.py disattiva            toglie il controllo orario e mette "manuale": `attiva URL` riaccende
   python3 volta_mod.py automatico | manuale   accende o spegne il controllo, la sorgente resta
-  python3 volta_mod.py stato                l'ultimo esito, in JSON (anche immagini, core, plugin e app)
+  python3 volta_mod.py stato                l'ultimo esito, in JSON (anche immagini, core, plugin, app e dove sta Arturo)
   python3 volta_mod.py immagini             copia le immagini dei progetti nella cartella dell'app
   python3 volta_mod.py programmi [--subito] il giro di core, plugin e app, come lo fa il sistema
+  python3 volta_mod.py specchio             porta l'ultima release dell'app nello specchio locale (app_specchio)
   python3 volta_mod.py prove [--chiudi]     i core di prova rimasti accesi (HC_SESSION diversa da default); --chiudi li chiude
   python3 volta_mod.py --prova              esce 0: lo usa la copia vecchia prima di sostituirsi
 
@@ -53,10 +55,19 @@ Regole:
   - nello stesso giro del sistema si chiudono i core di prova rimasti (prove(), 14/11/2026): un core
     `--hc-launchd` con un socket di sessione diverso da default.sock (le istanze hzp delle prove), acceso da
     più di PROVA_VECCHIA ore e senza un claude fra i suoi discendenti. SIGTERM ai suoi `hold`, poi al core.
-    Il core vero (default) non si tocca mai; un core di cui non si legge il socket nemmeno. Solo macOS e Linux.
+    Il core vero (default) non si tocca mai; un core di cui non si legge il socket nemmeno. Solo macOS e Linux;
+  - se arturo.json ha `app_specchio` (il repository GitHub delle release, "proprietario/nome"), lo stesso giro
+    del sistema fa da specchio (specchio(), 20/11/2026): `gh release download` porta l'ultima release in
+    <cache>/canale/app/<versione>/, controlla sha256 e contenuto, e scrive <cache>/canale/app/latest.json
+    con l'indirizzo file://. L'app legge da lì (`app_canale`: file://<cache>/canale). Serve a chi sta fuori
+    dalla rete privata; senza la voce è spento e non lascia traccia nello stato;
+  - una sorgente https di GitHub si clona con l'accesso di gh, passato a git per comando (accesso_gh()):
+    ~/.gitconfig non si tocca. Le sorgenti ssh e file girano come prima;
+  - Arturo si trova da `radice` di arturo.json, poi da ~/.claude/arturo/radice, poi dal plugin installato
+    (radice_di()). Solo la copia che arturo.json nomina si porta avanti col fast-forward.
 
 Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
-VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_PLUGINS
+VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_GH (JSON: l'argv di gh), VOLTA_PLUGINS
 (installed_plugins.json), VOLTA_APP_PACCHETTO, VOLTA_ORA, VOLTA_FERMO, VOLTA_FIRMA_FINTA, VOLTA_NO_APRI,
 VOLTA_PS (file con l'uscita di ps al posto di ps), VOLTA_SOCKET (JSON pid -> socket al posto di lsof),
 VOLTA_RELEASES_URL e HERDR_RELEASES_URL (i canali; quello dell'app di solito da arturo.json, app_canale), VOLTA_RINOMINA_NEGATA=1 (finge il rifiuto della
@@ -86,8 +97,11 @@ ATTESA_GIT = 90                # secondi per fetch e clone
 ETICHETTA = "org.stellakamikaze.volta.mod"   # LaunchAgent
 ATTIVITA = "VoltaCelesteMod"                  # attività pianificata di Windows
 # I lanciatori che l'installazione copia accanto al mod: origine nella fonte, nome di arrivo.
+# trova-progetti.md è la guida di "Trova i miei progetti": accanto al mod c'è anche dove l'Arturo installato
+# non la porta (il plugin pubblico, #6217).
 LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita.sh"),
-              ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"))
+              ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"),
+              ("trova-progetti.md", "trova-progetti.md"))
 # I mod di Arturo tolti: un tasto rimasto su uno di questi non apre più niente (installa-herdr.sh ha lo stesso elenco).
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
 # Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026). Ctrl+W su
@@ -107,8 +121,8 @@ TASTI_SPOSTATI = ("arturo.volta-nuova",)
 # ⌘N (Ctrl+Shift+N su Windows) apre il compito nuovo (#6186, 20/11/2026) e prende lo spazio nuovo di Herdr
 # (space.new), che resta nel menu File: in Volta gli spazi nascono dai progetti.
 PRENDE = {"arturo.casa": ("tab.new",), "arturo.volta-chiudi": ("tab.close",), "arturo.compito": ("space.new",)}
-# ⌘W e Ctrl+W chiudono la sessione davanti col congedo e la tolgono subito da elenco e giro (Federico,
-# 12/11/2026 sera): prendono il tab.close di Herdr. Il registro li segna per tasto e comando, perché su
+# ⌘W e Ctrl+W chiudono la sessione davanti col congedo e la tolgono subito da elenco e giro
+# (12/11/2026 sera): prendono il tab.close di Herdr. Il registro li segna per tasto e comando, perché su
 # Windows "global ctrl-w" era già segnato da quando Ctrl+W faceva tab.close (TASTI_NUOVI di prima).
 # Lo stesso per ⌘N e Ctrl+Shift+N (#6186): "global cmd-n" era già segnato come tasto di serie di Herdr, e col
 # solo tasto il compito nuovo non arrivava a chi ha già Volta (sonda del 20/11/2026 su due Mac).
@@ -194,13 +208,36 @@ def ssh_di_git() -> str:
     return (r.stdout or "").strip() or "ssh"
 
 
-def git(args: list, cwd: Path | None = None, timeout: int = ATTESA_GIT) -> tuple[int, str]:
+GITHUB_HTTPS = "https://github.com/"
+SENZA_GH = "gh non c'è: installa GitHub CLI (brew install gh) e lancia gh auth login"
+
+
+def accesso_gh(url: str) -> list:
+    """Gli argomenti che danno a git l'accesso di gh per un repository https di GitHub (#6217, 20/11/2026):
+    i tester clonano il repository privato della distribuzione senza chiave ssh. L'aiutante delle credenziali
+    passa per comando, con `-c`: ~/.gitconfig non si tocca, e `gh auth setup-git` non serve. Il primo `-c`
+    vuoto toglie gli aiutanti della macchina (il portachiavi può avere un accesso vecchio), il secondo mette
+    quello di gh. Per ogni altro indirizzo (ssh, file, un altro sito) e senza gh torna un elenco vuoto: lì
+    git gira com'era."""
+    if not url.lower().startswith(GITHUB_HTTPS):
+        return []
+    gh = argv_di("VOLTA_GH", "gh")
+    if not gh:
+        return []
+    import shlex
+    aiutante = "!" + " ".join(shlex.quote(str(x)) for x in gh + ["auth", "git-credential"])
+    return ["-c", "credential.%s.helper=" % GITHUB_HTTPS.rstrip("/"),
+            "-c", "credential.%s.helper=%s" % (GITHUB_HTTPS.rstrip("/"), aiutante)]
+
+
+def git(args: list, cwd: Path | None = None, timeout: int = ATTESA_GIT, prima: list | None = None) -> tuple[int, str]:
+    """`prima`: argomenti di git da mettere davanti al comando (accesso_gh)."""
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
     env.setdefault("GIT_SSH_COMMAND", ssh_di_git() + " -o BatchMode=yes -o ConnectTimeout=15")
     # git parte in un gruppo suo: allo scadere del tempo si chiude tutto il gruppo, figli compresi.
     suo = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
     try:
-        p = subprocess.Popen(GIT + args, cwd=str(cwd) if cwd else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        p = subprocess.Popen(GIT + (prima or []) + args, cwd=str(cwd) if cwd else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, env=env, **suo)
     except OSError as e:
         return 127, "git non parte: %s" % e
@@ -264,12 +301,13 @@ def togli(cartella: Path) -> None:
 def scarica(url: str, ramo: str) -> tuple[Path | None, str]:
     """Il clone leggero allineato al ramo. Torna (cartella della fonte, "") oppure (None, motivo)."""
     clone = cache() / "mod-git"
+    accesso = accesso_gh(url)
 
     def clona() -> str:
         togli(clone)
         clone.parent.mkdir(parents=True, exist_ok=True)
         rc, out = git(["clone", "--quiet", "--filter=blob:none", "--sparse", "--depth", "1", "--branch", ramo,
-                       url, str(clone)], timeout=ATTESA_GIT * 2)
+                       url, str(clone)], timeout=ATTESA_GIT * 2, prima=accesso)
         if rc != 0:
             togli(clone)
             return ultima_riga(out) or "clone fallito"
@@ -279,7 +317,7 @@ def scarica(url: str, ramo: str) -> tuple[Path | None, str]:
 
     def allinea() -> str:
         git(["remote", "set-url", "origin", url], cwd=clone)
-        rc, out = git(["fetch", "--quiet", "--depth", "1", "origin", ramo], cwd=clone)
+        rc, out = git(["fetch", "--quiet", "--depth", "1", "origin", ramo], cwd=clone, prima=accesso)
         if rc == 0:
             rc, out = git(["reset", "--quiet", "--hard", "FETCH_HEAD"], cwd=clone)
         return "" if rc == 0 else (ultima_riga(out) or "fetch fallito")
@@ -293,6 +331,8 @@ def scarica(url: str, ramo: str) -> tuple[Path | None, str]:
     else:
         motivo = clona()
     if motivo:
+        if url.lower().startswith(GITHUB_HTTPS) and not accesso:
+            motivo += " · " + SENZA_GH
         return None, motivo
     if not (clone / CARTELLA / "mods" / "arturo" / "main.js").is_file():
         return None, "nel ramo %s non c'è %s/mods/arturo" % (ramo, CARTELLA)
@@ -307,10 +347,25 @@ def versione_di(clone: Path) -> dict:
     return {"versione": albero, "corta": albero[:7], "commit": commit, "data": data}
 
 
+def volta_installata() -> list:
+    """Dove sta l'eseguibile di Volta quando è installata: `Volta.app` nelle Applicazioni della persona sui
+    Mac, `Programs\\volta-celeste` su Windows (volta/installa-windows.ps1)."""
+    if os.name == "nt":
+        locale = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        return [Path(locale) / "Programs" / "volta-celeste" / "herdr-app.exe"]
+    return [Path.home() / "Applications" / APP_NUOVA / "Contents" / "MacOS" / "Volta"]
+
+
 def herdr_app() -> list | None:
+    """Il programma di Volta come elenco di argomenti: la variabile del banco, poi la Volta installata, poi
+    `herdr-app` nel PATH o in ~/.local/bin. La Volta installata viene prima del PATH: dove c'è anche Herdr,
+    il suo `herdr-app` boccia il mod di Volta e la versione resta rifiutata per un giorno (#6233)."""
     finto = os.environ.get("VOLTA_HERDR_APP")
     if finto:
         return json.loads(finto)
+    for exe in volta_installata():
+        if exe.is_file():
+            return [str(exe)]
     fine = ".exe" if os.name == "nt" else ""
     trovato = shutil.which("herdr-app") or str(Path.home() / ".local" / "bin" / ("herdr-app" + fine))
     return [trovato] if os.path.exists(trovato) else None
@@ -853,13 +908,12 @@ def plugin(prima: dict) -> dict:
     RIPROVA_RIFIUTATA ore: l'avviso resta nel piede e nella barra di Claude Code."""
     if prima.get("esito") == "compromesso" and time.time() - float(prima.get("il") or 0) < RIPROVA_RIFIUTATA * 3600:
         return prima
-    elenco = leggi(Path(os.environ.get("VOLTA_PLUGINS") or Path.home() / ".claude" / "plugins" / "installed_plugins.json"))
-    voci = (elenco.get("plugins") or {}).get("arturo@arturo") or []
-    percorso = str(voci[0].get("installPath") or "") if voci and isinstance(voci[0], dict) else ""
+    voce = voce_plugin()
+    percorso = str(voce.get("installPath") or "")
     script = Path(percorso) / "bin" / "aggiornamenti.py"
     if not percorso or not script.is_file():
         return {"esito": "assente"}
-    versione = str(voci[0].get("version") or "")
+    versione = str(voce.get("version") or "")
     # ARTURO_ATTESA_MAX=0: dalla chiusura di una sessione applica aspetta che Claude Code esca; qui non
     # si chiude niente, e le sessioni aperte tengono la loro copia del plugin.
     rc, out = corri([sys.executable, str(script), "applica"], 900, env=dict(os.environ, ARTURO_ATTESA_MAX="0"))
@@ -873,16 +927,41 @@ def plugin(prima: dict) -> dict:
     return {"esito": "allineato", "versione": versione}
 
 
-def radice_arturo() -> Path | None:
-    """La copia di Arturo che il mod legge: `radice` di arturo.json, altrimenti la cartella sopra
-    `bin/arturo` della voce `arturo` (come config() di dati.js). None se arturo.json non la nomina."""
+def voce_plugin() -> dict:
+    """La voce del plugin di Arturo in installed_plugins.json di Claude Code, o un dizionario vuoto."""
+    elenco = leggi(Path(os.environ.get("VOLTA_PLUGINS") or Path.home() / ".claude" / "plugins" / "installed_plugins.json"))
+    voci = (elenco.get("plugins") or {}).get("arturo@arturo") or []
+    return voci[0] if voci and isinstance(voci[0], dict) else {}
+
+
+def radice_di() -> tuple[Path | None, str]:
+    """Dove sta Arturo, e chi lo dice. Nell'ordine: "config", cioè `radice` di arturo.json o la cartella sopra
+    `bin/arturo` della voce `arturo` (come config() di dati.js); "file", cioè ~/.claude/arturo/radice, che il
+    plugin di Arturo riscrive a ogni sessione; "plugin", cioè installPath di installed_plugins.json. Gli
+    ultimi due servono a chi ha Arturo come plugin e niente `radice` in arturo.json (#6217, 20/11/2026).
+    (None, "") se nessuno lo dice."""
     c = config()
     r = c.get("radice")
     if not (isinstance(r, str) and r):
         voce = c.get("arturo")
         bin_ = Path(str(voce[-1])) if isinstance(voce, list) and voce else None
         r = str(bin_.parent.parent) if bin_ and bin_.name == "arturo" and bin_.parent.name == "bin" else ""
-    return Path(os.path.expanduser(r)) if r else None
+    fonte = "config"
+    if not r:
+        fonte = "file"
+        try:
+            r = (Path.home() / ".claude" / "arturo" / "radice").read_text(encoding="utf-8").strip()
+        except (OSError, ValueError):
+            r = ""
+    if not r:
+        fonte = "plugin"
+        r = str(voce_plugin().get("installPath") or "")
+    return (Path(os.path.expanduser(r)), fonte) if r else (None, "")
+
+
+def radice_arturo() -> Path | None:
+    """L'Arturo che il mod legge (radice_di). None se nessuno lo nomina."""
+    return radice_di()[0]
 
 
 def copia_arturo() -> dict:
@@ -893,6 +972,9 @@ def copia_arturo() -> dict:
     radice = radice_arturo()
     if radice is None:
         return {"esito": "assente", "motivo": "arturo.json non nomina la copia di Arturo"}
+    if radice_di()[1] in ("file", "plugin"):
+        # Solo una copia che arturo.json nomina si porta avanti: l'Arturo installato come plugin lo aggiorna plugin().
+        return {"esito": "assente", "motivo": "%s è l'Arturo installato: si aggiorna con la sua procedura" % radice}
     if radice.resolve() == (Path.home() / ".claude").resolve():
         return {"esito": "assente", "motivo": "~/.claude si aggiorna da sé"}
     if os.environ.get("VOLTA_SANDBOX") and in_protetta(radice):
@@ -1005,13 +1087,113 @@ def firma_buona(pacchetto: Path) -> str:
     return "" if rc == 0 else "firma non valida: " + ultima_riga(out)
 
 
+def pacco_buono(pacco: Path, sha: str) -> str:
+    """"" se il pacchetto dell'app ha lo sha256 atteso, nessun percorso fuori posto e dentro l'eseguibile di
+    Volta.app; altrimenti il motivo. Lo usano lo spostamento in Volta.app e lo specchio."""
+    import hashlib
+    import tarfile
+    if hashlib.sha256(pacco.read_bytes()).hexdigest() != sha.lower():
+        return "il pacchetto scaricato è rovinato (sha256 diverso)"
+    try:
+        with tarfile.open(pacco) as t:
+            nomi = [membro.name for membro in t.getmembers()]
+    except (tarfile.TarError, OSError, EOFError) as e:
+        return "il pacchetto scaricato non si apre: %s" % str(e)[:120]
+    for nome in nomi:
+        if nome.startswith(("/", "..")) or "/../" in nome:
+            return "il pacchetto ha un percorso fuori posto: %s" % nome
+    if not any(nome in (APP_NUOVA + "/Contents/MacOS/Volta", "./" + APP_NUOVA + "/Contents/MacOS/Volta") for nome in nomi):
+        return "nel pacchetto non c'è %s/Contents/MacOS/Volta" % APP_NUOVA
+    return ""
+
+
+SPECCHIO_PACCO = "herdr-app-macos-aarch64.tar.gz"
+
+
+def specchio() -> dict:
+    """Lo specchio delle release per chi sta fuori dalla rete privata (#6217, 20/11/2026). `app_specchio` di
+    arturo.json è il repository GitHub delle release ("proprietario/nome"); senza quella voce è spento.
+    `gh release download` (l'accesso è di gh, nessun token passa da qui) porta l'ultima release in
+    <cache>/canale/app/<versione>/, il pacchetto passa pacco_buono, e per ultimo si scrive
+    <cache>/canale/app/latest.json con l'indirizzo file:// del pacchetto. L'app lo legge da lì: il suo
+    `app_canale` è file://<cache>/canale. Mai verso una versione più vecchia; restano la versione nuova e
+    quella di prima."""
+    import re
+    repo = config().get("app_specchio")
+    if not isinstance(repo, str) or not repo.strip():
+        return {"esito": "spento"}
+    repo = repo.strip()
+    gh = argv_di("VOLTA_GH", "gh")
+    if not gh:
+        return {"esito": "errore", "motivo": SENZA_GH}
+    canale = cache() / "canale"
+    lavoro = canale / "scarico.noindex"
+    if lavoro.exists():
+        togli(lavoro)
+    lavoro.mkdir(parents=True)
+    try:
+        scarico = gh + ["release", "download", "--repo", repo, "--dir", str(lavoro)]
+        rc, out = corri(scarico + ["--pattern", "latest.json"], 120)
+        if rc != 0:
+            return {"esito": "errore", "motivo": "gh release download di latest.json: %s" % (ultima_riga(out) or "rc %d" % rc)}
+        m = leggi(lavoro / "latest.json")
+        bersagli = m.get("targets") if isinstance(m.get("targets"), dict) else {}
+        voce = bersagli.get("macos-aarch64") if isinstance(bersagli.get("macos-aarch64"), dict) else {}
+        versione, sha = str(m.get("version") or ""), str(voce.get("sha256") or "").lower()
+        # la versione diventa il nome di una cartella: solo lettere, cifre, punto, più e trattino
+        if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+-]*", versione) or not re.fullmatch(r"[0-9a-f]{64}", sha):
+            return {"esito": "errore", "motivo": "latest.json della release senza versione o sha256 leggibili"}
+        qui = leggi(canale / "app" / "latest.json")
+        qui_voce = (qui.get("targets") or {}).get("macos-aarch64") or {} if isinstance(qui.get("targets"), dict) else {}
+        qui_versione = str(qui.get("version") or "")
+        arrivo = canale / "app" / versione
+        if qui_versione == versione and str(qui_voce.get("sha256") or "") == sha and (arrivo / SPECCHIO_PACCO).is_file():
+            return {"esito": "allineato", "versione": versione}
+        if qui_versione and piu_nuova(qui_versione, versione):
+            return {"esito": "allineato", "versione": qui_versione, "motivo": "la release è %s, più vecchia" % versione}
+        rc, out = corri(scarico + ["--pattern", SPECCHIO_PACCO, "--pattern", "changelog.md"], 900)
+        pacco = lavoro / SPECCHIO_PACCO
+        if rc != 0 or not pacco.is_file():
+            return {"esito": "errore", "verso": versione, "motivo": "gh release download del pacchetto: %s" % (ultima_riga(out) or "rc %d" % rc)}
+        guasto = pacco_buono(pacco, sha)
+        if guasto:
+            return {"esito": "errore", "verso": versione, "motivo": guasto}
+        arrivo.mkdir(parents=True, exist_ok=True)
+        os.replace(str(pacco), str(arrivo / SPECCHIO_PACCO))
+        if (lavoro / "changelog.md").is_file():
+            os.replace(str(lavoro / "changelog.md"), str(arrivo / "changelog.md"))
+        # latest.json per ultimo e in modo atomico: l'app trova sempre un pacchetto completo
+        scrivi(canale / "app" / "latest.json", {"version": versione, "targets": {"macos-aarch64": {
+            "url": (arrivo / SPECCHIO_PACCO).resolve().as_uri(), "sha256": sha}}})
+        for vecchia in (canale / "app").iterdir():
+            if vecchia.is_dir() and vecchia.name not in (versione, qui_versione):
+                togli(vecchia)
+        return {"esito": "aggiornato", "versione": versione, "prima": qui_versione}
+    finally:
+        if lavoro.exists():
+            togli(lavoro)
+
+
+def passo_specchio(stato: dict) -> dict:
+    """Un giro dello specchio dentro lo stato dei programmi. Spento non lascia traccia: sulle macchine che
+    hanno il canale in rete la voce non compare."""
+    try:
+        d = specchio()
+    except Exception as e:  # noqa: BLE001 un pezzo rotto non ferma gli altri
+        d = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160])}
+    if d.get("esito") == "spento":
+        stato.pop("specchio", None)
+    else:
+        stato["specchio"] = dict(d, il=time.time())
+    return d
+
+
 def sposta_app(vecchio: Path, app: list) -> dict:
     """La prima volta: `Volta Celeste.app` diventa `Volta.app`. Un'app 0.1.15 non sa leggere un pacchetto
     `Volta.app` (src/update.rs prima del 12/11/2026), quindi la prima reinstallazione la fa questo script:
     scarica dal canale, controlla sha256, firma e versione, chiude l'app, mette il pacchetto nuovo accanto,
     sposta il collegamento ~/.local/bin/herdr-app e riapre. Il pacchetto vecchio resta in volta-prima-<v>.
     Dopo, gli aggiornamenti li scarica l'app da sola."""
-    import hashlib
     import tarfile
     canale = str(os.environ.get("VOLTA_RELEASES_URL") or config().get("app_canale") or "").rstrip("/")
     if not canale:
@@ -1038,12 +1220,10 @@ def sposta_app(vecchio: Path, app: list) -> dict:
         pacco = lavoro / "app.tar.gz"
         with apri_url(url, 600) as r, open(pacco, "wb") as f:
             shutil.copyfileobj(r, f)
-        if hashlib.sha256(pacco.read_bytes()).hexdigest() != sha.lower():
-            return {"esito": "errore", "motivo": "il pacchetto scaricato è rovinato (sha256 diverso)"}
+        guasto = pacco_buono(pacco, sha)
+        if guasto:
+            return {"esito": "errore", "motivo": guasto}
         with tarfile.open(pacco) as t:
-            for membro in t.getmembers():
-                if membro.name.startswith(("/", "..")) or "/../" in membro.name:
-                    return {"esito": "errore", "motivo": "il pacchetto ha un percorso fuori posto: %s" % membro.name}
             if hasattr(tarfile, "data_filter"):
                 t.extractall(str(lavoro), filter="data")  # niente link né permessi fuori posto
             else:
@@ -1095,7 +1275,7 @@ def app_volta(prima: dict) -> dict:
     if sys.platform != "darwin" and not os.environ.get("VOLTA_APP_PACCHETTO"):
         return {"esito": "assente", "motivo": "solo sul Mac"}
     pacchetto = pacchetto_app()
-    app = argv_di("VOLTA_HERDR_APP", "herdr-app")
+    app = herdr_app()
     if pacchetto is None or not app:
         return {"esito": "assente"}
     ora = ora_locale()
@@ -1228,6 +1408,7 @@ def programmi(forza: bool = False) -> dict:
                 except Exception as e:  # noqa: BLE001 un pezzo rotto non ferma gli altri
                     stato[nome] = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160])}
             stato["giro"] = adesso
+        passo_specchio(stato)  # prima dell'app: la notte l'app trova già la release nuova
         try:
             stato["app"] = dict(app_volta(stato.get("app") or {}), il=time.time())
         except Exception as e:  # noqa: BLE001
@@ -1327,6 +1508,9 @@ def agente(accendi: bool) -> str:
     prova = os.environ.get("VOLTA_AGENTE_PROVA")
     if prova:
         Path(prova).mkdir(parents=True, exist_ok=True)
+        if not accendi:
+            (Path(prova) / (ETICHETTA + ".plist")).unlink(missing_ok=True)
+            return "prova tolta"
         (Path(prova) / (ETICHETTA + ".plist")).write_text(plist_agente(script), encoding="utf-8")
         return "prova"
     if os.environ.get("VOLTA_NO_AGENTE"):
@@ -1372,6 +1556,19 @@ def cmd_attiva(argv: list) -> int:
     return 0
 
 
+def cmd_disattiva() -> int:
+    """Il contrario di `attiva` (#6217, 20/11/2026): toglie il controllo orario del sistema e mette il mod in
+    "manuale", così anche il controllo che il mod lancia da sé si ferma, e con lui core, plugin, specchio e
+    app. La sorgente resta scritta: `attiva <url>` riaccende tutto. Il mod installato resta com'è."""
+    app = app_home()
+    c = leggi(app / "arturo.json")
+    c.update(mod_modo="manuale")
+    scrivi(app / "arturo.json", c)
+    print("DISATTIVO: il mod non si aggiorna più, controllo orario: %s. Per riaccendere: volta_mod.py attiva %s"
+          % (agente(False), c.get("mod_sorgente") or "<url del repository>"))
+    return 0
+
+
 def cmd_modo(modo: str) -> int:
     app = app_home()
     c = leggi(app / "arturo.json")
@@ -1399,6 +1596,13 @@ def main(argv: list) -> int:
         # A mano, per le prove: lo stesso giro del sistema, subito (--subito salta l'attesa di OGNI_PROGRAMMI).
         print(json.dumps(programmi(forza="--subito" in argv), ensure_ascii=False))
         return 0
+    if argv[:1] == ["specchio"]:
+        stato = leggi(programmi_file())
+        d = passo_specchio(stato)
+        if d.get("esito") != "spento":
+            scrivi(programmi_file(), stato)
+        print(json.dumps(d, ensure_ascii=False))
+        return 1 if d.get("esito") == "errore" else 0
     if argv[:1] == ["prove"]:
         print(json.dumps(prove(chiudi="--chiudi" in argv), ensure_ascii=False))
         return 0
@@ -1408,6 +1612,8 @@ def main(argv: list) -> int:
         return 1 if passo_immagini()["esito"] == "errore" else 0
     if argv[:1] == ["attiva"]:
         return cmd_attiva(argv[1:])
+    if argv[:1] == ["disattiva"]:
+        return cmd_disattiva()
     if argv[:1] in (["automatico"], ["manuale"]):
         return cmd_modo(argv[0])
     if argv[:1] == ["stato"]:
@@ -1415,9 +1621,12 @@ def main(argv: list) -> int:
         d["installato"] = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         d["sorgente"] = config().get("mod_sorgente")
         d["modo"] = config().get("mod_modo") or "automatico"
+        radice, fonte = radice_di()
+        d["arturo"] = {"radice": str(radice) if radice else None, "fonte": fonte}
+        d["herdr_app"] = herdr_app()
         d["immagini"] = leggi(cache() / "immagini-stato.json")
         d["genera"] = leggi(cache() / "immagini-genera.json")
-        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "copia", "app", "prove")}
+        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "copia", "specchio", "app", "prove")}
         print(json.dumps(d, ensure_ascii=False))
         return 0
     print(__doc__.strip())

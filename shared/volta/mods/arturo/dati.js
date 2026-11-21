@@ -4,7 +4,7 @@
 import { exec, readTextFile, writeTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
 import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, SPOSTA_OGNI_MS, titolo, chiave as chiaveSessione, etichettaDice, suaScheda, doppio, unaPerConversazione, titoloFork, casellaVuota, percheNonEntra, daPortare, daIniziare, argvScheda, motivoUscita, rigaRilancio, tastiPulizia, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio, slug, progettoDi, nomeMacchina as nomeMacchinaDi, etichettaVista, agganciataDa, macchinaIndirizzo, mia, daDi, argvRemoto, attachLocale, schedaDelProgetto } from "./sessioni.js";
 import { tettoDi, entroDi, servizioAcceso, claudeDavanti } from "./sessioni.js";
-import { promptCompito, avvisoCompito, nomeProgetto as nomeProgettoDi } from "./sessioni.js";
+import { promptCompito, avvisoCompito, nomeProgetto as nomeProgettoDi, nomeChi, sa } from "./sessioni.js";
 import { leggiUnione, vistaUnione, percheNonUnire, UNIONE_PROVA_MS, UNIONE_MS } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
@@ -17,11 +17,22 @@ export async function config() {
     c = {};
   }
   const arturo = Array.isArray(c.arturo) && c.arturo.length ? c.arturo : ["python3", `${home()}/.claude/bin/arturo`];
+  // La cartella di Arturo, dove stanno shared/ e bin/: ~/.claude per chi usa il clone, un'altra cartella
+  // per il plugin o per una copia di prova. Un arturo.json di prima ce l'ha solo nel bin: …/bin/arturo.
+  // Chi ha Arturo come plugin non ha né l'una né l'altro (#6217): la dice il file che il plugin riscrive a
+  // ogni sessione, poi la voce del plugin. Lo stesso ordine di radice_di() in volta_mod.py.
+  const radice = (typeof c.radice === "string" && c.radice ? c.radice : null)
+    ?? RADICE_BIN.exec(String(arturo[arturo.length - 1] ?? ""))?.[1]
+    ?? (await radicePlugin())
+    ?? `${home()}/.claude`;
   return {
     arturo,
-    // La cartella di Arturo, dove stanno shared/ e bin/: ~/.claude per chi usa il clone, un'altra cartella
-    // per il plugin o per una copia di prova. Un arturo.json di prima ce l'ha solo nel bin: …/bin/arturo.
-    radice: typeof c.radice === "string" && c.radice ? c.radice : radiceDa(arturo[arturo.length - 1]),
+    radice,
+    // Chi usa la finestra (#6217): l'autore delle note e il nome che Claude scrive in "Prossimo passo:".
+    // Di serie "tu": il nome vero lo dà la chiave.
+    chi: nomeChi(c.chi),
+    // Cosa sa fare l'Arturo installato: { note, unisci, tasks }. Un gesto senza la sua capacità non si mostra.
+    capacita: await capacitaDi(radice),
     base: typeof c.base === "string" && c.base ? c.base : `${home()}/Documents/ClaudeCode`,
     // Il progetto delle note sulla finestra (⌘⇧N); senza, va al progetto aperto.
     note_progetto: typeof c.note_progetto === "string" && c.note_progetto ? c.note_progetto : null,
@@ -40,7 +51,7 @@ export async function config() {
       giorno: numero(c.congedo_giorno, 12, 0),
     },
     // La ripresa da sola delle sessioni ferme per limite o connessione (#5882): "accesa" di serie, "spenta"
-    // la toglie (Federico l'ha approvata il 17/11/2026).
+    // la toglie (approvata il 17/11/2026).
     ripresa: c.ripresa === "spenta" ? "spenta" : "accesa",
     // Il modello piccolo che propone il progetto di un compito nuovo (⌘N, volta_compito.py, #6186): "acceso"
     // di serie, "spento" lascia la sola proposta dalle parole del testo.
@@ -62,9 +73,55 @@ export function cacheVolta(nome = "volta") {
 // Un numero intero di arturo.json, non sotto `minimo`; altrimenti quello di serie.
 const numero = (v, serie, minimo) => (Number.isInteger(v) && v >= minimo ? v : serie);
 
+const RADICE_BIN = /^(.+)[\\/]bin[\\/]arturo$/;
 export function radiceDa(bin) {
-  const m = /^(.+)[\\/]bin[\\/]arturo$/.exec(String(bin ?? ""));
+  const m = RADICE_BIN.exec(String(bin ?? ""));
   return m ? m[1] : `${home()}/.claude`;
+}
+
+// Un file c'è e si legge. Un errore di lettura vale no.
+async function esiste(p) {
+  try { return (await readTextFile(p)) != null; } catch { return false; }
+}
+
+// La cartella dell'Arturo installato come plugin, o null: ~/.claude/arturo/radice, che il plugin riscrive a
+// ogni sessione, poi installPath della sua voce in installed_plugins.json di Claude Code.
+async function radicePlugin() {
+  const casa = (p) => (p.startsWith("~/") ? `${home()}${p.slice(1)}` : p);
+  try {
+    const r = String((await readTextFile(`${home()}/.claude/arturo/radice`)) ?? "").trim();
+    if (r) return casa(r);
+  } catch { /* si prova la voce del plugin */ }
+  try {
+    const d = JSON.parse((await readTextFile(`${home()}/.claude/plugins/installed_plugins.json`)) ?? "{}");
+    const p = d?.plugins?.["arturo@arturo"]?.[0]?.installPath;
+    if (typeof p === "string" && p) return casa(p);
+  } catch { /* nessuno la dice */ }
+  return null;
+}
+
+// Le capacità dell'Arturo in `radice` (#6217): le note sulla finestra e l'unione di due progetti stanno in
+// bin/, la procedura dei task è la skill tasks della persona o di Arturo. Si rileggono al più una volta al
+// minuto: config() gira a ogni comando.
+export const CAPACITA_MS = 60000;
+let capacitaLetta = null;
+async function capacitaDi(radice) {
+  if (capacitaLetta && capacitaLetta.radice === radice && Date.now() - capacitaLetta.quando < CAPACITA_MS) return capacitaLetta.valore;
+  const [note, unisci, sue, diArturo] = await Promise.all([
+    esiste(`${radice}/bin/note_finestra.py`), esiste(`${radice}/bin/unisci.py`),
+    esiste(`${home()}/.claude/skills/tasks/SKILL.md`), esiste(`${radice}/skills/tasks/SKILL.md`)]);
+  const valore = { note, unisci, tasks: sue || diArturo };
+  capacitaLetta = { radice, quando: Date.now(), valore };
+  return valore;
+}
+
+// La guida di "Trova i miei progetti": la prima che esiste. Nell'Arturo di oggi, in uno di prima del
+// 12/11/2026, e accanto al mod, dove la mette volta_mod.py per chi ha un Arturo che non la porta (#6217).
+export const TROVA_PROGETTI = ["{radice}/shared/volta/trova-progetti.md", "{radice}/shared/volta-celeste/trova-progetti.md", "{app}/trova-progetti.md"];
+export async function trovaProgetti(radice) {
+  const candidati = TROVA_PROGETTI.map((p) => p.split("{radice}").join(radice).split("{app}").join(appHome()));
+  for (const p of candidati) if (await esiste(p)) return p;
+  return candidati[0];
 }
 
 // Il testo di un suggerimento con la cartella di Arturo al posto di {radice}.
@@ -110,11 +167,11 @@ async function arturoUnaVolta(comando, args, errore) {
 
 export const todo = (args) => arturo("todo", args, "Non riesco a leggere i todo di Arturo.");
 
-// Rispondi, Risolta e Scarta del velo: arturo note <verbo> <id> --chi federico. La CLI riscrive nota.json
-// rileggendolo se è cambiato, e porta il gesto sul todo: velo e Claude chiudono con lo stesso codice.
-export const gestoNota = (verbo, id, testo) => {
+// Rispondi, Risolta e Scarta del velo: arturo note <verbo> <id> --chi <chi di arturo.json>. La CLI riscrive
+// nota.json rileggendolo se è cambiato, e porta il gesto sul todo: velo e Claude chiudono con lo stesso codice.
+export const gestoNota = async (verbo, id, testo) => {
   const t = String(testo ?? "").trim();
-  return arturo("note", [verbo, id, "--chi", "federico", "--json", ...(t ? ["--", t] : [])],
+  return arturo("note", [verbo, id, "--chi", (await config()).chi, "--json", ...(t ? ["--", t] : [])],
     "Non riesco a scrivere la nota con arturo note.");
 };
 
@@ -499,7 +556,7 @@ export async function nuova(prompt, soloQui = false) {
   return nasciSu(soloQui ? "qui" : dove(), prompt, null);
 }
 
-// Una conversazione nuova in un progetto (la tessera di ⌘T, Federico 12/11/2026): sempre una sessione nuova
+// Una conversazione nuova in un progetto (la tessera di ⌘T, 12/11/2026): sempre una sessione nuova
 // che parte da /inizio, sulla macchina di "Nasce su", in una scheda nuova dello spazio del progetto se c'è
 // (aggancia), altrimenti in uno spazio nuovo. apri() invece porta allo spazio che c'è già.
 export async function conversazione(nome) {
@@ -533,7 +590,8 @@ export async function compito(x) {
     const sua = d === "qui" ? macchinaDelProgetto(shared("arturo.progetti")?.[nome]?.macchine, shared("arturo.volta.macchine")) : null;
     return nasciSu(sua ?? d, promptCompito({ ...x, slug: nome }), nome, null, null, !x.apri);
   }
-  return nasciSu(d, promptCompito(x), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);
+  // un progetto nuovo: senza la skill dei task la sessione crea la cartella e basta (#6217)
+  return nasciSu(d, promptCompito(x, sa((await config()).capacita, "tasks")), x.tipo === "nuovo" ? x.slug : null, null, null, !x.apri);
 }
 
 // Le richieste da imparare: i pulsanti del benvenuto e della finestra "Cosa posso chiedere".
@@ -541,7 +599,7 @@ export async function compito(x) {
 // e senza conversazione ne apre una; "apri" apre la finestra dei progetti.
 export const SUGGERIMENTI = [
   { id: "trova", titolo: "Trova i miei progetti", testo: "Claude cerca sul computer le cartelle di lavoro e te le propone come progetti.",
-    prompt: "Trova i miei progetti sul computer e proponimeli. Segui {radice}/shared/volta/trova-progetti.md (in un Arturo di prima del 12/11/2026 sta in shared/volta-celeste/): la cartella di Arturo è {radice}.", dove: "nuova" },
+    prompt: "Trova i miei progetti sul computer e proponimeli. Segui {trova}: la cartella di Arturo è {radice}.", dove: "nuova" },
   { id: "guidami", titolo: "Cosa faccio adesso?", testo: "Claude guarda il lavoro recente e ti propone da dove partire.", prompt: "/guidami", dove: "qui" },
   { id: "ricorda", titolo: "Ricordami una cosa", testo: "Un todo nuovo, per te o per Claude, nel progetto giusto.",
     prompt: "Voglio aggiungere un todo. Chiedimi cosa, per quale progetto e chi lo fa.", dove: "qui" },
@@ -553,7 +611,10 @@ export const SUGGERIMENTI = [
 // Esegue un suggerimento: nella conversazione aperta se c'è e non aspetta una risposta, altrimenti in una
 // nuova su questa macchina, qualunque sia "Nasce su": tutti parlano di questa macchina (nuova()).
 export async function chiedi(sug) {
-  const prompt = richiesta(sug.prompt, (await config()).radice);
+  const c = await config();
+  // {trova}: la guida di "Trova i miei progetti" che c'è davvero su questa macchina (TROVA_PROGETTI)
+  const testo = String(sug.prompt ?? "");
+  const prompt = richiesta(testo.includes("{trova}") ? testo.split("{trova}").join(await trovaProgetti(c.radice)) : testo, c.radice);
   if (sug.dove === "nuova") return nuova(prompt, true);
   const s = spaces().find((x) => x.active && !x.machine);
   const a = s ? agents().find((x) => x.space === s.id && x.tab === s.tabs.find((t) => t.active)?.id) ?? agents().find((x) => x.space === s.id) : null;
@@ -1549,7 +1610,7 @@ export async function portaNome(s) {
 }
 
 // Una sessione spostata dalla persona in un altro progetto riparte da /inizio di quel progetto, così
-// carica handoff, task e scheda (#5465, Federico 12/11/2026: "Volta lancia /inizio a ogni spostamento").
+// carica handoff, task e scheda (#5465, 12/11/2026: "Volta lancia /inizio a ogni spostamento").
 // Solo a sessione ferma (daIniziare). Con una scheda in questa finestra /inizio si scrive lì, a casella
 // vuota; in background senza scheda la sonda la ferma e la riprende col solo /inizio (inizia, come il
 // congedo); un'interattiva in un Terminale non si raggiunge, e lo dice chi chiama (come "terminale").

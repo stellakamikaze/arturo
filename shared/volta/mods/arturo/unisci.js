@@ -6,7 +6,7 @@
 // 3. il pulsante Unisci, che è il sì della persona. Invio qui non unisce: serve il clic sul pulsante.
 // L'unione vera la fa la barra (unisci() di dati.js): il dialogo manda il comando e resta aperto a mostrare
 // l'esito, che legge da shared arturo.unione (guarda). Se la persona lo chiude prima, la barra avvisa a fine lavoro.
-// Decisione di Federico del 20/11: unione completa, il perdente va in archivio e il suo nome resta valido.
+// Decisione del 20/11: unione completa, il perdente va in archivio e il suo nome resta valido.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";

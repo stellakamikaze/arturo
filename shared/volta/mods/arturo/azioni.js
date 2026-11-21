@@ -76,7 +76,7 @@ export function gestoUf(c, testo, extra = {}) {
     if (r === "Rimanda") return { azione: "rimanda", esito: "Rimandata a domani" };
     if (r === "Già fatto") return { azione: "giafatto", esito: "Tolta dalla Coda" };
     const indicazioni = r === "Riscrivi" ? nota : r;
-    const come = indicazioni ? ` Indicazioni di Federico: ${indicazioni}` : "";
+    const come = indicazioni ? ` Indicazioni della persona: ${indicazioni}` : "";
     return { azione: "nuova", esito: "Claude la riscrive",
       prompt: `/posta riscrivi la bozza "${b.oggetto ?? c.domanda ?? ""}" (thread ${b.thread}${b.account ? `, account ${b.account}` : ""}): è in Gmail dal ${b.creato ?? "?"} e non è partita.${come}` };
   }
@@ -89,7 +89,7 @@ export function gestoUf(c, testo, extra = {}) {
 function gestoTask(t, r, nota, c) {
   if (r === "Fatto") return { azione: "todo", ...fatto(t) };
   if (r === "Rimanda") return { azione: "todo", argv: ["modifica", String(t.id), atteso(t), "--quando", "più avanti"], esito: "Spostato a più avanti" };
-  // "A Claude" fa partire il lavoro (18/11/2026, Federico: "quando dò l'ok a far partire dei task non partono
+  // "A Claude" fa partire il lavoro (18/11/2026: "quando dò l'ok a far partire dei task non partono
   // mai"): prima chi = io, poi `poi` porta Claude sul task (rispondiUf di volta.js, apri() di dati.js).
   if (r === "A Claude") return { azione: "todo", argv: ["modifica", String(t.id), atteso(t), "--chi", "io"], esito: "Claude ci lavora",
     poi: { progetto: c.progetto ?? null, todo: { id: t.id, titolo: t.titolo } } };

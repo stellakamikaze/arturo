@@ -73,7 +73,7 @@ export class Casa {
   }
 
   // Apre la tessera: la esegue la barra, come la finestra Apri. La tessera di un progetto fa nascere sempre
-  // una conversazione nuova nel progetto, anche col suo spazio già aperto (Federico, 12/11/2026: "ho scelto
+  // una conversazione nuova nel progetto, anche col suo spazio già aperto (12/11/2026: "ho scelto
   // Volta ma non mi apre una nuova convo").
   vai(t) {
     if (!t) return;

@@ -7,8 +7,8 @@
 
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { theme, props, closeOverlay, openOverlay, run } from "herdr";
-import { menu, titolo, GRUPPI_MENU, chiave as chiaveSessione } from "./sessioni.js";
+import { theme, props, closeOverlay, openOverlay, run, shared } from "herdr";
+import { menu, titolo, GRUPPI_MENU, chiave as chiaveSessione, vociCon } from "./sessioni.js";
 import { vociMacchina } from "./comuni.js";
 import { destinazioni } from "./sposta.js";
 
@@ -87,7 +87,8 @@ export class MenuProgetto {
   init(_p, cx) {
     this.chiave = props()?.chiave ?? "";
     this.titolo = props()?.titolo ?? this.chiave;
-    this.voci = vociProgetto(props()?.dove);
+    // senza bin/unisci.py nell'Arturo installato "Unisci a…" non si mostra (#6217)
+    this.voci = vociCon(vociProgetto(props()?.dove), shared("arturo.capacita"));
     this.handle = cx.focus_handle();
     cx.timer.after(120, () => this.handle.focus());
   }
