@@ -15,6 +15,7 @@
     "cmd-shift-up": "agent.prev",
     "ctrl-cmd-right": "space.next",
     "ctrl-cmd-left": "space.prev",
-    "cmd-n": "arturo.compito"
+    "cmd-n": "arturo.compito",
+    "cmd-shift-m": "arturo.muto"
   }
 }

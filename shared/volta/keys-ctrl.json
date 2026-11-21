@@ -10,6 +10,7 @@
     "ctrl-up": "arturo.volta-giro-indietro",
     "ctrl-w": "arturo.volta-chiudi",
     "ctrl-alt-z": "arturo.volta-annulla",
-    "ctrl-shift-n": "arturo.compito"
+    "ctrl-shift-n": "arturo.compito",
+    "ctrl-alt-m": "arturo.muto"
   }
 }

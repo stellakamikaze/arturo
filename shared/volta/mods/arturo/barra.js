@@ -6,7 +6,7 @@ import { theme, run, agents, window, shared, setShared, nextCommand, updates, no
 import { todo, progetti, apri, nuova, nuovaScheda, conversazione, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
 import { STACK, CASA, CODA, senzaTessere, senzaCoda } from "./tessere.js";
 import { terminale } from "./casa.js";
-import { ICONA, pulsante, pulsanteIcona, segnaleImpostazioni, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
+import { ICONA, pulsante, pulsanteIcona, segnaleImpostazioni, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, giraMuto, apriImpostazioni } from "./comuni.js";
 import { SPAZIO, MARGINE, RAGGIO, TESTO, PULSANTE } from "./misure.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
@@ -18,7 +18,7 @@ import { rigaMod, decodifica, leggiProvaChecklist, appesa } from "./sessioni.js"
 import { leggiGesto, leggiCompito } from "./sessioni.js";
 import { compito } from "./dati.js";
 import { apriCompito } from "./comuni.js";
-import { unisci, scartaDoppione, riprendiDoppione } from "./dati.js";
+import { unisci, scartaDoppione, riprendiDoppione, rileggiProgetti } from "./dati.js";
 import { leggiUnisci, leggiScartaDoppione, sa } from "./sessioni.js";
 import { apriUnisci } from "./unisci.js";
 import { apriDoppioni } from "./doppioniui.js";
@@ -102,7 +102,8 @@ export class Barra {
     else if (c === "unisci") apriUnisci(arg);
     else if (c === "menu-progetto") apriMenuProgetto(arg.slug, shared("arturo.progetti")?.[arg.slug]?.titolo, arg.dove);
     else if (c === "unisci-prova") { const x = leggiUnisci(arg); if (x) apriUnisci(x.perdente, x.vincitore); }
-    else if (c === "unisci-vai") { const x = leggiUnisci(arg); if (x) this.lungo(c, cx, () => unisci(x.perdente, x.vincitore).then((v) => { if (v.stato === "fatto") this.carica(cx); })); }
+    // Un progetto che la barra non ha ancora letto si rilegge prima di dire "Non conosco" (#6314).
+    else if (c === "unisci-vai") { const x = leggiUnisci(arg); if (x) this.lungo(c, cx, () => unisci(x.perdente, x.vincitore, rileggiProgetti(() => this.carica(cx))).then((v) => { if (v.stato === "fatto" || v.stato === "gia") this.carica(cx); })); }
     // Cerca doppioni (#6188): la revisione delle coppie probabili; lo scarto di una coppia lo scrive la barra.
     else if (c === "doppioni") apriDoppioni();
     else if (c === "doppioni-scarta") { const x = leggiScartaDoppione(arg); if (x) this.lungo(c, cx, () => scartaDoppione(chiaveCoppia(x.a, x.b))); }
@@ -122,6 +123,7 @@ export class Barra {
     else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
     else if (c === "gruppi") setShared("arturo.volta.gruppi", arg);
     else if (c === "movimento") giraMovimento(arg);
+    else if (c === "muto") giraMuto(arg);
     else if (c === "impostazioni") apriImpostazioni();
     // ⌘T: le tessere al posto del terminale; il segno dice alla parte Casa di ripartire dal campo vuoto.
     // Un layout senza tessere (fatto a mano, di Herdr) apre la sessione nuova, la prima tessera (#5456).
@@ -286,7 +288,7 @@ export class Piede {
       .child(pulsanteIcona("note", "pin", `Note · ${tasti().nota} nuova · ${tasti().elenco} elenco`, () => apriElenco(), { misura: "piccolo", numero: note })))
       .child(pulsanteIcona("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida(), { misura: "piccolo" }))
       .child(div().flex_1())
-      // Un clic apre il menu col movimento, le impostazioni dell'app (⌘, le apre dirette) e la versione del mod.
+      // Un clic apre il menu col movimento, il muto, le impostazioni dell'app (⌘, le apre dirette) e la versione del mod.
       .child(pulsanteIcona("impostazioni", "settings", `Impostazioni · ${rigaMod(shared("arturo.mod"))?.testo ?? tasti().impostazioni}`, () => apriImpostazioni(),
         { misura: "piccolo", segnale: segnaleImpostazioni(Boolean(updates().app.ready)) }));
   }

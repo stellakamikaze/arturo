@@ -165,6 +165,11 @@ export const alContrario = (c) => ({ ...c, perdente: c.vincitore, vincitore: c.p
 // la riga dice perché. `vista` è quella di vistaUnione (sessioni.js).
 export function dopoProva(vista) {
   if (vista?.stato === "anteprima" && vista.pronta) return { vai: true, testo: "" };
+  // già unito, per esempio da un'altra finestra: non è un errore, la riga lo dice come fatto (#6314)
+  if (vista?.stato === "gia") return { vai: false, gia: true, testo: "" };
+  // un errore che Arturo sa riparare (una scheda rotta, un collegamento) si vede già nel conto: il clic su Unisci
+  // va lo stesso alla barra, che riprova, trova lo stesso errore prima di scrivere e fa nascere la riparazione
+  if (vista?.stato === "rifiuto" && vista.tipo === "riparabile") return { vai: true, testo: "" };
   if (vista?.stato === "anteprima") return { vai: false, testo: "La fonte dei task non risponde: l'unione aspetta che torni. Riprova fra poco." };
   return { vai: false, testo: String(vista?.testo || "Arturo non ha detto perché.") };
 }
@@ -174,10 +179,14 @@ export function dopoProva(vista) {
 // arturo.unione.rifiuto: la barra ha rifiutato quella `coppia` prima di cominciare, e allora non scrive altro (#6290).
 export function dopoUnione(u, da, rifiuto = null, coppia = null) {
   const suo = Boolean(rifiuto) && rifiuto.quando >= da && (!coppia || (rifiuto.perdente === coppia.perdente && rifiuto.vincitore === coppia.vincitore));
+  if (suo && rifiuto.gia) return { stato: "gia", testo: "", backup: null };
   if (suo) return { stato: "errore", testo: String(rifiuto.testo || "La barra ha rifiutato l'unione."), backup: null };
   if (!u || !(u.quando >= da)) return null;
   if (u.stato === "corso") return { stato: "corso", testo: "", backup: null };
   if (u.stato === "fatto") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };
+  // #6314: "gia" era già unito; "ripara" è nata la sessione di Arturo che ripara l'errore e rifà l'unione
+  if (u.stato === "gia") return { stato: "gia", testo: "", backup: null };
+  if (u.stato === "ripara") return { stato: "ripara", testo: String(u.vista?.testo || ""), backup: u.vista?.backup ?? null };
   return { stato: "errore", testo: String(u.vista?.testo || "La barra non ha detto com'è andata."), backup: null };
 }
 

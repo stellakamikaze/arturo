@@ -16,6 +16,10 @@ import { ICONA } from "./comuni.js";
 import { SPAZIO, TESTO, RAGGIO, PULSANTE, ICONA_MISURA } from "./misure.js";
 import { scelteUnione, progettiPerCompito, comandoUnisciVai, impostaProgetti, nomeProgetto, slug } from "./sessioni.js";
 
+// Un conto che Arturo rifiuta per un errore che sa riparare (#6314): il pulsante "Ripara e unisci" manda
+// l'unione alla barra, che fa nascere la sessione che ripara. Il clic è il sì della persona per questa coppia.
+const riparabile = (v) => v?.stato === "rifiuto" && v.tipo === "riparabile";
+
 // Uno solo aperto. Con `vincitore` il dialogo parte dall'anteprima (comando arturo.unisciprova-…).
 let aperto = null;
 export function apriUnisci(perdente, vincitore = null) {
@@ -90,7 +94,7 @@ export class Unisci {
 
   // Passo 3: il sì. Parte solo da un'anteprima che Arturo ha dato per buona.
   unisci(cx) {
-    if (this.passo !== "anteprima" || !this.vista?.pronta) return;
+    if (this.passo !== "anteprima" || !(this.vista?.pronta || riparabile(this.vista))) return;
     this.passo = "corso";
     this.partita = Date.now();
     run(comandoUnisciVai(this.perdente, this.vincitore));
@@ -104,7 +108,7 @@ export class Unisci {
     // la barra ha rifiutato l'unione prima di cominciarla: non scriverà altro (#6290)
     const r = shared("arturo.unione.rifiuto");
     if (this.passo === "corso" && r && r.perdente === this.perdente && r.vincitore === this.vincitore && r.quando >= (this.partita ?? Infinity)) {
-      this.vista = { stato: "errore", testo: String(r.testo || "La barra ha rifiutato l'unione."), righe: [], avvisi: [], backup: null };
+      this.vista = { stato: r.gia ? "gia" : "errore", testo: String(r.testo || "La barra ha rifiutato l'unione."), righe: [], avvisi: [], backup: null };
       this.passo = "esito";
       cx.notify();
       return;
@@ -116,6 +120,8 @@ export class Unisci {
       this.passo = "corso";
     } else {
       this.vista = u.vista ?? { stato: "errore", testo: "La barra non ha detto com'è andata.", righe: [], avvisi: [], backup: null };
+      // #6314: l'errore è andato alla sessione che lo ripara
+      if (u.stato === "ripara") this.vista = { ...this.vista, stato: "ripara" };
       this.passo = "esito";
     }
     cx.notify();
@@ -152,6 +158,8 @@ export class Unisci {
 
     const titolo = this.passo === "scegli" ? `Unisci ${P} a…`
       : this.passo === "esito" && v?.stato === "fatto" ? `${P} ora è ${V}`
+      : v?.stato === "gia" ? `${P} è già in ${V}`
+      : v?.stato === "ripara" ? `Arturo ripara l'unione di ${P}`
       : `Unisci ${P} a ${V}`;
     const sotto = this.passo === "scegli" ? `${P} entra nel progetto che scegli. Il nome ${this.perdente} resta valido e apre quel progetto.`
       : `${this.perdente} entra in ${this.vincitore}`;
@@ -174,14 +182,24 @@ export class Unisci {
             .child("Può durare qualche minuto se i task sono tanti. Puoi chiudere questa finestra: un avviso ti dice com'è andata."));
       }
       if (!v) return div().text_size(TESTO.riga).text_color(t.muted).child("Arturo conta cosa passa…");
+      // #6314: già unito non è un errore; un errore riparabile è passato a una sessione di Arturo
+      if (v.stato === "gia") return div().whitespace_normal().text_size(TESTO.corpo).text_color(t.foreground)
+        .child(`Non resta niente da unire: il nome ${this.perdente} apre già ${V}.`);
+      if (v.stato === "ripara") return v_flex().gap(SPAZIO.m)
+        .child(div().text_size(TESTO.riga).text_color(t.blocked).child("L'unione non è riuscita"))
+        .child(div().whitespace_normal().text_size(TESTO.corpo).text_color(t.foreground).child(v.testo || "Arturo non ha detto perché."))
+        .child(div().whitespace_normal().text_size(TESTO.corpo).text_color(t.muted)
+          .child(`Arturo la ripara: una sessione in background, "Ripara unione ${this.perdente}", legge l'errore e la copia di prima, ripara la causa e rifà l'unione. Se serve una tua scelta, te la chiede lì.`));
       const buono = v.stato === "anteprima" || v.stato === "fatto";
       return v_flex().gap(SPAZIO.l)
         .when(!buono, (el) => el.child(v_flex().gap(SPAZIO.s)
           .child(div().text_size(TESTO.riga).text_color(t.blocked)
-            .child(v.stato === "rifiuto" ? "Questi due progetti non si uniscono" : this.passo === "esito" ? "L'unione non è riuscita" : "Non riesco a preparare l'unione"))
+            .child(riparabile(v) ? "Arturo trova un errore che sa riparare" : v.stato === "rifiuto" ? "Questi due progetti non si uniscono" : this.passo === "esito" ? "L'unione non è riuscita" : "Non riesco a preparare l'unione"))
           .child(div().whitespace_normal().text_size(TESTO.corpo).text_color(t.foreground).child(v.testo || "Arturo non ha detto perché."))
           .when(this.passo === "esito", (e2) => e2.child(div().whitespace_normal().text_size(TESTO.etichetta).text_color(t.muted)
-            .child("Prima di riprovare guarda la copia in data/progetti/unioni/ nella cartella di Arturo.")))))
+            .child("Prima di riprovare guarda la copia in data/progetti/unioni/ nella cartella di Arturo.")))
+          .when(riparabile(v) && this.passo !== "esito", (e2) => e2.child(div().whitespace_normal().text_size(TESTO.etichetta).text_color(t.muted)
+            .child("Con Ripara e unisci, una sessione di Arturo in background legge l'errore, ripara la causa e rifà l'unione di questi due progetti, e di nessun altro.")))))
         .when(buono, (el) => el.child(v_flex().p(SPAZIO.l).gap(SPAZIO.m).rounded(RAGGIO.riga).border_1().border_color(t.border).children(v.righe.map(riga))))
         .when(v.avvisi.length > 0, (el) => el.child(v_flex().gap(SPAZIO.s).children(v.avvisi.map((a, i) =>
           h_flex().id(`un-a-${i}`).gap(SPAZIO.m).items_start()
@@ -199,7 +217,7 @@ export class Unisci {
       if (this.passo === "scegli" || this.passo === "corso") return this.passo === "corso" ? h_flex().child(bottone("un-chiudi", "Chiudi", () => this.chiudi(), false)) : div();
       if (this.passo === "esito") return h_flex().child(bottone("un-chiudi", "Chiudi", () => this.chiudi(), true));
       return h_flex().gap(SPAZIO.l).items_center()
-        .when(v?.stato === "anteprima", (el) => el.child(bottone("un-vai", "Unisci", (cx) => this.unisci(cx), true, Boolean(v?.pronta))))
+        .when(v?.stato === "anteprima" || riparabile(v), (el) => el.child(bottone("un-vai", riparabile(v) ? "Ripara e unisci" : "Unisci", (cx) => this.unisci(cx), true, riparabile(v) || Boolean(v?.pronta))))
         .child(bottone("un-indietro", "Scegli un altro progetto", (cx) => this.indietro(cx), false))
         .child(div().flex_1())
         .child(div().text_size(TESTO.etichetta).text_color(t.dim).child("Esc chiude"));

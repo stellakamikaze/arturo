@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ197: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ200: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -423,7 +423,9 @@ HZ94 le animazioni di Volta (12/11/2026, #5410): sessioni.js e comandi.js con no
      entro 300 ms; i comandi arturo.movimento e arturo.impostazioni. comuni.js: senza movimento il segno
      torna il pallino fermo, la stella gira e il pallino pulsa solo col movimento acceso, anche "Riduci
      movimento" del Mac lo spegne. volta.js: la riga in congedo si dissolve prima del congedo, che parte
-     una volta sola; col movimento spento niente ritardo.
+     una volta sola; col movimento spento niente ritardo. Il muto (21/11/2026): i comandi arturo.muto,
+     conMuto() gira o mette sounds.enabled di settings.json e lascia il resto, comuni.js scrive il file solo
+     se non è cambiato, Impostazioni ha la voce Muto e barra.js esegue il comando.
 HZ95 la scheda mostra chi ci gira (12/11/2026, volta a12c0dd): una scheda nata per agganciare una sessione
      di un'altra macchina (argv ed etichetta) che ora ospita un'interattiva di questa macchina (campo
      terminale della sonda) è dell'interattiva: sessioneDi dà l'interattiva, schedeAgganciate non la conta,
@@ -899,6 +901,18 @@ HZ197 i nomi dati alle schede dopo una ricarica del mod (#6339): daRinominare ti
      in `dato`, fuori dalla finestra di NOMI_VISTI titoli, e dopo nove titoli del modello la rotazione rinomina
      ancora; volta.js rilegge nomi-schede.json al primo giro dopo la ricarica e lo salva dopo ogni giro; una
      sessione che manca da un giro resta per due giorni; un file rotto si legge come vuoto.
+HZ198 Unisci che si ripara (#6314), le parti pure: vistaUnione legge il tipo d'errore di Arturo (gia_unito diventa
+     lo stato "gia", un Arturo di prima con "è già unito" pure); smistaUnione manda il transitorio a un altro giro,
+     il riparabile e il guasto senza JSON alla riparazione, il resto e il tempo scaduto a fermarsi; testoRipara è una
+     riga sola sotto il limite del compito, parte da /inizio del vincitore e porta errore, fase e copia; riparaLibera
+     non ripara due volte la stessa coppia in sei ore; dopoProva e dopoUnione dicono "gia" e "ripara" alla riga.
+HZ199 unisci() di dati.js con Herdr finto (#6314): un vincitore che la barra non ha ancora letto si rilegge e
+     l'unione parte; due nomi dello stesso progetto e un "già unito" di Arturo finiscono in "gia" con un avviso
+     informativo; un errore transitorio fa un secondo giro, uno solo; un rifiuto "scelta" resta un errore, senza
+     nessuna sessione.
+HZ200 la riparazione (#6314): un errore riparabile fa nascere su questa macchina, in background nel vincitore, la
+     sessione col compito di testoRipara; arturo.unione dice "ripara"; la stessa coppia entro sei ore non ne fa
+     nascere un'altra e lo dice; con "ripara_unione": "spenta" in arturo.json non nasce niente.
 """
 from __future__ import annotations
 
@@ -914,7 +928,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196", "HZ197")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196", "HZ197", "HZ198", "HZ199", "HZ200")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -2354,6 +2368,12 @@ export const exec = async (cmd, args) => {
   // HZ159 controlla che ogni chiamata la passi
   eseguiti.push(args[1] === "--entro" ? [cmd, args[0], ...args.slice(3)] : [cmd, ...args]);
   nascite.push(condivisi["arturo.nascita"] ?? null);
+  // HZ_EXEC_LISTA: [{ code, stdout, stderr }, ...], una per chiamata (l'ultima resta), per chi chiama due volte (HZ200)
+  if (process.env.HZ_EXEC_LISTA) {
+    const l = (globalThis.__lista ??= JSON.parse(process.env.HZ_EXEC_LISTA));
+    const r = l.length > 1 ? l.shift() : l[0];
+    return { code: r.code ?? 0, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+  }
   // HZ_EXEC_CODICE e HZ_EXEC_ERR: il codice d'uscita e lo stderr, per chi legge l'esito (HZ73)
   if (process.env.HZ_EXEC_CODICE !== undefined)
     return { code: Number(process.env.HZ_EXEC_CODICE), stdout: process.env.HZ_EXEC ?? "", stderr: process.env.HZ_EXEC_ERR ?? "" };
@@ -8469,10 +8489,10 @@ def hz82(repo: Path, casa: Path) -> str | None:
         return f"volta_mod.py: l'elenco dei mod tolti è {d['elenco']}"
     dopo = leggi(app2 / "keys.json")
     attesi2 = dict(miei, **{fonte[i][0]: fonte[i][1] for i in range(3)})
-    # i due tasti del giro fra le sessioni (HZ86), quello della checklist (HZ156) e ⌘Z (HZ159) entrano perché in questo
+    # i due tasti del giro fra le sessioni (HZ86), quello della checklist (HZ156), ⌘Z (HZ159) e il muto (HZ94) entrano perché in questo
     # keys.json sono liberi; un tasto preso dalla persona resta suo
     giro = {k: v for k, v in leggi(vc / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json")).get("global", {}).items()
-            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla", "arturo.compito")) and k not in miei}
+            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla", "arturo.compito", "arturo.muto")) and k not in miei}
     attesi2.update(giro)
     # i tasti di serie di Herdr che questo keys.json non ha entrano, sotto quelli già presenti (#5369)
     serie = leggi(vc / ("keys-herdr-macos.json" if sys.platform == "darwin" else "keys-herdr.json"))
@@ -9422,6 +9442,16 @@ const out = {
   scala: [0, 1, 2, 3, 4, 9].map(m.ritardo),
   tempi: [m.ENTRA.duration, m.ESCE.duration, m.SCALA_MAX],
   comandi: ["movimento", "movimento-acceso", "movimento-spento", "impostazioni"].map((c) => instrada(c)),
+  comandiMuto: ["muto", "muto-acceso", "muto-spento"].map((c) => instrada(c)),
+  muto: [
+    m.conMuto({}, null),
+    m.conMuto({ telemetry: false, sounds: { enabled: true, done: "a.mp3" } }, null),
+    m.conMuto({ sounds: { enabled: false, blocked: "b.mp3" } }, null),
+    m.conMuto({ sounds: { enabled: false } }, true),
+    m.conMuto({ zoom: 2 }, false),
+    m.conMuto({ sounds: "rotto" }, true),
+  ],
+  inMuto: [m.inMuto({}), m.inMuto(null), m.inMuto({ sounds: { enabled: false } }), m.inMuto({ sounds: { enabled: true } })],
 };
 console.log(JSON.stringify(out));
 """
@@ -9492,6 +9522,38 @@ def hz94(repo: Path, casa: Path) -> str | None:
               {"verbo": "movimento", "arg": False, "lungo": False}, {"verbo": "impostazioni", "arg": None, "lungo": False}]
     if o["comandi"] != attesi:
         return f"instrada() non conosce i comandi del movimento: {o['comandi']}"
+    # il muto (21/11/2026): i comandi, poi conMuto() che gira o mette sounds.enabled e lascia il resto
+    attesi = [{"verbo": "muto", "arg": None, "lungo": False}, {"verbo": "muto", "arg": True, "lungo": False},
+              {"verbo": "muto", "arg": False, "lungo": False}]
+    if o["comandiMuto"] != attesi:
+        return f"instrada() non conosce i comandi del muto: {o['comandiMuto']}"
+    attesi = [{"sounds": {"enabled": False}},
+              {"telemetry": False, "sounds": {"enabled": False, "done": "a.mp3"}},
+              {"sounds": {"enabled": True, "blocked": "b.mp3"}},
+              {"sounds": {"enabled": False}},
+              {"zoom": 2, "sounds": {"enabled": True}},
+              {"sounds": {"enabled": False}}]
+    if o["muto"] != attesi:
+        return f"conMuto() non gira o non mette il muto lasciando il resto di settings.json: {o['muto']}"
+    if o["inMuto"] != [False, False, True, False]:
+        return f"inMuto() sbaglia: senza il campo i suoni sono accesi: {o['inMuto']}"
+    for pezzo in ('await writeTextFile(file, JSON.stringify(dopo, null, 2) + "\\n", prima ?? null);',
+                  'const dopo = conMuto(persona, v);', 'voce("imp-muto")', 'export const muto = () => settings()?.sounds?.enabled === false;'):
+        if pezzo not in cj:
+            return f"comuni.js non ha più: {pezzo}"
+    if 'else if (c === "muto") giraMuto(arg);' not in bj:
+        return "barra.js non esegue il comando arturo.muto"
+    # il tasto del muto: ⌘⇧M e Ctrl+Alt+M, liberi da Herdr, e in TASTI_NUOVI per chi ha già Volta
+    mac, win = leggi(mod.parent.parent / "keys.json")["global"], leggi(mod.parent.parent / "keys-ctrl.json")["global"]
+    if mac.get("cmd-shift-m") != "arturo.muto" or win.get("ctrl-alt-m") != "arturo.muto":
+        return f"⌘⇧M e Ctrl+Alt+M non mettono il muto: {mac.get('cmd-shift-m')}, {win.get('ctrl-alt-m')}"
+    for serie in ("keys-herdr-macos.json", "keys-herdr.json"):
+        if {"cmd-shift-m", "ctrl-alt-m"} & set(leggi(mod.parent.parent / serie).get("global", {})):
+            return f"il tasto del muto è già di Herdr in {serie}"
+    if '"arturo.muto"' not in re.search(r"TASTI_NUOVI = \((.*?)\)\n", (mod.parent.parent / "volta_mod.py").read_text(encoding="utf-8")).group(1):
+        return "arturo.muto non è in TASTI_NUOVI: chi ha già Volta non riceve il tasto"
+    if 'muto: "⌘⇧M"' not in cj or 'muto: "Ctrl+Alt+M"' not in cj:
+        return "tasti() non dice il tasto del muto"
     return None
 
 
@@ -14551,8 +14613,9 @@ def hz178(repo: Path, casa: Path) -> str | None:
             d = gira("vai", json.dumps({**base, "prova": True, "fatto": False, "backup": None}))
             if d["stato"] == "fatto" or (d["unione"] or {}).get("stato") != "errore":
                 return f"un'anteprima tornata al posto dell'unione passa per riuscita: {d['stato']}"
+            # due nomi dello stesso progetto sono già uniti: nessun Arturo, un avviso informativo (#6314)
             d = gira("vai", "{}", coppia="volta-celeste volta")
-            if d["eseguiti"] or d["unione"] is not None or [a[0] for a in d["avvisi"]] != ["warning"]:
+            if d["eseguiti"] or d["unione"] is not None or [a[0] for a in d["avvisi"]] != ["info"]:
                 return f"due nomi dello stesso progetto arrivano ad Arturo: {d['eseguiti']} {d['avvisi']}"
             d = gira("vai", "{}", coppia="herdr-arturo ignoto")
             if d["eseguiti"] or [a[0] for a in d["avvisi"]] != ["warning"]:
@@ -14580,12 +14643,12 @@ def hz178(repo: Path, casa: Path) -> str | None:
         ("barra.js", ('else if (c === "unisci") apriUnisci(arg);',
                       'else if (c === "menu-progetto") apriMenuProgetto(arg.slug, shared("arturo.progetti")?.[arg.slug]?.titolo, arg.dove);',
                       'else if (c === "unisci-prova") { const x = leggiUnisci(arg); if (x) apriUnisci(x.perdente, x.vincitore); }',
-                      'else if (c === "unisci-vai") { const x = leggiUnisci(arg); if (x) this.lungo(c, cx, () => unisci(x.perdente, x.vincitore).then((v) => { if (v.stato === "fatto") this.carica(cx); })); }')),
+                      'else if (c === "unisci-vai") { const x = leggiUnisci(arg); if (x) this.lungo(c, cx, () => unisci(x.perdente, x.vincitore, rileggiProgetti(() => this.carica(cx))).then((v) => { if (v.stato === "fatto" || v.stato === "gia") this.carica(cx); })); }')),
         ("unisci.js", ('aperto = openOverlay({ mod: "arturo", props: { parte: "unisci", perdente: p, vincitore: vincitore ? slug(vincitore) : null }, kind: "dialog", width: 560 });',
                        "const vista = await unione(this.perdente, vincitore, true);",
-                       'if (this.passo !== "anteprima" || !this.vista?.pronta) return;',
+                       'if (this.passo !== "anteprima" || !(this.vista?.pronta || riparabile(this.vista))) return;',
                        "run(comandoUnisciVai(this.perdente, this.vincitore));",
-                       'bottone("un-vai", "Unisci", (cx) => this.unisci(cx), true, Boolean(v?.pronta))',
+                       'bottone("un-vai", riparabile(v) ? "Ripara e unisci" : "Unisci", (cx) => this.unisci(cx), true, riparabile(v) || Boolean(v?.pronta))',
                        ".on_click((_e, cx) => { if (acceso) azione(cx); })",
                        'this.input.on("submit", (_e, cx) => this.scegli(cx));',
                        "!(u.quando >= this.aperto)")),
@@ -15966,7 +16029,7 @@ def hz196(repo: Path, casa: Path) -> str | None:
     """Un'unione rifiutata dalla barra prima di cominciare arriva al dialogo che l'ha chiesta (#6290)."""
     mod_vero = repo / "shared/volta/mods/arturo"
     for file, pezzi in (
-        ("dati.js", ('  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now() });',
+        ("dati.js", ('  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now(), gia });',
                      'level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }',
                      "    return rifiutaUnione(perdente, vincitore, \"Un'unione è già in corso.\");")),
         ("doppioniui.js", ('const e = dopoUnione(shared("arturo.unione"), this.unioni[k].da, shared("arturo.unione.rifiuto"), this.unioni[k]);',)),
@@ -16111,7 +16174,192 @@ def hz197(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196, "HZ197": hz197}
+PROVA_SMISTA = r"""
+import { vistaUnione, smistaUnione, testoRipara, riparaLibera, chiaveRipara, RIPARA_MS, TESTO_COMPITO_MAX } from "./sessioni.mjs";
+import { dopoProva, dopoUnione } from "./doppioni.mjs";
+const err = (tipo, rifiuto = "x", altro = {}) => vistaUnione({ perdente: "a", vincitore: "b", fatto: false, rifiuto, codice: 2, tipo, ...altro }, "a", "b");
+const v = (x) => [x.stato, x.tipo ?? null, x.fase ?? null, x.backup ?? null];
+const lungo = testoRipara("p".repeat(200), "b", { testo: "guasto `rm` $x \"y\"\nz ".repeat(80), fase: "scrittura", backup: "/c/unioni/u1" }, "federico");
+console.log(JSON.stringify({
+  viste: [v(err("gia_unito")), v(err(undefined, "a è già unito in b: non resta niente da unire")), v(err(undefined, "due repo")),
+          v(err("riparabile", "guasto", { fase: "scrittura", backup: "/c/u1" })), v(err("strano"))],
+  smista: [smistaUnione({ stato: "fatto" }), smistaUnione(err("gia_unito")), smistaUnione(err("transitorio")), smistaUnione(err("riparabile")),
+           smistaUnione(err("scelta")), smistaUnione({ stato: "errore", guasto: true }), smistaUnione({ stato: "errore", guasto: true, tempo: true }),
+           smistaUnione({ stato: "errore" }), smistaUnione({ stato: "vecchio" }), smistaUnione(null)],
+  ripara: testoRipara("Herdr Arturo", "volta", { testo: "scheda non leggibile: la scheda non ha il frontmatter", fase: "raccolta", backup: null }, "federico"),
+  lungo, max: TESTO_COMPITO_MAX,
+  libera: [riparaLibera({}, "a", "b", 1e12), riparaLibera({ [chiaveRipara("a", "b")]: 1e12 - 1000 }, "a", "b", 1e12),
+           riparaLibera({ [chiaveRipara("a", "b")]: 1e12 - RIPARA_MS - 1 }, "a", "b", 1e12), riparaLibera({ [chiaveRipara("b", "a")]: 1e12 }, "a", "b", 1e12)],
+  prova: dopoProva({ stato: "gia" }),
+  provaRipara: [dopoProva({ stato: "rifiuto", tipo: "riparabile", testo: "scheda non leggibile" }), dopoProva({ stato: "rifiuto", tipo: "scelta", testo: "repo diversi" })],
+  dopo: [dopoUnione({ stato: "gia", quando: 9 }, 5), dopoUnione({ stato: "ripara", quando: 9, vista: { testo: "guasto", backup: "/c" } }, 5),
+         dopoUnione(null, 5, { perdente: "a", vincitore: "b", testo: "a e b sono già lo stesso progetto.", quando: 6, gia: true }, { perdente: "a", vincitore: "b" })]
+    .map((x) => (x ? [x.stato, x.testo, x.backup] : null)),
+}));
+"""
+
+
+def hz198(repo: Path, casa: Path) -> str | None:
+    """Unisci che si ripara (#6314): tipo d'errore, smistamento, compito della riparazione, limite, riga."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod_vero = repo / "shared/volta/mods/arturo"
+    shutil.copyfile(mod_vero / "sessioni.js", casa / "sessioni.mjs")
+    shutil.copyfile(mod_vero / "doppioni.js", casa / "doppioni.mjs")
+    (casa / "prova.mjs").write_text(PROVA_SMISTA, encoding="utf-8")
+    r = subprocess.run([node, str(casa / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js o doppioni.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["viste"] != [["gia", "gia_unito", None, None], ["gia", "gia_unito", None, None], ["rifiuto", "scelta", None, None],
+                      ["rifiuto", "riparabile", "scrittura", "/c/u1"], ["rifiuto", "scelta", None, None]]:
+        return f"vistaUnione non legge il tipo d'errore di Arturo: {d['viste']}"
+    if d["smista"] != ["fatto", "gia", "riprova", "ripara", "ferma", "ripara", "ferma", "ferma", "ferma", "ferma"]:
+        return f"smistaUnione manda un errore nel posto sbagliato: {d['smista']}"
+    p = d["ripara"]
+    if (not p.startswith("/inizio volta -- Riparazione automatica di Volta") or "herdr-arturo in volta" not in p
+            or "scheda non leggibile: la scheda non ha il frontmatter" not in p or "fase raccolta" not in p
+            or "arturo progetti unisci herdr-arturo volta --prova --json" not in p or "Non toccare altre coppie" not in p
+            or "Prossimo passo: federico" not in p or "\n" in p):
+        return f"il compito della riparazione non porta coppia, errore, fase, conto e regole: {p}"
+    corpo = d["lungo"].split(" -- ", 1)[1]
+    if len(corpo) > d["max"] or "\n" in d["lungo"] or any(c in d["lungo"] for c in "`$\"") or "/c/unioni/u1" not in d["lungo"]:
+        return f"il compito della riparazione esce dal limite o porta caratteri pericolosi: {len(corpo)} {d['lungo'][:200]!r}"
+    if d["libera"] != [True, False, True, True]:
+        return f"riparaLibera non tiene il limite di sei ore per coppia: {d['libera']}"
+    if d["prova"].get("gia") is not True or d["prova"].get("vai") is not False:
+        return f"dopoProva non dice che la coppia è già unita: {d['prova']}"
+    if [x.get("vai") for x in d["provaRipara"]] != [True, False] or d["provaRipara"][1].get("testo") != "repo diversi":
+        return f"un conto rifiutato per un errore riparabile non va alla barra, o ci va anche una scelta: {d['provaRipara']}"
+    if d["dopo"] != [["gia", "", None], ["ripara", "guasto", "/c"], ["gia", "", None]]:
+        return f"dopoUnione non porta alla riga 'gia' e 'ripara': {d['dopo']}"
+    return None
+
+
+PROVA_UNISCI_RIPARA = r"""
+import { unisci } from "./dati.mjs";
+import { eseguiti, avvisi, shared, setShared } from "./herdr.mjs";
+const [p, v] = process.env.HZ_COPPIA.split(" ");
+let riletto = 0;
+const rileggi = async () => { riletto++; setShared("arturo.progetti", { ...shared("arturo.progetti"), ...JSON.parse(process.env.HZ_DOPO || "{}") }); };
+const esito = await unisci(p, v, rileggi);
+const u = shared("arturo.unione") ?? null;
+console.log(JSON.stringify({ stato: esito.stato, testo: esito.testo ?? "", riletto, eseguiti: eseguiti.filter((e) => e[1] !== "-c"),
+  avvisi: avvisi.map((a) => [a.level, a.title, a.body ?? ""]), unione: u && [u.perdente, u.vincitore, u.stato],
+  rifiuto: shared("arturo.unione.rifiuto") ?? null }));
+"""
+
+
+def banco_unisci(repo: Path, casa: Path, rapido: bool = False):
+    """Il mod per node con Herdr finto, e la funzione che lancia PROVA_UNISCI_RIPARA. `rapido`: il secondo giro
+    dopo un errore transitorio senza la pausa di due minuti."""
+    mod_vero = repo / "shared/volta/mods/arturo"
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, (mod_vero / "dati.js").read_text(encoding="utf-8"))
+    if rapido:
+        s = (mod / "sessioni.mjs").read_text(encoding="utf-8")
+        assert s.count("export const UNIONE_RIPROVA_MS = 2 * 60000;") == 1, "UNIONE_RIPROVA_MS non c'è più in sessioni.js"
+        (mod / "sessioni.mjs").write_text(s.replace("export const UNIONE_RIPROVA_MS = 2 * 60000;", "export const UNIONE_RIPROVA_MS = 10;"), encoding="utf-8")
+    (mod / "prova.mjs").write_text(PROVA_UNISCI_RIPARA, encoding="utf-8")
+    app = casa / "app"
+    (app / "cache" / "volta").mkdir(parents=True)
+    node = shutil.which("node")
+
+    def gira(coppia: str, risposte: list, noti: dict, dopo: dict | None = None, conf: dict | None = None) -> dict:
+        (app / "arturo.json").write_text(json.dumps({"arturo": ["python3", "/x/bin/arturo"], "radice": "/x", "base": str(casa), "chi": "federico", **(conf or {})}), encoding="utf-8")
+        env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_COPPIA": coppia, "HZ_EXEC_LISTA": json.dumps(risposte),
+               "HZ_DOPO": json.dumps(dopo or {}), "HZ_SHARED": json.dumps({"arturo.progetti": noti})}
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-300:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+    return gira, app
+
+
+NOTI_UNISCI = {"volta": {"chiave": "volta", "titolo": "Volta"}, "volta-celeste": {"chiave": "volta", "titolo": "Volta"},
+               "herdr-arturo": {"chiave": "herdr-arturo", "titolo": "Herdr Arturo"}}
+FATTA = {"perdente": "herdr-arturo", "vincitore": "volta", "todo": 1, "stato": False, "handoff": 2, "altri_file": 0, "rinominati": [],
+         "scheda": "nessuna scheda del perdente", "link": 0, "terminali": 0, "fonte": None, "avvisi": [], "prova": False, "fatto": True,
+         "backup": "/x/data/progetti/unioni/u1"}
+
+
+def no_unione(tipo: str, testo: str, codice: int = 2, **altro) -> dict:
+    return {"code": codice, "stdout": json.dumps({"perdente": "herdr-arturo", "vincitore": "volta", "fatto": False, "rifiuto": testo,
+                                                  "codice": codice, "tipo": tipo, **altro}), "stderr": f"Errore: {testo}"}
+
+
+def hz199(repo: Path, casa: Path) -> str | None:
+    """unisci() di dati.js smista gli errori di Arturo (#6314)."""
+    if not shutil.which("node"):
+        return None
+    gira, _ = banco_unisci(repo, casa, rapido=True)
+    arturo = ["python3", "/x/bin/arturo", "progetti", "unisci", "herdr-arturo", "volta", "--json"]
+    try:
+        senza = {k: x for k, x in NOTI_UNISCI.items() if k != "volta"}
+        d = gira("herdr-arturo volta", [{"code": 0, "stdout": json.dumps(FATTA)}], senza, dopo={"volta": NOTI_UNISCI["volta"]})
+        if d["riletto"] != 1 or d["eseguiti"] != [arturo] or d["stato"] != "fatto":
+            return f"un vincitore non ancora letto non fa rileggere i progetti prima dell'unione: {d}"
+        d = gira("herdr-arturo grifone", [{"code": 0, "stdout": "{}"}], NOTI_UNISCI)
+        if d["riletto"] != 1 or d["eseguiti"] or d["stato"] != "errore" or "grifone" not in d["testo"]:
+            return f"un vincitore che non c'è neanche dopo la rilettura arriva ad Arturo: {d}"
+        d = gira("volta-celeste volta", [{"code": 0, "stdout": "{}"}], NOTI_UNISCI)
+        if d["eseguiti"] or d["stato"] != "gia" or [a[0] for a in d["avvisi"]] != ["info"] or not (d["rifiuto"] or {}).get("gia"):
+            return f"due nomi dello stesso progetto non finiscono in 'gia': {d}"
+        d = gira("herdr-arturo volta", [no_unione("gia_unito", "herdr-arturo è già unito in volta: non resta niente da unire")], NOTI_UNISCI)
+        if d["stato"] != "gia" or d["unione"] != ["herdr-arturo", "volta", "gia"] or [a[0] for a in d["avvisi"]] != ["info"]:
+            return f"un 'già unito' di Arturo resta un errore: {d}"
+        d = gira("herdr-arturo volta", [no_unione("transitorio", "la fonte dei task è giù", 3), {"code": 0, "stdout": json.dumps(FATTA)}], NOTI_UNISCI)
+        if d["eseguiti"] != [arturo, arturo] or d["stato"] != "fatto" or d["unione"] != ["herdr-arturo", "volta", "fatto"]:
+            return f"un errore transitorio non fa il secondo giro: {d}"
+        d = gira("herdr-arturo volta", [no_unione("transitorio", "la fonte dei task è giù", 3)], NOTI_UNISCI)
+        if d["eseguiti"] != [arturo, arturo] or d["unione"] != ["herdr-arturo", "volta", "errore"]:
+            return f"un errore transitorio fa più di un secondo giro, o non finisce in errore: {d['eseguiti']} {d['unione']}"
+        d = gira("herdr-arturo volta", [no_unione("scelta", "due cartelle di codice con repo diversi")], NOTI_UNISCI)
+        if (d["eseguiti"] != [arturo] or d["unione"] != ["herdr-arturo", "volta", "errore"] or [a[0] for a in d["avvisi"]] != ["error"]
+                or "repo diversi" not in d["avvisi"][0][2]):
+            return f"un rifiuto 'scelta' non resta un errore con le parole di Arturo, o fa partire altro: {d}"
+    except (RuntimeError, ValueError, KeyError, AssertionError) as e:
+        return f"unisci() di dati.js non gira con Herdr finto: {e}"
+    return None
+
+
+def hz200(repo: Path, casa: Path) -> str | None:
+    """Un errore riparabile fa nascere la sessione che ripara, una volta per coppia (#6314)."""
+    if not shutil.which("node"):
+        return None
+    gira, app = banco_unisci(repo, casa)
+    rotta = no_unione("riparabile", "guasto durante la fase scrittura: FileExistsError: rotto-b", 1, fase="scrittura", backup="/x/data/progetti/unioni/u2")
+    nata = {"code": 0, "stdout": json.dumps({"id": "lav-1", "sessionId": "s-1", "attach": ["claude", "attach", "lav-1"]})}
+    try:
+        d = gira("herdr-arturo volta", [rotta, nata], NOTI_UNISCI)
+        if len(d["eseguiti"]) != 2:
+            return f"un errore riparabile non fa nascere la sessione che ripara: {d['eseguiti']}"
+        n = d["eseguiti"][1]
+        prompt = n[-1] if n[-2:-1] == ["--"] else ""
+        if (n[2:4] != ["nasci", "qui"] or n[n.index("--progetto") + 1] != "volta" or not prompt.startswith("/inizio volta -- Riparazione automatica di Volta")
+                or "FileExistsError" not in prompt or "/x/data/progetti/unioni/u2" not in prompt or "fase scrittura" not in prompt
+                or "python3 /x/bin/arturo progetti unisci herdr-arturo volta --prova --json" not in prompt):
+            return f"la sessione che ripara non nasce qui, nel vincitore, col compito giusto: {n}"
+        if d["unione"] != ["herdr-arturo", "volta", "ripara"] or "warning" not in [a[0] for a in d["avvisi"]]:
+            return f"la riga e il dialogo non sanno che Arturo ripara: {d['unione']} {d['avvisi']}"
+        fatte = json.loads((app / "cache" / "volta" / "riparazioni-unione.json").read_text(encoding="utf-8"))
+        if list(fatte) != ["herdr-arturo>volta"]:
+            return f"la riparazione partita non resta segnata per la coppia: {fatte}"
+        d = gira("herdr-arturo volta", [rotta, nata], NOTI_UNISCI)
+        if len(d["eseguiti"]) != 1 or d["unione"] != ["herdr-arturo", "volta", "errore"] or not any("sei ore" in a[2] for a in d["avvisi"]):
+            return f"la stessa coppia entro sei ore fa nascere un'altra riparazione, o non lo dice: {d['eseguiti']} {d['avvisi']}"
+        (app / "cache" / "volta" / "riparazioni-unione.json").unlink()
+        d = gira("herdr-arturo volta", [rotta, nata], NOTI_UNISCI, conf={"ripara_unione": "spenta"})
+        if len(d["eseguiti"]) != 1 or d["unione"] != ["herdr-arturo", "volta", "errore"]:
+            return f"con la riparazione spenta nasce lo stesso una sessione: {d['eseguiti']}"
+    except (RuntimeError, ValueError, KeyError, OSError) as e:
+        return f"la riparazione non gira con Herdr finto: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196, "HZ197": hz197, "HZ198": hz198, "HZ199": hz199, "HZ200": hz200}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -16158,13 +16406,35 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 VELENI = [
     ('HZ196', 'shared/volta/mods/arturo/dati.js', 'level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }', 'level: "warning" }); return { stato: "errore", testo: no }; }'),
     ('HZ196', 'shared/volta/mods/arturo/dati.js', '    return rifiutaUnione(perdente, vincitore, "Un\'unione è già in corso.");', '    return { stato: "errore", testo: "Un\'unione è già in corso." };'),
-    ('HZ196', 'shared/volta/mods/arturo/dati.js', '  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now() });', '  setShared("arturo.unione", { perdente, vincitore, stato: "errore", vista: { testo }, quando: Date.now() });'),
+    ('HZ196', 'shared/volta/mods/arturo/dati.js', '  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now(), gia });', '  setShared("arturo.unione", { perdente, vincitore, stato: "errore", vista: { testo }, quando: Date.now() });'),
     ('HZ196', 'shared/volta/mods/arturo/doppioni.js', 'const suo = Boolean(rifiuto) && rifiuto.quando >= da && (', 'const suo = Boolean(rifiuto) && ('),
     ('HZ196', 'shared/volta/mods/arturo/doppioni.js', '(!coppia || (rifiuto.perdente === coppia.perdente && rifiuto.vincitore === coppia.vincitore));', '(!coppia || rifiuto.perdente === coppia.perdente);'),
     ('HZ196', 'shared/volta/mods/arturo/doppioni.js', '(!coppia || (rifiuto.perdente === coppia.perdente && rifiuto.vincitore === coppia.vincitore));', '(!coppia || rifiuto.vincitore === coppia.vincitore);'),
     ('HZ196', 'shared/volta/mods/arturo/doppioni.js', '  if (suo) return { stato: "errore", testo: String(rifiuto.testo || "La barra ha rifiutato l\'unione."), backup: null };\n', ''),
     ('HZ196', 'shared/volta/mods/arturo/doppioniui.js', 'this.unioni[k].da, shared("arturo.unione.rifiuto"), this.unioni[k]);', 'this.unioni[k].da);'),
     ('HZ196', 'shared/volta/mods/arturo/unisci.js', '    this.partita = Date.now();\n', ''),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', 'return fuori(tipo === "gia_unito" ? "gia" : "rifiuto", testo, extra);', 'return fuori("rifiuto", testo, extra);'),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', ': / è già unito in /.test(testo) ? "gia_unito" : "scelta";', ': "scelta";'),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', '  if (vista?.tempo) return "ferma";\n', ''),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', '  if (vista?.stato === "errore" && vista.guasto) return "ripara";\n', ''),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', 'const pulisci = (x, n) => String(x ?? "").replace(/[`$"\\\\]/g, "\'")', 'const pulisci = (x, n) => String(x ?? "")'),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', '  return `/inizio ${v} -- ${testo.slice(0, TESTO_COMPITO_MAX)}`;', '  return `/inizio ${v} -- ${testo}`;'),
+    ('HZ198', 'shared/volta/mods/arturo/sessioni.js', '=> !(ora - (Number(fatte?.[chiaveRipara(perdente, vincitore)]) || 0) < RIPARA_MS);', '=> true;'),
+    ('HZ198', 'shared/volta/mods/arturo/doppioni.js', '  if (vista?.stato === "gia") return { vai: false, gia: true, testo: "" };\n', ''),
+    ('HZ198', 'shared/volta/mods/arturo/doppioni.js', '  if (suo && rifiuto.gia) return { stato: "gia", testo: "", backup: null };\n', ''),
+    ('HZ198', 'shared/volta/mods/arturo/doppioni.js', '  if (u.stato === "ripara") return {', '  if (false) return {'),
+    ('HZ198', 'shared/volta/mods/arturo/doppioni.js', '  if (vista?.stato === "rifiuto" && vista.tipo === "riparabile") return { vai: true, testo: "" };', '  if (false) return { vai: true, testo: "" };'),
+    ('HZ199', 'shared/volta/mods/arturo/dati.js', '  if (no && /^Non conosco il progetto /.test(no) && rileggi) {', '  if (false) {'),
+    ('HZ199', 'shared/volta/mods/arturo/dati.js', '  if (no && / sono già lo stesso progetto\\.$/.test(no)) {', '  if (false) {'),
+    ('HZ199', 'shared/volta/mods/arturo/dati.js', '  } else if (via === "gia") {', '  } else if (false) {'),
+    ('HZ199', 'shared/volta/mods/arturo/dati.js', '  if (smistaUnione(vista) === "riprova") {', '  if (false) {'),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', '  } else if (via === "ripara") {', '  } else if (false) {'),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', '  if (!riparaLibera(fatte, perdente, vincitore)) {', '  if (false) {'),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', '  if (c.ripara_unione === "spenta") return {', '  if (false) return {'),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', 'const n = await nasciSu("qui", testoRipara(', 'const n = await nasciSu("amaltea", testoRipara('),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', 'vincitore, `Ripara unione ${perdente}`.slice(0, 60), null, true);', 'perdente, `Ripara unione ${perdente}`.slice(0, 60), null, true);'),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', '  fatte[chiaveRipara(perdente, vincitore)] = Date.now();\n', ''),
+    ('HZ200', 'shared/volta/mods/arturo/dati.js', 'c.chi, comandoArturo(c.arturo))', 'c.chi)'),
     ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'if (vista?.stato === "anteprima" && vista.pronta) return { vai: true, testo: "" };', 'if (vista?.stato === "anteprima") return { vai: true, testo: "" };'),
     ('HZ195', 'shared/volta/mods/arturo/doppioni.js', '  if (!u || !(u.quando >= da)) return null;', '  if (!u) return null;'),
     ('HZ195', 'shared/volta/mods/arturo/doppioni.js', 'if (u.stato === "fatto") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };', 'if (u.stato !== "errore") return { stato: "fatto", testo: "", backup: u.vista?.backup ?? null };'),
@@ -16399,17 +16669,17 @@ VELENI = [
     ('HZ177', 'shared/volta/mods/arturo/sessioni.js', '  if (!fatto && d.prova !== true) return fuori(', '  if (false) return fuori('),
     ('HZ177', 'shared/volta/mods/arturo/sessioni.js', '  if (slug(d.perdente) !== slug(perdente) || slug(d.vincitore) !== slug(vincitore))\n', '  if (false)\n'),
     ('HZ177', 'shared/volta/mods/arturo/sessioni.js', 'pronta: !fatto && !giu, backup', 'pronta: !fatto, backup'),
-    ('HZ177', 'shared/volta/mods/arturo/sessioni.js', '  if (typeof d.rifiuto === "string" && d.rifiuto.trim()) return fuori("rifiuto", d.rifiuto.trim());\n', ''),
+    ('HZ177', 'shared/volta/mods/arturo/sessioni.js', '  if (typeof d.rifiuto === "string" && d.rifiuto.trim()) {\n', '  if (false) {\n'),
     ('HZ177', 'shared/volta/mods/arturo/sessioni.js', '  if (p === v) return `${perdente} e ${vincitore} sono già lo stesso progetto.`;\n', ''),
     ('HZ177', 'shared/volta/mods/arturo/comandi.js', 'if (/^uniscivai-(?:[0-9a-f]{4})+-(?:[0-9a-f]{4})+$/.test(c))', 'if (c.startsWith("uniscivai-"))'),
     ('HZ177', 'shared/volta/mods/arturo/comandi.js', 'return { verbo: "unisci-vai", arg: c, lungo: true };', 'return { verbo: "unisci-vai", arg: c, lungo: false };'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '...(prova ? ["--prova"] : []), "--json"]', '"--json"]'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '    if (d) return vistaUnione(d, perdente, vincitore);\n', '    if (d && r.code === 0) return vistaUnione(d, perdente, vincitore);\n'),
-    ('HZ178', 'shared/volta/mods/arturo/dati.js', '  const ok = vista.stato === "fatto";', '  const ok = vista.stato !== "errore";'),
+    ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (via === "fatto") {', '  if (via === "fatto" || via === "ferma") {'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }\n', ''),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {', '  if (false) {'),
     ('HZ178', 'shared/volta/mods/arturo/dati.js', '  if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {', '  if (ora?.stato === "corso") {'),
-    ('HZ178', 'shared/volta/mods/arturo/unisci.js', '    if (this.passo !== "anteprima" || !this.vista?.pronta) return;\n', ''),
+    ('HZ178', 'shared/volta/mods/arturo/unisci.js', '    if (this.passo !== "anteprima" || !(this.vista?.pronta || riparabile(this.vista))) return;\n', ''),
     ('HZ178', 'shared/volta/mods/arturo/unisci.js', '        if (e.key === "escape") return this.chiudi();\n        if (this.passo', '        if (e.key === "escape") return this.chiudi();\n        if (e.key === "enter") return this.unisci(cx);\n        if (this.passo'),
     ('HZ178', 'shared/volta/mods/arturo/menusessione.js', ', { verbo: "unisci", testo: "Unisci a…" }];', '];'),
     ('HZ178', 'shared/volta/mods/arturo/casa.js', 'if (tt.tipo !== "nuova" && apriMenuTessera(tt.chiave, tt.titolo))', 'if (apriMenuTessera(tt.chiave, tt.titolo))'),
@@ -16869,6 +17139,11 @@ VELENI = [
     ('HZ94', 'shared/volta/mods/arturo/barra.js', '      .child(stella)', '      .child(stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }))'),
     ('HZ94', 'shared/volta/mods/arturo/volta.js', 'if (!annulla && !c.uscita && this.esce(s, c, cx)) return;', 'if (!annulla && this.esce(s, c, cx)) return;'),
     ('HZ94', 'shared/volta/mods/arturo/volta.js', '    if (!movimento()) return false;\n    const k = chiave(s);', '    const k = chiave(s);'),
+    ('HZ94', 'shared/volta/mods/arturo/sessioni.js', 'return { ...p, sounds: { ...(oggetto(p.sounds) ?? {}), enabled: !v } };', 'return { sounds: { enabled: !v } };'),
+    ('HZ94', 'shared/volta/mods/arturo/sessioni.js', 'const v = muto === null ? !inMuto(p) : Boolean(muto);', 'const v = muto === null ? inMuto(p) : Boolean(muto);'),
+    ('HZ94', 'shared/volta/mods/arturo/barra.js', '    else if (c === "muto") giraMuto(arg);\n', ''),
+    ('HZ94', 'shared/volta/keys.json', '"cmd-shift-m": "arturo.muto"', '"cmd-m": "arturo.muto"'),
+    ('HZ94', 'shared/volta/volta_mod.py', 'TASTI_NUOVI = ("arturo.muto", ', 'TASTI_NUOVI = ('),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";', '  if (chiede(s.coda)) return "stasi";'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\b(scrivimi|scrivi|dimmi|', '  /\\b(xscrivimi|xscrivi|dimmi|'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  return CHIEDE.some((re) => re.test(c)) || MOSSA.test(c);', '  return CHIEDE.some((re) => re.test(c));'),

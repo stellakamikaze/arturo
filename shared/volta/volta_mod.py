@@ -118,7 +118,7 @@ TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:
 # La Coda delle decisioni (⌘⇧J, Ctrl+Shift+J su Windows, #5720, 15/11/2026).
 # La checklist della ripartenza (⌘⇧S, Ctrl+Shift+S su Windows, 17/11/2026).
 # ⌘Z (Ctrl+Alt+Z su Windows) annulla la chiusura di una sessione nei primi 10 s (#5883, 17/11/2026).
-TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro", "arturo.coda", "arturo.checklist", "arturo.volta-annulla")
+TASTI_NUOVI = ("arturo.muto", "arturo.volta-giro-avanti", "arturo.volta-giro-indietro", "arturo.coda", "arturo.checklist", "arturo.volta-annulla")
 # Tasti nuovi di un comando che c'era già: ⌘K apre la stessa ricerca di ⌘O (#5369). Si offre il solo tasto:
 # un ⌘O tolto dalla persona non torna.
 TASTI_AGGIUNTI = (("cmd-k", "arturo.apri"),)

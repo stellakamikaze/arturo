@@ -6,6 +6,7 @@ import { TOLTI_MS, macchinaDelProgetto, riparteAlClic, voloArturo, esitoSposta, 
 import { tettoDi, entroDi, servizioAcceso, claudeDavanti, testoTodo } from "./sessioni.js";
 import { promptCompito, avvisoCompito, avvisoAttesa, nomeProgetto as nomeProgettoDi, nomeChi, sa } from "./sessioni.js";
 import { leggiUnione, vistaUnione, percheNonUnire, UNIONE_PROVA_MS, UNIONE_MS } from "./sessioni.js";
+import { smistaUnione, testoRipara, comandoArturo, riparaLibera, chiaveRipara, UNIONE_RIPROVA_MS } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -56,6 +57,8 @@ export async function config() {
     // Il modello piccolo che propone il progetto di un compito nuovo (⌘N, volta_compito.py, #6186): "acceso"
     // di serie, "spento" lascia la sola proposta dalle parole del testo.
     compito_modello: c.compito_modello === "spento" ? "spento" : "acceso",
+    // La sessione che ripara un'unione non riuscita (#6314): "accesa" di serie, "spenta" lascia l'errore nella riga.
+    ripara_unione: c.ripara_unione === "spenta" ? "spenta" : "accesa",
   };
 }
 
@@ -1770,10 +1773,12 @@ export async function unione(perdente, vincitore, prova) {
     const r = await exec(cmd, [...pre, "progetti", "unisci", perdente, vincitore, ...(prova ? ["--prova"] : []), "--json"], { cwd: c.base, timeout: tetto });
     const d = leggiUnione(r.stdout);
     if (d) return vistaUnione(d, perdente, vincitore);
-    return { ...vistaUnione(null), testo: prima(r.stderr) || `Arturo si è fermato senza dire perché (uscita ${r.code}).` };
+    // caduto senza JSON (un Arturo di prima del 21/11 con un'eccezione): `guasto` lo manda alla riparazione (#6314)
+    return { ...vistaUnione(null), testo: prima(r.stderr) || `Arturo si è fermato senza dire perché (uscita ${r.code}).`, guasto: r.code !== 0 };
   } catch (e) {
     const scaduto = Date.now() - t0 >= tetto - 1000;
-    return { ...vistaUnione(null), testo: scaduto ? `Arturo non ha risposto in ${Math.round(tetto / 1000)} secondi.` : String(e?.message ?? e).slice(0, 160) };
+    // `tempo`: l'unione può essere ancora in corso, e niente la rilancia (smistaUnione)
+    return { ...vistaUnione(null), testo: scaduto ? `Arturo non ha risposto in ${Math.round(tetto / 1000)} secondi: l'unione può essere ancora in corso. Guarda fra qualche minuto se ${perdente} c'è ancora fra i progetti.` : String(e?.message ?? e).slice(0, 160), tempo: scaduto };
   }
 }
 
@@ -1784,29 +1789,102 @@ export async function unione(perdente, vincitore, prova) {
 // Un'unione che la barra rifiuta prima di cominciarla (#6290): il motivo va anche in shared
 // arturo.unione.rifiuto, { perdente, vincitore, testo, quando }, coi nomi come sono arrivati. Il dialogo che
 // l'ha chiesta lo legge e smette di aspettare. Non passa da arturo.unione: lì può esserci un'unione in corso.
-const rifiutaUnione = (perdente, vincitore, testo) => {
-  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now() });
-  return { stato: "errore", testo };
+// `gia` (#6314): i due nomi sono già lo stesso progetto, e la riga lo dice come un'unione fatta.
+const rifiutaUnione = (perdente, vincitore, testo, gia = false) => {
+  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now(), gia });
+  return { stato: gia ? "gia" : "errore", testo };
 };
 
-export async function unisci(perdente, vincitore) {
-  const noti = shared("arturo.progetti");
-  const no = percheNonUnire(perdente, vincitore, noti);
+// Aspetta finché `pronto()` è vero, al più `ms`; torna l'ultimo valore.
+async function finche(pronto, ms, passo = 1000) {
+  const fine = Date.now() + ms;
+  while (!pronto() && Date.now() < fine) await pausa(passo);
+  return pronto();
+}
+
+// Un errore dell'unione vera non resta un vicolo (#6314). Prima di cominciare: un progetto che la barra non ha
+// ancora letto si rilegge (`rileggi`, la lettura della barra), e due nomi dello stesso progetto sono già uniti. Dopo: smistaUnione di sessioni.js dice se era già unito, se riprovare una
+// volta, se far nascere la sessione che ripara, o se resta l'errore con le parole di Arturo.
+export async function unisci(perdente, vincitore, rileggi = null) {
+  let no = percheNonUnire(perdente, vincitore, shared("arturo.progetti"));
+  if (no && /^Non conosco il progetto /.test(no) && rileggi) {
+    await rileggi();
+    no = percheNonUnire(perdente, vincitore, shared("arturo.progetti"));
+  }
+  if (no && / sono già lo stesso progetto\.$/.test(no)) {
+    notify({ title: "Già uniti", body: no, level: "info" });
+    return rifiutaUnione(perdente, vincitore, no, true);
+  }
   if (no) { notify({ title: "Non unisco", body: no, level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }
   const p = canonico(perdente), v = canonico(vincitore);
+  // Un'unione in corso non si aspetta qui: nella riga e nel dialogo gli altri Unisci sono spenti finché gira,
+  // e una seconda arriva solo da un'altra finestra. Il rifiuto lo dice, e la riga torna ai pulsanti (#6290).
   const ora = shared("arturo.unione");
   if (ora?.stato === "corso" && Date.now() - ora.quando < UNIONE_MS) {
     notify({ title: "Un'unione è già in corso", body: `${ora.perdente} entra in ${ora.vincitore}: aspetta che finisca.`, level: "warning" });
     return rifiutaUnione(perdente, vincitore, "Un'unione è già in corso.");
   }
-  setShared("arturo.unione", { perdente: p, vincitore: v, stato: "corso", vista: null, quando: Date.now() });
-  const vista = await unione(p, v, false);
-  const ok = vista.stato === "fatto";
-  setShared("arturo.unione", { perdente: p, vincitore: v, stato: ok ? "fatto" : "errore", vista, quando: Date.now() });
-  if (ok) notify({ title: `${nomeProgettoDi(p)} ora è ${nomeProgettoDi(v)}`, body: `Il nome ${p} resta valido. Copia di prima: ${vista.backup}`, level: "info" });
-  else notify({ title: "L'unione non è riuscita", body: `${vista.testo || "Arturo non ha confermato."} Guarda data/progetti/unioni/ prima di riprovare.`, level: "error" });
+  const scrivi = (stato, vista) => setShared("arturo.unione", { perdente: p, vincitore: v, stato, vista, quando: Date.now() });
+  scrivi("corso", null);
+  let vista = await unione(p, v, false);
+  if (smistaUnione(vista) === "riprova") {
+    scrivi("corso", null);
+    await pausa(UNIONE_RIPROVA_MS);
+    vista = await unione(p, v, false);
+  }
+  const via = smistaUnione(vista);
+  if (via === "fatto") {
+    scrivi("fatto", vista);
+    notify({ title: `${nomeProgettoDi(p)} ora è ${nomeProgettoDi(v)}`, body: `Il nome ${p} resta valido. Copia di prima: ${vista.backup}`, level: "info" });
+  } else if (via === "gia") {
+    scrivi("gia", vista);
+    notify({ title: `${nomeProgettoDi(p)} è già in ${nomeProgettoDi(v)}`, body: "Non resta niente da unire.", level: "info" });
+  } else if (via === "ripara") {
+    const r = await riparaUnione(p, v, vista);
+    vista = { ...vista, ripara: r };
+    scrivi(r.ok ? "ripara" : "errore", vista);
+    if (r.ok) notify({ title: "L'unione non è riuscita: Arturo la ripara", body: `${vista.testo} Una sessione in background legge l'errore, ripara la causa e rifà l'unione.`, level: "warning" });
+    else notify({ title: "L'unione non è riuscita", body: `${vista.testo} ${r.errore}`, level: "error" });
+  } else {
+    scrivi("errore", vista);
+    notify({ title: "L'unione non è riuscita", body: `${vista.testo || "Arturo non ha confermato."}${vista.backup ? ` Copia di prima: ${vista.backup}` : ""}`, level: "error" });
+  }
   return vista;
 }
+
+// Le riparazioni partite, { chiave: quando }, nella cache di Volta: una coppia al massimo una volta ogni RIPARA_MS.
+const fileRiparazioni = () => `${cacheVolta()}/riparazioni-unione.json`;
+
+// La sessione che ripara un'unione non riuscita (#6314): nasce su questa macchina, dove stanno la copia, i todo
+// e lo stato della coppia, in background nel progetto che resta. Il clic su Unisci è il sì della persona per
+// questa coppia, e per nessun'altra. Spenta con "ripara_unione": "spenta" in arturo.json. Torna { ok } o { errore }.
+export async function riparaUnione(perdente, vincitore, vista) {
+  const c = await config();
+  if (c.ripara_unione === "spenta") return { errore: "La riparazione automatica è spenta in arturo.json." };
+  const prima = await readTextFile(fileRiparazioni()).catch(() => null);
+  let fatte = {};
+  try { fatte = JSON.parse(prima ?? "{}") ?? {}; } catch { fatte = {}; }
+  if (!riparaLibera(fatte, perdente, vincitore)) {
+    registra("ripara-unione", { perdente, vincitore, esito: "gia-provata" });
+    return { errore: "Arturo ha già provato a ripararla nelle ultime sei ore: guarda la sua sessione prima di riprovare." };
+  }
+  const n = await nasciSu("qui", testoRipara(perdente, vincitore, vista, c.chi, comandoArturo(c.arturo)), vincitore, `Ripara unione ${perdente}`.slice(0, 60), null, true);
+  registra("ripara-unione", { perdente, vincitore, esito: n.ok ? "nata" : "errore", errore: n.errore, sid: n.id });
+  if (!n.ok) return { errore: `La sessione che ripara non è nata: ${n.errore ?? "nessuna risposta"}.` };
+  fatte[chiaveRipara(perdente, vincitore)] = Date.now();
+  // writeTextFile scrive solo sopra il contenuto letto (null = file nuovo), come gli altri file di Volta
+  try { await writeTextFile(fileRiparazioni(), JSON.stringify(fatte), prima ?? null); }
+  catch (e) { registra("ripara-unione", { perdente, vincitore, esito: "limite-non-scritto", errore: String(e?.message ?? e).slice(0, 160) }); }
+  return { ok: true, id: n.id };
+}
+
+// Rilegge i progetti con `carica`, la lettura della barra, e aspetta che arrivi (shared arturo.letto), al più
+// 20 secondi. Per l'unione di un progetto che la barra non ha ancora letto (#6314).
+export const rileggiProgetti = (carica) => async () => {
+  const da = Date.now();
+  carica();
+  await finche(() => (shared("arturo.letto") ?? 0) >= da, 20000, 500);
+};
 
 // Cerca doppioni (#6188): le coppie che la persona ha scartato ("Non sono doppioni") stanno in
 // doppioni-scartati.json nella cartella di Volta, { "<slug>|<slug>": { n, quando } }. `n` conta i gesti della

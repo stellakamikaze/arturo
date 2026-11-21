@@ -80,6 +80,9 @@ export function instrada(c) {
   // "impostazioni": il menu di Impostazioni del piede (prove senza clic).
   if (c === "impostazioni") return { verbo: "impostazioni", arg: null, lungo: false };
   if (c === "movimento" || c === "movimento-acceso" || c === "movimento-spento") return { verbo: "movimento", arg: c === "movimento" ? null : c.endsWith("acceso"), lungo: false };
+  // "muto", "muto-acceso", "muto-spento": i suoni degli avvisi (21/11/2026); il primo lo gira, "muto-acceso"
+  // zittisce, "muto-spento" riaccende i suoni (dal menu, dal tasto, da herdr-app do).
+  if (c === "muto" || c === "muto-acceso" || c === "muto-spento") return { verbo: "muto", arg: c === "muto" ? null : c.endsWith("acceso"), lungo: false };
   // "volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco.
   if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") return { verbo: "gruppi", arg: dopo("volta-gruppi-"), lungo: false };
   // "casa": le tessere dei progetti al posto del terminale (⌘T dal 12/11/2026, #5371); "casa-chiudi" torna

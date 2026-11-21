@@ -2517,10 +2517,18 @@ const quanti = (n, uno, tanti) => `${n} ${n === 1 ? uno : tanti}`;
 // di questa Volta non conosce il comando e risponde altro), "errore". `pronta`: il pulsante Unisci si accende.
 // Una risposta che parla di altri progetti, o un "fatto" senza la copia di prima, è un errore: il dialogo non
 // mostra mai come riuscita un'unione che Arturo non ha confermato.
+// Un errore porta anche `tipo` (#6314), che dice cosa farne (smistaUnione): "gia_unito" diventa lo stato "gia",
+// e un rifiuto porta la `fase` raggiunta e la copia di prima, se Arturo l'aveva già fatta. Un Arturo di prima
+// del 21/11 non dice il tipo: un "è già unito" vale lo stesso come gia_unito, il resto come scelta.
 export function vistaUnione(d, perdente, vincitore) {
-  const fuori = (stato, testo) => ({ stato, testo, righe: [], avvisi: [], pronta: false, backup: null });
+  const fuori = (stato, testo, extra = {}) => ({ stato, testo, righe: [], avvisi: [], pronta: false, backup: null, ...extra });
   if (!d || typeof d !== "object" || Array.isArray(d)) return fuori("errore", "Arturo non ha risposto.");
-  if (typeof d.rifiuto === "string" && d.rifiuto.trim()) return fuori("rifiuto", d.rifiuto.trim());
+  if (typeof d.rifiuto === "string" && d.rifiuto.trim()) {
+    const testo = d.rifiuto.trim();
+    const tipo = TIPI_UNIONE.includes(d.tipo) ? d.tipo : / è già unito in /.test(testo) ? "gia_unito" : "scelta";
+    const extra = { tipo, fase: typeof d.fase === "string" ? d.fase : null, backup: typeof d.backup === "string" && d.backup ? d.backup : null };
+    return fuori(tipo === "gia_unito" ? "gia" : "rifiuto", testo, extra);
+  }
   if (typeof d.perdente !== "string" || typeof d.vincitore !== "string" || !Number.isFinite(d.handoff) || !Number.isFinite(d.todo))
     return fuori("vecchio", "L'Arturo di questa Volta non sa ancora unire due progetti: va aggiornato.");
   if (slug(d.perdente) !== slug(perdente) || slug(d.vincitore) !== slug(vincitore))
@@ -2555,4 +2563,64 @@ export function percheNonUnire(perdente, vincitore, noti = NOTI) {
   if (p === v) return `${perdente} e ${vincitore} sono già lo stesso progetto.`;
   if (!noti?.[v]) return `Non conosco il progetto ${vincitore}.`;
   return null;
+}
+
+// Il muto di Volta (21/11/2026): i suoni di Herdr quando una sessione ti aspetta o finisce stanno in
+// settings.json, campo sounds.enabled (false = muto), che Herdr rilegge da solo. `persona` è settings.json
+// letto; `muto` true o false lo mette, null lo gira. Il resto del file, e i suoni scelti a mano in
+// sounds.done e sounds.blocked, restano com'erano. Senza il campo i suoni sono accesi.
+const oggetto = (x) => (x && typeof x === "object" && !Array.isArray(x) ? x : null);
+export const inMuto = (persona) => oggetto(oggetto(persona)?.sounds)?.enabled === false;
+export function conMuto(persona, muto = null) {
+  const p = oggetto(persona) ?? {};
+  const v = muto === null ? !inMuto(p) : Boolean(muto);
+  return { ...p, sounds: { ...(oggetto(p.sounds) ?? {}), enabled: !v } };
+}
+
+// --- Un'unione che non riesce (#6314) ------------------------------------------------------------------
+// Chiesto il 21/11/2026: "quando Unisci dà errore, Arturo lo analizza, lo risolve e permette l'unione".
+// I tipi d'errore di arturo progetti unisci --json (bin/unisci.py): gia_unito non è un guasto; transitorio si
+// riprova una volta; scelta chiede una decisione alla persona; riparabile lo sistema una sessione di Arturo.
+export const TIPI_UNIONE = ["gia_unito", "transitorio", "scelta", "riparabile"];
+// Dopo un errore transitorio (la fonte dei task giù) la barra riprova una volta, dopo questa pausa.
+export const UNIONE_RIPROVA_MS = 2 * 60000;
+// Una coppia si ripara da sola al massimo una volta in questo tempo: una riparazione che non riesce non
+// riparte in giro, e la riga lo dice.
+export const RIPARA_MS = 6 * 3600000;
+
+// Cosa fa la barra dopo l'unione vera, dalla vista di vistaUnione: "fatto", "gia" (era già unito: niente da
+// fare), "riprova" (transitorio), "ripara" (una sessione di Arturo), "ferma" (resta l'errore, con le parole di
+// Arturo). Un'unione che non ha risposto entro il tetto (`tempo`) può essere ancora in corso: mai un altro
+// giro. Un Arturo che è caduto senza JSON (`guasto`, uscita diversa da 0) va riparato come un riparabile.
+export function smistaUnione(vista) {
+  if (vista?.stato === "fatto") return "fatto";
+  if (vista?.stato === "gia") return "gia";
+  if (vista?.tempo) return "ferma";
+  if (vista?.stato === "rifiuto" && vista.tipo === "transitorio") return "riprova";
+  if (vista?.stato === "rifiuto" && vista.tipo === "riparabile") return "ripara";
+  if (vista?.stato === "errore" && vista.guasto) return "ripara";
+  return "ferma";
+}
+
+// La chiave di una coppia per il limite delle riparazioni: perdente e vincitore, nel loro verso.
+export const chiaveRipara = (perdente, vincitore) => `${slug(perdente)}>${slug(vincitore)}`;
+// Si può far partire una riparazione per la coppia? `fatte`: { chiave: quando } delle riparazioni partite.
+export const riparaLibera = (fatte, perdente, vincitore, ora = Date.now()) => !(ora - (Number(fatte?.[chiaveRipara(perdente, vincitore)]) || 0) < RIPARA_MS);
+
+// Il compito della sessione che ripara: una riga sola, sotto TESTO_COMPITO_MAX, che parte da /inizio del
+// vincitore. Dice l'errore, la fase, la copia di prima e le regole: leggere la copia prima di toccare, riparare
+// solo la causa, il conto (--prova) prima dell'unione vera, nessuna altra coppia, niente cancellato, e la scelta
+// alla persona se serve. `chi` è il nome di chi usa Volta (config().chi). `comando` è l'Arturo che ha fatto l'unione
+// (config().arturo): la sessione rilancia quello, non l'arturo che trova nel PATH, che può essere un'altra copia.
+export const comandoArturo = (argv) => (Array.isArray(argv) && argv.length ? argv : ["arturo"])
+  .map((a) => (/^[\w@%+=:,./~-]+$/.test(String(a)) ? String(a) : `'${String(a).replace(/'/g, "")}'`)).join(" ");
+export function testoRipara(perdente, vincitore, vista, chi = "tu", comando = "arturo") {
+  const p = slug(perdente), v = slug(vincitore);
+  const pulisci = (x, n) => String(x ?? "").replace(/[`$"\\]/g, "'").replace(/\s+/g, " ").trim().slice(0, n);
+  const errore = pulisci(vista?.testo || "Arturo non ha detto perché", 300);
+  const dove = vista?.backup ? `Copia di prima: ${pulisci(vista.backup, 200)} (leggi esito.json, errore.txt e manifesto.json).` : "Arturo non ha fatto la copia: niente è stato scritto.";
+  const testo = `Riparazione automatica di Volta (#6314): l'unione di ${p} in ${v} non è riuscita${vista?.fase ? ` nella fase ${pulisci(vista.fase, 20)}` : ""}. Errore: ${errore}. ${dove} `
+    + `Trova la causa e ripara solo quella. Poi lancia ${pulisci(comando, 200) || "arturo"} progetti unisci ${p} ${v} --prova --json e, se il conto torna, lo stesso comando senza --prova. `
+    + `Verifica che di ${p} non restino todo, stato, handoff e scheda. Non toccare altre coppie e non cancellare niente. Se serve una scelta, fermati e scrivila in Prossimo passo: ${pulisci(chi, 30) || "tu"}.`;
+  return `/inizio ${v} -- ${testo.slice(0, TESTO_COMPITO_MAX)}`;
 }

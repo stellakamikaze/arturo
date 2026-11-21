@@ -94,7 +94,7 @@ export class Doppioni {
       if (esito.vai) {
         this.unioni[k] = { ...this.unioni[k], stato: "corso", da: Date.now() };
         run(comandoUnisciVai(perdente, vincitore));
-      } else this.unioni[k] = { ...this.unioni[k], stato: "errore", testo: esito.testo };
+      } else this.unioni[k] = { ...this.unioni[k], stato: esito.gia ? "gia" : "errore", testo: esito.testo };
       cx.notify();
     });
   }
@@ -189,6 +189,11 @@ export class Doppioni {
       if (u?.stato === "fatto") return v_flex().gap(SPAZIO.xs).pt(SPAZIO.xs)
         .child(detto(`dp-uniti-${c.chiave}`, `Uniti: ${u.perdente} ora apre ${u.vincitore}.`, t.foreground))
         .when(Boolean(u.backup), (el) => el.child(detto(`dp-copia-${c.chiave}`, `Copia di prima: ${u.backup}`, t.muted)));
+      // #6314: già unito non è un errore; un errore riparabile ha fatto nascere la sessione che lo ripara
+      if (u?.stato === "gia") return detto(`dp-gia-${c.chiave}`, `Già uniti: ${u.perdente} apre già ${u.vincitore}.`, t.foreground).pt(SPAZIO.xs);
+      if (u?.stato === "ripara") return v_flex().gap(SPAZIO.xs).pt(SPAZIO.xs)
+        .child(detto(`dp-nonuniti-${c.chiave}`, `Non uniti: ${u.testo}`, t.blocked))
+        .child(detto(`dp-ripara-${c.chiave}`, "Arturo la ripara: una sessione in background legge l'errore e la copia, ripara la causa e rifà l'unione. Quando finisce, questa coppia non torna più qui.", t.muted));
       return v_flex().gap(SPAZIO.m).pt(SPAZIO.xs)
         .when(u?.stato === "errore", (el) => el.child(detto(`dp-nonuniti-${c.chiave}`, `Non uniti: ${u.testo}`, t.blocked)))
         .child(h_flex().gap(SPAZIO.m).items_center()

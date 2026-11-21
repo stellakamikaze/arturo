@@ -2,11 +2,11 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, props, openOverlay, closeOverlay, window, exec, home, shared, setShared, notify, run } from "herdr";
+import { theme, props, openOverlay, closeOverlay, window, exec, home, shared, setShared, notify, run, settings, appHome, readTextFile, writeTextFile } from "herdr";
 import { cartellaNota } from "./nota.js";
 import { altreMacchine, dove, nomeMacchina, inNascita } from "./dati.js";
 import { SPAZIO, RAGGIO, TESTO, PULSANTE, ICONA_MISURA, PALLINO } from "./misure.js";
-import { rigaMod } from "./sessioni.js";
+import { rigaMod, inMuto, conMuto } from "./sessioni.js";
 
 export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 
@@ -14,8 +14,8 @@ export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 // Herdr (Alt+↓ per la sessione che aspetta), perché su Windows ⌘ sarebbe il tasto Windows.
 export function tasti() {
   return window()?.platform === "macos"
-    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E", tessere: "⌘T", coda: "⌘⇧J", checklist: "⌘⇧S", compito: "⌘N", apriCompito: "⌘Invio", annulla: "⌘Z" }
-    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T", coda: "Ctrl+Shift+J", checklist: "Ctrl+Shift+S", compito: "Ctrl+Shift+N", apriCompito: "Ctrl+Invio", annulla: "Ctrl+Alt+Z" };
+    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E", tessere: "⌘T", coda: "⌘⇧J", checklist: "⌘⇧S", compito: "⌘N", apriCompito: "⌘Invio", muto: "⌘⇧M", annulla: "⌘Z" }
+    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T", coda: "Ctrl+Shift+J", checklist: "Ctrl+Shift+S", compito: "Ctrl+Shift+N", apriCompito: "Ctrl+Invio", muto: "Ctrl+Alt+M", annulla: "Ctrl+Alt+Z" };
 }
 
 // Un pallino di stato disegnato, non un carattere.
@@ -42,13 +42,45 @@ export function giraMovimento(acceso = null) {
   notify({ title: v ? "Movimento acceso" : "Movimento spento", body: v ? undefined : "Le sessioni tengono il pallino fermo.", level: "info", timeout: 3000 });
 }
 
+// Il muto (21/11/2026): spegne i suoni di Herdr quando una sessione ti aspetta o finisce; gli avvisi a
+// schermo restano. Vive in settings.json (conMuto di sessioni.js), così vale anche per Impostazioni
+// dell'app e resta dopo un riavvio. `muto` true o false lo mette, null lo gira. Scrive solo se il file non
+// è cambiato nel frattempo, come la pagina di Impostazioni di Herdr: al terzo giro andato a vuoto lo dice.
+export const muto = () => settings()?.sounds?.enabled === false;
+export async function giraMuto(v = null) {
+  const file = `${appHome()}/settings.json`;
+  let errore = null;
+  for (let giro = 0; giro < 3; giro++) {
+    let prima, persona;
+    try {
+      prima = await readTextFile(file);
+      persona = prima ? JSON.parse(prima) : {};
+    } catch (e) {
+      errore = e;
+      break;
+    }
+    if (!persona || typeof persona !== "object" || Array.isArray(persona)) { errore = "settings.json non è un oggetto"; break; }
+    const dopo = conMuto(persona, v);
+    try {
+      await writeTextFile(file, JSON.stringify(dopo, null, 2) + "\n", prima ?? null);
+      const zitto = inMuto(dopo);
+      notify({ title: zitto ? "Volta in muto" : "Suoni accesi", body: zitto ? "Niente suoni quando una sessione ti aspetta o finisce." : undefined, level: "info", timeout: 3000 });
+      return zitto;
+    } catch (e) {
+      errore = e;
+    }
+  }
+  notify({ title: "Non ho cambiato il muto", body: `settings.json: ${String(errore?.message ?? errore)}`, level: "error" });
+  return null;
+}
+
 // Il menu di "Impostazioni" nel piede: è un popup, cioè un'altra copia del mod (parte "impostazioni").
 export function apriImpostazioni() {
   openOverlay({ mod: "arturo", props: { parte: "impostazioni" }, kind: "popup", width: 270 });
 }
 
-// Il menu: l'interruttore del movimento, disegnato (la levetta scorre in 140 ms), poi le impostazioni
-// dell'app. Il popup scrive lo shared e si chiude solo per le impostazioni dell'app.
+// Il menu: gli interruttori del movimento e del muto, disegnati (la levetta scorre in 140 ms), poi le
+// impostazioni dell'app. Il popup scrive lo shared o settings.json e si chiude solo per le impostazioni dell'app.
 export class Impostazioni {
   init(_p, cx) {
     this.handle = cx.focus_handle();
@@ -59,9 +91,11 @@ export class Impostazioni {
     const t = theme();
     const acceso = shared("arturo.movimento") !== false;
     const ridotto = shared("arturo.movimento.ridotto") === true;
-    const leva = div().relative().w(30).h(18).flex_none().rounded_full().bg(acceso ? t.accent : t.border)
-      .child(div().absolute().top(2).left(acceso ? 14 : 2).size(14).rounded_full().bg(acceso ? t.accent_foreground : t.muted)
+    const zitto = this.muto ?? muto();
+    const levetta = (su) => div().relative().w(30).h(18).flex_none().rounded_full().bg(su ? t.accent : t.border)
+      .child(div().absolute().top(2).left(su ? 14 : 2).size(14).rounded_full().bg(su ? t.accent_foreground : t.muted)
         .transition("left", { duration: 140, easing: "ease-out" }));
+    const leva = levetta(acceso);
     const voce = (id) => h_flex().id(id).px(10).gap(10).rounded(6).cursor_pointer().hover((st) => st.bg(t.hover))
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation());
     return v_flex().id("impostazioni-menu").track_focus(this.handle).w_full().p(8).gap(4).bg(t.popover)
@@ -73,6 +107,17 @@ export class Impostazioni {
           .child(div().whitespace_normal().text_size(12).text_color(t.muted)
             .child(ridotto ? "Spento da Riduci movimento del sistema." : acceso ? "La stella gira su chi lavora, il pallino pulsa su chi ti aspetta." : "Pallini fermi, righe senza dissolvenza.")))
         .child(leva))
+      // Il muto: la levetta accesa vuol dire muto, come "Non disturbare" del sistema.
+      .child(voce("imp-muto").py(8).items_center()
+        // Herdr rilegge settings.json da sé, poco dopo: il menu mostra subito ciò che ha scritto.
+        .on_click((_e, cx) => cx.spawn(async (cx) => { const v = await giraMuto(); if (v !== null) this.muto = v; cx.notify(); }))
+        .child(v_flex().flex_1().min_w(0).gap(2)
+          .child(h_flex().gap(8).items_center()
+            .child(div().text_size(13).text_color(t.foreground).child("Muto"))
+            .child(div().text_size(12).text_color(t.dim).child(tasti().muto)))
+          .child(div().whitespace_normal().text_size(12).text_color(t.muted)
+            .child(zitto ? "Niente suoni: gli avvisi restano a schermo." : "Un suono quando una sessione ti aspetta o finisce.")))
+        .child(levetta(zitto)))
       .child(div().h(1).mx(6).bg(t.border))
       .child(voce("imp-app").h(30).items_center()
         .on_click(() => { run("app.settings"); this.chiudi(); })
