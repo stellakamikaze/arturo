@@ -2373,16 +2373,31 @@ export function entroDi(nome) {
 // Un valore che non è un numero (true, un indirizzo) non scade mai.
 export const appesa = (da, tetto, ora = Date.now()) => typeof da === "number" && ora - da >= 2 * tetto;
 
-// `tetti`: { campo: ms } con il tetto di ogni attesa. Torna [{ attesa, chiave?, ms }] delle attese spente.
-export function liberaAppese(o, tetti, ora = Date.now()) {
+// Il sonno del Mac non è un'attesa appesa (#6107, 21/11/2026). Col coperchio chiuso il MacBook dorme e si
+// sveglia pochi secondi ogni tanto: l'orologio salta di minuti, ma il lavoro in corso non è andato avanti
+// e torna da sé poco dopo il risveglio. Dal 19 al 21/11 sul MacBook 18 "giro appeso" su 25 erano sonni, e a
+// ogni risveglio partiva un secondo giro accanto al primo. Il mod conta il tempo da sveglio: un salto fra
+// due battiti del timer più lungo del passo più SONNO_MS è un sonno, e i suoi millisecondi si tolgono
+// dall'età di ogni attesa partita prima. L'ora di partenza non si tocca: `lascia` la usa per riconoscere
+// la sua attesa. SONNO_MS è basso perché il MacBook fa anche sonni di 27 s, uno dopo l'altro (20/11, 23:16).
+export const SONNO_MS = 10000;
+// I millisecondi dormiti fra il battito di `prima` e quello di `ora`; 0 da svegli o al primo battito.
+export const dormito = (prima, ora, passo) => (typeof prima === "number" && ora - prima > passo + SONNO_MS ? ora - prima - passo : 0);
+// `sonni`: [{ fine, ms }], i sonni visti. Quanti millisecondi ha dormito un'attesa partita a `da`.
+export const dormitiDa = (da, sonni = []) => sonni.reduce((n, s) => (s.fine > da ? n + s.ms : n), 0);
+
+// `tetti`: { campo: ms } con il tetto di ogni attesa. Torna [{ attesa, chiave?, ms }] delle attese spente;
+// `ms` è il tempo da sveglio.
+export function liberaAppese(o, tetti, ora = Date.now(), sonni = []) {
   const via = [];
+  const sveglia = (da) => (typeof da === "number" ? ora - dormitiDa(da, sonni) : ora);
   for (const [campo, tetto] of Object.entries(tetti)) {
     const v = o?.[campo];
     if (v && typeof v === "object") {
-      for (const [k, da] of Object.entries(v)) if (appesa(da, tetto, ora)) { delete v[k]; via.push({ attesa: campo, chiave: k, ms: ora - da }); }
-    } else if (appesa(v, tetto, ora)) {
+      for (const [k, da] of Object.entries(v)) if (appesa(da, tetto, sveglia(da))) { delete v[k]; via.push({ attesa: campo, chiave: k, ms: sveglia(da) - da }); }
+    } else if (appesa(v, tetto, sveglia(v))) {
       o[campo] = false;
-      via.push({ attesa: campo, ms: ora - v });
+      via.push({ attesa: campo, ms: sveglia(v) - v });
     }
   }
   return via;

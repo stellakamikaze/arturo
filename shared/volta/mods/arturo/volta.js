@@ -50,7 +50,7 @@ import { leggiRecenti, riprendiDaSola } from "./dati.js";
 import { daRiprendere, testoRipresa } from "./sessioni.js";
 import { gestoUf } from "./azioni.js";
 import { terminale } from "./casa.js";
-import { tettoDi, entroDi, appesa, liberaAppese, lascia, SPOSTA_MAX_MS, riprovaSposta } from "./sessioni.js";
+import { tettoDi, entroDi, appesa, liberaAppese, lascia, dormito, dormitiDa, SPOSTA_MAX_MS, riprovaSposta } from "./sessioni.js";
 
 // Il giro dell'elenco (step 5 del piano di revisione, 17/11/2026): ogni 10 s, e subito dopo un gesto (aggiorna
 // chiesto durante un giro ne fa partire un altro alla fine). Con 30 s un cambio arrivava fino a 30 s dopo.
@@ -844,22 +844,37 @@ export class Volta {
   // (faccio), che altrimenti non si apriva più, e la toglie dalla coda: dopo due volte SPOSTA_MAX_MS lo
   // spostamento staccato è finito da sé, e la coda non deve farne partire un secondo.
   sciogliAppese() {
-    const via = liberaAppese(this, TETTI_ATTESE());
-    for (const a of via) registra("attesa appesa", a);
+    const via = liberaAppese(this, TETTI_ATTESE(), Date.now(), this.sonni);
+    for (const a of via) registra("attesa appesa", { ...a, errore: [a.attesa, a.chiave].filter(Boolean).join(" "), livello: "avviso" });
     if (!via.some((a) => a.attesa === "spostando")) return;
     for (const [k, v] of Object.entries(this.faccio ?? {})) if (v === "sposta") { delete this.faccio[k]; delete this.codaSposta?.[k]; }
     this.pubblicaSposto();
   }
 
+  // Il battito del mod (#6107, 21/11/2026): ogni chiamata di aggiorna, quindi almeno una ogni OGNI da svegli.
+  // Un salto dell'orologio fra due battiti è un sonno del Mac (dormito di sessioni.js): va nel registro e
+  // in this.sonni, da dove il giro e le attese lo tolgono dalla loro età. Bastano gli ultimi 50.
+  battito() {
+    const ora = Date.now();
+    const ms = dormito(this.battitoUltimo, ora, OGNI);
+    this.battitoUltimo = ora;
+    if (!ms) return;
+    this.sonni = [...(this.sonni ?? []).slice(-49), { fine: ora, ms }];
+    registra("sonno", { ms });
+  }
+
   // Un giro di volta_sonda.py volta, mai due insieme: con una macchina lenta un giro dura qualche secondo.
   aggiorna(cx, gesto = true) {
+    this.battito();
     this.sciogliAppese();
     if (!this.script) return;
     // Un giro appeso si lascia andare dopo due tetti (19/11/2026): il 18/11 alle 23:00 un giro non è più
     // tornato, nonostante il timeout di exec, e la barra è rimasta ferma sull'elenco della sera fino al
-    // mattino dopo. Il giro vecchio, se torna, non tocca più inCorso (giroN).
-    if (this.inCorso && Date.now() - (this.inCorsoDa ?? 0) > 2 * tettoDi("volta")) {
-      registra("giro appeso", { ms: Date.now() - (this.inCorsoDa ?? 0) });
+    // mattino dopo. Il giro vecchio, se torna, non tocca più inCorso (giroN). I due tetti si contano da
+    // svegli: un giro partito prima di un sonno torna da sé al risveglio (battito).
+    const sveglio = Date.now() - (this.inCorsoDa ?? 0) - dormitiDa(this.inCorsoDa ?? 0, this.sonni);
+    if (this.inCorso && sveglio > 2 * tettoDi("volta")) {
+      registra("giro appeso", { ms: sveglio, livello: "avviso" });
       this.inCorso = false;
     }
     // un gesto durante un giro (apri, Riavvia, Sposta): il giro dopo parte appena questo finisce, non fra 10 s
