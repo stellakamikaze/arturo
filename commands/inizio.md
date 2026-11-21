@@ -465,6 +465,12 @@ Perché è fatta così:
   `arturo intervista famiglia <1-6>`. Con **salta** lancia `arturo intervista salta <id>`. Con "basta
   domande" lancia `arturo intervista spegni`. Un no al salvataggio non salva niente, e la domanda può
   tornare un altro giorno.
+- **La skill dal lavoro che torna.** [solo se `arturo intervista risposta` stampa la riga `SKILL`] La
+  persona ha appena detto quale lavoro rifà ogni settimana o ogni mese. Chiedile, una volta sola: "Vuoi
+  che ne faccia una skill tua, così non me lo rispieghi ogni volta?". Col sì apri con Read
+  `~/.claude/commands/creaskill.md` e seguilo: la sua risposta vale come domanda 1 e riparti dalla 2. Poi
+  lancia `arturo intervista skill si`. Col no lancia `arturo intervista skill no`. La riga `SKILL` esce
+  una volta sola: senza risposta non richiedere.
 - **La risposta alla proposta di uno spazio.** Col sì esegui il passo della riga `col sì` di `SPAZIO`:
   per Melchior accendi la memoria;
   per l'Orsa scrivi la regola in una riga, mostrala e solo col suo sì sul testo aggiungila al suo

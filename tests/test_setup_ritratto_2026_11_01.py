@@ -27,6 +27,8 @@ SR13 (R10) il consenso 2b dice che si leggono anche le richieste di conversazion
      fatta all'installazione.
 SR14 (F6) se la bozza della FASE 5 è rifiutata, cartella dei progetti e nome per Git si chiedono a parte.
 SR15 (F2) su Windows python3 segue la riga MANCA di installa.sh, come l'installatore: niente python.org.
+SR16 la FASE 10 propone di fare una skill della bozza ricorrente che piace, con /creaskill e dopo il sì, e
+     /setup resta sotto il tetto di SR08 (21/11/2026, #6277).
 
 Con --avvelena ogni controllo riceve una copia di commands/ e shared/ rotta nel punto che sorveglia,
 e deve fallire col suo codice e il motivo atteso.
@@ -229,10 +231,21 @@ def test_sr15(repo: Path) -> None:
     assert "python.org" not in uno, "SR15 la FASE 1 dà ancora la strada python.org, diversa da installa.sh"
 
 
+def test_sr16(repo: Path) -> None:
+    grezzo = (repo / "commands" / "setup.md").read_bytes().replace(b"\r\n", b"\n")
+    dieci = piatto(fase(grezzo.decode("utf-8"), "10"))
+    assert "Se la bozza le piace, proponile di farne una skill" in dieci and "col sì lancia `/creaskill`" in dieci, \
+        "SR16 la FASE 10 non propone la skill dopo la bozza ricorrente"
+    assert dieci.index("mostra l'esito") < dieci.index("proponile di farne una skill"), \
+        "SR16 la FASE 10 propone la skill prima di mostrare l'esito"
+    assert len(grezzo) <= TETTO, f"SR16 con la proposta della skill /setup pesa {len(grezzo)} byte, oltre i {TETTO}"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "SR01": test_sr01, "SR02": test_sr02, "SR03": test_sr03, "SR04": test_sr04, "SR05": test_sr05,
     "SR06": test_sr06, "SR07": test_sr07, "SR08": test_sr08, "SR09": test_sr09, "SR10": test_sr10,
     "SR11": test_sr11, "SR12": test_sr12, "SR13": test_sr13, "SR14": test_sr14, "SR15": test_sr15,
+    "SR16": test_sr16,
 }
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso).
@@ -267,6 +280,8 @@ VELENI = (
     ("SR15", [("commands/setup.md",
                "Python: su Windows, se python3 manca, il comando lo stampa installa.sh nella riga MANCA.",
                "Python da python.org con la casella \"Add python.exe to PATH\".")], "installa.sh"),
+    ("SR16", [("commands/setup.md", "col sì lancia `/creaskill` su quel lavoro", "poi vai avanti")],
+     "non propone la skill"),
 )
 
 

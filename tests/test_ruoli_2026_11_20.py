@@ -170,6 +170,10 @@ def test_rl06(repo: Path) -> None:
             f"RL06 il monitor della persona non eredita il ruolo: {con.get('monitor')}"
         assert "system-audit" not in con, "RL06 una skill che il modello non può chiamare resta nella mappa"
         assert con.get("posta") == ["scrivere le email di lavoro", "orsa"], f"RL06 manca il ruolo della persona: {con}"
+        # Il modello di /creaskill porta la riga: una skill nata da lì entra nella mappa (21/11/2026, #6277).
+        crea = (repo / "commands" / "creaskill.md").read_text(encoding="utf-8")
+        testa = crea[crea.index("```markdown"):crea.index("# <Il lavoro")]
+        assert "\nruolo: <" in testa, "RL06 il modello di /creaskill non porta la riga ruolo"
     finally:
         pulisci(radice)
 

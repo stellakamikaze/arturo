@@ -429,7 +429,8 @@ mkdir -p ~/.claude/data && date +%Y-%m-%d > ~/.claude/data/setup-fatto && rm -f 
 Con il ritratto proponi tre lavori da dieci minuti sul materiale vero della persona, uno per riga,
 il primo consigliato: lo stato di un progetto trovato, letto dai suoi file, poi /inizio col sì;
 /guidami se ci sono sessioni recenti; una bozza nella sua voce di una cosa che il ritratto mostra
-ricorrente. Fai quello che sceglie e mostra l'esito. Senza ritratto, o se lo chiede, usa
+ricorrente. Fai quello che sceglie e mostra l'esito. Se la bozza le piace, proponile
+di farne una skill: col sì lancia `/creaskill` su quel lavoro. Senza ritratto, o se lo chiede, usa
 `~/.claude/commands/sparring.md`: le sue tre domande diventano conferme del ritratto.
 Se preferisce esplorare da solo, indicagli `~/.claude/docs/principi/README.md` e chiudi.
 
@@ -437,16 +438,15 @@ Se preferisce esplorare da solo, indicagli `~/.claude/docs/principi/README.md` e
 
 ## Riepilogo finale
 
-Chiudi con un riepilogo in linguaggio semplice:
+Chiudi con un riepilogo semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
 - Ritratto (2b, 2c): fatto o saltato. "Arturo non ne fa copie: resta nella cronologia della conversazione, che Claude Code cancella dopo 90 giorni, e nel CLAUDE.md approvato."
-- Per ogni fase opzionale (4b, 5, 6, 7, 7c, 7d, 8, 8b, 8c, 8d, 10), il suo nome in parole semplici e se è fatta o saltata. Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale (4b, 5, 6, 7, 7c, 7d, 8, 8b, 8c, 8d, 10), il suo nome semplice e se è fatta o saltata. Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: "Ogni giorno ti bastano `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi "ricordami di…": lo ritrovi a ogni `/inizio`."
-- **Quando servono**: `/guidami` propone i prossimi passi dal lavoro recente, `/diagnosi` controlla Arturo e il progetto, `/creaskill` fa di un lavoro ripetuto una skill tua. Gli altri strumenti non elencarli.
-- **Cosa vedi senza chiedere**: la barra in basso con il contesto usato e la quota, con l'orario in cui le 5 ore si azzerano. Quando Claude ti aspetta, il Mac suona e la scheda del terminale cambia colore. `/dafare` apre il pannello delle cose da fare, per progetto. Un termine non chiaro (contesto, memoria, branch, quota) lo spieghi con dove sta in Arturo.
+- **Quando servono**: `/guidami` propone i prossimi passi dal lavoro recente, `/diagnosi` controlla Arturo e il progetto, `/creaskill` fa di un lavoro ripetuto una skill tua. Gli altri non elencarli.
+- **Cosa vedi senza chiedere**: la barra in basso con il contesto usato, la quota e l'ora in cui le 5 ore si azzerano. Quando Claude ti aspetta, il Mac suona e la scheda del terminale cambia colore. `/dafare` apre il pannello delle cose da fare, per progetto. Un termine non chiaro (contesto, memoria, branch, quota) lo spieghi con dove sta in Arturo.
 - **Aggiornamenti**: Arturo si aggiorna da solo alla chiusura della sessione, solo con versioni firmate da chi lo mantiene. La barra dice quando ne esce una, **`/novita`** racconta cosa è cambiato. Per decidere tu: `python3 ~/.claude/bin/arturo aggiornamenti manuali`, poi **`/aggiorna`**.
 - **Telemetria**: accesa o spenta (`python3 ~/.claude/bin/arturo telemetria stato`); `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere cosa parte.
 - **Contatto**: dato o no (`python3 ~/.claude/bin/arturo contatto`). Parte solo con le segnalazioni, e si toglie con `python3 ~/.claude/bin/arturo contatto togli`.
 - **Come far migliorare Arturo**: "Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: scrivo io il testo per chi mantiene Arturo e lo mando. Lo faccio anche da solo quando vedo che qualcosa di Arturo si inceppa: mando il fatto in poche righe, senza nomi né contenuti del tuo lavoro, e ti dico subito cosa è partito e come ritirarlo. Se preferisci che te lo chieda ogni volta: `python3 ~/.claude/bin/arturo segnalazioni manuali`."
-- `/system-audit` ricontrolla l'harness in ogni momento.
 - Chiudi con "Prossimo passo:" e una sola azione, che nomina il progetto del primo lavoro (FASE 10).

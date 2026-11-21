@@ -628,6 +628,8 @@ def bozza(c: dict) -> str:
     righe = [f"Nome: {nome}", f"Cosa fa: {descrivi(c)}", f"Quando parte: {quando}", "Passi:"]
     righe += [f"  {i}. {p}" for i, p in enumerate(passi, 1)]
     righe.append("Non fa: non manda niente a nessuno, non cancella file.")
+    # Vuota apposta: la riempie la domanda 5 di /creaskill ("come capisci che è venuto bene?").
+    righe.append("Finito quando: (da chiedere alla persona, tre o quattro righe a cui si risponde sì o no)")
     return "\n".join(righe)
 
 

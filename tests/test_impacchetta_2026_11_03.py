@@ -5,6 +5,7 @@ IP01 bin/impacchetta.py genera il pacchetto e la sua verifica non trova errori;
 IP02 ogni commands/<nome>.md è skills/<nome>/SKILL.md con name: e disable-model-invocation, e nel
      pacchetto non c'è commands/ (un comando del plugin prende il prefisso arturo:); fine, segnala e
      diagnosi restano senza il flag, perché li lancia anche Claude (review del 7/11/2026, finding 74);
+     dal 21/11/2026 anche creaskill (IP22);
 IP03 hooks/hooks.json ha tutti gli hook di settings.json, coi file tra virgolette in ${CLAUDE_PLUGIN_ROOT};
 IP04 impostazioni/arturo.json non ha hook, lo stile è "arturo:Conciso", la barra legge il puntatore;
 IP05 i percorsi ai dati della persona restano in ~/.claude (data/handoffs in /fine), quelli al codice no;
@@ -36,6 +37,9 @@ IP20 i testi per il subagente e per il login di gws danno i percorsi veri del co
 IP21 senza identità di Arturo né email nella config, identita-git.sh CARTELLA accetta l'identità automatica di
      Git con un AVVISO e rc 0, e /fine e /inizio lo dicono; con useConfigOnly, che fa fallire anche il commit, resta MANCA
      (segnalazione n. 67, 10/11/2026);
+IP22 nel pacchetto creaskill è chiamabile dal modello: senza disable-model-invocation e con la sua
+     description. Il metodo dice a Claude di proporre /creaskill, e /inizio lo apre dopo la risposta
+     sul lavoro che torna, col percorso del pacchetto (21/11/2026, #6277);
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
@@ -55,7 +59,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11", "IP12", "IP13", "IP14", "IP15",
-        "IP16", "IP17", "IP18", "IP19", "IP20", "IP21"]
+        "IP16", "IP17", "IP18", "IP19", "IP20", "IP21", "IP22"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -107,10 +111,22 @@ def prova(repo: Path) -> list[str]:
             skill = pacchetto / "skills" / nome / "SKILL.md"
             testa = skill.read_text(encoding="utf-8").split("\n---", 1)[0] if skill.exists() else ""
             bloccato = "disable-model-invocation: true" in testa
-            if f"name: {nome}" not in testa or bloccato == (nome in ("fine", "segnala", "diagnosi")):
+            if f"name: {nome}" not in testa or bloccato == (nome in ("fine", "segnala", "diagnosi", "creaskill")):
                 mancanti.append(nome)
         if mancanti or (pacchetto / "commands").exists() or not comandi:
             rossi.append(f"IP02 comandi non diventati skill: {mancanti[:4]}")
+
+        crea = pacchetto / "skills" / "creaskill" / "SKILL.md"
+        testa_crea = crea.read_text(encoding="utf-8").split("\n---", 1)[0] if crea.exists() else ""
+        inizio_p = pacchetto / "skills" / "inizio" / "SKILL.md"
+        inizio_t = inizio_p.read_text(encoding="utf-8") if inizio_p.exists() else ""
+        metodo_t = (repo / "shared" / "metodo.md").read_text(encoding="utf-8")
+        if "disable-model-invocation" in testa_crea or "\ndescription:" not in testa_crea \
+                or "proponi `/creaskill`" not in metodo_t \
+                or "${CLAUDE_PLUGIN_ROOT}/skills/creaskill/SKILL.md" not in inizio_t:
+            rossi.append(f"IP22 creaskill non è chiamabile dal modello nel pacchetto: flag "
+                         f"{'disable-model-invocation' in testa_crea}, /inizio col percorso del pacchetto "
+                         f"{'skills/creaskill/SKILL.md' in inizio_t}")
 
         settings = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
         hooks = json.loads((pacchetto / "hooks" / "hooks.json").read_text(encoding="utf-8")).get("hooks", {})
@@ -390,7 +406,11 @@ def prova(repo: Path) -> list[str]:
 # (caso, file, testo giusto, testo rotto): ogni veleno toglie la riga che il caso sorveglia.
 VELENI = [
     ("IP02", "bin/impacchetta.py", 'testa = f"name: {nome}\\n" + testa', "pass"),
-    ("IP02", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi")', "CHIAMATI_DAL_MODELLO = ()"),
+    ("IP02", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill")',
+     "CHIAMATI_DAL_MODELLO = ()"),
+    ("IP22", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill")',
+     'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi")'),
+    ("IP22", "commands/inizio.md", "`~/.claude/commands/creaskill.md` e seguilo", "`/creaskill` e seguilo"),
     ("IP03", "bin/impacchetta.py", """r'"${CLAUDE_PLUGIN_ROOT}/\\1"'""", """r'${CLAUDE_PLUGIN_ROOT}/\\1'"""),
     ("IP04", "bin/impacchetta.py", 'resto["outputStyle"] = f"{NOME}:{stile}"', "pass"),
     ("IP06", "bin/impostazioni.py", "        return attuale, None, frammento, f\"{_dove(", "        return attuale, frammento, frammento, None and f\"{_dove("),

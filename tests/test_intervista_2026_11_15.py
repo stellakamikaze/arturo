@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IV01-IV11: bin/intervista.py, l'intervista che continua dopo /setup (15/11/2026, Fase C, #5709).
+"""IV01-IV12: bin/intervista.py, l'intervista che continua dopo /setup (15/11/2026, Fase C, #5709).
 
 La voce "L'intervista che continua" (ROADMAP.md) e la sezione omonima di docs/privacy.md promettono: al
 massimo una domanda al giorno, solo nelle prime sei settimane dopo /setup, mai in rotazione, domande per
@@ -18,6 +18,9 @@ IV08 arturo contesto stampa INTERVISTA, ma in rotazione non la stampa e non scri
 IV09 salta toglie la domanda per sempre, e una nota persona-ID già in memoria la copre.
 IV10 arturo intervista passa da bin/arturo; /inizio e la privacy raccontano l'intervista.
 IV11 lo script non importa rete né telemetria.
+IV12 dopo la risposta a ricorrente esce la riga SKILL, che propone /creaskill: una volta sola, mai per
+     un'altra domanda. `skill no` e `skill si` restano nello stato, senza testo; /inizio dice cosa fare
+     della riga (21/11/2026, #6277).
 
 Con --avvelena ogni controllo riceve una copia del repository rotta nel punto che sorveglia, e deve
 fallire col suo codice e il motivo atteso (VELENI).
@@ -215,9 +218,35 @@ def test_iv11(b: Banco) -> None:
     assert not vietati, f"IV11 intervista.py importa rete o telemetria: {vietati}"
 
 
+def test_iv12(b: Banco) -> None:
+    altra = b.lancia("risposta", "committenti", "--testo", RISPOSTA)
+    assert altra.returncode == 0 and "SKILL:" not in altra.stdout, \
+        f"IV12 la proposta di una skill esce per un'altra domanda: {altra.stdout[-200:]}"
+    lavoro = "Ogni lunedì scrivo il riepilogo della settimana per la redazione."
+    prima = b.lancia("risposta", "ricorrente", "--testo", lavoro)
+    assert prima.returncode == 0 and "SKILL:" in prima.stdout and "/creaskill" in prima.stdout, \
+        f"IV12 dopo ricorrente non esce la proposta di /creaskill: {prima.returncode} {prima.stdout[-200:]}"
+    assert "proposta" in b.stato().get("skill", {}), f"IV12 lo stato non segna la proposta: {b.stato()}"
+    # La persona toglie la nota dalla memoria e risponde di nuovo: la proposta non torna.
+    (b.claude / "data" / "memory" / "profilo" / "persona-ricorrente.md").unlink()
+    seconda = b.lancia("risposta", "ricorrente", "--testo", lavoro + " Anche il venerdì.")
+    assert seconda.returncode == 0 and "SKILL:" not in seconda.stdout, \
+        f"IV12 la proposta torna una seconda volta: {seconda.returncode} {seconda.stdout[-200:]} {seconda.stderr[-200:]}"
+    no = b.lancia("skill", "no")
+    assert no.returncode == 0 and b.stato()["skill"].get("esito") == "no", \
+        f"IV12 il no non resta nello stato: {no.returncode} {b.stato().get('skill')}"
+    assert b.prossima()["skill"]["esito"] == "no", "IV12 stato --json non dice il no"
+    grezzo = (b.claude / "data" / "intervista" / "stato.json").read_text(encoding="utf-8")
+    assert "riepilogo" not in grezzo, f"IV12 lo stato tiene il testo della risposta: {grezzo[:200]}"
+    assert b.lancia("skill", "forse").returncode == 3, "IV12 skill accetta un valore che non è sì o no"
+    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8")
+    assert "stampa la riga `SKILL`" in inizio and "arturo intervista skill no" in inizio \
+        and "commands/creaskill.md" in inizio, "IV12 /inizio non dice cosa fare della riga SKILL"
+
+
 CASI = [(f"IV{n:02d}", f) for n, f in enumerate(
     (test_iv01, test_iv02, test_iv03, test_iv04, test_iv05, test_iv06, test_iv07, test_iv08, test_iv09,
-     test_iv10, test_iv11), start=1)]
+     test_iv10, test_iv11, test_iv12), start=1)]
 
 VELENI = (
     ("IV01", [("docs/mestieri.md", "- `consegna`:", "- consegna:")], "domande per tutti"),
@@ -233,6 +262,7 @@ VELENI = (
     ("IV10", [("bin/arturo", '    "intervista": ("intervista",', '    "intervista-vecchia": ("intervista",')],
      "non arriva"),
     ("IV11", [("bin/intervista.py", "import argparse\n", "import argparse\nimport urllib\n")], "rete o telemetria"),
+    ("IV12", [("bin/intervista.py", 'not isinstance(stato.get("skill"), dict)', "True")], "seconda volta"),
 )
 
 

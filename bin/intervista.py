@@ -6,6 +6,7 @@
   arturo intervista risposta ID [--testo T]   col sì della persona, la risposta entra nella memoria come nota
                                               persona-ID (tipo user); senza --testo la legge da stdin
   arturo intervista salta ID                  la domanda non torna più
+  arturo intervista skill si|no               la risposta alla proposta di fare una skill del lavoro che torna
   arturo intervista famiglia N|NOME|nessuna   fissa la famiglia di mestiere (1-6, o parola, immagine, ...)
   arturo intervista spegni | accendi          ferma o riprende l'intervista
 
@@ -25,6 +26,8 @@ dai temi dell'indice dello storico (data/storico/indice.json). Senza famiglia re
 Quando tace: intervista spenta (anche ARTURO_INTERVISTA=0), memoria spenta (la risposta non si potrebbe
 salvare), /setup mai finito (data/setup-fatto), oltre GIORNI giorni dal setup, già una domanda oggi.
 Una domanda proposta due volte senza risposta conta come saltata.
+Dopo la risposta a DOMANDA_SKILL (il lavoro che torna) `risposta` stampa la riga SKILL: /inizio propone /creaskill
+con quella risposta come prima domanda. Esce una volta sola, e il sì o il no restano nello stato (#6277).
 Lo stato sta in ~/.claude/data/intervista/stato.json, fuori da git: niente testo delle risposte, solo id e
 date. Il testo della risposta sta solo nella nota della memoria. Solo libreria standard, Python 3.8 o successivo.
 """
@@ -52,6 +55,7 @@ PREFISSO_NOTA = "persona-"
 MESTIERI = QUI.parent / "docs" / "mestieri.md"
 FAMIGLIE = ("parola", "immagine", "insegnamento", "produzione", "consulenza", "archivio")
 ORDINE_GENERALI = (("mestiere", "committenti"), ("ricorrente", "consegna"))  # prima e dopo quelle della famiglia
+DOMANDA_SKILL = "ricorrente"  # la sua risposta è un lavoro che torna: il materiale di una skill
 
 
 # --- Le domande da docs/mestieri.md ---------------------------------------------------------------------
@@ -335,7 +339,8 @@ def comando_stato(come_json: bool) -> int:
     dati = {"accesa": not spenta(stato), "tace": tace, "famiglia": fam, "fonte_famiglia": fonte,
             "setup": inizio.isoformat() if inizio else None, "giorni": GIORNI,
             "risposte": sorted(stato["risposte"]), "saltate": sorted(stato["saltate"]),
-            "prossima": domanda["id"] if domanda else None}
+            "prossima": domanda["id"] if domanda else None,
+            "skill": stato["skill"] if isinstance(stato.get("skill"), dict) else None}
     if come_json:
         print(json.dumps(dati, ensure_ascii=False))
         return 0
@@ -346,6 +351,9 @@ def comando_stato(come_json: bool) -> int:
         restano = GIORNI - (oggi() - inizio).days
         print(f"setup: {inizio.isoformat()} · " + (f"restano {restano} giorni" if restano >= 0 else "finita"))
     print(f"risposte: {len(dati['risposte'])} · saltate: {len(dati['saltate'])}")
+    if dati["skill"]:
+        print(f"skill dal lavoro che torna: proposta il {dati['skill'].get('proposta', '?')} · "
+              f"risposta: {dati['skill'].get('esito', 'nessuna')}")
     print(f"prossima: {domanda['id']} · {domanda['testo']}" if domanda else "prossima: nessuna, i vuoti sono coperti")
     return 0
 
@@ -385,7 +393,34 @@ def comando_risposta(ident: str, testo: Optional[str]) -> int:
         return rc
     stato = leggi_stato()
     stato["risposte"][ident] = oggi().isoformat()
+    proporre = ident == DOMANDA_SKILL and not isinstance(stato.get("skill"), dict)
+    if proporre:
+        stato["skill"] = {"proposta": oggi().isoformat()}
     scrivi_stato(stato)
+    if proporre:
+        print(RIGA_SKILL)
+    return 0
+
+
+RIGA_SKILL = ("SKILL: questo lavoro torna, e può diventare una skill della persona. Chiedilo adesso, una volta sola: "
+              "\"Vuoi che ne faccia una skill tua, così non me lo rispieghi ogni volta?\". Col sì segui /creaskill "
+              "con questa risposta come domanda 1, poi: arturo intervista skill si. Col no: arturo intervista skill no.")
+
+
+def comando_skill(valore: str) -> int:
+    v = valore.strip().lower().replace("ì", "i")
+    if v not in ("si", "no"):
+        print("uso: arturo intervista skill si|no", file=sys.stderr)
+        return 3
+    stato = leggi_stato()
+    voce = stato["skill"] if isinstance(stato.get("skill"), dict) else {}
+    voce.setdefault("proposta", oggi().isoformat())
+    voce["esito"] = v
+    voce["risposta"] = oggi().isoformat()
+    stato["skill"] = voce
+    scrivi_stato(stato)
+    print("segnato: la skill nasce con /creaskill" if v == "si"
+          else "segnato: la proposta di una skill dal lavoro che torna non torna più")
     return 0
 
 
@@ -446,10 +481,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         return comando_proponi(a.json)
     if a.comando in ("spegni", "accendi"):
         return comando_interruttore(a.comando == "accendi")
-    if a.comando in ("risposta", "salta", "famiglia") and not a.valore:
-        print(f"uso: arturo intervista {a.comando} " + ("N|NOME|nessuna" if a.comando == "famiglia" else "ID"),
+    if a.comando in ("risposta", "salta", "famiglia", "skill") and not a.valore:
+        print(f"uso: arturo intervista {a.comando} " + {"famiglia": "N|NOME|nessuna", "skill": "si|no"}.get(a.comando, "ID"),
               file=sys.stderr)
         return 3
+    if a.comando == "skill":
+        return comando_skill(a.valore)
     if a.comando == "risposta":
         return comando_risposta(a.valore, a.testo)
     if a.comando == "salta":

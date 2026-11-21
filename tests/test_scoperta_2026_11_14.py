@@ -25,6 +25,8 @@ SC10 i collegamenti: settings.json registra l'hook su Edit e Write, bin/arturo h
 SC11 confronta con una sessione parallela: un CLAUDE.md scritto da un'altra sessione di Claude dopo
      l'impronta non è una modifica a mano (segnalazione 77). Una riga dell'indice di un'altra sessione
      di prima dell'impronta non nasconde la modifica a mano che viene dopo.
+SC12 la bozza di un'automazione porta la riga "Finito quando:", dopo "Non fa:": la riempie la domanda 5
+     di /creaskill. Sta nel blocco SCOPERTA e nel file della bozza (21/11/2026, #6277).
 
 Sulla base 31ee9e7 (dev prima della Scoperta) sono rossi tutti i casi: bin/scoperta.py non c'è. Con
 --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi che lo sorvegliano.
@@ -41,7 +43,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["SC01", "SC02", "SC03", "SC04", "SC05", "SC06", "SC07", "SC08", "SC09", "SC10", "SC11"]
+CASI = ["SC01", "SC02", "SC03", "SC04", "SC05", "SC06", "SC07", "SC08", "SC09", "SC10", "SC11", "SC12"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/scoperta-indice.py", "settings.json", "commands/fine.md",
             "commands/inizio.md"]
 VELENI = [
@@ -65,6 +67,7 @@ VELENI = [
     (["SC10"], "commands/fine.md", "Fuori dal Modo rotazione lancia poi", "Lancia poi"),
     (["SC11"], "bin/scoperta.py", 'toccati_da_claude(sessione, _ora(dati.get("ora")))', "toccati_da_claude(sessione)"),
     (["SC11"], "bin/scoperta.py", "            if ora is not None and ora >= da:", "            if ora is not None:"),
+    (["SC12"], "bin/scoperta.py", '    righe.append("Finito quando: (da chiedere', '    righe.append("Controlli: (da chiedere'),
 ]
 
 REPORT_0 = "# Report settimanale\n\n| Campo | Valore |\n|---|---|\n| Stato | verde |\n| Data | 1/9 |\n\nNote fisse.\n"
@@ -423,8 +426,25 @@ def sc11(lab: Lab) -> str:
     return ""
 
 
+def sc12(lab: Lab) -> str:
+    lab.popola()
+    r = lab.scoperta("proponi", sessione="sessione-a-0001")
+    if r.returncode != 0 or "Bozza della skill:" not in r.stdout:
+        return f"nessuna proposta di automazione: rc {r.returncode} {r.stdout[:200]}"
+    bozza = r.stdout[r.stdout.index("Bozza della skill:"):]
+    if "\nFinito quando:" not in bozza:
+        return f"la bozza non porta Finito quando: {bozza[-300:]}"
+    if bozza.index("\nFinito quando:") < bozza.index("\nNon fa:"):
+        return "Finito quando viene prima di Non fa"
+    ident = r.stdout.split()[1].rstrip(":")
+    file = lab.cl / "data" / "scoperta" / "bozze" / f"{ident}.md"
+    if not file.is_file() or "\nFinito quando:" not in file.read_text(encoding="utf-8"):
+        return f"il file della bozza non porta Finito quando: {file}"
+    return ""
+
+
 PROVE = {"SC01": sc01, "SC02": sc02, "SC03": sc03, "SC04": sc04, "SC05": sc05, "SC06": sc06, "SC07": sc07,
-         "SC08": sc08, "SC09": sc09, "SC10": sc10, "SC11": sc11}
+         "SC08": sc08, "SC09": sc09, "SC10": sc10, "SC11": sc11, "SC12": sc12}
 
 
 def prova(repo: Path) -> list:

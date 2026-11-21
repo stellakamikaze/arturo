@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-21 — Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai
+
+**Cosa cambia**: nelle prime settimane `/inizio` ti chiede quale lavoro rifai ogni settimana o ogni mese.
+Adesso, dopo la tua risposta, Claude ti chiede una volta sola se vuoi farne una skill tua, e col sì parte
+`/creaskill` senza richiederti cosa deve fare. Lo stesso alla fine di `/setup`: se la prima bozza di un
+lavoro ricorrente ti piace, Claude ti propone di salvarla come skill. Chi usa Arturo come plugin prima non
+poteva ricevere queste proposte: Claude non riusciva ad aprire `/creaskill` da solo. Una skill nuova nasce
+anche con una riga che dice il suo lavoro, così Claude la trova quando lo chiedi con altre parole. La bozza
+che la Scoperta ti mostra porta già lo spazio per "Finito quando".
+
+**Il principio**: il momento giusto per una skill è quando hai appena detto che un lavoro torna.
+
+**A chi serve**: a chi ha appena installato Arturo. Se dici no, la proposta non torna.
+
+---
+
 ## 2026-11-21 — le skill che hai già ricevono la lista "Finito quando" con una domanda sola
 
 **Cosa cambia**: `/system-audit` ti dice in una riga quali skill tue non hanno ancora la lista "Finito

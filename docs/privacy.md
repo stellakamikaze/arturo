@@ -71,7 +71,7 @@ Se prima di Arturo usavi Claude, ChatGPT o Gemini nel browser o nell'app, `/setu
 Nelle prime sei settimane dopo `/setup`, `/inizio` ti fa al massimo una domanda al giorno sul tuo lavoro, per esempio per chi lavori o quale lavoro rifai ogni mese.
 
 - **Cosa legge.** Per scegliere la domanda uno script sul tuo computer legge la sezione "Chi sono" del tuo CLAUDE.md e i temi dell'indice dello storico, se c'è. Non usa un modello e non va in rete.
-- **Cosa resta.** La risposta entra nella memoria solo se dici sì al testo che Claude ti mostra, come nota `persona-<domanda>`. Lo stato dell'intervista, in `~/.claude/data/intervista/`, tiene solo quali domande hai già visto, con le date, e mai il testo delle risposte. Né lo stato né le note vanno a chi mantiene Arturo, e non entrano nella telemetria.
+- **Cosa resta.** La risposta entra nella memoria solo se dici sì al testo che Claude ti mostra, come nota `persona-<domanda>`. Lo stato dell'intervista, in `~/.claude/data/intervista/`, tiene solo quali domande hai già visto, con le date, e il tuo sì o no alla proposta di fare una skill del lavoro che rifai. Mai il testo delle risposte. Né lo stato né le note vanno a chi mantiene Arturo, e non entrano nella telemetria.
 - **Come la fermi.** `arturo intervista salta <domanda>` toglie una domanda, `arturo intervista spegni` le ferma tutte. Una nota salvata si toglie dalla memoria come le altre.
 
 ## Gli spazi che Arturo ti propone

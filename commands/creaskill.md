@@ -102,6 +102,7 @@ description: >-
 when_to_use: >-
   Usa quando la persona dice "<frase 1>", "<frase 2>", "<frase 3>". Non per <il lavoro simile
   che è un altro>.
+ruolo: <il lavoro in poche parole, col verbo all'infinito>
 ---
 
 # <Il lavoro, in parole sue>
@@ -128,7 +129,9 @@ la volta dopo va nella cartella della skill, con una riga qui: il file e quando 
 
 Il corpo descrive un buon risultato e il perché, non una procedura passo per passo: così Claude
 sceglie la strada da solo, e la skill regge anche quando il caso cambia un po'. Il `when_to_use`
-è la parte che conta di più: Claude decide se aprire la skill leggendo solo quello. Se servono
+è la parte che conta di più: Claude decide se aprire la skill leggendo solo quello. La riga `ruolo:`
+la legge l'avvio di ogni sessione: così Claude sa che quel lavoro ha una skill anche quando la persona
+lo chiede con altre parole. Se servono
 parti lunghe (un modello, un elenco di nomi), mettile in file a parte nella cartella
 `references/` della skill e citale dal corpo. "Finito quando" è la sola lista: la persona la
 legge e la corregge, e Claude non consegna finché una riga dice no.
