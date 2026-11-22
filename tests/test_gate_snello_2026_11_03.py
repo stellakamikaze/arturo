@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GS01-GS08: il gate snello (3/11/2026), cioè tests/esegui_gate.py che fa girare i lavori del gate in parallelo.
+"""GS01-GS11: il gate snello (3/11/2026), cioè tests/esegui_gate.py che fa girare i lavori del gate in parallelo.
 
 GS01 un lavoro rosso non ferma gli altri: due rossi in liste diverse (un banco e una controprova) escono
      tutti e due nel rapporto, i verdi girano lo stesso e l'esecutore esce 1.
@@ -16,11 +16,16 @@ GS09 --elenchi (il gate vero): un test_*.py in tests/ fuori dagli elenchi, un ba
      7/11/2026, finding 94).
 GS10 un banco non eredita ARTURO_CODICE né la cartella bin del codice nel PATH dalla sessione che lancia il
      gate: con Arturo installato come plugin /inizio nella HOME finta si credeva un plugin (10/11/2026, #5206).
+GS11 un banco vede i pacchetti del sito utente di chi lancia il gate, anche nella HOME finta: su un Mac il sito
+     utente sta sotto la HOME, e PyYAML installato solo lì dava quattro banchi rossi (22/11/2026, #6426). La base
+     viene dalla HOME vera che verifica-allineamento.sh passa in ARTURO_GATE_HOME_VERA, e quella variabile non
+     arriva al banco. Dove il sito utente non segue la HOME (Windows: APPDATA) il caso è un SALTO.
 
 Ogni caso gira su un repository finto con banchi finti, così misura l'esecutore e non i banchi veri.
 Con --avvelena girano tre esecutori rotti. Uno ignora il codice d'uscita dei lavori: GS01 e GS04 devono
 essere rossi. Uno salta sempre le controprove: rossi GS05, GS06 e GS07. Uno non le salta mai: rosso GS05.
-Uno non confronta gli elenchi: rosso GS09. Uno passa ai banchi l'ambiente intero: rosso GS10.
+Uno non confronta gli elenchi: rosso GS09. Uno passa ai banchi l'ambiente intero: rosso GS10. Uno non passa
+la base del sito utente: rosso GS11.
 
 Sulla base 177852f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -34,6 +39,9 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import dichiara  # noqa: E402
 
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid", "GIT_COMMITTER_NAME": "t",
            "GIT_COMMITTER_EMAIL": "t@example.invalid", "GIT_CONFIG_GLOBAL": os.devnull}
@@ -55,6 +63,11 @@ BANCHI["ambiente.py"] = (
     "import json, os\nfrom pathlib import Path\n"
     "Path(os.environ['GS_OUT'], 'ambiente.json').write_text(json.dumps("
     "{'codice': os.environ.get('ARTURO_CODICE'), 'path': os.environ.get('PATH', '')}))\n")
+BANCHI["sito.py"] = (
+    "import json, os\nfrom pathlib import Path\n"
+    "try:\n    import gs11_modulo  # noqa: F401\n    visto = True\nexcept ImportError:\n    visto = False\n"
+    "Path(os.environ['GS_OUT'], 'sito.json').write_text(json.dumps("
+    "{'visto': visto, 'base': os.environ.get('PYTHONUSERBASE'), 'vera': os.environ.get('ARTURO_GATE_HOME_VERA')}))\n")
 BANCHI["aiuto.py"] = "VALORE = 1\n"
 BANCHI["usa_aiuto.py"] = "import aiuto\nprint('PASS', aiuto.VALORE)\n"
 SALTO = "        if not rilascio and x.impronta and impronte.get(x.id) == x.impronta:\n"
@@ -63,8 +76,13 @@ VELENI = (
     (("GS05", "GS06", "GS07"), SALTO, "        if True:\n"),
     (("GS05",), SALTO, "        if False:\n"),
     (("GS09",), "    incompleti = elenchi_incompleti(root, a) if a.elenchi", "    incompleti = [] if a.elenchi"),
-    (("GS10",), "        return dict(ambiente_pulito(), HOME=", "        return dict(os.environ, HOME="),
+    (("GS10",), "        e = dict(ambiente_pulito(), HOME=", "        e = dict(os.environ, HOME="),
+    (("GS11",), "        e.update(base_utente())\n", "        pass\n"),
 )
+
+
+class Salto(Exception):
+    """Un caso che su questa piattaforma non ha cosa provare: SALTO nel gate, rosso nella controprova."""
 
 
 class Lab:
@@ -253,8 +271,36 @@ def test_gs10(esecutore: Path) -> None:
             f"GS10 il banco eredita ARTURO_CODICE o la sua cartella bin dalla sessione che lancia il gate: {visto}"
 
 
+def test_gs11(esecutore: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        casa = Path(t) / "casa-vera"
+        casa.mkdir()
+        vera = {k: v for k, v in os.environ.items() if k not in ("PYTHONUSERBASE", "PYTHONNOUSERSITE")}
+        vera.update(HOME=str(casa), USERPROFILE=str(casa))
+        sito = subprocess.run([sys.executable, "-c", "import site; print(site.getusersitepackages())"], env=vera,
+                              capture_output=True, text=True, timeout=30).stdout.strip()
+        if not sito or casa.resolve() not in Path(sito).resolve().parents:
+            raise Salto(f"qui il sito utente non segue la HOME ({sito}): la HOME finta non lo nasconde")
+        Path(sito).mkdir(parents=True)
+        (Path(sito) / "gs11_modulo.py").write_text("VALORE = 1\n", encoding="utf-8")
+        lab = Lab(Path(t), esecutore)
+        uscite = Path(t) / "uscite"
+        uscite.mkdir()
+        # Come nel gate vero: verifica-allineamento.sh ha già spostato HOME nella cartella di prova e passa la HOME
+        # vera in ARTURO_GATE_HOME_VERA. PYTHONUSERBASE vuoto vale come assente: conta la base presa da quella.
+        finta = Path(t) / "casa-finta"
+        finta.mkdir()
+        r = lab.esegui("--banchi", "sito.py", env=dict(GS_OUT=str(uscite), HOME=str(finta), USERPROFILE=str(finta),
+                                                       ARTURO_GATE_HOME_VERA=str(casa), PYTHONUSERBASE=""))
+        assert r.returncode == 0, f"GS11 l'esecutore esce {r.returncode}: {(r.stdout + r.stderr)[-400:]}"
+        visto = json.loads((uscite / "sito.json").read_text(encoding="utf-8"))
+        assert visto["visto"], f"GS11 nella HOME finta il banco non vede il sito utente di chi lancia il gate: {visto}"
+        assert not visto["vera"], f"GS11 la HOME vera arriva al banco: {visto}"
+
+
 TESTS = {"GS01": test_gs01, "GS02": test_gs02, "GS03": test_gs03, "GS04": test_gs04, "GS05": test_gs05,
-         "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09, "GS10": test_gs10}
+         "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09, "GS10": test_gs10,
+         "GS11": test_gs11}
 
 
 def avvelena(repo: Path) -> None:
@@ -268,6 +314,9 @@ def avvelena(repo: Path) -> None:
             for codice in codici:
                 try:
                     TESTS[codice](rotto)
+                except Salto as s:
+                    dichiara(f"veleno {codice}", s)
+                    continue
                 except AssertionError as e:
                     assert str(e).startswith(codice), f"VELENO {codice} rosso per un altro motivo: {e}"
                     print(f"VELENO {codice} ROSSO ({rotta.strip()}): {str(e)[:120]}")
@@ -290,6 +339,8 @@ def main() -> int:
         for nome, test in TESTS.items():
             try:
                 test(esecutore_di(repo, nome))
+            except Salto:
+                rossi.append(f"{nome}: salto")
             except AssertionError as e:
                 (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
             except Exception as e:  # noqa: BLE001
@@ -299,7 +350,10 @@ def main() -> int:
         print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
         return 0
     for nome, test in TESTS.items():
-        test(esecutore_di(repo, nome))
+        try:
+            test(esecutore_di(repo, nome))
+        except Salto as s:
+            dichiara(nome, s)
     print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
     return 0
 

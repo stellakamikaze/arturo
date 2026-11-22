@@ -131,8 +131,10 @@ class Worker:
         return self.basi[ref]
 
     def env(self) -> Dict[str, str]:
-        return dict(ambiente_pulito(), HOME=str(self.home), USERPROFILE=str(self.home), TMPDIR=str(self.tmp),
-                    XDG_CACHE_HOME=str(self.dir / "cache"), ARTURO_SALTI=str(self.salti))
+        e = dict(ambiente_pulito(), HOME=str(self.home), USERPROFILE=str(self.home), TMPDIR=str(self.tmp),
+                 XDG_CACHE_HOME=str(self.dir / "cache"), ARTURO_SALTI=str(self.salti))
+        e.update(base_utente())
+        return e
 
 
 # Le variabili che l'avvio di Arturo mette nella sessione di Claude. Un gate lanciato da una sessione con
@@ -145,11 +147,39 @@ def ambiente_pulito() -> Dict[str, str]:
     """L'ambiente di chi lancia il gate, senza le variabili della sessione e senza la cartella bin del codice
     di Arturo nel PATH: ogni banco vede solo la sua copia."""
     codice = os.environ.get("ARTURO_CODICE", "").rstrip("/\\")
-    fuori = {k: v for k, v in os.environ.items() if k not in VARIABILI_DELLA_SESSIONE}
+    fuori = {k: v for k, v in os.environ.items() if k not in VARIABILI_DELLA_SESSIONE + (HOME_VERA,)}
     if codice and "PATH" in fuori:
         bins = {os.path.join(codice, "bin"), codice + "/bin"}
         fuori["PATH"] = os.pathsep.join(p for p in fuori["PATH"].split(os.pathsep) if p.rstrip("/\\") not in bins)
     return fuori
+
+
+_BASI_UTENTE: Dict[str, Dict[str, str]] = {}
+# La HOME di chi lancia il gate: tests/verifica-allineamento.sh la esporta prima di spostare HOME nella
+# cartella di prova. Serve solo a trovare il sito utente, e ai banchi non arriva.
+HOME_VERA = "ARTURO_GATE_HOME_VERA"
+
+
+def base_utente(interprete: str = sys.executable) -> Dict[str, str]:
+    """PYTHONUSERBASE del python3 del gate con la HOME vera, se la cartella c'è. Su un Mac il sito utente sta sotto
+    la HOME (~/Library/Python/3.X), e nella HOME finta del worker spariva: con PyYAML installato solo lì il
+    controllo iniziale del gate passava e quattro banchi davano "No module named 'yaml'" (22/11/2026, #6426).
+    Su Windows il sito utente segue APPDATA, che il gate non sposta. La base è una per tutti i lavori, anche py38:
+    il banco py38 di test_script lancia python3 come figlio, e con la base del Python vecchio Z07 era rosso."""
+    if interprete not in _BASI_UTENTE:
+        base = ""
+        vera = ambiente_pulito()
+        if os.environ.get(HOME_VERA):
+            vera.update(HOME=os.environ[HOME_VERA], USERPROFILE=os.environ.get("ARTURO_USERPROFILE_VERO") or
+                        os.environ[HOME_VERA])
+        try:
+            p = subprocess.run([interprete, "-c", "import site; print(site.getuserbase())"], env=vera,
+                               capture_output=True, text=True, timeout=30)
+            base = p.stdout.strip() if p.returncode == 0 else ""
+        except (OSError, subprocess.SubprocessError):
+            pass
+        _BASI_UTENTE[interprete] = {"PYTHONUSERBASE": base} if base and os.path.isdir(base) else {}
+    return _BASI_UTENTE[interprete]
 
 
 def esegui_uno(lavoro: Lavoro, w: Worker, root: Path, py38: str) -> None:

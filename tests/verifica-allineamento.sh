@@ -62,6 +62,9 @@ trap 'rm -rf "$FIXTURE"; gate_lucchetto_lascia' EXIT
 # Su Windows Chrome con uno USERPROFILE di prova non apre la porta di debug (W13): prova_pagina.js
 # gli ridà quello vero. Il suo profilo resta comunque nella cartella di prova (--user-data-dir).
 export ARTURO_USERPROFILE_VERO="${USERPROFILE:-}"
+# tests/esegui_gate.py ne ricava il sito utente di Python, che su un Mac sta sotto la HOME e nella HOME
+# finta sparirebbe: con PyYAML installato solo lì quattro banchi uscivano rossi (22/11/2026, #6426, GS11).
+export ARTURO_GATE_HOME_VERA="$HOME"
 HOME="$FIXTURE/home"
 export HOME USERPROFILE="$HOME" XDG_CACHE_HOME="$FIXTURE/cache" TMPDIR="$FIXTURE/tmp" PYTHONDONTWRITEBYTECODE=1
 # W13: nel gate la prova nel browser non salta. Senza Chrome o node 22 il gate è rosso.

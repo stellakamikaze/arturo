@@ -48,13 +48,17 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
    Lo stesso controllo gira anche prima del push, in `.githooks/pre-push`, sui commit che partono verso il
    repository pubblico: un nome si ferma sul Mac e non diventa un'email "Run failed" da GitHub (10/11/2026).
+   Come su GitHub, i commit che un ramo del remoto ha già non contano: `main` avanza fino a un commit già
+   su `origin/dev` anche se il suo messaggio ha un nome (22/11/2026, #6425, IG09).
    L'hook si attiva una volta per clone, con `git config core.hooksPath .githooks`, e poi passa la mano a
    `~/.claude/git/hooks/pre-push`.
    Su Windows alcuni controlli non si possono provare (link simbolici senza la Modalità
    sviluppatore, appunti e browser veri): escono come `SALTO <codice>` da `tests/salti_windows.py`,
    e la riga finale li conta (`salti=N`) e li elenca. Il gate esce con `0` anche con dei salti, ma un
-   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove resta solo il veleno di
-   RT23, che vale solo su Windows (`salti=1`).
+   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove restano solo i salti che
+   valgono solo su Windows (il 22/11/2026 GV07, MG03, i veleni di IP21 e RT23: `salti=6`).
+   I banchi vedono il sito utente di Python di chi lancia il gate anche nella HOME finta (`PYTHONUSERBASE`,
+   GS11): su un Mac PyYAML installato con `pip --user` sta sotto la HOME (22/11/2026, #6426).
    Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
    Un commit che insegna a una guardia un programma o un percorso nuovo aggiorna, nello stesso commit, il
    `PATTERN_*` del pre-filtro che la chiama (`hooks/prefiltro_bash.py`, poi `genera`), il docstring della guardia e la sua riga nel README. Il ritardo si
