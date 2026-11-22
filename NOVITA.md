@@ -13,6 +13,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Un controllo rosso fa rifare solo il pezzo bocciato
+
+**Cosa cambia**: quando un test o un controllo boccia una parte del lavoro, Claude rifà solo quella parte.
+Prima scrive in una riga il confine: quale controllo è rosso, cosa si aspettava e cosa ha ottenuto, quali
+file può toccare. I pezzi già verdi restano come sono. Vale anche nel controllo dell'handoff di `/fine`,
+che fa correggere solo le righe che segnala, e nella bozza di `/setup`, dove una tua correzione cambia
+solo la parte che nomini.
+
+**Il principio**: rifare tutto per un difetto solo rimette in gioco quello che funzionava, e può portare
+un errore nuovo dove prima non c'era. Il confine scritto tiene la correzione piccola e controllabile.
+
+---
+
 ## 2026-11-22 — La rotazione si ferma da sola quando gira a vuoto
 
 **Cosa cambia**: la rotazione riparte da sola a ogni passo chiuso. Adesso si ferma in due casi. Il primo:

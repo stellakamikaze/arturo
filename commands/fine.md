@@ -237,7 +237,8 @@ bash ~/.claude/bin/handoff-gate.sh "<handoff>"; echo "rc=$?"
 ```
 
 Il gate è bloccante. Il rosso (`rc=1`) stampa una riga per difetto (tabella, ID, Chi, segnaposto mai
-compilato). Correggi l'handoff (e l'archivio) e rilancia finché è verde.
+compilato). Correggi solo le righe che il gate nomina, nell'handoff e nell'archivio: il resto resta com'è.
+Poi rilancia finché è verde.
 
 ## FASE 6 · Retention e indice
 

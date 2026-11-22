@@ -84,6 +84,9 @@ ha la riga del destino nuovo.
 F34 le skill che la persona ha già (21/11/2026, #6277): /creaskill col nome di una skill sua legge lo stato
 da bin/skill_sezioni.py, fa solo la domanda 5 e aggiunge le sezioni dopo il sì; una skill di Arturo resta
 ARTURO, anche col clone; in /system-audit il controllo dà solo WARN.
+F35 un controllo rosso fa rifare solo il pezzo bocciato (22/11/2026, #6319): il metodo dice di rifare
+solo quel pezzo e di scrivere prima il confine; il gate dell'handoff di /fine fa correggere solo le righe
+che nomina; la bozza di /setup cambia solo la parte corretta.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1681,6 +1684,24 @@ def test_f34(repo: Path) -> None:
             f"F34 col clone una skill di Arturo passa per una skill della persona: {r.stdout!r} {r.stderr[-300:]!r}"
 
 
+def test_f35(repo: Path) -> None:
+    """Un controllo rosso fa rifare solo il pezzo bocciato, con un confine scritto (22/11/2026, #6319)."""
+    assert (repo / "shared" / "metodo.md").is_file(), "F35 manca shared/metodo.md"  # base vecchia
+    metodo = read(repo / "shared" / "metodo.md")
+    errori = metodo[metodo.index("## Errori e correzioni"):metodo.index("## Codice e test")]
+    for pezzo in ("rifai solo quel pezzo", "scrivi il confine", "l'atteso contro l'ottenuto",
+                  "i file che puoi toccare", "I pezzi verdi restano come sono"):
+        assert pezzo in errori, f"F35 il metodo non dice {pezzo!r}"
+    fine = read(repo / "commands" / "fine.md")
+    fase5 = fine[fine.index("## FASE 5"):fine.index("## FASE 6")]
+    assert "Correggi solo le righe che il gate nomina" in fase5 and "il resto resta com'è" in fase5, \
+        "F35 il gate dell'handoff fa riscrivere l'handoff intero"
+    assert (repo / "shared" / "setup-ritratto.md").is_file(), "F35 manca shared/setup-ritratto.md"
+    ritratto = read(repo / "shared" / "setup-ritratto.md")
+    assert "Ogni correzione rifà la bozza" not in ritratto and "cambia solo la parte che la persona nomina" in ritratto \
+        and "riscrivi solo le righe che corregge" in ritratto, "F35 una correzione di /setup rifà la bozza intera"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
@@ -1688,7 +1709,7 @@ TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F0
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
          "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
-         "F33": test_f33, "F34": test_f34}
+         "F33": test_f33, "F34": test_f34, "F35": test_f35}
 
 
 def main() -> int:

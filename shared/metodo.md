@@ -42,6 +42,7 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 - Prima la diagnosi, poi la correzione. Leggi tu l'errore esatto, i log e lo stato; alla persona chiedi solo il comportamento atteso.
 - Rispetta il contesto negativo: se la persona dice "non è X", non tornare su X.
 - Una causa è provata solo se la prova gira nel contesto vero del guasto. Su un guasto intermittente una prova singola non basta.
+- Se un controllo boccia un pezzo, rifai solo quel pezzo. Prima scrivi il confine in una riga: il controllo rosso, l'atteso contro l'ottenuto, i file che puoi toccare. I pezzi verdi restano come sono.
 - Se lo stesso errore resiste a tre approcci davvero diversi, fermati e cambia strategia, oppure chiedi.
 - Una modifica larga su molti file si prova prima su un file, con test e controllo dei tipi. Poi procede a lotti.
 
