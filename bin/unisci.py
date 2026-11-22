@@ -20,6 +20,14 @@ Prima di scrivere il comando copia tutto quello che cambia in data/progetti/unio
 rilegge la copia e conta i file: se la copia non torna, si ferma senza scrivere. --prova stampa
 l'anteprima e non scrive niente; --json dà l'anteprima o l'esito in JSON, per Volta.
 Si rifiuta se i due progetti hanno due cartelle di codice con repo diversi: due codici non si uniscono qui.
+
+Miscellanea (22/11/2026, "Elimina progetto" di Volta, e arturo progetti elimina): un'unione con vincitore
+`miscellanea` elimina il perdente. Miscellanea raccoglie la memoria dei progetti eliminati e nient'altro:
+  - se non ha ancora una scheda, nasce con la prima eliminazione (titolo "Miscellanea");
+  - non prende cartella, repo e macchina del perdente, e due repo diversi non fermano l'eliminazione: la
+    cartella del codice resta su disco com'è, e l'anteprima lo dice;
+  - la riga di stato del perdente non passa: Miscellanea non ha uno stato suo;
+  - Miscellanea non si elimina e non entra in un altro progetto.
 Exit: 0 fatto · 1 guasto a metà (un'eccezione: il JSON lo dice, il traceback va in errore.txt nella copia)
 · 2 non si può (repo diversi, niente da unire, copia che non torna, rifiuto della fonte) · 3 uso sbagliato
 o fonte giù. Con --json ogni errore porta `tipo` (gia_unito, transitorio, scelta, riparabile), `fase` e
@@ -48,6 +56,9 @@ import todo_store as ts  # noqa: E402
 ATTESA_FONTE = 300  # secondi: la fonte sposta i task uno per uno
 NOME_HANDOFF = re.compile(r"^HANDOFF_(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})\.md$")
 CAMPI_CODICE = ("cartella", "repo", "macchina")
+MISCELLANEA = "miscellanea"
+TITOLO_MISCELLANEA = "Miscellanea"
+COSA_MISCELLANEA = "Raccoglie la memoria dei progetti eliminati da Volta: todo, handoff e schede."
 
 
 GIU = {"giu": True}  # l'anteprima con la fonte giù: l'unione vera non parte
@@ -121,7 +132,8 @@ def metti(fm: list, chiave: str, valore: str) -> list:
     return fuori
 
 
-def scheda_vincitrice(testo_v: str, testo_p: str, perdente: str, vincitore: str, giorno: str) -> str:
+def scheda_vincitrice(testo_v: str, testo_p: str, perdente: str, vincitore: str, giorno: str,
+                      archivio: bool = False) -> str:
     fm_v, corpo_v = dividi_scheda(testo_v)
     fm_p, corpo_p = dividi_scheda(testo_p)
     alias = [a for a in lista(campo(fm_v, "alias")) if cx.slug(a) != vincitore]
@@ -129,7 +141,7 @@ def scheda_vincitrice(testo_v: str, testo_p: str, perdente: str, vincitore: str,
         if cx.slug(a) != vincitore and cx.slug(a) not in (cx.slug(x) for x in alias):
             alias.append(a)
     fm_v = metti(fm_v, "alias", f"[{', '.join(alias)}]")
-    for c in CAMPI_CODICE:
+    for c in () if archivio else CAMPI_CODICE:
         if not campo(fm_v, c) and campo(fm_p, c):
             fm_v = metti(fm_v, c, campo(fm_p, c))
     corpo_v = corpo_v.rstrip("\n") + "\n" if corpo_v.strip() else ""
@@ -257,8 +269,20 @@ def esito_fonte(risposta, avvisi: list, perdente: str, prova: bool = False, dopo
                 "transitorio")
 
 
+def scheda_miscellanea() -> tuple:
+    """(percorso, testo) della scheda di Miscellanea da creare: dove arturo memoria scheda la scriverebbe."""
+    import memoria as me  # noqa: PLC0415
+    if not me.mm.memoria_accesa():
+        raise Ferma(2, "la memoria di Arturo è spenta: Miscellanea non ha dove nascere (arturo memoria accendi)", "scelta")
+    f = me.mm.MEMORY_DIR / "progetti" / f"progetto-{MISCELLANEA}.md"
+    return f, me.testo_nuova_scheda(MISCELLANEA, COSA_MISCELLANEA, TITOLO_MISCELLANEA, "", [])
+
+
 def raccogli(perdente: str, vincitore: str) -> dict:
+    archivio = vincitore == MISCELLANEA
     cod_p, cod_v = codice_di(perdente), codice_di(vincitore)
+    if archivio:
+        cod_v = (None, "")
     if cod_p[0] and cod_v[0] and cod_p[0] != cod_v[0] and not (cod_p[1] and cod_p[1] == cod_v[1]):
         raise Ferma(2, f"{perdente} e {vincitore} hanno due cartelle di codice con repo diversi "
                        f"({cod_p[0]}: {cod_p[1] or 'senza repo'}; {cod_v[0]}: {cod_v[1] or 'senza repo'}). "
@@ -266,7 +290,7 @@ def raccogli(perdente: str, vincitore: str) -> dict:
     todo = rn.todo_del(perdente)
     stati = ts.stati()
     stato_p, stato_v = stati.get(perdente), stati.get(vincitore)
-    porta_stato = bool(stato_p) and (not stato_v or stato_p["ts"] > stato_v["ts"])
+    porta_stato = not archivio and bool(stato_p) and (not stato_v or stato_p["ts"] > stato_v["ts"])
     handoff = piano_handoff(perdente, vincitore)
     sch_p, sch_v = pg.scheda_di(perdente), pg.scheda_di(vincitore)
     if sch_p and sch_v and os.path.samefile(sch_p, sch_v):
@@ -279,6 +303,12 @@ def raccogli(perdente: str, vincitore: str) -> dict:
                 dividi_scheda(testi[f])
     except (OSError, UnicodeDecodeError, ValueError) as e:
         raise Ferma(2, f"scheda non leggibile: {e}", "riparabile")
+    nuova_v = False
+    if archivio and sch_v is None:
+        # Miscellanea nasce qui: la sua scheda la scrive scrivi(), dopo la copia di sicurezza
+        sch_v, testi_v = scheda_miscellanea()
+        testi[sch_v] = testi_v
+        nuova_v = True
     terminali = schede_terminali(perdente)
     salta = {f for f in (sch_p, sch_v) if f is not None}
     link = {f: t for f, t in rn.link_nelle_note(perdente, vincitore, None).items() if f not in salta}
@@ -290,17 +320,23 @@ def raccogli(perdente: str, vincitore: str) -> dict:
         if not gia:
             raise Ferma(2, f"non trovo niente di {perdente}: né todo, né stato, né handoff, né scheda", "scelta")
     return {"todo": todo, "stato_p": stato_p, "porta_stato": porta_stato, "handoff": handoff,
-            "sch_p": sch_p, "sch_v": sch_v, "testi": testi, "link": link, "terminali": terminali}
+            "sch_p": sch_p, "sch_v": sch_v, "testi": testi, "link": link, "terminali": terminali,
+            "archivio": archivio, "nuova_v": nuova_v, "cartella_p": cod_p[0] if archivio else None}
 
 
 def anteprima(perdente: str, vincitore: str, r: dict, fonte, avvisi: list) -> dict:
     rinominati = [{"da": p.name, "a": nome} for p, nome in r["handoff"] if p.name != nome]
-    if r["sch_p"] and r["sch_v"]:
+    if r.get("archivio") and r["sch_p"]:
+        scheda = (f"{r['sch_p'].name} entra in {r['sch_v'].name}" + (", che nasce adesso" if r.get("nuova_v") else "")
+                  + ", l'originale va in _archive/progetti/")
+    elif r["sch_p"] and r["sch_v"]:
         scheda = f"{r['sch_p'].name} entra in {r['sch_v'].name}, l'originale va in _archive/progetti/"
     elif r["sch_p"]:
         scheda = f"{r['sch_p'].name} diventa progetto-{vincitore}.md"
     else:
         scheda = "nessuna scheda del perdente"
+    if r.get("cartella_p"):
+        avvisi.append(f"la cartella del codice {r['cartella_p']} resta dov'è: Miscellanea tiene solo la memoria")
     return {"perdente": perdente, "vincitore": vincitore, "todo": len(r["todo"]),
             "stato": r["porta_stato"],
             "handoff": sum(1 for p, _ in r["handoff"] if p.name.startswith("HANDOFF_")),
@@ -416,7 +452,9 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list) -> None:
             avvisi.append("INDEX.md non rigenerato: " + (g.stderr.strip().splitlines() or ["errore"])[-1])
     sch_p, sch_v, testi = r["sch_p"], r["sch_v"], r["testi"]
     if sch_p and sch_v:
-        nuovo_v = scheda_vincitrice(testi[sch_v], testi[sch_p], perdente, vincitore, giorno)
+        nuovo_v = scheda_vincitrice(testi[sch_v], testi[sch_p], perdente, vincitore, giorno, r.get("archivio", False))
+        if r.get("nuova_v"):
+            sch_v.parent.mkdir(parents=True, exist_ok=True)
         rn.scrivi_atomico(sch_v, link_testo(nuovo_v, perdente, vincitore))
         radice = next((x for x in pg.radici_memoria() if dentro(sch_p, x)), sch_p.parent)
         archivio = radice / "_archive" / "progetti"
@@ -430,6 +468,8 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list) -> None:
         rn.scrivi_atomico(sch_p, rn.scheda_nuova(testi[sch_p], perdente, vincitore))
         os.replace(sch_p, sch_p.with_name(f"progetto-{vincitore}.md"))
     elif sch_v:
+        if r.get("nuova_v"):
+            sch_v.parent.mkdir(parents=True, exist_ok=True)
         fm, corpo = dividi_scheda(testi[sch_v])
         alias = lista(campo(fm, "alias"))
         if perdente not in (cx.slug(a) for a in alias):
@@ -458,6 +498,8 @@ def unisci(perdente_nome: str, vincitore_nome: str, prova: bool = False, come_js
     perdente, vincitore = cx.slug(perdente_nome), cx.slug(vincitore_nome)
     if not perdente or not vincitore:
         raise Ferma(3, "i due nomi devono avere almeno una lettera o una cifra", "scelta")
+    if perdente == MISCELLANEA:
+        raise Ferma(3, "Miscellanea non si elimina e non entra in un altro progetto: raccoglie i progetti eliminati", "scelta")
     if perdente == vincitore:
         raise Ferma(3, f'"{perdente_nome}" e "{vincitore_nome}" sono lo stesso progetto, {vincitore}', "scelta")
     avvisi: list = []

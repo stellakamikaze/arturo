@@ -5,6 +5,8 @@ Uso: arturo progetti [--json]
      arturo progetti titolo <slug> "<Titolo>"
      arturo progetti rinomina VECCHIO NUOVO [--prova]   (bin/rinomina.py, proposta n. 90)
      arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]   (bin/unisci.py, #6187)
+     arturo progetti elimina PROGETTO [--prova] [--json]   (bin/elimina.py: la memoria va in Miscellanea)
+     arturo progetti nuovo "NOME" --cosa "una riga" [--json]   (bin/nuovo_progetto.py: la scheda di un progetto nuovo)
 
 Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha già su disco.
   - le cartelle della base dei progetti (PROJECTS_BASE);
@@ -352,6 +354,12 @@ def main(argv: list) -> int:
     if argv[:1] == ["unisci"]:
         import unisci
         return unisci.main(argv[1:])
+    if argv[:1] == ["elimina"]:
+        import elimina
+        return elimina.main(argv[1:])
+    if argv[:1] == ["nuovo"]:
+        import nuovo_progetto
+        return nuovo_progetto.main(argv[1:])
     if argv[:1] == ["titolo"]:
         if len(argv) != 3:
             print('uso: arturo progetti titolo <slug> "<Titolo>"', file=sys.stderr)
