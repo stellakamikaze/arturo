@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ200: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ201: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 La fonte del banco sta nel repository di Volta (volta/test_herdr.py, dal 14/11/2026): volta/pubblica-mod.py
 lo copia nel repository di Arturo come tests/test_herdr_2026_11_08.py, insieme al mod. La copia non si
@@ -913,6 +913,9 @@ HZ199 unisci() di dati.js con Herdr finto (#6314): un vincitore che la barra non
 HZ200 la riparazione (#6314): un errore riparabile fa nascere su questa macchina, in background nel vincitore, la
      sessione col compito di testoRipara; arturo.unione dice "ripara"; la stessa coppia entro sei ore non ne fa
      nascere un'altra e lo dice; con "ripara_unione": "spenta" in arturo.json non nasce niente.
+HZ201 sonda_locale di volta_sonda.py passa la SONDA su stdin (22/11/2026): la riga di comando resta sotto gli 8191
+     caratteri di cmd.exe (con la SONDA nella riga era a 34.791, oltre i 32.767 di CreateProcess, e su Windows
+     ogni lettura locale finiva in WinError 206); AVVIO_LOCALE esegue il codice letto da stdin col tetto T.
 """
 from __future__ import annotations
 
@@ -928,7 +931,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196", "HZ197", "HZ198", "HZ199", "HZ200")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104", "HZ105", "HZ106", "HZ107", "HZ108", "HZ110", "HZ111", "HZ113", "HZ114", "HZ115", "HZ116", "HZ117", "HZ118", "HZ119", "HZ120", "HZ121", "HZ122", "HZ123", "HZ124", "HZ125", "HZ126", "HZ127", "HZ128", "HZ129", "HZ130", "HZ131", "HZ132", "HZ133", "HZ134", "HZ135", "HZ136", "HZ137", "HZ138", "HZ139", "HZ140", "HZ141", "HZ143", "HZ144", "HZ145", "HZ146", "HZ147", "HZ148", "HZ149", "HZ150", "HZ151", "HZ152", "HZ153", "HZ154", "HZ155", "HZ156", "HZ157", "HZ158", "HZ159", "HZ160", "HZ161", "HZ162", "HZ163", "HZ164", "HZ165", "HZ166", "HZ167", "HZ168", "HZ169", "HZ170", "HZ171", "HZ172", "HZ173", "HZ174", "HZ175", "HZ176", "HZ177", "HZ178", "HZ179", "HZ180", "HZ181", "HZ182", "HZ183", "HZ184", "HZ185", "HZ186", "HZ187", "HZ188", "HZ189", "HZ190", "HZ191", "HZ192", "HZ193", "HZ194", "HZ195", "HZ196", "HZ197", "HZ198", "HZ199", "HZ200", "HZ201")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -8490,9 +8493,10 @@ def hz82(repo: Path, casa: Path) -> str | None:
     dopo = leggi(app2 / "keys.json")
     attesi2 = dict(miei, **{fonte[i][0]: fonte[i][1] for i in range(3)})
     # i due tasti del giro fra le sessioni (HZ86), quello della checklist (HZ156), ⌘Z (HZ159) e il muto (HZ94) entrano perché in questo
-    # keys.json sono liberi; un tasto preso dalla persona resta suo
+    # keys.json sono liberi, e così Ctrl+T sulle tessere (PRENDE col tasto che manca, 22/11/2026); un tasto preso dalla persona resta suo
     giro = {k: v for k, v in leggi(vc / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json")).get("global", {}).items()
-            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla", "arturo.compito", "arturo.muto")) and k not in miei}
+            if (v.startswith("arturo.volta-giro-") or v in ("arturo.volta-chiudi", "arturo.checklist", "arturo.volta-annulla", "arturo.compito", "arturo.muto")
+                or (k, v) == ("ctrl-t", "arturo.casa")) and k not in miei}
     attesi2.update(giro)
     # i tasti di serie di Herdr che questo keys.json non ha entrano, sotto quelli già presenti (#5369)
     serie = leggi(vc / ("keys-herdr-macos.json" if sys.platform == "darwin" else "keys-herdr.json"))
@@ -9650,7 +9654,7 @@ def hz96(repo: Path, casa: Path) -> str | None:
     if '"benvenuto", "casa"]);' not in (mod / "main.js").read_text(encoding="utf-8"):
         return "la parte casa non riporta la sua misura: una nota sulle tessere non sa dove cade (#5456)"
     cm = (mod / "comuni.js").read_text(encoding="utf-8")
-    if 'elenco: "⌘⇧E", tessere: "⌘T",' not in cm or 'elenco: "Ctrl+Shift+I", tessere: "Ctrl+Shift+T",' not in cm:
+    if 'elenco: "⌘⇧E", tessere: "⌘T",' not in cm or 'elenco: "Ctrl+Shift+I", tessere: "Ctrl+T",' not in cm:
         return "tasti() non ha il tasto delle tessere per Mac e per Windows (#5456)"
     gd = (mod / "guida.js").read_text(encoding="utf-8")
     if "${tasti().tessere} mostra le tessere dei progetti" not in gd or "Altra conversazione" in gd:
@@ -16359,7 +16363,36 @@ def hz200(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196, "HZ197": hz197, "HZ198": hz198, "HZ199": hz199, "HZ200": hz200}
+def hz201(repo: Path, casa: Path) -> str | None:
+    """La SONDA locale viaggia su stdin: la riga di comando resta corta anche su Windows (22/11/2026)."""
+    import importlib.util
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz201", repo / "shared/volta/mods/arturo/volta_sonda.py")
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    chiamate: list = []
+    m.lancia = lambda argv, timeout=60, entrata=None, **k: (chiamate.append((argv, entrata)), (0, '{"claude": "c", "sessioni": []}', ""))[1]
+    prima = os.environ.pop("VOLTA_SONDA_LOCALE", None)
+    try:
+        d = m.sonda_locale(time.monotonic() + 20)
+    finally:
+        if prima is not None:
+            os.environ["VOLTA_SONDA_LOCALE"] = prima
+    if d.get("claude") != "c" or len(chiamate) != 1:
+        return f"sonda_locale non legge la risposta del figlio: {d} {len(chiamate)}"
+    argv, entrata = chiamate[0]
+    riga = subprocess.list2cmdline(argv)
+    if len(riga) > 8191:
+        return f"la riga della sonda locale è di {len(riga)} caratteri, oltre gli 8191 di cmd.exe: la SONDA va su stdin"
+    if entrata != m.SONDA:
+        return "sonda_locale non passa la SONDA su stdin"
+    # l'avvio vero: il codice da stdin gira e vede il tetto T
+    r = subprocess.run([sys.executable, "-c", m.AVVIO_LOCALE % 7], input="print(T * 6)", capture_output=True, text=True, timeout=30)
+    if r.returncode != 0 or r.stdout.strip() != "42":
+        return f"AVVIO_LOCALE non esegue il codice di stdin col tetto T: rc {r.returncode} {(r.stdout + r.stderr).strip()[-160:]}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104, "HZ105": hz105, "HZ106": hz106, "HZ107": hz107, "HZ108": hz108, "HZ110": hz110, "HZ111": hz111, "HZ113": hz113, "HZ114": hz114, "HZ115": hz115, "HZ116": hz116, "HZ117": hz117, "HZ118": hz118, "HZ119": hz119, "HZ120": hz120, "HZ121": hz121, "HZ122": hz122, "HZ123": hz123, "HZ124": hz124, "HZ125": hz125, "HZ126": hz126, "HZ127": hz127, "HZ128": hz128, "HZ129": hz129, "HZ130": hz130, "HZ131": hz131, "HZ132": hz132, "HZ133": hz133, "HZ134": hz134, "HZ135": hz135, "HZ136": hz136, "HZ137": hz137, "HZ138": hz138, "HZ139": hz139, "HZ140": hz140, "HZ141": hz141, "HZ143": hz143, "HZ144": hz144, "HZ145": hz145, "HZ146": hz146, "HZ147": hz147, "HZ148": hz148, "HZ149": hz149, "HZ150": hz150, "HZ151": hz151, "HZ152": hz152, "HZ153": hz153, "HZ154": hz154, "HZ155": hz155, "HZ156": hz156, "HZ157": hz157, "HZ158": hz158, "HZ159": hz159, "HZ160": hz160, "HZ161": hz161, "HZ162": hz162, "HZ163": hz163, "HZ164": hz164, "HZ165": hz165, "HZ166": hz166, "HZ167": hz167, "HZ168": hz168, "HZ169": hz169, "HZ170": hz170, "HZ171": hz171, "HZ172": hz172, "HZ173": hz173, "HZ174": hz174, "HZ175": hz175, "HZ176": hz176, "HZ177": hz177, "HZ178": hz178, "HZ179": hz179, "HZ180": hz180, "HZ181": hz181, "HZ182": hz182, "HZ183": hz183, "HZ184": hz184, "HZ185": hz185, "HZ186": hz186, "HZ187": hz187, "HZ188": hz188, "HZ189": hz189, "HZ190": hz190, "HZ191": hz191, "HZ192": hz192, "HZ193": hz193, "HZ194": hz194, "HZ195": hz195, "HZ196": hz196, "HZ197": hz197, "HZ198": hz198, "HZ199": hz199, "HZ200": hz200, "HZ201": hz201}
 
 
 # I casi che leggono file di Arturo fuori da shared/volta (bin/arturo, hooks/, commands/, settings.json...):
@@ -16404,6 +16437,8 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ201', 'shared/volta/mods/arturo/volta_sonda.py', '[sys.executable, "-c", AVVIO_LOCALE % max(2, t - 2)], entro, entrata=SONDA)', '[sys.executable, "-c", "T = %d\\n" % max(2, t - 2) + SONDA], entro)'),
+    ('HZ201', 'shared/volta/mods/arturo/volta_sonda.py', 'AVVIO_LOCALE = "T = %d\\nimport sys', 'AVVIO_LOCALE = "T0 = %d\\nimport sys'),
     ('HZ196', 'shared/volta/mods/arturo/dati.js', 'level: "warning" }); return rifiutaUnione(perdente, vincitore, no); }', 'level: "warning" }); return { stato: "errore", testo: no }; }'),
     ('HZ196', 'shared/volta/mods/arturo/dati.js', '    return rifiutaUnione(perdente, vincitore, "Un\'unione è già in corso.");', '    return { stato: "errore", testo: "Un\'unione è già in corso." };'),
     ('HZ196', 'shared/volta/mods/arturo/dati.js', '  setShared("arturo.unione.rifiuto", { perdente, vincitore, testo, quando: Date.now(), gia });', '  setShared("arturo.unione", { perdente, vincitore, stato: "errore", vista: { testo }, quando: Date.now() });'),
@@ -17127,7 +17162,7 @@ VELENI = [
     ('HZ96', 'shared/volta/mods/arturo/nota.js', 'benvenuto: "benvenuto", casa: "tessere" };', 'benvenuto: "benvenuto" };'),
     ('HZ96', 'shared/volta/mods/arturo/barra.js', '    else if (c === "casa" && senzaTessere(layout())) this.lungo("volta-nuova", cx, () => nuovaScheda());\n', ''),
     ('HZ96', 'shared/volta/mods/arturo/casa.js', '{ if (!senzaTessere(layout())) run("layout.select"', '{ run("layout.select"'),
-    ('HZ96', 'shared/volta/mods/arturo/comuni.js', 'tessere: "Ctrl+Shift+T",', 'tessere: "⌘T",'),
+    ('HZ96', 'shared/volta/mods/arturo/comuni.js', 'tessere: "Ctrl+T",', 'tessere: "⌘T",'),
     ('HZ96', 'shared/volta/mods/arturo/guida.js', '${tasti().tessere} mostra le tessere dei progetti', 'Altra conversazione mostra le tessere dei progetti'),
     ('HZ96', 'shared/volta/mods/arturo/main.js', '"benvenuto", "casa"]);', '"benvenuto"]);'),
     ('HZ97', 'shared/volta/mods/arturo/volta_note.py', 'from volta_sonda import FASI, leggi_json, macchine, remoto,', 'from volta_sonda import FASI, leggi_json, macchine, remoto_vecchio as remoto,'),

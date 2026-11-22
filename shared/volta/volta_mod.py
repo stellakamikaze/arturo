@@ -104,6 +104,19 @@ import sys
 import time
 from pathlib import Path
 
+# Su Windows un programma da console (git, ssh, schtasks, taskkill) lanciato da un processo senza console apre
+# una finestra sua. L'attività oraria gira con pythonw: un solo controllo apriva nove finestre di Terminal in
+# otto secondi, una per git (22/11/2026). Ogni figlio di questo script parte con CREATE_NO_WINDOW.
+# DETACHED_PROCESS annulla CREATE_NO_WINDOW e lascia i figli del figlio senza console: si toglie sempre.
+if os.name == "nt":
+    class _SenzaFinestra(subprocess.Popen):
+        def __init__(self, *args, **kw):
+            flag = (kw.get("creationflags") or 0) & ~subprocess.DETACHED_PROCESS
+            kw["creationflags"] = flag | subprocess.CREATE_NO_WINDOW
+            super().__init__(*args, **kw)
+
+    subprocess.Popen = _SenzaFinestra
+
 RAMO = "volta"
 CARTELLA = "arturo"            # la cartella del repository che fa da fonte
 TENUTA_LOCALE = 6              # ore in cui un mod installato a mano non viene sostituito
@@ -137,7 +150,9 @@ TASTI_SPOSTATI = ("arturo.volta-nuova",)
 # Il tasto che Arturo prende a Herdr (installa-herdr.sh ha lo stesso): la scheda nuova di Herdr (tab.new,
 # una shell) diventa le tessere dei progetti, se quel tasto fa ancora la scheda di Herdr o manca (#5290).
 # ⌘N (Ctrl+Shift+N su Windows) apre il compito nuovo (#6186, 20/11/2026) e prende lo spazio nuovo di Herdr
-# (space.new), che resta nel menu File: in Volta gli spazi nascono dai progetti.
+# (space.new), che resta nel menu File: in Volta gli spazi nascono dai progetti. Su Windows anche Ctrl+T apre
+# le tessere come ⌘T, accanto a Ctrl+Shift+T (22/11/2026): Herdr non lo usa, quindi arriva da qui come tasto
+# che manca, una volta sola. Da lì Ctrl+T non arriva più alla shell né a Claude Code.
 PRENDE = {"arturo.casa": ("tab.new",), "arturo.volta-chiudi": ("tab.close",), "arturo.compito": ("space.new",)}
 # ⌘W e Ctrl+W chiudono la sessione davanti col congedo e la tolgono subito da elenco e giro
 # (12/11/2026 sera): prendono il tab.close di Herdr. Il registro li segna per tasto e comando, perché su
@@ -760,7 +775,7 @@ def passo_genera() -> dict:
         d = {"esito": "errore", "motivo": "immagini_genera non è un elenco di parole: %s" % str(argv)[:80]}
     else:
         argv = [os.path.expanduser(x) for x in argv]
-        staccato = ({"creationflags": getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
+        staccato = ({"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
                     if os.name == "nt" else {"start_new_session": True})
         try:
             cache().mkdir(parents=True, exist_ok=True)

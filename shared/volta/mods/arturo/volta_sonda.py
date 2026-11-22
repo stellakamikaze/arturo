@@ -1363,13 +1363,13 @@ def leggi_json(out):
     raise ValueError("nessun JSON nell'uscita")
 
 
-def entro_il_tetto(argv, entro):
+def entro_il_tetto(argv, entro, entrata=None):
     """lancia() con i secondi che restano alla lettura. Fuori tempo dice quanti erano, non il comando."""
     t = resta(entro)
     if t < 2:
         raise RuntimeError("non ha risposto in tempo")
     try:
-        return lancia(argv(t), timeout=t)
+        return lancia(argv(t), timeout=t, entrata=entrata)
     except subprocess.TimeoutExpired:
         raise RuntimeError("non ha risposto in %d s" % t) from None
 
@@ -1383,11 +1383,17 @@ def risposta(d):
     return d
 
 
+# La riga che avvia la SONDA locale: il tetto T, poi il codice letto da stdin (UTF-8 da PYTHONIOENCODING di lancia()).
+AVVIO_LOCALE = "T = %d\nimport sys\nexec(compile(sys.stdin.read(), '<sonda>', 'exec'))"
+
+
 def sonda_locale(entro=None):
     finto = os.environ.get("VOLTA_SONDA_LOCALE")
     if finto:
         return json.loads(finto)
-    rc, out, err = entro_il_tetto(lambda t: [sys.executable, "-c", "T = %d\n" % max(2, t - 2) + SONDA], entro)
+    # La SONDA viaggia su stdin, come quella remota (22/11/2026, HZ201): nella riga di comando aveva passato
+    # i 32.767 caratteri di CreateProcess, e su Windows ogni lettura locale finiva in WinError 206.
+    rc, out, err = entro_il_tetto(lambda t: [sys.executable, "-c", AVVIO_LOCALE % max(2, t - 2)], entro, entrata=SONDA)
     if rc != 0:
         raise RuntimeError((err or out).strip()[-200:] or "rc %d" % rc)
     return risposta(leggi_json(out))

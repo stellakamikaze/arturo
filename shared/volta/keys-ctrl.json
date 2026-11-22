@@ -11,6 +11,7 @@
     "ctrl-w": "arturo.volta-chiudi",
     "ctrl-alt-z": "arturo.volta-annulla",
     "ctrl-shift-n": "arturo.compito",
-    "ctrl-alt-m": "arturo.muto"
+    "ctrl-alt-m": "arturo.muto",
+    "ctrl-t": "arturo.casa"
   }
 }

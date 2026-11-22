@@ -1,5 +1,5 @@
 {
- "albero": "94008170ce2400791bceae279779aae4b4390290",
+ "albero": "bd087422bb69063918529613958a91104724c493",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -9,7 +9,7 @@
   "firme/volta-app.requisito": "dd384280cf2e9aba952a59627af85546f5a63872b95403a13a74693df09576ef",
   "firme/volta.allowed_signers": "a469bbc8796e5c71fd2db12bae9908655ea0e1c5db4da6e52146e213fd60d384",
   "installa-herdr.sh": "848ba1d46c6cdadec504774f13c851d8bc855c9de975bbf75495c1fd0716d8f9",
-  "keys-ctrl.json": "a191a4678a34d5615bb91fc651e33ccfdb09c25c4bec4566923e67fe2a175a39",
+  "keys-ctrl.json": "514a99efc755a2f7342b3b0a47eec2eee4eed6b2974d03a0e6c9ed48ead6cd95",
   "keys-herdr-macos.json": "8728a5190aa2ef1609c08c0cb49cf31dd74ab7018944b6453d9f371570d023c0",
   "keys-herdr.json": "d1831fe2e9a685abf5fd95c156f4425fcbc17f81919163955a3688a166ea269f",
   "keys.json": "46eb175376f361baa01f89e670b3809a56acb6afb751185101b0d8e6ac573ef7",
@@ -25,7 +25,7 @@
   "mods/arturo/coda.js": "7ec5dd0bed61058555eb624f66becc45cb62221a7a9bfa7cf3715bdf164ef163",
   "mods/arturo/comandi.js": "1be9b15bfe46ee890b72e3a30b1b9109d3b995845c88bf5b7f68a2a07bfb9ffb",
   "mods/arturo/compito.js": "ab02ea6ebc3f19af1509511d15f1643cec9d4a2e6b87abebed0a886c1193463a",
-  "mods/arturo/comuni.js": "58ce79ba22d076d73c8a850e2e926380f0f35cd3d0f734122614dff6b31fad48",
+  "mods/arturo/comuni.js": "f2bc899e0702d91f36d3101a5851992fa5e0730292fa8398c2e400002baa1c2e",
   "mods/arturo/contesto.js": "df1de32945f9be8ad00ac3406a290be85ee8a120490561dedf9cc22b136dcbd0",
   "mods/arturo/contestoui.js": "43ec7976efbac41fb6ab5eb08ef26ab04421ad867a3fd8d028c9539b42beafa0",
   "mods/arturo/dati.js": "940f4c225c8c9155080476ca3f9d5d914f8df11b96a8caefe9a8fa2ece94326b",
@@ -76,7 +76,7 @@
   "mods/arturo/volta_microfono.py": "35398f95e7915a05bc0d0e8bd98789a215e93a2f34f95b668fff3626c9ad1c2c",
   "mods/arturo/volta_note.py": "f6c354a80c5322922865f5217cb87595d0a4c0bfa61f2649a182d69b28e33b79",
   "mods/arturo/volta_registro.py": "dca652ce871b90c12d8b44de7b2aa2c86527764eb23fb0b394bbc37a94ecc62c",
-  "mods/arturo/volta_sonda.py": "67c205f301997c8f371d1f0a0c6a84d751378969da9b83abd07c4107e21b571c",
+  "mods/arturo/volta_sonda.py": "36874083a382cbce83b84552b26b66db62d021a8bb723ff13a86c7c0de568187",
   "mods/arturo/volta_sposta.py": "3e0a81c5fb1ba942ef6772c8f8f775b5bacdfea8812891b1e62ad8338212f451",
   "nascita.sh": "4a757a34f4199688ac33c2752da07f81bfd23bd6446fa40178a4fb6ed8e94349",
   "servizi-gui.sh": "a3eaeb26e61f1143781e17ff282bc2b06a4598814d48dde22842769e95e7f7c7",
@@ -86,7 +86,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "86422c9e7e4b082650590d6ae62efbb82557b31ca801f6e644e7611ac5802166"
+  "volta_mod.py": "450e6d2167c61cc5d30fec28cd736debf022058b629d0a4b093f3d08ece05a5e"
  },
  "repository": "volta"
 }
