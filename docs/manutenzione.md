@@ -54,7 +54,9 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    Un caso nuovo entra nel banco del suo componente, col codice che segue l'ultimo (AM04 dopo
    AM03). Un banco nuovo nasce solo per un componente nuovo, o per guardie, segreti e gate dei
    commit: allora si aggiunge alle liste come prima. Un file per incidente non nasce più, perché
-   ogni file in più è una controprova e un veleno da far girare. Dentro c'è l'igiene (I03,
+   ogni file in più è una controprova e un veleno da far girare. Dal 23/11/2026 lo controlla I04 di
+   `tests/igiene.py`: un banco nuovo `test_<cosa>_AAAA_MM_GG.py` fa rosso, salvo che il nome dica
+   guardie, segreti, gate o commit (IG10). Dentro c'è l'igiene (I03,
    `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
    commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni
    branch e su ogni pull request, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie

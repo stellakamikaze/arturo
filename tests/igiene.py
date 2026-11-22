@@ -14,6 +14,10 @@ punto in mezzo, all'a capo dopo un trattino, al carattere invisibile, al cirilli
 Si controllano il contenuto e il percorso di ogni file del repository, e i messaggi dei commit
 dell'intervallo che si pubblica: per default i commit che nessun remoto conosce ancora.
 
+I04 (revisione del 22/11/2026, A8): un banco datato nuovo, tests/test_<cosa>_AAAA_MM_GG.py con la data dal
+23/11/2026, fa rosso. Un caso nuovo va nel banco del suo componente (docs/manutenzione.md, regola del 3/11/2026).
+Fanno eccezione guardie, segreti e gate dei commit: il nome lo dice (guardie, segreti, gate, commit).
+
   python3 tests/igiene.py --repo . [--intervallo A..B] [--commit SHA]
   python3 tests/igiene.py --impronta < termine.txt     l'impronta di un termine nuovo, letto da stdin
 
@@ -120,6 +124,26 @@ FINE = frozenset((
     "42885d9347f0ea78e7d0a2cd4762abe1a5673ac241af632b283c602b1b61f604",
     "c84ae2ab912bc26b22e566d70ca7cc102ff40bcece20ff0a811d161a1abaaabe",
 ))
+
+
+# I04: dal 23/11/2026 un banco datato nuovo fa rosso. I banchi datati nati prima restano dove sono.
+DATATO = re.compile(r"^tests/test_\w+?_(\d{4})_(\d{2})_(\d{2})[a-z]?\.py$")
+DATATI_DAL = (2026, 11, 23)
+DATATI_AMMESSI = ("guardi", "segret", "secret", "gate", "commit")
+
+
+def banchi_datati(nomi: Iterable[str]) -> List[str]:
+    """I banchi datati nuovi fra i percorsi: data dal 23/11/2026 e nome fuori da guardie, segreti e gate."""
+    fuori = []
+    for nome in nomi:
+        m = DATATO.match(nome)
+        if not m or tuple(int(x) for x in m.groups()) < DATATI_DAL:
+            continue
+        if any(parola in nome[len("tests/"):].lower() for parola in DATATI_AMMESSI):
+            continue
+        fuori.append(f"banco datato {nome}: un caso nuovo va nel banco del suo componente, col codice che segue "
+                     "l'ultimo (docs/manutenzione.md, I04)")
+    return fuori
 
 
 def normalizza(testo: str) -> str:
@@ -231,7 +255,7 @@ def controlla(repo: Path, intervallo: Optional[str] = None, impronte: Iterable[s
     else:
         file = [(nome, (repo / nome).read_bytes() if (repo / nome).is_file() else None)
                 for nome in file_del_repository(repo)]
-    problemi = []
+    problemi = banchi_datati(nome for nome, _ in file)
     for nome, dati in file:
         for _, h in trova(nome, impronte):
             problemi.append(f"percorso {nome} ({h})")
@@ -269,7 +293,8 @@ def main() -> int:
     extra = {h.strip() for h in os.environ.get("ARTURO_IGIENE_IMPRONTE_EXTRA", "").split(",") if h.strip()}
     problemi = controlla(args.repo.resolve(), args.intervallo, GLOBALE | extra, args.commit)
     if problemi:
-        print("I03 igiene: nomi della config privata nel repository pubblico:\n  " + "\n  ".join(problemi), file=sys.stderr)
+        print("I03 igiene: nomi della config privata o banchi datati nuovi nel repository pubblico:\n  "
+              + "\n  ".join(problemi), file=sys.stderr)
         return 1
     print("I03 igiene: pulito")
     return 0

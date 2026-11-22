@@ -26,6 +26,8 @@ IG08 (18/11/2026, #6063) il workflow toglie anche i commit che un altro ramo pub
 IG09 (22/11/2026, #6425) l'hook pre-push toglie, come il workflow, i commit che un ramo del remoto ha già: main
      che avanza fino a un commit già su origin/dev, col nome nel messaggio, parte. Un nome in un commit nuovo
      sopra resta bloccato, e così un commit che solo un altro remoto conosce.
+IG10 (revisione del 22/11/2026, A8, #6419) un banco datato nuovo, tests/test_<cosa>_AAAA_MM_GG.py dal 23/11/2026, fa
+     rosso; i banchi datati di prima, i banchi senza data e quelli di guardie, segreti e gate passano.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -343,9 +345,25 @@ def test_ig09(repo: Path) -> None:
             f"IG09 un commit noto solo a un altro remoto conta come già pubblico: {p.stderr[-400:]}"
 
 
+def test_ig10(repo: Path) -> None:
+    ig = modulo(repo / "tests" / "igiene.py", "IG10")
+    assert hasattr(ig, "banchi_datati"), "IG10 igiene non controlla i banchi datati nuovi: un file per incidente passa"
+    nomi = ("test_nuovo_2026_11_23.py", "test_vecchio_2026_11_22.py", "test_guardie_nuove_2026_12_01.py",
+            "test_segreti_x_2026_12_01.py", "test_gate_y_2026_12_01.py", "test_componente.py", "test_altro_2027_01_05b.py")
+    with tempfile.TemporaryDirectory() as d:
+        r = Path(d)
+        (r / "tests").mkdir()
+        for nome in nomi:
+            (r / "tests" / nome).write_text("print('PASS')\n", encoding="utf-8")
+        problemi = ig.controlla(r, None, set())
+    datati = sorted(p.split()[2].rstrip(":") for p in problemi if p.startswith("banco datato"))
+    assert datati == ["tests/test_altro_2027_01_05b.py", "tests/test_nuovo_2026_11_23.py"], \
+        f"IG10 i banchi datati che igiene boccia non sono i nuovi fuori da guardie, segreti e gate: {datati} {problemi}"
+
+
 TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04, "IG05": test_ig05,
          "IG06": test_ig06, "IG07": test_ig07, "IG08": test_ig08,
-         "IG09": test_ig09}
+         "IG09": test_ig09, "IG10": test_ig10}
 
 
 def main() -> int:
