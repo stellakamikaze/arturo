@@ -255,6 +255,8 @@ BANCHI=(
   test_aggiramenti_2026_11_21.py
   # Un programma nascosto alle guardie con una parola pericolosa chiede conferma (22/11/2026, #6323).
   test_programmi_nascosti_2026_11_22.py
+  # Le guardie di Bash più veloci con gli stessi giudizi: parole lineari, un python3 solo, bytecode (22/11/2026, #6327).
+  test_parole_veloci_2026_11_22.py
   # La verifica dei rilasci accetta solo firme SSH (21/11/2026, #6258, rilievo S1 della revisione del 20/11).
   test_firme_ssh_2026_11_21.py
   # Commit e push della coda di /fine passano dal controllo dei segreti (21/11/2026, #6249, rilievi A2 e A3).
@@ -550,6 +552,9 @@ BASELINE=(
   "test_aggiramenti_2026_11_21.py 02808d8 radice"
   # I programmi nascosti alle guardie (22/11/2026, #6323): le 11 forme passano mute. 0e37768, il dev prima.
   "test_programmi_nascosti_2026_11_22.py 0e37768 radice"
+  # Le guardie veloci (22/11/2026, #6327, #5347): parole ed evento_bash.py non ci sono, block-dangerous oltre 8 s.
+  # 663bcba, il dev prima.
+  "test_parole_veloci_2026_11_22.py 663bcba"
   # Un tag firmato PGP passa dal portachiavi della persona (21/11/2026, #6258). ff920f0, il dev prima.
   "test_firme_ssh_2026_11_21.py ff920f0"
   # La coda di /fine committa e spinge senza guardia dei segreti (21/11/2026, #6249). 6132caf, il dev prima.

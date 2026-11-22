@@ -366,7 +366,7 @@ Le tue preferenze, i file `.local`, stanno in `~/.claude/arturo/`. Un file `.loc
 
 ## Come funziona: il dispatcher
 
-Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo instrada **solo** verso i guard rilevanti. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard: zero latenza percepita.
+Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo instrada **solo** verso i guard rilevanti. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard: resta un solo `python3`, `hooks/evento_bash.py`, che legge l'evento.
 
 ```
          comando Bash
@@ -417,7 +417,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               34 guardie e automazioni, più 8 strumenti che usano
+hooks/               34 guardie e automazioni, più 9 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -485,7 +485,8 @@ Fuori dal dispatcher:
 - `scoperta-indice.py` — PostToolUse su `Edit`, `MultiEdit`, `Write` e `NotebookEdit`: una riga nell'indice della Scoperta (`data/scoperta/indice.jsonl`) con ora, file, righe cambiate e nomi dei campi, mai il testo. Gira in background e non blocca mai ([La Scoperta](#la-scoperta-arturo-scoperta)).
 - `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
 - `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
-- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria).
+- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria). Dal 22/11/2026 le parole le legge `parole`, che dà le stesse di `shlex` in tempo lineare, e le letture del comando si ricordano per tutto il processo: block-dangerous su un `python3 -c` di 94.000 caratteri passa da 13 secondi a meno di mezzo secondo.
+- `evento_bash.py` — modulo del dispatcher, non un hook. `leggi` prepara in un solo `python3` il comando, la sua copia per le guardie (senza heredoc inerti e senza `.exe`) e l'evento da passare alle guardie: prima servivano jq e due `python3`. `esegui` lancia una guardia Python dal bytecode in `__pycache__`, a hash controllato, invece di ricompilarla a ogni comando. Un comando senza guardie costa circa 54 ms invece di 80, uno con block-dangerous circa 125 invece di 178 (misura su un Mac, 22/11/2026).
 - `heredoc.py` — modulo, non un hook: riconosce gli heredoc di un comando (dove comincia il corpo, chi lo riceve, se la shell lo espande). Un corpo si toglie solo con confini certi: apertura fuori da virgolette e commenti, delimitatore intero, chiusura esatta, nessuna pipe né `$( )`, file non eseguito dopo. Nel dubbio la guardia vede tutto. Lo usano `block-dangerous.py`, `data-guard.py`, `commit-secret-gate.py` e `comms-prefilter.py`: ognuna decide solo se le basta un lettore come `cat` o anche un interprete che non lancia programmi.
 - `bin/telemetria-esito.sh` — PostToolUse e PostToolUseFailure: se una guardia aveva chiesto conferma per quella chiamata, registra `confermata`, anche su Monitor e anche quando lo strumento poi fallisce. Senza attese esce subito. Per toglierlo, togli solo il suo oggetto da `settings.json`, non il blocco intero.
 

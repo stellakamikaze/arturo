@@ -13,6 +13,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — I comandi Bash partono prima
+
+**Cosa cambia**: ogni comando Bash passa dalle protezioni di Arturo prima di partire, e adesso quel
+controllo costa circa un terzo in meno. Su un comando semplice sono 54 millesimi di secondo invece di 80;
+quando una protezione deve esaminare il comando, 125 invece di 178. Un comando molto lungo, come un
+`python3 -c` di 94.000 caratteri, teneva ferma la protezione 13 secondi, e adesso meno di mezzo.
+
+**Il principio**: le protezioni giudicano come prima. Leggono il comando una volta sola, mentre prima lo
+rileggevano a ogni regola, e un banco confronta il lettore nuovo col vecchio su 90.000 testi casuali.
+
+---
+
 ## 2026-11-22 — Le protezioni chiedono conferma quando il programma non si vede
 
 **Cosa cambia**: le protezioni di Arturo leggono il nome del programma che un comando lancia. Alcune forme

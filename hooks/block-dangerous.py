@@ -1550,7 +1550,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         if not seg:
             continue
         try:
-            toks = shlex.split(seg)
+            toks = _fc.parole(seg)  # come shlex.split, in tempo lineare (#5347)
         except Exception:
             toks = seg.split()
         # `(cd x; …)`, `{ cd x; …; }`, `then cd x`: la parola davanti non è il programma.
@@ -1594,7 +1594,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         # binario di scrittura con un target come argomento. Le redirezioni escono dalle parole: in
         # `cp x ~/.claude/ 2>/dev/null` l'ultimo argomento è la cartella, non `2>/dev/null` (#5261).
         try:
-            senza = shlex.split(_fc._senza_tratti_redirezione(seg))
+            senza = _fc.parole(_fc._senza_tratti_redirezione(seg))
             while senza and (senza[0] in _fc._DAVANTI or senza[0] == "("):
                 senza = senza[1:]
             if senza and senza[0].startswith("(") and len(senza[0]) > 1:

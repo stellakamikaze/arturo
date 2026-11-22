@@ -20,64 +20,72 @@ ARTURO_BIN="$(dirname "$ARTURO_HOOKS")/bin"
 ORSA_HOOKS="$HOME/.claude/hooks"
 # Il file di una guardia: prima Arturo, poi l'Orsa.
 guardia_file() { if [[ -f "$ARTURO_HOOKS/$1" ]]; then printf '%s' "$ARTURO_HOOKS/$1"; else printf '%s' "$ORSA_HOOKS/$1"; fi; }
+# Uno script Python dal bytecode in __pycache__, come `python3 FILE ARG...` (evento_bash.py esegui, #6327): lanciato
+# direttamente, block-dangerous si ricompilava dal sorgente a ogni comando, circa 19 ms su 65. Senza
+# evento_bash.py (un'installazione a metà) parte lo script com'era: `python3` su un file che manca esce 2, che
+# qui vuol dire blocco.
+if [[ -f "$ARTURO_HOOKS/evento_bash.py" ]]; then
+    py_cache() { python3 "$ARTURO_HOOKS/evento_bash.py" esegui "$@"; }
+else
+    py_cache() { python3 "$@"; }
+fi
 
 INPUT=$(cat)
-if command -v jq &>/dev/null; then
-  COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-else
-  # Fallback SENZA jq: parser JSON robusto via python3 (gia' richiesto dagli altri
-  # guard). Il vecchio fallback grep si fermava al primo apice doppio dentro il
-  # valore, troncando i comandi con virgolette e indebolendo TUTTI i guard a valle.
-  COMMAND=$(printf '%s' "$INPUT" | python3 -c 'import sys,json
-try: print(json.load(sys.stdin).get("tool_input",{}).get("command",""))
-except Exception: pass')
-fi
-# Windows (30/10/2026 nella config, 31/10/2026 qui): jq e python scrivono ogni a capo come CRLF, e
-# le guardie vedevano un comando diverso da quello che esegue bash. Si toglie solo il CR davanti a
-# un LF, e solo su Windows: su Mac e Linux il comando resta intatto.
-[[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && COMMAND="${COMMAND//$'\r\n'/$'\n'}"
+# Un solo python3 legge l'evento e prepara le tre copie del comando (hooks/evento_bash.py, 22/11/2026, #6327):
+#   COMMAND        il comando com'è scritto;
+#   GUARD_COMMAND  il comando che leggono le guardie: senza gli heredoc che vanno a un lettore e che nessuno
+#                  esegue (heredoc.py, Heredoc.dati: `cat <<'EOF' | bash` e i confini incerti restano interi),
+#                  e senza il suffisso `.exe` in fondo alle parole, perché su Windows `rm.exe` è `rm` (revisione
+#                  del 10/11/2026, HK-1). Cambia solo il testo che leggono le guardie, non il comando eseguito;
+#   GUARD_INPUT    l'evento col comando delle guardie, che ogni guardia riceve su stdin. Il comando ci arriva
+#                  su stdin: come argomento, oltre il limite del sistema (circa 1 MB su macOS, 128 KB per
+#                  argomento su Linux) python non partiva e ogni guardia leggeva "niente da dire" (review del
+#                  10/11/2026, n. 9). Un byte che non è UTF-8 si sostituisce, e la lettura non cade;
+#   USO_ID         il tool_use_id, per la telemetria delle conferme.
+# Prima erano jq e due python3, circa 50 ms a ogni comando Bash. Su Windows (`crlf`) il CR davanti a un LF si
+# toglie: jq e python scrivevano ogni a capo come CRLF, e le guardie vedevano un comando diverso da quello che
+# esegue bash (30/10/2026). Su Mac e Linux il comando resta intatto.
+# I campi arrivano con la lunghezza in byte nella prima riga, e si tagliano con LC_ALL=C: un `$(...)` solo legge
+# a blocchi, mentre `read -d ''` da una pipe legge un byte alla volta. Se le lunghezze non tornano col testo,
+# tutti i campi restano vuoti e più sotto si chiede conferma.
+COMMAND=""; GUARD_COMMAND=""; GUARD_INPUT=""; USO_ID=""
+leggi_evento() {
+    local LC_ALL=C tutto testa l0="" l1="" l2="" l3="" crlf=""
+    [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && crlf=crlf
+    tutto=$(printf '%s' "$INPUT" | python3 "$ARTURO_HOOKS/evento_bash.py" leggi $crlf 2>/dev/null; printf x)
+    tutto=${tutto%x}
+    [[ "$tutto" == *$'\n'* ]] || return 0
+    testa=${tutto%%$'\n'*}
+    tutto=${tutto#*$'\n'}
+    read -r l0 l1 l2 l3 <<< "$testa"
+    [[ "$l0" =~ ^[0-9]+$ && "$l1" =~ ^[0-9]+$ && "$l2" =~ ^[0-9]+$ && "$l3" =~ ^[0-9]+$ ]] || return 0
+    (( ${#tutto} == l0 + l1 + l2 + l3 )) || return 0
+    COMMAND=${tutto:0:l0}
+    GUARD_COMMAND=${tutto:l0:l1}
+    GUARD_INPUT=${tutto:l0+l1:l2}
+    USO_ID=${tutto:l0+l1+l2:l3}
+}
+leggi_evento
 
 # Senza un lettore del JSON nessuna guardia vede il comando: con un python3 che non parte (su Windows il
-# rimando del Microsoft Store esce 49) e senza un jq che funziona, COMMAND restava vuoto e ogni comando
-# passava in silenzio (revisione del 10/11/2026, HK-2). Se l'input porta un "command" non vuoto e qui non
-# è arrivato niente, si chiede conferma. Senza ask_guard: la telemetria è python3, che qui non parte.
+# rimando del Microsoft Store esce 49), COMMAND restava vuoto e ogni comando passava in silenzio (revisione del
+# 10/11/2026, HK-2). Se l'input porta un "command" non vuoto e qui non è arrivato niente, si chiede conferma.
+# Senza ask_guard: la telemetria è python3, che qui non parte.
 _RE_HA_COMANDO='"command"[[:space:]]*:[[:space:]]*"[^"]'
 if [[ -z "$COMMAND" && "$INPUT" =~ $_RE_HA_COMANDO ]]; then
-    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non leggono il comando: manca un python3 che funziona (e jq). Conferma solo se sai cosa fa. Per sistemare: /diagnosi."}}'
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non leggono il comando: manca un python3 che funziona. Conferma solo se sai cosa fa. Per sistemare: /diagnosi."}}'
     exit 0
 fi
-
-# Riduce solo heredoc quotati che vanno a un lettore (cat, tee, grep...) e che nessuno esegue:
-# il corpo e' dato, non shell. Lo decide hooks/heredoc.py, lo stesso modulo delle guardie
-# (15/10/2026): `cat <<'EOF' | bash`, un file scritto e poi eseguito, `<<` dentro virgolette o
-# confini incerti restano interi e passano dalle guardie. Un errore tiene il comando originale.
-# Dal 21/11/2026 (#6200) anche il corpo senza virgolette verso un lettore, senza `$(`, backtick, `${` e `$[`
-# (Heredoc.dati): `cat <<EOF` che cita `curl … | bash` stampa il testo e non lo esegue.
-reduce_inert_heredocs() {
-    python3 -c 'import importlib.util, sys
-spec = importlib.util.spec_from_file_location("arturo_heredoc", sys.argv[1])
-hd = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(hd)
-source = sys.stdin.read().replace("\r\n", "\n")
-print(hd.togli(source, lambda h: h.dati()), end="")' "$ARTURO_HOOKS/heredoc.py" <<< "$1" 2>/dev/null \
-        || printf '%s' "$1"
-}
-
-GUARD_COMMAND=$(reduce_inert_heredocs "$COMMAND")
-# Anche la riduzione passa da un print di python: su Windows rimetteva i CRLF (MO01, 31/10/2026).
-[[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && GUARD_COMMAND="${GUARD_COMMAND//$'\r\n'/$'\n'}"
-# Su Windows `rm.exe`, `git.exe` e `gh.exe` sono gli stessi programmi di `rm`, `git` e `gh`: il suffisso
-# si toglie dalla fine di ogni parola prima di ogni confronto, o pre-filtro e guardie tacciono (revisione
-# del 10/11/2026, HK-1). Cambia solo il testo che leggono le guardie, non il comando eseguito.
-_RE_EXE='^(.*[^[:space:]/\])\.[Ee][Xx][Ee]([[:space:];&|()<>"'"'"'`].*)?$'
-while [[ "$GUARD_COMMAND" =~ $_RE_EXE ]]; do GUARD_COMMAND="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"; done
 # Su Windows la shell converte gli argomenti che sembrano path prima di passarli a un programma
 # nativo: `/bin/rm -rf ~/Documents` arrivava alle guardie come `C:/Program Files/.../rm` e nessuna
 # lo riconosceva. Dove l'argomento è il testo del comando la conversione si spegne. Fuori da
 # Windows MSYS2_ARG_CONV_EXCL non conta.
-# Oltre 100.000 caratteri le guardie non finiscono in tempo: block-dangerous impiega 20 secondi su 300.000 e
+# Oltre 100.000 caratteri le guardie non finiscono in tempo: block-dangerous impiegava 20 secondi su 300.000 e
 # minuti su un milione, e il comando partiva senza un giudizio o cadeva sul tempo massimo dell'hook. Un
 # comando così lungo dopo la riduzione degli heredoc non è un uso normale: si chiede conferma (#5262, n. 9).
+# Dal 22/11/2026 (#5347) block-dangerous è lineare (1 secondo su 300.000), ma il pre-filtro qui sotto no: le
+# regex di bash costano circa 13 µs per carattere, e a 300.000 il dispatcher arrivava a 18 secondi su 30. Il
+# limite si alza quando il pre-filtro passa in Python (#6327).
 # Questa conferma e quella della copia illeggibile qui sotto escono con printf, senza ask_guard: run_guard e la
 # telemetria nascono più in basso e leggono GUARD_INPUT, che qui manca o non si costruisce in tempo. Non
 # entrano in confermeGuardie e non passano da attenua: sono casi rari, e una conferma in più è il lato sicuro
@@ -86,20 +94,6 @@ if [[ ${#GUARD_COMMAND} -gt 100000 ]]; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Comando troppo lungo per le guardie (oltre 100.000 caratteri): non lo hanno letto. Conferma solo se sai cosa fa, oppure metti il contenuto in un file."}}'
     exit 0
 fi
-# Il comando arriva a python su stdin, dopo il JSON dell'evento e un a capo: come argomento, un comando oltre
-# il limite del sistema (circa 1 MB su macOS, 128 KB per argomento su Linux) non faceva partire python,
-# GUARD_INPUT restava vuoto e ogni guardia leggeva "niente da dire" (review del 10/11/2026, n. 9). Un byte
-# che non è UTF-8 si sostituisce: prima faceva cadere la lettura e dava lo stesso silenzio.
-GUARD_INPUT=$(printf '%s\n%s' "$INPUT" "$GUARD_COMMAND" | python3 -c 'import json, sys
-grezzo = sys.stdin.buffer.read().decode("utf-8", "replace").lstrip()
-try:
-    data, fine = json.JSONDecoder().raw_decode(grezzo)
-    if not isinstance(data, dict) or grezzo[fine:fine + 1] != "\n":
-        raise ValueError
-    data.setdefault("tool_input", {})["command"] = grezzo[fine + 1:]
-    print(json.dumps(data))
-except Exception:
-    pass' 2>/dev/null)
 # Senza la copia dell'evento nessuna guardia vede il comando: si chiede conferma, come sopra per COMMAND.
 if [[ -n "$COMMAND" && "$GUARD_INPUT" != *'"command"'* ]]; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non riescono a leggere questo comando (troppo lungo o con caratteri non validi). Conferma solo se sai cosa fa."}}'
@@ -222,8 +216,10 @@ somiglia() {
 _SENZA_NULL="${_SCIOLTO//\/dev\/null/}"
 PATTERN_SCRIVE='(^|[^-0-9&>])[0-9]?>[>|]?[[:space:]]*[^&>([:space:]]|&>|(^|[^[:alnum:]_.-])(cp|mv|tee|dd|install|ln|rsync|touch|truncate|sponge|tar|gtar|bsdtar|unzip|patch|gpatch|ditto|chmod|chown|chgrp)([[:space:]]|$)|(^|[^[:alnum:]_.-])git([[:space:]][^;&|]*)?[[:space:]](checkout|restore|reset)([[:space:]]|$)'
 
-# Vero se il pattern $1 si trova nel comando delle guardie o nella sua forma senza virgolette.
-vede() { somiglia "$GUARD_COMMAND" "$1" || somiglia "$_SCIOLTO" "$1"; }
+# Vero se il pattern $1 si trova nel comando delle guardie o nella sua forma senza virgolette. Senza virgolette né
+# barre le due forme sono lo stesso testo, e il secondo confronto si salta: PATTERN_DANGER costa circa 13 µs per
+# carattere, 1,3 secondi su 100.000 (#5347, 22/11/2026).
+vede() { somiglia "$GUARD_COMMAND" "$1" || { [[ "$_SCIOLTO" != "$GUARD_COMMAND" ]] && somiglia "$_SCIOLTO" "$1"; }; }
 
 # --- Pattern pre-filtro (in variabili: evita problemi in [[ =~ ]]) ---
 # gh ancorato a inizio comando/segmento, MA tollerando i prefissi che non cambiano
@@ -341,7 +337,7 @@ PATTERN_DATA='[Rr][Oo][Bb][Oo][Cc][Oo][Pp][Yy][^|&;]*[[:space:]]["'"'"']?/+([Mm]
 # $1 = la guardia che si e' rotta: la telemetria la registra come `errore`.
 ask_guard() {
     [[ -n "${1:-}" && -f "$ARTURO_BIN/telemetria.py" ]] && \
-        python3 "$ARTURO_BIN/telemetria.py" registra errore "$1" >/dev/null 2>&1
+        py_cache "$ARTURO_BIN/telemetria.py" registra errore "$1" >/dev/null 2>&1
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Una guardia non ha prodotto una decisione valida. Conferma prima di eseguire il comando."}}'
     exit 0
 }
@@ -350,14 +346,14 @@ ask_guard() {
 # La causa è un nome di un elenco chiuso (CAUSE in bin/telemetria.py), mai il messaggio di git.
 segna_errore() {
     [[ -f "$ARTURO_BIN/telemetria.py" ]] && \
-        python3 "$ARTURO_BIN/telemetria.py" registra errore "$1.$2" >/dev/null 2>&1
+        py_cache "$ARTURO_BIN/telemetria.py" registra errore "$1.$2" >/dev/null 2>&1
     return 0
 }
 
 # Telemetria (bin/telemetria.py): il nome della guardia che ha bloccato, mai il comando.
 # Dice dove le persone si fermano e quali guardie danno falsi positivi. Non fallisce mai.
 segna_guardia() {
-    [[ -f "$ARTURO_BIN/telemetria.py" ]] && python3 "$ARTURO_BIN/telemetria.py" registra guardia "$1" >/dev/null 2>&1
+    [[ -f "$ARTURO_BIN/telemetria.py" ]] && py_cache "$ARTURO_BIN/telemetria.py" registra guardia "$1" >/dev/null 2>&1
     return 0
 }
 
@@ -366,11 +362,8 @@ segna_guardia() {
 # guardie chiedono a vuoto. Escono il nome della guardia e l'id della chiamata, mai il comando.
 segna_chiede() {
     [[ -f "$ARTURO_BIN/telemetria.py" ]] || return 0
-    local uso
-    uso=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
-try: print(json.load(sys.stdin).get("tool_use_id") or "")
-except Exception: pass' 2>/dev/null)
-    [[ -n "$uso" ]] && python3 "$ARTURO_BIN/telemetria.py" chiede "$1${2:+.$2}" "$uso" >/dev/null 2>&1
+    # L'id della chiamata lo legge già evento_bash.py, insieme al comando (USO_ID).
+    [[ -n "$USO_ID" ]] && py_cache "$ARTURO_BIN/telemetria.py" chiede "$1${2:+.$2}" "$USO_ID" >/dev/null 2>&1
     return 0
 }
 
@@ -438,7 +431,7 @@ lancia_guardia() {
     if [[ "$g" == *.sh ]]; then
         ARTURO_REGOLA=1 bash "$(guardia_file "$g")" "$@" <<< "$GUARD_INPUT"
     else
-        ARTURO_REGOLA=1 python3 "$(guardia_file "$g")" "$@" <<< "$GUARD_INPUT"
+        ARTURO_REGOLA=1 py_cache "$(guardia_file "$g")" "$@" <<< "$GUARD_INPUT"
     fi
 }
 
@@ -580,7 +573,7 @@ if [[ $_GIT_TESTO -eq 1 && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--o
     # git puro, e il comando passa dalle guardie.
     GIT_PURE=0
     # Come per le guardie: su Windows un argomento che sembra un path verrebbe convertito.
-    MSYS2_ARG_CONV_EXCL='*' python3 "$ARTURO_HOOKS/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
+    MSYS2_ARG_CONV_EXCL='*' py_cache "$ARTURO_HOOKS/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
     [[ $GIT_PURE -eq 1 ]] && exit 0
 fi
 
@@ -593,7 +586,7 @@ fi
 # giudica il comando intero.
 invio_in_vista() { somiglia "$1" "$PATTERN_COMMS" || [[ "$1" == *"gws "* && "$1" == *"messages send"* ]]; }
 if invio_in_vista "$GUARD_COMMAND"; then
-    COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
+    COMMS_REDUCED=$(py_cache "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
     if invio_in_vista "$COMMS_REDUCED"; then
         export COMMS_REDUCED
         run_guard comms-guard.py
@@ -661,7 +654,8 @@ if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
 fi
 # Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config (7/11/2026,
 # finding 11). Dal 10/11/2026 lo copre `somiglia`, che lì confronta PATTERN_DANGER senza le maiuscole.
-if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER" || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT" || somiglia "$INPUT" "$_RE_CWD_SEGRETI" || link_in_vista; then
+# Fuori da Windows _GUARD_DRITTO è GUARD_COMMAND, già confrontato da `vede`: il terzo confronto si salta (#5347).
+if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || { [[ "$_GUARD_DRITTO" != "$GUARD_COMMAND" ]] && somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER"; } || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT" || somiglia "$INPUT" "$_RE_CWD_SEGRETI" || link_in_vista; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then
@@ -677,7 +671,7 @@ fi
 # il comando solo legge). Se il pre-filtro non gira, si giudica il comando intero.
 # 21/11/2026 (#6202): anche senza virgolette e barre, come la guardia, che legge `cu''rl` e `"curl"` come curl.
 if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL || "$_SCIOLTO" =~ $PATTERN_EXFIL ]]; then
-    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
+    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(py_cache "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
     _RIDOTTO_SCIOLTO="${COMMS_REDUCED//\\$'\n'/}"
     _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//$_APICE/}"
     _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//\"/}"
@@ -692,7 +686,7 @@ fi
 # per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
 # `echo`, che lì scrive in rete.
 if vede "$PATTERN_EGRESS_SOSPETTO"; then
-    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
+    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(py_cache "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
     if somiglia "$COMMS_REDUCED" "$PATTERN_EGRESS_SOSPETTO" || { [[ "$COMMS_REDUCED" == "$GUARD_COMMAND" ]] && somiglia "$_SCIOLTO" "$PATTERN_EGRESS_SOSPETTO"; }; then
         export COMMS_REDUCED
         run_guard exfil-guard.py
@@ -721,7 +715,7 @@ fi
 # file scritto stanno in data/handoffs/ o in projects/<p>/memory/, i programmi sono di una
 # lista breve, e settings, hook e file di unlock non compaiono nel testo eseguito.
 # Altrimenti il ramo tace e decide il flusso normale dei permessi.
-if [[ "$COMMAND" == *".claude/"* ]] && python3 "$ARTURO_HOOKS/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
+if [[ "$COMMAND" == *".claude/"* ]] && py_cache "$ARTURO_HOOKS/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"scrittura di un handoff o di una memoria in ~/.claude: approvata dal ramo memoria del dispatcher"}}'
     exit 0
 fi
