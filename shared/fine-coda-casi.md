@@ -60,9 +60,13 @@ Se esiste `~/.claude/personale/fine-coda.py`, la coda lo lancia due volte: dopo 
 (`"fase": "dopo-index"`) e prima del commit (`"fase": "prima-commit"`). Gli aggiornamenti di Arturo
 non lo toccano.
 
-- **Ingresso**: su stdin un JSON con fase, handoff, slug, radice, i file in stage e gli argomenti
-  scritti dopo `--` nel comando della coda.
+- **Ingresso**: su stdin un JSON con fase, handoff, slug, radice, i file in stage, `leggero`, `rotazione`
+  e gli argomenti scritti dopo `--` nel comando della coda.
 - **Uscita**: una riga JSON `{"esiti": [...], "path": [...], "blocca": null}`. Gli esiti finiscono
-  nella riga `coda:`. I path entrano nel commit di sync, solo verso un remote privato.
+  nella riga `coda:`. I path entrano nel commit, solo verso un remote privato: quelli sotto `data/memory`
+  nel commit della memoria, gli altri nel commit di sync.
+- **Solo i tuoi path**: con `--solo-percorsi` la coda non aggiunge per cartella. Entrano l'handoff,
+  l'indice, il segno del fine completo, le uscite della retention e i path del tuo script. Serve se tieni
+  più sessioni sulla stessa config: il lavoro a metà delle altre resta fuori dal commit.
 - **Exit**: 0 fatto, 3 servizio giù, 4 blocca. La coda risponde con lo stesso codice: con 3 il resto è
   fatto, con 4 non parte nessun commit.

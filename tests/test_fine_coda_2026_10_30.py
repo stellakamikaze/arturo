@@ -32,6 +32,11 @@ FC15 push rifiutato con un conflitto vero su settings.json: ~/.claude resta com'
      il file. Prima il pull --rebase dentro ~/.claude lasciava settings.json coi marcatori ed exit 4.
 FC16 push rifiutato con un file tracciato modificato e non salvato: se l'altra macchina non lo tocca, l'unione
      entra, il push riesce e la modifica resta; se lo tocca, ~/.claude resta com'era e il push non parte.
+Revisione del 22/11/2026, passo 2 (O1, #6415), sulla base f06d54a rossi:
+FC17 --solo-percorsi: entrano handoff, indice e path dell'aggancio; il lavoro a metà di un'altra sessione
+     (un hook tracciato modificato, CLAUDE.md, memoria, todo, l'handoff di un altro slug) resta fuori e su disco.
+FC18 l'aggancio riceve "leggero" e "rotazione"; mette in stage da sé, senza "path", un log di Melchior e una
+     nota: la nota va nel commit della memoria, il log nel commit di sync.
 
 Sulla base 875109c bin/fine-coda.py non esiste: rossi tutti i casi.
 """
@@ -47,7 +52,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09", "FC10", "FC11", "FC12", "FC13",
-        "FC14", "FC15", "FC16"]
+        "FC14", "FC15", "FC16", "FC17", "FC18"]
 FILE = ["bin/fine-coda.py", "bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/handoff_profilo.py",
         "bin/index-rigenera.py", "bin/todo_store.py", "hooks/melchior_match.py", "hooks/radici.py", "hooks/controlla-config.py",
         # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
@@ -452,13 +457,68 @@ def fc16(lab: Lab):
                 f"secondo rc={r2.returncode} fermo={fermo} resti=[{resti}] {r2.stdout.strip()[-200:]!r}")
 
 
+def fc17(lab: Lab):
+    lab.scrivi("hooks/mia.py", "uno\n")
+    lab.git(lab.cl, "add", "-f", "hooks/mia.py")
+    lab.git(lab.cl, "commit", "-q", "-m", "mia")
+    lab.git(lab.cl, "push", "-q", "origin", "main")
+    lab.scrivi("hooks/mia.py", "due\n")  # il lavoro a metà di un'altra sessione
+    memoria(lab)
+    lab.scrivi("data/handoffs/altro/HANDOFF_2026-10-30_19-00.md", VERDE)
+    lab.scrivi("personale/fine-coda.py", AGGANCIO)
+    r = lab.coda(lab.handoff(), "--solo-percorsi")
+    remoto = set(lab.nel_remoto())
+    attesi = {"data/handoffs/libro/HANDOFF_2026-10-30_20-00.md", "data/handoffs/INDEX.md", "personale/stato.txt"}
+    vietati = remoto & {"CLAUDE.md", "data/memory/pattern/nota.md", "data/todo/eventi.jsonl",
+                        "data/handoffs/altro/HANDOFF_2026-10-30_19-00.md", "personale/fine-coda.py"}
+    mia = lab.git(lab.remoto, "show", "main:hooks/mia.py")
+    resta = (lab.cl / "hooks" / "mia.py").read_text(encoding="utf-8") == "due\n"
+    if r.returncode != 0 or not attesi <= remoto or vietati or mia != "uno\n" or not resta \
+            or "fuori dal commit" not in r.stdout or "solo i path della sessione" not in r.stdout:
+        return (f"rc={r.returncode} mancano {sorted(attesi - remoto)} vietati {sorted(vietati)} mia={mia!r} "
+                f"resta={resta} {r.stdout.strip()[-200:]!r}")
+
+
+AGGANCIO_LOG = """import json, subprocess, sys
+d = json.load(sys.stdin)
+open(d["radice"] + "/personale/visto-" + d["fase"] + ".json", "w", encoding="utf-8").write(json.dumps(d))
+if d["fase"] == "prima-commit":
+    subprocess.run(["git", "-C", d["radice"], "add", "-f", "--", "data/memory/.melchior-access.log.d/Prova.log",
+                    "data/memory/pattern/nota.md"], check=True)
+    print(json.dumps({"esiti": [], "path": [], "blocca": None}))
+else:
+    print(json.dumps({"esiti": [], "path": [], "blocca": None}))
+"""
+
+
+def fc18(lab: Lab):
+    memoria(lab)
+    lab.scrivi("personale/fine-coda.py", AGGANCIO_LOG)
+    r = lab.coda(lab.handoff(), "--solo-percorsi", "--leggero")
+    try:
+        visto = json.loads((lab.cl / "personale" / "visto-dopo-index.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        visto = {}
+    log = "data/memory/.melchior-access.log.d/Prova.log"
+    try:
+        sync = set(lab.git(lab.cl, "show", "--name-only", "--format=", "HEAD").split())
+        mem = set(lab.git(lab.cl, "show", "--name-only", "--format=", "HEAD~1").split())
+    except RuntimeError as e:
+        return f"rc={r.returncode} commit assenti {e} {r.stdout.strip()[-200:]!r}"
+    if r.returncode != 0 or visto.get("leggero") is not True or visto.get("rotazione") is not True \
+            or mem != {"data/memory/pattern/nota.md"} or log not in sync \
+            or "data/handoffs/libro/HANDOFF_2026-10-30_20-00.md" not in sync:
+        return (f"rc={r.returncode} leggero={visto.get('leggero')} rotazione={visto.get('rotazione')} "
+                f"memoria={sorted(mem)} sync={sorted(sync)} {r.stdout.strip()[-200:]!r}")
+
+
 def prova(repo: Path, ref: str | None) -> list:
     rossi = []
     for codice, fn, k in (("FC01", fc01, {}), ("FC02", fc02, {}), ("FC03", fc03, {"visibilita": "PUBLIC"}),
                           ("FC04", fc04, {}), ("FC05", fc05, {}), ("FC06", fc06, {}), ("FC07", fc07, {}),
                           ("FC08", fc08, {}), ("FC09", fc09, {}), ("FC10", fc10, {}), ("FC11", fc11, {}),
                           ("FC12", fc12, {}), ("FC13", fc13, {}), ("FC14", fc14, {}), ("FC15", fc15, {}),
-                          ("FC16", fc16, {})):
+                          ("FC16", fc16, {}), ("FC17", fc17, {}), ("FC18", fc18, {})):
         esito = con_lab(repo, ref, fn, **k)
         if esito:
             rossi.append(f"{codice} {esito}")

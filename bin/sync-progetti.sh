@@ -78,6 +78,27 @@ for dir in "$ROOT"/*/; do
     ERRORS=$((ERRORS + 1))
     continue
   fi
+  # Un HEAD staccato (un bisect, una prova su un commit) è lavoro in corso anche lui: niente stash né pull.
+  # Correzione portata dalla copia di Federico (30/10/2026), revisione del 22/11, passo 2.
+  if ! git -C "$dir" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "ERRORE: $name ha HEAD staccato: non lo tocco, rimetti un ramo con /inizio $name"
+    ERRORS=$((ERRORS + 1))
+    continue
+  fi
+
+  # Fetch prima dello stash: un repository sporco ma già allineato non si mette da parte. Lo stash tirava
+  # indietro per qualche secondo i file di un'altra sessione al lavoro nel repository (7/11/2026, I11).
+  # Con il fetch fallito, o senza upstream, si prosegue: il pull qui sotto fallisce e dice la causa.
+  if git -C "$dir" fetch -q 2>/dev/null && [ "$(git -C "$dir" rev-list --count 'HEAD..@{u}' 2>/dev/null)" = "0" ]; then
+    echo "  Già aggiornato"
+    CONFLICTS=$(git -C "$dir" diff --name-only --diff-filter=U 2>/dev/null)
+    if [ -n "$CONFLICTS" ]; then
+      echo "  CONFLITTI:"
+      echo "$CONFLICTS" | sed 's/^/    /'
+      ERRORS=$((ERRORS + 1))
+    fi
+    continue
+  fi
 
   if [ "$TRACKED_DIRTY" = "1" ] || [ "$STAGED_DIRTY" = "1" ]; then
     if git -C "$dir" stash push -m "auto-stash-sync-$(date +%s)" >/dev/null 2>&1; then

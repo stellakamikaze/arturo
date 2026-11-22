@@ -87,6 +87,8 @@ ARTURO, anche col clone; in /system-audit il controllo dà solo WARN.
 F35 un controllo rosso fa rifare solo il pezzo bocciato (22/11/2026, #6319): il metodo dice di rifare
 solo quel pezzo e di scrivere prima il confine; il gate dell'handoff di /fine fa correggere solo le righe
 che nomina; la bozza di /setup cambia solo la parte corretta.
+F36 sync-progetti porta le correzioni della copia di Federico (revisione del 22/11/2026, passo 2): un progetto
+già allineato non passa da stash e pop, un HEAD staccato è un errore e resta com'era.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1704,6 +1706,37 @@ def test_f35(repo: Path) -> None:
         and "riscrivi solo le righe che corregge" in ritratto, "F35 una correzione di /setup rifà la bozza intera"
 
 
+def test_f36(repo: Path) -> None:
+    script = serve(repo, "bin/sync-progetti.sh", "F36")
+
+    def prova(lab: Lab) -> None:
+        radice = lab.tmp / "progetti"
+        nudo, monte = lab.tmp / "nudo.git", lab.tmp / "monte"
+        radice.mkdir()
+        lab.git(lab.tmp, "init", "-q", "--bare", "-b", "main", str(nudo))
+        lab.git(lab.tmp, "clone", "-q", str(nudo), str(monte))
+        lab.git(monte, "checkout", "-q", "-B", "main")
+        (monte / "f.md").write_text("base\n", encoding="utf-8")
+        lab.git(monte, "add", "-A")
+        lab.git(monte, "commit", "-qm", "base")
+        lab.git(monte, "push", "-q", "origin", "main")
+        allineato, staccato = radice / "allineato", radice / "staccato"
+        for d in (allineato, staccato):
+            lab.git(lab.tmp, "clone", "-q", str(nudo), str(d))
+            (d / "f.md").write_text("al lavoro\n", encoding="utf-8")
+            os.utime(d / "f.md", (946684800, 946684800))
+        lab.git(staccato, "checkout", "-q", "--detach")
+        r = lab.run([BASH, str(script), str(radice)])
+        for d in (allineato, staccato):
+            assert read(d / "f.md") == "al lavoro\n" and not lab.git(d, "stash", "list").strip(), \
+                f"F36 {d.name}: il file al lavoro è cambiato o è rimasto uno stash"
+        assert int((allineato / "f.md").stat().st_mtime) == 946684800, \
+            f"F36 un progetto già allineato passa da stash e pop: {r.stdout[-300:]}"
+        assert r.returncode == 1 and "staccato ha HEAD staccato" in r.stdout, \
+            f"F36 un HEAD staccato non è detto come errore: {r.returncode} {r.stdout[-300:]}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
@@ -1711,7 +1744,7 @@ TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F0
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
          "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
-         "F33": test_f33, "F34": test_f34, "F35": test_f35}
+         "F33": test_f33, "F34": test_f34, "F35": test_f35, "F36": test_f36}
 
 
 def main() -> int:

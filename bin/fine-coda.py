@@ -6,7 +6,12 @@ qui girano in un processo solo. Il giudizio resta in /fine: destino dei file, ha
 salvare degli handoff in uscita (il dry-run della retention), memoria.
 
 Uso:
-  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--rotazione] [--trailer <riga>] [-- <argomenti tuoi>]
+  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--rotazione] [--solo-percorsi] [--trailer <riga>] [-- <argomenti tuoi>]
+
+--solo-percorsi: il passo 6 non aggiunge per cartella. Entrano solo l'handoff, l'indice, il segno del fine
+completo, le uscite della retention già tracciate nella cartella dello slug e i path dell'aggancio personale.
+Serve a chi tiene più sessioni sulla stessa config: le modifiche delle altre restano fuori dal commit e la
+riga "fuori dal commit" le elenca (revisione del 22/11/2026, passo 2).
 
 --leggero: il fine leggero della rotazione automatica (/fine --rotazione, 3/11/2026). Salta la retention,
 che aspetta il fine completo. Senza --leggero la coda scrive la data di oggi (AAAA-MM-GG) in
@@ -50,9 +55,11 @@ una riga sola quando non c'è nessuno da avvisare. Niente commit, niente gate, l
 I path dell'aggancio personale non entrano nell'anteprima. FINE_CODA_SESSIONI sposta le sessioni (banchi).
 
 Aggancio personale: se esiste ~/.claude/personale/fine-coda.py, la coda lo lancia ai passi 5 e 8 con un
-JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage"}. Risponde
-su stdout {"esiti": [...], "path": [...], "blocca": null o "motivo"}. I "path" (relativi a ~/.claude)
-entrano nel commit di sync. Exit 0 fatto, 3 servizio giù (la coda prosegue e lo dice), 4 blocca.
+JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage", "leggero",
+"rotazione"}. Risponde su stdout {"esiti": [...], "path": [...], "blocca": null o "motivo"}. I "path"
+(relativi a ~/.claude) entrano nel commit: quelli sotto data/memory nel commit della memoria, gli altri nel
+commit di sync. Un file che l'aggancio mette in stage da sé entra anche lui. Exit 0 fatto, 3 servizio giù
+(la coda prosegue e lo dice), 4 blocca.
 
 Exit:
   0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
@@ -596,6 +603,29 @@ def aggiungi_per_percorso():
             "falliti": falliti, "righe": righe, "esiti": esiti}
 
 
+def aggiungi_della_sessione(handoff, slug):
+    """Il passo 6 con --solo-percorsi: niente add per cartella. Entrano l'handoff, l'indice, il segno del fine
+    completo e le uscite della retention già tracciate nella cartella dello slug; il resto lo nomina l'aggancio
+    personale. Gli handoff senza -f, come nel passo 6 per cartella: una riga del .gitignore va rispettata."""
+    origin = git("remote", "get-url", "origin")[1].strip()
+    origin_arturo = bool(RE_ARTURO.search(origin))
+    vis = visibilita(origin) if origin and not origin_arturo else ""
+    falliti, esiti = [], ["add: solo i path della sessione"]
+    if handoff:
+        cartella = handoff.parent.relative_to(CL.resolve()).as_posix()
+        for p in (handoff.relative_to(CL.resolve()).as_posix(), "data/handoffs/INDEX.md", f"{cartella}/{SEGNO_COMPLETO}"):
+            if (CL / p).exists():
+                ok, err = aggiungi("-A", "--", p)
+                if not ok:
+                    falliti.append(f"{p}: {ultima(err)}")
+    if slug and git("ls-files", "--", f"data/handoffs/{slug}/")[1].strip():
+        ok, err = aggiungi("-u", "--", f"data/handoffs/{slug}/")
+        if not ok:
+            falliti.append(f"data/handoffs/{slug}/: {ultima(err)}")
+    return {"origin": origin, "origin_arturo": origin_arturo, "vis": vis, "saltati": {},
+            "falliti": falliti, "righe": [], "esiti": esiti}
+
+
 def da_salvare_fuori_data():
     """I file fuori da data/ che il commit di sync prenderebbe adesso: il passo 6 su una copia dell'indice, che
     poi sparisce. None se ~/.claude non ha git o la copia non riesce."""
@@ -838,6 +868,8 @@ def main(argv):
                     help="fine leggero della rotazione: niente retention e niente segno del fine completo")
     ap.add_argument("--rotazione", action="store_true",
                     help="giro in rotazione (anche il completo delle 18): l'handoff non chiede /clear alla persona")
+    ap.add_argument("--solo-percorsi", action="store_true",
+                    help="niente add per cartella: solo handoff, indice, segno, retention e path dell'aggancio")
     ap.add_argument("--avvisi", action="store_true",
                     help="solo l'anteprima: quali altre sessioni vive avvisare, senza commit (exit 3: nessuna)")
     ap.error = lambda m: (sys.stderr.write(f"fine-coda: {m}\n"), sys.exit(5))
@@ -867,7 +899,8 @@ def coda(a, ap, suoi):
     slug = a.slug or (handoff.parent.name if handoff else "")
     if slug and ("/" in slug or "\\" in slug or slug.startswith(".")):
         ap.error(f"slug non valido: {slug}")
-    base = {"handoff": str(handoff or ""), "slug": slug, "radice": str(CL), "argomenti": suoi}
+    base = {"handoff": str(handoff or ""), "slug": slug, "radice": str(CL), "argomenti": suoi,
+            "leggero": bool(a.leggero), "rotazione": bool(a.rotazione or a.leggero)}
     esiti, offline = [], False
 
     # 1. config integra. Un rebase fermo sui soli file derivati, lasciato da una coda di prima, si chiude.
@@ -943,7 +976,7 @@ def coda(a, ap, suoi):
         esiti.append("config senza git: niente commit")
         print("coda: " + " · ".join(esiti))
         return 3 if offline else 0
-    p6 = aggiungi_per_percorso()
+    p6 = aggiungi_della_sessione(handoff, slug) if a.solo_percorsi else aggiungi_per_percorso()
     for r in p6["righe"]:
         print(r)
     esiti += p6["esiti"]
@@ -987,7 +1020,8 @@ def coda(a, ap, suoi):
         if not ok:
             print(f"fine-coda: git add fallito sui path dell'aggancio personale: {ultima(err)}")
             return 6
-        staged = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "-z")[1].split("\0") if p]
+    # Di nuovo dall'indice: l'aggancio può aver messo in stage un file da sé, anche senza "path".
+    staged = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "-z")[1].split("\0") if p]
 
     if riga_saltati(saltati):
         esiti.append(riga_saltati(saltati))
@@ -1007,7 +1041,8 @@ def coda(a, ap, suoi):
 
     # 9. commit: la memoria a parte, così si annulla da sola
     trailer = "".join(f"\n{t}" for t in a.trailer)
-    memoria = [p for p in staged if p.startswith("data/memory/")]
+    # Un log o una cache di Melchior messi in stage dall'aggancio non sono memoria applicata: vanno nel sync.
+    memoria = [p for p in staged if p.startswith("data/memory/") and not escluso(p)]
     resto = [p for p in staged if p not in memoria]
     # Commit dall'indice, mai "git commit -- <path>": con i path git riprende i file dal disco e annulla un
     # "rm --cached" (test F17). La memoria va prima, con una copia dell'indice senza il resto.
