@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — /fine avvisa le altre sessioni solo quando le riguarda
+
+**Cosa cambia**: prima di salvare la configurazione, `/fine` avvisava ogni sessione aperta che il salvataggio
+avrebbe preso anche i suoi file. Adesso l'avviso parte solo se ci sono file della configurazione da salvare
+fuori da `data/`, e solo alle sessioni che li hanno scritti o nominati in un comando. Con quattro sessioni
+aperte una sessione riceveva due avvisi inutili, e ogni volta interrompeva la persona (segnalazione n. 94).
+
+**Il principio**: l'elenco dei file viene dalle stesse regole del salvataggio vero, provate su una copia
+dell'indice di git. Un file che il salvataggio lascia fuori non fa partire nessun avviso.
+
 ## 2026-11-22 — Un /fine su una sessione già chiusa non riparte
 
 **Cosa cambia**: se una sessione è già chiusa con `/fine` e dopo non è arrivato nessun messaggio, un nuovo

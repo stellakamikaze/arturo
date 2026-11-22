@@ -42,6 +42,13 @@ Ordine dei passi:
      .ultimo-fine-completo) si risolve da solo: l'indice si rigenera, il segno tiene la data più recente.
      Ogni altro conflitto lascia ~/.claude com'era e i commit in locale.
 
+--avvisi: l'anteprima della FASE 9, prima della coda (#6275, segnalazione n. 94). Il passo 6 gira su una copia
+dell'indice e dà i file fuori da data/ che il commit di sync prenderebbe; poi legge le altre sessioni vive di
+questa macchina (sessions/<pid>.json) e le loro trascrizioni. Stampa una riga "AVVISA <nome> (sessione <id>):
+<file>" per ogni sessione che ha scritto o nominato uno di quei file. Exit 0 con almeno una riga, exit 3 con
+una riga sola quando non c'è nessuno da avvisare. Niente commit, niente gate, l'indice vero resta com'era.
+I path dell'aggancio personale non entrano nell'anteprima. FINE_CODA_SESSIONI sposta le sessioni (banchi).
+
 Aggancio personale: se esiste ~/.claude/personale/fine-coda.py, la coda lo lancia ai passi 5 e 8 con un
 JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage"}. Risponde
 su stdout {"esiti": [...], "path": [...], "blocca": null o "motivo"}. I "path" (relativi a ~/.claude)
@@ -173,8 +180,13 @@ def run(cmd, timeout=180, entrata=None, cwd=None, env=None):
         return None, "", str(e)
 
 
+# L'anteprima degli avvisi (--avvisi) fa girare il passo 6 su una copia dell'indice: git() e aggiungi_forzati()
+# leggono l'ambiente da qui, e None vuol dire l'indice vero.
+ENV_GIT = None
+
+
 def git(*a, timeout=120):
-    return run(["git", "-C", str(CL), *a], timeout)
+    return run(["git", "-C", str(CL), *a], timeout, env=ENV_GIT)
 
 
 def ultima(*testi):
@@ -486,7 +498,7 @@ def aggiungi_forzati(elenco):
     if not elenco:
         return True, ""
     rc, _, err = run(["git", "-C", str(CL), "add", "-A", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"],
-                     120, entrata="\0".join(elenco))
+                     120, entrata="\0".join(elenco), env=ENV_GIT)
     return rc == 0, err
 
 
@@ -508,6 +520,241 @@ def retention(slug):
     return f"retention rc={rc}: {ultima(err, out)}"
 
 
+def aggiungi_per_percorso():
+    """Il passo 6: git add per percorso, sull'indice di ENV_GIT. Non stampa: le righe da mostrare e gli esiti
+    tornano a chi chiama, così l'anteprima di --avvisi usa le stesse regole del commit vero."""
+    origin = git("remote", "get-url", "origin")[1].strip()
+    origin_arturo = bool(RE_ARTURO.search(origin))
+    vis = visibilita(origin) if origin and not origin_arturo else ""
+    falliti, righe, esiti = [], [], []
+    # Verso un remote non privato un file nuovo in commands, bin, hooks e nelle altre cartelle di Arturo è della
+    # persona: i file di Arturo arrivano già tracciati da /aggiorna. Fino al 21/11/2026 "git add" li portava nel
+    # commit e uscivano (revisione del 20/11, A3, #6249). Senza remote o verso Arturo il commit resta locale.
+    remoto_aperto = bool(origin) and not origin_arturo and vis != "PRIVATE"
+    nuovi_fermi = []
+    for p in ARTURO:
+        if (CL / p).exists():
+            if remoto_aperto and (CL / p).is_dir():
+                nuovi_fermi += [x for x in git("ls-files", "-z", "--others", "--exclude-standard", "--", p)[1]
+                                .split("\0") if x]
+                # "add -u" su una cartella senza file tracciati fallisce, con un messaggio tradotto nella lingua
+                # di git: il controllo di aggiungi() legge solo quello inglese
+                ok, err = aggiungi("-u", "--", p) if git("ls-files", "--", p)[1].strip() else (True, "")
+            else:
+                ok, err = aggiungi("--", p)
+            if not ok:
+                falliti.append(f"{p}: {ultima(err)}")
+    if nuovi_fermi:
+        righe.append(f"FILE TUOI NON SALVATI: {' '.join(nuovi_fermi[:10])}"
+              + (f" e altri {len(nuovi_fermi) - 10}" if len(nuovi_fermi) > 10 else "")
+              + f" - il remote della config non risulta privato (visibilità: {vis or 'sconosciuta'}). "
+                "Restano su questa macchina.")
+    if (CL / "skills").is_dir():
+        nuove = git("ls-files", "--others", "--exclude-standard", "--directory", "--", "skills")[1].split()
+        if vis == "PRIVATE" or origin_arturo or not origin:
+            aggiungi("-u", "--", "skills")
+            if nuove:
+                aggiungi("--", "skills")
+        else:
+            # Verso un remote non privato resta fuori anche una skill della persona già tracciata e modificata:
+            # fino al 21/11/2026 "git add -u" la portava nel commit, e una correzione scritta nella skill usciva
+            # (#6277). Le skill di Arturo sono già pubbliche e passano. Senza l'elenco dei nomi restano tutte fuori.
+            di_arturo = skill_di_arturo()
+            modificate = set()
+            for p in git("diff", "--name-only", "-z", "--", "skills")[1].split("\0"):
+                pezzi = p.split("/")
+                if len(pezzi) >= 3 and pezzi[1] not in di_arturo:
+                    modificate.add(f"skills/{pezzi[1]}/")
+                elif p:
+                    aggiungi("-u", "--", p)
+            ferme = nuove + sorted(modificate - set(nuove))
+            if ferme:
+                righe.append(f"SKILL TUE NON SALVATE: {' '.join(ferme)} - il remote della config non risulta privato "
+                      f"(visibilità: {vis or 'sconosciuta'}). Restano su questa macchina.")
+    saltati = {}
+    if vis == "PRIVATE":
+        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()], saltati))
+        if not ok:
+            falliti.append(f"{', '.join(PRIVATI)}: {ultima(err)}")
+        # Gli handoff senza -f: una riga della persona nel .gitignore (un progetto riservato) va rispettata.
+        if (CL / "data" / "handoffs").exists():
+            aggiungi("-A", "--", "data/handoffs")
+    else:
+        esiti.append(f"CLAUDE.md, personale/, handoff, todo e memoria solo su questa macchina: il remote "
+                     f"non risulta privato (visibilità: {vis or 'sconosciuta'})")
+        if origin_arturo or not origin:
+            for p in ("data/handoffs", "data/todo", "data/memory"):
+                if git("ls-files", "--", p)[1].strip() and git("rm", "-r", "-q", "--cached", "--", p)[0] == 0:
+                    esiti.append(f"{p} tolto dal tracciamento di git, i file restano su questa macchina")
+    return {"origin": origin, "origin_arturo": origin_arturo, "vis": vis, "saltati": saltati,
+            "falliti": falliti, "righe": righe, "esiti": esiti}
+
+
+def da_salvare_fuori_data():
+    """I file fuori da data/ che il commit di sync prenderebbe adesso: il passo 6 su una copia dell'indice, che
+    poi sparisce. None se ~/.claude non ha git o la copia non riesce."""
+    global ENV_GIT
+    if not (CL / ".git").exists():
+        return None
+    indice = Path(git("rev-parse", "--git-path", "index")[1].strip())
+    indice = indice if indice.is_absolute() else CL / indice
+    fd, nome = tempfile.mkstemp(prefix="index.fine-avvisi-", dir=str(indice.parent))
+    os.close(fd)
+    copia = Path(nome)
+    try:
+        if indice.is_file():
+            shutil.copy2(str(indice), str(copia))
+        else:
+            copia.unlink()  # senza indice git parte da un indice vuoto, come il commit vero
+        ENV_GIT = dict(os.environ, GIT_INDEX_FILE=str(copia))
+        if aggiungi_per_percorso()["falliti"]:
+            return None
+        rc, out, _ = git("diff", "--cached", "--name-only", "--no-renames", "-z")
+        if rc != 0:
+            return None
+        return [p for p in out.split("\0") if p and not p.startswith("data/")]
+    finally:
+        ENV_GIT = None
+        copia.unlink(missing_ok=True)
+
+
+def cartella_sessioni():
+    """Dove Claude Code scrive un file per ogni sessione viva (<pid>.json): FINE_CODA_SESSIONI per i banchi."""
+    if os.environ.get("FINE_CODA_SESSIONI"):
+        return Path(os.environ["FINE_CODA_SESSIONI"])
+    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "sessions"
+
+
+def viva(pid):
+    """Il processo esiste ancora. Su Windows os.kill chiude il processo: lì vale il file della sessione."""
+    if os.name == "nt":
+        return True
+    try:
+        os.kill(int(pid), 0)
+    except (ProcessLookupError, ValueError, TypeError):
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def sessioni_vive():
+    """Le altre sessioni vive su questa macchina: [{"id", "nome", "cwd"}], senza quella di CLAUDE_CODE_SESSION_ID."""
+    mia = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    out, visti = [], set()
+    for f in sorted(cartella_sessioni().glob("*.json")):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        sid = str(d.get("sessionId") or "")
+        if not sid or sid == mia or sid in visti or not viva(d.get("pid", f.stem)):
+            continue
+        visti.add(sid)
+        out.append({"id": sid, "nome": str(d.get("name") or ""), "cwd": str(d.get("cwd") or "")})
+    return out
+
+
+def trascrizione(sessione):
+    """Il file .jsonl della sessione sotto projects/, accanto alla cartella delle sessioni, o None."""
+    for f in (cartella_sessioni().parent / "projects").glob(f"*/{sessione['id']}.jsonl"):
+        return f
+    return None
+
+
+def toccati(sessione, file):
+    """I file (relativi a ~/.claude) che la sessione ha scritto con Edit, Write o NotebookEdit, o nominato in un
+    comando di Bash. Un file cambiato da uno script lanciato senza nominarlo sfugge: in quel caso niente avviso."""
+    tr = trascrizione(sessione)
+    if not tr or not file:
+        return []
+    radice = CL.resolve()
+    pieni = {(radice / r).as_posix(): r for r in file}
+    home = Path.home().resolve()
+    aghi = {}
+    for r in file:
+        aghi[(CL / r).as_posix()] = r
+        aghi[(radice / r).as_posix()] = r
+        try:
+            sotto = (radice / r).relative_to(home).as_posix()
+            aghi["~/" + sotto] = r
+            aghi["$HOME/" + sotto] = r
+        except ValueError:
+            pass
+    cwd = Path(sessione["cwd"]).expanduser() if sessione["cwd"] else None
+    dentro = False
+    if cwd:
+        try:
+            cwd.resolve().relative_to(radice)
+            dentro = True
+        except (ValueError, OSError):
+            pass
+    trovati = set()
+    try:
+        righe = tr.open(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    with righe:
+        for riga in righe:
+            if '"tool_use"' not in riga:
+                continue
+            try:
+                contenuto = (json.loads(riga).get("message") or {}).get("content")
+            except ValueError:
+                continue
+            for pezzo in contenuto if isinstance(contenuto, list) else []:
+                if not isinstance(pezzo, dict) or pezzo.get("type") != "tool_use":
+                    continue
+                entrata = pezzo.get("input") or {}
+                for chiave in ("file_path", "notebook_path"):
+                    v = entrata.get(chiave)
+                    if isinstance(v, str) and v:
+                        p = Path(v).expanduser()
+                        if not p.is_absolute() and cwd:
+                            p = cwd / p
+                        try:
+                            p = p.resolve()
+                        except OSError:
+                            pass
+                        if p.as_posix() in pieni:
+                            trovati.add(pieni[p.as_posix()])
+                comando = entrata.get("command")
+                if isinstance(comando, str):
+                    for ago, r in aghi.items():
+                        if ago in comando:
+                            trovati.add(r)
+                    if dentro:
+                        trovati.update(r for r in file if r in comando)
+    return [r for r in file if r in trovati]
+
+
+def avvisi():
+    """--avvisi: a chi mandare l'avviso della FASE 9 prima della coda. Exit 0 con una riga AVVISA per sessione;
+    exit 3 con una riga sola quando non c'è nessuno da avvisare."""
+    file = da_salvare_fuori_data()
+    if file is None:
+        print("avvisi: niente anteprima del commit di sync (config senza git o indice non copiato): nessun avviso")
+        return 3
+    if not file:
+        print("avvisi: nessun file della config fuori da data/ da salvare: nessun avviso")
+        return 3
+    righe = []
+    for s in sessioni_vive():
+        suoi = toccati(s, file)
+        if suoi:
+            nome = s["nome"] or "senza nome"
+            righe.append(f"AVVISA {nome} (sessione {s['id'][:8]}): {', '.join(suoi[:10])}"
+                         + (f" e altri {len(suoi) - 10}" if len(suoi) > 10 else ""))
+    if not righe:
+        print(f"avvisi: {len(file)} file da salvare fuori da data/, nessuna altra sessione viva li ha toccati: "
+              "nessun avviso")
+        return 3
+    print("\n".join(righe))
+    return 0
+
+
 def main(argv):
     for flusso in (sys.stdout, sys.stderr):  # su Windows la pipe è in cp1252, chi legge vuole UTF-8
         if hasattr(flusso, "reconfigure"):
@@ -522,8 +769,12 @@ def main(argv):
                     help="fine leggero della rotazione: niente retention e niente segno del fine completo")
     ap.add_argument("--rotazione", action="store_true",
                     help="giro in rotazione (anche il completo delle 18): l'handoff non chiede /clear alla persona")
+    ap.add_argument("--avvisi", action="store_true",
+                    help="solo l'anteprima: quali altre sessioni vive avvisare, senza commit (exit 3: nessuna)")
     ap.error = lambda m: (sys.stderr.write(f"fine-coda: {m}\n"), sys.exit(5))
     a = ap.parse_args(propri)
+    if a.avvisi:
+        return avvisi()
 
     handoff = Path(a.handoff).expanduser().resolve() if a.handoff else handoff_della_sessione()
     if a.handoff and not handoff.is_file():
@@ -612,71 +863,13 @@ def main(argv):
         esiti.append("config senza git: niente commit")
         print("coda: " + " · ".join(esiti))
         return 3 if offline else 0
-    origin = git("remote", "get-url", "origin")[1].strip()
-    origin_arturo = bool(RE_ARTURO.search(origin))
-    vis = visibilita(origin) if origin and not origin_arturo else ""
-    falliti = []
-    # Verso un remote non privato un file nuovo in commands, bin, hooks e nelle altre cartelle di Arturo è della
-    # persona: i file di Arturo arrivano già tracciati da /aggiorna. Fino al 21/11/2026 "git add" li portava nel
-    # commit e uscivano (revisione del 20/11, A3, #6249). Senza remote o verso Arturo il commit resta locale.
-    remoto_aperto = bool(origin) and not origin_arturo and vis != "PRIVATE"
-    nuovi_fermi = []
-    for p in ARTURO:
-        if (CL / p).exists():
-            if remoto_aperto and (CL / p).is_dir():
-                nuovi_fermi += [x for x in git("ls-files", "-z", "--others", "--exclude-standard", "--", p)[1]
-                                .split("\0") if x]
-                # "add -u" su una cartella senza file tracciati fallisce, con un messaggio tradotto nella lingua
-                # di git: il controllo di aggiungi() legge solo quello inglese
-                ok, err = aggiungi("-u", "--", p) if git("ls-files", "--", p)[1].strip() else (True, "")
-            else:
-                ok, err = aggiungi("--", p)
-            if not ok:
-                falliti.append(f"{p}: {ultima(err)}")
-    if nuovi_fermi:
-        print(f"FILE TUOI NON SALVATI: {' '.join(nuovi_fermi[:10])}"
-              + (f" e altri {len(nuovi_fermi) - 10}" if len(nuovi_fermi) > 10 else "")
-              + f" - il remote della config non risulta privato (visibilità: {vis or 'sconosciuta'}). "
-                "Restano su questa macchina.")
-    if (CL / "skills").is_dir():
-        nuove = git("ls-files", "--others", "--exclude-standard", "--directory", "--", "skills")[1].split()
-        if vis == "PRIVATE" or origin_arturo or not origin:
-            aggiungi("-u", "--", "skills")
-            if nuove:
-                aggiungi("--", "skills")
-        else:
-            # Verso un remote non privato resta fuori anche una skill della persona già tracciata e modificata:
-            # fino al 21/11/2026 "git add -u" la portava nel commit, e una correzione scritta nella skill usciva
-            # (#6277). Le skill di Arturo sono già pubbliche e passano. Senza l'elenco dei nomi restano tutte fuori.
-            di_arturo = skill_di_arturo()
-            modificate = set()
-            for p in git("diff", "--name-only", "-z", "--", "skills")[1].split("\0"):
-                pezzi = p.split("/")
-                if len(pezzi) >= 3 and pezzi[1] not in di_arturo:
-                    modificate.add(f"skills/{pezzi[1]}/")
-                elif p:
-                    aggiungi("-u", "--", p)
-            ferme = nuove + sorted(modificate - set(nuove))
-            if ferme:
-                print(f"SKILL TUE NON SALVATE: {' '.join(ferme)} - il remote della config non risulta privato "
-                      f"(visibilità: {vis or 'sconosciuta'}). Restano su questa macchina.")
-    saltati = {}
-    if vis == "PRIVATE":
-        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()], saltati))
-        if not ok:
-            falliti.append(f"{', '.join(PRIVATI)}: {ultima(err)}")
-        # Gli handoff senza -f: una riga della persona nel .gitignore (un progetto riservato) va rispettata.
-        if (CL / "data" / "handoffs").exists():
-            aggiungi("-A", "--", "data/handoffs")
-    else:
-        esiti.append(f"CLAUDE.md, personale/, handoff, todo e memoria solo su questa macchina: il remote "
-                     f"non risulta privato (visibilità: {vis or 'sconosciuta'})")
-        if origin_arturo or not origin:
-            for p in ("data/handoffs", "data/todo", "data/memory"):
-                if git("ls-files", "--", p)[1].strip() and git("rm", "-r", "-q", "--cached", "--", p)[0] == 0:
-                    esiti.append(f"{p} tolto dal tracciamento di git, i file restano su questa macchina")
-    if falliti:
-        print("fine-coda: git add fallito su " + "; ".join(falliti))
+    p6 = aggiungi_per_percorso()
+    for r in p6["righe"]:
+        print(r)
+    esiti += p6["esiti"]
+    origin, origin_arturo, vis, saltati = p6["origin"], p6["origin_arturo"], p6["vis"], p6["saltati"]
+    if p6["falliti"]:
+        print("fine-coda: git add fallito su " + "; ".join(p6["falliti"]))
         return 6
 
     # 7. marcatori di conflitto

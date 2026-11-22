@@ -92,8 +92,8 @@ conversazione e dillo nella riga tecnica. Aggiungi i file che lo script non ha v
 - la sessione non ha todo nuovi né punti pendenti, e non ha aperto un lavoro che riprende nei giorni dopo;
 - `arturo contesto` dice `cartella: nessuna`, o NON TROVATO.
 
-Lancia solo la coda della FASE 9 (`python3 ~/.claude/bin/fine-coda.py`): senza handoff fa solo il sync
-della config. Chiudi con una riga tecnica breve: "chiuso · sessione vuota · config: push riuscito".
+Lancia solo i due comandi della FASE 9, l'anteprima degli avvisi (`python3 ~/.claude/bin/fine-coda.py
+--avvisi`) e la coda (`python3 ~/.claude/bin/fine-coda.py`): senza handoff la coda fa solo il sync della config. Chiudi con una riga tecnica breve: "chiuso · sessione vuota · config: push riuscito".
 Se una condizione manca, segui tutte le fasi.
 
 ## FASE 2 · Destino di ogni file
@@ -324,12 +324,17 @@ creata <ID> <file>`. Al no, `rispondi <ID> no`.
 
 ## FASE 9 · Config Sync, in una chiamata
 
-Dopo le fasi 4-8, o subito con l'uscita breve. Se `ListAgents` mostra un'altra sessione viva su questa
-macchina, avvisala prima con `SendMessage`: il commit di sync prende anche i suoi file della config.
+Dopo le fasi 4-8, o subito con l'uscita breve. Prima della coda lancia l'anteprima degli avvisi:
 
 ```bash
+python3 ~/.claude/bin/fine-coda.py --avvisi; echo "rc=$?"
 python3 ~/.claude/bin/fine-coda.py; echo "rc=$?"
 ```
+
+L'anteprima dice quali altre sessioni vive su questa macchina hanno toccato i file della config fuori da
+`data/` che il commit di sync prenderà. Con exit 3 non avvisi nessuno. Con exit 0, per ogni riga `AVVISA
+<nome> (sessione <id>): <file>` manda un `SendMessage` a quella sessione col suo nome di `ListAgents`, con i
+file della riga: il commit di sync li salva adesso (#6275, segnalazione n. 94).
 
 **Con il sandbox dei comandi acceso** la coda gira fuori dal sandbox (`dangerouslyDisableSandbox`): fa commit e
 push di `~/.claude`, e il sandbox lascia scrivere solo `~/.claude/data`, dove stanno todo e handoff (segnalazione
