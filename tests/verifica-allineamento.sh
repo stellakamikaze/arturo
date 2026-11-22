@@ -273,6 +273,8 @@ BANCHI=(
   test_fine_gia_chiusa_2026_11_22.py
   # L'avviso del sync della config parte solo per i file fuori da data/ e solo a chi li ha toccati (22/11/2026, #6275).
   test_fine_avvisi_2026_11_22.py
+  # arturo contesto legge git mentre la fonte esterna dei todo risponde (22/11/2026, #6317).
+  test_parallelo_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -587,6 +589,8 @@ BASELINE=(
   "test_fine_avvisi_2026_11_22.py e1a03e6 radice"
   # Le guardie senza tetto di tempo (22/11/2026, #6363): l'hook va oltre i 30 secondi su curl ripetuti. e1a03e6, il dev prima.
   "test_tetto_guardie_2026_11_22.py e1a03e6"
+  # Git e la fonte esterna dei todo in fila in arturo contesto (22/11/2026, #6317). 300567c, il dev prima.
+  "test_parallelo_2026_11_22.py 300567c radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
