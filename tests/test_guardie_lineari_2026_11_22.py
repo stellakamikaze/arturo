@@ -15,10 +15,15 @@ conferma, ma il comando aspettava. Ora le stesse regole si leggono una volta sol
   LG04  gh-destructive-guard: _chiamate_api_github dà i tratti di _API_GITHUB.finditer, e le regole di BLOCK e
         ASK riscritte trovano ciò che trovavano prima;
   LG05  i comandi costruiti apposta (curl, wget, gws, find, open, $x, gh api ripetuti fino a 90.000 caratteri)
-        stanno sotto i 6 secondi per guardia.
+        stanno sotto i 6 secondi per guardia;
+  LG06  block-dangerous: le scritture protette, la redirezione dei segreti e la decodifica passata a una shell
+        trovano ciò che trovavano prima;
+  LG07  block-dangerous (#6375): SECRET_PATH_RE dà gli stessi match della regex del 22/11, _nascosto_altro
+        l'esito della seconda e della terza forma di _CODICE_NASCOSTO, e le regole di DANGEROUS con la testa
+        (fork bomb, dd, eval) l'esito di re.search.
 
 Con --baseline-ref ogni controllo deve fallire col suo codice: su d631aa5 le funzioni nuove non ci sono e i tempi
-vanno oltre.
+vanno oltre. LG07 e i casi nuovi di LG05 cadono anche su 6ef7605.
 """
 from __future__ import annotations
 
@@ -292,23 +297,92 @@ def test_lg06(repo: Path) -> None:
     assert nascosti >= 60, f"LG06 solo {nascosti} casi veri di codice nascosto"
 
 
+# --- LG07 (#6375) ---
+# SECRET_PATH_RE del 22/11/2026 (6ef7605), prima della riscrittura: l'_SSH_SEGRETO davanti non è cambiato.
+_VECCHIA_SEGRETI_CODA = (
+    r"|\.aws/(?!config(?![\w.-]))|\.gnupg/|\.git-credentials|\.pem\b|"
+    r"(?<!\s)(?:service-account[^\s'\"]*\.json|credentials\.json|client_secret[^\s'\"]*\.json|token_cache\.json)|"
+    r"\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts\.yml|\.npmrc|\.claude/data/credentials/|"
+    r"\.docker/config\.json|\.kube/config|[/~][^\s'\"]*/\.claude\.json)")
+PEZZI_SEGRETI = ["~", "/", "~/", ".claude.json", "/.claude.json", "/.CLAUDE.JSON", ".claude/", ".ssh/", "id_rsa", ".pub",
+                 ".pem", "x", " ", "'", '"', "\n", "service-account", "Service-Account", ".json", "token_cache.json",
+                 ".aws/", "config", "a.pem/", "/id_ed25519", "credentials.json", ".gnupg/", "\t", "smtp://", "-",
+                 "client_secret", "secrets.env", "xclient_secret", "s", "c", "credentials"]
+# _CODICE_NASCOSTO senza la prima forma, che legge _decodifica_in_shell (LG06).
+_VECCHIO_NASCOSTO = (
+    r"(?:\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])[^\S\n]*(?:source|\.)\s)[^\n;&|]*"
+    r"(?:\$\(|`|<\()[^()`]*{d}|\b(?:bash|sh|zsh|dash|ksh)\s+<\([^()]*{d}")
+PEZZI_NASCOSTO = ["eval ", "eval", "sh -c ", "bash -xc ", "sh\n-c ", ". ", ".\n", ";", "(", "\n", "source ", "source\n",
+                  "$(", "`", "<(", "base64 -d ", "base64 ", "-d ", "-D", "--decode", "xxd -r ", "xxd ", "-r",
+                  "openssl enc -d ", "openssl base64 ", "-d", " ", "x", "|", "&", ")", "sh <(", "\t", "SH -C ",
+                  "gbase64 ", "\n-d"]
+# Due teste che si toccano, e una testa che finisce sull'a capo del tratto prima.
+CONTROESEMPI_NASCOSTO = [";.\n.\n$(base64 -d", "eval x( .\n$(base64 -d", ";. x( .\n$(base64 -d", "sh <(`base64 -d",
+                         "eval `(base64 -d"]
+PEZZI_DANGEROUS = [":(){ ", ":()", "{", "}", " ; :", ";", ":", "dd ", "dd", "of=/dev/sda", "of=/dev/disk2", "|",
+                   "eval ", "eval", "$(", "$( curl", "curl", "wget ", " ", "\n", "x", "\t"]
+
+
+def test_lg07(repo: Path) -> None:
+    bd = carica(repo, "block-dangerous.py", "LG07")
+    assert hasattr(bd, "_nascosto_altro") and hasattr(bd, "_TESTE_DANGEROUS"), \
+        "LG07 block-dangerous non ha _nascosto_altro"
+    vecchia = re.compile("(" + bd._SSH_SEGRETO + _VECCHIA_SEGRETI_CODA, re.IGNORECASE)
+    code = {"/.claude.json": 0, "service-account": 0, "client_secret": 0}
+    for s in testi(PEZZI_SEGRETI, giri=GIRI * 2):
+        attesi = [(m.span(), m.groups()) for m in vecchia.finditer(s)]
+        trovati = [(m.span(), m.groups()) for m in bd.SECRET_PATH_RE.finditer(s)]
+        assert trovati == attesi, f"LG07 {s!r}: SECRET_PATH_RE trova {trovati}, non {attesi}"
+        assert bool(bd.SECRET_PATH_RE.search(s)) == bool(attesi), f"LG07 {s!r}: SECRET_PATH_RE.search"
+        for (x, y), _ in attesi:
+            for nome in code:
+                code[nome] += nome in s[x:y].lower() and s[x:y].lower().endswith(".json")
+    assert min(code.values()) >= 300, f"LG07 match delle code {code}: il confronto non conta"
+    nascosto = re.compile(_VECCHIO_NASCOSTO.format(d=bd._DECODIFICA), bd._RE_NOMI)
+    veri = 0
+    for s in list(testi(PEZZI_NASCOSTO, giri=GIRI * 2)) + CONTROESEMPI_NASCOSTO:
+        atteso = bool(nascosto.search(s))
+        veri += atteso
+        assert bd._nascosto_altro(s) == atteso, f"LG07 {s!r}: codice nascosto {not atteso}, non {atteso}"
+    assert veri >= 300, f"LG07 solo {veri} casi veri di codice nascosto"
+    assert len(bd._TESTE_DANGEROUS) == 3, f"LG07 regole di DANGEROUS con la testa: {len(bd._TESTE_DANGEROUS)}"
+    veri = dict.fromkeys(bd._TESTE_DANGEROUS, 0)
+    for s in testi(PEZZI_DANGEROUS, giri=GIRI * 2):
+        for p in bd._TESTE_DANGEROUS:
+            atteso = bool(re.search(p, s, re.IGNORECASE))
+            veri[p] += atteso
+            assert bd._trova_regola(p, s) == atteso, f"LG07 {s!r}: la regola {p[:20]!r} dà {not atteso}, non {atteso}"
+    assert min(veri.values()) >= 20, f"LG07 casi veri delle regole di DANGEROUS {list(veri.values())}"
+
+
 # --- LG05 ---
 PROVE = [
     ("block-dangerous.py", "curl "), ("block-dangerous.py", "curl |"), ("block-dangerous.py", "wget "),
     ("block-dangerous.py", "find "), ("block-dangerous.py", "find . -exec "), ("block-dangerous.py", "base64 -d "),
     ("block-dangerous.py", ">("), ("block-dangerous.py", "<("), ("block-dangerous.py", "tee "),
     ("block-dangerous.py", "\n fetch "), ("block-dangerous.py", "{ "), ("block-dangerous.py", "do "),
-    ("block-dangerous.py", "mv "),("comms-guard.py", "curl "), ("comms-guard.py", "curl |"), ("comms-guard.py", "\n"),
+    ("block-dangerous.py", "mv "),
+    # #6375: le code dei percorsi segreti, la sostituzione con una decodifica, le regole di DANGEROUS con la testa.
+    ("block-dangerous.py", "~/.claude/"), ("block-dangerous.py", "smtp://"), ("block-dangerous.py", "~/.ssh/"),
+    ("block-dangerous.py", "xclient_secret"), ("block-dangerous.py", "xservice-account"),
+    ("block-dangerous.py", "eval "), ("block-dangerous.py", "sh -c "), ("block-dangerous.py", "dd "),
+    ("block-dangerous.py", ":(){ "),
+    ("comms-guard.py", "curl "), ("comms-guard.py", "curl |"), ("comms-guard.py", "\n"),
     ("comms-guard.py", "gws "), ("comms-guard.py", "gws gmail "), ("comms-guard.py", "open "), ("comms-guard.py", "$x "),
     ("comms-guard.py", "curl graph.microsoft.com/"), ("gh-destructive-guard.py", "curl "),
     ("gh-destructive-guard.py", "xh "), ("gh-destructive-guard.py", "gh api "),
 ]
 
 
+# Una testa sola e il pezzo ripetuto dopo (#6375): ogni base64 dopo `$(` correva fino al -d, 8 secondi.
+COSTRUITI = [("block-dangerous.py", "eval $(", "base64 "), ("block-dangerous.py", "sh <(", "base64 "),
+             ("block-dangerous.py", "~/.claude.json", "/")]
+
+
 def test_lg05(repo: Path) -> None:
     lenti = []
-    for guardia, pezzo in PROVE:
-        comando = (pezzo * (N // len(pezzo) + 1))[:N]
+    for guardia, testa, pezzo in [(g, "", p) for g, p in PROVE] + COSTRUITI:
+        comando = testa + (pezzo * (N // len(pezzo) + 1))[:N]
         evento = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(repo),
                              "session_id": "lg", "tool_use_id": "toolu_lg"})
         ambiente = dict(os.environ, COMMS_REDUCED=comando)
@@ -321,12 +395,12 @@ def test_lg05(repo: Path) -> None:
         except subprocess.TimeoutExpired:
             durata = TETTO * 3
         if durata > TETTO:
-            lenti.append(f"{guardia} su {pezzo!r}: {durata:.1f} s")
+            lenti.append(f"{guardia} su {testa + pezzo!r}: {durata:.1f} s")
     assert not lenti, "LG05 guardie oltre i " + f"{TETTO:.0f} secondi su {N} caratteri: " + "; ".join(lenti)
 
 
 TESTS = {"LG01": test_lg01, "LG02": test_lg02, "LG03": test_lg03, "LG04": test_lg04, "LG06": test_lg06,
-         "LG05": test_lg05}
+         "LG07": test_lg07, "LG05": test_lg05}
 
 
 def main() -> int:

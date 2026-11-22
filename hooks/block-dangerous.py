@@ -44,6 +44,7 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 
 Fail-open su parsing (i casi catastrofici su path root restano nei deny).
 """
+import bisect
 import collections
 import json
 import re
@@ -170,6 +171,9 @@ def _trova_regola(pattern: str, testo: str) -> bool:
         return _pipe_verso(testo, _CODE_DOPO_PIPE[pattern])
     if pattern == DANGEROUS_ISTRUZIONE[2][0]:
         return bool(_fc.cerca_dalle_teste(_TUBO_INTERPRETE_RE, _DOWNLOAD_RE, testo, ";&\n"))
+    if pattern in _TESTE_DANGEROUS:
+        regola, testa, confini = _TESTE_DANGEROUS[pattern]
+        return bool(_fc.cerca_dalle_teste(regola, testa, testo, confini))
     return bool(re.search(pattern, testo, re.IGNORECASE))
 DANGEROUS = [
     (r":\(\)\s*\{[^}]*\}\s*;\s*:", "fork bomb"),
@@ -188,6 +192,12 @@ DANGEROUS = [
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
 ]
+# Le regole `testa corsa resto` di DANGEROUS, provate dalla prima testa del tratto (#6375, 22/11/2026): `dd `
+# ripetuto teneva la sola regex del disco 8,6 secondi su 90.000 caratteri, `:(){ ` ed `eval ` 0,6. Banco LG07.
+# La regola si trova dalla testa con cui comincia, e la corsa dopo la testa non attraversa i confini.
+_TESTE_DANGEROUS = {p: (re.compile(p, re.IGNORECASE), re.compile(testa, re.IGNORECASE), confini)
+                    for testa, confini in ((r":\(\)\s*\{", "}"), (r"\bdd\s+", "|"), (r"\beval\b", "\n"))
+                    for p in [next(p for p, _ in DANGEROUS if p.startswith(testa))]}
 # mkfs e `bw export` si giudicano sui programmi del comando (_programma_pericoloso): nel testo
 # `grep -n 'bw export' README.md` sembrava un export (finding 10).
 # `bw export` anche con opzioni e valori davanti (`bw --session X export`): il deny di settings.json
@@ -403,22 +413,91 @@ _SSH_SEGRETO = (r"\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\
                 r"|(?:^|/)id_(?:rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)")
 _SSH_LETTURA = re.compile(r"(?:^|/)\.ssh/(?!config\.d/)(?:[^/]+/)*"
                           r"(?!(?:config|known_hosts(?:\.old)?|authorized_keys)$|[^/]*\.pub$)[^/]+$", re.IGNORECASE)
-SECRET_PATH_RE = re.compile(
+_SECRET_PATH_ALTRE = (
     # In ~/.aws tutto tranne config (regione e profili): `cat ~/.aws/*` legge anche le credenziali (finding 4).
-    r"(" + _SSH_SEGRETO + r"|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
+    _SSH_SEGRETO + r"|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
     # I file col solo nome (token_cache.json...) contano come argomento o in un path, non
     # citati dopo uno spazio: `python3 -c "...write('serve rm token_cache.json')"` scrive una
     # nota, non legge il token (8/9/2026, nella config dell'autore).
     r"\.git-credentials|\.pem\b|"
-    r"(?<!\s)(?:service-account[^\s'\"]*\.json|credentials\.json|client_secret[^\s'\"]*\.json|token_cache\.json)|"
+    r"(?<!\s)(?:credentials\.json|token_cache\.json)|"
     r"\.pypirc|secrets\.env|\.secrets/|"
     r"\.config/gh/hosts\.yml|\.npmrc|\.claude/data/credentials/|"
-    r"\.docker/config\.json|\.kube/config|"
+    r"\.docker/config\.json|\.kube/config")
+# Le alternative `testa[^\s'"]*fine`: dalla testa la corsa arriva all'ultima fine della parola.
+_SECRET_PATH_CODE = (
+    (r"(?<!\s)service-account", r"\.json"), (r"(?<!\s)client_secret", r"\.json"),
     # ~/.claude.json tiene le env dei server MCP, chiavi API comprese. Solo in forma di
     # PATH (`/` o `~` davanti): il nome citato in una frase non è una lettura.
-    r"[/~][^\s'\"]*/\.claude\.json)",
-    re.IGNORECASE,
+    (r"[/~]", r"/\.claude\.json"),
 )
+
+
+class _PercorsiSegreti:
+    """`search` e `finditer` di una regex di alternative, con gli stessi match e in tempo lineare.
+
+    La regex era `(altre|service-account[^\\s'"]*\\.json|client_secret[^\\s'"]*\\.json|[/~][^\\s'"]*/\\.claude\\.json)`:
+    ogni coda ripartiva da ogni sua testa e correva fino in fondo alla parola. `~/.claude/` ripetuto su 30.000
+    caratteri teneva block-dangerous 4 secondi, `smtp://` 3, `client_secret` ripetuto su 90.000 quasi 5 (#6375,
+    22/11/2026). Qui ogni parola si legge una volta: una coda parte dalla prima testa che finisce prima dell'ultima
+    fine della parola, e arriva lì. Le altre alternative restano una regex. Vince la più a sinistra; a pari inizio
+    vincono le altre, che stavano prima. Due code non partono mai dallo stesso punto: le teste hanno la prima lettera
+    diversa. Banco LG07."""
+
+    _PAROLA = re.compile(r"[^\s'\"]+")
+
+    def __init__(self, altre: str, code):
+        corse = [testa + r"[^\s'\"]*" + fine for testa, fine in code]
+        self.pattern = "(" + "|".join([altre] + corse) + ")"
+        self.flags = re.IGNORECASE
+        self._altre = re.compile("(" + altre + ")", re.IGNORECASE)
+        self._code = [(re.compile(testa, re.IGNORECASE), re.compile(fine, re.IGNORECASE),
+                       re.compile("(" + corsa + ")", re.IGNORECASE)) for (testa, fine), corsa in zip(code, corse)]
+
+    def _parole(self, s: str, fine):
+        """(inizio, inizio dell'ultima `fine`) delle parole che ne hanno una, in ordine."""
+        if not fine.search(s):
+            return []
+        parole = []
+        for w in self._PAROLA.finditer(s):
+            ultima = None
+            for o in fine.finditer(s, w.start(), w.end()):
+                ultima = o.start()
+            if ultima is not None:
+                parole.append((w.start(), ultima))
+        return parole
+
+    def finditer(self, s: str):
+        # Per ogni coda: le parole, la prima ancora da leggere, e dove la coda parte da pos (-1: da cercare).
+        stato = [[self._parole(s, fine), 0, -1] for _, fine, _ in self._code]
+        pos = 0
+        while True:
+            m = self._altre.search(s, pos)
+            for (testa, _, corsa), st in zip(self._code, stato):
+                parole, k, inizio_coda = st
+                if inizio_coda < pos:
+                    inizio_coda = -1
+                    while k < len(parole):
+                        inizio, ultima = parole[k]
+                        # La testa finisce entro l'ultima fine: endpos la tiene lì.
+                        t = testa.search(s, max(pos, inizio), ultima) if ultima > pos else None
+                        if t:
+                            inizio_coda = t.start()
+                            break
+                        k += 1
+                    st[1], st[2] = k, inizio_coda
+                if inizio_coda >= pos and (m is None or inizio_coda < m.start()):
+                    m = corsa.match(s, inizio_coda) or m
+            if m is None:
+                return
+            yield m
+            pos = m.end()
+
+    def search(self, s: str):
+        return next(self.finditer(s), None)
+
+
+SECRET_PATH_RE = _PercorsiSegreti(_SECRET_PATH_ALTRE, _SECRET_PATH_CODE)
 # Un file .env (anche .env.local, config/.env.production): le chiavi dei servizi di un progetto
 # (17/10/2026, #3506). Non .env.example e simili, non process.env. Come destinazione di una copia
 # (`cp .env.example .env`) si scrive, non si legge: vedi _reads_secret_flat.
@@ -3461,10 +3540,54 @@ _DECODIFICA_TESTE = [
 ]
 _CONFINE_STADIO = re.compile(r"[|;&\n]")
 _PIPE_IN_SHELL = re.compile(r"\|\s*(?:(?:sudo|doas)\s+)?(?:" + _SHELL_CHE_ESEGUE + r")", _RE_NOMI)
-_CODICE_NASCOSTO_ALTRO = re.compile(
-    r"(?:\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])[^\S\n]*(?:source|\.)\s)[^\n;&|]*"
-    r"(?:\$\(|`|<\()[^()`]*" + _DECODIFICA + "|"
-    r"\b(?:bash|sh|zsh|dash|ksh)\s+<\([^()]*" + _DECODIFICA, _RE_NOMI)
+# La seconda e la terza forma lette in avanti (#6375, 22/11/2026). La regex ripartiva da ogni testa fino in fondo al
+# tratto, e da ogni base64 dopo `$(` fino al -d: `eval ` ripetuto teneva block-dangerous 2 secondi su 30.000
+# caratteri, `eval $(` con `base64 ` ripetuto 8 su 90.000. _nascosto_altro cerca ogni pezzo una volta. Banco LG07.
+# Le teste con lo zero-width, così si vedono anche quelle che si toccano (`;.\n.\n$(…)`); il gruppo dà dove finiscono.
+_NASCOSTO_TESTE = re.compile(
+    r"(?=(\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])[^\S\n]*(?:source|\.)\s))", _RE_NOMI)
+_SHELL_DA_SOSTITUZIONE = re.compile(r"(?=(\b(?:bash|sh|zsh|dash|ksh)\s+<\())", _RE_NOMI)
+_APERTURA = re.compile(r"\$\(|`|<\(")
+# Le opzioni delle decodifiche di _DECODIFICA_TESTE, senza la corsa davanti: ogni punto dove ne comincia una.
+_OPZIONI_DECODIFICA = [re.compile(r"(?=" + o + ")", _RE_NOMI) for o in (
+    r"\s-[a-zA-Z]*[dD]\b|\s--decode\b", r"\s-[a-zA-Z]*r\b", r"\s-d\b")]
+_CONFINE_TRATTO = re.compile(r"[\n;&|]")
+
+
+def _prossimo(posizioni, i, fine):
+    """La prima posizione da i in poi della lista ordinata, oppure fine."""
+    k = bisect.bisect_left(posizioni, i)
+    return posizioni[k] if k < len(posizioni) else fine
+
+
+def _nascosto_altro(t: str) -> bool:
+    """La seconda e la terza forma di _CODICE_NASCOSTO, come re.search: una testa (eval, `sh -c`, source o `.`), una
+    corsa senza `\\n;&|` fino a `$(`, `<(` o un backtick, una corsa senza parentesi né backtick fino a una decodifica;
+    oppure `bash <(` e una corsa senza parentesi fino a una decodifica. Una decodifica conta se la sua opzione sta
+    nel suo tratto. Ogni pezzo si cerca una volta sola, e ogni passo è una ricerca in una lista ordinata."""
+    n = len(t)
+    confini = [m.start() for m in _CONFINE_TRATTO.finditer(t)]
+    decodifiche = []
+    for (testa, _), opzione in zip(_DECODIFICA_TESTE, _OPZIONI_DECODIFICA):
+        opzioni = [m.start() for m in opzione.finditer(t)]
+        for h in testa.finditer(t):
+            # [^|;&\n]*? fino all'opzione: l'opzione comincia prima del confine, o sull'a capo che la apre.
+            if _prossimo(opzioni, h.end(), n + 1) <= _prossimo(confini, h.end(), n):
+                decodifiche.append(h.start())
+    if not decodifiche:
+        return False
+    decodifiche.sort()
+    parentesi = [i for i, c in enumerate(t) if c in "()"]
+    chiusure = sorted(parentesi + [i for i, c in enumerate(t) if c == "`"])
+
+    def decodifica_entro(i, ostacoli):
+        return _prossimo(decodifiche, i, n + 1) < _prossimo(ostacoli, i, n + 1)
+
+    aperture = [a.start() for a in _APERTURA.finditer(t) if decodifica_entro(a.end(), chiusure)]
+    for m in _NASCOSTO_TESTE.finditer(t):
+        if _prossimo(aperture, m.end(1), n) < _prossimo(confini, m.end(1), n):
+            return True
+    return any(decodifica_entro(m.end(1), parentesi) for m in _SHELL_DA_SOSTITUZIONE.finditer(t))
 
 
 def _decodifica_in_shell(t: str) -> bool:
@@ -3501,7 +3624,7 @@ def _decodifica_in_shell(t: str) -> bool:
 
 def _codice_nascosto(t: str) -> bool:
     """_CODICE_NASCOSTO.search(t), con la prima forma letta da _decodifica_in_shell."""
-    return _decodifica_in_shell(t) or bool(_CODICE_NASCOSTO_ALTRO.search(t))
+    return _decodifica_in_shell(t) or _nascosto_altro(t)
 
 
 # S6: find che cerca i nomi delle chiavi e li passa a un lettore.

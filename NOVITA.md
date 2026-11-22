@@ -30,7 +30,8 @@ un errore nuovo dove prima non c'era. Il confine scritto tiene la correzione pic
 
 **Cosa cambia**: un comando lungo fatto di `curl`, `gws`, `find` o `open` ripetuti non tiene più ferme le guardie.
 Su 90.000 caratteri block-dangerous passa da 83 secondi a meno di due, comms-guard da oltre 90 a meno di due.
-Le guardie danno gli stessi giudizi di prima.
+Lo stesso vale per `~/.claude/`, `dd`, `eval` e `sh -c` ripetuti, e per un `eval $(` seguito da tanti `base64`:
+prima arrivavano a 18 secondi, ora stanno sotto i tre. Le guardie danno gli stessi giudizi di prima.
 
 **Il principio**: una regola del tipo "curl, poi qualcosa, poi un indirizzo" ripartiva da ogni curl e rileggeva il
 comando fino in fondo. Adesso si prova solo dal primo curl di ogni tratto, perché gli altri arrivano agli stessi
