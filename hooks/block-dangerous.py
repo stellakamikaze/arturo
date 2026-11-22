@@ -3614,6 +3614,14 @@ def _push_altrove(command, cwd):
 # restano prima, coi loro messaggi.
 # Una parola preceduta da un punto è un metodo (`arr.push(x)`, `git.reset`), non un programma.
 _PAROLA_PERICOLOSA = re.compile(r"(?<![\w.$-])(rm|unlink|shred|push|reset|clean|curl|wget|bw|gh)(?![\w-])", _RE_NOMI)
+# curl e wget scritti in una lista python di soli testi letterali, passata direttamente a chi lancia
+# (`subprocess.run(['curl', '-s', 'https://x'])`), sono un programma visibile: exfil-guard legge l'invio di un
+# file anche in quella forma (_FINE_ARG, 21/10/2026), e il GET lo giudica il classificatore, come scritto in
+# chiaro (#6353, 22/11/2026). Un argomento calcolato (una variabile, un f-string, `+ args`) lascia la lista
+# nascosta. rm, push, gh e bw in una lista chiedono ancora: nessuna guardia li legge lì.
+_LISTA_LETTERALE = re.compile(
+    r"\b(?:run|Popen|call|check_call|check_output)\s*\(\s*\[\s*(['\"])(curl|wget)\1"
+    r"(?:\s*,\s*(?:'[^'\\\n]*'|\"[^\"\\\n]*\"))*\s*,?\s*\](?=\s*[,)])", _RE_NOMI)
 _FUNZIONE_DEFINITA = re.compile(r"(?:^|[;&|(){\n]|\b(?:then|do|else))\s*(?:function\s+[A-Za-z_][\w:.-]*(?:\s*\(\s*\))?"
                                 r"|[A-Za-z_][\w:.-]*\s*\(\s*\))\s*[{(]")
 _INTERPRETI_INLINE = {"deno": ("eval",), "bun": ("-e", "--eval", "-p", "--print"), "osascript": ("-e",)}
@@ -3669,6 +3677,8 @@ def _parola_pericolosa(command, comandi):
         if nome in ("git", "gh"):
             for a in args:
                 visti[_fc._nome(a)] += 1
+    for m in _LISTA_LETTERALE.finditer(command):
+        visti[_fc._nome(m.group(2))] += 1
     trovate = collections.Counter(_fc._nome(m.group(1)) for m in _PAROLA_PERICOLOSA.finditer(command))
     for parola, quante in trovate.items():
         if quante > visti[parola]:

@@ -35,7 +35,8 @@ Arturo ti chiede conferma. La conferma ti dice quale forma ha trovato e quale pa
 
 **Quanto costa**: su circa 24.000 comandi veri la conferma nuova parte 52 volte, circa una ogni dieci
 sessioni. Una parola che è già un programma visibile non conta (`bw status | python3 -c …`), e il codice
-python che non lancia programmi nemmeno.
+python che non lancia programmi nemmeno. Lo stesso vale per `curl` e `wget` scritti per intero in una lista
+python, come `subprocess.run(['curl', '-s', 'https://…'])`: lì le protezioni leggono già cosa mandano.
 
 **Il principio**: una protezione che non vede il programma non può dire che è innocuo. Quando non lo vede
 e il comando nomina qualcosa di pericoloso, decide la persona.
