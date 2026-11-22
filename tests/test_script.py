@@ -9,7 +9,7 @@ Z04 bin/cleanup-stale-plugins.sh: la prova a vuoto elenca solo i plugin che enab
     (mai uno spento, Arturo o un plugin di progetto) e non disinstalla niente.
 Z05 bin/sonda_servito.py: il selftest (servito uguale, diverso, 404, redirect al login).
 Z06 bin/monthly-cleanup.sh: --prova non tocca niente, la cartella dei progetti è facoltativa,
-    nessun percorso personale.
+    nessun percorso personale, un tmutil che non risponde non blocca la pulizia (#6390).
 Z07 /system-audit: comandi fantasma, plugin non attivi e il banco avvelenato tests/banco-gate.sh.
 Z08 tools/scrapling: niente livello stealth, un blocco consiglia il browser, /setup chiede prima.
 
@@ -241,9 +241,29 @@ def test_z06(repo: Path) -> None:
         os.utime(sciolto, (antico, antico))
         env = dict(os.environ, HOME=str(casa), USERPROFILE=str(casa), PULIZIA_CACHE="0")
         env.pop("PULIZIA_CARTELLA_PROGETTI", None)
+        env.pop("PULIZIA_TETTO_SEGNALI", None)
+        # Un tmutil finto: il banco non dipende dallo stato di Time Machine. Il 22/11/2026, durante un backup
+        # verso il disco di rete, tmutil vero ha tenuto la prova a vuoto oltre i 120 secondi (#6390).
+        # Su Windows tmutil non c'è e lo script salta il segnale da solo.
+        lento = None
+        if platform.system() != "Windows":
+            finti, lento = casa / "finti", casa / "lento"
+            finti.mkdir()
+            lento.mkdir()
+            stub(finti, "tmutil", "#!/bin/sh\necho com.apple.TimeMachine.2026-01-01-000000.local\n")
+            stub(lento, "tmutil", "#!/bin/sh\nexec sleep 300\n")
+            env["PATH"] = str(finti) + os.pathsep + env.get("PATH", "")
         r = lancia([BASH, str(mc), "--prova"], "Z06", env=dict(env, PULIZIA_CARTELLA_PROGETTI=str(progetti)))
         assert r.returncode == 0 and vecchio.exists() and sciolto.exists() and "sposterei" in r.stdout, \
             f"Z06 --prova ha toccato file o non elenca: {r.stdout}"
+        if lento is not None:
+            assert "1 istantanee locali" in r.stdout, f"Z06 le istantanee di Time Machine non sono contate: {r.stdout}"
+            inizio = time.monotonic()
+            r = lancia([BASH, str(mc), "--prova"], "Z06",
+                       env=dict(env, PATH=str(lento) + os.pathsep + env["PATH"], PULIZIA_TETTO_SEGNALI="1"), timeout=60)
+            durata = time.monotonic() - inizio
+            assert r.returncode == 0 and "non ha risposto" in r.stdout and "Pulizia mensile finita" in r.stdout \
+                and durata < 30, f"Z06 un tmutil fermo blocca la pulizia ({durata:.0f}s): {r.stdout}"
         r = lancia([BASH, str(mc)], "Z06", env=env)
         assert r.returncode == 0 and not vecchio.exists() and nuovo.exists(), f"Z06 paste-cache non pulita: {r.stdout}"
         assert sciolto.exists(), "Z06 senza PULIZIA_CARTELLA_PROGETTI la pulizia ha spostato file dei progetti"

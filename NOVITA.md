@@ -13,6 +13,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — La pulizia mensile non resta ferma durante un backup di Time Machine
+
+**Cosa cambia**: durante un backup di Time Machine su un disco di rete, la pulizia mensile poteva restare
+ferma per minuti sul conteggio delle istantanee locali. Adesso ogni controllo del sistema (spazio su disco,
+istantanee, LaunchAgent) ha un tetto di 15 secondi. Se Time Machine non risponde, la pulizia lo dice in una
+riga e arriva in fondo. Il tetto si cambia con `PULIZIA_TETTO_SEGNALI`.
+
+**Il principio**: un segnale facoltativo non deve fermare il lavoro che lo contiene. Il caso Z06 di
+`tests/test_script.py` prova un `tmutil` che non risponde: la pulizia finisce in pochi secondi.
+
+---
+
 ## 2026-11-22 — Gli undici difetti piccoli della revisione del 20/11
 
 **Cosa cambia**: `/inizio --tutti` rimette i file che avevi preparato per un commit dove li avevi lasciati.

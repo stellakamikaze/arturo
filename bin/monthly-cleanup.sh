@@ -20,6 +20,8 @@
 #   PULIZIA_PREFISSI_LAUNCHAGENT="com.esempio. com.altro."
 #                                      solo macOS: segnala i LaunchAgent con quei prefissi che hanno il
 #                                      file .plist ma non sono caricati. Vuota: controllo saltato.
+#   PULIZIA_TETTO_SEGNALI=15           secondi massimi per ogni comando di sistema del punto 6 (df, tmutil,
+#                                      launchctl). Scaduti, il segnale si salta e la pulizia finisce.
 #
 # Cron mensile suggerito (il primo del mese alle 4):
 #   0 4 1 * * bash "$HOME/.claude/bin/monthly-cleanup.sh" >> "$HOME/.claude/data/logs/monthly-cleanup.log" 2>&1
@@ -43,6 +45,29 @@ pulisci() {
   if [ "$PROVA" = 1 ]; then echo "[$TS] $etichetta: da togliere $n"; return 0; fi
   find "$@" -exec rm -rf {} + 2>/dev/null
   echo "[$TS] $etichetta: tolti $n"
+}
+
+# Lancia un comando di sistema con un tetto di secondi e ne stampa l'uscita. Se il tetto scade, esce 124.
+# I segnali del punto 6 interrogano servizi del sistema: durante un backup di Time Machine verso un disco
+# di rete, tmutil listlocalsnapshots può restare fermo per minuti. Il 22/11/2026 ha tenuto ferma la prova
+# a vuoto oltre i 120 secondi del banco Z06 (#6390). Un segnale non deve bloccare la pulizia.
+# PULIZIA_TETTO_SEGNALI: secondi massimi per ogni comando di sistema (predefinito 15).
+con_tetto() {
+  local tetto=$(( ${PULIZIA_TETTO_SEGNALI:-15} * 10 )) out pid n=0 rc
+  out=$(mktemp "${TMPDIR:-/tmp}/pulizia-mensile.XXXXXX") || return 1
+  "$@" >"$out" 2>/dev/null </dev/null &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$n" -ge "$tetto" ]; then
+      # Un comando fermo in attesa di un servizio può ignorare TERM: dopo un attimo arriva KILL.
+      kill "$pid" 2>/dev/null; sleep 0.2; kill -9 "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null; rm -f "$out"; return 124
+    fi
+    sleep 0.1; n=$((n+1))
+  done
+  wait "$pid"; rc=$?
+  cat "$out"; rm -f "$out"
+  return "$rc"
 }
 
 C="$HOME/.claude"
@@ -89,12 +114,16 @@ EOF
 fi
 
 # 6. Segnali, non azioni: qui decide una persona
-USO=$(df -P "$HOME" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+USO=$(con_tetto df -P "$HOME" | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
 if [ "${USO:-0}" -ge 85 ] 2>/dev/null; then echo "[$TS] DISCO QUASI PIENO: ${USO}% usato. Serve una decisione: cosa togliere?"; fi
 
 if command -v tmutil >/dev/null 2>&1; then
-  SNAP=$(tmutil listlocalsnapshots / 2>/dev/null | grep -c 'com.apple.TimeMachine')
-  if [ "${SNAP:-0}" -gt 0 ]; then echo "[$TS] NOTA: $SNAP istantanee locali di Time Machine trattengono lo spazio appena liberato"; fi
+  if ELENCO=$(con_tetto tmutil listlocalsnapshots /); then
+    SNAP=$(printf '%s\n' "$ELENCO" | grep -c 'com.apple.TimeMachine')
+    if [ "${SNAP:-0}" -gt 0 ]; then echo "[$TS] NOTA: $SNAP istantanee locali di Time Machine trattengono lo spazio appena liberato"; fi
+  elif [ $? -eq 124 ]; then
+    echo "[$TS] NOTA: Time Machine non ha risposto entro ${PULIZIA_TETTO_SEGNALI:-15} secondi (forse un backup in corso): istantanee non contate"
+  fi
 fi
 
 if [ -n "$P" ] && [ -d "$P" ]; then
@@ -104,7 +133,7 @@ fi
 
 # LaunchAgent con il file .plist ma non caricati: un servizio fermo che nessuno segnala
 if [ -n "${PULIZIA_PREFISSI_LAUNCHAGENT:-}" ] && command -v launchctl >/dev/null 2>&1; then
-  CARICATI=$(launchctl list 2>/dev/null | awk '{print $3}')
+  CARICATI=$(con_tetto launchctl list | awk '{print $3}')
   ORFANI=""
   for pref in $PULIZIA_PREFISSI_LAUNCHAGENT; do
     for p in "$HOME/Library/LaunchAgents/$pref"*.plist; do
