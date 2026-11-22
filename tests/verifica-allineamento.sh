@@ -263,6 +263,8 @@ BANCHI=(
   test_firme_ssh_2026_11_21.py
   # Commit e push della coda di /fine passano dal controllo dei segreti (21/11/2026, #6249, rilievi A2 e A3).
   test_fine_coda_segreti_2026_11_21.py
+  # Con git -C la guardia dei segreti legge solo i file del git add, e il -C vale solo per il suo git (22/11/2026, #6289).
+  test_pathspec_c_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -563,6 +565,8 @@ BASELINE=(
   "test_firme_ssh_2026_11_21.py ff920f0"
   # La coda di /fine committa e spinge senza guardia dei segreti (21/11/2026, #6249). 6132caf, il dev prima.
   "test_fine_coda_segreti_2026_11_21.py 6132caf radice"
+  # Con git -C la guardia legge tutti i file nuovi, e il -C sposta il repository dei comandi dopo (#6289). de04b3b, il dev prima.
+  "test_pathspec_c_2026_11_22.py de04b3b"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

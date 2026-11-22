@@ -388,6 +388,10 @@ def _repo_for_command(command: str, cwd: str, nomi=("commit",)):
         if head != "git":
             continue
         index = 1
+        # `git -C x` vale solo per quel git: la shell resta dov'era. Fino al 22/11/2026 il -C spostava la
+        # cartella anche per i comandi dopo, e `git -C altro status && git commit` faceva leggere alla
+        # guardia l'altro repository: un segreto in stage passava muto (#6289).
+        qui = location
         # Opzioni globali prima del sottocomando (15/10/2026): `--no-pager`, `-p` e simili
         # si saltano; prima `git --no-pager -C repo commit` usciva come "nessun commit".
         while index < len(tokens) and tokens[index].startswith("-"):
@@ -396,17 +400,18 @@ def _repo_for_command(command: str, cwd: str, nomi=("commit",)):
                 if index + 1 >= len(tokens):
                     return None
                 if opzione == "-C":
-                    location = sposta(location, _expand(tokens[index + 1], variables))
-                    if location is None:
+                    qui = sposta(qui, _expand(tokens[index + 1], variables))
+                    if qui is None:
                         return None
                 index += 2
                 continue
             if opzione.startswith(("--git-dir", "--work-tree", "--namespace", "--config-env", "--exec-path")):
                 return None
             index += 1
-        if index < len(tokens) and tokens[index] == "init" and dentro_nuova(location):
+        if index < len(tokens) and tokens[index] == "init" and dentro_nuova(qui):
             inizializzato = True
         if index < len(tokens) and tokens[index] in nomi:
+            location = qui
             if dentro_nuova(location):
                 # Repo nato nello stesso comando in una cartella di mktemp (31/10/2026). Il diff non si
                 # legge prima che il comando giri: si scansionano il testo del comando e i file che vi
@@ -506,7 +511,9 @@ class _Lettura:
 
 
 def _invocazioni_git(command: str):
-    """(sottocomando, argomenti, con -C) di ogni git del comando, dopo le opzioni globali."""
+    """(sottocomando, argomenti, cartelle dei -C) di ogni git del comando, dopo le opzioni globali.
+
+    Le cartelle sono il testo dei -C, in ordine: una tupla vuota vuol dire senza -C."""
     try:
         segmenti = list(_segments(_senza_heredoc(command)))
     except ValueError:
@@ -519,12 +526,13 @@ def _invocazioni_git(command: str):
         if i >= len(tokens) or _nome(tokens[i]) != "git":
             continue
         i += 1
-        con_c = False
+        cartelle = []
         while i < len(tokens) and tokens[i].startswith("-"):
-            con_c = con_c or tokens[i] == "-C"
+            if tokens[i] == "-C":
+                cartelle.append(tokens[i + 1] if i + 1 < len(tokens) else "$")  # -C senza cartella: illeggibile
             i += 2 if tokens[i] in ("-C", "-c") else 1
         if i < len(tokens):
-            out.append((tokens[i], tokens[i + 1:], con_c))
+            out.append((tokens[i], tokens[i + 1:], tuple(cartelle)))
     return out
 
 
@@ -558,18 +566,23 @@ def _forzati_add(args) -> list:
     return [a for a in args if not a.startswith("-")]
 
 
-def _pathspec_add(invocazioni, command: str):
+def _pathspec_add(invocazioni, command: str, commit=("commit",)):
     """I pathspec dei `git add` del comando, letti dalla cartella del commit. None vuol dire tutti i file nuovi.
 
-    Si restringe solo quando add e commit girano di sicuro nella stessa cartella: niente cd, pushd o popd nel
-    comando, niente -C su add o commit, ogni add con i suoi path. In ogni altro caso si leggono tutti (#5098).
+    `commit`: i sottocomandi che valgono commit, alias compresi. Si restringe solo quando add e commit girano
+    di sicuro nella stessa cartella: niente cd, pushd o popd nel comando, lo stesso -C scritto uguale su ogni
+    add e ogni commit (o nessun -C), senza variabili, e ogni add con i suoi path. In ogni altro caso si leggono
+    tutti (#5098). Fino al 22/11/2026 un -C su add o commit faceva leggere tutto: su un computer, in 30 giorni,
+    decine di conferme "ha letto 374 file nuovi su 1337" su commit di un file solo (#6289).
     """
     if re.search(r"\b(?:cd|pushd|popd)\b", command):
         return None
-    specs = []
-    for sotto, args, con_c in invocazioni:
-        if con_c and sotto in ("add", "stage", "commit"):
-            return None
+    specs, cartelle = [], set()
+    for sotto, args, dove in invocazioni:
+        if sotto in ("add", "stage") or sotto in commit:
+            if any("$" in c or "`" in c for c in dove):
+                return None  # `git -C "$D"`: la variabile può cambiare fra add e commit
+            cartelle.add(dove)
         if sotto not in ("add", "stage"):
             continue
         propri, dopo = [], False
@@ -583,6 +596,8 @@ def _pathspec_add(invocazioni, command: str):
         if not propri:
             return None  # git add -A, git add -u: si leggono tutti
         specs += propri
+    if len(cartelle) > 1:
+        return None  # add e commit in cartelle diverse: i path dell'add non valgono nella cartella del commit
     return specs or None
 
 
@@ -919,11 +934,12 @@ def main() -> int:
     commit_all = bool(alias) or bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
     # `git stage` è `git add`; un sottocomando in una variabile (`A=add; git $A f`) o un alias di add può
     # aggiungere file: si leggono tutti i file nuovi, come per `git add -A` (S10).
-    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\s(?:add|stage)\b", command, _RE_NOMI)) or bool(aggiungono) or \
-        any(s.startswith("$") or "`" in s for s, _, _ in invocazioni)
+    illeggibile = bool(aggiungono) or any(s.startswith("$") or "`" in s for s, _, _ in invocazioni)
+    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\s(?:add|stage)\b", command, _RE_NOMI)) or illeggibile
     percorsi = next((_percorsi_commit(a) for s, a, _ in invocazioni if s == "commit"), [])
     forzati = [p for s, a, _ in invocazioni if s in ("add", "stage") for p in _forzati_add(a)]
-    specs = _pathspec_add(invocazioni, command) if add_prima else None
+    # Un alias di add accanto a un `git add f` aggiunge file che i path di f non dicono: si leggono tutti (#6289).
+    specs = _pathspec_add(invocazioni, command, ("commit",) + tuple(alias)) if add_prima and not illeggibile else None
     lettura = None
     try:
         out, lettura = _diff(repo, commit_all, add_prima, percorsi, forzati, specs)

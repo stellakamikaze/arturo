@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Meno conferme sui commit di un file solo con git -C
+
+**Cosa cambia**: con `git -C <cartella> add file && git -C <cartella> commit` il controllo dei segreti
+legge solo il file che aggiungi. Prima leggeva tutti i file nuovi della cartella e, se erano troppi,
+chiedeva conferma con "ha letto 374 file nuovi su 1337". Se add e commit hanno cartelle diverse, o la
+cartella sta in una variabile, il controllo legge ancora tutto.
+
+**Il principio**: su un computer, in 30 giorni, quella conferma è partita decine di volte su commit di
+un file solo. Lavorandoci è uscito un buco: il `-C` di un comando git spostava anche la cartella dei
+comandi dopo, e `git -C altra status && git commit` faceva controllare l'altra cartella. Ora il `-C`
+vale solo per il suo comando, e il commit si controlla dove gira davvero.
+
+---
+
 ## 2026-11-22 — I comandi Bash partono prima
 
 **Cosa cambia**: ogni comando Bash passa dalle protezioni di Arturo prima di partire, e adesso quel
