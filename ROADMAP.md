@@ -246,6 +246,14 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 ## Uscito di recente
 
+- 21 novembre 2026, versione 0.2.21: Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai, ogni lavoro che torna ha la sua lista "Finito quando", e cancelli i tuoi dati d'uso dal server con un comando.
+- 19 novembre 2026, versione 0.2.20: i dati d'uso partono solo dopo la tua risposta a `/setup`.
+- 17 novembre 2026, versione 0.2.18: in Volta una sessione ferma per il limite o per la rete riparte da sola.
+- 17 novembre 2026, versione 0.2.17: `/monitor` impara dalle tue correzioni.
+- 15 novembre 2026, versione 0.2.14: la memoria lavora da sola, con una scheda per ogni progetto che `/fine` scrive e `/inizio` rilegge.
+- 14 novembre 2026, versione 0.2.13: Lancillotto esce da Arturo, e i suoi dati sul server sono cancellati.
+- 11 novembre 2026, versione 0.2.11: le segnalazioni partono da sole, e subito dopo Claude ti dice cosa è partito e come ritirarla.
+- 10 novembre 2026, versione 0.2.10: `/fine` non si ferma più per l'identità di Git.
 - 6 novembre 2026, versione 0.2.6: col plugin vedi quando esce un rilascio nuovo, e hai tre comandi per mettere in ordine la tua copia dopo il passaggio.
 - 5 novembre 2026, versione 0.2.5: Arturo si installa come plugin da rilasci firmati, e `arturo migra` porta al plugin chi ha già una copia.
 - 3 novembre 2026, versione 0.2.0: Arturo ha un numero di versione, la sessione si rinnova da sola a ogni passo finito, una riga di Arturo all'avvio, e in modalità auto un comando parte al primo colpo.

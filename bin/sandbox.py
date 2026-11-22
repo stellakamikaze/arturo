@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""arturo sandbox: la sandbox di Claude Code come opzione, spenta di default (19/11/2026).
+"""arturo sandbox: la sandbox di Claude Code, che /setup accende sul Mac (19/11/2026; #6322, 21/11/2026).
 
 La sandbox di Claude Code chiude i comandi Bash in un recinto del sistema operativo: un comando, e ogni
 programma che lancia, legge e scrive solo dove la config lo permette. Le guardie di Arturo vedono il
 comando, non quello che fa uno script lanciato da quel comando: la sandbox copre quel buco. Un plugin
-non può accenderla (docs di Claude Code, sandboxing e plugins): la accende la persona con questo comando.
+non può accenderla (docs di Claude Code, sandboxing e plugins): la accende /setup sul Mac, o la persona con
+questo comando. Su Windows Claude Code non ha la sandbox, e accendi non scrive niente. Dopo spegni resta
+data/arturo-sandbox.spenta: lo stato dice "spenta da te", e accendi --setup non la riaccende.
 
   arturo sandbox stato     accesa o spenta, e le voci che Arturo ha aggiunto
   arturo sandbox accendi   scrive il blocco in ~/.claude/settings.json, con una copia di prima
+  arturo sandbox accendi --setup   lo stesso, ma lascia spenta la sandbox che la persona ha spento
   arturo sandbox spegni    toglie solo le voci che accendi ha aggiunto
 
 Cosa scrive accendi, e perché:
@@ -66,6 +69,11 @@ def _file_settings() -> Path:
 
 def _file_registro() -> Path:
     return radice_orsa() / "data" / "arturo-sandbox.json"
+
+
+def _file_spenta() -> Path:
+    """Scritto da spegni: la persona l'ha spenta lei, e /setup non la riaccende (#6322)."""
+    return radice_orsa() / "data" / "arturo-sandbox.spenta"
 
 
 def _leggi(percorso: Path) -> dict:
@@ -164,17 +172,36 @@ def stato() -> int:
     registro = _leggi(_file_registro())
     if accesa(settings):
         print("sandbox: accesa")
+    elif _file_spenta().exists():
+        print("sandbox: spenta da te (arturo sandbox spegni). Per riaccenderla: arturo sandbox accendi")
     else:
-        print("sandbox: spenta (default). Per accenderla: arturo sandbox accendi")
+        print("sandbox: spenta. Per accenderla: arturo sandbox accendi")
     if registro.get("aggiunte"):
         print(f"voci aggiunte da Arturo: {len(registro['aggiunte'])} (le toglie arturo sandbox spegni)")
     return 0
 
 
-def accendi() -> int:
+PER_LA_PERSONA = ("I comandi che Claude lancia girano in un recinto: leggono e scrivono solo dove serve, e le tue "
+                  "chiavi (SSH, AWS, GitHub, Bitwarden) restano fuori. Git, ssh e gh girano come prima. Vale dalla "
+                  "prossima sessione; se un programma non funziona, chiedi di spegnerla.")
+
+
+def accendi(da_setup: bool = False) -> int:
+    """Con da_setup (/setup, FASE 8d) lascia spenta la sandbox che la persona ha spento con spegni."""
+    if da_setup and _file_spenta().exists():
+        print("sandbox: spenta da te con arturo sandbox spegni; /setup non la riaccende")
+        return 0
+    if sys.platform == "win32":
+        # Claude Code ha la sandbox su macOS, Linux e WSL2, non su Windows (docs di Claude Code, sandboxing):
+        # le voci scritte qui non farebbero niente e direbbero alla persona che è protetta (#6322).
+        print("sandbox: su Windows Claude Code non ha la sandbox (solo macOS, Linux e WSL2); "
+              "le guardie di Arturo restano la protezione. Niente scritto.")
+        return 0
     file_settings = _file_settings()
     settings = _leggi(file_settings)
     nuovo, aggiunte = aggiungi(settings)
+    if _file_spenta().exists():
+        _file_spenta().unlink()
     if not aggiunte:
         print("sandbox: già accesa, niente da aggiungere")
         return 0
@@ -185,6 +212,8 @@ def accendi() -> int:
     _scrivi(file_settings, nuovo)
     print(f"sandbox: accesa, {len(aggiunte)} voci aggiunte in {file_settings}")
     print("vale dalla prossima sessione di Claude Code; copia di prima: settings.json.prima-della-sandbox")
+    if da_setup:
+        print(f"per la persona: {PER_LA_PERSONA}")
     return 0
 
 
@@ -197,13 +226,14 @@ def spegni() -> int:
     file_settings = _file_settings()
     _scrivi(file_settings, togli(_leggi(file_settings), aggiunte))
     _file_registro().unlink()
+    _file_spenta().write_text("spenta da arturo sandbox spegni\n", encoding="utf-8")
     print(f"sandbox: spenta, tolte {len(aggiunte)} voci aggiunte da Arturo; il resto di settings.json è com'era")
     return 0
 
 
 def main(argv: list) -> int:
     azione = argv[0] if argv else "stato"
-    azioni = {"stato": stato, "accendi": accendi, "spegni": spegni}
+    azioni = {"stato": stato, "accendi": lambda: accendi("--setup" in argv[1:]), "spegni": spegni}
     if azione not in azioni:
         print(f"arturo sandbox: azione sconosciuta {azione!r} (stato, accendi, spegni)", file=sys.stderr)
         return 2

@@ -62,7 +62,8 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
 ## FASE 0 · Sessione di prova
 
 Prima di tutto lancia `python3 ${CLAUDE_PLUGIN_ROOT}/bin/prova.py --elimina; echo "rc=$?"`. Con `rc=0` la sessione è
-di prova: il suo nome comincia con `prova-` (#5877). Allora salta tutte le fasi: niente handoff, todo,
+di prova: il nome dato a mano, con `--name` o `/rename`, comincia con `prova-` (#5877). Il nome che
+Claude Code inventa da solo non conta, anche se comincia con `prova-` (#6321). Allora salta tutte le fasi: niente handoff, todo,
 memoria, commit né sync. Se è in background, lo script lancia `claude rm` fra 30 secondi. Chiudi con la
 riga che stampa. Con `rc=1` o `rc=2` prosegui dalla FASE 1.
 
@@ -342,9 +343,11 @@ nella riga tecnica.
   blocco delle tue aggiunte, niente commit. In entrambi i casi leggi la riga, sistema e rilancia.
 - **rc=6**: `git add` o `git commit` falliti, la riga dice perché. **rc=3**: le tue aggiunte dicono che
   un servizio è giù, il resto è fatto.
+- **rc=7**: la guardia dei segreti trova una chiave nello stage (niente commit) o nei commit da spingere
+  (niente push). Non aggirarla: leggi il caso `SEGRETO` del file qui sotto.
 
 La coda si può rilanciare senza danni, e un push fallito si ritenta. Se l'uscita non è chiara, se esce
-`SKILL TUE NON SALVATE` o se esiste `~/.claude/personale/fine-coda.py`, leggi `${CLAUDE_PLUGIN_ROOT}/shared/fine-coda-casi.md`.
+`SKILL TUE NON SALVATE`, `FILE TUOI NON SALVATI` o `SEGRETO`, o se esiste `~/.claude/personale/fine-coda.py`, leggi `${CLAUDE_PLUGIN_ROOT}/shared/fine-coda-casi.md`.
 
 ## FASE 10 · Migliorare Arturo
 

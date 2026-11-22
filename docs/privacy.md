@@ -6,13 +6,24 @@ L'elenco esatto degli eventi sta nell'Impegno 3 del [README](../README.md#impegn
 
 ## Chi tiene i dati
 
-Il titolare è chi mantiene Arturo. Contatto: federico@stellakamikaze.org.
+Il titolare del trattamento è Federico Nejrotti, che mantiene Arturo. Contatto: federico@stellakamikaze.org.
 Scrivi a questo indirizzo per ogni domanda o richiesta su questa pagina.
 
 ## Base giuridica
 
-La base giuridica è il legittimo interesse (art. 6.1.f del GDPR) di chi mantiene Arturo a migliorare uno strumento che usi.
-Per questo la telemetria è accesa di default, raccoglie solo eventi da un elenco chiuso e mai contenuti, e la spegni in un comando (vedi "I tuoi diritti"). Gli eventi partono solo dopo la tua risposta alla domanda di `/setup`: fino ad allora restano in coda sul tuo computer, e col no si cancellano (dal 19/11/2026).
+Ogni dato ha la sua base giuridica (art. 6, par. 1 del GDPR):
+
+| Dato | Base giuridica | Come la fermi |
+|---|---|---|
+| Eventi d'uso | Il tuo consenso (lett. a): `/setup` te lo chiede, e fino alla tua risposta gli eventi restano in coda sul tuo computer. Col no la telemetria si spegne e la coda si cancella (dal 19/11/2026) | Ritiri il consenso quando vuoi con `arturo telemetria spegni` |
+| Eventi d'uso di un'installazione di prima del 19/11/2026 | Il legittimo interesse (lett. f) di chi mantiene Arturo a migliorare uno strumento che usi: gli eventi partivano già prima della domanda | Ti opponi quando vuoi con `arturo telemetria spegni` |
+| Segnalazioni che partono da sole, col pacchetto tecnico | Il legittimo interesse (lett. f) di chi mantiene Arturo a sapere dei guasti per correggerli. Per questo il testo passa dalla pulizia e Claude ti dice subito cosa è partito | Ti opponi con `arturo segnalazioni manuali`: da allora ogni segnalazione parte solo col tuo sì |
+| Contatto di chi segnala | Il tuo consenso (lett. a): il nome e l'email li dai tu | Ritiri il consenso con `arturo contatto togli` |
+| Feedback dal sito | Il tuo consenso (lett. a): il messaggio lo mandi tu | Lo fai cancellare quando vuoi, scrivendo all'indirizzo qui sopra |
+| Commenti della roadmap | Il tuo consenso (lett. a): il commento lo scrivi tu | Lo fai cancellare quando vuoi, scrivendo all'indirizzo qui sopra |
+
+Il ritiro del consenso non tocca quello che è già partito prima: per cancellarlo vale "Cancellazione" in [I tuoi diritti](#i-tuoi-diritti).
+Il ritratto di `/setup`, lo storico delle chat, l'intervista, gli spazi e la revisione restano sul tuo computer e non arrivano a chi mantiene Arturo: le sezioni qui sotto dicono cosa leggono.
 Quando cambia cosa esce, Arturo te lo dice alla prima sessione dopo l'aggiornamento, prima di mandare i dati nuovi.
 
 ## Non sono dati anonimi
@@ -25,7 +36,7 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 
 | Dato | Cosa contiene | Da dove arriva | Quanto resta |
 |---|---|---|---|
-| Eventi d'uso | L'id casuale, il rilascio di Arturo installato (un tuo tag non esce) e dal 14/11/2026 la sua forma (plugin o clone), il sistema (Darwin, Linux, Windows), il giorno (mai l'ora) e un evento da un elenco chiuso: comandi di Arturo, guardie che bloccano o chiedono, esiti degli aggiornamenti, fase di `/setup`, file di Arturo cambiati, versione di Claude Code, skill di Arturo usate, nome dei banchi di prova delle guardie diventati rossi. Dal 3/11/2026, alla chiusura di ogni sessione, anche la sua durata e quanti messaggi hai scritto, solo in fasce larghe (meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da 6 a 20, oltre 20 messaggi): per contarli Arturo legge sul tuo computer la cronologia della sessione, e non ne esce niente altro. Dal 15/11/2026 anche l'uso della memoria: una volta al giorno, se la memoria è accesa o spenta e quante note contiene, in fasce; per ogni sessione, quante note Arturo propone e quante Claude ne apre, in fasce; se una sessione chiusa senza `/fine` l'ha salvata Arturo al posto tuo; se `/inizio` l'hai scritto tu o l'ha lanciato Arturo da solo per passare al passo dopo di un lavoro lungo (la rotazione). Mai il nome o il testo di una nota | Da solo, al massimo ogni sei ore | 12 mesi |
+| Eventi d'uso | L'id casuale, il rilascio di Arturo installato (un tuo tag non esce) e dal 14/11/2026 la sua forma (plugin o clone), il sistema (Darwin, Linux, Windows), il giorno (mai l'ora) e un evento da un elenco chiuso: comandi di Arturo, guardie che bloccano o chiedono, esiti degli aggiornamenti, fase di `/setup`, file di Arturo cambiati, versione di Claude Code, skill di Arturo usate, nome dei banchi di prova delle guardie diventati rossi. Dal 3/11/2026, alla chiusura di ogni sessione, anche la sua durata e quanti messaggi hai scritto, solo in fasce larghe (meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da 6 a 20, oltre 20 messaggi): per contarli Arturo legge sul tuo computer la cronologia della sessione, e non ne esce niente altro. Dal 15/11/2026 anche l'uso della memoria: una volta al giorno, se la memoria è accesa o spenta e quante note contiene, in fasce; per ogni sessione, quante note Arturo propone e quante Claude ne apre, in fasce; se una sessione chiusa senza `/fine` l'ha salvata Arturo al posto tuo; se `/inizio` l'hai scritto tu o l'ha lanciato Arturo da solo per passare al passo dopo di un lavoro lungo (la rotazione). Mai il nome o il testo di una nota. Dal 21/11/2026, quando il controllo dei segreti prima di un commit non riesce a leggere le modifiche, anche la causa in una parola da un elenco chiuso (git non si avvia, tempo scaduto, errore di git, troppi file nuovi): mai il messaggio di git, la cartella o i nomi dei file | Da solo, al massimo ogni sei ore | 12 mesi |
 | Segnalazioni di `/segnala` | Tipo, titolo e testo, versione, sistema, da dove è partita (`/segnala`, un invito dell'avvio, `/fine`). L'id solo se accendi la casella "collega ai miei dati d'uso" (dal 4/11/2026; prima partiva con la telemetria accesa). Il testo lo scrive Claude: racconta il guasto di Arturo o la cosa che manca, senza nomi di persone e clienti e senza contenuti del tuo lavoro. Prima dell'invio Arturo toglie dal testo cartelle personali, email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti, e si ferma se trova qualcosa che sembra un segreto. Dal 4/11/2026 anche lo stato e la risposta di chi mantiene Arturo, le tue aggiunte e l'hash del codice della ricevuta: il codice vero resta solo sul tuo computer, in un file che legge solo tu | Dall'11/11/2026 da sola, quando Claude vede che qualcosa di Arturo si inceppa o quando scrivi `/segnala`: subito dopo Claude ti dice cosa è partito, il numero e come ritirarla. Al massimo 10 al giorno, mai due volte la stessa, mai su un tema di sicurezza. Solo dopo il tuo sì se scegli `arturo segnalazioni manuali`, se hai spento la telemetria, se hai detto `arturo segnala basta` o se la mandi come issue pubblica o email | 12 mesi |
 | Contatto di chi segnala (dal 10/11/2026) | Il nome e l'email che dai tu, una volta, con `arturo contatto` o quando `/setup` o `/segnala` te lo chiedono. Servono agli sviluppatori di Arturo per contattarti quando mandi una segnalazione: per chiederti un dettaglio o dirti che il problema è risolto. Li vedono solo loro, nello sportello protetto dal loro accesso. Non passano dalla pulizia del testo, perché li hai scritti tu per questo. Non partono mai con la telemetria né con una issue pubblica, e per una sola segnalazione li togli con `--senza-contatto` | Con ogni segnalazione del canale `arturo`, anche quelle che partono da sole | 12 mesi con la segnalazione; subito via se la ritiri |
 | Pacchetto tecnico di una segnalazione (dal 4/11/2026) | Le caselle accese: in una segnalazione che parte da sola quelle di default, in modo manuale quelle che lasci accese nell'anteprima. Sono versioni di Arturo, Claude Code, sistema e Python, esito dei controlli delle guardie all'avvio, nomi dei guasti della config; spente di default, file e hook di Arturo cambiati e il messaggio d'errore intero. Passa dalla stessa pulizia del testo | Solo col canale `arturo`, insieme alla segnalazione | 90 giorni, poi si svuota |
@@ -36,7 +47,9 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 
 Cosa non esce mai: prompt, risposte, file tuoi, percorsi del tuo computer, nomi, testi. Le eccezioni sono due, qui sopra: il testo di una segnalazione, che Claude scrive sul guasto di Arturo, e il contatto che dai tu per le segnalazioni.
 Di un file tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`. Il testo di una tua skill esce solo se la proponi tu con `/proponi`: sempre dopo che hai letto la copia ripulita e detto sì. Di un comando tuo esce solo `altro`.
+Di una guardia che ti chiede conferma esce il nome della regola che ha chiesto, da un elenco chiuso, come `rm-cartella` o `rsync-locale`: mai il comando, il file o l'indirizzo.
 Di un segreto fermato in un commit esce solo la famiglia, come `segreto-cloud`, mai il servizio.
+Di un invio fermato esce solo la famiglia del canale, come `email` o `chat`, mai il servizio né il destinatario.
 Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo scritto, fino a 64 KB per messaggio.
 
 Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`), lo stato della telemetria (`~/.claude/session-env/telemetria.json`), i codici delle ricevute delle segnalazioni (`~/.claude/data/segnalazioni/ricevute.json`, leggibile solo da te), il contatto che hai dato (`~/.claude/data/contatto.json`, leggibile solo da te) e l'ultima risposta letta per ognuna (`~/.claude/cache/sportello.json`).
@@ -117,21 +130,34 @@ Le email che portano una cosa da fare (una segnalazione da leggere, una config r
 Chi mantiene Arturo vede gli stessi numeri per installazione anche in una sua pagina privata, protetta da accesso, dove dà un nome agli id delle persone che conosce. Dall'8/11/2026 quei nomi stanno solo sul suo server, non nel server della telemetria, e quindi non nelle email, nei messaggi e nei task, e dal 9/11/2026 non in questo repository. Fino al 9/11/2026 alcuni id veri e alcuni nomi stavano in test e commenti di questo repository: restano nella sua storia pubblicata.
 
 Telegram, Gmail e l'elenco dei task non ricevono mai il testo di una segnalazione o di un feedback, la tua email, il contatto che hai dato o l'id completo. Del contatto il campanello dice solo che c'è.
-Queste copie stanno fuori dal server: la pulizia dei 12 mesi e la cancellazione sul server non le raggiungono.
-Chi mantiene Arturo le cancella a mano nella chat, nella casella e nell'elenco dei task, se lo chiedi.
+Queste copie stanno fuori dal server: la pulizia dei 12 mesi, `arturo telemetria dimentica` e il ritiro di una segnalazione non le raggiungono.
+Chi mantiene Arturo le cancella a mano nella chat, nella casella e nell'elenco dei task, entro 12 mesi dall'arrivo. Le cancella prima se lo chiedi: con `dimentica` il server gli manda i numeri da togliere, negli altri casi basta scrivergli.
 I messaggi e le email partiti prima del 24/10/2026 possono contenere anche il titolo e il testo di una segnalazione, l'email e il testo di un feedback.
 Nessun altro riceve i dati. Non si vendono e non servono per pubblicità.
+
+## Fuori dall'Unione Europea
+
+Quattro società trattano una parte dei dati, anche fuori dall'Unione Europea:
+
+- **Cloudflare** ospita il server, il database e il sito, e gestisce l'accesso alla roadmap. È una società degli Stati Uniti e aderisce al Data Privacy Framework fra Unione Europea e Stati Uniti, che la Commissione europea considera una garanzia adeguata.
+- **Google** riceve in Gmail le email per chi mantiene Arturo. Anche Google aderisce al Data Privacy Framework.
+- **Telegram** riceve i messaggi per chi mantiene Arturo. Telegram Messenger Inc. ha sede fuori dallo Spazio economico europeo, in un paese senza una decisione di adeguatezza. Dichiara di conservare nei Paesi Bassi i dati di chi si è registrato dall'Europa, e di passarli alle altre società del gruppo con le clausole contrattuali standard della Commissione europea.
+- **GitHub** ospita il codice di Arturo. Il controllo degli aggiornamenti lo contatta al massimo una volta all'ora mentre lavori, e una volta alla chiusura della sessione.
+
+Fonti dei trasferimenti, lette il 21/11/2026: cloudflare.com/trust-hub/gdpr, policies.google.com/privacy/frameworks, telegram.org/privacy/eu.
 
 ## I tuoi diritti
 
 I comandi `arturo …` qui sotto li lancia Claude, se glielo chiedi ("spegni la telemetria"). In un terminale tuo, al posto di `arturo` scrivi `python3 "$(cat ~/.claude/arturo/radice 2>/dev/null || echo ~/.claude)/bin/arturo"`: vale con Arturo dentro `~/.claude` e col plugin.
 
 - **Vedere cosa parte.** `arturo telemetria mostra` stampa l'id e gli eventi in coda, così come partono. Con la variabile `ARTURO_TELEMETRIA=log` non parte niente: ogni lotto finisce sullo schermo e in `~/.claude/data/telemetria/lotti/`, dove vedi esattamente cosa uscirebbe (dal 20/11/2026).
-- **Accesso.** Scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`: ricevi i dati legati a quell'id.
+- **Accesso.** Scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`: ricevi i dati legati a quell'id. Per una segnalazione basta il suo numero.
+- **Rettifica e limitazione.** Per correggere un dato o chiedere di sospenderne l'uso, scrivi allo stesso indirizzo con l'id o col numero della segnalazione.
+- **Ritiro del consenso.** Per gli eventi d'uso `arturo telemetria spegni`, per il contatto `arturo contatto togli`. Per un feedback o un commento della roadmap scrivi allo stesso indirizzo. La base di ogni dato sta in [Base giuridica](#base-giuridica).
 - **Cancellazione.** `arturo telemetria dimentica` cancella subito dal server i tuoi eventi e le segnalazioni collegate al tuo id (dal 20/11/2026). Poi Arturo riparte con un id nuovo e la coda vuota. Le copie su Telegram e Gmail (vedi "Chi li riceve") le cancella a mano chi mantiene Arturo: il server gli manda i numeri delle segnalazioni. Funziona anche con la telemetria spenta. Se preferisci, scrivi allo stesso indirizzo con l'id, e la cancellazione la fa chi mantiene Arturo. Una segnalazione partita senza id (la casella "collega" spenta) si cancella col suo numero, oppure la ritiri tu con `arturo segnala ritira`.
 - **Ritiro di una segnalazione.** `arturo segnala ritira N --conferma`, col codice della ricevuta che Arturo ha salvato sul tuo computer: dal server spariscono titolo, testo, pacchetto tecnico e aggiunte, restano numero, tipo e data. Lo stesso codice serve a leggere la risposta (`arturo segnala stato`) e ad aggiungere informazioni (`arturo segnala seguito N`).
 - **Il tuo contatto.** `arturo contatto` mostra cosa hai dato, `arturo contatto togli` lo cancella dal tuo computer e la domanda non torna. Dal server se ne va col ritiro di ogni segnalazione, o scrivendo allo stesso indirizzo.
-- **Opposizione.** `arturo telemetria spegni` spegne la telemetria e svuota la coda. Valgono anche `ARTURO_TELEMETRIA=0` e `DO_NOT_TRACK=1`. `/segnala` continua a funzionare: con la telemetria spenta ogni segnalazione parte solo col tuo sì.
+- **Opposizione.** `arturo telemetria spegni` spegne la telemetria e svuota la coda. Valgono anche `ARTURO_TELEMETRIA=0` e `DO_NOT_TRACK=1`. `/segnala` continua a funzionare: con la telemetria spenta ogni segnalazione parte solo col tuo sì. Alle segnalazioni che partono da sole ti opponi anche con la telemetria accesa, con `arturo segnalazioni manuali` (la voce qui sotto).
 - **Segnalazioni solo col tuo sì.** `arturo segnalazioni manuali`, o la variabile `ARTURO_SEGNALAZIONI=manuali`: Claude prepara il testo, te lo mostra e chiede "La mando?". `arturo segnalazioni automatiche` torna al modo di default. `arturo segnalazioni` dice quale vale.
 - **Reclamo.** Puoi rivolgerti al Garante per la protezione dei dati personali (garanteprivacy.it).
 

@@ -366,7 +366,7 @@ Le tue preferenze, i file `.local`, stanno in `~/.claude/arturo/`. Un file `.loc
 
 ## Come funziona: il dispatcher
 
-Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo instrada **solo** verso i guard rilevanti. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard: zero latenza percepita.
+Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo instrada **solo** verso i guard rilevanti. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard: resta un solo `python3`, `hooks/evento_bash.py`, che legge l'evento.
 
 ```
          comando Bash
@@ -417,7 +417,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               34 guardie e automazioni, più 8 strumenti che usano
+hooks/               34 guardie e automazioni, più 11 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -485,7 +485,9 @@ Fuori dal dispatcher:
 - `scoperta-indice.py` — PostToolUse su `Edit`, `MultiEdit`, `Write` e `NotebookEdit`: una riga nell'indice della Scoperta (`data/scoperta/indice.jsonl`) con ora, file, righe cambiate e nomi dei campi, mai il testo. Gira in background e non blocca mai ([La Scoperta](#la-scoperta-arturo-scoperta)).
 - `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
 - `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
-- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria).
+- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria). Dal 22/11/2026 le parole le legge `parole`, che dà le stesse di `shlex` in tempo lineare, e le letture del comando si ricordano per tutto il processo: block-dangerous su un `python3 -c` di 94.000 caratteri passa da 13 secondi a meno di mezzo secondo.
+- `evento_bash.py` — modulo del dispatcher, non un hook. `leggi` prepara in un solo `python3` il comando, la sua copia per le guardie (senza heredoc inerti e senza `.exe`) e l'evento da passare alle guardie: prima servivano jq e due `python3`. `esegui` lancia una guardia Python dal bytecode in `__pycache__`, a hash controllato, invece di ricompilarla a ogni comando. Un comando senza guardie costa circa 54 ms invece di 80, uno con block-dangerous circa 125 invece di 178 (misura su un Mac, 22/11/2026). `prefiltra` fa lo stesso e aggiunge il pre-filtro: quali guardie partono.
+- `prefiltro_bash.py` — modulo del dispatcher, non un hook: i pattern che decidono quali guardie partono, scritti come in bash (POSIX ERE) e tradotti in regex Python. Le corse `.*` e `[^…]*` dopo un prefisso frequente si fermano dove il prefisso ricomincia, perché in Python crescerebbero col quadrato; un banco prova che il risultato non cambia. Fino al 22/11/2026 erano regex di bash, 13 µs per carattere, e oltre 100.000 caratteri il dispatcher chiedeva conferma senza leggere: ora il limite è 1.000.000. `prefiltro_regex.py` tiene le regex già tradotte (`python3 hooks/prefiltro_bash.py genera` le rigenera dopo una modifica).
 - `heredoc.py` — modulo, non un hook: riconosce gli heredoc di un comando (dove comincia il corpo, chi lo riceve, se la shell lo espande). Un corpo si toglie solo con confini certi: apertura fuori da virgolette e commenti, delimitatore intero, chiusura esatta, nessuna pipe né `$( )`, file non eseguito dopo. Nel dubbio la guardia vede tutto. Lo usano `block-dangerous.py`, `data-guard.py`, `commit-secret-gate.py` e `comms-prefilter.py`: ognuna decide solo se le basta un lettore come `cat` o anche un interprete che non lancia programmi.
 - `bin/telemetria-esito.sh` — PostToolUse e PostToolUseFailure: se una guardia aveva chiesto conferma per quella chiamata, registra `confermata`, anche su Monitor e anche quando lo strumento poi fallisce. Senza attese esce subito. Per toglierlo, togli solo il suo oggetto da `settings.json`, non il blocco intero.
 
@@ -494,8 +496,8 @@ Fuori dal dispatcher:
 `session-start.sh` registra l'evento `sessione` e manda la coda in background. `inject-now.sh`
 registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo
 conta come `altro`, senza il nome. `bash-dispatcher.sh` registra `guardia` con il
-nome della guardia che ha bloccato, `chiede` con il nome della guardia che chiede conferma (per `block-dangerous` anche il nome della regola, per `commit-secret-gate` solo la famiglia del segreto) ed
-`errore` con il nome di una guardia che si rompe, mai il comando. `web-egress-guard.py` e `protect_claude_md.py` registrano
+nome della guardia che ha bloccato, `chiede` con il nome della guardia che chiede conferma (per `block-dangerous`, `exfil-guard` e `data-guard` anche il nome della regola, per `commit-secret-gate` solo la famiglia del segreto, per `comms-guard` solo la famiglia del canale, come `email` o `chat`, mai il servizio) ed
+`errore` con il nome di una guardia che si rompe, mai il comando. Dal 21/11/2026 `errore` conta anche le volte in cui `commit-secret-gate` non riesce a leggere le modifiche di un commit, con la causa in una parola da un elenco chiuso (`strumento-mancante`, `tempo-scaduto`, `errore`, `troppi-file`): mai il messaggio di git né la cartella. `web-egress-guard.py` e `protect_claude_md.py` registrano
 `chiede` allo stesso modo. I nomi delle guardie e delle regole vengono da un elenco chiuso in `bin/telemetria.py`, lo stesso del server: un nome fuori elenco non parte. Un hook PostToolUse e PostToolUseFailure (`bin/telemetria-esito.sh`) registra `confermata` quando
 lo strumento parte dopo una domanda di guardia, anche se poi fallisce: l'unico legame è l'id della chiamata, che resta in
 `session-env/telemetria-attese.json` fino all'esito. `bin/aggiorna-applica.sh`

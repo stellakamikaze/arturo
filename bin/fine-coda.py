@@ -29,13 +29,18 @@ Ordine dei passi:
   6. git add per percorso: i file di Arturo, gli handoff, e solo verso un remote privato CLAUDE.md,
      data/todo, personale/ e data/memory (senza lucchetti, log di Melchior, copie .bak-* e indice
      della memoria, che si rigenera; senza i file sensibili di .gitignore e le cartelle rigenerabili,
-     che la riga di esito nomina);
+     che la riga di esito nomina). Verso un remote non privato, nelle cartelle di Arturo entrano solo i file
+     già tracciati: quelli nuovi sono della persona, e la riga FILE TUOI NON SALVATI li nomina;
   7. controllo dei marcatori di conflitto nei file in stage: un file con <<<<<<< e >>>>>>>, nominato;
   8. aggancio personale "prima-commit";
+  8b. segreti nello stage, coi pattern di hooks/commit-secret-gate.py: una chiave trovata ferma il commit;
   9. commit della memoria ("memoria: applicata da /fine") separato dal commit di sync;
- 10. push, con un pull --rebase --autostash e un secondo tentativo se il primo è rifiutato. Niente push
-     se origin è il repository pubblico di Arturo. Un rebase fermo solo su file derivati (INDEX.md,
+ 10. segreti nei commit che il remote non ha ancora, poi push. Se il primo è rifiutato, i commit si
+     rifanno sopra origin/main in una copia di prova dentro .git, mai nei file in uso (#6248); solo una
+     copia integra arriva in ~/.claude, con git reset --keep, e parte il secondo push. Niente push
+     se origin è il repository pubblico di Arturo. Un conflitto solo su file derivati (INDEX.md,
      .ultimo-fine-completo) si risolve da solo: l'indice si rigenera, il segno tiene la data più recente.
+     Ogni altro conflitto lascia ~/.claude com'era e i commit in locale.
 
 Aggancio personale: se esiste ~/.claude/personale/fine-coda.py, la coda lo lancia ai passi 5 e 8 con un
 JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage"}. Risponde
@@ -46,17 +51,20 @@ Exit:
   0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
   chiede /clear alla persona · 3 l'aggancio personale
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
-  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti
+  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti · 7 segreto nello stage
+  (niente commit) o nei commit da spingere (niente push), o guardia dei segreti che non si carica
 
 FINE_CODA_CLAUDE sposta la radice (per i banchi).
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -174,8 +182,15 @@ def ultima(*testi):
     return righe[-1][:160] if righe else "nessun messaggio"
 
 
-def rebase_a_meta():
-    return (CL / ".git" / "rebase-merge").is_dir() or (CL / ".git" / "rebase-apply").is_dir()
+def rebase_a_meta(radice=None):
+    """Un rebase fermo in ~/.claude, o nella cartella `radice` (la copia di prova, dove .git è un file)."""
+    if radice is None:
+        return (CL / ".git" / "rebase-merge").is_dir() or (CL / ".git" / "rebase-apply").is_dir()
+    for nome in ("rebase-merge", "rebase-apply"):
+        rc, out, _ = run(["git", "-C", str(radice), "rev-parse", "--path-format=absolute", "--git-path", nome], 30)
+        if rc == 0 and Path(out.strip()).is_dir():
+            return True
+    return False
 
 
 def visibilita(url):
@@ -264,49 +279,187 @@ def personale(fase, base, in_stage):
 RE_DERIVATO = re.compile(r"^data/handoffs/(INDEX\.md|[^/]+/\.ultimo-fine-completo)$")
 
 
-def risolvi_derivati():
+def in_conflitto(radice):
+    return [p for p in run(["git", "-C", str(radice), "diff", "--name-only", "--diff-filter=U", "-z"], 60)[1]
+            .split("\0") if p]
+
+
+def risolvi_derivati(radice=None):
     """Un rebase fermo solo su file derivati: l'indice si rigenera dagli handoff, il segno del fine completo
-    tiene la data più recente, poi il rebase continua. True se alla fine non c'è più un rebase a metà."""
+    tiene la data più recente, poi il rebase continua. True se alla fine non c'è più un rebase a metà.
+    `radice` è la copia di prova della coda; senza, ~/.claude (un rebase lasciato da una coda di prima)."""
+    dove = radice or CL
     env = dict(os.environ, GIT_EDITOR="true")
     for _ in range(100):
-        if not rebase_a_meta():
+        if not rebase_a_meta(radice):
             return True
-        conflitti = [p for p in git("diff", "--name-only", "--diff-filter=U", "-z")[1].split("\0") if p]
+        conflitti = in_conflitto(dove)
         if not conflitti or not all(RE_DERIVATO.match(p) for p in conflitti):
             return False
         for p in conflitti:
             if p.endswith("/" + SEGNO_COMPLETO):
                 try:
-                    date_viste = re.findall(r"\d{4}-\d{2}-\d{2}", (CL / p).read_text(encoding="utf-8", errors="replace"))
-                    (CL / p).write_text((max(date_viste) if date_viste else date.today().isoformat()) + "\n",
-                                        encoding="utf-8")
+                    date_viste = re.findall(r"\d{4}-\d{2}-\d{2}", (dove / p).read_text(encoding="utf-8", errors="replace"))
+                    (dove / p).write_text((max(date_viste) if date_viste else date.today().isoformat()) + "\n",
+                                          encoding="utf-8")
                 except OSError:
                     return False
         if any(p.endswith("INDEX.md") for p in conflitti):
-            rc, _, _ = run([PY, str(QUI / "index-rigenera.py"), "--scrivi", "--radice", str(CL / "data" / "handoffs")], 60)
+            rc, _, _ = run([PY, str(QUI / "index-rigenera.py"), "--scrivi", "--radice", str(dove / "data" / "handoffs")], 60)
             if rc != 0:
                 return False
-        if git("add", "--", *conflitti)[0] != 0:
+        if run(["git", "-C", str(dove), "add", "--", *conflitti], 60)[0] != 0:
             return False
-        rc, _, _ = run(["git", "-C", str(CL), "rebase", "--continue"], 120, env=env)
-        if rc != 0 and not rebase_a_meta():
+        rc, _, _ = run(["git", "-C", str(dove), "rebase", "--continue"], 120, env=env)
+        if rc != 0 and not rebase_a_meta(radice):
             return False
-    return not rebase_a_meta()
+    return not rebase_a_meta(radice)
+
+
+# Commit e push della coda partono da subprocess: la guardia dei segreti del dispatcher legge solo i comandi
+# Bash, e un token in settings.json usciva su GitHub senza controllo (revisione del 20/11/2026, A2, #6249).
+# La coda usa gli stessi pattern della guardia, dal suo file: un elenco solo.
+GUARDIA = QUI.parent / "hooks" / "commit-secret-gate.py"
+DIFF = ["--no-color", "--no-ext-diff", "--no-textconv", "--unified=0", "--no-renames"]
+
+
+def guardia_segreti():
+    """Il modulo di hooks/commit-secret-gate.py, o None se non si carica. Il modulo arma un gestore di SIGALRM
+    quando si carica: la coda rimette il suo."""
+    allarme = getattr(signal, "SIGALRM", None)
+    prima = signal.getsignal(allarme) if allarme else None
+    try:
+        spec = importlib.util.spec_from_file_location("arturo_commit_secret_gate", GUARDIA)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo if callable(getattr(modulo, "_trovati", None)) and callable(getattr(modulo, "_aggiunte", None)) \
+            else None
+    except Exception:  # noqa: BLE001 - una guardia che non si carica ferma la coda, non la rompe
+        return None
+    finally:
+        if allarme:
+            signal.signal(allarme, prima)
+
+
+def segreti_nel_diff(guardia, diff):
+    """[(file, [tipi di segreto])] nelle righe aggiunte di un diff, anche di più commit. Mai il valore."""
+    per_file = {}
+    inizi = list(RE_FILE_DIFF.finditer(diff))
+    for i, m in enumerate(inizi):
+        pezzo = diff[m.end():inizi[i + 1].start() if i + 1 < len(inizi) else len(diff)]
+        for nome in guardia._trovati(guardia._aggiunte(pezzo)):
+            per_file.setdefault(m.group(1), {})[nome] = None
+    return [(f, list(nomi)) for f, nomi in per_file.items()]
+
+
+def controlla_segreti(guardia, argomenti, dove, rimedio):
+    """None se il diff è pulito, altrimenti le righe che fermano la coda. `dove` dice cosa si stava per fare,
+    `rimedio` cosa fare con una chiave trovata."""
+    if guardia is None:
+        return [f"SEGRETI: STOP, niente {dove}. La guardia dei segreti ({GUARDIA}) non si carica, e la coda non "
+                "manda niente senza controllo. Reinstalla Arturo con /aggiorna, poi rilancia la coda."]
+    rc, out, err = git(*argomenti, timeout=120)
+    if rc != 0:
+        return [f"SEGRETI: STOP, niente {dove}. git non dà il diff da controllare: {ultima(err, out)}. "
+                "Rilancia la coda; se resta così, guarda con git -C ~/.claude status."]
+    trovati = segreti_nel_diff(guardia, out)
+    if not trovati:
+        return None
+    righe = [f"SEGRETO: STOP, niente {dove}. La guardia dei segreti trova nelle righe nuove:"]
+    righe += [f"  {f}: {', '.join(nomi)}" for f, nomi in trovati[:10]]
+    if len(trovati) > 10:
+        righe.append(f"  e altri {len(trovati) - 10} file")
+    return righe + [rimedio]
+
+
+# Il push rifiutato si univa con un pull --rebase --autostash dentro ~/.claude: con un conflitto su
+# settings.json il file restava coi marcatori, non era più JSON e Claude Code spegneva tutte le guardie
+# (revisione del 20/11/2026, A1, #6248). Ora il rebase gira in una copia di prova dentro .git, come in
+# bin/aggiorna-applica.sh, e in ~/.claude arriva solo un risultato integro, con git reset --keep: si
+# rifiuta, senza toccare niente, se un file modificato o non tracciato qui verrebbe sovrascritto.
+CASA_COPIE = "arturo-fine-coda"
+FERMA_QUI = "la config su questa macchina è com'era, e i commit restano qui: il prossimo /inizio li riprova"
+
+
+def togli_copia(lavoro, copia):
+    if copia.exists():
+        run(["git", "-C", str(copia), "rebase", "--abort"], 60)
+    run(["git", "-C", str(CL), "worktree", "remove", "--force", str(copia)], 120)
+    # Si cancella solo una cartella delle copie di prova della coda, mai un percorso letto da git.
+    if lavoro.parent.name == CASA_COPIE and lavoro.name.startswith("copia."):
+        shutil.rmtree(lavoro, ignore_errors=True)
+    git("worktree", "prune")
+
+
+def unisci_nella_copia(prima):
+    """(commit unito o None, motivo): i commit da `prima` rifatti sopra origin/main in una copia di prova.
+    La copia si toglie sempre, anche con un conflitto: lì i commit restano solo in ~/.claude."""
+    comune = git("rev-parse", "--path-format=absolute", "--git-common-dir")[1].strip()
+    if not comune:
+        return None, "non trovo la cartella .git della config"
+    casa = Path(comune) / CASA_COPIE
+    try:
+        casa.mkdir(exist_ok=True)
+        lavoro = Path(tempfile.mkdtemp(prefix="copia.", dir=str(casa)))
+    except OSError as e:
+        return None, f"copia di prova non pronta: {e}"
+    copia = lavoro / "copia"
+    try:
+        rc, out, err = git("worktree", "add", "-q", "--detach", str(copia), prima, timeout=300)
+        if rc != 0:
+            return None, f"copia di prova non pronta: {ultima(err, out)}"
+        # --rebase-merges come il sync di /inizio: un merge di un aggiornamento di Arturo non ancora
+        # pushato resta un merge.
+        rc, out, err = run(["git", "-C", str(copia), "rebase", "--rebase-merges", "origin/main"], 300,
+                           env=dict(os.environ, GIT_EDITOR="true"))
+        if rebase_a_meta(copia) and not risolvi_derivati(copia):
+            conflitti = in_conflitto(copia)
+            return None, ("conflitto con origin su " + ", ".join(conflitti[:5]) if conflitti
+                          else f"unione ferma: {ultima(err, out)}")
+        nuovo = run(["git", "-C", str(copia), "rev-parse", "HEAD"], 30)[1].strip()
+        if not nuovo or run(["git", "-C", str(copia), "merge-base", "--is-ancestor", "origin/main", nuovo], 30)[0] != 0:
+            return None, f"unione ferma: {ultima(err, out)}"
+        controlla = CL / "hooks" / "controlla-config.py"
+        if controlla.is_file():
+            rc, out, err = run([PY, str(controlla), "--quiet", str(copia)], 60, env=dict(os.environ, ARTURO_RIPIEGO=str(CL)))
+            if rc != 0:
+                return None, f"l'unione con origin romperebbe la config: {ultima(err, out)}"
+        return nuovo, ""
+    finally:
+        togli_copia(lavoro, copia)
+
+
+def integra():
+    """(ok, motivo): il push rifiutato. I commit locali si uniscono a origin/main nella copia di prova, e
+    ~/.claude passa al risultato solo se la copia è integra."""
+    rc, out, err = git("fetch", "-q", "origin", "main", timeout=90)
+    if rc != 0:
+        return False, f"fetch fermo: {ultima(err, out)}"
+    prima = git("rev-parse", "HEAD")[1].strip()
+    nuovo, motivo = unisci_nella_copia(prima)
+    if not nuovo:
+        return False, f"{motivo}; {FERMA_QUI}"
+    if git("rev-parse", "HEAD")[1].strip() != prima:
+        return False, f"un commit nuovo è arrivato durante l'unione; {FERMA_QUI}"
+    rc, out, err = git("reset", "-q", "--keep", nuovo)
+    if rc != 0:
+        return False, (f"l'unione cambierebbe file modificati o non tracciati qui ({ultima(err, out)}); "
+                       f"{FERMA_QUI}")
+    controlla = CL / "hooks" / "controlla-config.py"
+    if controlla.is_file() and run([PY, str(controlla), "--quiet"], 60)[0] != 0:
+        git("reset", "-q", "--keep", prima)
+        return False, f"dopo l'unione la config risultava rotta, tornata a prima; {FERMA_QUI}"
+    return True, ""
 
 
 def push(origin_url):
-    """(ok, motivo). Un push rifiutato passa da un pull --rebase --autostash e riprova una volta. Se il
-    pull lascia un rebase a metà che non tocca solo file derivati, il secondo push non parte."""
+    """(ok, motivo). Un push rifiutato passa dall'unione nella copia di prova (integra) e riprova una volta."""
     rc, out, err = git("push", "-q", "origin", "HEAD:main", timeout=90)
     if rc == 0:
         return True, ""
-    rc, out2, err2 = git("pull", "-q", "--rebase", "--autostash", "origin", "main", timeout=120)
-    if rebase_a_meta():
-        if not risolvi_derivati():
-            return False, "rebase"
-        rc = 0
-    if rc != 0:
-        return False, f"pull prima del secondo push fermo: {ultima(err2, out2)}"
+    ok, motivo = integra()
+    if not ok:
+        return False, motivo
     rc, out, err = git("push", "-q", "origin", "HEAD:main", timeout=90)
     return rc == 0, ultima(err, out)
 
@@ -463,11 +616,28 @@ def main(argv):
     origin_arturo = bool(RE_ARTURO.search(origin))
     vis = visibilita(origin) if origin and not origin_arturo else ""
     falliti = []
+    # Verso un remote non privato un file nuovo in commands, bin, hooks e nelle altre cartelle di Arturo è della
+    # persona: i file di Arturo arrivano già tracciati da /aggiorna. Fino al 21/11/2026 "git add" li portava nel
+    # commit e uscivano (revisione del 20/11, A3, #6249). Senza remote o verso Arturo il commit resta locale.
+    remoto_aperto = bool(origin) and not origin_arturo and vis != "PRIVATE"
+    nuovi_fermi = []
     for p in ARTURO:
         if (CL / p).exists():
-            ok, err = aggiungi("--", p)
+            if remoto_aperto and (CL / p).is_dir():
+                nuovi_fermi += [x for x in git("ls-files", "-z", "--others", "--exclude-standard", "--", p)[1]
+                                .split("\0") if x]
+                # "add -u" su una cartella senza file tracciati fallisce, con un messaggio tradotto nella lingua
+                # di git: il controllo di aggiungi() legge solo quello inglese
+                ok, err = aggiungi("-u", "--", p) if git("ls-files", "--", p)[1].strip() else (True, "")
+            else:
+                ok, err = aggiungi("--", p)
             if not ok:
                 falliti.append(f"{p}: {ultima(err)}")
+    if nuovi_fermi:
+        print(f"FILE TUOI NON SALVATI: {' '.join(nuovi_fermi[:10])}"
+              + (f" e altri {len(nuovi_fermi) - 10}" if len(nuovi_fermi) > 10 else "")
+              + f" - il remote della config non risulta privato (visibilità: {vis or 'sconosciuta'}). "
+                "Restano su questa macchina.")
     if (CL / "skills").is_dir():
         nuove = git("ls-files", "--others", "--exclude-standard", "--directory", "--", "skills")[1].split()
         if vis == "PRIVATE" or origin_arturo or not origin:
@@ -549,6 +719,19 @@ def main(argv):
     if riga_saltati(saltati):
         esiti.append(riga_saltati(saltati))
 
+    # 8b. segreti nello stage, dopo le aggiunte dell'aggancio personale: niente commit se la guardia trova una
+    # chiave. Il commit a mano passa dalla guardia del dispatcher, che chiede conferma alla persona.
+    guardia = guardia_segreti() if staged else None
+    if staged:
+        ferma = controlla_segreti(guardia, ("diff", "--cached", *DIFF), "commit né push",
+                                  "Togli la chiave dal file (va nel vault o in una variabile d'ambiente), poi rilancia "
+                                  "la coda. Se è un falso allarme, come la chiave finta di un test, fai il commit a mano "
+                                  "con git -C ~/.claude commit: la guardia chiede conferma alla persona.")
+        if ferma:
+            print("\n".join(ferma))
+            return 7
+        esiti.append("segreti: nessuno nello stage")
+
     # 9. commit: la memoria a parte, così si annulla da sola
     trailer = "".join(f"\n{t}" for t in a.trailer)
     memoria = [p for p in staged if p.startswith("data/memory/")]
@@ -605,11 +788,19 @@ def main(argv):
         if avanti == "0":
             esiti.append("config: niente da pushare")
         else:
-            ok, perche = push(origin)
-            if perche == "rebase":
+            # Anche i commit fatti prima, fuori dalla coda o da un'altra sessione: il push li manda tutti.
+            ferma = controlla_segreti(guardia or guardia_segreti(),
+                                      ("log", "-p", "--format=", *DIFF, "HEAD", "--not", "--remotes=origin"),
+                                      "push",
+                                      "I commit restano su questa macchina. Se la chiave è vera, toglila dal file e dai "
+                                      "commit non ancora spinti (li elenca git -C ~/.claude log origin/main..HEAD), poi "
+                                      "rilancia la coda. Se è un falso allarme, fai il push a mano: la guardia chiede "
+                                      "conferma alla persona.")
+            if ferma:
                 print("coda: " + " · ".join(esiti))
-                print(STOP_REBASE)
-                return 4
+                print("\n".join(ferma))
+                return 7
+            ok, perche = push(origin)
             esiti.append("config: push riuscito" if ok else f"config: push non riuscito ({perche}), "
                          f"{avanti or '?'} commit da ritentare")
 

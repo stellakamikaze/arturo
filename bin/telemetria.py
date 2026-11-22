@@ -24,8 +24,8 @@ l'installazione riparte con un id nuovo e la coda vuota.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
-  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous con il nome della regola e
-  per commit-secret-gate con la famiglia del segreto: l'id della chiamata resta in
+  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous, exfil-guard e data-guard con il nome della regola,
+  per commit-secret-gate con la famiglia del segreto, per comms-guard con la famiglia del canale: l'id della chiamata resta in
   session-env/telemetria-attese.json) ed `esito` (il PostToolUse o il PostToolUseFailure, via
   bin/telemetria-esito.sh: se la chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
@@ -125,8 +125,23 @@ REGOLE = {
                                      "rm-cartella", "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs",
                                      "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile", "sblocco",
                                      "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-destinazione",
-                                     "git-stash", "git-amend", "git-worktree"}),
+                                     "git-stash", "git-amend", "git-worktree",
+                                     # 21/11/2026 (#6259): le regole degli aggiramenti S5 e S9
+                                     "scarica-esegue", "codice-nascosto", "git-scarta", "sposta-cartella",
+                                     "docker-monta"}),
     "commit-secret-gate.py": frozenset(FAMIGLIE_SEGRETI + ("scaduta", "repo-ignoto", "scansione-fallita")),
+    # 21/11/2026, #5762: anche queste tre dicono la regola. exfil-guard e data-guard: i nomi passati a _ask().
+    # comms-guard: la famiglia del canale (terza colonna di SEND_BINARIES, FAMIGLIA_MAILTO, FAMIGLIA_ENDPOINT),
+    # mai il servizio.
+    "comms-guard.py": frozenset({"email", "email-inoltro", "mailto", "applescript", "chat", "api-invio"}),
+    "data-guard.py": frozenset({"sql-distruttivo", "delete-senza-where", "docker-volumi", "rsync-remota", "rsync-locale", "robocopy", "reg-delete", "db-sovrascritto"}),
+    "exfil-guard.py": frozenset({"upload-nascosto", "upload-esterno", "dev-tcp", "pipe-rete", "nc-esterno"}),
+}
+# Perché il controllo di una guardia non è arrivato in fondo (21/11/2026, #5761): esce in `errore` come
+# <guardia>.<causa>. Lo stesso elenco sta in CAUSE di hooks/commit-secret-gate.py e di server/logica.js
+# (banco SC05, tests/test_scansione_causa_2026_11_21.py). Una causa fuori elenco cade, e resta il nome della guardia.
+CAUSE = {
+    "commit-secret-gate.py": frozenset({"strumento-mancante", "tempo-scaduto", "errore", "troppi-file"}),
 }
 # La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova
 # l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
@@ -141,7 +156,10 @@ REGOLE = {
 # 9: esce il nome di un banco delle guardie diventato rosso, che alla persona non si dice più (3/11/2026).
 # 11: escono la memoria accesa o spenta con le note in fasce, le note proposte e aperte in fasce, i salvataggi
 # automatici e se /inizio parte dalla persona o dalla rotazione (15/11/2026, M7 della memoria, #5672).
-PROMESSA = 11
+# 12: una guardia che non riesce a fare il suo controllo dice perché, da un elenco chiuso (21/11/2026, #5761).
+# Sempre 12, non ancora uscita: anche exfil-guard, comms-guard e data-guard dicono la regola che chiede; di un invio
+# solo la famiglia del canale (21/11/2026, #5762).
+PROMESSA = 12
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -445,7 +463,8 @@ def sistema() -> str:
 def normalizza(evento: str, valore: str):
     """Il valore che parte per questo evento, o None se non parte. La forma la decide EVENTI; poi le
     liste chiuse (24/10/2026): un comando fuori da COMANDI diventa `altro`, una guardia fuori da
-    GUARDIE non parte, una regola fuori da REGOLE cade e resta il nome della guardia."""
+    GUARDIE non parte, una regola fuori da REGOLE cade e resta il nome della guardia. Lo stesso per la
+    causa di un `errore`, con CAUSE."""
     regola = EVENTI.get(evento)
     if not regola or not isinstance(valore, str) or not regola.fullmatch(valore):
         return None
@@ -453,15 +472,16 @@ def normalizza(evento: str, valore: str):
         return valore if valore in COMANDI else "altro"
     if evento == "skill":
         return valore if valore in SKILL else "altro"
-    if evento in ("guardia", "errore"):
+    if evento == "guardia":
         return valore if valore in GUARDIE else None
-    if evento in ("chiede", "confermata"):
+    if evento in ("chiede", "confermata", "errore"):
         if valore in GUARDIE:
             return valore
         guardia = next((g for g in GUARDIE if valore.startswith(g + ".")), None)
         if guardia is None:
             return None
-        return valore if valore[len(guardia) + 1:] in REGOLE.get(guardia, ()) else guardia
+        ammessi = CAUSE if evento == "errore" else REGOLE
+        return valore if valore[len(guardia) + 1:] in ammessi.get(guardia, ()) else guardia
     return valore
 
 
@@ -1235,7 +1255,7 @@ def avvio() -> int:
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo (plugin o clone) e di "
                   "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
                   "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
-                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, banchi di prova delle guardie rossi, memoria accesa o spenta e "
+                  "(di un segreto e di un invio solo la famiglia), e se la persona conferma, guardie che si rompono o che non riescono a fare il loro controllo (con la causa, da un elenco chiuso), banchi di prova delle guardie rossi, memoria accesa o spenta e "
                   "quante note ricorda, quante note propone e quante Claude apre (in fasce, mai i nomi), sessioni salvate da sole senza /fine, "
                   "se /inizio parte dalla persona o dalla rotazione, fase di /setup raggiunta, esiti di /aggiorna e degli "
                   "aggiornamenti automatici, perché un aggiornamento automatico non parte (anche modifiche non salvate o una copia di prova in attesa), file e hook di Arturo cambiati, spenti o in conflitto "

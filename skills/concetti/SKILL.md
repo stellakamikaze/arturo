@@ -92,7 +92,8 @@ scheda del terminale cambia colore.
 **La sandbox.** È un recinto del sistema operativo intorno ai comandi che Claude lancia: un comando, e ogni
 programma che quel comando avvia, legge e scrive solo dove serve e va in rete solo verso indirizzi noti.
 Le guardie guardano il comando; la sandbox copre anche lo script che il comando lancia, per esempio un
-pacchetto installato che prova a leggere le tue chiavi. È spenta di default, perché alcuni programmi
-(git su SSH, ssh) dentro non funzionano: Arturo li lascia fuori.
-In Arturo: `arturo sandbox stato`, `arturo sandbox accendi`, `arturo sandbox spegni`; `/setup` la propone
+pacchetto installato che prova a leggere le tue chiavi. Sul Mac `/setup` la accende di default; alcuni
+programmi (git su SSH, ssh) dentro non funzionano, e Arturo li lascia fuori. Su Windows Claude Code non
+ce l'ha: lì restano le guardie.
+In Arturo: `arturo sandbox stato`, `arturo sandbox accendi`, `arturo sandbox spegni`; `/setup` la accende
 nella fase 8d.

@@ -25,7 +25,11 @@ Casi coperti:
 - su Windows (revisione del 10/11/2026, HK-5): `robocopy` con /MIR o /PURGE, che cancella nella
   destinazione quello che la sorgente non ha (salvo /L, che elenca e basta), e `reg delete`.
 
-Fail-open su parsing. Zero dipendenze.
+Ogni caso si giudica due volte: sul comando com'è scritto e coi nomi dei programmi sciolti (nomi_sciolti di
+forma_comando.py, 21/11/2026, #6202), perché per bash `rs"y"nc` è rsync. Con un client del database anche l'SQL
+si legge senza virgolette (sciolto): `'DR''OP TABLE t'` è DROP TABLE.
+
+Fail-open su parsing. Solo libreria standard, più heredoc.py e forma_comando.py della stessa cartella se ci sono.
 """
 import importlib.util
 import json
@@ -100,6 +104,31 @@ except Exception:
         return cmd
 
 
+# I nomi scritti a pezzi li scioglie forma_comando.py, il lettore delle guardie (21/11/2026, #6202): per bash
+# `rs"y"nc`, `'sqlite3'` e `docker "compose"` sono rsync, sqlite3 e docker compose, e con un client del database
+# `'DR''OP TABLE t'` è DROP TABLE. Se manca, il testo resta com'è.
+try:
+    _spec_fc = importlib.util.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    _fc = importlib.util.module_from_spec(_spec_fc)
+    _spec_fc.loader.exec_module(_fc)
+    _sciolto = _fc.sciolto
+    _nomi_sciolti = _fc.nomi_sciolti
+except Exception:
+    def _sciolto(cmd):
+        return cmd
+
+    def _nomi_sciolti(cmd, nomi):
+        return cmd
+# Le parole che i controlli qui sotto cercano fuori dall'SQL: programmi e loro sottocomandi. Solo queste si
+# sciolgono, così `--desc "rs\"y\"nc --delete"` resta testo: fra le doppie quel rsync non parte.
+NOMI_DATI = frozenset((
+    "rsync", "robocopy", "reg", "delete", "docker", "docker-compose", "compose", "down", "exec",
+    "mysql", "mariadb", "psql", "postgres", "sqlite", "sqlite3", "mongo", "mongosh", "clickhouse-client",
+    "redis-cli",
+))
+
+
 def _senza_testo(cmd: str) -> str:
     """Il comando senza i corpi di heredoc che vanno a un lettore (cat, tee) o a codice di un
     interprete che non lancia programmi. Nel dubbio il corpo resta (vedi heredoc.py)."""
@@ -146,7 +175,7 @@ def _robocopy_cancella(cmd: str) -> bool:
     return False
 
 
-def _ask(reason: str) -> int:
+def _ask(regola: str, reason: str) -> int:
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -154,6 +183,11 @@ def _ask(reason: str) -> int:
             "permissionDecisionReason": reason,
         }
     }))
+    # Il dispatcher di Arturo chiede anche quale regola ha parlato: va nella telemetria come
+    # data-guard.py.<regola>, così si vede quale chiede a vuoto (21/11/2026, #5762). Solo il nome
+    # della regola, mai il comando né il database. Senza la variabile l'uscita resta il solo JSON.
+    if os.environ.get("ARTURO_REGOLA") == "1":
+        print(f"REGOLA: {regola}")
     return 0
 
 
@@ -173,63 +207,66 @@ def main() -> int:
     if not isinstance(cmd, str) or not cmd:
         return 0
 
-    # SQL distruttivo solo se c'è un client DB (riduce falsi positivi)
-    if DB_CLIENT_RE.search(cmd):
-        for pattern, why in SQL_DESTRUCTIVE:
-            if re.search(pattern, cmd, re.IGNORECASE):
-                return _ask(
-                    f"Operazione SQL distruttiva ({why}). Irreversibile sui dati: "
-                    "conferma solo se hai un dump/backup verificato e stai agendo "
-                    "sul database giusto."
+    # Prima il comando com'è scritto, poi coi nomi di NOMI_DATI sciolti. La seconda lettura può solo aggiungere
+    # una conferma, mai toglierla.
+    for cmd in dict.fromkeys((cmd, _nomi_sciolti(cmd, NOMI_DATI))):
+        # SQL distruttivo solo se c'è un client DB (riduce falsi positivi)
+        # Con un client nel comando l'SQL si legge anche senza virgolette: `'DR''OP TABLE t'` è DROP TABLE.
+        if DB_CLIENT_RE.search(cmd):
+            for pattern, why in SQL_DESTRUCTIVE:
+                if re.search(pattern, cmd, re.IGNORECASE) or re.search(pattern, _sciolto(cmd), re.IGNORECASE):
+                    return _ask("sql-distruttivo",
+                        f"Operazione SQL distruttiva ({why}). Irreversibile sui dati: "
+                        "conferma solo se hai un dump/backup verificato e stai agendo "
+                        "sul database giusto."
+                    )
+            if _delete_without_where(cmd) or _delete_without_where(_sciolto(cmd)):
+                return _ask("delete-senza-where",
+                    "DELETE FROM senza clausola WHERE: cancella TUTTE le righe. "
+                    "Conferma solo se è voluto (e c'è un backup)."
                 )
-        if _delete_without_where(cmd):
-            return _ask(
-                "DELETE FROM senza clausola WHERE: cancella TUTTE le righe. "
-                "Conferma solo se è voluto (e c'è un backup)."
+
+        if DOCKER_DOWN_VOL_RE.search(cmd):
+            return _ask("docker-volumi",
+                "`docker compose down -v` rimuove i VOLUMI = i dati persistenti dei "
+                "container. Prima di dismettere uno stack, verifica di avere un "
+                "dump/export. Conferma solo se i dati sono già salvati."
             )
 
-    if DOCKER_DOWN_VOL_RE.search(cmd):
-        return _ask(
-            "`docker compose down -v` rimuove i VOLUMI = i dati persistenti dei "
-            "container. Prima di dismettere uno stack, verifica di avere un "
-            "dump/export. Conferma solo se i dati sono già salvati."
-        )
+        dove = _rsync_delete_reale(cmd)
+        if dove == "remota":
+            return _ask("rsync-remota",
+                "rsync --delete verso una destinazione REMOTA: se la direzione è "
+                "sbagliata (local->master) può cancellare dati sul server. "
+                "Verifica sorgente/destinazione e fai un pull/backup prima."
+            )
+        if dove == "locale":
+            return _ask("rsync-locale",
+                "rsync --delete verso una cartella di questo computer: cancella lì ogni file che la "
+                "sorgente non ha, senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima "
+                "con -n (dry-run) e controlla sorgente e destinazione."
+            )
 
-    dove = _rsync_delete_reale(cmd)
-    if dove == "remota":
-        return _ask(
-            "rsync --delete verso una destinazione REMOTA: se la direzione è "
-            "sbagliata (local->master) può cancellare dati sul server. "
-            "Verifica sorgente/destinazione e fai un pull/backup prima."
-        )
-    if dove == "locale":
-        return _ask(
-            "rsync --delete verso una cartella di questo computer: cancella lì ogni file che la "
-            "sorgente non ha, senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima "
-            "con -n (dry-run) e controlla sorgente e destinazione."
-        )
+        if _robocopy_cancella(cmd):
+            return _ask("robocopy",
+                "robocopy con /MIR o /PURGE: cancella nella destinazione ogni file che la sorgente non ha, "
+                "senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima con /L, che elenca "
+                "cosa farebbe, e controlla sorgente e destinazione."
+            )
 
-    if _robocopy_cancella(cmd):
-        return _ask(
-            "robocopy con /MIR o /PURGE: cancella nella destinazione ogni file che la sorgente non ha, "
-            "senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima con /L, che elenca "
-            "cosa farebbe, e controlla sorgente e destinazione."
-        )
+        if REG_DELETE_RE.search(_senza_testo(cmd)):
+            return _ask("reg-delete",
+                "reg delete cancella una chiave o un valore del registro di Windows, senza cestino. Prima "
+                "salva la chiave con `reg export <chiave> copia.reg`, così la rimetti con `reg import`. "
+                "Conferma solo se sai cosa cancella."
+            )
 
-    if REG_DELETE_RE.search(_senza_testo(cmd)):
-        return _ask(
-            "reg delete cancella una chiave o un valore del registro di Windows, senza cestino. Prima "
-            "salva la chiave con `reg export <chiave> copia.reg`, così la rimetti con `reg import`. "
-            "Conferma solo se sai cosa cancella."
-        )
-
-    if DB_FILE_OVERWRITE_RE.search(cmd):
-        return _ask(
-            "Sovrascrittura di un file di database via redirezione (>). "
-            "Se è un master, i dati precedenti vanno persi. Conferma solo se "
-            "è voluto; usa >> per appendere o fai una copia prima."
-        )
-
+        if DB_FILE_OVERWRITE_RE.search(cmd):
+            return _ask("db-sovrascritto",
+                "Sovrascrittura di un file di database via redirezione (>). "
+                "Se è un master, i dati precedenti vanno persi. Conferma solo se "
+                "è voluto; usa >> per appendere o fai una copia prima."
+            )
     return 0
 
 

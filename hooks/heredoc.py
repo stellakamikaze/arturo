@@ -12,7 +12,7 @@ Un corpo si può togliere solo se tutto è certo:
 Nel dubbio il corpo resta, e con lui tutto il resto del comando.
 
 La regola su quale programma basta resta nella guardia, scritta come funzione su un `Heredoc`:
-`inerte()` per un lettore come cat, `codice_inerte()` per un interprete il cui codice non lancia
+`inerte()` per un lettore come cat, `dati()` per un lettore anche senza virgolette sul delimitatore, `codice_inerte()` per un interprete il cui codice non lancia
 programmi, `codice_senza_rete()` per il codice python che in più non usa la rete. Il corpo python
 si legge col tokenizer (`python_senza`, dal 19/10/2026): commenti e stringhe non sono codice, quindi
 un `subprocess` o un `mailto:` scritti nel testo che uno script mette in un file non contano.
@@ -60,6 +60,8 @@ _RETE = re.compile(r"\b(smtplib|http|urllib|urllib3|requests|httpx|aiohttp|socke
 # Una f-string con graffe: nel 3.9 è un token solo, e le espressioni dentro sono codice.
 _F_GRAFFE = re.compile(r"^[rRbBuU]*[fFtT][rRbB]*[\x27\x22].*\{", re.S)
 _SPAZIO = re.compile(r"\s")
+# Le espansioni di un corpo senza virgolette che valutano codice oltre a `$(` e backtick (#6200).
+_VALUTA = re.compile(r"\$[{\[]")
 _PYTHON = frozenset(("python", "python3"))
 
 
@@ -136,6 +138,15 @@ class Heredoc(NamedTuple):
     def inerte(self) -> bool:
         """Il corpo va a un lettore (cat, tee, grep...) e nessuno lo esegue."""
         return self.certo and self.consumatore in LETTORI and not self.espande()
+
+    def dati(self) -> bool:
+        """Il corpo va a un lettore e la shell non ne esegue niente, anche senza virgolette sul delimitatore
+        (21/11/2026, #6200): senza `$(`, backtick, `${` e `$[` la shell sostituisce solo le variabili semplici
+        (`$HOME`), che non lanciano programmi. `${X:$Y}`, `${X[$Y]}` e `${X@P}` valutano il valore di una
+        variabile come codice: con loro il corpo resta visibile."""
+        if self.quotato:
+            return self.inerte()
+        return self.inerte() and not _VALUTA.search("\n".join(self.corpo))
 
     def scheletro(self) -> Optional[str]:
         """Il corpo python senza commenti e stringhe (19/10/2026): un `subprocess` o un `mailto:`

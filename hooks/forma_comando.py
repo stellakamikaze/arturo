@@ -12,18 +12,45 @@ carica da qui. Questo file non carica block-dangerous.py: fino al 15/10/2026 i d
 si caricavano a vicenda.
 
 Usato da block-dangerous.py (rm e find che cancellano), commit-secret-gate.py (le shell e i
-commenti), comms-prefilter.py e gh-destructive-guard.py (i segmenti e i programmi), cred-read-internal.py e
+commenti), comms-prefilter.py e gh-destructive-guard.py (i segmenti e i programmi), exfil-guard.py e
+data-guard.py (i nomi scritti a pezzi, `nomi_sciolti` e `sciolto`), cred-read-internal.py e
 protect_claude_md.py dove ci sono, e dal
 dispatcher: git puro, ramo memoria e handoff, ramo ~/.claude. Il modo `script-claude` (D1 e D6)
 non lo chiama il dispatcher di Arturo: lo usa la config dell'autore, e in Arturo le scritture
 sulla config le giudica block-dangerous (review del 7/11/2026, finding 11).
 Solo libreria standard.
 """
+import functools
 import importlib.util
 import os
 import re
 import shlex
 import sys
+
+
+def _ricorda(copia=None):
+    """Ricorda il risultato di una funzione pura del testo per tutto il processo (#5347, 22/11/2026).
+    block-dangerous rileggeva lo stesso comando 26-42 volte, una per regola: su 100.000 caratteri erano
+    secondi. `copia` dà a ogni chiamante una lista sua, perché qualche chiamante la modifica. Un'eccezione
+    non si ricorda: la chiamata dopo la rifà."""
+    def decora(funzione):
+        memoria = {}
+
+        @functools.wraps(funzione)
+        def ricordata(*args, **kwargs):
+            chiave = (args, tuple(sorted(kwargs.items())))
+            try:
+                risultato = memoria[chiave]
+            except KeyError:
+                risultato = funzione(*args, **kwargs)
+                if len(memoria) >= 64:
+                    memoria.clear()
+                memoria[chiave] = risultato
+            except TypeError:  # un argomento che non fa da chiave
+                return funzione(*args, **kwargs)
+            return copia(risultato) if copia else risultato
+        return ricordata
+    return decora
 
 # Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
 # Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
@@ -57,18 +84,21 @@ except Exception:
 _MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
 
 
+@_ricorda()
 def testo_shell(command: str) -> str:
     """Il comando senza il testo che la shell non legge come comandi.
 
     Toglie il corpo degli heredoc col delimitatore TRA VIRGOLETTE diretti a un
     lettore (cat, tee, grep...) o a un interprete (python, node...) il cui codice
     non lancia programmi: la shell non lo espande e non lo esegue, quindi un
-    `cat <segreto>` scritto lì dentro è testo, non una lettura. Un heredoc senza
-    virgolette resta, perché la shell ne espande le `$(...)`. Il confine lo legge
+    `cat <segreto>` scritto lì dentro è testo, non una lettura. Dal 21/11/2026 (#6200)
+    sparisce anche il corpo senza virgolette verso un lettore, se non ha `$(`, backtick,
+    `${` o `$[` (heredoc.Heredoc.dati): `cat <<EOF` che cita `curl … | bash` stampa il
+    testo. Verso un interprete il corpo senza virgolette resta. Il confine lo legge
     heredoc.py. Toglie anche i messaggi -m/--message privi di command-substitution.
     """
     # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
-    testo = _togli_heredoc(command, lambda h: h.quotato and (h.inerte() or h.codice_inerte()))
+    testo = _togli_heredoc(command, lambda h: h.dati() or (h.quotato and h.codice_inerte()))
 
     def _svuota(m):
         corpo = m.group(2)
@@ -83,6 +113,34 @@ def testo_shell(command: str) -> str:
     return _MESSAGGIO.sub(_svuota, testo)
 
 
+# --- Nomi scritti a pezzi (21/11/2026, #6202) ---
+# Per bash `cu''rl`, `"curl"`, `w\get` e `rs"y"nc` sono curl, wget e rsync: le virgolette e la barra si tolgono
+# prima di cercare il programma. Una guardia che cerca `\bcurl\b` nel testo non li vedeva (rilievo 2 della
+# revisione strutturale dell'11/11). Una parola cucita è fatta solo di lettere, cifre, `.`, `_` e `-`, di pezzi
+# fra virgolette con gli stessi caratteri e di caratteri dopo una barra: un argomento con spazi non lo è.
+_PAROLA_CUCITA = re.compile(r"""(?<![\w'"\\.-])(?:[\w.-]|''|""|'[\w.-]+'|"[\w.-]+"|\\[\w.-])+(?![\w'"\\.-])""")
+
+
+def nomi_sciolti(testo: str, nomi) -> str:
+    """Il testo con ogni parola cucita che senza virgolette e barre è uno dei `nomi` (minuscoli) scritta nuda.
+    Il resto non cambia: gli argomenti fra virgolette restano scritti come sono, per chi li legge dopo."""
+    def nudo(m):
+        parola = m.group(0)
+        if not re.search(r"['\"\\]", parola):
+            return parola
+        senza = re.sub(r"['\"\\]", "", parola)
+        return senza if senza.lower() in nomi else parola
+
+    return _PAROLA_CUCITA.sub(nudo, testo)
+
+
+def sciolto(testo: str) -> str:
+    """Il testo senza righe continuate, virgolette e barre, come `_sciolto` del pre-filtro (prefiltro_bash.py): `'DR''OP TABLE t'`
+    diventa `DROP TABLE t`. Serve a una seconda lettura che può solo aggiungere conferme, mai toglierle."""
+    return re.sub(r"['\"\\]", "", testo.replace("\\\n", ""))
+
+
+@_ricorda()
 def togli_commenti(cmd: str) -> str:
     """Il comando senza i commenti, letti come li legge bash (review del 7/11/2026, finding 0).
 
@@ -119,14 +177,93 @@ def togli_commenti(cmd: str) -> str:
     return "".join(out)
 
 
+_CORSE = {}
+_CORSA_DOPPIE = re.compile(r'[^"\\]+')
+
+
+def parole(testo: str, punteggiatura: str = "", spazi: str = " \t\r\n") -> list:
+    """Le parole che darebbe `shlex.shlex(testo, posix=True, punctuation_chars=punteggiatura)` con
+    `whitespace_split=True`, `commenters=""` e `whitespace=spazi`: le stesse, con lo stesso ValueError sulle
+    virgolette che non tornano (#5347, 22/11/2026). shlex allunga la parola un carattere alla volta su un
+    attributo, e su una parola lunga il costo cresce col quadrato: un `python3 -c` di 94.000 caratteri teneva
+    block-dangerous 13 secondi. Qui le corse di caratteri normali si prendono con una regex, in tempo lineare.
+    Con whitespace_split le wordchars di shlex non contano: ogni carattere che non è spazio, virgoletta,
+    barra rovesciata o punteggiatura allunga la parola. Il banco SP01 la confronta con shlex su stringhe
+    casuali (tests/test_parole_veloci_2026_11_22.py)."""
+    chiave = (punteggiatura, spazi)
+    if chiave not in _CORSE:
+        _CORSE[chiave] = (
+            re.compile("[^" + re.escape(spazi + "'\"\\" + punteggiatura) + "]+"),
+            re.compile("[" + re.escape(punteggiatura) + "]+") if punteggiatura else None,
+        )
+    corsa, corsa_p = _CORSE[chiave]
+    out, i, n = [], 0, len(testo)
+    while i < n:
+        c = testo[i]
+        if c in spazi:
+            i += 1
+            continue
+        if c in punteggiatura:
+            # Lo stato 'c' di shlex: la punteggiatura di seguito fa una parola sola (`((`, `;;`).
+            fine = corsa_p.match(testo, i).end()
+            out.append(testo[i:fine])
+            i = fine
+            continue
+        pezzi, quoted = [], False
+        while i < n:
+            c = testo[i]
+            if c in spazi:
+                i += 1
+                break
+            if c in punteggiatura:
+                break
+            if c == "'":
+                j = testo.find("'", i + 1)
+                if j < 0:
+                    raise ValueError("No closing quotation")
+                pezzi.append(testo[i + 1:j])
+                quoted, i = True, j + 1
+            elif c == '"':
+                quoted, i = True, i + 1
+                while True:
+                    if i >= n:
+                        raise ValueError("No closing quotation")
+                    c = testo[i]
+                    if c == '"':
+                        i += 1
+                        break
+                    if c == "\\":
+                        if i + 1 >= n:
+                            raise ValueError("No escaped character")
+                        if testo[i + 1] not in '\\"':
+                            pezzi.append("\\")
+                        pezzi.append(testo[i + 1])
+                        i += 2
+                        continue
+                    fine = _CORSA_DOPPIE.match(testo, i).end()
+                    pezzi.append(testo[i:fine])
+                    i = fine
+            elif c == "\\":
+                if i + 1 >= n:
+                    raise ValueError("No escaped character")
+                pezzi.append(testo[i + 1])
+                i += 2
+            else:
+                fine = corsa.match(testo, i).end()
+                pezzi.append(testo[i:fine])
+                i = fine
+        parola = "".join(pezzi)
+        if parola or quoted:
+            out.append(parola)
+    return out
+
+
 def lexer(cmd: str):
-    """Il lexer delle guardie che contano gli operatori (`_cd_certi`) e controllano le virgolette
-    (`git_puro`): senza commentatore, sul testo già senza commenti. I comandi li spezza `_separatori`."""
-    lx = shlex.shlex(togli_commenti(cmd), posix=True, punctuation_chars=";&|()\n")
-    lx.commenters = ""
-    lx.whitespace = " \t\r"
-    lx.whitespace_split = True
-    return lx
+    """Le parole delle guardie che contano gli operatori (`_cd_certi`) e controllano le virgolette
+    (`git_puro`): senza commentatore, sul testo già senza commenti, con `;`, `&`, `|`, `(`, `)` e l'a capo come
+    punteggiatura. Sono quelle del vecchio shlex.shlex, lette da `parole` in tempo lineare (#5347). I comandi
+    li spezza `_separatori`."""
+    return parole(togli_commenti(cmd), ";&|()\n", " \t\r")
 
 
 # --- Il lettore unico dei separatori (10/11/2026, #5122) ---
@@ -164,6 +301,7 @@ def _separatori_powershell(testo: str):
     return out
 
 
+@_ricorda(list)
 def _separatori(testo: str, lingua: str = "bash"):
     """[(inizio, fine, tipo)] di ogni separatore fuori dalle virgolette: `;`, a capo, `&&`, `||`, `&`, `|`,
     `|&`. Le regole sono quelle di bash: backslash, `'...'` letterale, `"..."` col backslash. Non separano
@@ -262,6 +400,7 @@ def istruzioni(testo: str):
     return [s for s in out if s.strip()]
 
 
+@_ricorda(list)
 def comandi_semplici(testo: str, posizioni: bool = False):
     """I comandi semplici del testo: spezza su ogni separatore di `_separatori`, pipe comprese. Con
     `posizioni` dà (inizio, fine) di ogni pezzo, per chi rimonta il testo."""
@@ -274,6 +413,7 @@ def comandi_semplici(testo: str, posizioni: bool = False):
     return pezzi if posizioni else [testo[a:b] for a, b in pezzi]
 
 
+@_ricorda()
 def _senza_continuazioni(testo: str) -> str:
     """Il testo senza le coppie barra rovesciata + a capo fuori dagli apici: per bash la riga continua, e
     `ls \\` + a capo + `-la` è `ls -la`. Fra apici la coppia resta, come in bash."""
@@ -296,6 +436,7 @@ def _senza_continuazioni(testo: str) -> str:
     return "".join(out)
 
 
+@_ricorda(lambda r: [list(s) for s in r])
 def segmenti_parole(cmd: str):
     """Segmenti come liste di parole, rispettando le virgolette.
 
@@ -307,12 +448,8 @@ def segmenti_parole(cmd: str):
     try:
         segmenti = []
         for pezzo in comandi_semplici(togli_commenti(cmd)):
-            lx = shlex.shlex(_senza_continuazioni(pezzo), posix=True, punctuation_chars="()")
-            lx.commenters = ""
-            lx.whitespace = " \t\r\n"
-            lx.whitespace_split = True
             corrente = []
-            for tok in lx:
+            for tok in parole(_senza_continuazioni(pezzo), "()"):
                 if tok and set(tok) <= set("()"):
                     if corrente:
                         segmenti.append(corrente)
@@ -323,12 +460,12 @@ def segmenti_parole(cmd: str):
                 segmenti.append(corrente)
         return segmenti
     except ValueError:
-        def parole(seg):
+        def parole_o_spazi(seg):
             try:
-                return shlex.split(seg)
+                return parole(seg)  # come shlex.split
             except ValueError:
                 return seg.split()
-        return [parole(seg) for seg in re.split(r"[|;&\n]+", togli_commenti(cmd))]
+        return [parole_o_spazi(seg) for seg in re.split(r"[|;&\n]+", togli_commenti(cmd))]
 
 
 _ASSEGNAZIONE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -437,6 +574,59 @@ def xargs_resto(args):
     return args[i:]
 
 
+# 21/11/2026 (#6259, rilievo S9 della revisione del 20/11): i comandi che git e osascript eseguono dai loro
+# argomenti. `git -c alias.x='!rm -rf ~/Documents' x`, `git rebase -x 'rm -rf x'`, `git bisect run`,
+# `git submodule foreach` e `osascript -e 'do shell script "rm -rf x"'` passavano: nessuna guardia leggeva il
+# testo come un comando.
+_GIT_GLOBALI_CON_VALORE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+                                     "--config-env", "--super-prefix"))
+_DO_SHELL_SCRIPT = re.compile(r"""do\s+shell\s+script\s+(?:"((?:\\.|[^"\\])*)"|'([^']*)')""", re.IGNORECASE)
+
+
+def _comandi_dentro_git(args) -> list:
+    """I testi che un `git …` passa a una shell."""
+    testi, i = [], 0
+    while i < len(args) and args[i].startswith("-"):
+        a = args[i]
+        valore = None
+        if a == "-c" and i + 1 < len(args):
+            valore = args[i + 1]
+        elif a.startswith("-c") and len(a) > 2 and not a.startswith("--"):
+            valore = a[2:]
+        if valore and "=" in valore:
+            chiave, corpo = valore.split("=", 1)
+            if chiave.lower().startswith("alias.") and corpo.lstrip().startswith("!"):
+                testi.append(corpo.lstrip()[1:])
+        i += 2 if a in _GIT_GLOBALI_CON_VALORE else 1
+    if i >= len(args):
+        return testi
+    sotto, resto = args[i], args[i + 1:]
+    if sotto == "rebase":
+        for k, a in enumerate(resto):
+            if a in ("-x", "--exec") and k + 1 < len(resto):
+                testi.append(resto[k + 1])
+            elif a.startswith("--exec="):
+                testi.append(a.split("=", 1)[1])
+            elif a.startswith("-x") and len(a) > 2 and not a.startswith("--"):
+                testi.append(a[2:])
+    elif sotto == "bisect" and resto[:1] == ["run"] and len(resto) > 1:
+        testi.append(" ".join(shlex.quote(x) for x in resto[1:]))
+    elif sotto == "submodule" and "foreach" in resto:
+        dopo = [x for x in resto[resto.index("foreach") + 1:] if x not in ("--recursive", "-q", "--quiet")]
+        if dopo:
+            testi.append(" ".join(dopo))
+    return testi
+
+
+def _comandi_dentro_osascript(args) -> list:
+    testi = []
+    for a in args:
+        for m in _DO_SHELL_SCRIPT.finditer(a):
+            corpo = m.group(1) if m.group(1) is not None else m.group(2)
+            testi.append(re.sub(r"\\(.)", r"\1", corpo))
+    return testi
+
+
 def programmi(cmd: str, profondita: int = 0):
     """Lista di (programma, argomenti) per ogni comando semplice di `cmd`."""
     return [(_nome(t), a) for t, a in comandi(cmd, profondita)]
@@ -492,6 +682,12 @@ def comandi(cmd: str, profondita: int = 0):
                     out += comandi(" ".join(shlex.quote(x) for x in resto), profondita + 1)
             elif prog == "trap" and args and not args[0].startswith("-"):
                 out += comandi(args[0], profondita + 1)  # il corpo gira all'uscita o al segnale
+            elif prog == "git":
+                for testo in _comandi_dentro_git(args):
+                    out += comandi(testo, profondita + 1)
+            elif prog == "osascript":
+                for testo in _comandi_dentro_osascript(args):
+                    out += comandi(testo, profondita + 1)
             elif prog == "find":
                 # `find . -exec gh repo delete {} \;`: le parole fino a `;` o `+` sono un comando (#5097)
                 for k, a in enumerate(args):

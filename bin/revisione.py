@@ -140,7 +140,7 @@ def leggi_sessione(f: str, da: str) -> dict:
     ultimo_tool = {}
     with open(f, encoding="utf-8", errors="replace") as righe:
         for line in righe:
-            if '"custom-title"' in line or '"agent-name"' in line:
+            if '"custom-title"' in line:  # solo il nome dato a mano: agent-name lo inventa Claude Code (#6321)
                 try:
                     nome = prova.nome_da_record(json.loads(line)) or nome
                 except ValueError:

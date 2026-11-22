@@ -13,6 +13,241 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Due controlli partono solo sui comandi che li riguardano
+
+**Cosa cambia**: il registro dei commit della sessione parte solo sui comandi che contengono `commit`,
+il controllo dei comandi `gws` solo su quelli che contengono `gws`. Prima partivano a ogni comando Bash:
+tre processi Python in più per comando, circa 160 ms di lavoro del computer.
+
+**Il principio**: Claude Code sa saltare un hook con il campo `if`, prima di avviare il processo. Le
+protezioni vere restano senza `if`: Claude Code applica il filtro al meglio, e un comando che non sa
+dividere deve passare comunque dalle protezioni.
+
+---
+
+## 2026-11-22 — Meno conferme sui commit di un file solo con git -C
+
+**Cosa cambia**: con `git -C <cartella> add file && git -C <cartella> commit` il controllo dei segreti
+legge solo il file che aggiungi. Prima leggeva tutti i file nuovi della cartella e, se erano troppi,
+chiedeva conferma con "ha letto 374 file nuovi su 1337". Se add e commit hanno cartelle diverse, o la
+cartella sta in una variabile, il controllo legge ancora tutto.
+
+**Il principio**: su un computer, in 30 giorni, quella conferma è partita decine di volte su commit di
+un file solo. Lavorandoci è uscito un buco: il `-C` di un comando git spostava anche la cartella dei
+comandi dopo, e `git -C altra status && git commit` faceva controllare l'altra cartella. Ora il `-C`
+vale solo per il suo comando, e il commit si controlla dove gira davvero.
+
+---
+
+## 2026-11-22 — Le protezioni leggono comandi dieci volte più lunghi
+
+**Cosa cambia**: un comando Bash di oltre 100.000 caratteri, come uno script python scritto dentro il
+comando, ti chiedeva sempre conferma, perché le protezioni non facevano in tempo a leggerlo. Adesso lo leggono
+fino a 1.000.000 di caratteri e lo giudicano come un comando corto. Un comando di 74.000 caratteri passa i
+controlli in 0,3 secondi invece di 3; uno da un milione in meno di 4.
+
+**Il principio**: le protezioni giudicano come prima. La scelta di quali protezioni far partire ha le stesse
+regole, scritte in Python invece che in bash, e un banco ha confrontato le scelte vecchie e nuove su 52.148
+comandi veri: una sola differenza, corretta.
+
+---
+
+## 2026-11-22 — I comandi Bash partono prima
+
+**Cosa cambia**: ogni comando Bash passa dalle protezioni di Arturo prima di partire, e adesso quel
+controllo costa circa un terzo in meno. Su un comando semplice sono 54 millesimi di secondo invece di 80;
+quando una protezione deve esaminare il comando, 125 invece di 178. Un comando molto lungo, come un
+`python3 -c` di 94.000 caratteri, teneva ferma la protezione 13 secondi, e adesso meno di mezzo.
+
+**Il principio**: le protezioni giudicano come prima. Leggono il comando una volta sola, mentre prima lo
+rileggevano a ogni regola, e un banco confronta il lettore nuovo col vecchio su 90.000 testi casuali.
+
+---
+
+## 2026-11-22 — Le protezioni chiedono conferma quando il programma non si vede
+
+**Cosa cambia**: le protezioni di Arturo leggono il nome del programma che un comando lancia. Alcune forme
+della shell lo nascondono: un nome che si calcola solo quando il comando gira, `xargs`, un testo passato
+a una shell, il codice di python o di node scritto nel comando. Adesso, se il comando ha una di queste forme
+e contiene una parola pericolosa (`rm`, `push`, `reset`, `curl`, `gh`, `bw`, il percorso di una chiave),
+Arturo ti chiede conferma. La conferma ti dice quale forma ha trovato e quale parola.
+
+**Quanto costa**: su circa 24.000 comandi veri la conferma nuova parte 52 volte, circa una ogni dieci
+sessioni. Una parola che è già un programma visibile non conta (`bw status | python3 -c …`), e il codice
+python che non lancia programmi nemmeno. Lo stesso vale per `curl` e `wget` scritti per intero in una lista
+python, come `subprocess.run(['curl', '-s', 'https://…'])`: lì le protezioni leggono già cosa mandano.
+
+**Il principio**: una protezione che non vede il programma non può dire che è innocuo. Quando non lo vede
+e il comando nomina qualcosa di pericoloso, decide la persona.
+
+---
+
+## 2026-11-21 — Una sessione è di prova solo se il nome "prova-" l'hai dato tu
+
+**Cosa cambia**: `/fine` salta handoff, todo e memoria ed elimina la sessione solo se il suo nome comincia
+con `prova-` e quel nome l'hai dato tu, con `claude --name` o `/rename`. Prima bastava anche il nome che
+Claude Code sceglie da solo: una sessione vera nata in una cartella "prova" o su un compito "prova…" si
+chiamava `prova-…` da sola, e `/fine` la cancellava senza salvare niente. Lo stesso vale per `/revisione`,
+che ora tiene quelle sessioni nell'estratto.
+
+**Il principio**: un segno che fa cancellare lavoro deve venire da una persona, non da un'etichetta
+inventata. Claude Code scrive il nome dato a mano in un record a parte del transcript: Arturo legge solo
+quello.
+
+---
+
+## 2026-11-21 — Sul Mac la sandbox è accesa da /setup
+
+**Cosa cambia**: chi installa Arturo su un Mac trova la sandbox di Claude Code già accesa da `/setup`,
+senza domanda. I comandi che Claude lancia, e ogni programma che quei comandi avviano, leggono e scrivono
+solo dove serve, e le tue chiavi (SSH, AWS, GitHub, Bitwarden) restano fuori. Git, ssh e gh girano come
+prima. Se un programma non funziona, `arturo sandbox spegni` la spegne, e da lì `/setup` non la riaccende.
+Su Windows Claude Code non ha la sandbox: lì restano le guardie, e `arturo sandbox accendi` lo dice. Chi usa
+già Arturo la accende con `arturo sandbox accendi`.
+
+**Il principio**: le guardie di Arturo leggono il testo del comando, e la shell lo riscrive prima di
+eseguirlo. Una forma che le guardie non conoscono passa. La sandbox chiude il comando nel recinto del
+sistema operativo, qualunque forma abbia: Anthropic misura l'84% di conferme in meno, perché dentro il
+recinto non serve chiedere.
+
+---
+
+## 2026-11-21 — /fine non rompe più la config quando un'altra macchina ha salvato prima
+
+**Cosa cambia**: se lavori su due computer, a volte `/fine` trova su GitHub un salvataggio dell'altro
+computer. Prima univa i due salvataggi direttamente nella tua config. Adesso li unisce in una copia a
+parte, e la tua config cambia solo se l'unione è riuscita e la config resta integra. Se i due computer
+hanno cambiato la stessa riga, la tua config resta com'era e il salvataggio aspetta sul computer:
+`/fine` lo dice, il prossimo `/inizio` riprova e, se il conflitto resta, te lo segnala.
+
+**Il principio**: la revisione di sicurezza del 20/11/2026 ha riprodotto il guasto. Con due modifiche
+diverse a `settings.json`, l'unione lasciava nel file i segni del conflitto. Il file non si leggeva più,
+e Claude Code spegneva tutte le protezioni di Arturo fino alla riparazione a mano.
+
+---
+
+## 2026-11-21 — /fine controlla le chiavi prima di salvare la config
+
+**Cosa cambia**: a fine sessione `/fine` salva la tua config su GitHub. Adesso, prima di salvare, cerca
+password, token e chiavi nei file che cambiano e nei salvataggi non ancora spediti. Se ne trova una si
+ferma: ti dice in quale file sta e che tipo di chiave è, senza mostrarla. Poi la togli e lo rilanci.
+Inoltre, se la tua config su GitHub non è privata, i tuoi comandi e script nuovi restano sul computer.
+
+**Il principio**: la revisione di sicurezza del 20/11/2026 ha provato il buco. Il salvataggio di `/fine`
+parte da uno script, e la protezione dei segreti guardava solo i comandi che Claude scrive. Un token in
+`settings.json` arrivava su GitHub senza nessun controllo.
+
+**Da sapere**: se la chiave è finta, per esempio in un test, fai il salvataggio a mano. Arturo ti chiede
+conferma e decidi tu.
+
+---
+
+## 2026-11-21 — Un rilascio vale solo con la firma SSH di Arturo
+
+**Cosa cambia**: l'aggiornamento accetta un rilascio solo se la firma è SSH e viene dalla chiave di
+Arturo. Prima un rilascio firmato con una chiave PGP passava se quella chiave stava nel tuo portachiavi
+gpg, anche se non era di Arturo. Adesso quel rilascio ferma l'aggiornamento con l'avviso di possibile
+compromissione.
+
+**Il principio**: la revisione di sicurezza del 20/11/2026 ha provato il buco. Git sceglie il programma
+dalla firma scritta nel rilascio, e una firma PGP salta il file `firme/rilasci.allowed_signers`.
+
+**Da sapere**: i rilasci di Arturo sono sempre stati firmati SSH, quindi per te non cambia niente.
+
+---
+
+## 2026-11-21 — La privacy dice la base giuridica di ogni dato
+
+**Cosa cambia**: la pagina [privacy](docs/privacy.md) dice adesso, per ogni dato, su quale base esce e
+come la fermi. Gli eventi d'uso partono col tuo consenso, quello che `/setup` ti chiede, e lo ritiri con
+`arturo telemetria spegni`. Le segnalazioni che partono da sole restano sul legittimo interesse di chi
+mantiene Arturo, e ti opponi con `arturo segnalazioni manuali`. La pagina dice anche il nome del titolare,
+le quattro società fuori dall'Unione Europea che trattano una parte dei dati, e che gli avvisi su
+Telegram e Gmail si cancellano entro 12 mesi.
+
+**Il principio**: dal 19/11/2026 niente parte prima della tua risposta a `/setup`, quindi la base giusta
+è il consenso. La pagina del sito lo dice dal 21/11, e il testo nel repository adesso dice lo stesso.
+
+**Da sapere**: cosa esce non cambia. Se hai installato Arturo prima del 19/11/2026, i tuoi eventi
+partivano già prima della domanda: per quelli la base resta il legittimo interesse, e ti opponi spegnendo
+la telemetria.
+
+---
+
+## 2026-11-21 — Le protezioni ti chiedono conferma in casi nuovi
+
+**Cosa cambia**: dopo l'aggiornamento Arturo ti chiede conferma in casi che prima passavano in silenzio.
+Dici sì e il comando parte, come per ogni altra conferma. I casi nuovi sono questi:
+
+- una modifica a un file che parte da solo: i tuoi script in `personale/`, la configurazione di git,
+  i file di avvio della shell, le chiavi SSH autorizzate;
+- uno script scaricato dalla rete ed eseguito subito, anche in due passi;
+- una lettura di password o di chiavi salvate, e della cronologia della shell;
+- `git reset --hard`, `git checkout --` e `git restore` quando hai modifiche non salvate: se la cartella
+  è pulita Arturo non chiede;
+- un commento su GitHub (`gh issue comment`, `gh pr comment`, `gh pr review`), un cambio di visibilità o
+  di nome di un repository, un gist pubblico;
+- una condivisione su Drive aperta a chiunque o con l'email di avviso, e un invito del calendario che
+  avvisa i partecipanti;
+- una cartella intera spostata o cancellata per una via diversa da `rm`, e docker con la tua home
+  montata in scrittura;
+- un invio di file con `curl` o `wget`, un `rsync --delete` o un `DROP TABLE` scritti a pezzi, con
+  virgolette o barre in mezzo al nome (`cu''rl`, `rs"y"nc`);
+- una lettura attraverso un link che porta a una chiave, anche quando il link è una cartella
+  (`cat chiavi/github` con `chiavi` che punta a `~/.ssh`).
+
+Un caso chiede meno di prima: un testo mostrato con `cat <<EOF` che cita un `curl … | bash` non viene
+più bloccato, perché `cat` lo stampa e basta.
+
+Prima di ogni `git push` Arturo cerca anche chiavi e password nei commit che il server non ha ancora.
+
+**Il principio**: una protezione che legge solo la forma più comune di un comando si aggira con una
+forma diversa. Una revisione di sicurezza del 20/11 ha trovato 89 forme che passavano senza domanda:
+adesso chiedono tutte. Su 1.500 comandi veri di tre giorni le conferme in più sono due, tutte e due su
+un `git checkout` che buttava via modifiche non salvate.
+
+**A chi serve**: a tutti. Se una di queste conferme ti arriva spesso su un lavoro normale, mandala con
+`/segnala`: una domanda inutile si corregge.
+
+---
+
+## 2026-11-21 — Quando una protezione ti chiede conferma, Arturo registra quale regola è scattata
+
+**Cosa cambia**: tre protezioni ti chiedono conferma prima di un comando: quella sugli invii (email e
+messaggi), quella sui dati che escono verso un server esterno e quella sulle cancellazioni nei database.
+Le domande restano le stesse, e nessuna regola cambia. Da oggi, quando una di queste chiede, Arturo
+registra quale regola è scattata, mai cosa stavi facendo: non il comando, non il file, non l'indirizzo.
+Di un invio registra solo il tipo di canale, per esempio "email" o "chat", mai il servizio né il
+destinatario. L'avviso sui dati d'uso lo dice già: è lo stesso che torna una volta per la voce qui sotto.
+
+**Il principio**: una domanda a cui tutti rispondono sì è una domanda inutile, ma per toglierla bisogna
+sapere quale è. In un mese queste tre protezioni hanno chiesto 67 volte e ricevuto 60 sì, e i dati
+dicevano solo il nome della protezione.
+
+**A chi serve**: a chi si trova a confermare spesso un invio o un caricamento che voleva fare. Con il
+nome della regola capiamo quali domande servono davvero e quali togliere.
+
+---
+
+## 2026-11-21 — Se il controllo dei segreti non parte, Arturo registra perché e /diagnosi te lo dice
+
+**Cosa cambia**: prima di ogni commit Arturo legge le modifiche e cerca chiavi e password. Se la lettura
+non riesce, ti chiede conferma e ti dice causa e rimedio: questo c'era già, e resta uguale. Da oggi Arturo
+registra anche la causa in una parola, da un elenco di quattro: git non si avvia, git impiega troppo, git
+risponde con un errore, la cartella ha troppi file nuovi. E `/diagnosi` prova la stessa lettura nella
+cartella dove sei: ti dice se parte, se non parte e perché, o se arriva solo a metà. L'avviso sui dati
+d'uso torna una volta, perché la causa è un dato nuovo: mai il messaggio di git, la cartella o i nomi dei
+file.
+
+**Il principio**: una protezione che non riesce a lavorare deve dirlo anche a chi la mantiene. In un mese
+questa domanda ha ricevuto 20 sì su 27, e nessun dato diceva quale guasto c'era dietro.
+
+**A chi serve**: a chi conferma spesso un commit "senza controllo dei segreti". La causa più frequente che
+abbiamo visto è una cartella con centinaia di file nuovi che git non segue: `/diagnosi` ora la nomina, e il
+rimedio è una riga in `.gitignore`.
+
+---
+
 ## 2026-11-21 — Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai
 
 **Cosa cambia**: nelle prime settimane `/inizio` ti chiede quale lavoro rifai ogni settimana o ogni mese.

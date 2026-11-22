@@ -299,7 +299,26 @@ def salva(radice: Path, esito: dict) -> None:
         pass
 
 
+def base(radice: Path) -> str:
+    """Il commit da cui la config si è staccata da Arturo, o "" se non si misura. Lo stampa `--base`:
+    tests/banchi-avvio.sh lo chiede qui invece di riscrivere la scelta del ref (21/11/2026, #6216)."""
+    ref = riferimento(radice)
+    if not ref:
+        return ""
+    rc, sha = git(radice, "merge-base", "HEAD", ref)
+    return sha.strip() if rc == 0 else ""
+
+
 def main(argv: list) -> int:
+    if argv[:1] == ["--base"]:
+        # Uso: deriva.py --base [radice]. Stampa solo la base, senza telemetria né cache/deriva.json.
+        try:
+            trovata = base(Path(argv[1]) if len(argv) > 1 else radice_arturo())
+        except Exception:  # noqa: BLE001 - chi chiama legge l'uscita vuota come "base assente"
+            trovata = ""
+        if trovata:
+            print(trovata)
+        return 0
     radice = Path(argv[0]) if argv else radice_arturo()
     try:
         codice = radice_arturo()

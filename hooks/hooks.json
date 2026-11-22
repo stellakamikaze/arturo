@@ -118,6 +118,7 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*gws*)",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gws-esito.py\"",
             "timeout": 10
           }
@@ -151,11 +152,13 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*commit*)",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous.py\" dopo",
             "timeout": 10
           },
           {
             "type": "command",
+            "if": "Bash(*gws*)",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gws-esito.py\"",
             "timeout": 10
           }
@@ -296,6 +299,7 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*gws*)",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gws-esito.py\"",
             "timeout": 10
           }
