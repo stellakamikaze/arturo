@@ -74,17 +74,26 @@ for dir in "$ROOT"/*/; do
   fi
 
   BEFORE=$(git -C "$dir" rev-parse HEAD 2>/dev/null)
-  PULL_OUT=$(git -C "$dir" pull --rebase 2>&1)
+  # In inglese (LC_ALL=C): le cause qui sotto si leggono dai messaggi di git, che con git in italiano cambiano.
+  PULL_OUT=$(LC_ALL=C git -C "$dir" pull --rebase 2>&1)
   PULL_RC=$?
   echo "$PULL_OUT" | tail -3
 
   if [ "$PULL_RC" -ne 0 ]; then
     # La causa si legge nell'output, non si indovina: un pull senza credenziali non è un conflitto.
+    # Fino al 22/11/2026 ogni causa diversa dalle credenziali usciva come "conflitto": rete giù, ramo
+    # senza upstream e ramo sparito dal remoto mandavano a risolvere un conflitto che non c'era (A10).
     case "$PULL_OUT" in
       *"could not read Username"*|*"Authentication failed"*|*"Permission denied (publickey)"*|*"terminal prompts disabled"*)
         echo "ERRORE: pull $name fallito - credenziali git assenti per il remote, lancia: gh auth setup-git" ;;
-      *)
+      *"Could not resolve host"*|*"Connection timed out"*|*"Connection refused"*|*"Operation timed out"*|*"Network is unreachable"*|*"unable to access"*|*"Could not read from remote repository"*)
+        echo "ERRORE: pull $name fallito - remoto non raggiungibile (rete o indirizzo), riprova quando la rete torna" ;;
+      *"There is no tracking information"*|*"no such ref was fetched"*|*"couldn't find remote ref"*)
+        echo "ERRORE: pull $name fallito - il ramo non ha un ramo remoto da seguire, impostalo con /inizio $name" ;;
+      *"CONFLICT"*|*"could not apply"*|*"Resolve all conflicts"*|*"would be overwritten"*|*"You have unstaged changes"*)
         echo "ERRORE: pull $name fallito - conflitto con modifiche locali, risolvi con /inizio $name" ;;
+      *)
+        echo "ERRORE: pull $name fallito - causa non riconosciuta: $(printf '%s\n' "$PULL_OUT" | grep -v '^[[:space:]]*$' | tail -1)" ;;
     esac
     # Prima del pull nessun rebase era a metà (controllo sopra): se ce n'è uno, è di questo pull.
     git -C "$dir" rebase --abort 2>/dev/null

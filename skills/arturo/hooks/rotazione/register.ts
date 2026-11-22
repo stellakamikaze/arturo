@@ -11,7 +11,11 @@ import {
   type Attesa,
   argomentiInizio,
   CONTROLLO_BOZZA_MS,
+  contaGiro,
   decidi,
+  leggiGiri,
+  messaggioDellaPersona,
+  tettoGiri,
   domandaAperta,
   testoDomande,
   vediBozza,
@@ -25,6 +29,8 @@ import {
 import { type Avanti, type Evento, parteSpenta, stato } from '../parti'
 
 const CHIAVE_ULTIMA = 'ultima-rotazione'
+// i giri fatti dall'ultimo messaggio della persona (#6334)
+const CHIAVE_GIRI = 'giri-rotazione'
 
 let armata: Rotazione | undefined
 // la domanda fatta con AskUserQuestion dopo ruota, nello stesso turno (segnalazione n. 65)
@@ -49,14 +55,21 @@ export async function avvio($: EngineInterface, e: Evento<'session.start'>, next
       '/fine --rotazione andato a buon fine, come ultima azione del turno. A fine turno /clear, poi ' +
       '/inizio <progetto> -- --rotazione <compito>: il lavoro riparte da solo con il contesto pulito. ' +
       'Non chiamarlo se il prossimo step chiede la persona (una decisione, un invio, un pagamento, un ' +
-      'accesso) o se non ci sono step: il /fine --rotazione si fa lo stesso, a ogni compito chiuso.',
+      'accesso) o se non ci sono step: il /fine --rotazione si fa lo stesso, a ogni compito chiuso. ' +
+      'In traccia scrivi cosa ha lasciato lo step appena chiuso (commit, task chiuso, file): vuota se non ' +
+      'ha trovato niente di nuovo. Dopo due giri di fila senza una traccia nuova, o oltre il tetto di giri ' +
+      'senza un messaggio della persona, il tool non ruota.',
     inputSchema: {
       type: 'object',
       properties: {
         progetto: { type: 'string', description: 'slug del progetto per /inizio' },
         compito: { type: 'string', description: 'il prossimo step, in una frase' },
+        traccia: {
+          type: 'string',
+          description: 'cosa ha lasciato lo step appena chiuso, es. "commit abc1234, #6334 chiuso"; vuota se niente di nuovo',
+        },
       },
-      required: ['progetto', 'compito'],
+      required: ['progetto', 'compito', 'traccia'],
     },
     isDeferred: false,
   })
@@ -200,6 +213,8 @@ export const register: Register = on => {
 
   // Un messaggio mandato durante l'attesa vince: la persona è tornata, la rotazione si annulla.
   on('prompt.submit', async ($, e, next) => {
+    // Un messaggio della persona azzera il conto dei giri: il tetto vale per i giri fatti da soli (#6334).
+    if (messaggioDellaPersona((e as { text?: unknown }).text)) await $.store.set(CHIAVE_GIRI, null).catch(() => undefined)
     if (inAttesa) {
       inAttesa = undefined
       await registra($, 'attesa bozza → disarma (messaggio mandato)')
@@ -226,6 +241,26 @@ export const register: Register = on => {
       return { result: 'Rotazione spenta (ARTURO_ROTAZIONE). Chiudi come sempre: proponi /fine, poi /clear e /inizio.' }
     const r = leggiArgomenti(e)
     if (typeof r === 'string') return { deny: `rotazione: ${r}` }
+    const [prima, tetto] = await Promise.all([
+      $.store.get(CHIAVE_GIRI).catch(() => undefined),
+      $.env.get('ARTURO_ROTAZIONE_GIRI').catch(() => undefined),
+    ])
+    const conto = contaGiro(leggiGiri(prima), r.traccia ?? '', tettoGiri(tetto))
+    await $.store.set(CHIAVE_GIRI, conto.giri).catch(() => undefined)
+    await registra(
+      $,
+      `ruota: giro ${conto.giri.n}, vuoti di fila ${conto.giri.vuoti} → ${conto.azione}` +
+        (conto.azione === 'ferma' ? ` (${conto.motivo})` : ''),
+    )
+    if (conto.azione === 'ferma') {
+      stato($, 'rotazione', `rotazione: ${conto.motivo}`)
+      $.ui.toast(`rotazione: ${conto.motivo}`)
+      return {
+        result:
+          `Rotazione fermata: ${conto.motivo}. Non ruotare e non richiamare ruota: chiudi il turno con il ` +
+          'riepilogo per la persona, cosa è fatto e il prossimo passo. Il conto riparte al suo prossimo messaggio.',
+      }
+    }
     armata = r
     stato($, 'rotazione', `rotazione pronta: a fine turno riparto da "${r.compito}"`)
     return { result: `Rotazione armata: a fine turno /clear, poi /inizio ${argomentiInizio(r)}. Chiudi il turno ora.` }

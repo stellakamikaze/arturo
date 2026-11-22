@@ -3,7 +3,7 @@ name: fine
 description: >-
   Chiude la sessione: destino dei file, commit, handoff coi todo e chi agisce, memoria e sync della config.
   Si può rilanciare. Con --rotazione è il fine leggero a ogni passo chiuso, seguito dal tool ruota.
-argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
+argument-hint: "[--full] [salva] [--rotazione] [--forza] [note opzionali]"
 ruolo: chiudere la sessione o un compito con commit, handoff e todo
 ---
 
@@ -17,6 +17,11 @@ Tre regole per tutte le fasi:
 - **Dentro /fine non si sviluppa.** Un gap, un fix o un test rosso diventa un todo con un numero.
 - **/fine si può rilanciare senza danni.** L'handoff si riscrive, un todo che c'è non si ricrea, un commit vuoto non parte.
 - **Un destino incerto non ferma la chiusura.** Il file resta dov'è e l'handoff dice dove sta.
+
+**Sessione già chiusa.** Se dopo l'ultimo /fine riuscito di questa sessione non è arrivato nessun messaggio,
+non rifare le fasi: chiudi con una riga, "Sessione già chiusa alle HH:MM, niente di nuovo da salvare". Di
+solito il giro non arriva qui, perché `inject-now.sh` lo ferma prima (`bin/fine-gia-chiusa.py`). `--forza`
+fa ripartire le fasi anche su una sessione chiusa.
 
 ## Modo rotazione (`--rotazione`)
 
@@ -46,15 +51,19 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   sì` dell'handoff, col testo. Il prossimo `/fine` scritto dalla persona le propone.
 - **Poi la rotazione.** Con la coda a `rc=0` scegli il passo dopo. Se è un passo di Claude (Chi `io`), la
   chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
-  `mcp__arturo__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
+  `mcp__arturo__ruota` con `progetto` (lo slug), `compito` (il passo dopo in una frase) e `traccia` (cosa
+  ha lasciato lo step chiuso: commit, task chiuso, file; vuota se niente di nuovo). È l'ultima
   azione del turno. Mai chiudere con "scrivi /clear e poi /inizio": quel passo lo fa `ruota`.
+- **Il mod tiene il conto dei giri.** Dopo due giri di fila senza una traccia nuova, o oltre 10 giri senza un
+  messaggio della persona (`ARTURO_ROTAZIONE_GIRI` cambia il tetto), `ruota` risponde "Rotazione fermata".
+  Lì non richiami il tool: chiudi con la raccolta dei risultati. Il conto riparte al messaggio dopo.
 - **Un rilascio pronto vuole una riapertura vera.** Prima di `ruota` lancia
   `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo aggiornamenti riapri`. Con uscita 0 non ruotare: il `/clear` non chiude Claude
   Code, e il rilascio resta fermo. Chiudi con la riga che stampa e con "chiudi e riapri Claude Code, poi
   scrivi **/inizio <slug>**".
 - **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
   la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la
-  persona ha scritto durante il turno; il tool risponde "Rotazione spenta". Il fine leggero resta fatto:
+  persona ha scritto durante il turno; il tool risponde "Rotazione spenta" o "Rotazione fermata". Il fine leggero resta fatto:
   la chiusura alla persona è la raccolta dei risultati, cioè l'esito, una riga per materiale con la sua
   posizione e il prossimo passo con chi lo fa. Se il tool non c'è (mod spento),
   chiudi con "scrivi **/clear** e poi **/inizio <slug>**".
@@ -88,8 +97,8 @@ conversazione e dillo nella riga tecnica. Aggiungi i file che lo script non ha v
 - la sessione non ha todo nuovi né punti pendenti, e non ha aperto un lavoro che riprende nei giorni dopo;
 - `arturo contesto` dice `cartella: nessuna`, o NON TROVATO.
 
-Lancia solo la coda della FASE 9 (`python3 ${CLAUDE_PLUGIN_ROOT}/bin/fine-coda.py`): senza handoff fa solo il sync
-della config. Chiudi con una riga tecnica breve: "chiuso · sessione vuota · config: push riuscito".
+Lancia solo i due comandi della FASE 9, l'anteprima degli avvisi (`python3 ${CLAUDE_PLUGIN_ROOT}/bin/fine-coda.py
+--avvisi`) e la coda (`python3 ${CLAUDE_PLUGIN_ROOT}/bin/fine-coda.py`): senza handoff la coda fa solo il sync della config. Chiudi con una riga tecnica breve: "chiuso · sessione vuota · config: push riuscito".
 Se una condizione manca, segui tutte le fasi.
 
 ## FASE 2 · Destino di ogni file
@@ -229,7 +238,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/bin/handoff-gate.sh "<handoff>"; echo "rc=$?"
 ```
 
 Il gate è bloccante. Il rosso (`rc=1`) stampa una riga per difetto (tabella, ID, Chi, segnaposto mai
-compilato). Correggi l'handoff (e l'archivio) e rilancia finché è verde.
+compilato). Correggi solo le righe che il gate nomina, nell'handoff e nell'archivio: il resto resta com'è.
+Poi rilancia finché è verde.
 
 ## FASE 6 · Retention e indice
 
@@ -320,12 +330,17 @@ creata <ID> <file>`. Al no, `rispondi <ID> no`.
 
 ## FASE 9 · Config Sync, in una chiamata
 
-Dopo le fasi 4-8, o subito con l'uscita breve. Se `ListAgents` mostra un'altra sessione viva su questa
-macchina, avvisala prima con `SendMessage`: il commit di sync prende anche i suoi file della config.
+Dopo le fasi 4-8, o subito con l'uscita breve. Prima della coda lancia l'anteprima degli avvisi:
 
 ```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/fine-coda.py --avvisi; echo "rc=$?"
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/fine-coda.py; echo "rc=$?"
 ```
+
+L'anteprima dice quali altre sessioni vive su questa macchina hanno toccato i file della config fuori da
+`data/` che il commit di sync prenderà. Con exit 3 non avvisi nessuno. Con exit 0, per ogni riga `AVVISA
+<nome> (sessione <id>): <file>` manda un `SendMessage` a quella sessione col suo nome di `ListAgents`, con i
+file della riga: il commit di sync li salva adesso (#6275, segnalazione n. 94).
 
 **Con il sandbox dei comandi acceso** la coda gira fuori dal sandbox (`dangerouslyDisableSandbox`): fa commit e
 push di `~/.claude`, e il sandbox lascia scrivere solo `~/.claude/data`, dove stanno todo e handoff (segnalazione
@@ -345,6 +360,8 @@ nella riga tecnica.
   un servizio è giù, il resto è fatto.
 - **rc=7**: la guardia dei segreti trova una chiave nello stage (niente commit) o nei commit da spingere
   (niente push). Non aggirarla: leggi il caso `SEGRETO` del file qui sotto.
+- **rc=8**: un'altra `/fine` tiene la config da più di cinque minuti, niente commit. Rilancia quando
+  finisce. Se nessuna `/fine` è in corso, cancella il lucchetto che la riga nomina e rilancia.
 
 La coda si può rilanciare senza danni, e un push fallito si ritenta. Se l'uscita non è chiara, se esce
 `SKILL TUE NON SALVATE`, `FILE TUOI NON SALVATI` o `SEGRETO`, o se esiste `~/.claude/personale/fine-coda.py`, leggi `${CLAUDE_PLUGIN_ROOT}/shared/fine-coda-casi.md`.

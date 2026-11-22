@@ -37,6 +37,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 QUI = Path(os.path.realpath(__file__)).parent
@@ -667,8 +668,18 @@ def main(argv: list) -> int:
     if not contenitore and not scheda:
         scheda = scheda_progetto(s, nome)
     elenco = handoff_di(s)
+    dal = elenco[0][1] if elenco else None
     esterna = ts.comando_fonte()
-    vista, errore = (leggi_esterna(s) if esterna else (None, None))
+    # La fonte esterna dei todo (rete, fino a 90 s) e git non leggono l'una il risultato dell'altro: girano
+    # insieme, e /inizio aspetta la più lenta invece della somma (#6317).
+    letta: dict = {}
+    lettore = threading.Thread(target=lambda: letta.update(r=leggi_esterna(s)), daemon=True) if esterna else None
+    if lettore:
+        lettore.start()
+    righe_git = [] if contenitore else (sezione_git(cartella, dal) if cartella else ["GIT", "  nessuna cartella"])
+    if lettore:
+        lettore.join()
+    vista, errore = letta.get("r", (None, "lettura dei todo interrotta")) if esterna else (None, None)
     if esterna:
         todo, avvisi = {}, []
         ha_todo = bool(vista and any(g.get("todo") for g in vista["gruppi"] if isinstance(g, dict)))
@@ -690,7 +701,6 @@ def main(argv: list) -> int:
         return 2
 
     ir = modulo_index()
-    dal = elenco[0][1] if elenco else None
     righe = [f"PROGETTO {s}", f"cartella: {cartella if cartella else 'nessuna'}"]
     if interpretato:
         # Il consiglio di ripetere col nome giusto vale per un nome interpretato, non per una frase che è
@@ -713,7 +723,7 @@ def main(argv: list) -> int:
     righe.append("")
     if scheda:
         righe += sezione_scheda(scheda) + [""]
-    righe += sezione_git(cartella, dal) if cartella else ["GIT", "  nessuna cartella"]
+    righe += righe_git
     righe.append("")
     righe += sezione_handoff(elenco, giorni, ir)
     righe.append("")

@@ -84,13 +84,19 @@ def leggi_json(percorso: Path) -> dict:
 
 
 def categorie_config(radice: Path) -> list:
-    try:
-        spec = importlib.util.spec_from_file_location("controlla_config", Path(__file__).with_name("controlla-config.py"))
-        modulo = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(modulo)
-        trovati = modulo.problemi(str(radice))
-    except Exception:  # noqa: BLE001
-        return []
+    # L'avvio ha già lanciato controlla-config.py e passa le sue righe: sei git in meno a ogni avvio (#6370).
+    if os.environ.get("ARTURO_CONFIG_CONTROLLATA") == "1":
+        prefisso = "CONFIG ROTTA: "
+        trovati = [r[len(prefisso):] for r in os.environ.get("ARTURO_CONFIG_RIGHE", "").splitlines()
+                   if r.startswith(prefisso)]
+    else:
+        try:
+            spec = importlib.util.spec_from_file_location("controlla_config", Path(__file__).with_name("controlla-config.py"))
+            modulo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(modulo)
+            trovati = modulo.problemi(str(radice))
+        except Exception:  # noqa: BLE001
+            return []
     fuori = set()
     for riga in trovati:
         if riga.startswith("settings"):

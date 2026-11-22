@@ -54,12 +54,9 @@ if [ -n "$HOOK_INPUT" ] && [ -f "$ARTURO_CODICE/bin/salva-automatico.py" ]; then
   printf '%s' "$HOOK_INPUT" | nohup python3 "$ARTURO_CODICE/bin/salva-automatico.py" >/dev/null 2>&1 &
 fi
 
-# Il resto solo in una directory di progetto
-if [ ! -d "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
-    exit 0
-fi
-
-# Cleanup file temporanei sessione: deve avvenire anche su tree pulito.
+# Cleanup file temporanei sessione: deve avvenire anche su tree pulito, e prima dell'uscita qui sotto.
+# Uno sblocco della protezione config resta valido finché il file c'è: fino al 22/11/2026 una sessione
+# chiusa dalla home o da un worktree lo lasciava acceso (A6, revisione del 20/11).
 # I file di sblocco di questa sessione, e quelli rimasti da più di un giorno: un'altra sessione ancora
 # aperta perdeva il suo sblocco a metà lavoro (30/10/2026). L'id arriva nel JSON dell'hook.
 SESSIONE=$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_-]*\)".*/\1/p' | head -1)
@@ -76,10 +73,15 @@ find ~/.claude/session-env -maxdepth 1 -name 'commit-*.json' -mtime +0 -exec rm 
 # Le conferme chieste dalle guardie e rimaste senza esito (un no): gli id valgono per una sessione.
 rm -f ~/.claude/session-env/telemetria-attese.json 2>/dev/null
 
+# Il resto solo in una directory di progetto. In un worktree .git è un file, non una cartella.
+if [ ! -e "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
+    exit 0
+fi
+
 # Il promemoria esce anche a tree pulito: una sessione di ricerca, bozze o decisioni non
 # cambia file, ma produce cose da ricordare. Cambia solo il testo.
 SOLO_LETTURA=0
-if [ -d "$PROJECT_ROOT/.git" ]; then
+if [ -e "$PROJECT_ROOT/.git" ]; then
     CHANGES=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null)
     [ -z "$CHANGES" ] && SOLO_LETTURA=1
 fi

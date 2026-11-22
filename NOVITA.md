@@ -13,6 +13,123 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — L'avvio consegna il suo messaggio anche su un computer carico, e /inizio aspetta meno
+
+**Cosa cambia**: il messaggio di avvio di Arturo arriva anche quando il computer è lento o carico. Prima
+Claude Code fermava l'hook di avvio dopo 10 secondi e buttava tutto quello che aveva già scritto: su un
+Windows succedeva in 10 avvii su 11. Adesso Arturo smette di aspettare a 7,5 secondi e consegna le righe
+pronte. Il controllo degli aggiornamenti della config continua da solo, staccato dall'avvio. Se non
+risponde, Arturo riprova dopo 30 minuti invece che dopo 6 ore. `/inizio` legge insieme i todo del
+progetto, i todo generali e l'elenco dei plugin: aspetta la lettura più lenta, non la somma.
+
+Su Windows l'identità git automatica funziona anche con la variabile `EMAIL` impostata, e `/system-audit`
+non lascia più un carattere sporco nel nome di una skill rotta. Le protezioni restano veloci anche su
+`tee`, `{` e `do` ripetuti.
+
+**Il principio**: un hook che supera il suo tempo perde tutto, anche il lavoro già fatto. Un tetto più
+basso di quello di Claude Code salva le righe pronte, e il lavoro lento passa a un processo che la
+chiusura dell'avvio non raggiunge. Nelle prove del 22/11 lo stesso avvio durava 4,5 secondi a computer
+fermo e da 11 a 19 secondi sotto carico.
+
+**Da sapere**: questa voce apre la versione 0.2.23. Le altre novità della stessa versione stanno nelle
+sette voci qui sotto, fino a "Un /fine su una sessione già chiusa non riparte".
+
+---
+
+## 2026-11-22 — /fine a metà, due /fine insieme e altri sei difetti della revisione del 20/11
+
+**Cosa cambia**: se usi `/fine` a metà sessione per salvare e poi continui, il lavoro venuto dopo non si perde
+più. Alla chiusura Arturo lo salva in un handoff automatico accanto a quello di `/fine`. Due `/fine` lanciati
+insieme da due sessioni non si mescolano più i file nei commit: la seconda aspetta che la prima finisca.
+Con il plugin, `/arturo:fine` legge le tue aggiunte in `personale/fine.md` come `/fine`. Lo sblocco della
+protezione della config si cancella alla chiusura anche quando la sessione stava nella home o in un worktree.
+Un handoff salvato con gli a capo di Windows passa il controllo. La pulizia dei plugin toglie solo quelli che
+`settings.json` non nomina più: un plugin che hai spento resta, e Arturo resta sempre. `/inizio --tutti` dice
+perché un pull è fallito (rete, ramo senza remoto, conflitto) e non chiama più tutto "conflitto".
+
+**Il principio**: sono i sette difetti medi della revisione del 20/11. Ognuno ha un caso nel banco
+`tests/test_revisione_medi_2026_11_22.py`, rosso sulla versione di prima e verde adesso.
+
+---
+
+## 2026-11-22 — Un controllo rosso fa rifare solo il pezzo bocciato
+
+**Cosa cambia**: quando un test o un controllo boccia una parte del lavoro, Claude rifà solo quella parte.
+Prima scrive in una riga il confine: quale controllo è rosso, cosa si aspettava e cosa ha ottenuto, quali
+file può toccare. I pezzi già verdi restano come sono. Vale anche nel controllo dell'handoff di `/fine`,
+che fa correggere solo le righe che segnala, e nella bozza di `/setup`, dove una tua correzione cambia
+solo la parte che nomini.
+
+**Il principio**: rifare tutto per un difetto solo rimette in gioco quello che funzionava, e può portare
+un errore nuovo dove prima non c'era. Il confine scritto tiene la correzione piccola e controllabile.
+
+---
+
+## 2026-11-22 — Le guardie non rallentano più sui comandi costruiti apposta
+
+**Cosa cambia**: un comando lungo fatto di `curl`, `gws`, `find` o `open` ripetuti non tiene più ferme le guardie.
+Su 90.000 caratteri block-dangerous passa da 83 secondi a meno di due, comms-guard da oltre 90 a meno di due.
+Lo stesso vale per `~/.claude/`, `dd`, `eval` e `sh -c` ripetuti, e per un `eval $(` seguito da tanti `base64`:
+prima arrivavano a 18 secondi, ora stanno sotto i tre. Le guardie danno gli stessi giudizi di prima.
+
+**Il principio**: una regola del tipo "curl, poi qualcosa, poi un indirizzo" ripartiva da ogni curl e rileggeva il
+comando fino in fondo. Adesso si prova solo dal primo curl di ogni tratto, perché gli altri arrivano agli stessi
+punti. Un banco confronta la regola nuova con la vecchia su migliaia di testi casuali. Il tetto di 25 secondi resta,
+per i casi che nessuno ha ancora trovato.
+
+---
+
+## 2026-11-22 — La rotazione si ferma da sola quando gira a vuoto
+
+**Cosa cambia**: la rotazione riparte da sola a ogni passo chiuso. Adesso si ferma in due casi. Il primo:
+due giri di fila che non lasciano niente di nuovo (nessun commit, nessun task chiuso, nessun file). Il
+secondo: dieci giri di fila senza un tuo messaggio. Sotto il prompt vedi il motivo, e Claude chiude con il
+riepilogo di cosa ha fatto. Al tuo prossimo messaggio il conto riparte da zero. Per un tetto diverso:
+`export ARTURO_ROTAZIONE_GIRI=20` prima di aprire Claude.
+
+**Il principio**: un ciclo che riparte da solo ha bisogno di freni fuori dal modello. Il conto lo tiene il
+mod, non le istruzioni a Claude: un modello che gira in tondo non si accorge di girare in tondo. A ogni giro
+Claude scrive cosa ha lasciato lo step, e due tracce vuote o uguali di fila fermano il giro.
+
+---
+
+## 2026-11-22 — Una guardia lenta chiede conferma invece di lasciar passare il comando
+
+**Cosa cambia**: se le guardie di un comando Bash non finiscono entro 25 secondi, Arturo ferma quella in
+corso e ti chiede conferma.
+
+**Il principio**: Claude Code ferma un hook dopo 30 secondi, e allora il comando parte senza giudizio. Su un
+comando di 90.000 caratteri fatto di `curl` ripetuti, costruito per rallentarla, block-dangerous impiegava 83
+secondi. Un comando normale non arriva vicino al tetto: uno di 300.000 caratteri si giudica in pochi secondi.
+
+---
+
+## 2026-11-22 — /fine avvisa le altre sessioni solo quando le riguarda
+
+**Cosa cambia**: prima di salvare la configurazione, `/fine` avvisava ogni sessione aperta che il salvataggio
+avrebbe preso anche i suoi file. Adesso l'avviso parte solo se ci sono file della configurazione da salvare
+fuori da `data/`, e solo alle sessioni che li hanno scritti o nominati in un comando. Con quattro sessioni
+aperte una sessione riceveva due avvisi inutili, e ogni volta interrompeva la persona (segnalazione n. 94).
+
+**Il principio**: l'elenco dei file viene dalle stesse regole del salvataggio vero, provate su una copia
+dell'indice di git. Un file che il salvataggio lascia fuori non fa partire nessun avviso.
+
+---
+
+## 2026-11-22 — Un /fine su una sessione già chiusa non riparte
+
+**Cosa cambia**: se una sessione è già chiusa con `/fine` e dopo non è arrivato nessun messaggio, un nuovo
+`/fine` si ferma prima di arrivare a Claude. Vedi una riga con l'ora dell'handoff, e la quota resta intatta.
+Succedeva con una chiusura automatica che rilanciava `/fine` ogni 45 minuti su una sessione ferma: ogni giro
+trovava tutto salvato, ma caricava `/fine` e consumava quota (segnalazioni n. 79, n. 87 e n. 93).
+
+**Il principio**: il mod che rilanciava `/fine` sta nella configurazione della persona, quindi un
+aggiornamento non lo tocca. Per questo il controllo l'ha preso Arturo, su ogni `/fine`, chiunque lo mandi.
+Un messaggio tuo, di un'altra sessione o di un lavoro in background fa ripartire il `/fine` come prima.
+Per rifarlo comunque, scrivi `/fine --forza`.
+
+---
+
 ## 2026-11-22 — Due controlli partono solo sui comandi che li riguardano
 
 **Cosa cambia**: il registro dei commit della sessione parte solo sui comandi che contengono `commit`,

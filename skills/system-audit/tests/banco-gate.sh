@@ -85,7 +85,7 @@ rm -f "$K"
 
 mkdir -p "$C/plugins"
 printf '{"plugins": {"pluginfinto@banco": [{"scope": "user"}]}}\n' > "$C/plugins/installed_plugins.json"
-caso "plugin installato ma non attivo" trova '^WARN  plugin installati ma non attivi: pluginfinto@banco'
+caso "plugin installato che settings.json non nomina" trova '^WARN  plugin installati che settings.json non nomina più: pluginfinto@banco'
 rm -f "$C/plugins/installed_plugins.json"
 
 # Smoke: un hook Python cablato in settings.json che esce 1 deve dare FAIL.

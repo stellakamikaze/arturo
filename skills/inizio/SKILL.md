@@ -328,19 +328,21 @@ FASE 1: questo blocco aggiunge gli avvisi di rinumerazione, i todo di "generale"
 il confronto e il pannello.
 
 ```bash
-# Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
-# "ricordami di…": nessuna variabile di un blocco precedente. Gli avvisi ("Attenzione: …") restano
-# visibili: dopo il pull un todo può aver cambiato numero.
-python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo progetto
-python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo --progetto .
-# I todo di "generale": quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
-# Se la prima riga ha stampato "generale", questa ripete la stessa lista: leggila una volta sola.
-# Niente sostituzione di comando per saltarla: in un worktree la guardia di Claude Code rifiuta il blocco.
-python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo --progetto generale
-git log --oneline -20 2>/dev/null
-# Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
-claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") in ("arturo@skills-dir", "arturo@arturo")]; print("mod caricato" if any(p.get("enabled") for p in v) else "mod assente")' 2>/dev/null || echo "mod assente"
+# Le letture partono insieme e il comando aspetta la più lenta: con una fonte esterna dei task ognuna
+# può aspettare la rete fino a 90 s (#6368). Il progetto è quello della cartella (FASE 1 ci è entrata),
+# calcolato dalla CLI come per "ricordami di…". Gli avvisi ("Attenzione: …") restano visibili: dopo il
+# pull un todo può aver cambiato numero.
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo apertura
 ```
+
+Le sezioni escono in quest'ordine:
+- `PROGETTO`: il progetto dei todo della cartella.
+- `TODO DEL PROGETTO`: la lista che hai già dalla FASE 1, con gli avvisi di rinumerazione.
+- `TODO DI GENERALE`: i todo presi fuori da un progetto (nella HOME, in /setup, fuori da git). Se il
+  progetto è `generale`, la sezione rimanda alla lista sopra.
+- `GIT LOG`: gli ultimi 20 commit, per il confronto del punto 1.
+- `PANNELLO`: "mod caricato" se il pannello /dafare c'è. I comandi di un mod non compaiono fra quelli
+  che vedi, e la riga li legge da `claude plugin list --json`.
 
 1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,
    chiudilo con `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo fatto ID --titolo-atteso="titolo"` e dillo

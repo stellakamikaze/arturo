@@ -16,7 +16,7 @@ export const BOZZA_FERMA_MS = 60_000
 export const ATTESA_BOZZA_MAX_MS = 10 * 60_000
 
 // `domanda`: la domanda alla persona arrivata dopo ruota nello stesso turno (segnalazione n. 65, 10/11/2026).
-export type Rotazione = { progetto: string; compito: string; domanda?: string }
+export type Rotazione = { progetto: string; compito: string; domanda?: string; traccia?: string }
 
 // Quanto della domanda viaggia nella riga di /inizio.
 export const DOMANDA_MAX = 300
@@ -96,12 +96,57 @@ export function argomentiInizio(r: Rotazione): string {
 }
 
 export function leggiArgomenti(e: unknown): Rotazione | string {
-  const a = e as { progetto?: unknown; compito?: unknown }
+  const a = e as { progetto?: unknown; compito?: unknown; traccia?: unknown }
   const progetto = typeof a.progetto === 'string' ? a.progetto.trim() : ''
   const compito = typeof a.compito === 'string' ? a.compito.trim() : ''
   if (!/^[\w.-]+$/.test(progetto)) return 'progetto mancante o non valido (serve lo slug, es. "arturo")'
   if (compito === '') return 'compito mancante: scrivi il prossimo step in una frase'
-  return { progetto, compito }
+  return { progetto, compito, traccia: tracciaPulita(a.traccia) }
+}
+
+// Freni fuori dal modello (#6334, 22/11/2026): un giro che riparte da solo si ferma a un tetto di giri e
+// dopo due giri di fila che non lasciano niente di nuovo. Il conto riparte da zero a ogni messaggio della
+// persona. ARTURO_ROTAZIONE_GIRI cambia il tetto.
+export const GIRI_MAX = 10
+export const VUOTI_MAX = 2
+
+// Il conto dei giri fatti dall'ultimo messaggio della persona, con la traccia dell'ultimo giro.
+export type Giri = { n: number; vuoti: number; traccia: string }
+
+// Una traccia che non dice niente vale come vuota: il modello a volte scrive "nessuna" invece di lasciarla vuota.
+export function tracciaPulita(t: unknown): string {
+  const s = typeof t === 'string' ? t.replace(/\s+/g, ' ').trim() : ''
+  return /^(-+|niente|nulla|nessun[ao]?( traccia)?|none|n\/?a)\.?$/i.test(s) ? '' : s
+}
+
+// Il tetto da ARTURO_ROTAZIONE_GIRI: un intero da 1 in su, altrimenti GIRI_MAX.
+export function tettoGiri(valore: string | undefined): number {
+  const v = (valore ?? '').trim()
+  return /^\d+$/.test(v) && Number(v) >= 1 ? Number(v) : GIRI_MAX
+}
+
+// Conta il giro che ruota adesso. Un giro è vuoto se non porta una traccia o porta la stessa del giro prima.
+export function contaGiro(prima: Giri | undefined, traccia: string, tetto: number):
+  | { azione: 'ruota'; giri: Giri }
+  | { azione: 'ferma'; giri: Giri; motivo: string } {
+  const p = prima ?? { n: 0, vuoti: 0, traccia: '' }
+  const vuoto = traccia === '' || traccia === p.traccia
+  const giri = { n: p.n + 1, vuoti: vuoto ? p.vuoti + 1 : 0, traccia: traccia || p.traccia }
+  if (giri.vuoti >= VUOTI_MAX)
+    return { azione: 'ferma', giri, motivo: `${VUOTI_MAX} giri di fila senza niente di nuovo: giro fermato` }
+  if (giri.n > tetto) return { azione: 'ferma', giri, motivo: `${tetto} giri di fila senza un tuo messaggio: giro fermato` }
+  return { azione: 'ruota', giri }
+}
+
+export function leggiGiri(v: unknown): Giri | undefined {
+  const g = v as Partial<Giri> | undefined
+  if (!g || typeof g.n !== 'number' || typeof g.vuoti !== 'number') return undefined
+  return { n: g.n, vuoti: g.vuoti, traccia: typeof g.traccia === 'string' ? g.traccia : '' }
+}
+
+// Il /inizio che lancia il mod passa da prompt.submit come un messaggio: non azzera il conto.
+export function messaggioDellaPersona(testo: unknown): boolean {
+  return typeof testo === 'string' && testo.trim() !== '' && !/^\/\S*inizio\s.*\s--\s+--rotazione\s/.test(testo.trim())
 }
 
 // "0", "no", "off", "spenta" spengono la rotazione; vuoto o assente la lasciano accesa.

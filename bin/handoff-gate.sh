@@ -176,6 +176,10 @@ BEGIN {
   RE_GL_CODA = "\\|[ \t]*<!--[ \t]*gitleaks:allow[^>]*-->[ \t]*$"
 }
 
+# Un handoff salvato con a capo Windows (\r\n): senza il \r il titolo esatto risultava "quasi uguale",
+# e il gate diceva rosso con un messaggio che inganna (A7, revisione del 20/11/2026).
+{ sub(/\r$/, "") }
+
 # la frase fuori dalla sezione serve solo al messaggio, non rende verde
 tolower($0) ~ /nessun task pendente/ { dich = 1 }
 tolower($0) ~ /^##?[ \t]*task[ \t]+pendenti/ && $0 !~ /^## Task Pendenti[ \t]*$/ { quasi[++nq] = $0; quasinr[nq] = NR }

@@ -92,11 +92,11 @@ Mostralo prima di usarlo, in cinque blocchi. Ogni riga ha la sua fonte
 4. Come scrivi: tre tratti con un esempio breve;
 5. Cose che non so.
 Niente fatti senza fonte. Non citare clienti o persone terze senza conferma.
-La persona corregge con frasi libere: riscrivi e rimostra finché scrive ok.
+La persona corregge con frasi libere: riscrivi solo le righe che corregge e rimostra finché scrive ok.
 
 ## La bozza (FASE 5)
 Un solo messaggio: il CLAUDE.md proposto con le fonti a video (non nel file), le regole consigliate
 di `$ARTURO_CODICE/shared/setup-claude-md.md` marcate "consigliata, togli se non la vuoi", la cartella dei progetti
 proposta (FASE 3), le righe HOOK/FILE della FASE 2, e "Ti propongo anche, scrivi i numeri o niente"
 con solo gli extra che il ritratto giustifica, ognuno con il suo costo. Un "ok" senza numeri non
-accende nessun extra. Ogni correzione rifà la bozza. Si scrive solo dopo "ok".
+accende nessun extra. Una correzione cambia solo la parte che la persona nomina, poi rimostri la bozza intera. Si scrive solo dopo "ok".

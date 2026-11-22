@@ -316,7 +316,8 @@ for directory in [d for radice in sys.argv[1:] for d in Path(radice).iterdir()]:
         skill_rotta = skill_rotta or not valida
 sys.exit((1 if skill_rotta else 0) + (3 if mod_rotto else 0))
 PY
-  skill_rotte=$(tr '\n' ' ' < "$skill_rotte_file" | sed 's/ *$//')
+  # tr -d '\r': su Windows Python scrive "vuota\r\n", e la \r restava dentro il nome (#6383).
+  skill_rotte=$(tr -d '\r' < "$skill_rotte_file" | tr '\n' ' ' | sed 's/ *$//')
   rm -f "$skill_rotte_file"
 fi
 case "$skills_rc" in
@@ -440,7 +441,7 @@ for f in "$CODICE"/skills/*/SKILL.md "$CODICE"/commands/*.md; do
   fi
 done
 
-# Plugin installati ma non attivi in settings.json: solo il report, con il comando per toglierli.
+# Plugin installati che enabledPlugins non nomina (né accesi né spenti): solo il report, col comando per toglierli.
 stale_sh="$CODICE/bin/cleanup-stale-plugins.sh"
 if [[ -f "$stale_sh" ]]; then
   stale_out=$(bash "$stale_sh" --dry-run </dev/null 2>&1)
@@ -449,9 +450,9 @@ if [[ -f "$stale_sh" ]]; then
   if [[ $stale_rc -ne 0 ]]; then
     warning "plugin: cleanup-stale-plugins.sh --dry-run uscito $stale_rc: $(printf '%s\n' "$stale_out" | tail -1)"
   elif [[ -n "$stale_lista" ]]; then
-    warning "plugin installati ma non attivi: $stale_lista -> bash $stale_sh --yes"
+    warning "plugin installati che settings.json non nomina più: $stale_lista -> bash $stale_sh --yes"
   else
-    ok "plugin: tutti gli installati sono attivi"
+    ok "plugin: settings.json nomina tutti gli installati"
   fi
 fi
 
