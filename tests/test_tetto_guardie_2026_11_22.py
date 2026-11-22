@@ -6,8 +6,8 @@ Claude Code ferma un hook dopo 30 secondi, e allora il comando parte senza giudi
 
   TG01  evento_bash.py esegui con ARTURO_RESTANTE=N ferma lo script dopo N secondi con codice 1; senza la
         variabile lo script arriva in fondo. Un valore oltre 25 vale 25, uno sotto 0,5 vale 0,5.
-  TG02  il dispatcher scrive ARTURO_RESTANTE a ogni guardia: su 90.000 caratteri di `curl` ripetuti finisce
-        entro 29 secondi e chiede conferma.
+  TG02  il dispatcher scrive ARTURO_RESTANTE a ogni guardia: con block-dangerous che dorme 60 secondi, su 90.000
+        caratteri di `curl` ripetuti finisce entro 29 secondi e chiede conferma. Fino al #6363 dormiva da sé.
 
 Con --baseline-ref ogni controllo deve fallire col suo codice: su e1a03e6 lo script dorme fino in fondo e il
 dispatcher va oltre i 40 secondi.
@@ -67,6 +67,9 @@ def test_tg02(repo: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="tg02-") as d:
         casa = Path(d) / "home"
         shutil.copytree(repo, casa / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"))
+        # Dal #6363 le guardie leggono i curl ripetuti in un secondo: qui block-dangerous è una guardia che dorme,
+        # così il banco prova il tetto e non la lentezza di una regex.
+        (casa / ".claude" / "hooks" / "block-dangerous.py").write_text("import time\ntime.sleep(60)\n", encoding="utf-8")
         comando = ("curl " * 18_001)[:90_000]
         evento = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(casa),
                              "session_id": "tg", "tool_use_id": "toolu_tg"})

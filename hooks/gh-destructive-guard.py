@@ -30,16 +30,25 @@ def _t(s, f):
 if hasattr(signal, "SIGALRM"):
     signal.signal(signal.SIGALRM, _t)
 
+
+def _dopo(testa: str, classe: str = r'[^|;&\n]') -> str:
+    """`\\btesta\\b` e la corsa di `classe` che la segue, ferma dove la testa ricomincia (#6363, 22/11/2026): con
+    `gh api ` ripetuto re.search ripartiva da ogni gh e correva fino in fondo. Il risultato non cambia: se la regex
+    parte da un `gh api`, parte anche dall'ultimo prima di quello che cerca (banco LG06)."""
+    parola = r'\b' + testa + r'\b'
+    return parola + r'(?:(?!' + parola + r')' + classe + r')*'
+
+
 BLOCK = [
     (r'\bgh\s+repo\s+delete\b', "eliminazione di un repository GitHub"),
-    (r'\bgh\s+api\b[^|]*\bdeleteRepository\b', "eliminazione di un repository GitHub via GraphQL"),
+    (_dopo(r'gh\s+api', '[^|]') + r'\bdeleteRepository\b', "eliminazione di un repository GitHub via GraphQL"),
     (r'\bgh\s+secret\s+(set|delete|remove)\b', "modifica/rimozione di secret GitHub"),
     (r'\bgh\s+variable\s+(set|delete|remove)\b', "modifica/rimozione di variabili GitHub"),
     (r'\bgh\s+release\s+delete\b', "eliminazione di una release"),
     (r'\bgh\s+auth\s+(token|logout)\b', "esposizione token / logout gh"),
     # 21/11/2026 (#6259, S6): `gh auth status --show-token` (o -t) stampa lo stesso token di `gh auth token`.
-    (r'\bgh\s+auth\s+status\b[^|;&\n]*\s(?:--show-token\b|-[a-zA-Z]*t\b)', "esposizione token / logout gh"),
-    (r'\bgh\s+api\b[^|]*(-X|--method)\s*=?\s*(DELETE|PUT|PATCH)\b', "chiamata API GitHub mutante (DELETE/PUT/PATCH)"),
+    (_dopo(r'gh\s+auth\s+status') + r'\s(?:--show-token\b|-[a-zA-Z]*t\b)', "esposizione token / logout gh"),
+    (_dopo(r'gh\s+api', '[^|]') + r'(-X|--method)\s*=?\s*(DELETE|PUT|PATCH)\b', "chiamata API GitHub mutante (DELETE/PUT/PATCH)"),
 ]
 ASK = [
     (r'\bgh\s+pr\s+merge\b', "merge di una PR"),
@@ -49,29 +58,74 @@ ASK = [
     # Un alias nasconde il comando vero: `gh alias set x 'repo delete'` e poi `gh x` (vedi _con_alias).
     (r'\bgh\s+alias\s+(set|import)\b', "alias di gh, che nasconde il comando vero"),
     (r'\bgh\s+repo\s+(archive|rename)\b', "archiviazione o cambio di nome di un repository"),
-    (r'\bgh\s+repo\s+edit\b[^|;&\n]*--visibility\b', "cambio di visibilità di un repository"),
-    (r'\bgh\s+repo\s+create\b[^|;&\n]*--public\b', "creazione di un repository pubblico"),
+    (_dopo(r'gh\s+repo\s+edit') + r'--visibility\b', "cambio di visibilità di un repository"),
+    (_dopo(r'gh\s+repo\s+create') + r'--public\b', "creazione di un repository pubblico"),
     (r'\bgh\s+(ssh-key|gpg-key)\s+(add|delete)\b', "chiave d'accesso dell'account GitHub"),
     (r'\bgh\s+repo\s+deploy-key\s+(add|delete)\b', "chiave d'accesso di un repository"),
-    (r'\bgh\s+gist\s+create\b[^|;&\n]*\s(?:--public\b|-[a-zA-Z]*p\b)', "gist pubblico"),
-    (r'\bgh\s+gist\s+edit\b[^|;&\n]*--public\b', "gist pubblico"),
+    (_dopo(r'gh\s+gist\s+create') + r'\s(?:--public\b|-[a-zA-Z]*p\b)', "gist pubblico"),
+    (_dopo(r'gh\s+gist\s+edit') + r'--public\b', "gist pubblico"),
     # Un commento è un testo che altri leggono a nome della persona: come un invio.
     (r'\bgh\s+(issue|pr)\s+comment\b', "commento pubblico su una issue o una PR"),
     (r'\bgh\s+pr\s+review\b', "review pubblica di una PR"),
 ]
 
 # 21/11/2026 (#6259, S7): curl, wget e httpie verso api.github.com fanno le stesse chiamate di `gh api`.
-_API_GITHUB = re.compile(r'\b(?:curl|wget|http|https|xh)\b(?:[^|;&\n"\']|"[^"\n]*"|\'[^\'\n]*\')*api\.github\.com'
+# La regex dice la regola; la legge in tempo lineare _chiamate_api_github (#6363).
+_API_GITHUB =re.compile(r'\b(?:curl|wget|http|https|xh)\b(?:[^|;&\n"\']|"[^"\n]*"|\'[^\'\n]*\')*api\.github\.com'
                          r'(?:[^|;&\n"\']|"[^"\n]*"|\'[^\'\n]*\')*', re.IGNORECASE)
 _API_METODO = re.compile(r'(?:^|\s)(?:-X\s*|--request(?:\s+|=)|--method(?:\s+|=))["\']?(\$?\{?[A-Za-z_]\w*)')
 _API_CORPO = re.compile(r'(?:^|\s)(?:-d|--data(?:-raw|-binary|-urlencode)?|--json|-F|--form|-T|--upload-file|'
                         r'--post-data|--post-file|--body-data|--body-file)(?:\s|=|$)')
 
 
+_API_TESTA = re.compile(r'\b(?:curl|wget|http|https|xh)\b', re.IGNORECASE)
+_API_PEZZO = re.compile(r'[^|;&\n"\']+|"[^"\n]*"|\'[^\'\n]*\'')
+_API_HOST = re.compile(r'api\.github\.com', re.IGNORECASE)
+
+
+def _chiamate_api_github(intero: str) -> list:
+    """I tratti di `_API_GITHUB.finditer(intero)`, in tempo lineare (#6363, 22/11/2026).
+
+    Dopo il programma la regex legge pezzi senza `|;&` e a capo, o fra virgolette intere: il cammino è uno solo, e
+    api.github.com conta solo in un pezzo fuori dalle virgolette. Il tratto va dal programma alla fine del cammino.
+    finditer ripartiva da ogni curl e rifaceva il cammino fino in fondo: 90.000 caratteri di `curl ` ripetuto erano
+    21 secondi. Qui un cammino che arriva in un punto già percorso da un cammino senza host si ferma: da lì il resto
+    è lo stesso, e non ha l'host (banco LG05 in tests/test_guardie_lineari_2026_11_22.py)."""
+    n = len(intero)
+    segno = {}  # punto di confine -> fine del cammino senza host che ci è passato
+    tratti, ripresa = [], 0
+    for t in _API_TESTA.finditer(intero):
+        if t.start() < ripresa:
+            continue
+        p, host, punti, fine = t.end(), False, [], None
+        while True:
+            if p in segno:
+                fine = segno[p]
+                break
+            m = _API_PEZZO.match(intero, p)
+            if not m:
+                punti.append(p)
+                fine = p
+                break
+            if intero[p] in "\"'":
+                punti.append(p)
+            else:
+                # Ogni carattere di un pezzo senza virgolette è un confine: un altro cammino può entrarci.
+                punti.extend(range(p, m.end()))
+                host = host or bool(_API_HOST.search(intero, p, m.end()))
+            p = m.end()
+        if host:
+            tratti.append(intero[t.start():fine])
+            ripresa = fine
+        else:
+            for q in punti:
+                segno.setdefault(q, fine)
+    return tratti
+
+
 def _api_github_diretta(intero: str):
     """(blocco, motivo) per una chiamata diretta all'API di GitHub che scrive, altrimenti None."""
-    for m in _API_GITHUB.finditer(intero):
-        seg = m.group(0)
+    for seg in _chiamate_api_github(intero):
         metodo = _API_METODO.search(seg)
         verbo = metodo.group(1).upper() if metodo else ("POST" if _API_CORPO.search(seg) else "GET")
         if re.match(r'^https?\b', seg, re.IGNORECASE) or re.match(r'^xh\b', seg, re.IGNORECASE):

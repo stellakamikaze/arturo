@@ -305,6 +305,8 @@ IN_FILA=(
   test_revisione_2026_11_07.py
   # Il tetto di 25 secondi per le guardie (22/11/2026, #6363): misura decine di secondi, gira in fila.
   test_tetto_guardie_2026_11_22.py
+  # Le guardie in tempo lineare sui comandi ripetuti (22/11/2026, #6363): misura i tempi, gira in fila.
+  test_guardie_lineari_2026_11_22.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -595,6 +597,8 @@ BASELINE=(
   "test_parallelo_2026_11_22.py 300567c radice"
   # Senza arturo apertura le letture della FASE 4 vanno in fila (22/11/2026, #6368). 2120b4d, il dev prima.
   "test_apertura_2026_11_22.py 2120b4d radice"
+  # Le guardie che ripartono da ogni curl, gws o find (22/11/2026, #6363). d631aa5, il dev prima.
+  "test_guardie_lineari_2026_11_22.py d631aa5"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

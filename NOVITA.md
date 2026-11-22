@@ -26,6 +26,19 @@ un errore nuovo dove prima non c'era. Il confine scritto tiene la correzione pic
 
 ---
 
+## 2026-11-22 — Le guardie non rallentano più sui comandi costruiti apposta
+
+**Cosa cambia**: un comando lungo fatto di `curl`, `gws`, `find` o `open` ripetuti non tiene più ferme le guardie.
+Su 90.000 caratteri block-dangerous passa da 83 secondi a meno di due, comms-guard da oltre 90 a meno di due.
+Le guardie danno gli stessi giudizi di prima.
+
+**Il principio**: una regola del tipo "curl, poi qualcosa, poi un indirizzo" ripartiva da ogni curl e rileggeva il
+comando fino in fondo. Adesso si prova solo dal primo curl di ogni tratto, perché gli altri arrivano agli stessi
+punti. Un banco confronta la regola nuova con la vecchia su migliaia di testi casuali. Il tetto di 25 secondi resta,
+per i casi che nessuno ha ancora trovato.
+
+---
+
 ## 2026-11-22 — La rotazione si ferma da sola quando gira a vuoto
 
 **Cosa cambia**: la rotazione riparte da sola a ogni passo chiuso. Adesso si ferma in due casi. Il primo:

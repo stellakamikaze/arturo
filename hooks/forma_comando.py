@@ -140,6 +140,29 @@ def sciolto(testo: str) -> str:
     return re.sub(r"['\"\\]", "", testo.replace("\\\n", ""))
 
 
+def cerca_dalle_teste(regex, testa, testo: str, confini: str = "\n"):
+    """`regex.search(testo)`, con la regex provata solo dalla prima `testa` di ogni tratto (#6363, 22/11/2026).
+
+    Vale per una regex che comincia con `testa` seguita da una corsa che non attraversa i caratteri di
+    `confini`: "\\n" per `.*` e `.*?`, "|" per `[^|]*`, "" per `(?s).*`. Due teste che finiscono nello stesso
+    tratto senza confini portano la corsa negli stessi punti, e la prima ne vede di più: se la regex non parte
+    dalla prima, non parte nemmeno dalle altre. regex.search invece riparte da ogni testa e corre fino in fondo
+    al tratto: su 90.000 caratteri di `curl ` ripetuto erano 83 secondi. Il risultato è quello di regex.search,
+    gruppi compresi, se la regex non richiama con `\\1` un gruppo della testa. `regex` e `testa` sono regex
+    compilate, con gli stessi flag."""
+    confine = re.compile("[" + re.escape(confini) + "]") if confini else None
+    fine = -1
+    for t in testa.finditer(testo):
+        if t.end() <= fine:
+            continue
+        m = regex.match(testo, t.start())
+        if m or confine is None:
+            return m
+        c = confine.search(testo, t.end())
+        fine = c.start() if c else len(testo)
+    return None
+
+
 @_ricorda()
 def togli_commenti(cmd: str) -> str:
     """Il comando senza i commenti, letti come li legge bash (review del 7/11/2026, finding 0).
@@ -632,8 +655,10 @@ def programmi(cmd: str, profondita: int = 0):
     return [(_nome(t), a) for t, a in comandi(cmd, profondita)]
 
 
+@_ricorda(lambda r: [(t, list(a)) for t, a in r])
 def comandi(cmd: str, profondita: int = 0):
-    """Come programmi(), ma col programma scritto come nel comando (path compreso)."""
+    """Come programmi(), ma col programma scritto come nel comando (path compreso). Il risultato si ricorda
+    (#6363): block-dangerous lo chiedeva 24 volte per lo stesso comando, 2 secondi su 90.000 caratteri."""
     out = []
     for toks in segmenti_parole(testo_shell(cmd)):
         i = 0
@@ -690,11 +715,14 @@ def comandi(cmd: str, profondita: int = 0):
                     out += comandi(testo, profondita + 1)
             elif prog == "find":
                 # `find . -exec gh repo delete {} \;`: le parole fino a `;` o `+` sono un comando (#5097)
+                # Il corpo si ferma anche al -exec dopo (#6363): con `find . -exec ` ripetuto ogni -exec rileggeva
+                # tutti quelli dopo, a ogni livello, e 1.300 caratteri tenevano block-dangerous oltre 100 secondi.
+                # Il -exec dopo ha il suo corpo, letto qui allo stesso livello: i programmi sono gli stessi.
                 for k, a in enumerate(args):
                     if a in _FIND_ESEGUE:
                         corpo = []
                         for b in args[k + 1:]:
-                            if b in (";", "+"):
+                            if b in (";", "+") or b in _FIND_ESEGUE:
                                 break
                             corpo.append(b)
                         if corpo:

@@ -46,37 +46,55 @@ if hasattr(signal, "SIGALRM"):
 # commit-secret-gate. L'etichetta resta nel testo della conferma, che non esce.
 FAMIGLIA_MAILTO = "mailto"
 FAMIGLIA_ENDPOINT = "api-invio"
+# Una corsa `.*` dopo una parola che si può ripetere: `_dopo("gws")` è `\bgws\b` più la corsa, che si ferma dove
+# la parola ricomincia (#6363, 22/11/2026). Con `.*` re.search ripartiva da ogni gws e correva fino in fondo alla
+# riga: 90.000 caratteri di `gws ` ripetuto tenevano comms-guard 52 secondi. Il risultato non cambia: se la regex
+# parte da un gws, parte anche dall'ultimo gws prima di quello che cerca (banco LG04 in
+# tests/test_guardie_lineari_2026_11_22.py). `classe` è il carattere della corsa, `.` o una classe come [^\n|;&].
+def _dopo(testa: str, classe: str = ".", fine: str = r"\b") -> str:
+    parola = r"\b" + testa + fine
+    return parola + r"(?:(?!" + parola + r")" + classe + r")*"
+
+
+# La variabile la cerca _VARIABILE_GMAIL, dalla prima soltanto: la corsa dopo attraversa tutto. gmail conta a inizio
+# parola anche nella corsa che segue.
+_VARIABILE_GMAIL_INVIO = (r"\$\{?[A-Za-z_]\w*\}?\s+(?:\S+\s+)*?gmail\b(?:(?!(?<=\s)gmail\b)[^\n|;&])*"
+                          r"(?:\+send\b|\bdrafts\s+send\b|\bmessages\s+send\b)")
 SEND_BINARIES = [
     (r"\bsendmail\b", "sendmail", "email"),
     (r"\bmail\s+-s\b", "mail -s", "email"),
-    (r"\bmutt\s+.*-s\b", "mutt", "email"),
+    (_dopo("mutt", fine=r"\s+") + r"-s\b", "mutt", "email"),
     (r"\bmailx\b", "mailx", "email"),
     (r"\bmsmtp\b", "msmtp", "email"),
-    (r"\bgit\b[^|;&\n]*\b(send-email|imap-send)\b", "git send-email / imap-send", "email"),
-    (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send", "email"),
+    (_dopo("git", r"[^|;&\n]") + r"\b(send-email|imap-send)\b", "git send-email / imap-send", "email"),
+    (_dopo("gws", r"[^\n|;&]") + r"\bmessages\s+send\b", "gws Gmail send", "email"),
     # gws: l'invio si ferma, la bozza no. `gws gmail +send` è la forma più comune.
-    (r"\bgws\b.*\bgmail\b.*(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)", "email"),
+    (_dopo("gws") + _dopo("gmail") + r"(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)", "email"),
     # 21/11/2026 (#6259, rilievo S8 della revisione del 20/11): il programma in una variabile (`G=gws; $G gmail
     # +send`). `+send` e `drafts send` sono parole di gws: dopo una variabile il programma non si legge.
-    (r"\$\{?[A-Za-z_]\w*\}?\s+(?:\S+\s+)*?gmail\b[^\n|;&]*(?:\+send\b|\bdrafts\s+send\b|\bmessages\s+send\b)",
-     "gws gmail (invio, col programma in una variabile)", "email"),
+    (_VARIABILE_GMAIL_INVIO, "gws gmail (invio, col programma in una variabile)", "email"),
     # Un invito di calendario spedito agli invitati, e la condivisione di un file: chi riceve l'accesso riceve
     # anche un'email, e con type anyone il file diventa pubblico.
-    (r"\bgws\b.*\bcalendar\b.*(?:sendUpdates[\"'\s:=\\]+(?:all|externalOnly)|sendNotifications[\"'\s:=\\]+true)",
+    (_dopo("gws") + _dopo("calendar") +
+     r"(?:sendUpdates[\"'\s:=\\]+(?:all|externalOnly)|sendNotifications[\"'\s:=\\]+true)",
      "gws calendar (invito spedito agli invitati)", "email"),
     # Tace la condivisione con una persona quando il comando spegne l'email di avviso: lì non parte niente.
-    (r"\bgws\b.*\bdrive\b.*\bpermissions\s+(?:create|update)\b[^\n]*\banyone\b",
+    (_dopo("gws") + _dopo("drive") + _dopo(r"permissions\s+(?:create|update)") + r"\banyone\b",
      "gws drive (file aperto a chiunque abbia il link)", "email"),
-    (r"\bgws\b.*\bdrive\b.*\bpermissions\s+create\b(?![^\n]*sendNotificationEmail[\"'\s:=\\]+false)"
-     r"[^\n]*\b(?:user|group)\b", "gws drive (condivisione, con l'email di avviso)", "email"),
-    (r"(?s)\bnodemailer\b.*\b(?:sendMail|createTransport)\b", "nodemailer (invio email via Node)", "email"),
+    (_dopo("gws") + _dopo("drive") +
+     _dopo(r"permissions\s+create", fine=r"\b(?![^\n]*sendNotificationEmail[\"'\s:=\\]+false)") +
+     r"\b(?:user|group)\b", "gws drive (condivisione, con l'email di avviso)", "email"),
+    (r"(?s)" + _dopo("nodemailer") + r"\b(?:sendMail|createTransport)\b", "nodemailer (invio email via Node)", "email"),
     # Inoltro automatico, deleghe e filtri della casella: spediscono la posta altrove
     # in silenzio, per sempre. Stesso rango di un invio.
-    (r"\bgws\b.*\bgmail\b.*\b(forwardingAddresses|updateAutoForwarding|delegates|filters)\b.*\b(create|update|patch)\b",
+    (_dopo("gws") + _dopo("gmail") + _dopo("(?:forwardingAddresses|updateAutoForwarding|delegates|filters)") +
+     r"\b(create|update|patch)\b",
      "gws gmail (inoltro, delega o filtro)", "email-inoltro"),
     (r"\bmail\s+\S+@\S+", "mail <indirizzo>", "email"),
     # mail e mutt come programma, anche senza -s e con l'indirizzo in una variabile.
-    (r"(?:^|[;&|(`\n])\s*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt", "email"),
+    # Dopo il separatore gli spazi senza a capo: con `\s*` ogni a capo ripartiva e correva su tutti quelli dopo
+    # (#6363). L'ultimo a capo prima del programma trova lo stesso.
+    (r"(?:^|[;&|(`\n])[^\S\n]*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt", "email"),
     (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>", "email"),
     # mailto: conta solo come argomento di un programma che apre un link (31/10/2026): dentro sed, un
     # heredoc o un --json è testo (un invito di calendario ha ORGANIZER;CN=…:mailto:…). Vedi _MAILTO_APERTO.
@@ -84,18 +102,18 @@ SEND_BINARIES = [
     (r"\bswaks\b", "swaks", "email"),
     # (?s): la forma naturale è un heredoc su più righe (`osascript <<'EOF'` e `tell application "Mail"` a capo,
     # review del 7/11/2026, finding 6).
-    (r"(?s)\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages", "applescript"),
+    (r"(?s)" + _dopo("osascript") + r"\b(Mail|Messages)\b", "AppleScript Mail/Messages", "applescript"),
     (r"\bwhatsapp[_/-]?send\b", "helper WhatsApp", "chat"),
     (r"\btelegram[_/-]?send\b", "helper Telegram", "chat"),
     # Python SMTP: invio email diretto (bypassava i binari noti).
     (r"\bsmtplib\b", "smtplib (invio email via Python)", "email"),
     (r"\bSMTP_SSL\b", "SMTP_SSL (Python)", "email"),
-    (r"(?s)\bEmailMessage\b.*\bsend", "EmailMessage/send (Python)", "email"),
+    (r"(?s)" + _dopo("EmailMessage") + r"\bsend", "EmailMessage/send (Python)", "email"),
     # http.client verso un servizio di messaggistica: un POST senza curl ne' requests.
-    (r"(?s)\bhttp\.client\b.*\b(telegram|slack|sendgrid|mailgun|discord|twilio|postmark|resend)\b",
+    (r"(?s)" + _dopo(r"http\.client") + r"\b(telegram|slack|sendgrid|mailgun|discord|twilio|postmark|resend)\b",
      "http.client verso un servizio di messaggistica", "api-invio"),
     # mailgun da codice (requests, fetch, urllib), anche sugli host regionali: SEND_ENDPOINTS vuole curl o wget.
-    (r"\bapi\.(?:[a-z]{2}\.)?mailgun\.net/[^\s\"']*messages", "mailgun (invio email)", "api-invio"),
+    (_dopo(r"api\.(?:[a-z]{2}\.)?mailgun\.net/", r"[^\s\"']", "") + r"messages", "mailgun (invio email)", "api-invio"),
 ]
 
 SEND_ENDPOINTS = re.compile(
@@ -107,29 +125,30 @@ SEND_ENDPOINTS = re.compile(
     r"api\.brevo\.com|[a-z0-9.-]*\.smtp2go\.com|api\.sparkpost\.com|"
     r"api\.elasticemail\.com|[a-z0-9.-]*\.zeptomail\.[a-z]+|api\.mailchannels\.net|"
     r"email[.-][a-z0-9-]*\.amazonaws\.com|"
-    r"graph\.microsoft\.com/[^\s]*/sendmail|"
-    r"gmail\.googleapis\.com/[^\s]*/messages/send|"
+    r"graph\.microsoft\.com/(?:(?!graph\.microsoft\.com/)\S)*/sendmail|"
+    r"gmail\.googleapis\.com/(?:(?!gmail\.googleapis\.com/)\S)*/messages/send|"
     r"discord\.com/api/webhooks|discordapp\.com/api/webhooks|"
-    r"api\.twilio\.com/[^\s]*/Messages|"
-    r"graph\.facebook\.com/[^\s]*/messages|"
+    r"api\.twilio\.com/(?:(?!api\.twilio\.com/)\S)*/Messages|"
+    r"graph\.facebook\.com/(?:(?!graph\.facebook\.com/)\S)*/messages|"
     r"hooks\.zapier\.com|hook\.(eu[0-9]*\.)?make\.com|hook\.integromat\.com"
     r")",
     re.IGNORECASE,
 )
+# La testa di SEND_ENDPOINTS: la regex si prova dal primo programma di ogni riga (forma_comando.cerca_dalle_teste,
+# #6363). 90.000 caratteri di `curl ` ripetuto la tenevano oltre 90 secondi.
+_ENDPOINT_TESTA = re.compile(r"\b(curl|wget|http|https|fetch)\b", re.IGNORECASE)
 
 
 # I programmi che aprono un link, quindi anche un mailto: che prepara un invio. Un elenco solo, per
 # _MAILTO_APERTO e _mailto_indiretto.
 _APRITORE_NOME = (r"(?:open(?!\s*\()|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?"
                   r"|Start-Process|saps)")
-_MAILTO_APERTO = re.compile(
+_MAILTO_TESTA = (
     r"(?:\b" + _APRITORE_NOME + r"\b"
     r"|\brundll32(?:\.exe)?\s+(?:url\.dll,\s*FileProtocolHandler|shell32\.dll,\s*ShellExec_RunDLL)\b"
     r"|\bopen\s+location\b"
-    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()"
-    r"[^;&|\n]*mailto:",
-    re.IGNORECASE,
-)
+    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()")
+_MAILTO_APERTO = re.compile(_MAILTO_TESTA + r"[^;&|\n]*mailto:", re.IGNORECASE)
 # Un mailto: che arriva all'apritore per un'altra strada (1/11/2026, F23): `U="mailto:…"; open "$U"`,
 # `printf 'mailto:…' | xargs open`, `u='mailto:…'; os.startfile(u)` aprivano la bozza senza conferma. Conta
 # solo se l'apritore riceve davvero quel valore: `sed … mailto: … && open index.html` o `open('x').read()`
@@ -138,22 +157,46 @@ _VALORE_MAILTO = re.compile(r"""([A-Za-z_]\w*)\s*=\s*["']?[^"'\s;]*mailto:""", r
 _PIPE_MAILTO = re.compile(r"mailto:[^\n]*\|\s*xargs\s+(?:-\S+\s+)*(?:open|xdg-open|start|gio|wslview)\b", re.IGNORECASE)
 # Un link che apre WhatsApp o Telegram col destinatario e il testo già scritti: prepara un invio, come mailto:
 # (21/11/2026, #6259, S8).
-_CHAT_APERTA = re.compile(
+_CHAT_TESTA = (
     r"(?:\b" + _APRITORE_NOME + r"\b"
-    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()"
-    r"[^;|\n]*(?:\bwa\.me/|\bapi\.whatsapp\.com/send|\bwhatsapp://send|\bt\.me/share|\btg://msg)",
+    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()")
+_CHAT_APERTA = re.compile(
+    _CHAT_TESTA + r"[^;|\n]*(?:\bwa\.me/|\bapi\.whatsapp\.com/send|\bwhatsapp://send|\bt\.me/share|\btg://msg)",
     re.IGNORECASE,
 )
+# Le teste di queste regex: si provano dal primo apritore di ogni tratto (#6363). `open ` ripetuto le faceva ripartire
+# da ogni open fino al primo `;`.
+_TESTE = {
+    _MAILTO_APERTO: (re.compile(_MAILTO_TESTA, re.IGNORECASE), ";&|\n"),
+    _CHAT_APERTA: (re.compile(_CHAT_TESTA, re.IGNORECASE), ";|\n"),
+    _PIPE_MAILTO: (re.compile("mailto:", re.IGNORECASE), "\n"),
+    SEND_ENDPOINTS: (_ENDPOINT_TESTA, "\n"),
+}
+_APRITORE_TESTA = re.compile(r"(?<![\w-])" + _APRITORE_NOME + r"\b", re.IGNORECASE)
+# La variabile davanti a `gmail +send` (SEND_BINARIES): la corsa dopo attraversa tutto, e conta solo la prima.
+_VARIABILE_GMAIL = re.compile(r"\$\{?[A-Za-z_]\w*\}?\s+", re.IGNORECASE)
+
+
+def _cerca(regex, testo: str) -> bool:
+    """regex.search(testo), dalle teste di _TESTE se la regex ne ha (forma_comando.cerca_dalle_teste)."""
+    if regex in _TESTE and _fc is not None:
+        testa, confini = _TESTE[regex]
+        return bool(_fc.cerca_dalle_teste(regex, testa, testo, confini))
+    return bool(regex.search(testo))
 
 
 def _mailto_indiretto(command: str) -> bool:
+    # Senza un mailto: non c'è un valore da aprire, né una pipe che lo porta: findall ripartiva da ogni nome.
+    if "mailto:" not in command.lower():
+        return False
     for nome in dict.fromkeys(_VALORE_MAILTO.findall(command)):
         n = re.escape(nome)
-        if re.search(r"(?<![\w-])" + _APRITORE_NOME + r"\b[^;&|\n]*\$\{?" + n + r"\b", command, re.IGNORECASE):
+        regex = re.compile(r"(?<![\w-])" + _APRITORE_NOME + r"\b[^;&|\n]*\$\{?" + n + r"\b", re.IGNORECASE)
+        if _fc.cerca_dalle_teste(regex, _APRITORE_TESTA, command, ";&|\n") if _fc is not None else regex.search(command):
             return True
         if re.search(r"\b(?:os\.startfile|webbrowser\.open\w*)\s*\(\s*" + n + r"\b", command):
             return True
-    return bool(_PIPE_MAILTO.search(command))
+    return _cerca(_PIPE_MAILTO, command)
 _HELP_ESENTI = frozenset(("gws", "gh"))
 # Una sostituzione gira prima del programma: `gws --help $(gws gmail +send …)` invia (F24).
 _SOSTITUZIONE = re.compile(r"\$\(|`|<\(|>\(")
@@ -177,7 +220,7 @@ def _senza_help(command: str) -> str:
         if _SOSTITUZIONE.search(seg):
             continue
         try:
-            parole = shlex.split(seg)
+            parole = _parole(seg)
         except ValueError:
             continue
         if not parole or os.path.basename(parole[0]) not in _HELP_ESENTI:
@@ -192,6 +235,9 @@ def _senza_help(command: str) -> str:
     return command
 
 
+# shlex.split allunga la parola un carattere alla volta: su una parola lunga cresce col quadrato. forma_comando.parole
+# dà le stesse parole in tempo lineare (#5347).
+_parole = _fc.parole if _fc is not None else shlex.split
 _SMTP_URL = r"\bsmtps?://"
 _SMTP_CURL_INVIO = re.compile(r"--mail-rcpt|--mail-from|(?<![\w-])-T\b|--upload-file|(?<![\w-])-d\b|--data", re.IGNORECASE)
 _SMTP_SOLO_TESTO = re.compile(r"^\s*(?:grep|egrep|fgrep|rg|ugrep|echo|printf)\b")
@@ -203,7 +249,7 @@ def _opzioni_nascoste(seg: str) -> bool:
     if re.search(r"(?<![\w-])-K\b|--config\b", seg):
         return True
     try:
-        parole = shlex.split(seg)
+        parole = _parole(seg)
     except ValueError:
         parole = seg.split()
     return any(p.startswith("$") and (i == 0 or not parole[i - 1].startswith("-"))
@@ -248,9 +294,9 @@ def main() -> int:
         return 0
 
     command = _senza_help(command)
-    aperto = _MAILTO_APERTO.search(command) or _mailto_indiretto(command)
+    aperto = _cerca(_MAILTO_APERTO, command) or _mailto_indiretto(command)
     matched, famiglia = ("mailto: (apre un invio)", FAMIGLIA_MAILTO) if aperto else (None, None)
-    if not matched and _CHAT_APERTA.search(command):
+    if not matched and _cerca(_CHAT_APERTA, command):
         matched, famiglia = "un link di WhatsApp o Telegram (apre un invio)", "chat"
     for pattern, label, fam in ([] if matched else SEND_BINARIES):
         if pattern == _SMTP_URL:
@@ -258,10 +304,14 @@ def main() -> int:
                 matched, famiglia = label, fam
                 break
             continue
-        if re.search(pattern, command, re.IGNORECASE):
+        if pattern == _VARIABILE_GMAIL_INVIO and _fc is not None:
+            trovato = _fc.cerca_dalle_teste(re.compile(pattern, re.IGNORECASE), _VARIABILE_GMAIL, command, "")
+        else:
+            trovato = re.search(pattern, command, re.IGNORECASE)
+        if trovato:
             matched, famiglia = label, fam
             break
-    if not matched and SEND_ENDPOINTS.search(command):
+    if not matched and _cerca(SEND_ENDPOINTS, command):
         matched, famiglia = "endpoint messaggistica/email", FAMIGLIA_ENDPOINT
 
     if matched:
