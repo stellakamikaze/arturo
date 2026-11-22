@@ -246,6 +246,7 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 ## Uscito di recente
 
+- 22 novembre 2026, versione 0.2.23: il messaggio di avvio arriva anche su un computer carico, `/inizio` aspetta la lettura più lenta e non la somma, e un `/fine` su una sessione già chiusa non riparte.
 - 22 novembre 2026, versione 0.2.22: sul Mac `/setup` accende la sandbox, le protezioni chiedono conferma quando un comando nasconde il programma che lancia, e partono più veloci su comandi dieci volte più lunghi.
 - 21 novembre 2026, versione 0.2.21: Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai, ogni lavoro che torna ha la sua lista "Finito quando", e cancelli i tuoi dati d'uso dal server con un comando.
 - 19 novembre 2026, versione 0.2.20: i dati d'uso partono solo dopo la tua risposta a `/setup`.
