@@ -20,7 +20,9 @@ un giro solo dice ogni rosso.
       carico danno rossi che da soli passano (T22, SM04: per questo c'è il lucchetto, #4360).
       Con --rossi rifà solo i lavori rossi dell'ultimo giro e stampa PARZIALE: non vale per un rilascio.
       Con --toccati fa girare solo i lavori con una fonte fra i file cambiati (git diff HEAD più i nuovi
-      non ignorati) e stampa PARZIALE allo stesso modo.
+      non ignorati) e stampa PARZIALE allo stesso modo. Con ARTURO_GATE_BASE=<commit> il confronto parte da
+      quel commit e non da HEAD: la CI lo usa sul push a dev, dove i cambi sono già in commit (revisione
+      del 22/11/2026, A1). Un commit che non esiste ferma il gate: senza base il giro sarebbe vuoto e verde.
       Esce 1 se un lavoro è rosso, dopo averli fatti girare tutti.
 
 Controprove in cache (3/11/2026). Una controprova verde dice che il banco è rosso sulla sua base. Finché
@@ -147,7 +149,7 @@ def ambiente_pulito() -> Dict[str, str]:
     """L'ambiente di chi lancia il gate, senza le variabili della sessione e senza la cartella bin del codice
     di Arturo nel PATH: ogni banco vede solo la sua copia."""
     codice = os.environ.get("ARTURO_CODICE", "").rstrip("/\\")
-    fuori = {k: v for k, v in os.environ.items() if k not in VARIABILI_DELLA_SESSIONE + (HOME_VERA,)}
+    fuori = {k: v for k, v in os.environ.items() if k not in VARIABILI_DELLA_SESSIONE + (HOME_VERA, BASE_TOCCATI)}
     if codice and "PATH" in fuori:
         bins = {os.path.join(codice, "bin"), codice + "/bin"}
         fuori["PATH"] = os.pathsep.join(p for p in fuori["PATH"].split(os.pathsep) if p.rstrip("/\\") not in bins)
@@ -158,6 +160,8 @@ _BASI_UTENTE: Dict[str, Dict[str, str]] = {}
 # La HOME di chi lancia il gate: tests/verifica-allineamento.sh la esporta prima di spostare HOME nella
 # cartella di prova. Serve solo a trovare il sito utente, e ai banchi non arriva.
 HOME_VERA = "ARTURO_GATE_HOME_VERA"
+# La base di --toccati: la legge solo l'esecutore, e ai banchi non arriva (GS08 la erediterebbe).
+BASE_TOCCATI = "ARTURO_GATE_BASE"
 
 
 def base_utente(interprete: str = sys.executable) -> Dict[str, str]:
@@ -226,9 +230,14 @@ def git_z(root: Path, *args: str) -> List[str]:
 
 
 def cambiati(root: Path) -> Set[str]:
-    """I file cambiati rispetto a HEAD, coi nuovi non ignorati: path relativi alla radice, con "/"."""
-    return set(git_z(root, "diff", "HEAD", "--name-only")) | set(git_z(root, "ls-files", "--others",
-                                                                         "--exclude-standard"))
+    """I file cambiati rispetto a HEAD, o al commit di ARTURO_GATE_BASE, coi nuovi non ignorati: path relativi
+    alla radice, con "/"."""
+    base = os.environ.get(BASE_TOCCATI, "").strip() or "HEAD"
+    if subprocess.run(["git", "-C", str(root), "rev-parse", "-q", "--verify", f"{base}^{{commit}}"],
+                      capture_output=True).returncode != 0:
+        raise SystemExit(f"FAIL: {BASE_TOCCATI}={base} non è un commit di {root}: --toccati non sa cosa è cambiato")
+    return set(git_z(root, "diff", base, "--name-only")) | set(git_z(root, "ls-files", "--others",
+                                                                       "--exclude-standard"))
 
 
 class Fonti:

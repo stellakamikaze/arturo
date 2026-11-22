@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GS01-GS11: il gate snello (3/11/2026), cioè tests/esegui_gate.py che fa girare i lavori del gate in parallelo.
+"""GS01-GS13: il gate snello (3/11/2026), cioè tests/esegui_gate.py che fa girare i lavori del gate in parallelo.
 
 GS01 un lavoro rosso non ferma gli altri: due rossi in liste diverse (un banco e una controprova) escono
      tutti e due nel rapporto, i verdi girano lo stesso e l'esecutore esce 1.
@@ -20,12 +20,19 @@ GS11 un banco vede i pacchetti del sito utente di chi lancia il gate, anche nell
      utente sta sotto la HOME, e PyYAML installato solo lì dava quattro banchi rossi (22/11/2026, #6426). La base
      viene dalla HOME vera che verifica-allineamento.sh passa in ARTURO_GATE_HOME_VERA, e quella variabile non
      arriva al banco. Dove il sito utente non segue la HOME (Windows: APPDATA) il caso è un SALTO.
+GS12 con ARTURO_GATE_BASE=<commit> --toccati confronta da quel commit: un cambio già in commit fa girare il suo
+     banco, come serve alla CI sul push a dev (revisione del 22/11/2026, A1). Una base che non esiste ferma il
+     gate con FAIL, e la variabile non arriva ai banchi.
+GS13 .github/workflows/gate.yml fa girare il gate su ubuntu, macos e windows, solo nel repository pubblico, in
+     sola lettura e senza segreti: --toccati con ARTURO_GATE_BASE sul push a dev, --rilascio sul tag e a mano.
+     Il nome della run dice il modo ("gate rilascio"), perché la firma del rilascio lo cerca. Azioni fissate a
+     un commit.
 
 Ogni caso gira su un repository finto con banchi finti, così misura l'esecutore e non i banchi veri.
 Con --avvelena girano tre esecutori rotti. Uno ignora il codice d'uscita dei lavori: GS01 e GS04 devono
 essere rossi. Uno salta sempre le controprove: rossi GS05, GS06 e GS07. Uno non le salta mai: rosso GS05.
 Uno non confronta gli elenchi: rosso GS09. Uno passa ai banchi l'ambiente intero: rosso GS10. Uno non passa
-la base del sito utente: rosso GS11.
+la base del sito utente: rosso GS11. Uno confronta sempre da HEAD: rosso GS12.
 
 Sulla base 177852f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -38,6 +45,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+import yaml
 from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -78,6 +87,7 @@ VELENI = (
     (("GS09",), "    incompleti = elenchi_incompleti(root, a) if a.elenchi", "    incompleti = [] if a.elenchi"),
     (("GS10",), "        e = dict(ambiente_pulito(), HOME=", "        e = dict(os.environ, HOME="),
     (("GS11",), "        e.update(base_utente())\n", "        pass\n"),
+    (("GS12",), '    base = os.environ.get(BASE_TOCCATI, "").strip() or "HEAD"\n', '    base = "HEAD"\n'),
 )
 
 
@@ -110,13 +120,21 @@ class Lab:
     def _ambiente() -> Dict[str, str]:
         # Il gate del rilascio gira con ARTURO_GATE_RILASCIO=1 e il banco lo ereditava: GS05, che prova il salto
         # delle controprove in cache, diventava rosso proprio nel gate del tag (4/11/2026). Lo decide ogni caso.
-        return {k: v for k, v in os.environ.items() if k != "ARTURO_GATE_RILASCIO"}
+        # Lo stesso per ARTURO_GATE_BASE della CI: GS08 e GS12 la decidono da soli.
+        return {k: v for k, v in os.environ.items() if k not in ("ARTURO_GATE_RILASCIO", "ARTURO_GATE_BASE")}
 
     def tempi(self) -> Path:
         return self.root / ".git" / "arturo-gate-tempi.json"
 
     def scrivi(self, nome: str, testo: str) -> None:
         (self.root / "tests" / nome).write_text(testo, encoding="utf-8")
+
+    def commit(self, messaggio: str) -> str:
+        env = dict(os.environ, **GIT_ENV)
+        for c in (["add", "-A"], ["commit", "-q", "-m", messaggio]):
+            subprocess.run(["git", "-C", str(self.root), *c], env=env, check=True, capture_output=True)
+        return subprocess.run(["git", "-C", str(self.root), "rev-parse", "HEAD"], capture_output=True, text=True,
+                              check=True).stdout.strip()
 
 
 def esecutore_di(repo: Path, codice: str) -> Path:
@@ -298,9 +316,59 @@ def test_gs11(esecutore: Path) -> None:
         assert not visto["vera"], f"GS11 la HOME vera arriva al banco: {visto}"
 
 
+def test_gs12(esecutore: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        lab = Lab(Path(t), esecutore)
+        prima = subprocess.run(["git", "-C", str(lab.root), "rev-parse", "HEAD"], capture_output=True, text=True,
+                               check=True).stdout.strip()
+        lab.scrivi("aiuto.py", "VALORE = 4\n")
+        lab.scrivi("ambiente.py", BANCHI["ambiente.py"].replace("'path'", "'base': os.environ.get('ARTURO_GATE_BASE'), 'path'"))
+        lab.commit("cambio in commit")
+        uscita = Path(t) / "uscita"
+        uscita.mkdir()
+        liste = ("--lavori", "1", "--banchi", "ok_a.py", "usa_aiuto.py", "ambiente.py")
+        r = lab.esegui("--toccati", *liste, env={"ARTURO_GATE_BASE": prima, "GS_OUT": str(uscita)})
+        fatti = sorted(ordine(r.stdout))
+        assert fatti == ["banco:ambiente.py", "banco:usa_aiuto.py"] and "PARZIALE" in r.stdout, \
+            f"GS12 con ARTURO_GATE_BASE i cambi già in commit non fanno girare il loro banco: {fatti} {r.stdout[-300:]!r}"
+        visto = json.loads((uscita / "ambiente.json").read_text(encoding="utf-8"))
+        assert visto.get("base") is None, f"GS12 ARTURO_GATE_BASE arriva al banco: {visto.get('base')}"
+        r = lab.esegui("--toccati", *liste, env={"ARTURO_GATE_BASE": "0" * 40, "GS_OUT": str(uscita)})
+        assert r.returncode != 0 and "FAIL" in (r.stdout + r.stderr) and not ordine(r.stdout), \
+            f"GS12 una base che non esiste non ferma il gate: {r.returncode} {(r.stdout + r.stderr)[-300:]!r}"
+
+
+def test_gs13(esecutore: Path) -> None:
+    f = esecutore.resolve().parents[1] / ".github" / "workflows" / "gate.yml"
+    assert f.is_file(), "GS13 manca .github/workflows/gate.yml: il gate gira solo sul Mac di chi rilascia"
+    testo = f.read_text(encoding="utf-8")
+    dati = yaml.safe_load(testo)
+    quando = dati.get("on", dati.get(True)) or {}
+    push = quando.get("push") or {}
+    assert push.get("branches") == ["dev"] and push.get("tags") == ["v*"] and "workflow_dispatch" in quando \
+        and "pull_request" not in quando, f"GS13 non parte sul push a dev, sul tag v* e a mano: {quando}"
+    assert dati.get("permissions") == {"contents": "read"} and "secrets." not in testo, \
+        "GS13 il workflow non è in sola lettura o usa un segreto"
+    assert "gate rilascio" in str(dati.get("run-name")) and "gate toccati" in str(dati.get("run-name")), \
+        f"GS13 il nome della run non dice il modo: {dati.get('run-name')}"
+    lavoro = (dati.get("jobs") or {}).get("gate") or {}
+    assert lavoro.get("if") == "github.repository == 'stellakamikaze/arturo'", \
+        f"GS13 il gate parte anche fuori dal repository pubblico: {lavoro.get('if')}"
+    strategia = lavoro.get("strategy") or {}
+    assert strategia.get("fail-fast") is False and sorted((strategia.get("matrix") or {}).get("os") or []) == \
+        ["macos-latest", "ubuntu-latest", "windows-latest"], f"GS13 la matrice non ha i tre sistemi: {strategia}"
+    passi = lavoro.get("steps") or []
+    azioni = [p["uses"] for p in passi if "uses" in p]
+    assert azioni and all(len(a.split("@")[1].split()[0]) == 40 for a in azioni), f"GS13 azioni non fissate a un commit: {azioni}"
+    comandi = "\n".join(p.get("run", "") for p in passi)
+    assert "ARTURO_GATE_BASE=$PRIMA" in comandi and "MODO=--toccati" in comandi and "MODO=--rilascio" in comandi \
+        and 'bash tests/verifica-allineamento.sh "$MODO"' in comandi, f"GS13 il modo del gate non segue l'evento: {comandi[-600:]}"
+    assert "core.autocrlf false" in comandi, "GS13 su Windows il checkout converte gli a capo e bash non legge gli script"
+
+
 TESTS = {"GS01": test_gs01, "GS02": test_gs02, "GS03": test_gs03, "GS04": test_gs04, "GS05": test_gs05,
          "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09, "GS10": test_gs10,
-         "GS11": test_gs11}
+         "GS11": test_gs11, "GS12": test_gs12, "GS13": test_gs13}
 
 
 def avvelena(repo: Path) -> None:
