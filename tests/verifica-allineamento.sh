@@ -269,6 +269,8 @@ BANCHI=(
   test_pathspec_c_2026_11_22.py
   # Il campo if sugli hook che non c'entrano col comando: gws-esito e block-dangerous dopo (22/11/2026, #6327).
   test_hook_if_2026_11_22.py
+  # Un /fine su una sessione già chiusa si ferma prima del modello (22/11/2026, #6274, segnalazioni n. 79, 87 e 93).
+  test_fine_gia_chiusa_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -299,7 +301,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py test_fine_gia_chiusa_2026_11_22.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -575,6 +577,8 @@ BASELINE=(
   "test_pathspec_c_2026_11_22.py de04b3b"
   # Il campo if sugli hook (22/11/2026, #6327): gws-esito e block-dangerous dopo partono a ogni Bash. a1f5927, il dev prima.
   "test_hook_if_2026_11_22.py a1f5927"
+  # Il /fine su una sessione già chiusa (22/11/2026, #6274): ogni giro del mod partiva. b54e244, il dev prima.
+  "test_fine_gia_chiusa_2026_11_22.py b54e244"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -676,6 +680,8 @@ VELENI=(
   test_ripartenza_2026_11_17.py
   # Lo sportello (#4793): un modo log che manda, una cartella che non si pota, un id che resta dopo dimentica.
   test_telemetria_log_dimentica_2026_11_20.py
+  # Il /fine su una sessione già chiusa (#6274): ogni rottura di fine-gia-chiusa.py o di inject-now.sh fa rosso il suo caso FG.
+  test_fine_gia_chiusa_2026_11_22.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

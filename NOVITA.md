@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Un /fine su una sessione già chiusa non riparte
+
+**Cosa cambia**: se una sessione è già chiusa con `/fine` e dopo non è arrivato nessun messaggio, un nuovo
+`/fine` si ferma prima di arrivare a Claude. Vedi una riga con l'ora dell'handoff, e la quota resta intatta.
+Succedeva con una chiusura automatica che rilanciava `/fine` ogni 45 minuti su una sessione ferma: ogni giro
+trovava tutto salvato, ma caricava `/fine` e consumava quota (segnalazioni n. 79, n. 87 e n. 93).
+
+**Il principio**: il mod che rilanciava `/fine` sta nella configurazione della persona, quindi un
+aggiornamento non lo tocca. Per questo il controllo l'ha preso Arturo, su ogni `/fine`, chiunque lo mandi.
+Un messaggio tuo, di un'altra sessione o di un lavoro in background fa ripartire il `/fine` come prima.
+Per rifarlo comunque, scrivi `/fine --forza`.
+
+---
+
 ## 2026-11-22 — Due controlli partono solo sui comandi che li riguardano
 
 **Cosa cambia**: il registro dei commit della sessione parte solo sui comandi che contengono `commit`,

@@ -2,7 +2,7 @@
 description: >-
   Chiude la sessione: destino dei file, commit, handoff coi todo e chi agisce, memoria e sync della config.
   Si può rilanciare. Con --rotazione è il fine leggero a ogni passo chiuso, seguito dal tool ruota.
-argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
+argument-hint: "[--full] [salva] [--rotazione] [--forza] [note opzionali]"
 ruolo: chiudere la sessione o un compito con commit, handoff e todo
 ---
 
@@ -16,6 +16,11 @@ Tre regole per tutte le fasi:
 - **Dentro /fine non si sviluppa.** Un gap, un fix o un test rosso diventa un todo con un numero.
 - **/fine si può rilanciare senza danni.** L'handoff si riscrive, un todo che c'è non si ricrea, un commit vuoto non parte.
 - **Un destino incerto non ferma la chiusura.** Il file resta dov'è e l'handoff dice dove sta.
+
+**Sessione già chiusa.** Se dopo l'ultimo /fine riuscito di questa sessione non è arrivato nessun messaggio,
+non rifare le fasi: chiudi con una riga, "Sessione già chiusa alle HH:MM, niente di nuovo da salvare". Di
+solito il giro non arriva qui, perché `inject-now.sh` lo ferma prima (`bin/fine-gia-chiusa.py`). `--forza`
+fa ripartire le fasi anche su una sessione chiusa.
 
 ## Modo rotazione (`--rotazione`)
 

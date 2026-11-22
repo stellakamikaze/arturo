@@ -37,6 +37,16 @@ fi
 # scritta con `arturo correzione aggiungi` torna qui a ogni messaggio, anche dopo una compattazione.
 # Nessuna correzione, nessuna riga. Cosa è una correzione lo decide Claude (promemoria qui sotto).
 _A="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+
+# --- Un /fine su una sessione già chiusa (22/11/2026, #6274, segnalazioni n. 79, 87 e 93) -----
+# Un mod della persona rilanciava /fine ogni 45 minuti su una sessione ferma: ogni giro costava quota per
+# niente. Se la sessione ha già l'handoff e dopo l'ultimo /fine non è arrivato niente, fine-gia-chiusa.py
+# esce 2 e Claude Code scarta il prompt senza chiamare il modello. Ogni altra uscita lascia partire il /fine.
+RE_FINE='"prompt"[[:space:]]*:[[:space:]]*"[[:space:]]*/(arturo:)?fine([^a-z0-9:-])'
+if [[ "$INPUT" =~ $RE_FINE ]] && [ -f "$_A/bin/fine-gia-chiusa.py" ]; then
+  printf '%s' "$INPUT" | python3 "$_A/bin/fine-gia-chiusa.py" || [ $? -ne 2 ] || exit 2
+fi
+
 if [ -f "$_A/bin/correzioni.py" ]; then
   printf '%s' "$INPUT" | python3 "$_A/bin/correzioni.py" blocco 2>/dev/null || true
 fi
