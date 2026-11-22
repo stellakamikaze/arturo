@@ -1581,6 +1581,14 @@ def _git_riscritti(args, base):
     return file, [c for c in cartelle if c]
 
 
+def _davanti_fino(toks) -> int:
+    """Quante parole in testa stanno davanti al programma: `(`, `{`, then, do e le altre di _DAVANTI."""
+    i = 0
+    while i < len(toks) and (toks[i] in _fc._DAVANTI or toks[i] == "("):
+        i += 1
+    return i
+
+
 def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=False):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
@@ -1602,8 +1610,14 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
     link = {}
     assegnate = None
 
+    # La stessa parola nella stessa cartella dà lo stesso esito finché i link non cambiano (#6363): `tee ` ripetuto
+    # risolveva 22.000 volte lo stesso percorso sul disco, 5 secondi su 90.000 caratteri.
+    visti = {}
+
     def colpisce(parola, base):
-        return any(protetto(q) for q in _risolti(parola, base, link))
+        if (parola, base) not in visti:
+            visti[(parola, base)] = any(protetto(q) for q in _risolti(parola, base, link))
+        return visti[(parola, base)]
 
     def cartella_colpita(parola, base, sopra=False):
         return any(protetto(q) or protetto(os.path.join(q, "x")) or _contiene_protetti(q, sopra)
@@ -1618,7 +1632,9 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
                 return True
     in_arrivo = {}
     for seg in _fc.comandi_semplici(command):
-        link.update(in_arrivo)
+        if in_arrivo:
+            link.update(in_arrivo)
+            visti.clear()
         in_arrivo.clear()
         seg = seg.strip()
         if not seg:
@@ -1628,15 +1644,16 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         except Exception:
             toks = seg.split()
         # `(cd x; …)`, `{ cd x; …; }`, `then cd x`: la parola davanti non è il programma.
-        while toks and (toks[0] in _fc._DAVANTI or toks[0] == "("):
-            toks = toks[1:]
+        # Un taglio solo (#6363): `toks = toks[1:]` a ogni parola copiava la lista, e `{ ` ripetuto cresceva col quadrato.
+        toks = toks[_davanti_fino(toks):]
         if toks and toks[0].startswith("(") and len(toks[0]) > 1:
             toks[0] = toks[0].lstrip("(")
         if not toks:
             continue
-        nudi = toks
-        while len(nudi) > 1 and nudi[0] in ("builtin", "command"):
-            nudi = nudi[1:]
+        k = 0
+        while len(toks) - k > 1 and toks[k] in ("builtin", "command"):
+            k += 1
+        nudi = toks[k:]
         if nudi[0] in ("cd", "pushd") and len(nudi) >= 2:
             dove = [a for a in nudi[1:] if a == "-" or not a.startswith(("-", "+"))]
             if dove and dove[0] != "-":
@@ -1669,8 +1686,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         # `cp x ~/.claude/ 2>/dev/null` l'ultimo argomento è la cartella, non `2>/dev/null` (#5261).
         try:
             senza = _fc.parole(_fc._senza_tratti_redirezione(seg))
-            while senza and (senza[0] in _fc._DAVANTI or senza[0] == "("):
-                senza = senza[1:]
+            senza = senza[_davanti_fino(senza):]
             if senza and senza[0].startswith("(") and len(senza[0]) > 1:
                 senza[0] = senza[0].lstrip("(")
             toks = senza or toks
@@ -2635,12 +2651,15 @@ def _cd_certi(command, profondita=0, forzato=False):
     pila = []          # "sub", "subst", "kw", "graffa"
     backtick = False
     parole = []        # il comando semplice in corso
+    # True finché le parole del comando in corso stanno tutte in _DAVANTI (#6363): `all()` su tutte a ogni parola
+    # cresceva col quadrato, e `{ ` ripetuto teneva block-dangerous oltre un minuto.
+    davanti = True
     prima = None       # l'operatore prima del comando
     indice = 0         # posizione del comando nella lista && / ||
     precedente = None  # l'ultimo gettone visto
 
     def chiudi(dopo):
-        nonlocal parole, prima, indice
+        nonlocal parole, prima, indice, davanti
         if parole:
             i = 0
             while i < len(parole) and (parole[i] in forma._DAVANTI or forma._ASSEGNAZIONE.match(parole[i])
@@ -2658,6 +2677,7 @@ def _cd_certi(command, profondita=0, forzato=False):
                 elif nome == "eval" and args:
                     out.extend(_cd_certi(" ".join(args), profondita + 1, True))
         parole = []
+        davanti = True
         if dopo in ("&&", "||"):
             indice += 1
         elif dopo is not None:
@@ -2692,7 +2712,7 @@ def _cd_certi(command, profondita=0, forzato=False):
             continue
         if g.count("`") % 2:
             backtick = not backtick
-        if all(p in forma._DAVANTI for p in parole):  # posizione di comando, anche dopo then, do, {
+        if davanti:  # posizione di comando, anche dopo then, do, {
             if g in _APRE_BLOCCO:
                 pila.append("kw")
             elif g in _CHIUDE_BLOCCO and "kw" in pila:
@@ -2705,6 +2725,7 @@ def _cd_certi(command, profondita=0, forzato=False):
             elif g == "}" and "graffa" in pila:
                 del pila[len(pila) - 1 - pila[::-1].index("graffa")]
         parole.append(g)
+        davanti = davanti and g in forma._DAVANTI
         precedente = g
     chiudi(None)
     return out
