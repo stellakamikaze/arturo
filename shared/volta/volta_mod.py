@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """volta_mod: il mod `arturo` di Volta si aggiorna da solo da un repository git.
 
-La fonte è la cartella `arturo/` di questo repository (ramo `volta`): mods/arturo, layouts, themes e
-i lanciatori. Ogni macchina ne tiene un clone leggero in ~/.cache/volta/mod-git e lo confronta con
-il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
+La fonte è la cartella `arturo/` di questo repository: mods/arturo, layouts, themes, firme e i lanciatori.
+Dal 21/11/2026 (#6244) arriva solo dal tag annotato `volta-mod-<N>` più alto, firmato SSH: lo mette
+volta/dirama.py sul ramo `volta`. Ogni macchina ne tiene un clone leggero in ~/.cache/volta/mod-git, lo
+verifica con firme/volta.allowed_signers della copia già installata e lo confronta con il mod installato in
+~/.config/herdr-app/mods/arturo (file VERSIONE). Un push sul ramo senza tag non arriva più alle macchine.
 
   python3 volta_mod.py controlla [--forza]  scarica, controlla e installa se c'è una versione nuova; --forza
                                            non aspetta le ore di un mod installato a mano (volta/dirama.py)
@@ -28,6 +30,12 @@ aggiornamento.
 Regole:
   - acceso solo se arturo.json ha `mod_sorgente` e `mod_modo` non è "manuale";
   - la versione è l'impronta git della cartella `arturo/` (non cambia quando il ramo viene ribasato);
+  - il tag si verifica prima di prendere i file (scarica(), verifica_tag() copiata da Arturo). Un tag leggero,
+    un nome scritto dentro il tag diverso dal ref, una chiave fuori elenco, un N più basso di quello già
+    installato (mod-tag.json nella cache) o lo stesso N con un altro oggetto danno esito "compromesso": il
+    mod resta quello installato e il piede lo dice. Si ricontrolla a ogni giro. Una verifica che non parte
+    (git o OpenSSH vecchi) è un errore, non una compromissione. Una chiave nuova entra solo dentro un mod
+    firmato da una chiave già in elenco;
   - la copia nuova passa `herdr-app check` prima dello scambio: se è rossa resta il mod di prima, e
     quella versione non si riprova per RIPROVA_RIFIUTATA ore. Un controllo che non è girato (herdr-app
     assente, timeout, Volta che non risponde) non è un rifiuto: è un errore, e si riprova al giro dopo;
@@ -87,6 +95,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import signal
 import stat
@@ -307,45 +316,147 @@ def togli(cartella: Path) -> None:
         shutil.rmtree(str(cartella), onerror=riprova)
 
 
-def scarica(url: str, ramo: str) -> tuple[Path | None, str]:
-    """Il clone leggero allineato al ramo. Torna (cartella della fonte, "") oppure (None, motivo)."""
+# --- La firma del mod (#6244, passo 3, 21/11/2026) --------------------------------------------------------
+# Il mod arriva solo da un tag annotato volta-mod-<N>, firmato SSH da una chiave di firme/volta.allowed_signers
+# della copia già installata. Lo pubblica volta/dirama.py. Un push sul ramo senza tag non arriva più alle
+# macchine: prima un push su GitHub diventava codice sulle macchine entro un'ora (V3 della revisione del 20/11).
+PREFISSO_TAG = "volta-mod-"
+TAG_MOD = re.compile(r"^refs/tags/(volta-mod-([1-9][0-9]*))$")
+FIRMATARI = "volta.allowed_signers"
+TAG_NOTO = "mod-tag.json"   # nella cache: il tag dell'ultima installazione firmata, il pavimento di N
+# Copie di bin/aggiornamenti.py di Arturo (verifica_tag): questo script vuole la sola libreria standard e non
+# vede il plugin. Una firma che manca o non torna è una possibile compromissione; una verifica che non parte no.
+FIRMA_SBAGLIATA = re.compile(r"no signature found|no principal matched|could not verify signature|bad signature|non-tag object",
+                             re.I)
+NON_VERIFICABILE = ("questo computer non sa controllare la firma del mod: servono git 2.34 e OpenSSH 8.2, "
+                    "o più recenti")
+NESSUN_TAG = ("nel repository non c'è un mod firmato (tag volta-mod-<N>): si pubblica con volta/dirama.py, "
+              "un push sul ramo da solo non basta")
+
+
+def tag_remoti(url: str, accesso: list) -> tuple[list, str]:
+    """I tag volta-mod-<N> del repository, come (N, nome, oggetto), dal più basso al più alto; oppure ([],
+    motivo). Il nome deve essere esatto: volta-mod-01, volta-mod-3a e le righe ^{} non contano."""
+    rc, out = git(["ls-remote", "--tags", url, PREFISSO_TAG + "*"], prima=accesso)
+    if rc != 0:
+        return [], ultima_riga(out) or "ls-remote fallito"
+    tag = []
+    for riga in out.splitlines():
+        parti = riga.split()
+        m = TAG_MOD.match(parti[1]) if len(parti) == 2 else None
+        if m:
+            tag.append((int(m.group(2)), m.group(1), parti[0]))
+    return sorted(tag), ""
+
+
+def tag_noto() -> dict:
+    """Il tag firmato più alto già installato qui: VERSIONE del mod e TAG_NOTO della cache, il più alto dei
+    due. `installa --da` riscrive VERSIONE senza tag, e il file della cache tiene il pavimento."""
+    noti = [leggi(app_home() / "mods" / "arturo" / "VERSIONE"), leggi(cache() / TAG_NOTO)]
+    noti = [d for d in noti if isinstance(d.get("n"), int)]
+    return max(noti, key=lambda d: d["n"]) if noti else {"n": 0}
+
+
+def ricorda_tag(versione: dict) -> None:
+    """Il pavimento di N dopo un'installazione o un allineamento da un tag verificato."""
+    if versione.get("n"):
+        scrivi(cache() / TAG_NOTO, dict({k: versione.get(k) for k in ("n", "tag", "tag_oggetto", "versione", "commit")},
+                                       verificato=time.time()))
+
+
+def verifica_tag(clone: Path, tag: str, firmatari: Path) -> tuple[str, bool]:
+    """(motivo, compromesso): motivo vuoto se il tag è firmato da una chiave di `firmatari`. compromesso solo
+    se la firma manca o non torna, non se la verifica non è partita. Copia di verifica_tag di Arturo."""
+    if not firmatari.is_file():
+        return "manca %s: la firma del mod non si può verificare" % FIRMATARI, True
+    # Un tag leggero non ha firma: verify-tag lo dice con "non-tag object" (finding 111 di Arturo).
+    rc, tipo = git(["cat-file", "-t", "refs/tags/" + tag], cwd=clone)
+    if rc == 0 and tipo.strip() != "tag":
+        return "il mod %s non ha la firma di Volta (tag senza firma)" % tag, True
+    rc, out = git(["-c", "gpg.format=ssh", "-c", "gpg.ssh.allowedSignersFile=" + str(firmatari), "verify-tag", tag], cwd=clone)
+    if rc == 0:
+        # La firma copre il nome scritto dentro il tag, non il nome del ref: un tag firmato vecchio ripubblicato
+        # sotto un nome nuovo riporterebbe indietro il mod con una firma valida (finding 109 di Arturo).
+        _, testo = git(["cat-file", "tag", tag], cwd=clone)
+        dentro = re.search(r"^tag (\S+)$", testo, re.M)
+        if not dentro or dentro.group(1) != tag:
+            return "il tag %s è il mod firmato %s ripubblicato con un altro nome" % (tag, dentro.group(1) if dentro else "nessuno"), True
+        return "", False
+    if FIRMA_SBAGLIATA.search(out or ""):
+        return "il mod %s non ha la firma di Volta: %s" % (tag, ultima_riga(out)), True
+    return NON_VERIFICABILE, False
+
+
+def scarica(url: str, ramo: str = RAMO) -> tuple[Path | None, str, dict]:
+    """Il clone leggero al tag volta-mod-<N> più alto del repository, verificato. Torna (cartella della fonte,
+    "", tag) oppure (None, motivo, tag): `tag` ha "compromesso" vero quando il rifiuto è una possibile
+    compromissione. Rifiutati: tag leggero, nome scritto dentro il tag diverso dal ref, firma di una chiave
+    fuori elenco, N più basso di quello installato, stesso N con un altro oggetto. `ramo` non sceglie più
+    cosa si installa: dirama.py mette il tag sul ramo volta (lo tiene la firma, per chi lo chiama)."""
     clone = cache() / "mod-git"
     accesso = accesso_gh(url)
 
-    def clona() -> str:
-        togli(clone)
-        clone.parent.mkdir(parents=True, exist_ok=True)
-        rc, out = git(["clone", "--quiet", "--filter=blob:none", "--sparse", "--depth", "1", "--branch", ramo,
-                       url, str(clone)], timeout=ATTESA_GIT * 2, prima=accesso)
-        if rc != 0:
-            togli(clone)
-            return ultima_riga(out) or "clone fallito"
-        # --no-cone: solo la cartella della fonte, senza i file della radice del repository
-        rc, out = git(["sparse-checkout", "set", "--no-cone", "/" + CARTELLA + "/"], cwd=clone)
-        return "" if rc == 0 else (ultima_riga(out) or "sparse-checkout fallito")
+    def con_rimedio(motivo: str) -> str:
+        return motivo + " · " + SENZA_GH if url.lower().startswith(GITHUB_HTTPS) and not accesso else motivo
 
-    def allinea() -> str:
+    elenco, motivo = tag_remoti(url, accesso)
+    if motivo:
+        return None, con_rimedio(motivo), {}
+    if not elenco:
+        return None, NESSUN_TAG, {}
+    n, nome, oggetto = elenco[-1]
+    info = {"tag": nome, "n": n, "tag_oggetto": oggetto}
+    noto = tag_noto()
+    if n < noto["n"]:
+        return None, ("il mod firmato più recente del repository è %s, più vecchio di quello installato (%s): un tag "
+                      "tolto o una fonte diversa" % (nome, noto.get("tag"))), dict(info, compromesso=True)
+    if n == noto["n"] and noto.get("tag_oggetto") and oggetto != noto["tag_oggetto"]:
+        return None, "il tag %s è cambiato dopo l'installazione" % nome, dict(info, compromesso=True)
+
+    def prepara() -> str:
+        if clone.exists():
+            togli(clone)
+        clone.parent.mkdir(parents=True, exist_ok=True)
+        for args in (["init", "--quiet", str(clone)], ["-C", str(clone), "remote", "add", "origin", url],
+                     # --no-cone: solo la cartella della fonte, senza i file della radice del repository
+                     ["-C", str(clone), "sparse-checkout", "set", "--no-cone", "/" + CARTELLA + "/"]):
+            rc, out = git(args)
+            if rc != 0:
+                togli(clone)
+                return ultima_riga(out) or "git %s fallito" % args[0]
+        return ""
+
+    def porta() -> str:
         git(["remote", "set-url", "origin", url], cwd=clone)
-        rc, out = git(["fetch", "--quiet", "--depth", "1", "origin", ramo], cwd=clone, prima=accesso)
-        if rc == 0:
-            rc, out = git(["reset", "--quiet", "--hard", "FETCH_HEAD"], cwd=clone)
+        rc, out = git(["fetch", "--quiet", "--depth", "1", "--filter=blob:none", "--no-tags", "origin",
+                       "+refs/tags/%s:refs/tags/%s" % (nome, nome)], cwd=clone, prima=accesso)
         return "" if rc == 0 else (ultima_riga(out) or "fetch fallito")
 
-    if (clone / ".git").exists():
-        motivo = allinea()
+    # Un clone rimasto a metà (index.lock di un git ucciso dal timeout) non guarisce da solo: si butta e si
+    # rifà, una volta. Lo stesso per il clone di prima del 21/11, allineato al ramo. Senza rete fallisce anche
+    # questo, e il motivo è il suo.
+    for rifatto in (False, True):
+        if rifatto or not (clone / ".git").exists():
+            motivo = prepara() or porta()
+        else:
+            motivo = porta()
         if motivo:
-            # Un clone rimasto a metà (index.lock di un git ucciso dal timeout) non guarisce da solo:
-            # si butta e si rifà, una volta. Senza rete fallisce anche il clone, e il motivo è il suo.
-            motivo = clona()
-    else:
-        motivo = clona()
+            continue
+        _, preso = git(["rev-parse", "refs/tags/" + nome], cwd=clone)
+        info["tag_oggetto"] = preso.strip() or oggetto
+        motivo, compromesso = verifica_tag(clone, nome, firme() / FIRMATARI)
+        if motivo:
+            return None, motivo, dict(info, compromesso=compromesso)
+        # Solo dopo la firma: i file arrivano dal commit che il tag firmato nomina.
+        rc, out = git(["checkout", "--quiet", "--force", "--detach", "refs/tags/%s^{commit}" % nome], cwd=clone, prima=accesso)
+        motivo = "" if rc == 0 else (ultima_riga(out) or "checkout fallito")
+        if not motivo:
+            break
     if motivo:
-        if url.lower().startswith(GITHUB_HTTPS) and not accesso:
-            motivo += " · " + SENZA_GH
-        return None, motivo
+        return None, con_rimedio(motivo), info
     if not (clone / CARTELLA / "mods" / "arturo" / "main.js").is_file():
-        return None, "nel ramo %s non c'è %s/mods/arturo" % (ramo, CARTELLA)
-    return clone / CARTELLA, ""
+        return None, "nel mod %s non c'è %s/mods/arturo" % (nome, CARTELLA), info
+    return clone / CARTELLA, "", info
 
 
 def versione_di(clone: Path) -> dict:
@@ -728,13 +839,24 @@ def cmd_controlla(forza: bool = False) -> int:
             segna("locale", versione="locale", fino=messo + TENUTA_LOCALE * 3600)
             print("LOCALE: il mod è stato installato a mano, lo tengo per %d ore" % TENUTA_LOCALE)
             return 0
-        fonte, motivo = scarica(url, str(c.get("mod_ramo") or RAMO))
+        fonte, motivo, tag = scarica(url, str(c.get("mod_ramo") or RAMO))
+        if fonte is None and tag.get("compromesso"):
+            # Stop subito, come Arturo (decisione del 21/11/2026): il mod resta quello installato, e il
+            # piede e la barra dicono "possibile compromissione" (rigaMod di sessioni.js). Si ricontrolla a ogni
+            # giro: il mod riparte da solo quando il tag più alto torna firmato. `dal` resta il primo rifiuto.
+            prima = leggi(stato_file())
+            dal = prima.get("dal") if prima.get("esito") == "compromesso" else None
+            segna("compromesso", versione=tag.get("tag"), motivo=motivo, tag=tag.get("tag"),
+                  tag_oggetto=tag.get("tag_oggetto"), dal=dal or time.time())
+            print("COMPROMESSO: %s · il mod resta quello installato" % motivo)
+            return 1
         if fonte is None:
             segna("errore", motivo=motivo)
             print("ERRORE: " + motivo)
             return 1
-        versione = versione_di(fonte.parent)
+        versione = dict(versione_di(fonte.parent), **{k: tag[k] for k in ("tag", "n", "tag_oggetto")})
         if versione["versione"] == v:
+            ricorda_tag(versione)
             # I tasti si riallineano anche qui: alla versione nuova il controllo gira ancora con lo script
             # di prima, e un tasto nuovo (⌘K, #5369) arrivava solo alla versione dopo (#5470).
             try:
@@ -762,8 +884,9 @@ def cmd_controlla(forza: bool = False) -> int:
             segna("errore", versione=versione["corta"], motivo=come)
             print("ERRORE: il controllo del mod non è girato (%s), riprovo al prossimo giro" % come)
             return 1
-        segna("aggiornato", versione=versione["corta"], come=come, aggiornato=time.time())
-        print("AGGIORNATO %s (%s)" % (versione["corta"], come))
+        ricorda_tag(versione)
+        segna("aggiornato", versione=versione["corta"], come=come, aggiornato=time.time(), tag=versione["tag"])
+        print("AGGIORNATO %s (%s) · %s firmato" % (versione["corta"], come, versione["tag"]))
         return 0
     except Exception as e:  # noqa: BLE001 lo stato deve dire anche il guasto che nessuno aveva previsto
         segna("errore", motivo="%s: %s" % (type(e).__name__, str(e)[:160]))
@@ -1918,6 +2041,7 @@ def main(argv: list) -> int:
     if argv[:1] == ["stato"]:
         d = leggi(stato_file())
         d["installato"] = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
+        d["firma"] = leggi(cache() / TAG_NOTO)   # l'ultimo tag volta-mod-<N> verificato e installato qui
         d["sorgente"] = config().get("mod_sorgente")
         d["modo"] = config().get("mod_modo") or "automatico"
         radice, fonte = radice_di()

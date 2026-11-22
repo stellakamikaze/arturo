@@ -2098,6 +2098,8 @@ export function rigaMod(m, adesso = Date.now()) {
   // Un aggiornamento di Arturo fermato per una possibile compromissione (volta_mod.py programmi): non si riprova da solo.
   const plugin = m.programmi?.plugin;
   if (plugin?.esito === "compromesso") return { testo: `mod ${m.corta} · Arturo non si aggiorna`, avviso: plugin.motivo || "possibile compromissione: non aggiornare e segnalalo" };
+  // Un mod nuovo senza la firma di Volta (#6244, volta_mod.py scarica): resta quello installato.
+  if (m.esito === "compromesso") return { testo: `mod ${m.corta} · non si aggiorna`, avviso: `possibile compromissione: ${m.motivo || "il mod nuovo non ha la firma di Volta"}. Non installarlo a mano e segnalalo` };
   if (m.esito === "errore" && m.giu_da && adesso / 1000 - m.giu_da > 86400) {
     const giorni = Math.floor((adesso / 1000 - m.giu_da) / 86400);
     return { testo: `mod ${m.corta} · non controllo da ${giorni} ${giorni === 1 ? "giorno" : "giorni"}`, avviso: m.motivo ?? "" };

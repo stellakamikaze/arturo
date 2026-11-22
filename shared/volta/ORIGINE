@@ -1,5 +1,5 @@
 {
- "albero": "b739d53c39471c7a41e9373197b006c034b43c55",
+ "albero": "94008170ce2400791bceae279779aae4b4390290",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -56,7 +56,7 @@
   "mods/arturo/noteui.js": "0c0435366b5036f07a8e4acaa55d1fcc977892e53a9765c351db32aae3d25348",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "6a6fb7be7760db51c8049143f1e5f234038819092bea788b2c0c232780b1701c",
+  "mods/arturo/sessioni.js": "240ee0d8b562c0649cc0ac4f2c07c538df2018654327ee5b745b7e05f6c030b0",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/sposta.js": "0eb4b960a9f65c1c45d8903689a105a9d213374fca6ccb1a8238c1c3322444a9",
@@ -86,7 +86,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "056363a9ce1507feb3b3433a53debfbae45dc7c0eb9e8a2260cd0dc8b9a288b8"
+  "volta_mod.py": "86422c9e7e4b082650590d6ae62efbb82557b31ca801f6e644e7611ac5802166"
  },
  "repository": "volta"
 }
