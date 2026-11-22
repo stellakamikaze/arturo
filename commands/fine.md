@@ -359,6 +359,8 @@ nella riga tecnica.
   un servizio è giù, il resto è fatto.
 - **rc=7**: la guardia dei segreti trova una chiave nello stage (niente commit) o nei commit da spingere
   (niente push). Non aggirarla: leggi il caso `SEGRETO` del file qui sotto.
+- **rc=8**: un'altra `/fine` tiene la config da più di cinque minuti, niente commit. Rilancia quando
+  finisce. Se nessuna `/fine` è in corso, cancella il lucchetto che la riga nomina e rilancia.
 
 La coda si può rilanciare senza danni, e un push fallito si ritenta. Se l'uscita non è chiara, se esce
 `SKILL TUE NON SALVATE`, `FILE TUOI NON SALVATI` o `SEGRETO`, o se esiste `~/.claude/personale/fine-coda.py`, leggi `~/.claude/shared/fine-coda-casi.md`.

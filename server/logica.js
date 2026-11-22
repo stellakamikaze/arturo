@@ -88,7 +88,7 @@ export const DERIVA_NOMI = {
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "monitor-lettore.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
   commands: COMANDI.map((c) => `${c}.md`),
-  hooks: ["agente-worktree.py", "aspetto_valori.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "commit-secret-gate.py", "comms-guard.py",
+  hooks: ["agente-worktree.py", "aspetto_valori.py", "avvio-fetch.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "commit-secret-gate.py", "comms-guard.py",
     "comms-prefilter.py", "context-monitor.js", "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "emoji_remover.py",
     "estensione-skill.py", "evento_bash.py", "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py", "heredoc.py", "inject-now.sh",
     "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py", "memory-autoload.py", "memory-firma.py", "memory-retrieve.py", "memory-write-scanner.py",

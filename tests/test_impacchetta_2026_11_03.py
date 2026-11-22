@@ -456,9 +456,25 @@ def mod_impacchetta(repo: Path):
     return carica(repo / "bin" / "impacchetta.py")
 
 
+def identita_senza_email() -> bool:
+    """Git ricava un'identità automatica anche senza EMAIL: sul Mac, dove il nome del computer ha un dominio
+    (.local). Lì il veleno di IP21 su EMAIL non ha cosa rompere: attacca dove Git la rifiuta, come su Windows."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = {k: v for k, v in os.environ.items() if k not in ("EMAIL", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL")}
+        env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        subprocess.run(["git", "init", "-q", tmp], capture_output=True, env=env)
+        r = subprocess.run(["git", "-C", tmp, "var", "GIT_AUTHOR_IDENT"], capture_output=True, env=env)
+        return r.returncode == 0
+
+
 def avvelena(repo: Path) -> int:
     esiti = []
     for caso, rel, giusto, rotto in VELENI:
+        if 'EMAIL="$(leggi email)"' in rotto and identita_senza_email():
+            from salti_windows import dichiara  # noqa: PLC0415
+            dichiara(f"veleno {caso} (EMAIL)", "qui Git ricava l'identità anche senza EMAIL, il veleno non ha cosa rompere")
+            esiti.append(caso)
+            continue
         with tempfile.TemporaryDirectory() as tmp:
             copia = Path(tmp) / "repo"
             shutil.copytree(repo, copia, ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules", "tests"))

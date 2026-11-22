@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — /fine a metà, due /fine insieme e altri sei difetti della revisione del 20/11
+
+**Cosa cambia**: se usi `/fine` a metà sessione per salvare e poi continui, il lavoro venuto dopo non si perde
+più. Alla chiusura Arturo lo salva in un handoff automatico accanto a quello di `/fine`. Due `/fine` lanciati
+insieme da due sessioni non si mescolano più i file nei commit: la seconda aspetta che la prima finisca.
+Con il plugin, `/arturo:fine` legge le tue aggiunte in `personale/fine.md` come `/fine`. Lo sblocco della
+protezione della config si cancella alla chiusura anche quando la sessione stava nella home o in un worktree.
+Un handoff salvato con gli a capo di Windows passa il controllo. La pulizia dei plugin toglie solo quelli che
+`settings.json` non nomina più: un plugin che hai spento resta, e Arturo resta sempre. `/inizio --tutti` dice
+perché un pull è fallito (rete, ramo senza remoto, conflitto) e non chiama più tutto "conflitto".
+
+**Il principio**: sono i sette difetti medi della revisione del 20/11. Ognuno ha un caso nel banco
+`tests/test_revisione_medi_2026_11_22.py`, rosso sulla versione di prima e verde adesso.
+
+---
+
 ## 2026-11-22 — Un controllo rosso fa rifare solo il pezzo bocciato
 
 **Cosa cambia**: quando un test o un controllo boccia una parte del lavoro, Claude rifà solo quella parte.

@@ -5,7 +5,8 @@ Z01 bin/gate-run.sh: il gate parte solo se il veleno è rosso col motivo atteso 
 Z02 bin/validation-gate-lang.sh: shared/validation-gate.md lo chiama e legge l'exit da file, mai da
     PIPESTATUS; il banco tests/gate/test_gate.sh è verde; senza pytest il gate esce 2, non 0.
 Z03 bin/bgjob.sh: esito su file, job in corso, stop, ripiego /proc dove ps non ha -o (Git Bash).
-Z04 bin/cleanup-stale-plugins.sh: la prova a vuoto elenca i plugin non attivi e non disinstalla niente.
+Z04 bin/cleanup-stale-plugins.sh: la prova a vuoto elenca solo i plugin che enabledPlugins non nomina
+    (mai uno spento, Arturo o un plugin di progetto) e non disinstalla niente.
 Z05 bin/sonda_servito.py: il selftest (servito uguale, diverso, 404, redirect al login).
 Z06 bin/monthly-cleanup.sh: --prova non tocca niente, la cartella dei progetti è facoltativa,
     nessun percorso personale.
@@ -194,13 +195,17 @@ def test_z04(repo: Path) -> None:
         finti.mkdir()
         segno = Path(d) / "claude-chiamato"
         stub(finti, "claude", f"#!/bin/sh\ntouch '{segno}'\n")
+        # Spento, Arturo e un plugin di progetto restano: si toglie solo quello che enabledPlugins non nomina
+        # (A9, revisione del 20/11/2026: fino al 22/11 la pulizia toglieva anche gli spenti, Arturo compreso).
         casa = casa_finta(d, {"enabledPlugins": {"attivo@x": True, "spento@x": False}},
-                          {"plugins": {"attivo@x": [], "spento@x": [], "orfano@y": []}})
+                          {"plugins": {"attivo@x": [], "spento@x": [], "orfano@y": [], "arturo@arturo": [],
+                                       "progetto@z": [{"scope": "project", "projectPath": "/p"}]}})
         env = dict(os.environ, HOME=str(casa), USERPROFILE=str(casa),
                    PATH=str(finti) + os.pathsep + os.environ.get("PATH", ""))
         r = lancia([BASH, str(sp), "--dry-run"], "Z04", env=env)
-        assert r.returncode == 0 and "  - orfano@y" in r.stdout and "  - spento@x" in r.stdout \
-            and "attivo@x" not in r.stdout, f"Z04 la prova a vuoto non elenca i plugin giusti: {r.stdout}"
+        elencati = [riga[4:] for riga in r.stdout.splitlines() if riga.startswith("  - ")]
+        assert r.returncode == 0 and elencati == ["orfano@y"], \
+            f"Z04 la prova a vuoto non elenca i plugin giusti (atteso solo orfano@y): {r.stdout}"
         assert not segno.exists(), "Z04 la prova a vuoto ha chiamato claude"
         (casa / ".claude" / "plugins" / "installed_plugins.json").unlink()
         r = lancia([BASH, str(sp), "--dry-run"], "Z04", env=env)

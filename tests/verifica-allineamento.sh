@@ -277,6 +277,9 @@ BANCHI=(
   test_parallelo_2026_11_22.py
   # Le letture della FASE 4 di /inizio partono insieme con arturo apertura (22/11/2026, #6368).
   test_apertura_2026_11_22.py
+  # I bug medi A4-A10 della revisione del 20/11 (22/11/2026, #6250): lucchetto della coda, salvataggio dopo un
+  # /fine a metà, sblocchi fuori dai progetti, a capo Windows, /arturo:fine, pulizia plugin, cause del pull.
+  test_revisione_medi_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -603,6 +606,8 @@ BASELINE=(
   "test_guardie_lineari_2026_11_22.py d631aa5"
   # L'avvio annullato al timeout su Windows e il fetch che muore con lui (22/11/2026, #6370). e57fe9f, il dev prima.
   "test_avvio_tetto_2026_11_22.py e57fe9f"
+  # I bug medi A4-A10 della revisione del 20/11 (22/11/2026, #6250): rossi tutti e sette. d0f56af, il dev prima.
+  "test_revisione_medi_2026_11_22.py d0f56af"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

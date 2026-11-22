@@ -60,6 +60,11 @@ Exit:
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
   dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti · 7 segreto nello stage
   (niente commit) o nei commit da spingere (niente push), o guardia dei segreti che non si carica
+  · 8 un'altra coda tiene il lucchetto oltre l'attesa: niente commit
+
+Lucchetto: una coda alla volta per config, in session-env/fine-coda.lock col pid (A4, 22/11/2026). La seconda
+aspetta fino a FINE_CODA_ATTESA secondi (300). Un lucchetto col pid di un processo morto, o più vecchio di
+30 minuti, è di una coda interrotta e si toglie da solo. --avvisi non lo prende: lavora su una copia dell'indice.
 
 FINE_CODA_CLAUDE sposta la radice (per i banchi).
 """
@@ -75,6 +80,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import date
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
@@ -640,6 +646,69 @@ def viva(pid):
     return True
 
 
+# Una coda alla volta sulla stessa config: due /fine in parallelo si pestavano sull'indice di git, e una
+# metteva nel suo commit i file dell'altra o li toglieva dallo stage (A4, revisione del 20/11/2026).
+LUCCHETTO_VECCHIO = 1800  # secondi: oltre, il lucchetto è di una coda interrotta anche se il pid risulta vivo
+_OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
+
+
+def file_lucchetto():
+    return CL / "session-env" / "fine-coda.lock"
+
+
+def prendi_lucchetto():
+    """Il lucchetto della coda, o None se un'altra coda lo tiene oltre FINE_CODA_ATTESA secondi (300)."""
+    file = file_lucchetto()
+    try:
+        file.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return None
+    try:
+        attesa = float(os.environ.get("FINE_CODA_ATTESA") or 300)
+    except ValueError:
+        attesa = 300.0
+    limite, avvisato = time.time() + attesa, False
+    while True:
+        try:
+            fd = os.open(str(file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, f"{os.getpid()}\n".encode("ascii"))
+            os.close(fd)
+            return file
+        except _OCCUPATO:
+            pass
+        try:
+            eta = time.time() - file.stat().st_mtime
+            pid = (file.read_text(encoding="ascii", errors="replace").split() or [""])[0]
+        except FileNotFoundError:
+            continue
+        except OSError:
+            eta, pid = 0, ""
+        # Un pid scritto e morto, o un lucchetto troppo vecchio: è di una coda interrotta, si toglie.
+        if eta > LUCCHETTO_VECCHIO or (pid.isdigit() and not viva(pid)):
+            try:
+                file.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                return None
+            continue
+        if not avvisato:
+            print(f"fine-coda: un'altra /fine sta salvando la config (pid {pid or '?'}), aspetto che finisca", flush=True)
+            avvisato = True
+        if time.time() > limite:
+            return None
+        time.sleep(0.5)
+
+
+def lascia_lucchetto(file):
+    """Toglie il lucchetto solo se è ancora di questo processo."""
+    try:
+        if file.read_text(encoding="ascii", errors="replace").split()[:1] == [str(os.getpid())]:
+            file.unlink()
+    except (OSError, IndexError):
+        pass
+
+
 def sessioni_vive():
     """Le altre sessioni vive su questa macchina: [{"id", "nome", "cwd"}], senza quella di CLAUDE_CODE_SESSION_ID."""
     mia = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
@@ -775,8 +844,19 @@ def main(argv):
     a = ap.parse_args(propri)
     if a.avvisi:
         return avvisi()
+    lucchetto = prendi_lucchetto()
+    if lucchetto is None:
+        print(f"fine-coda: un'altra /fine tiene ancora la config ({file_lucchetto()}), niente commit. Aspetta che "
+              "finisca e rilancia la coda. Se nessuna /fine è in corso, cancella quel file.")
+        return 8
+    try:
+        return coda(a, ap, suoi)
+    finally:
+        lascia_lucchetto(lucchetto)
 
-    handoff = Path(a.handoff).expanduser().resolve() if a.handoff else handoff_della_sessione()
+
+def coda(a, ap, suoi):
+    handoff =Path(a.handoff).expanduser().resolve() if a.handoff else handoff_della_sessione()
     if a.handoff and not handoff.is_file():
         ap.error(f"handoff assente: {handoff}")
     if handoff:

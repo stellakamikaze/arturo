@@ -78,8 +78,11 @@ fi
 # Solo il nome di un comando che esiste in ~/.claude/commands, mai il testo del prompt. Un comando
 # della persona esce come `altro` (bin/telemetria.py, COMANDI), dal 24/10/2026.
 COMANDO=""
-if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
-  COMANDO="${BASH_REMATCH[1]}"
+# Col plugin il comando si scrive anche /arturo:fine: il nome è quello dopo il prefisso. Fino al 22/11/2026
+# il nome finiva ai due punti e valeva "arturo", e personale/fine.md restava muto (A8, revisione del 20/11).
+RE_COMANDO='"prompt"[[:space:]]*:[[:space:]]*"/(arturo:)?([a-z0-9-]+)'
+if [[ "$INPUT" =~ $RE_COMANDO ]]; then
+  COMANDO="${BASH_REMATCH[2]}"
   # Il codice sta accanto a questo file (docs/strati.md): $_A, definito sopra. Nel plugin un comando è una skill.
   # Un comando di Arturo o dell'Orsa: telemetria.py manda il nome solo se è di Arturo, se no `altro`.
   if { [ -f "$_A/commands/$COMANDO.md" ] || [ -f "$_A/skills/$COMANDO/SKILL.md" ] \

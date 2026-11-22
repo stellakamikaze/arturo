@@ -14,7 +14,10 @@ La tabella Task Pendenti dice "Nessun task pendente nuovo": il gate dell'handoff
 restano nell'archivio.
 
 Non scrive niente quando:
-  - la sessione ha già il suo handoff di /fine (la riga "- Sessione: <id>" in un handoff non automatico);
+  - la sessione ha già il suo handoff di /fine (la riga "- Sessione: <id>" in un handoff non automatico) e
+    dopo l'ultimo /fine non ha lavoro: né una richiesta di almeno quattro parole né un file scritto fuori da
+    data/ e dal CLAUDE.md della persona. Con quel lavoro scrive un handoff automatico nuovo, accanto a quello
+    di /fine, con la riga "- Dopo il /fine: <file>" e solo il lavoro venuto dopo;
   - il transcript non ha né una richiesta scritta dalla persona né un file scritto;
   - la sessione è headless (claude -p: entrypoint sdk-*);
   - la memoria è spenta (ARTURO_MEMORIA=0 o "accesa": false nelle impostazioni);
@@ -146,15 +149,37 @@ def testo_utente(r: dict) -> str:
     return c
 
 
+FINE = re.compile(r"<command-name>\s*/?(?:arturo:)?fine\s*</command-name>|^\s*/(?:arturo:)?fine(?:\s|$)")
+SCRIVE = {"Write": "file_path", "Edit": "file_path", "MultiEdit": "file_path", "NotebookEdit": "notebook_path"}
+# Dopo un /fine a metà, una risposta corta ("salva", "ok", "grazie") chiude il /fine, non apre lavoro nuovo.
+PAROLE_LAVORO = 4
+
+
+def e_fine(r: dict) -> bool:
+    """Vero se il record è un /fine scritto dalla persona (anche /arturo:fine)."""
+    if r.get("type") != "user" or r.get("isMeta") or r.get("toolUseResult") is not None:
+        return False
+    m = r.get("message")
+    c = m.get("content") if isinstance(m, dict) else None
+    if isinstance(c, list):
+        c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text")
+    return isinstance(c, str) and bool(FINE.search(c))
+
+
 def leggi_transcript(path: Path) -> dict:
     richieste, todo, task, attesi, headless, sid = [], {}, {}, {}, False, ""
+    # Il lavoro dopo l'ultimo /fine: la persona usa /fine anche a metà, come salvataggio, e poi continua.
+    fine_visto, richieste_dopo, file_dopo = False, [], []
     for r in righe(path):
         if str(r.get("entrypoint", "")).startswith("sdk"):
             headless = True
         sid = sid or str(r.get("sessionId") or "")
+        if e_fine(r):
+            fine_visto, richieste_dopo, file_dopo = True, [], []
         t = testo_utente(r)
         if t:
             richieste.append(t)
+            richieste_dopo.append(t)
         m = r.get("message")
         if not isinstance(m, dict) or not isinstance(m.get("content"), list):
             continue
@@ -163,6 +188,13 @@ def leggi_transcript(path: Path) -> dict:
                 continue
             if c.get("type") == "tool_use":
                 nome, inp = c.get("name", ""), c.get("input") or {}
+                # La rotazione lancia /fine --rotazione col tool Skill, senza un prompt della persona.
+                if nome == "Skill" and isinstance(inp, dict) and str(inp.get("skill", "")).strip() in ("fine", "arturo:fine"):
+                    fine_visto, richieste_dopo, file_dopo = True, [], []
+                    continue
+                if nome in SCRIVE and isinstance(inp, dict) and isinstance(inp.get(SCRIVE[nome]), str):
+                    if inp[SCRIVE[nome]] not in file_dopo:
+                        file_dopo.append(inp[SCRIVE[nome]])
                 if nome == "TodoWrite" and isinstance(inp.get("todos"), list):
                     todo = {str(i): (str(x.get("content") or ""), str(x.get("status") or ""))
                             for i, x in enumerate(inp["todos"]) if isinstance(x, dict)}
@@ -182,7 +214,24 @@ def leggi_transcript(path: Path) -> dict:
                     task[n.group(1)] = (titolo, "pending")
     aperti = [f"{t} ({s.replace('_', ' ')})" for t, s in list(todo.values()) + list(task.values())
               if t and s not in ("completed", "deleted")]
-    return {"richieste": richieste, "aperti": aperti, "headless": headless, "sid": sid}
+    return {"richieste": richieste, "aperti": aperti, "headless": headless, "sid": sid,
+            "fine_visto": fine_visto, "richieste_dopo": richieste_dopo, "file_dopo": file_dopo}
+
+
+def lavoro_dopo_fine(letto: dict) -> tuple:
+    """(richieste, file) venuti dopo l'ultimo /fine, senza la coda del /fine stesso: le risposte corte e i
+    file che /fine scrive da sé (handoff, memoria, CLAUDE.md della persona). Vuoti se il lavoro non c'è."""
+    orsa = os.path.realpath(radice_orsa())
+    propri = (os.path.join(orsa, "data") + os.sep, os.path.join(orsa, "CLAUDE.md"))
+    richieste = [r for r in letto["richieste_dopo"]
+                 if not re.match(r"^/(?:[\w-]+:)?inizio(\s|$)", r) and len(r.split()) >= PAROLE_LAVORO]
+    file = []
+    for f in letto["file_dopo"]:
+        vero = os.path.realpath(os.path.expanduser(f))
+        if vero == propri[1] or vero.startswith(propri[0]):
+            continue
+        file.append(f)
+    return richieste, file
 
 
 def file_scritti(sid: str, projects: str, home: str) -> list:
@@ -203,16 +252,19 @@ def file_scritti(sid: str, projects: str, home: str) -> list:
 
 # --- handoff -----------------------------------------------------------------------------------------------
 
-def handoff_della_sessione(sid: str) -> Path | None:
+def handoff_con_sessione(sid: str) -> list:
+    """Gli handoff della sessione, dal più recente: (percorso, automatico)."""
     radice = radice_orsa() / "data" / "handoffs"
     riga = f"- Sessione: {sid}"
-    for p in sorted(radice.glob("*/HANDOFF_*.md"), reverse=True):
+    fuori = []
+    for p in sorted(radice.glob("*/HANDOFF_*.md"), key=lambda q: q.name, reverse=True):
         try:
-            if riga in p.read_text(encoding="utf-8", errors="replace").splitlines():
-                return p
+            righe_h = p.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError:
             continue
-    return None
+        if riga in righe_h:
+            fuori.append((p, MARCA in righe_h))
+    return fuori
 
 
 def sicura(testo: str, scanner) -> str:
@@ -242,17 +294,23 @@ def correzioni_della_sessione(sid: str, scanner) -> list:
 
 
 def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richieste: list, file: list,
-            aperti: list, correzioni: list = ()) -> str:
+            aperti: list, correzioni: list = (), dopo: str = "") -> str:
     branch = git(cartella, "rev-parse", "--abbrev-ref", "HEAD") if cartella else ""
     commit = git(cartella, "log", "-1", "--format=%h - %s") if cartella else ""
     testa = [f"# Session Handoff - {quando:%Y-%m-%d %H:%M}", "## Progetto",
              f"- Nome: {s}" + (f" / Branch: {branch}" if branch else "") + " / Status: salvato in automatico",
              f"- Sessione: {sid}", MARCA]
+    if dopo:
+        testa.append(f"- Dopo il /fine: {dopo}")
     if commit:
         testa.append(f"- Ultimo commit: {commit}")
     ultima = richieste[-1] if richieste else ""
-    corpo = ("La sessione si è chiusa senza /fine. Arturo ha salvato da solo cosa stavi facendo, senza "
-             "giudicare: niente decisioni, niente todo nuovi.")
+    if dopo:
+        corpo = (f"La sessione ha fatto /fine a metà ({dopo}), poi ha continuato e si è chiusa senza un altro /fine. "
+                 "Arturo ha salvato da solo il lavoro venuto dopo, senza giudicare: niente decisioni, niente todo nuovi.")
+    else:
+        corpo = ("La sessione si è chiusa senza /fine. Arturo ha salvato da solo cosa stavi facendo, senza "
+                 "giudicare: niente decisioni, niente todo nuovi.")
     if ultima:
         corpo += f" L'ultima richiesta: \"{ultima}\"."
     if file:
@@ -358,12 +416,20 @@ def main(argv: list) -> int:
     if not sid or not transcript.is_file():
         print("NIENTE: id di sessione o transcript assente")
         return 0
-    gia = handoff_della_sessione(sid)
-    if gia is not None and MARCA not in gia.read_text(encoding="utf-8", errors="replace").splitlines():
-        print(f"NIENTE: la sessione ha chiuso con /fine ({gia.name})")
-        return 0
-
     letto = leggi_transcript(transcript)
+    # L'handoff di /fine più recente della sessione, e l'automatico se è venuto dopo. Un /fine a metà non
+    # chiude la sessione: fino al 22/11/2026 il lavoro venuto dopo si perdeva (A5, revisione del 20/11).
+    gia, dopo, dopo_fine = None, "", None
+    for p, automatico in handoff_con_sessione(sid):
+        if automatico:
+            gia = gia or p
+            continue
+        dopo_fine = lavoro_dopo_fine(letto) if letto["fine_visto"] else ([], [])
+        if not dopo_fine[0] and not dopo_fine[1]:
+            print(f"NIENTE: la sessione ha chiuso con /fine ({p.name})")
+            return 0
+        dopo = p.name
+        break
     if letto["headless"]:
         print("NIENTE: sessione headless")
         return 0
@@ -376,20 +442,25 @@ def main(argv: list) -> int:
     if not s:
         print("NIENTE: la sessione non sta in un progetto")
         return 0
-    progetti = str(transcript.parent.parent)
-    file = file_scritti(sid, progetti, str(Path.home()))
-    richieste_vere = [r for r in letto["richieste"] if not re.match(r"^/(?:[\w-]+:)?inizio(\s|$)", r)]
-    if not richieste_vere and not file:
-        print("NIENTE: transcript senza richieste e senza file scritti")
-        return 0
+    if dopo_fine is not None:
+        # Dopo un /fine a metà entra solo il lavoro venuto dopo: il resto sta già nel suo handoff.
+        da_salvare, file = dopo_fine
+    else:
+        progetti = str(transcript.parent.parent)
+        file = file_scritti(sid, progetti, str(Path.home()))
+        da_salvare = letto["richieste"]
+        richieste_vere = [r for r in da_salvare if not re.match(r"^/(?:[\w-]+:)?inizio(\s|$)", r)]
+        if not richieste_vere and not file:
+            print("NIENTE: transcript senza richieste e senza file scritti")
+            return 0
 
     scanner = carica("memory_write_scanner", QUI.parent / "hooks" / "memory-write-scanner.py")
-    richieste = [sicura(r, scanner) for r in letto["richieste"][-MAX_RICHIESTE:]]
+    richieste = [sicura(r, scanner) for r in da_salvare[-MAX_RICHIESTE:]]
     adesso = dt.datetime.now().replace(second=0, microsecond=0)
     cartella_h = radice_orsa() / "data" / "handoffs" / s
     percorso = gia if gia is not None else nome_libero(cartella_h, adesso)
     scrivi(percorso, componi(s, cartella, sid, adesso, richieste, file, letto["aperti"],
-                             correzioni_della_sessione(sid, scanner)))
+                             correzioni_della_sessione(sid, scanner), dopo))
     if gia is None:  # M7 della memoria: un evento per sessione salvata, non uno per giro della stessa
         telemetria = carica("telemetria", QUI / "telemetria.py")
         if telemetria is not None and hasattr(telemetria, "registra"):
