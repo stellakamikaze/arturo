@@ -270,7 +270,10 @@ def prova(repo: Path) -> list[str]:
 
         senza_arturo = tmp / "orsa-senza-identita"
         senza_arturo.mkdir()
-        env_auto = {**git_env, "CLAUDE_CONFIG_DIR": str(senza_arturo)}
+        # EMAIL: Git ricava l'indirizzo da utente e nome del computer, ma su un computer senza dominio
+        # (Balthasar: feder@Balthasar.(none)) lo rifiuta, e anche il commit fallisce. Con EMAIL l'identità
+        # automatica esiste su ogni macchina, e useConfigOnly la ignora lo stesso (#6383).
+        env_auto = {**git_env, "CLAUDE_CONFIG_DIR": str(senza_arturo), "EMAIL": "prova@computer.example"}
         repo_auto = tmp / "prog-auto"
         esegui(["git", "init", "-q", str(repo_auto)], env=env_auto)
         automatica = esegui(identita + [str(repo_auto)], env=env_auto)
@@ -423,10 +426,12 @@ VELENI = [
      "elif False:"),
     ("IP17", "commands/creaskill.md", ' "${ARTURO_CODICE:-$HOME/.claude}/skills/$NOME"; do', "; do"),
     ("IP17", "bin/impacchetta.py", '(?!commands/\\")", radice_codice', '", radice_codice'),
-    ("IP18", "bin/identita-git.sh", 'git -C "$CARTELLA" config user.name "${NOME:-$EMAIL}" && git -C "$CARTELLA" config user.email "$EMAIL" ;;',
+    ("IP18", "bin/identita-git.sh", 'git -C "$CARTELLA" config user.name "${NOME:-$INDIRIZZO}" && git -C "$CARTELLA" config user.email "$INDIRIZZO" ;;',
      "true ;;"),
     ("IP18", "bin/migra.py", "    file.parent.mkdir(parents=True, exist_ok=True)\n    for chiave", "    return\n    for chiave"),
     ("IP21", "bin/identita-git.sh", '      if [ -n "$AUTO" ]; then', '      if false; then'),
+    ("IP21", "bin/identita-git.sh", 'NOME="$(leggi name)"; INDIRIZZO="$(leggi email)"',
+     'NOME="$(leggi name)"; EMAIL="$(leggi email)"; INDIRIZZO="$EMAIL"'),
     ("IP21", "commands/fine.md", "Se lo script stampa `AVVISO`", "Se lo script stampa qualcosa"),
     ("IP21", "commands/inizio.md", "Se lo script stampa `AVVISO`", "Se lo script stampa qualcosa"),
     ("IP19", "shared/metodo.md", "L'eccezione è il classificatore della modalità auto, quando ferma un passo che la persona ha già approvato: lì non cercare un'altra via, prepara un solo comando da lanciare con `!`.", ""),

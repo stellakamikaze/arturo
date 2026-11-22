@@ -74,6 +74,9 @@ HOOK_MIO = "bash ~/.claude/hooks/mio-hook.sh"
 def esegui(argv, **kw):
     kw.setdefault("capture_output", True)
     kw.setdefault("text", True)
+    # Senza encoding, su Windows il testo si legge in cp1252 e "già" non combacia più (#6383).
+    kw.setdefault("encoding", "utf-8")
+    kw.setdefault("errors", "replace")
     kw.setdefault("timeout", 600)
     kw.setdefault("stdin", subprocess.DEVNULL)
     try:

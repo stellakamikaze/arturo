@@ -35,14 +35,14 @@ case "${1:-}" in
   --imposta)
     NOME="${2:-}"
     [ -n "$NOME" ] || { echo "uso: identita-git.sh --imposta NOME [EMAIL]" >&2; exit 2; }
-    EMAIL="${3:-$(printf '%s' "$NOME" | tr '[:upper:] ' '[:lower:]-')@arturo.local}"
+    INDIRIZZO="${3:-$(printf '%s' "$NOME" | tr '[:upper:] ' '[:lower:]-')@arturo.local}"
     mkdir -p "$(dirname "$FILE")"
-    git config --file "$FILE" user.name "$NOME" && git config --file "$FILE" user.email "$EMAIL" || exit 1
+    git config --file "$FILE" user.name "$NOME" && git config --file "$FILE" user.email "$INDIRIZZO" || exit 1
     # Col clone anche ~/.claude è un repository: /fine ci committa.
     if [ -e "$ORSA/.git" ]; then
-      git -C "$ORSA" config user.name "$NOME" && git -C "$ORSA" config user.email "$EMAIL"
+      git -C "$ORSA" config user.name "$NOME" && git -C "$ORSA" config user.email "$INDIRIZZO"
     fi
-    echo "identità di Git: $NOME <$EMAIL>" ;;
+    echo "identità di Git: $NOME <$INDIRIZZO>" ;;
   -*|"")
     echo "uso: identita-git.sh --controlla | --imposta NOME [EMAIL] | CARTELLA" >&2
     exit 2 ;;
@@ -50,8 +50,10 @@ case "${1:-}" in
     CARTELLA="$1"
     git -C "$CARTELLA" rev-parse --git-dir >/dev/null 2>&1 || { echo "$CARTELLA non è un repository Git" >&2; exit 2; }
     git -C "$CARTELLA" config user.email >/dev/null 2>&1 && exit 0
-    NOME="$(leggi name)"; EMAIL="$(leggi email)"
-    if [ -z "$EMAIL" ]; then
+    # INDIRIZZO, non EMAIL: EMAIL è la variabile d'ambiente da cui Git ricava l'identità automatica, e
+    # sovrascriverla col vuoto la toglie anche al git var qui sotto (#6383).
+    NOME="$(leggi name)"; INDIRIZZO="$(leggi email)"
+    if [ -z "$INDIRIZZO" ]; then
       # Git ricava da solo un'identità da utente e computer, e il commit parte: non fermare /fine per
       # questo, ma dillo (segnalazione n. 67, 10/11/2026). Fallisce come il commit con useConfigOnly.
       AUTO="$(git -C "$CARTELLA" var GIT_AUTHOR_IDENT 2>/dev/null | sed 's/ [0-9]* [-+][0-9]*$//')"
@@ -62,5 +64,5 @@ case "${1:-}" in
       echo "MANCA l'identità di Git: la sceglie /setup, FASE 1"
       exit 1
     fi
-    git -C "$CARTELLA" config user.name "${NOME:-$EMAIL}" && git -C "$CARTELLA" config user.email "$EMAIL" ;;
+    git -C "$CARTELLA" config user.name "${NOME:-$INDIRIZZO}" && git -C "$CARTELLA" config user.email "$INDIRIZZO" ;;
 esac

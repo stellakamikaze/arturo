@@ -1396,6 +1396,8 @@ def test_f29(repo: Path) -> None:
             testo = f"# Handoff\n## Idee\n- le tariffe vanno lette dal listino → memoria [[{slug}]]\n"
             e = lab.env()
             e.pop("ARTURO_MEMORIA", None)
+            # Su Windows il figlio scrive in cp1252 senza PYTHONIOENCODING, e la lettura in UTF-8 dà None (#6383).
+            e["PYTHONIOENCODING"] = "utf-8"
             r = subprocess.run([sys.executable, "-B", "-c", codice, str(lab.repo / "bin"), testo], env=e,
                                capture_output=True, text=True, encoding="utf-8", timeout=60)
             assert r.returncode == 0, f"F29 il gate delle idee non gira: {r.stderr[-300:]}"

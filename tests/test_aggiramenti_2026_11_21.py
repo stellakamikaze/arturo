@@ -335,7 +335,8 @@ def prova(repo: Path, vecchi: dict[str, str], mostra: bool = False) -> list[str]
     rossi = []
     with tempfile.TemporaryDirectory(dir=_fuori_da_claude()) as tmp:
         posti = casa(repo, Path(os.path.realpath(tmp)), vecchi)
-        sostituti = {k: str(v) for k, v in posti.items()}
+        # as_posix: su Windows un C:\Users senza virgolette perde le barre in bash (#6383)
+        sostituti = {k: v.as_posix() for k, v in posti.items()}
         for codice, comando, atteso in COMANDI:
             for nome, valore in sostituti.items():
                 comando = comando.replace("{" + nome + "}", valore)

@@ -69,7 +69,9 @@ class Banco:
             env.pop(chiave, None)
         env.update(env_extra)
         comando = [sys.executable, str((repo or self.repo) / "bin" / script), *argomenti]
-        return subprocess.run(comando, env=env, input=stdin, capture_output=True, text=True, timeout=120)
+        # encoding: su Windows senza, il testo si legge in cp1252 e "·" o "già" non combaciano (#6383).
+        return subprocess.run(comando, env=env, input=stdin, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=120)
 
     def correzione(self, sessione: str, testo: str, skill: str = "") -> None:
         c = self.claude / "data" / "correzioni"
@@ -223,8 +225,10 @@ def test_sp09(b: Banco) -> None:
                ARTURO_PATH_CANDIDATE="", CLAUDE_PROJECT_DIR=str(b.home))
     env.pop("CLAUDE_CONFIG_DIR", None)
     env.pop("CLAUDE_ENV_FILE", None)
-    avvio = subprocess.run(["bash", str(b.repo / "hooks" / "session-start.sh")], env=env, input="{}",
-                           capture_output=True, text=True, timeout=120, cwd=str(b.home))
+    # Il bash da shutil.which: su Windows "bash" da solo è quello di WSL in System32 (#6383).
+    avvio = subprocess.run([shutil.which("bash") or "bash", str(b.repo / "hooks" / "session-start.sh")], env=env,
+                           input="{}", capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=120, cwd=str(b.home))
     riga = next((r for r in avvio.stdout.splitlines() if r.startswith("NOME:")), "")
     assert '"Bruno"' in riga and "arturo nome togli" in riga, \
         f"SP09 l'avvio non dice il nome a Claude: {avvio.stdout[-400:]}"

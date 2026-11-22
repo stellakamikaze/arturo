@@ -316,7 +316,8 @@ for directory in [d for radice in sys.argv[1:] for d in Path(radice).iterdir()]:
         skill_rotta = skill_rotta or not valida
 sys.exit((1 if skill_rotta else 0) + (3 if mod_rotto else 0))
 PY
-  skill_rotte=$(tr '\n' ' ' < "$skill_rotte_file" | sed 's/ *$//')
+  # tr -d '\r': su Windows Python scrive "vuota\r\n", e la \r restava dentro il nome (#6383).
+  skill_rotte=$(tr -d '\r' < "$skill_rotte_file" | tr '\n' ' ' | sed 's/ *$//')
   rm -f "$skill_rotte_file"
 fi
 case "$skills_rc" in
