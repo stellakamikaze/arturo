@@ -267,6 +267,8 @@ BANCHI=(
   test_fine_coda_segreti_2026_11_21.py
   # Con git -C la guardia dei segreti legge solo i file del git add, e il -C vale solo per il suo git (22/11/2026, #6289).
   test_pathspec_c_2026_11_22.py
+  # Il campo if sugli hook che non c'entrano col comando: gws-esito e block-dangerous dopo (22/11/2026, #6327).
+  test_hook_if_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -571,6 +573,8 @@ BASELINE=(
   "test_fine_coda_segreti_2026_11_21.py 6132caf radice"
   # Con git -C la guardia legge tutti i file nuovi, e il -C sposta il repository dei comandi dopo (#6289). de04b3b, il dev prima.
   "test_pathspec_c_2026_11_22.py de04b3b"
+  # Il campo if sugli hook (22/11/2026, #6327): gws-esito e block-dangerous dopo partono a ogni Bash. a1f5927, il dev prima.
+  "test_hook_if_2026_11_22.py a1f5927"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

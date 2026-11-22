@@ -13,6 +13,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Due controlli partono solo sui comandi che li riguardano
+
+**Cosa cambia**: il registro dei commit della sessione parte solo sui comandi che contengono `commit`,
+il controllo dei comandi `gws` solo su quelli che contengono `gws`. Prima partivano a ogni comando Bash:
+tre processi Python in più per comando, circa 160 ms di lavoro del computer.
+
+**Il principio**: Claude Code sa saltare un hook con il campo `if`, prima di avviare il processo. Le
+protezioni vere restano senza `if`: Claude Code applica il filtro al meglio, e un comando che non sa
+dividere deve passare comunque dalle protezioni.
+
+---
+
 ## 2026-11-22 — Meno conferme sui commit di un file solo con git -C
 
 **Cosa cambia**: con `git -C <cartella> add file && git -C <cartella> commit` il controllo dei segreti

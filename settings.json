@@ -325,6 +325,7 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*gws*)",
             "command": "python3 ~/.claude/hooks/gws-esito.py",
             "timeout": 10
           }
@@ -358,11 +359,13 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*commit*)",
             "command": "python3 ~/.claude/hooks/block-dangerous.py dopo",
             "timeout": 10
           },
           {
             "type": "command",
+            "if": "Bash(*gws*)",
             "command": "python3 ~/.claude/hooks/gws-esito.py",
             "timeout": 10
           }
@@ -503,6 +506,7 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*gws*)",
             "command": "python3 ~/.claude/hooks/gws-esito.py",
             "timeout": 10
           }
