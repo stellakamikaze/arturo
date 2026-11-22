@@ -28,7 +28,6 @@ BANCHI=(
   test_completezza.py
   test_prodotto.py
   test_installa.py
-  test_lista_ripristino.py
   test_inizia.py
   test_roadmap.py
 )
@@ -45,8 +44,7 @@ veleno_rosso() {
   fi
   grep -qF -- "$motivo" "$log" || { echo "FAIL: veleno rosso senza il motivo atteso ($motivo): $*" >&2; cat "$log" >&2; exit 1; }
 }
-veleno_rosso 'FAIL caso_innesto_sessione_viva: righe perse' "$REPO/tests/test_installa.py" --repo "$REPO"
-veleno_rosso 'mancano' "$REPO/tests/test_lista_ripristino.py" --repo "$REPO"
+veleno_rosso 'FAIL caso_sha_installato_diverso: installata una copia diversa' "$REPO/tests/test_installa.py" --repo "$REPO"
 veleno_rosso 'comandi diversi' "$REPO/tests/test_inizia.py" --repo "$REPO"
 veleno_rosso 'FAIL RM01: RM01 commento dei task' "$REPO/tests/test_roadmap.py" --repo "$REPO"
 

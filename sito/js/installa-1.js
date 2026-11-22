@@ -165,32 +165,30 @@
     if(!nome)manca.push('il nome');
     if(!email)manca.push("l'email");
     var r=[];
-    r.push('git -C "$HOME/.claude" config user.name '+q(nome||'Il tuo nome')+' && git -C "$HOME/.claude" config user.email '+q(email||'la-tua@email')+' && echo "Fatto: la firma di Git per Arturo"');
-    r.push('chmod +x "$HOME/.claude/hooks/"*.sh "$HOME/.claude/hooks/"*.py 2>/dev/null; echo "Fatto: i permessi delle guardie"');
+    // Col plugin (dal 22/11/2026) ~/.claude non è un repository: la firma di Git è quella globale, e si
+    // scrive solo se manca. Le guardie stanno nella copia del plugin, che Claude Code installa eseguibile.
+    r.push('git config --global user.name >/dev/null || git config --global user.name '+q(nome||'Il tuo nome')+'; git config --global user.email >/dev/null || git config --global user.email '+q(email||'la-tua@email')+'; echo "Fatto: la firma di Git"');
     r.push('mkdir -p '+cartellaShell(cartella)+' && echo "Fatto: la cartella dei progetti"');
     var cambi=[];
-    if(cartella!==BASE)cambi.push('("\\"PROJECTS_BASE\\": \\"~/Documents/ClaudeCode\\"", "\\"PROJECTS_BASE\\": " + json.dumps('+JSON.stringify(cartella)+', ensure_ascii=False))');
-    if(lingua!=='italian')cambi.push('("\\"language\\": \\"italian\\"", "\\"language\\": " + json.dumps('+JSON.stringify(lingua)+', ensure_ascii=False))');
+    if(cartella!==BASE)cambi.push('d.setdefault("env", {})["PROJECTS_BASE"] = '+JSON.stringify(cartella));
+    if(lingua!=='italian')cambi.push('d["language"] = '+JSON.stringify(lingua));
     if(cambi.length){
       r.push(
         "python3 - <<'ARTURO'\n"+
         'import json, pathlib\n'+
         'p = pathlib.Path.home() / ".claude" / "settings.json"\n'+
-        'testo = p.read_bytes().decode("utf-8")\n'+
-        'for vecchio, nuovo in ['+cambi.join(', ')+']:\n'+
-        '    if vecchio in testo:\n'+
-        '        testo = testo.replace(vecchio, nuovo, 1)\n'+
-        '    elif nuovo not in testo:\n'+
-        '        print("Non trovo " + vecchio + " in settings.json: quando apri Claude Code scrivi /setup e la sistemate insieme.")\n'+
-        'json.loads(testo)\n'+
-        'p.write_bytes(testo.encode("utf-8"))\n'+
+        'd = json.loads(p.read_bytes().decode("utf-8")) if p.is_file() else {}\n'+
+        cambi.join('\n')+'\n'+
+        'p.parent.mkdir(parents=True, exist_ok=True)\n'+
+        'p.write_bytes((json.dumps(d, ensure_ascii=False, indent=2) + "\\n").encode("utf-8"))\n'+
         'print("Fatto: le impostazioni")\n'+
         'ARTURO'
       );
     }
     if(alias){
+      // La stessa riga di /setup (FASE 7c): col plugin la cartella di Arturo cambia a ogni versione.
       var rc=stato.os==='win'?'.bashrc':'.zshrc';
-      r.push('if [ -f "$HOME/.claude/bin/arturo" ]; then grep -qs "alias arturo=" "$HOME/'+rc+'" || printf \'%s\\n\' "alias arturo=\'python3 \\"\\$HOME/.claude/bin/arturo\\"\'" >> "$HOME/'+rc+'"; echo "Fatto: il comando arturo, da una finestra nuova del terminale"; else echo "Questa versione di Arturo non ha ancora il comando arturo"; fi');
+      r.push('grep -qs "alias arturo=" "$HOME/'+rc+'" || printf \'%s\\n\' "alias arturo=\'python3 \\"\\$(cat ~/.claude/arturo/radice 2>/dev/null || echo ~/.claude)/bin/arturo\\"\'" >> "$HOME/'+rc+'"; echo "Fatto: il comando arturo, da una finestra nuova del terminale"');
     }
     r.push('echo "Scelte salvate."');
     blocco('cmd-scelte',r.join('\n'),manca.length===0,'manca '+manca.join(' e '));

@@ -16,9 +16,9 @@ In due righe: **18 guardie e automazioni**, **11 slash command**, **9 subagent**
 
 **Cominciare in tre passi.**
 
-1. Installa Claude Code, `git`, `python3` e `node` (vedi [Requisiti](#requisiti)).
-2. Scarica Arturo con `git clone https://github.com/stellakamikaze/arturo.git ~/.claude`. Se hai già una cartella `~/.claude`, leggi prima [Installazione](#installazione).
-3. Apri Claude Code dentro `~/.claude` e scrivi `/setup`. Il comando ti guida una cosa per volta.
+1. Installa Claude Code (vedi [Requisiti](#requisiti)).
+2. Scrivi `claude` e incolla questa frase: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`. Claude installa Arturo come plugin e ti chiede un sì prima di ogni passo.
+3. Scrivi `/exit`, poi `claude`, poi `/setup`. Il comando ti guida una cosa per volta.
 
 Quando esce una versione nuova, Arturo te lo dice all'avvio. `/aggiorna` ti mostra cosa arriva e la applica dopo il tuo sì.
 

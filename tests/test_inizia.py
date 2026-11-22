@@ -43,9 +43,10 @@ COMANDI = {
 MAX_PAROLE = 660  # 650 fino al 19/11/2026: +10 per il rimando a INIZIA.md su GitHub (#6091)
 CRONOLOGIA = ("Quello che leggo resta nella cronologia di questa conversazione, che Claude Code tiene sul tuo "
               "computer e cancella da sola dopo 90 giorni. Arturo non ne fa altre copie.")
-IMPOSTAZIONI_PRIMA = ("Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. "
-                      "Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: "
-                      "/setup ti propone di riportare hook, plugin e preferenze.")
+# Dal 22/11/2026 Arturo entra come plugin (revisione D2): settings.json resta com'è, /setup aggiunge il resto.
+IMPOSTAZIONI_PRIMA = ("Il tuo accesso, le tue conversazioni, CLAUDE.md e i tuoi plugin restano come sono. "
+                      "In settings.json Claude Code accende solo il plugin. "
+                      "Permessi, regole di blocco e barra in basso li aggiunge /setup, col tuo sì.")
 RIGA_GUIDA = "Non hai ancora Claude Code? Parti dalla pagina principale: arturo.stellakamikaze.org"
 # I file del sito toccati dall'ingresso col link: qui niente virgolette basse o curve. Il resto di
 # sito/ (novità, privacy, feedback) ne ha ancora, e una voce delle novità cita una virgoletta curva
@@ -139,7 +140,7 @@ def caso_dopo(repo):
 
 
 def caso_impostazioni_prima(repo):
-    """I3: il settings.json di prima va nella copia, e le pagine lo dicono con la stessa frase."""
+    """I3: le pagine dicono con la stessa frase cosa resta com'era. Col plugin (22/11/2026) niente va in una copia."""
     assert IMPOSTAZIONI_PRIMA in sezione(leggi(repo, "sito/inizia/index.html"), "Per te"), \
         'la sezione "Per te" non ha la frase comune sulle impostazioni di prima'
     # Dal 16/11/2026 la landing non ha più "Come lo tolgo?": la frase sta nella guida d'installazione.
@@ -148,7 +149,8 @@ def caso_impostazioni_prima(repo):
     assert IMPOSTAZIONI_PRIMA in leggi(repo, "sito/llms.txt"), "llms.txt non ha la frase sulle impostazioni di prima"
     for percorso in ("sito/inizia/index.html", "sito/index.html", "sito/llms.txt"):
         t = testo(leggi(repo, percorso))
-        for vecchia in ("plugin restano dove sono", "e i plugin. I file", "plugin di Claude Code, che non tocca"):
+        for vecchia in ("plugin restano dove sono", "e i plugin. I file", "plugin di Claude Code, che non tocca",
+                        "copia di sicurezza", "senza spostare la cartella"):
             assert vecchia not in t, f"{percorso} promette ancora: {vecchia}"
 
 
@@ -238,7 +240,10 @@ def caso_a_mano(repo):
     m = re.search(r'<section class="a-mano" id="a-mano".*?</section>', g, re.S)
     assert m, 'manca <section id="a-mano">'
     mano = html.unescape(m.group(0))
-    assert "for x in" in mano and "CLAUDE.md" in mano, "il blocco for x in non sta in #a-mano"
+    # Dal 22/11/2026 la strada a mano installa il plugin: niente più clone col ciclo for x in.
+    assert "claude plugin marketplace add stellakamikaze/arturo#catalogo" in mano \
+        and "claude plugin install arturo@arturo" in mano, "i comandi del plugin non stanno in #a-mano"
+    assert "for x in" not in mano and "git clone" not in mano, "#a-mano ha ancora il clone"
     assert "Self-Modification" in mano, "la nota Self-Modification non sta in #a-mano"
     fuori = g[:m.start()] + g[m.end():]
     assert "Git Bash" not in fuori, "Git Bash fuori da #a-mano nella guida"

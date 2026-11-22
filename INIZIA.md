@@ -6,7 +6,7 @@ Questa è la copia di riferimento dei passi di installazione. La pagina https://
 
 Hai incollato questo link in Claude Code: adesso Claude installa Arturo per te. Prima di ogni passo che cambia qualcosa, ti chiede il permesso. Per fermarlo premi Esc.
 
-Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze.
+Il tuo accesso, le tue conversazioni, CLAUDE.md e i tuoi plugin restano come sono. In settings.json Claude Code accende solo il plugin. Permessi, regole di blocco e barra in basso li aggiunge /setup, col tuo sì.
 
 Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può comparire una conferma: clicca "Sì". Alla fine scrivi `/exit`, poi `claude`, poi `/setup`.
 

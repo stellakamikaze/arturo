@@ -1,94 +1,49 @@
 #!/usr/bin/env bash
-# Installa Arturo in ~/.claude, sul posto.
+# Installa Arturo come plugin di Claude Code.
 # Strada consigliata: Claude Code scarica questo file e lo lancia, come dice
 # https://arturo.stellakamikaze.org/inizia/
-# Strada a mano, da un terminale con Claude Code chiuso:
+# Strada a mano, da un terminale:
 #   curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | bash
 # (da GitHub, non dal sito: la riga a mano non ha il confronto fra le due copie di /inizia/)
 #
-# Arturo entra dentro ~/.claude senza spostare la cartella: login, conversazioni, file dei plugin e
-# file della persona restano dove sono, anche con una sessione di Claude Code aperta. Prima di
-# scrivere, i file che Arturo sostituisce vanno in ~/.claude-backup-<data>, copiati e controllati
-# con cmp. Fra questi c'è settings.json, con i plugin accesi e le preferenze: /setup li ripropone
-# con `arturo personale hook-precedenti`. Se l'innesto non riesce, lo script rimette tutto com'era.
+# Dal 22/11/2026 (revisione D2) le persone nuove entrano dal plugin, non dal clone in ~/.claude.
+# Lo script controlla i programmi, aggiunge il catalogo di Arturo a Claude Code, verifica che il
+# catalogo indichi un rilascio firmato, fa installare il plugin a Claude Code e controlla che la
+# copia installata sia proprio quel rilascio. Non scrive file di Arturo in ~/.claude, salvo l'ancora
+# della chiave: login, conversazioni, CLAUDE.md e plugin della persona restano come sono, e in
+# settings.json Claude Code scrive solo il catalogo e il plugin acceso (sonda del 22/11/2026). Permessi,
+# regole di blocco e barra in basso li aggiunge /setup, col sì della persona.
 # Ogni programma che manca esce in una riga "MANCA <cosa>. Comando: <comando>": l'uscita di Bash
 # arriva a Claude parola per parola, una pagina web no.
 # Tutto sta in main(): se lo scaricamento si interrompe a metà, non parte niente.
 # Bash 3.2 (quello di macOS) e Git Bash su Windows. Niente sudo.
 
 # La chiave che firma i rilasci: la stessa riga di firme/rilasci.allowed_signers su main (il banco la
-# confronta). Lo script installa solo il commit dell'ultimo tag firmato da questa chiave, mai la punta di
-# main. Per cambiare chiave: docs/manutenzione.md, e questa riga cambia insieme.
+# confronta). Lo script installa solo lo sha di un tag plugin-vX.Y.Z firmato da questa chiave, e la
+# scrive come ancora in ~/.claude/arturo: l'avvio di Arturo verifica la copia con quella. Per cambiare
+# chiave: docs/manutenzione.md, e questa riga cambia insieme.
 FIRMA_RILASCI='rilasci@arturo namespaces="git,arturo-manifest" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP0HfWu3Wxkq0+trFJ6S7P7MZmo2OXRlVKkgTKXI74K5'
-# Il rilascio più vecchio che lo script accetta, contro un main riportato indietro a un tag firmato con
-# un buco già chiuso. Si alza quando un rilascio chiude un buco grave.
-VERSIONE_MINIMA=0.2.8
+# Il rilascio più vecchio che lo script accetta, contro un catalogo riportato indietro a un tag firmato
+# con un buco già chiuso. Si alza quando un rilascio chiude un buco grave.
+VERSIONE_MINIMA=0.2.23
 # Gli errori di verify-tag che dicono "firma verificata e sbagliata": uguali a FIRMA_SBAGLIATA di
 # bin/aggiornamenti.py. Ogni altro errore vuol dire che la verifica non è partita.
 FIRMA_SBAGLIATA='no signature found|no principal matched|could not verify signature|bad signature|non-tag object'
+# Il nome del plugin e del catalogo in Claude Code: gli stessi di bin/migra.py.
+PLUGIN=arturo@arturo
+MERCATO=arturo
 
 ARTURO_TMP=""
-ARTURO_INNESTO=0
-# La copia di sicurezza mentre si scrive: un'interruzione prima dell'innesto la toglie.
-ARTURO_BACKUP=""
 
 pulisci_tmp() {
   [ -n "$ARTURO_TMP" ] && rm -rf "$ARTURO_TMP"
   ARTURO_TMP=""
 }
 
-# Rimette ~/.claude com'era prima dell'innesto. Usa le variabili di main() (dest, b, nuovi, salvati,
-# cartelle, creata, spostato): bash le vede perché rimetti() parte da dentro main().
-rimetti() {
-  local p tolte=1 errori=0
-  ARTURO_INNESTO=0
-  [ "$spostato" = 1 ] && rm -rf "$dest/.git"
-  for p in ${nuovi[@]+"${nuovi[@]}"}; do
-    rm -f "$dest/$p"
-  done
-  # Le cartelle nate con l'innesto: rmdir toglie solo quelle vuote, e si ripete finché ne toglie.
-  while [ "$tolte" = 1 ]; do
-    tolte=0
-    for p in ${cartelle[@]+"${cartelle[@]}"}; do
-      if [ -d "$dest/$p" ] && rmdir "$dest/$p" 2>/dev/null; then
-        tolte=1
-      fi
-    done
-  done
-  for p in ${salvati[@]+"${salvati[@]}"}; do
-    rm -f "$dest/$p"
-    if ! cp -pP "$b/$p" "$dest/$p"; then
-      errori=1
-      echo "Non riesco a rimettere $dest/$p: la copia è in $b/$p"
-    fi
-  done
-  [ "$creata" = 1 ] && rmdir "$dest" 2>/dev/null
+interrotto() {
   pulisci_tmp
   echo
-  if [ "$errori" = 1 ]; then
-    echo "L'installazione non è riuscita e non tutto è tornato a posto: i file sopra vanno ricopiati a mano."
-    echo "Il backup resta in $b"
-  elif [ "$nsalvati" = 0 ]; then
-    rm -rf "$b"
-    echo "L'installazione non è riuscita: ho rimesso tutto com'era."
-  else
-    echo "L'installazione non è riuscita: ho rimesso tutto com'era. Il backup resta in $b"
-  fi
-}
-
-# Ctrl-C, Esc o TERM. Durante l'innesto rimette tutto com'era. Prima, durante la copia di sicurezza,
-# toglie la copia parziale: hook-precedenti legge l'ultima ~/.claude-backup-*, e una copia monca
-# finirebbe in /setup.
-interrotto() {
-  if [ "$ARTURO_INNESTO" = 1 ]; then
-    rimetti
-  elif [ -n "$ARTURO_BACKUP" ]; then
-    rm -rf "$ARTURO_BACKUP"
-    echo
-    echo "Interrotto durante la copia di sicurezza: ho tolto la copia parziale $ARTURO_BACKUP. Non ho toccato ~/.claude."
-    ARTURO_BACKUP=""
-  fi
-  pulisci_tmp
+  echo "Interrotto. Se il catalogo di Arturo era già aggiunto, resta in Claude Code: rilancia lo script per finire."
   exit 130
 }
 
@@ -100,7 +55,7 @@ cancella_me() {
   fi
 }
 
-# Vero se il tag vX.Y.Z ($1) non è più vecchio di X.Y.Z ($2).
+# Vero se la versione X.Y.Z ($1, anche con la v davanti) non è più vecchia di X.Y.Z ($2).
 versione_almeno() {
   local a b c x y z
   case "${1#v}" in
@@ -118,57 +73,82 @@ EOF
   [ "$c" -ge "$z" ]
 }
 
-# Il rilascio da installare nel clone $1: l'ultimo tag vX.Y.Z di origin/main, annotato, firmato dalla
-# chiave in $2, col suo nome scritto dentro (la firma copre quel nome, non il ref: un tag vecchio
-# ripubblicato con un nome nuovo ha una firma valida) e non più vecchio di VERSIONE_MINIMA.
-# Scrive il tag in $rilascio. Esito 0 buono, 1 compromissione (messaggio già stampato), 2 la verifica
-# non è partita (git o OpenSSH vecchi).
-# Il filtro vX.Y.Z è più stretto di ultimo_tag di bin/aggiornamenti.py (v*), di proposito: qui il nome
-# si confronta con VERSIONE_MINIMA e deve essere un numero. Un tag v-qualcosa senza numero questo script
-# lo salta; aggiornamenti.py lo prende come ultimo rilascio e, senza firma, lo dice possibile compromissione.
+# La voce di Arturo nel catalogo che Claude Code ha scaricato: "tag sha versione sorgente repo",
+# separati da tab, "-" per un campo vuoto. NESSUNO se il catalogo o la voce mancano. Come
+# voce_catalogo di bin/aggiornamenti.py.
+LEGGI_CATALOGO='import json, os, sys
+def leggi(p):
+    try:
+        with open(p, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+k = leggi(sys.argv[1]).get("arturo")
+dove = k.get("installLocation") if isinstance(k, dict) else None
+m = leggi(os.path.join(dove, ".claude-plugin", "marketplace.json")) if dove else {}
+v = next((p for p in m.get("plugins") or [] if isinstance(p, dict) and p.get("name") == "arturo"), None)
+if not v:
+    print("NESSUNO")
+    sys.exit(0)
+s = v.get("source") if isinstance(v.get("source"), dict) else {}
+print("\t".join(str(x).strip() or "-" for x in (s.get("ref") or "", s.get("sha") or "", v.get("version") or "",
+                                                 s.get("source") or "", s.get("repo") or "")))'
+
+# Lo sha della copia di Arturo che Claude Code ha installato (plugins/installed_plugins.json), vuoto se
+# non c'è. Come installato di bin/aggiornamenti.py: prima la voce dello scope user.
+LEGGI_INSTALLATO='import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        d = json.load(f)
+except Exception:
+    d = {}
+voci = (d.get("plugins") or {}).get("arturo@arturo") if isinstance(d, dict) else None
+voci = [v for v in voci or [] if isinstance(v, dict)]
+v = next((v for v in voci if v.get("scope") == "user"), voci[0] if voci else {})
+print(v.get("gitCommitSha") or "")'
+
+# Il rilascio $tag del catalogo, scaricato in $1 e verificato con la chiave in $2: tag annotato, firma
+# SSH di quella chiave, col nome $tag scritto dentro (la firma copre quel nome, non il ref: un tag
+# vecchio ripubblicato con un nome nuovo ha una firma valida), non più vecchio di VERSIONE_MINIMA, e
+# sul commit $sha che il catalogo indica. Usa tag e sha di main().
+# Esito 0 buono, 1 compromissione (messaggio già stampato), 2 la verifica non è partita (git o
+# OpenSSH vecchi).
 verifica_rilascio() {
-  local clone="$1" firme="$2" errore dentro
-  rilascio=$(git -C "$clone" describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' origin/main 2>/dev/null)
-  if [ -z "$rilascio" ]; then
-    echo "Su GitHub non trovo nessun rilascio di Arturo con la firma: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
-    return 1
-  fi
-  # Un tag annotato col nome diverso da quello scritto dentro: describe lo dà col nome di dentro e un
-  # suffisso (v0.9.0-0-g…). Il controllo su $dentro più sotto copre lo stesso caso se describe cambia.
-  case "$rilascio" in
-    *-g[0-9a-f]*)
-      echo "Su GitHub c'è il rilascio firmato ${rilascio%%-*} ripubblicato con un altro nome: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
-      return 1
-      ;;
-  esac
-  if [ "$(git -C "$clone" cat-file -t "refs/tags/$rilascio" 2>/dev/null)" != tag ]; then
-    echo "Il rilascio $rilascio non ha la firma di Arturo (tag senza firma): possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+  local lavoro="$1" firme="$2" errore dentro
+  local fine="Non ho installato niente: segnala a chi mantiene Arturo."
+  if [ "$(git -C "$lavoro" cat-file -t "refs/tags/$tag" 2>/dev/null)" != tag ]; then
+    echo "Il rilascio $tag non ha la firma di Arturo (tag senza firma): possibile compromissione. $fine"
     return 1
   fi
   # verify-tag sceglie il programma dalla firma scritta nel tag, non da gpg.format: un tag firmato PGP
   # passa da gpg e dal portachiavi della persona, senza guardare $firme (revisione del 20/11/2026, S1,
   # #6258). Git legge la firma dall'ultima riga "-----BEGIN …" del tag: quella deve essere SSH. Come
   # verifica_tag di bin/aggiornamenti.py.
-  if [ "$(git -C "$clone" cat-file tag "$rilascio" 2>/dev/null | grep -e '^-----BEGIN ' | tail -n 1 | tr -d '\r')" \
+  if [ "$(git -C "$lavoro" cat-file tag "$tag" 2>/dev/null | grep -e '^-----BEGIN ' | tail -n 1 | tr -d '\r')" \
     != '-----BEGIN SSH SIGNATURE-----' ]; then
-    echo "Il rilascio $rilascio non ha la firma di Arturo (firma non SSH): possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+    echo "Il rilascio $tag non ha la firma di Arturo (firma non SSH): possibile compromissione. $fine"
     return 1
   fi
-  if ! errore=$(LC_ALL=C git -C "$clone" -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$firme" \
-    verify-tag "$rilascio" 2>&1 >/dev/null); then
+  if ! errore=$(LC_ALL=C git -C "$lavoro" -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$firme" \
+    verify-tag "$tag" 2>&1 >/dev/null); then
     if printf '%s\n' "$errore" | grep -Eiq "$FIRMA_SBAGLIATA"; then
-      echo "Il rilascio $rilascio non ha la firma di Arturo: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+      echo "Il rilascio $tag non ha la firma di Arturo: possibile compromissione. $fine"
       return 1
     fi
     return 2
   fi
-  dentro=$(git -C "$clone" cat-file tag "$rilascio" 2>/dev/null | sed -n 's/^tag //p' | head -n 1)
-  if [ "$dentro" != "$rilascio" ]; then
-    echo "Il tag $rilascio è il rilascio firmato ${dentro:-senza nome} ripubblicato con un altro nome: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+  dentro=$(git -C "$lavoro" cat-file tag "$tag" 2>/dev/null | sed -n 's/^tag //p' | head -n 1)
+  if [ "$dentro" != "$tag" ]; then
+    echo "Il tag $tag è il rilascio firmato ${dentro:-senza nome} ripubblicato con un altro nome: possibile compromissione. $fine"
     return 1
   fi
-  if ! versione_almeno "$rilascio" "$VERSIONE_MINIMA"; then
-    echo "Su GitHub l'ultimo rilascio è $rilascio, più vecchio della $VERSIONE_MINIMA che questo script conosce: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+  if ! versione_almeno "${tag#plugin-}" "$VERSIONE_MINIMA"; then
+    echo "Il catalogo indica $tag, più vecchio della $VERSIONE_MINIMA che questo script conosce: possibile compromissione. $fine"
+    return 1
+  fi
+  if [ "$(git -C "$lavoro" rev-parse "$tag^{commit}" 2>/dev/null)" != "$sha" ]; then
+    echo "Il catalogo indica lo sha $sha, che non è il rilascio firmato $tag: possibile compromissione. $fine"
     return 1
   fi
   return 0
@@ -261,19 +241,31 @@ path_windows() {
   esac
 }
 
+# Toglie l'ancora scritta da main() quando l'installazione non va in fondo, e la sua cartella se l'ha
+# creata main(). Usa le variabili di main(): bash le vede perché parte da dentro main().
+togli_ancora() {
+  [ "$ancora_nuova" = 1 ] || return 0
+  rm -f "$ancora"
+  [ "$ancora_dir" = 1 ] && rmdir "$dest/arturo" 2>/dev/null
+  return 0
+}
+
+# `claude plugin …` col claude trovato da main(). ARTURO_AGGIORNAMENTI=manuali: anche `claude plugin`
+# chiude con gli hook di sessione, e senza lancerebbe l'aggiornamento automatico (come _claude di
+# bin/migra.py).
+claude_plugin() {
+  ARTURO_AGGIORNAMENTI=manuali "$claude_bin" plugin "$@" </dev/null
+}
+
 main() {
   set -u
   unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
-  local repo="${ARTURO_REPO:-https://github.com/stellakamikaze/arturo.git}"
-  local amano="https://arturo.stellakamikaze.org/installa/#a-mano"
-  local esteso="https://arturo.stellakamikaze.org/installa/#a-mano-esteso"
+  local catalogo="${ARTURO_CATALOGO:-stellakamikaze/arturo#catalogo}"
+  local migrazione="https://github.com/stellakamikaze/arturo/blob/main/docs/migrazione.md"
   local dest="$HOME/.claude"
-  local nl='
-'
 
   # Con CLAUDE_CONFIG_DIR Claude Code legge la configurazione da un'altra cartella: prima di ogni
-  # altra cosa, anche prima di toccare il file della shell. Anche la strada a mano scrive in
-  # ~/.claude, quindi non si rimanda lì.
+  # altra cosa, anche prima di toccare il file della shell. L'Orsa di Arturo vive in ~/.claude.
   if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
     local cfg="${CLAUDE_CONFIG_DIR%/}"
     case "$cfg" in
@@ -284,13 +276,13 @@ main() {
     fi
     if [ "$cfg" != "$dest" ]; then
       echo "CLAUDE_CONFIG_DIR vale $CLAUDE_CONFIG_DIR: Claude Code legge la configurazione da lì, non da $dest."
-      echo "Non ho toccato niente. Arturo vive solo in $dest: con CLAUDE_CONFIG_DIR non è supportato, nemmeno a mano."
+      echo "Non ho toccato niente. Arturo vive solo in $dest: con CLAUDE_CONFIG_DIR non è supportato."
       echo "Per usarlo togli CLAUDE_CONFIG_DIR dal file della tua shell, apri un terminale nuovo e rilancia: Claude Code torna a leggere $dest e può chiederti di nuovo l'accesso."
       return 1
     fi
   fi
 
-  echo "Installo Arturo in $dest"
+  echo "Installo Arturo come plugin di Claude Code"
   echo
 
   local sistema
@@ -377,12 +369,15 @@ main() {
   # Qui si aggiunge, una volta sola, dove lo legge una finestra nuova: .zshrc per zsh, .bash_profile
   # per bash sul Mac (il Terminale apre shell di login), .bashrc altrove, e su Windows anche il Path
   # utente, perché PowerShell non legge .bashrc. La finestra già aperta non lo vede: path_nuovo
-  # cambia il messaggio finale.
-  local rc="" path_nuovo=0 claude_avvio="claude"
+  # cambia il messaggio finale, e `claude plugin` qui sotto parte col percorso intero.
+  local rc="" path_nuovo=0 claude_avvio="claude" claude_bin=""
   if command -v claude >/dev/null 2>&1; then
+    claude_bin=claude
     echo "OK claude"
   elif [ -x "$HOME/.local/bin/claude" ] || [ -x "$HOME/.local/bin/claude.exe" ]; then
     path_nuovo=1
+    claude_bin="$HOME/.local/bin/claude"
+    [ -x "$claude_bin" ] || claude_bin="$HOME/.local/bin/claude.exe"
     case "$(basename "${SHELL:-bash}")" in
       zsh) rc="$HOME/.zshrc" ;;
       *)
@@ -428,31 +423,24 @@ main() {
     echo "$dest esiste ma non è una cartella: non lo tocco."
     return 1
   fi
-  # Dopo `arturo migra` Arturo è un plugin e ~/.claude non ha più .git: un clone sopra lo
-  # duplicherebbe. Il nome arturo@arturo lo scrive Claude Code in installed_plugins.json.
+  # Il nome arturo@arturo lo scrive Claude Code in installed_plugins.json.
   if grep -qs '"arturo@arturo"' "$dest/plugins/installed_plugins.json"; then
-    echo "Arturo è già installato in $dest come plugin. Per aggiornarlo scrivi /aggiorna in Claude Code."
+    echo "Arturo è già installato come plugin. Per aggiornarlo scrivi /aggiorna in Claude Code."
     cancella_me
     return 0
   fi
-  # Una seconda volta non rifà niente: l'aggiornamento è /aggiorna. Anche come upstream: chi
-  # sincronizza Arturo fra più computer ha origin sul suo repository privato. Il remoto da solo non
-  # basta (stellakamikaze/arturo-qualcosa è un altro repository): servono anche i file di Arturo.
-  if [ -e "$dest/.git" ]; then
-    if git -C "$dest" remote -v 2>/dev/null | grep -Eq 'stellakamikaze/arturo(\.git)?([[:space:]]|$)' \
-      && git -C "$dest" ls-files --error-unmatch bin/arturo settings.json >/dev/null 2>&1; then
-      echo "Arturo è già installato in $dest. Per aggiornarlo scrivi /aggiorna in Claude Code."
-      cancella_me
-      return 0
-    fi
-    # La prima riga della strada a mano è questo stesso script: serve il blocco esteso.
-    echo "$dest è già un repository git che non è Arturo: non lo tocco."
-    echo "Strada a mano: $esteso"
-    echo "Nella guida apri \"Preferisco leggere i comandi\" e usa il blocco che comincia con B=: mette da parte tutta la cartella $dest, git compreso, in una copia con la data, e scarica Arturo."
-    return 1
+  # Arturo come clone dentro ~/.claude, anche come upstream di un repository della persona: il plugin
+  # sopra lo duplicherebbe, con le guardie due volte. Il passaggio è arturo migra. Il remoto da solo
+  # non basta (stellakamikaze/arturo-qualcosa è un altro repository): servono anche i file di Arturo.
+  if [ -e "$dest/.git" ] \
+    && git -C "$dest" remote -v 2>/dev/null | grep -Eq 'stellakamikaze/arturo(\.git)?([[:space:]]|$)' \
+    && git -C "$dest" ls-files --error-unmatch bin/arturo settings.json >/dev/null 2>&1; then
+    echo "Arturo è già installato in $dest, come copia dentro la cartella. Per aggiornarlo scrivi /aggiorna in Claude Code."
+    echo "Per passare al plugin: $migrazione"
+    cancella_me
+    return 0
   fi
 
-  # Il clone va in una cartella temporanea nella stessa HOME: lo spostamento di .git è un rename.
   trap 'pulisci_tmp' EXIT
   trap 'interrotto' INT TERM HUP
   ARTURO_TMP=$(mktemp -d "$HOME/.claude-arturo-XXXXXX") || {
@@ -461,151 +449,140 @@ main() {
     return 1
   }
   local tmp="$ARTURO_TMP"
-  if ! git clone --quiet "$repo" "$tmp/a"; then
+
+  # Il catalogo: Claude Code lo scarica dal ramo catalogo. Già aggiunto, si aggiorna. Lo script verifica
+  # proprio la copia che Claude Code userà per installare.
+  local aggiunto=0 uscita=""
+  if python3 -c 'import json, sys; sys.exit(0 if "arturo" in json.load(open(sys.argv[1], encoding="utf-8")) else 1)' \
+    "$dest/plugins/known_marketplaces.json" >/dev/null 2>&1; then
+    uscita=$(claude_plugin marketplace update "$MERCATO" 2>&1) || {
+      pulisci_tmp
+      echo "Non riesco ad aggiornare il catalogo di Arturo in Claude Code: non ho installato niente."
+      echo "Claude Code dice: $(printf '%s' "$uscita" | tr '\n' ' ' | cut -c1-200)"
+      echo "Controlla la connessione e rilancia lo script."
+      return 1
+    }
+  else
+    uscita=$(claude_plugin marketplace add "$catalogo" 2>&1) || {
+      pulisci_tmp
+      echo "Non riesco ad aggiungere il catalogo di Arturo a Claude Code: non ho toccato niente."
+      echo "Claude Code dice: $(printf '%s' "$uscita" | tr '\n' ' ' | cut -c1-200)"
+      echo "Controlla la connessione e rilancia lo script."
+      return 1
+    }
+    aggiunto=1
+  fi
+
+  # Da qui un errore toglie il catalogo, se l'ha aggiunto lo script.
+  local togli="Ho tolto il catalogo che avevo aggiunto."
+  [ "$aggiunto" = 1 ] || togli="Il catalogo di Arturo resta in Claude Code com'era."
+  local voce tag="" sha="" versione="" sorgente="" repo=""
+  voce=$(python3 -c "$LEGGI_CATALOGO" "$dest/plugins/known_marketplaces.json" 2>/dev/null | tr -d '\r')
+  if [ -z "$voce" ] || [ "$voce" = NESSUNO ]; then
+    [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
     pulisci_tmp
-    echo
-    echo "Lo scaricamento da GitHub non è riuscito: non ho toccato niente."
+    echo "Il catalogo di Arturo non elenca Arturo: possibile compromissione. Non ho installato niente: segnala a chi mantiene Arturo. $togli"
+    return 1
+  fi
+  IFS='	' read -r tag sha versione sorgente repo <<EOF
+$voce
+EOF
+  local url="https://github.com/$repo.git"
+  local fermo=""
+  if ! printf '%s\n' "$tag" | grep -Eq '^plugin-v[0-9]+\.[0-9]+\.[0-9]+$' \
+    || ! printf '%s\n' "$sha" | grep -Eq '^[0-9a-f]{40}$'; then
+    fermo="il catalogo non fissa Arturo a un tag plugin-vX.Y.Z e al suo sha ($tag)"
+  elif [ "$versione" != - ] && [ "$versione" != "${tag#plugin-v}" ]; then
+    fermo="il catalogo chiama $versione il rilascio $tag"
+  elif [ "$sorgente" != github ] || ! printf '%s\n' "$repo" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+    fermo="il catalogo indica una sorgente che non so verificare ($sorgente)"
+  fi
+  if [ -n "$fermo" ]; then
+    [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
+    pulisci_tmp
+    echo "Non installo Arturo: $fermo. Possibile compromissione. Non ho installato niente: segnala a chi mantiene Arturo. $togli"
+    return 1
+  fi
+  # ARTURO_REPO e ARTURO_FIRMA_RILASCI servono solo al banco: chi può impostare l'ambiente di questo
+  # script può già scegliere da dove scarica.
+  url="${ARTURO_REPO:-$url}"
+  if ! git init -q "$tmp/t" >/dev/null 2>&1 \
+    || ! git -C "$tmp/t" fetch --quiet --depth=1 --no-tags -- "$url" "+refs/tags/$tag:refs/tags/$tag" >/dev/null 2>&1; then
+    [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
+    pulisci_tmp
+    echo "Non riesco a scaricare da GitHub il rilascio $tag: non ho installato niente. $togli"
     echo "Controlla la connessione e rilancia lo script."
     return 1
   fi
 
-  # La firma, prima di ogni scrittura in ~/.claude. ARTURO_FIRMA_RILASCI serve solo al banco, con
-  # ARTURO_REPO: chi può impostare l'ambiente di questo script può già scegliere da dove scarica.
-  local rilascio="" esito_firma=0
+  # La firma, prima dell'installazione.
+  local esito_firma=0
   printf '%s\n' "${ARTURO_FIRMA_RILASCI:-$FIRMA_RILASCI}" >"$tmp/firme"
-  verifica_rilascio "$tmp/a" "$tmp/firme" || esito_firma=$?
-  if [ "$esito_firma" = 2 ]; then
-    pulisci_tmp
-    case "$os" in
-      mac) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: brew install git (senza brew: xcode-select --install, poi rilancia)" ;;
-      windows) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: winget upgrade --id Git.Git -e --source winget. $riapri" ;;
-      *) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: lo scrive la persona, con la sua password: sudo apt install git openssh-client (su Fedora: sudo dnf install git openssh-clients)" ;;
-    esac
-    echo "Non ho toccato niente."
-    return 1
-  fi
+  verifica_rilascio "$tmp/t" "$tmp/firme" || esito_firma=$?
   if [ "$esito_firma" != 0 ]; then
+    [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
     pulisci_tmp
+    if [ "$esito_firma" = 2 ]; then
+      case "$os" in
+        mac) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: brew install git (senza brew: xcode-select --install, poi rilancia)" ;;
+        windows) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: winget upgrade --id Git.Git -e --source winget. $riapri" ;;
+        *) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: lo scrive la persona, con la sua password: sudo apt install git openssh-client (su Fedora: sudo dnf install git openssh-clients)" ;;
+      esac
+      echo "Non ho installato niente. $togli"
+    else
+      echo "$togli"
+    fi
     return 1
   fi
-  if ! git -C "$tmp/a" reset --quiet --hard "$rilascio^{commit}" || ! git -C "$tmp/a" ls-files -z >"$tmp/elenco"; then
-    pulisci_tmp
-    echo "Non riesco a preparare il rilascio $rilascio: non ho toccato niente. Rilancia lo script."
-    return 1
-  fi
-  echo "OK firma del rilascio $rilascio"
+  echo "OK firma del rilascio $tag"
 
-  # Backup per copia: ogni file di Arturo che esiste già in ~/.claude va nel backup, controllato.
-  # Un conflitto fra file e cartella, una cartella che è un collegamento, o una copia sbagliata
-  # fermano tutto prima di scrivere.
-  local b
-  b="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
-  if ! mkdir "$b" 2>/dev/null; then
-    b="$b-$$"
-    if ! mkdir "$b"; then
+  # L'ancora: la chiave con cui l'avvio di Arturo verifica la copia installata (hooks/fiducia.py). Se
+  # c'è già, resta: è quella di un Arturo installato prima, e la deriva la confronta.
+  local ancora="$dest/arturo/rilasci.allowed_signers" ancora_nuova=0 ancora_dir=0
+  [ -d "$dest/arturo" ] || ancora_dir=1
+  if [ ! -e "$ancora" ]; then
+    if mkdir -p "$dest/arturo" && cp "$tmp/firme" "$ancora"; then
+      ancora_nuova=1
+    else
+      [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
       pulisci_tmp
-      echo "Non riesco a creare la cartella del backup in $HOME: non ho toccato niente."
+      echo "Non riesco a scrivere $ancora: non ho installato niente. $togli"
       return 1
     fi
   fi
-  ARTURO_BACKUP="$b"
-  local p d conflitto="" visti="$nl" nsalvati=0
-  local nuovi=() salvati=() cartelle=()
-  while IFS= read -r -d '' p; do
-    # Ogni cartella sul percorso, per i file nuovi e per quelli che esistono già: git reset --hard
-    # toglie un collegamento a una cartella e ne crea una vera, e le cose della persona sparirebbero
-    # da Claude Code (dotfiles con stow o chezmoi, cartelle in Dropbox).
-    d="$p"
-    while case "$d" in */*) true ;; *) false ;; esac; do
-      d="${d%/*}"
-      if [ -L "$dest/$d" ]; then
-        conflitto="$dest/$d è un collegamento, e Arturo ci vuole una cartella vera"
-        break 2
-      fi
-    done
-    if [ -L "$dest/$p" ] || [ -f "$dest/$p" ]; then
-      case "$p" in
-        */*) mkdir -p "$b/${p%/*}" ;;
-      esac
-      if cp -pP "$dest/$p" "$b/$p" && { [ -L "$dest/$p" ] || cmp -s "$dest/$p" "$b/$p"; }; then
-        salvati+=("$p")
-        nsalvati=$((nsalvati + 1))
-      else
-        conflitto="la copia di sicurezza di $dest/$p non è riuscita"
-        break
-      fi
-    elif [ -e "$dest/$p" ]; then
-      conflitto="$dest/$p è una cartella, e Arturo ci vuole un file"
-      break
-    else
-      # File nuovo: si segnano anche le cartelle che non esistono, per toglierle se si torna indietro.
-      d="$p"
-      while case "$d" in */*) true ;; *) false ;; esac; do
-        d="${d%/*}"
-        if [ -e "$dest/$d" ] || [ -L "$dest/$d" ]; then
-          if [ ! -d "$dest/$d" ]; then
-            conflitto="$dest/$d è un file, e Arturo ci vuole una cartella"
-            break 2
-          fi
-          break
-        fi
-        case "$visti" in
-          *"$nl$d$nl"*) ;;
-          *)
-            cartelle+=("$d")
-            visti="$visti$d$nl"
-            ;;
-        esac
-      done
-      nuovi+=("$p")
-    fi
-  done <"$tmp/elenco"
-  if [ -n "$conflitto" ]; then
-    rm -rf "$b"
-    ARTURO_BACKUP=""
+
+  # L'installazione la fa Claude Code, dal catalogo appena verificato. Poi lo sha della copia deve
+  # essere quello del tag firmato: fra la verifica e l'installazione il catalogo potrebbe cambiare.
+  local installato=""
+  if ! uscita=$(claude_plugin install "$PLUGIN" 2>&1); then
+    installato=$(python3 -c "$LEGGI_INSTALLATO" "$dest/plugins/installed_plugins.json" 2>/dev/null | tr -d '\r')
+    [ -n "$installato" ] && claude_plugin uninstall "$PLUGIN" >/dev/null 2>&1
+    [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
+    togli_ancora
     pulisci_tmp
-    echo "Non posso installare Arturo: $conflitto."
-    echo "Non ho toccato niente. Sposta quel percorso e rilancia lo script, oppure segui la strada a mano: $amano"
+    echo "Claude Code non è riuscito a installare Arturo: non ho installato niente. $togli"
+    echo "Claude Code dice: $(printf '%s' "$uscita" | tr '\n' ' ' | cut -c1-200)"
+    echo "Rilancia lo script; se l'errore torna, segnala a chi mantiene Arturo."
     return 1
   fi
-
-  # Innesto: .git entra in ~/.claude e il reset scrive solo i file di Arturo. Sessioni, history.jsonl,
-  # login, file dei plugin, CLAUDE.md e settings.local.json restano dove sono.
-  local creata=0 spostato=0
-  [ -d "$dest" ] || creata=1
-  ARTURO_INNESTO=1
-  ARTURO_BACKUP=""
-  if mkdir -p "$dest" && mv "$tmp/a/.git" "$dest/.git"; then
-    spostato=1
-  fi
-  if [ "$spostato" = 0 ] || ! git -C "$dest" reset --hard -q HEAD; then
-    rimetti
+  installato=$(python3 -c "$LEGGI_INSTALLATO" "$dest/plugins/installed_plugins.json" 2>/dev/null | tr -d '\r')
+  if [ "$installato" != "$sha" ]; then
+    claude_plugin uninstall "$PLUGIN" >/dev/null 2>&1
+    [ "$aggiunto" = 1 ] && claude_plugin marketplace remove "$MERCATO" >/dev/null 2>&1
+    togli_ancora
+    pulisci_tmp
+    echo "Claude Code ha installato ${installato:-una copia senza sha}, non il rilascio firmato $tag ($sha): possibile compromissione. Ho tolto la copia installata. $togli Segnala a chi mantiene Arturo."
     return 1
   fi
-  ARTURO_INNESTO=0
-
   pulisci_tmp
-  local impostazioni=0
-  if [ -e "$b/settings.json" ] || [ -L "$b/settings.json" ]; then
-    impostazioni=1
-  fi
-  if [ "$nsalvati" = 0 ]; then
-    rm -rf "$b"
-    b=""
-  fi
   cancella_me
 
+  echo "OK plugin $tag installato e verificato"
   echo "Arturo installato."
-  if [ -n "$b" ]; then
-    echo "I file che Arturo ha sostituito sono in $b"
-  fi
-  if [ "$impostazioni" = 1 ]; then
-    echo "Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze."
-  fi
+  echo "Il tuo accesso, le tue conversazioni, CLAUDE.md e i tuoi plugin restano come sono. In settings.json Claude Code accende solo il plugin. Permessi, regole di blocco e barra in basso li aggiunge /setup, col tuo sì."
   echo
   echo "Arturo manda a chi lo mantiene dati d'uso da un elenco chiuso, mai le tue richieste o i tuoi file."
-  echo "Per vedere cosa parte: python3 ~/.claude/bin/arturo telemetria mostra"
-  echo "Per spegnerli: python3 ~/.claude/bin/arturo telemetria spegni"
+  echo "Per vedere cosa parte, chiedi a Claude: \"mostrami la telemetria di Arturo\". Per spegnerla: \"spegni la telemetria di Arturo\"."
   echo
   local finestra="questa finestra del terminale" nuova="un terminale nuovo"
   if [ "$os" = windows ]; then
