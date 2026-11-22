@@ -622,7 +622,7 @@ def cartella_sessioni():
     """Dove Claude Code scrive un file per ogni sessione viva (<pid>.json): FINE_CODA_SESSIONI per i banchi."""
     if os.environ.get("FINE_CODA_SESSIONI"):
         return Path(os.environ["FINE_CODA_SESSIONI"])
-    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "sessions"
+    return radice_orsa() / "sessions"
 
 
 def viva(pid):
