@@ -730,6 +730,7 @@ GIORNI_DORMIENTE = 90
 GIORNI_IGIENE = 7
 SOGLIA_COPPIA = 0.7
 MAX_COPPIE = 20
+SOGLIA_PESANTE = 30 * 1024  # una nota più grande si divide in scheda e storia (revisione del 22/11/2026, O7)
 
 
 def file_ultima_igiene() -> Path:
@@ -860,7 +861,34 @@ def igiene(prova: bool = False) -> dict:
         f.write_text(ora.date().isoformat() + "\n", encoding="utf-8")
     return {"copertura_giorni": copertura, "dormienti": dormienti, "sveglie": sveglie,
             "coppie": coppie[:MAX_COPPIE], "coppie_totali": len(coppie), "link_rotti": rotti,
-            "voce_altrui": [{"nota": n, "nomi": v} for n, v in altrui], "prova": prova}
+            "voce_altrui": [{"nota": n, "nomi": v} for n, v in altrui], "prova": prova,
+            "precisione": precisione_richiamo(ora), "pesanti": note_pesanti()}
+
+
+def precisione_richiamo(ora=None) -> dict | None:
+    """La precisione del richiamo nell'ultima settimana (revisione del 22/11/2026, O7): quante note
+    proposte Claude ha poi letto, e le note proposte più spesso senza mai una lettura. None se questo
+    computer non registra le letture."""
+    p = mm.precisione(ora=ora, giorni=GIORNI_IGIENE)
+    if p is None:
+        return None
+    mai = sorted(((n, v[0]) for n, v in p["per_nota"].items() if v[1] == 0 and v[0] >= mm.PASSO_NON_LETTE),
+                 key=lambda x: (-x[1], x[0]))
+    return {"proposte": p["proposte"], "lette": p["lette"], "mai_lette": mai[:MAX_COPPIE], "mai_lette_totali": len(mai)}
+
+
+def note_pesanti() -> list:
+    """[(percorso breve, KiB)] delle note curate sopra SOGLIA_PESANTE: vanno divise in una scheda corta e
+    in una storia (docs/memoria.md, "Note lunghe")."""
+    out = []
+    for p in note_curate():
+        try:
+            kib = p.stat().st_size // 1024
+        except OSError:
+            continue
+        if kib * 1024 >= SOGLIA_PESANTE and not p.stem.endswith("-storia")                 and str(_chiave_fm(leggi(p), "stato") or "").strip("\"'") != "dormiente":
+            out.append((breve(p), kib))
+    return sorted(out, key=lambda x: (-x[1], x[0]))
 
 
 def igiene_dovuta() -> bool:
@@ -906,6 +934,24 @@ def comando_igiene(argv: list) -> int:
     print(f"- Link rotti: {len(e['link_rotti'])}.")
     for v in e["link_rotti"][:10]:
         print(f"    {v['file']}:{v['riga']}: {v['motivo']}")
+    pr = e.get("precisione")
+    if pr is None:
+        print("- Precisione del richiamo: questo computer non registra le letture delle note.")
+    elif pr["proposte"]:
+        print(f"- Precisione del richiamo negli ultimi {GIORNI_IGIENE} giorni: {pr['lette']} note lette su "
+              f"{pr['proposte']} proposte ({round(100 * pr['lette'] / pr['proposte'])}%).")
+        if pr["mai_lette"]:
+            print(f"  Proposte almeno {mm.PASSO_NON_LETTE} volte e mai lette: {pr['mai_lette_totali']}. Il richiamo le "
+                  "propone meno da solo; se una non serve più, archiviala:")
+            for nome, n in pr["mai_lette"]:
+                print(f"    {nome} ({n} proposte)")
+    if e["pesanti"]:
+        print(f"- Note sopra {SOGLIA_PESANTE // 1024} KiB: {len(e['pesanti'])}. Dividile in una scheda corta e in "
+              "una storia (docs/memoria.md, \"Note lunghe\"):")
+        for n, kib in e["pesanti"][:10]:
+            print(f"    {n} ({kib} KiB)")
+        if len(e["pesanti"]) > 10:
+            print(f"    e altre {len(e['pesanti']) - 10}")
     if e["voce_altrui"]:
         print(f"- Note che prendono un'altra persona come modello di stile: {len(e['voce_altrui'])}. Mostrale "
               "alla persona: col suo sì togli la riga o la nota. La sua voce va in ~/.claude/personale/humanizer.md.")

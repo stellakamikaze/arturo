@@ -39,6 +39,10 @@ Punteggio del richiamo:
   2. i `triggers` si confrontano parola per parola, non come stringhe intere: un trigger di più
      parole ("deploy notturno") conta per ciascuna.
   3. score_detail() guarda anche il CORPO, con peso basso: la conoscenza che vive nel corpo si ritrova.
+     Corpo e `answers` pesano al massimo +2 ciascuno (answers dalla revisione del 22/11/2026, O7).
+  4. memory-retrieve toglie punti a una nota proposta tante volte e mai letta (non_lette e
+     penalita_non_lette, dal log degli accessi). precisione() misura quante proposte Claude legge:
+     la stampa l'igiene settimanale (arturo memoria igiene).
 
 Il parser del frontmatter legge chiavi di primo livello (anche col trattino), liste a trattini e
 fra parentesi quadre, blocchi > e |, una mappa annidata di un livello (Claude Code scrive
@@ -66,6 +70,7 @@ IMPOSTAZIONI = CLAUDE_DIR / "data" / "memoria" / "impostazioni.json"
 NOTES_CACHE = CLAUDE_DIR / "cache" / "melchior-notes.json"  # locale, fuori da git
 EXCLUDE = {"MEMORY.md", "index.md"}
 MAX_BYTE = 256 * 1024  # una nota più grande si legge solo fino a qui
+TETTO_ANSWERS = 2      # answers pesa al massimo +2 per nota, come il corpo (score_detail)
 
 # Log degli accessi: un file per macchina dal 19/10/2026, perché un file unico scritto da più
 # computer va in conflitto a ogni sincronizzazione della memoria. Si registrano solo le note di
@@ -283,6 +288,99 @@ def append_access(names, context, ts=None, log_path=None, extra=()):
 def registra_accessi(paths, context, log_path=None):
     """Log degli accessi per le sole note di MEMORY_DIR: le altre radici non entrano nel log."""
     append_access([Path(p).name for p in paths if in_memory_dir(p)], context, log_path=log_path)
+
+
+# --- Proposte non lette e precisione (revisione del 22/11/2026, O7) --------------------------
+# Il log ha due famiglie di righe: le proposte del richiamo (`prompt`) e le consultazioni vere
+# (`read`, `grep`, `bash-read`, `recall`, `firma`). Le consultazioni le scrive un hook della persona
+# (nella config di chi mantiene Arturo, memory-read-log.py): una macchina che non ne ha mai scritta
+# una non registra le letture, e lì una proposta non letta non dice niente. Quelle macchine non contano.
+PROPOSTA = "prompt"
+LETTURE = frozenset({"read", "grep", "bash-read", "recall", "firma"})
+GIORNI_NON_LETTE = 30   # le proposte più vecchie non pesano più: una nota si riprende da sola
+PASSO_NON_LETTE = 10    # un punto in meno ogni 10 proposte senza una lettura in mezzo
+TETTO_NON_LETTE = 3     # al massimo 3 punti: una nota che risponde bene resta sopra la soglia
+
+
+def _righe_log(log_dir=None):
+    """(ts, nome, contesto, host) di ogni riga dei log per macchina, coi soli host che registrano le
+    letture. ts è il testo ISO: si confronta come stringa. Un file illeggibile si salta."""
+    cartella = Path(log_dir) if log_dir is not None else ACCESS_LOG_DIR
+    try:
+        files = sorted(cartella.glob("*.log"))
+    except OSError:
+        return []
+    out = []
+    for f in files:
+        righe, legge = [], False
+        try:
+            with f.open("r", encoding="utf-8", errors="replace") as fh:
+                for r in fh:
+                    p = r.rstrip("\n").split("\t")
+                    if len(p) < 4:
+                        continue
+                    righe.append((p[0], p[1], p[2], p[3]))
+                    legge = legge or p[2] in LETTURE
+        except OSError:
+            continue
+        if legge:
+            out.extend(righe)
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def non_lette(log_dir=None, ora=None, giorni=GIORNI_NON_LETTE):
+    """{nome della nota: proposte dopo l'ultima lettura}, contando solo gli ultimi `giorni`. Una
+    lettura su qualunque macchina azzera il conto. Senza letture registrate il dizionario è vuoto."""
+    from datetime import datetime, timedelta
+    ora = ora or datetime.now()
+    da = (ora - timedelta(days=giorni)).isoformat(timespec="seconds")
+    conto = {}
+    for ts, nome, contesto, _host in _righe_log(log_dir):
+        if ts < da:
+            continue
+        if contesto in LETTURE:
+            conto.pop(nome, None)
+        elif contesto == PROPOSTA:
+            conto[nome] = conto.get(nome, 0) + 1
+    return conto
+
+
+def penalita_non_lette(n):
+    """I punti tolti a una nota proposta `n` volte senza una lettura."""
+    return min(int(n) // PASSO_NON_LETTE, TETTO_NON_LETTE) if n and n > 0 else 0
+
+
+def precisione(log_dir=None, ora=None, giorni=7, minuti=60):
+    """Quante proposte del richiamo Claude ha poi letto: una proposta conta letta se la stessa nota
+    ha una consultazione sulla stessa macchina entro `minuti` (il criterio della revisione del
+    22/11/2026). {"proposte", "lette", "per_nota": {nome: [proposte, lette]}}, o None se nessuna
+    macchina registra le letture."""
+    from datetime import datetime, timedelta
+    righe = _righe_log(log_dir)
+    if not righe:
+        return None
+    ora = ora or datetime.now()
+    da = (ora - timedelta(days=giorni)).isoformat(timespec="seconds")
+    letture = {}
+    for ts, nome, contesto, host in righe:
+        if contesto in LETTURE:
+            letture.setdefault((nome, host), []).append(ts)
+    per_nota, tot, lette = {}, 0, 0
+    for ts, nome, contesto, host in righe:
+        if contesto != PROPOSTA or ts < da:
+            continue
+        try:
+            fino = (datetime.fromisoformat(ts) + timedelta(minutes=minuti)).isoformat(timespec="seconds")
+        except ValueError:
+            continue
+        letta = any(ts <= t <= fino for t in letture.get((nome, host), ()))
+        v = per_nota.setdefault(nome, [0, 0])
+        v[0] += 1
+        v[1] += letta
+        tot += 1
+        lette += letta
+    return {"proposte": tot, "lette": lette, "per_nota": per_nota}
 
 
 # --- Parole --------------------------------------------------------------------------------
@@ -519,8 +617,8 @@ def _trigger_words(fm):
 def score_detail(fm, tokens, body=""):
     """Ritorna (score, set_di_token_distinti_che_hanno_matchato).
 
-    trigger-word +3 · name (substring) +2 · description +1 · answers +1 · body +1
-    Il set di token distinti serve a distinguere "1 token che colpisce piu' campi"
+    trigger-word +3 · name (substring) +2 · description +1 · answers +1 (al massimo +2) · body +1
+    (al massimo +2). Il set di token distinti serve a distinguere "1 token che colpisce piu' campi"
     (score alto ma segnale debole, es. una parola comune) da "piu' token che convergono"
     (segnale forte). memory-retrieve richiede >=2 token distinti.
     """
@@ -533,6 +631,7 @@ def score_detail(fm, tokens, body=""):
     body_l = body.lower() if body else ""
     s = 0
     body_hits = 0
+    answers_hits = 0
     matched = set()
     for tok in tokens:
         hit = 0
@@ -542,8 +641,9 @@ def score_detail(fm, tokens, body=""):
             hit += 2
         if tok in desc:
             hit += 1
-        if tok in answers:
-            hit += 1
+        if answers and tok in answers:
+            answers_hits += 1
+            matched.add(tok)
         if body_l and tok in body_l:
             body_hits += 1
             if not hit:
@@ -554,6 +654,9 @@ def score_detail(fm, tokens, body=""):
     # il body pesa al massimo +2 per file: senza cap i file verbosi (10-40KB)
     # accumulano +1 per ogni token del prompt e affollano i candidati
     s += min(body_hits, 2)
+    # Lo stesso tetto per answers (revisione del 22/11/2026, O7): un frontmatter di 42 KB conteneva
+    # quasi ogni parola e la nota usciva a quasi ogni messaggio (413 proposte, 0 letture).
+    s += min(answers_hits, TETTO_ANSWERS)
     return s, matched
 
 

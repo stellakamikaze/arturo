@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — La memoria propone meno note che Claude non apre
+
+**Cosa cambia**: a ogni messaggio Arturo propone a Claude le note che c'entrano, ma nell'ultima settimana Claude
+ne ha aperte solo l'8%. Due correzioni. Il campo `answers` pesa ora al massimo due punti, come il corpo: una
+nota con una lista lunga di domande non esce più a quasi ogni messaggio. E una nota proposta tante volte senza
+mai una lettura perde punti, finché una lettura non la riporta su. `arturo memoria igiene` dice la precisione
+della settimana, le note proposte e mai lette e le note sopra 30 KiB da dividere in una scheda corta e in una
+storia (docs/memoria.md, "Note lunghe"). Su Windows la firma d'errore ora parla: prima taceva sempre.
+
+**Il principio**: una nota che nessuno legge costa attenzione a ogni messaggio. Il caso Y24 di
+`tests/test_memoria.py` prova il tetto, la penalità e la sua uscita con la prima lettura.
+
+---
+
 ## 2026-11-22 — La pulizia mensile non resta ferma durante un backup di Time Machine
 
 **Cosa cambia**: durante un backup di Time Machine su un disco di rete, la pulizia mensile poteva restare

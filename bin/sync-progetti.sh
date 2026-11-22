@@ -79,7 +79,7 @@ for dir in "$ROOT"/*/; do
     continue
   fi
   # Un HEAD staccato (un bisect, una prova su un commit) è lavoro in corso anche lui: niente stash né pull.
-  # Correzione portata dalla copia di Federico (30/10/2026), revisione del 22/11, passo 2.
+  # Correzione portata dalla copia della config di chi mantiene Arturo (30/10/2026), revisione del 22/11, passo 2.
   if ! git -C "$dir" symbolic-ref -q HEAD >/dev/null 2>&1; then
     echo "ERRORE: $name ha HEAD staccato: non lo tocco, rimetti un ramo con /inizio $name"
     ERRORS=$((ERRORS + 1))

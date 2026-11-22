@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y23: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y24: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta con `arturo memoria spegni`: memory-retrieve, memory-autoload, subagent-memory-context e
@@ -62,6 +62,10 @@ Y23 firma d'errore (hooks/memory-firma.py, in Arturo dal 18/11/2026): una nota c
     cartella di data/memory arriva quando un tool fallisce con quel testo, una volta per sessione, col
     percorso vero; una nota archiviata arriva marcata; un errore senza firma tace; a memoria spenta tace;
     settings.json registra l'hook su PostToolUseFailure.
+Y24 il rumore del richiamo (revisione del 22/11/2026, O7): il campo answers pesa al massimo +2, e una nota
+    che risponde solo lì non esce più; una nota proposta 30 volte senza letture perde tre punti ed esce dal
+    richiamo, ma solo se una macchina registra le letture, e la prima lettura la riporta; l'igiene dice la
+    precisione della settimana ed elenca le note sopra 30 KiB, non le storie; docs/memoria.md lo spiega.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
 suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y20 una copia del
@@ -1054,11 +1058,80 @@ def test_y23(repo: Path) -> None:
         lab.chiudi()
 
 
+def test_y24(repo: Path) -> None:
+    """Tetto ad answers e penalità alle note proposte e mai lette."""
+    presenti(repo, "Y24")
+    from datetime import datetime, timedelta
+    lab = Lab(repo)
+    try:
+        lab.arturo("accendi")
+        mem = lab.claude / "data" / "memory"
+        (mem / "reference").mkdir(parents=True)
+        domande = "\n".join(f"  - \"come configuro la stampante laser del secondo piano, caso {i}?\"" for i in range(40))
+        (mem / "reference" / "rubrica-uffici.md").write_text(
+            "---\nname: rubrica-uffici\ndescription: i numeri interni degli uffici\ntype: reference\n"
+            f"answers:\n{domande}\n---\nI numeri interni.\n", encoding="utf-8")
+        r = lab.richiamo("configura stampante laser secondo piano", "y24-a")
+        assert "rubrica-uffici.md" not in r.stdout, f"Y24 una nota che risponde solo in answers esce ancora: {r.stdout!r}"
+        (mem / "reference" / "stampanti.md").write_text(
+            "---\nname: stampanti\ndescription: la stampante laser del secondo piano\ntype: reference\n---\nIl driver.\n",
+            encoding="utf-8")
+        r = lab.richiamo("configura stampante laser secondo piano", "y24-b")
+        assert "stampanti.md" in r.stdout, f"Y24 la nota con la description giusta non esce: {r.stdout!r}"
+
+        (mem / "reference" / "salvataggi-casa.md").write_text(
+            "---\nname: salvataggi-casa\ndescription: backup notturno del disco esterno\ntype: reference\n---\nIl disco.\n",
+            encoding="utf-8")
+        logd = mem / ".melchior-access.log.d"
+        logd.mkdir(parents=True, exist_ok=True)
+        ora = datetime.now()
+
+        def riga(minuti, nome, contesto):
+            return f"{(ora - timedelta(minutes=minuti)).isoformat(timespec='seconds')}\t{nome}\t{contesto}\taltra\n"
+        proposte = "".join(riga(600 - i, "salvataggi-casa.md", "prompt") for i in range(30))
+        (logd / "altra.log").write_text(proposte, encoding="utf-8")
+        domanda = "backup notturno disco esterno"
+        r = lab.richiamo(domanda, "y24-c")
+        assert "salvataggi-casa.md" in r.stdout, \
+            f"Y24 senza letture registrate la nota perde punti lo stesso: {r.stdout!r}"
+        (logd / "altra.log").write_text(riga(900, "stampanti.md", "read") + proposte, encoding="utf-8")
+        r = lab.richiamo(domanda, "y24-d")
+        assert "salvataggi-casa.md" not in r.stdout, f"Y24 una nota proposta 30 volte e mai letta non perde punti: {r.stdout!r}"
+        (logd / "altra.log").write_text(riga(900, "stampanti.md", "read") + proposte
+                                        + riga(560, "salvataggi-casa.md", "grep") + riga(5, "salvataggi-casa.md", "prompt"),
+                                        encoding="utf-8")
+        r = lab.richiamo(domanda, "y24-e")
+        assert "salvataggi-casa.md" in r.stdout, f"Y24 una lettura non riporta la nota nel richiamo: {r.stdout!r}"
+
+        (mem / "reference" / "manuale-lungo.md").write_text(
+            "---\nname: manuale-lungo\ndescription: il manuale\ntype: reference\n---\n" + "riga del manuale\n" * 2000,
+            encoding="utf-8")
+        (mem / "reference" / "manuale-lungo-storia.md").write_text(
+            "---\nname: manuale-lungo-storia\ndescription: la storia del manuale\ntype: reference\nstato: dormiente\n---\n"
+            + "episodio datato\n" * 2500, encoding="utf-8")
+        r = lab.arturo("igiene", "--prova", "--json")
+        assert r.returncode == 0, f"Y24 l'igiene esce {r.returncode}: {r.stderr[-300:]}"
+        e = json.loads(r.stdout)
+        pr = e.get("precisione") or {}
+        assert pr.get("proposte") == 31 and pr.get("lette") == 30, f"Y24 l'igiene non dice la precisione: {pr}"
+        pesanti = [n for n, _k in e.get("pesanti", [])]
+        assert any(n.endswith("manuale-lungo.md") for n in pesanti), f"Y24 l'igiene non elenca la nota sopra 30 KiB: {pesanti}"
+        assert not any("storia" in n for n in pesanti), f"Y24 l'igiene chiede di dividere una storia: {pesanti}"
+        testo = lab.arturo("igiene", "--prova").stdout
+        assert "Precisione del richiamo" in testo and "Note sopra 30 KiB" in testo, \
+            f"Y24 il testo dell'igiene non dice precisione e note lunghe: {testo[-600:]!r}"
+        guida = (repo / "docs" / "memoria.md").read_text(encoding="utf-8")
+        assert "### Note lunghe" in guida and "precisione del richiamo" in guida, \
+            "Y24 docs/memoria.md non spiega le note lunghe e la precisione"
+    finally:
+        lab.chiudi()
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
          "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
          "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20, "Y21": test_y21,
-         "Y22": test_y22, "Y23": test_y23}
+         "Y22": test_y22, "Y23": test_y23, "Y24": test_y24}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -1129,6 +1202,17 @@ VELENI = (
     ("Y21", [("bin/riporta-tuoi.sh", "deciso il 2/11/2026", "deciso da Federico il 2/11/2026")], "fuori dai crediti"),
     ("Y22", [("hooks/subagent-memory-context.py", "    if mm.memoria_accesa() and mm.elenco_note():", "    if mm.memoria_accesa():")],
      "riceve il promemoria a memoria vuota"),
+    ("Y24", [("hooks/melchior_match.py", "    s += min(answers_hits, TETTO_ANSWERS)\n", "    s += answers_hits\n")],
+     "risponde solo in answers"),
+    ("Y24", [("hooks/memory-retrieve.py", "    scored = con_penalita(scored)\n", "")], "non perde punti:"),
+    ("Y24", [("hooks/melchior_match.py", "        if legge:\n            out.extend(righe)\n", "        out.extend(righe)\n")],
+     "senza letture registrate"),
+    ("Y24", [("hooks/melchior_match.py", "            conto.pop(nome, None)\n", "            pass\n")],
+     "non riporta la nota"),
+    ("Y24", [("bin/memoria.py", '"precisione": precisione_richiamo(ora)', '"precisione": None')], "non dice la precisione"),
+    ("Y24", [("bin/memoria.py", 'not p.stem.endswith("-storia")', 'True'),
+             ("bin/memoria.py", '"stato") or "").strip("\\"\'") != "dormiente"', '"stato") or "") != "mai"')],
+     "dividere una storia"),
     ("Y23", [("hooks/memory-firma.py", '    e = payload.get("error")', '    e = payload.get("tool_response")')],
      "la firma non trova la nota"),
 )
