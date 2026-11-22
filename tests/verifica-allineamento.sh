@@ -307,6 +307,8 @@ IN_FILA=(
   test_tetto_guardie_2026_11_22.py
   # Le guardie in tempo lineare sui comandi ripetuti (22/11/2026, #6363): misura i tempi, gira in fila.
   test_guardie_lineari_2026_11_22.py
+  # Il tetto di 7,5 secondi per l'avvio e il fetch staccato (22/11/2026, #6370): misura secondi, gira in fila.
+  test_avvio_tetto_2026_11_22.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -599,6 +601,8 @@ BASELINE=(
   "test_apertura_2026_11_22.py 2120b4d radice"
   # Le guardie che ripartono da ogni curl, gws o find (22/11/2026, #6363). d631aa5, il dev prima.
   "test_guardie_lineari_2026_11_22.py d631aa5"
+  # L'avvio annullato al timeout su Windows e il fetch che muore con lui (22/11/2026, #6370). e57fe9f, il dev prima.
+  "test_avvio_tetto_2026_11_22.py e57fe9f"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

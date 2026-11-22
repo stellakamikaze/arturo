@@ -6,6 +6,50 @@
 # una pipe: la riga DERIVA arrivava con "pu\xf2" al posto di "può" (5/11/2026, #4790).
 export PYTHONIOENCODING=utf-8
 
+# Tetto di tempo (#6370, 22/11/2026). Claude Code annulla questo hook dopo 10 secondi e, quando lo annulla,
+# butta tutto quello che ha stampato e chiude i processi figli. Su un Windows succedeva in 10 avvii su 11 dal
+# 20/11: lo stesso hook dura 4 secondi a macchina ferma e 11 sotto carico. Allora il lavoro lo fa una seconda
+# copia di questo file (ARTURO_AVVIO_CORPO=1), e questa ne passa le righe man mano. A 7,5 secondi smette di
+# aspettare, dice che mancano avvisi ed esce: le righe già uscite restano. La copia che lavora si ferma alla
+# prima riga che scrive dopo, perché nessuno la legge più. Lo stdin, il JSON di Claude Code, lo eredita lei;
+# il suo stderr va in session-env/avvio-errori.log, perché un figlio che tiene aperto lo stderr dell'hook
+# farebbe aspettare Claude Code fino al timeout. ARTURO_AVVIO_TETTO_MS cambia il tetto (i banchi), 0 lo spegne.
+if [ -z "${ARTURO_AVVIO_CORPO:-}" ] && [ "${ARTURO_AVVIO_TETTO_MS:-7500}" != 0 ]; then
+  _tetto_ms=${ARTURO_AVVIO_TETTO_MS:-7500}
+  case "$_tetto_ms" in (*[!0-9]*|"") _tetto_ms=7500 ;; esac
+  _inizio_us=${EPOCHREALTIME//[.,]/}
+  mkdir -p "$HOME/.claude/session-env" 2>/dev/null
+  exec 3< <(ARTURO_AVVIO_CORPO=1 "$BASH" "${BASH_SOURCE[0]}" 2>"$HOME/.claude/session-env/avvio-errori.log")
+  _tagliato=0
+  while :; do
+    if [ -n "$_inizio_us" ]; then
+      _ora_us=${EPOCHREALTIME//[.,]/}
+      _resta_ms=$(( _tetto_ms - (_ora_us - _inizio_us) / 1000 ))
+      _ms="00$(( _resta_ms % 1000 ))"
+      _attesa="$(( _resta_ms / 1000 )).${_ms: -3}"
+    else
+      # bash 3.2 (macOS): niente EPOCHREALTIME e read -t solo a secondi interi. SECONDS conta a scatti di
+      # un secondo, quindi un secondo di margine.
+      _resta_ms=$(( _tetto_ms - SECONDS * 1000 - 1000 ))
+      _attesa=$(( _resta_ms / 1000 ))
+    fi
+    if [ "$_resta_ms" -le 0 ] || [ "$_attesa" = 0 ]; then _tagliato=1; break; fi
+    _riga=""
+    if IFS= read -r -t "$_attesa" _riga <&3; then
+      printf '%s\n' "$_riga"
+    else
+      _rc=$?
+      if [ "$_rc" -gt 128 ]; then _tagliato=1; elif [ -n "$_riga" ]; then printf '%s\n' "$_riga"; fi
+      break
+    fi
+  done
+  if [ "$_tagliato" = 1 ]; then
+    printf '%s\n' "${_inizio_us:-$SECONDS}" >> "$HOME/.claude/session-env/avvio-tagli.log" 2>/dev/null
+    echo "AVVIO: il computer è lento in questo momento e il controllo di avvio si è fermato a $(( _tetto_ms / 1000 )) secondi, prima del limite di Claude Code. Mancano gli avvisi che venivano dopo le righe qui sopra: ripartono alla prossima sessione."
+  fi
+  exit 0
+fi
+
 PROJECT_ROOT="${PWD}"
 PROJECT_NAME="$(basename "$PROJECT_ROOT")"   # lo legge personale/session-start.sh, eseguito in fondo
 
@@ -135,8 +179,13 @@ fi
 # aggiornamento. Per questo il fetch parte qui, in background e al massimo ogni 6 ore, cosi'
 # l'avvio non aspetta la rete. L'avviso di questa sessione usa il fetch della volta prima.
 # Config integra: un settings.json rotto spegne tutte le guardie senza avvisare.
+# L'esito passa a deriva.py più sotto, che prima rifaceva gli stessi sei git (#6370): solo con un'uscita
+# 0 o 1, cioè un controllo arrivato in fondo.
+CONFIG_ESITO=""
 if [ -f "$ARTURO_CODICE/hooks/controlla-config.py" ]; then
-  python3 "$ARTURO_CODICE/hooks/controlla-config.py" --quiet "$HOME/.claude" 2>/dev/null
+  CONFIG_RIGHE=$(python3 "$ARTURO_CODICE/hooks/controlla-config.py" --quiet "$HOME/.claude" 2>/dev/null)
+  case $? in 0|1) CONFIG_ESITO=fatto ;; esac
+  [ -n "$CONFIG_RIGHE" ] && printf '%s\n' "$CONFIG_RIGHE"
 fi
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1 && ! git -C "$HOME/.claude" symbolic-ref -q HEAD >/dev/null 2>&1; then
   echo "CONFIG: ~/.claude non sta su un branch (HEAD scollegato): i commit di /fine non finirebbero su main. Chiedi a Claude di riportarla su main."
@@ -193,33 +242,51 @@ if [ "${ARTURO_BANCHI_AVVIO:-1}" != "0" ] && [ -f "$HOME/.claude/tests/banchi-av
 fi
 
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
-  MARCATORE="$HOME/.claude/session-env/ultimo-fetch"
-  RIUSCITO="$HOME/.claude/session-env/ultimo-fetch-riuscito"
+  MARCATORE="$HOME/.claude/session-env/ultimo-fetch"            # ultimo tentativo
+  RIUSCITO="$HOME/.claude/session-env/ultimo-fetch-riuscito"     # ultimo fetch riuscito
+  PRIMO="$HOME/.claude/session-env/primo-fetch-tentato"          # primo tentativo senza un riuscito
   ADESSO=$(date +%s)
   SCORSO=$(cat "$MARCATORE" 2>/dev/null || echo 0)
   case "$SCORSO" in (*[!0-9]*|"") SCORSO=0 ;; esac
-  if [ $((ADESSO - SCORSO)) -gt 21600 ]; then
-    mkdir -p "$HOME/.claude/session-env" 2>/dev/null
-    printf '%s' "$ADESSO" > "$MARCATORE" 2>/dev/null
-    # GIT_TERMINAL_PROMPT=0: un repository che chiede le credenziali non deve mai appendere
-    # l'avvio della sessione.
-    # BatchMode: una chiave SSH con passphrase o un host sconosciuto non chiedono niente.
-    # Il marcatore di successo si scrive solo se il fetch riesce davvero.
-    # ConnectTimeout, ServerAlive e lowSpeed: un server che accetta e non risponde non lascia un fetch appeso
-    # per sempre, uno in più ogni 6 ore (review del 9/11/2026, lotto L10).
-    ( export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
-      LENTO=(-c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30)
-      REMOTO=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-      git -C "$HOME/.claude" "${LENTO[@]}" fetch --quiet --tags "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
-      # Con upstream, origin è il repository privato di chi usa: senza questo fetch il BEHIND qui
-      # sotto, che confronta con origin/main, restava fermo e il lavoro di un'altra macchina non si
-      # vedeva più (30/10/2026).
-      [ "$REMOTO" = upstream ] && git -C "$HOME/.claude" "${LENTO[@]}" fetch --quiet origin main >/dev/null 2>&1
-    ) >/dev/null 2>&1 &
-  fi
   RIUSCITO_T=$(cat "$RIUSCITO" 2>/dev/null || echo 0)
   case "$RIUSCITO_T" in (*[!0-9]*|"") RIUSCITO_T=0 ;; esac
-  if [ "$RIUSCITO_T" -gt 0 ] && [ $((ADESSO - RIUSCITO_T)) -gt 604800 ]; then
+  # Un fetch riuscito vale 6 ore. Un tentativo senza esito vale 30 minuti: fino al 22/11/2026 il marcatore
+  # del tentativo fermava i nuovi per 6 ore anche quando il fetch era morto con l'hook (#6370). I 30
+  # minuti bastano a un fetch lento per finire senza che ne parta un secondo.
+  if [ $((ADESSO - RIUSCITO_T)) -gt 21600 ] && [ $((ADESSO - SCORSO)) -gt 1800 ]; then
+    mkdir -p "$HOME/.claude/session-env" 2>/dev/null
+    printf '%s' "$ADESSO" > "$MARCATORE" 2>/dev/null
+    [ "$RIUSCITO_T" -gt 0 ] || [ -s "$PRIMO" ] || printf '%s' "$ADESSO" > "$PRIMO" 2>/dev/null
+    # Il fetch lo fa hooks/avvio-fetch.py, staccato: il processo che lavora non ha più l'hook per padre,
+    # e Claude Code su Windows non lo chiude con l'albero dell'hook. Lì il fetch dura fino a 35 secondi.
+    # Il marcatore di successo si scrive solo se il fetch riesce davvero. Senza il file o senza un
+    # python3 che parte vale il fetch in background di bash.
+    if ! { [ -f "$ARTURO_CODICE/hooks/avvio-fetch.py" ] \
+           && python3 "$ARTURO_CODICE/hooks/avvio-fetch.py" stacca "$HOME/.claude" "$ADESSO" "$RIUSCITO" >/dev/null 2>&1; }; then
+      # GIT_TERMINAL_PROMPT=0: un repository che chiede le credenziali non deve mai appendere
+      # l'avvio della sessione.
+      # BatchMode: una chiave SSH con passphrase o un host sconosciuto non chiedono niente.
+      # ConnectTimeout, ServerAlive e lowSpeed: un server che accetta e non risponde non lascia un fetch appeso
+      # per sempre, uno in più a ogni tentativo (review del 9/11/2026, lotto L10).
+      ( export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+        LENTO=(-c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30)
+        REMOTO=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
+        git -C "$HOME/.claude" "${LENTO[@]}" fetch --quiet --tags "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
+        # Con upstream, origin è il repository privato di chi usa: senza questo fetch il BEHIND qui
+        # sotto, che confronta con origin/main, restava fermo e il lavoro di un'altra macchina non si
+        # vedeva più (30/10/2026).
+        [ "$REMOTO" = upstream ] && git -C "$HOME/.claude" "${LENTO[@]}" fetch --quiet origin main >/dev/null 2>&1
+      ) >/dev/null 2>&1 &
+    fi
+  fi
+  # I 7 giorni contano dall'ultimo fetch riuscito, o dal primo tentativo se non ne è mai riuscito uno:
+  # fino al 22/11/2026 l'avviso taceva per sempre su un computer dove il fetch non era mai riuscito (#6370).
+  DA_T="$RIUSCITO_T"
+  if [ "$DA_T" -eq 0 ]; then
+    DA_T=$(cat "$PRIMO" 2>/dev/null || echo 0)
+    case "$DA_T" in (*[!0-9]*|"") DA_T=0 ;; esac
+  fi
+  if [ "$DA_T" -gt 0 ] && [ $((ADESSO - DA_T)) -gt 604800 ]; then
     echo "ARTURO: da piu' di 7 giorni non riesco a controllare gli aggiornamenti (rete, proxy o credenziali). Prova /aggiorna per vedere l'errore."
   fi
   AHEAD=$(git -C "$HOME/.claude" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
@@ -312,7 +379,12 @@ fi
 # c'è da fare; registra per la telemetria l'elenco quando cambia. Prima dell'avvio della telemetria,
 # così una config rotta parte con l'invio di questa sessione.
 if [ -f "$ARTURO_CODICE/hooks/deriva.py" ]; then
-  python3 "$ARTURO_CODICE/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
+  if [ "$CONFIG_ESITO" = fatto ]; then
+    ARTURO_CONFIG_CONTROLLATA=1 ARTURO_CONFIG_RIGHE="$CONFIG_RIGHE" \
+      python3 "$ARTURO_CODICE/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
+  else
+    python3 "$ARTURO_CODICE/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
+  fi
 fi
 
 # Chi ha ancora il clone in ~/.claude (strati F4, 5/11/2026): una riga al giorno su come passare al plugin.
