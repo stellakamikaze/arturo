@@ -23,8 +23,22 @@ Per chi mantiene Arturo e per chi ne fa un fork. Le regole sono poche e delibera
 
 ## Portare `dev` su `main`
 
-**Il ritmo è un rilascio al giorno** (dal 31/10/2026): se `dev` ha cambi col gate verde dopo
-l'ultimo tag, quel giorno esce un rilascio. Senza cambi, niente rilascio.
+**Il ritmo è un rilascio alla settimana** (dal 23/11/2026, revisione del 22/11, D4): un cambio esce verso
+chi usa Arturo e si installa da solo, e fino al 22/11 il gate girava solo su un Mac. Il rilascio torna
+quotidiano quando il gate in CI è verde su Linux, Mac e Windows. Una correzione di sicurezza esce subito.
+Senza cambi dopo l'ultimo tag, niente rilascio.
+
+**Il gate in CI** (`.github/workflows/gate.yml`, dal 23/11/2026) gira su ubuntu, macos e windows, solo nel
+repository pubblico e senza segreti. A ogni push su `dev` fa `--toccati` sui file cambiati dal push prima
+(`ARTURO_GATE_BASE`, GS12); un push senza "prima" fa il giro completo. Sul tag `v*`, e a mano da Actions
+("Run workflow", oppure `gh workflow run gate.yml --ref dev`), fa `--rilascio`. Il nome della run dice il
+modo: "gate toccati" o "gate rilascio". Lo script di firma di chi rilascia cerca sul commit l'ultima run
+"gate rilascio" finita, prima di prendere la chiave:
+
+- verde sui tre sistemi: il rilascio esce, anche il giorno dopo il precedente;
+- non verde: esce solo se l'ultimo tag ha almeno 7 giorni, o con `--sicurezza "motivo"`, e lo script
+  elenca i sistemi rossi;
+- nessuna run finita: si ferma sempre, e dice come lanciarla.
 
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
@@ -55,7 +69,7 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    Su Windows alcuni controlli non si possono provare (link simbolici senza la Modalità
    sviluppatore, appunti e browser veri): escono come `SALTO <codice>` da `tests/salti_windows.py`,
    e la riga finale li conta (`salti=N`) e li elenca. Il gate esce con `0` anche con dei salti, ma un
-   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove restano solo i salti che
+   controllo saltato non è provato: il gate del rilascio gira anche su un Mac, dove restano solo i salti che
    valgono solo su Windows (il 22/11/2026 GV07, MG03, i veleni di IP21 e RT23: `salti=6`).
    I banchi vedono il sito utente di Python di chi lancia il gate anche nella HOME finta (`PYTHONUSERBASE`,
    GS11): su un Mac PyYAML installato con `pip --user` sta sotto la HOME (22/11/2026, #6426).
