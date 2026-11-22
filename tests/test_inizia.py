@@ -24,6 +24,7 @@ import html
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -32,15 +33,21 @@ FRASE = "Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-
 # La copia di riferimento dei passi sta su GitHub (#6091, 19/11/2026): chi controlla il sito non riscrive la verifica.
 GITHUB = "https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md"
 # I comandi della pagina, alla lettera: uno per <pre>, ognuno su una riga.
+# A11 (revisione del 22/11/2026): su Windows Git, Python 3.12 e Node LTS in un giro solo, con una riapertura.
+WINGET = ("winget install --id Git.Git -e --source winget; "
+          "winget install --id Python.Python.3.12 -e --source winget; "
+          "winget install --id OpenJS.NodeJS.LTS -e --source winget")
 COMANDI = {
-    "winget install --id Git.Git -e --source winget",
+    WINGET,
     'curl -fsSL https://arturo.stellakamikaze.org/installa.sh -o "$HOME/.arturo-installa.da-verificare"',
     # Dal 18/11/2026 lo script nasce solo se le due copie sono uguali; altrimenti il file provvisorio si cancella.
     'curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | cmp - "$HOME/.arturo-installa.da-verificare" && mv "$HOME/.arturo-installa.da-verificare" "$HOME/.arturo-installa.sh" && echo UGUALE || rm -f "$HOME/.arturo-installa.da-verificare"',
     'bash "$HOME/.arturo-installa.sh"',
     "! bash ~/.arturo-installa.sh",
 }
-MAX_PAROLE = 660  # 650 fino al 19/11/2026: +10 per il rimando a INIZIA.md su GitHub (#6091)
+# 650 fino al 19/11/2026: +10 per il rimando a INIZIA.md su GitHub (#6091). 660 fino al 22/11/2026: +30 per
+# il giro unico di winget (A11), che porta tre comandi e la riga sui programmi già installati.
+MAX_PAROLE = 690
 CRONOLOGIA = ("Quello che leggo resta nella cronologia di questa conversazione, che Claude Code tiene sul tuo "
               "computer e cancella da sola dopo 90 giorni. Arturo non ne fa altre copie.")
 # Dal 22/11/2026 Arturo entra come plugin (revisione D2): settings.json resta com'è, /setup aggiunge il resto.
@@ -63,7 +70,7 @@ RAGGIUNGIBILI = ("sito/index.html", "sito/inizia/index.html", "sito/roadmap/inde
 ASSORBITE = re.compile(r'(?:href="|https://arturo\.stellakamikaze\.org/)(?:\.\./|/)?'
                        r'(installa|novita|idee|mestieri|organizzazioni|finestra|confronto|claude-code-[a-z-]+)/')
 # I file che i casi leggono: --avvelena li copia, poi ne rompe uno.
-LETTI = tuple(dict.fromkeys(SENZA_VIRGOLETTE + RAGGIUNGIBILI + ("sito/sitemap.xml", "server/arturo-sito.conf", "INIZIA.md")))
+LETTI = tuple(dict.fromkeys(SENZA_VIRGOLETTE + RAGGIUNGIBILI + ("sito/sitemap.xml", "server/arturo-sito.conf", "INIZIA.md", "README.md")))
 VIRGOLETTE = re.compile("[«»“”„‘’]")
 
 
@@ -182,9 +189,15 @@ def caso_attesa_cache(repo):
 
 
 def caso_windows(repo):
-    """F2: su Windows la pagina non dà istruzioni su python, segue le righe MANCA dello script."""
+    """F2 e A11: su Windows python e node arrivano solo dal giro unico di winget del passo 3; il resto lo
+    dicono le righe MANCA dello script."""
     p = leggi(repo, "sito/inizia/index.html")
-    assert "python" not in testo(p).lower(), "la pagina dà istruzioni su python"
+    giro = passo(p, "Git.Git")
+    assert WINGET in giro and "Python.Python.3.12" in giro and "OpenJS.NodeJS.LTS" in giro, \
+        "il passo 3 non installa Git, Python e Node in un solo giro di winget"
+    fuori = testo(p).replace(giro, "")
+    assert "python" not in fuori.lower(), "la pagina dà istruzioni su python fuori dal giro di winget"
+    assert "winget" not in fuori.lower(), "la pagina chiede un altro giro di winget, cioè un'altra riapertura"
     manca = passo(p, "MANCA")
     assert "segui quelle righe" in manca and "riaprire Claude Code" in manca, \
         "il passo MANCA non dice di seguire le righe dello script"
@@ -346,10 +359,40 @@ def caso_pagina_sola(repo):
     assert not trovati, "una pagina raggiungibile porta a una pagina assorbita: " + "; ".join(trovati[:5])
 
 
+# A12 (revisione del 22/11/2026): il ramo porta solo il sito, i suoi strumenti, la config del server, INIZIA.md e
+# i banchi del sito. L'harness di settembre (hooks/, skills/, settings.json...) non torna: chi lo legge da qui
+# trova un Arturo fermo al 16/09.
+RAMO = {".github/workflows/igiene.yml", ".gitignore", "DESIGN.md", "INIZIA.md", "LICENSE", "PRODUCT.md",
+        "README.md", "tests/igiene.py", "tests/test_inizia.py", "tests/test_installa.py", "tests/test_roadmap.py"}
+CARTELLE_RAMO = ("sito/", "strumenti/", "server/")
+
+
+def file_del_ramo(repo):
+    """I file tracciati del ramo; fuori da git (le copie di --avvelena) i file della cartella."""
+    if (repo / ".git").exists():
+        r = subprocess.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True)
+        return [x for x in r.stdout.splitlines() if x]
+    return [f.relative_to(repo).as_posix() for f in repo.rglob("*") if f.is_file()]
+
+
+def caso_ramo_potato(repo):
+    fuori = sorted(f for f in file_del_ramo(repo) if f not in RAMO and not f.startswith(CARTELLE_RAMO))
+    assert not fuori, f"il ramo del sito porta file che non sono del sito: {fuori[:8]}"
+
+
+def caso_readme(repo):
+    """A12 e #6091: il README del ramo dice cos'è il ramo e dà la stessa frase d'ingresso, senza il clone."""
+    r = leggi(repo, "README.md")
+    assert FRASE in r, "il README del ramo non dà la frase con INIZIA.md su GitHub"
+    assert "git clone" not in r, "il README del ramo insegna ancora a clonare Arturo"
+    assert "ramo `dev`" in r and "ramo `main`" in r, "il README del ramo non rimanda a dev e main per il codice"
+
+
 CASI = [caso_niente_nascosto, caso_comandi_pagina, caso_niente_scorciatoie, caso_parole, caso_dopo,
         caso_impostazioni_prima, caso_ingresso_persone, caso_attesa_cache, caso_windows,
         caso_frase_ovunque, caso_virgolette, caso_guida_cinque, caso_a_mano, caso_faq_uguali, caso_carte,
-        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta, caso_pagina_sola, caso_inizia_github]
+        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta, caso_pagina_sola, caso_inizia_github,
+        caso_ramo_potato, caso_readme]
 
 INIZIA = "sito/inizia/index.html"
 
@@ -427,6 +470,17 @@ VELENI = [
     ("F8 virgolette basse in DESIGN.md", "DESIGN.md", sostituisci(
         '"Sessione di esempio"', "\u00abSessione di esempio\u00bb"),
      caso_virgolette, "DESIGN.md:"),
+    ("A12 torna un hook dell'harness", "hooks/session-start.sh", lambda s: "#!/usr/bin/env bash\n",
+     caso_ramo_potato, "non sono del sito"),
+    ("A12 README col clone", "README.md", sostituisci(FRASE, "git clone https://github.com/stellakamikaze/arturo ~/.claude"),
+     caso_readme, "frase con INIZIA.md"),
+    ("A11 su Windows solo Git", INIZIA, sostituisci(WINGET, "winget install --id Git.Git -e --source winget"),
+     caso_windows, "un solo giro di winget"),
+    ("A11 node con un altro giro", INIZIA, sostituisci(
+        "<li>Se lo script scrive \"possibile",
+        "<li>Se manca node, lancia winget install -e --id OpenJS.NodeJS.LTS e fai riaprire Claude Code.</li>\n"
+        "<li>Se lo script scrive \"possibile"),
+     caso_windows, "un altro giro di winget"),
 ]
 
 
@@ -464,7 +518,9 @@ def avvelena(repo):
             for f in LETTI:
                 (copia / f).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(repo / f, copia / f)
-            prima = leggi(copia, percorso)
+            # Un percorso fuori dalla copia è un file che il veleno aggiunge (caso_ramo_potato).
+            prima = leggi(copia, percorso) if (copia / percorso).is_file() else ""
+            (copia / percorso).parent.mkdir(parents=True, exist_ok=True)
             rotta = guasta(prima)
             if rotta == prima:
                 print(f"GUASTO {caso.__name__} ({nome}): il veleno non cambia {percorso}")

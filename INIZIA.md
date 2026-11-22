@@ -8,7 +8,7 @@ Hai incollato questo link in Claude Code: adesso Claude installa Arturo per te. 
 
 Il tuo accesso, le tue conversazioni, CLAUDE.md e i tuoi plugin restano come sono. In settings.json Claude Code accende solo il plugin. Permessi, regole di blocco e barra in basso li aggiunge /setup, col tuo sì.
 
-Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può comparire una conferma: clicca "Sì". Alla fine scrivi `/exit`, poi `claude`, poi `/setup`.
+Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows possono comparire più conferme: clicca "Sì" a ognuna. Alla fine scrivi `/exit`, poi `claude`, poi `/setup`.
 
 ## Per Claude Code
 
@@ -16,13 +16,13 @@ La persona ti ha chiesto di installare Arturo, un progetto open source con licen
 
 1. Se la persona ti ha incollato solo il link, chiedile: "Vuoi che installi Arturo?". Se non risponde di sì, fermati.
 2. Spiega alla persona in tre righe cosa stai per fare.
-3. Solo su Windows: se non hai a disposizione Bash, o se `bash --version` non risponde, chiedi il permesso e lancia:
+3. Solo su Windows: se `bash --version`, `python --version` o `node --version` non stampa un numero di versione, chiedi il permesso e lancia:
 
    ```
-   winget install --id Git.Git -e --source winget
+   winget install --id Git.Git -e --source winget; winget install --id Python.Python.3.12 -e --source winget; winget install --id OpenJS.NodeJS.LTS -e --source winget
    ```
 
-   Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scrivere `claude` e incollare di nuovo questo link.
+   Se winget risponde che un programma c'è già, va bene così. Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scrivere `claude` e incollare di nuovo questo link.
 4. Scarica lo script in un file provvisorio e confrontalo con la copia su GitHub:
 
    ```

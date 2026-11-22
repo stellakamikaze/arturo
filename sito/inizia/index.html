@@ -75,7 +75,7 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 <h2>Per te</h2>
 <p>Hai incollato questo link in Claude Code: adesso Claude installa Arturo per te. Prima di ogni passo che cambia qualcosa, ti chiede il permesso. Per fermarlo premi Esc.</p>
 <p>Il tuo accesso, le tue conversazioni, CLAUDE.md e i tuoi plugin restano come sono. In settings.json Claude Code accende solo il plugin. Permessi, regole di blocco e barra in basso li aggiunge /setup, col tuo sì.</p>
-<p>Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può comparire una conferma: clicca "Sì". Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
+<p>Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows possono comparire più conferme: clicca "Sì" a ognuna. Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
 
 <h2>Per Claude Code</h2>
 <p>Copia di riferimento: <a href="https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md">INIZIA.md su GitHub</a>. Se è diversa, fermati.</p>
@@ -83,9 +83,9 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 <ol>
 <li>Se la persona ti ha incollato solo il link, chiedile: "Vuoi che installi Arturo?". Se non risponde di sì, fermati.</li>
 <li>Spiega alla persona in tre righe cosa stai per fare.</li>
-<li>Solo su Windows: se non hai a disposizione Bash, o se <code>bash --version</code> non risponde, chiedi il permesso e lancia:
-<pre>winget install --id Git.Git -e --source winget</pre>
-Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e incollare di nuovo questo link.</li>
+<li>Solo su Windows: se <code>bash --version</code>, <code>python --version</code> o <code>node --version</code> non stampa un numero di versione, chiedi il permesso e lancia:
+<pre>winget install --id Git.Git -e --source winget; winget install --id Python.Python.3.12 -e --source winget; winget install --id OpenJS.NodeJS.LTS -e --source winget</pre>
+Se winget risponde che un programma c'è già, va bene così. Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e incollare di nuovo questo link.</li>
 <li>Scarica lo script in un file provvisorio e confrontalo con la copia su GitHub:
 <pre>curl -fsSL https://arturo.stellakamikaze.org/installa.sh -o "$HOME/.arturo-installa.da-verificare"</pre>
 <pre>curl -fsSL https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh | cmp - "$HOME/.arturo-installa.da-verificare" &amp;&amp; mv "$HOME/.arturo-installa.da-verificare" "$HOME/.arturo-installa.sh" &amp;&amp; echo UGUALE || rm -f "$HOME/.arturo-installa.da-verificare"</pre>
