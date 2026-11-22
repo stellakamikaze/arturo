@@ -13,6 +13,29 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — L'avvio consegna il suo messaggio anche su un computer carico, e /inizio aspetta meno
+
+**Cosa cambia**: il messaggio di avvio di Arturo arriva anche quando il computer è lento o carico. Prima
+Claude Code fermava l'hook di avvio dopo 10 secondi e buttava tutto quello che aveva già scritto: su un
+Windows succedeva in 10 avvii su 11. Adesso Arturo smette di aspettare a 7,5 secondi e consegna le righe
+pronte. Il controllo degli aggiornamenti della config continua da solo, staccato dall'avvio. Se non
+risponde, Arturo riprova dopo 30 minuti invece che dopo 6 ore. `/inizio` legge insieme i todo del
+progetto, i todo generali e l'elenco dei plugin: aspetta la lettura più lenta, non la somma.
+
+Su Windows l'identità git automatica funziona anche con la variabile `EMAIL` impostata, e `/system-audit`
+non lascia più un carattere sporco nel nome di una skill rotta. Le protezioni restano veloci anche su
+`tee`, `{` e `do` ripetuti.
+
+**Il principio**: un hook che supera il suo tempo perde tutto, anche il lavoro già fatto. Un tetto più
+basso di quello di Claude Code salva le righe pronte, e il lavoro lento passa a un processo che la
+chiusura dell'avvio non raggiunge. Nelle prove del 22/11 lo stesso avvio durava 4,5 secondi a computer
+fermo e da 11 a 19 secondi sotto carico.
+
+**Da sapere**: questa voce apre la versione 0.2.23. Le altre novità della stessa versione stanno nelle
+sette voci qui sotto, fino a "Un /fine su una sessione già chiusa non riparte".
+
+---
+
 ## 2026-11-22 — /fine a metà, due /fine insieme e altri sei difetti della revisione del 20/11
 
 **Cosa cambia**: se usi `/fine` a metà sessione per salvare e poi continui, il lavoro venuto dopo non si perde
