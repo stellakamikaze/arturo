@@ -642,6 +642,21 @@ def cmd_migra(unica: bool = False) -> int:
         print(f"FERMA: {str(errore).rstrip('.')}. Torno indietro.", file=sys.stderr)
         indietro(cartella, conserva=False)
         return uscita
+    except BaseException as errore:
+        # Ctrl-C o un errore che nessuno aspettava, anche dentro togli_arturo, che toglie .git per primo. Fino
+        # al 22/11/2026 qui non tornava indietro niente: ~/.claude restava senza .git e con metà dei file, senza
+        # una riga che dicesse come tornare (revisione del 20/11, bug 18).
+        ritorno = f"python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro"
+        print(f"FERMA: la migrazione si è interrotta ({type(errore).__name__}). Torno indietro.", file=sys.stderr)
+        try:
+            indietro(cartella, conserva=False)
+        except BaseException:
+            print(f"Il ritorno non è finito. Con Claude Code chiuso lancia da un Terminale: {ritorno}", file=sys.stderr)
+            raise
+        if isinstance(errore, KeyboardInterrupt):
+            return 130
+        print(f"Se qualcosa non torna, con Claude Code chiuso: {ritorno}", file=sys.stderr)
+        raise
     print(f"MIGRATO: Arturo è un plugin, e ~/.claude tiene solo i tuoi file. Apri Claude Code come sempre.\n"
           f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro")
     if a.get("regole_doppie"):

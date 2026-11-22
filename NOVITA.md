@@ -13,6 +13,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Gli undici difetti piccoli della revisione del 20/11
+
+**Cosa cambia**: `/inizio --tutti` rimette i file che avevi preparato per un commit dove li avevi lasciati.
+La pulizia mensile della cartella dei progetti non sposta più `CLAUDE.md`, `AGENTS.md`, `README` e `LICENSE`
+in `_archivio`. Un aggiornamento fermato da un file che un'altra sessione sta cambiando dice "annullata" e
+nomina il file, invece di un falso "ripristino non riuscito". `arturo progetti unisci` e `arturo migra` tornano
+indietro da soli se si fermano a metà, anche con Ctrl-C. Più sessioni dello stesso progetto chiuse insieme
+hanno ognuna il suo handoff automatico. Due sessioni che scrivono lo stesso file (lo stato degli aggiornamenti,
+le correzioni, un todo, una nota della memoria) non si pestano più. Con una home che ha uno spazio nel nome
+Arturo conta bene le sessioni aperte. La chiusura di una sessione non cancella più le conferme in attesa
+delle altre.
+
+**Il principio**: sono gli undici difetti bassi della revisione del 20/11. Ognuno ha un caso nel banco
+`tests/test_revisione_bassi_2026_11_22.py`, rosso sulla versione di prima e verde adesso.
+
+---
+
 ## 2026-11-22 — L'avvio consegna il suo messaggio anche su un computer carico, e /inizio aspetta meno
 
 **Cosa cambia**: il messaggio di avvio di Arturo arriva anche quando il computer è lento o carico. Prima

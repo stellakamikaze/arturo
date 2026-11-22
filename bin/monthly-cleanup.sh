@@ -77,8 +77,11 @@ if [ -n "$P" ]; then
       mkdir -p "$DEST"
       mv -n "$f" "$DEST/" 2>/dev/null && MOSSI=$((MOSSI+1))
     done <<EOF
-$(find "$P" -maxdepth 1 -type f ! -name '.*' -mtime +60 2>/dev/null)
+$(find "$P" -maxdepth 1 -type f ! -name '.*' ! -name 'CLAUDE.md' ! -name 'CLAUDE.local.md' ! -name 'AGENTS.md' \
+  ! -name 'README*' ! -name 'LICENSE*' -mtime +60 2>/dev/null)
 EOF
+    # Non modificato da 60 giorni non vuol dire non usato: CLAUDE.md e AGENTS.md sono le istruzioni della cartella
+    # contenitore, README e LICENSE la descrivono. Fino al 22/11/2026 finivano in _archivio (revisione del 20/11, bug 12).
     echo "[$TS] cartella progetti: file sciolti: $MOSSI $( [ "$PROVA" = 1 ] && echo 'da archiviare' || echo "archiviati in $DEST")"
   else
     echo "[$TS] PULIZIA_CARTELLA_PROGETTI punta a una cartella che non esiste: $P"

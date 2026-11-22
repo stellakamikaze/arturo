@@ -34,6 +34,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
@@ -165,6 +166,32 @@ def frontmatter_parse_error(text: str) -> str | None:
     return gravi[0] if gravi else None
 
 
+def scrivi_se_uguale(path: Path, letto: bytes, nuovo: str) -> bool:
+    """Scrive `nuovo` al posto di `path` solo se il file è ancora quello letto, con un file temporaneo e
+    os.replace. L'hook è asincrono e gira mentre Claude lavora: fino al 22/11/2026 riscriveva la nota intera
+    senza guardare, e una modifica di Claude caduta fra la lettura e la scrittura si perdeva (revisione del
+    20/11, bug 15). Gli a capo escono sempre \\n."""
+    fd, temporaneo = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(nuovo.encode("utf-8"))
+        try:
+            os.chmod(temporaneo, path.stat().st_mode & 0o777)
+        except OSError:
+            pass
+        if path.read_bytes() != letto:
+            os.unlink(temporaneo)
+            return False
+        os.replace(temporaneo, str(path))
+        return True
+    except BaseException:
+        try:
+            os.unlink(temporaneo)
+        except OSError:
+            pass
+        raise
+
+
 def main() -> int:
     if _mm is not None and not _mm.memoria_accesa():
         return 0
@@ -185,7 +212,8 @@ def main() -> int:
         return 0
 
     try:
-        text = path.read_text(encoding="utf-8")
+        letto = path.read_bytes()
+        text = letto.decode("utf-8").replace("\r\n", "\n")
     except Exception:
         return 0
 
@@ -199,11 +227,11 @@ def main() -> int:
     # rilettura di giudizio (R9). Una modifica di forma non è una verifica.
     if changed or created_added:
         try:
-            path.write_text(new_text, encoding="utf-8")
-            if changed:
-                actions.append("updated")
-            if created_added:
-                actions.append("created")
+            if scrivi_se_uguale(path, letto, new_text):
+                if changed:
+                    actions.append("updated")
+                if created_added:
+                    actions.append("created")
         except Exception:
             pass
 

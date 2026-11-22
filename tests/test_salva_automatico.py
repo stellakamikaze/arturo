@@ -40,7 +40,7 @@ VELENI = {
     "SV01": (SA, "        if not dopo_fine[0] and not dopo_fine[1]:", "        if False:"),
     "SV02": (SA, "             f\"- Sessione: {sid}\", MARCA]", "             f\"- Sessione: {sid}\"]"),
     "SV03": (SA, "    if not richieste_vere and not file:", "    if False:"),
-    "SV04": (SA, "    percorso = gia if gia is not None else nome_libero(", "    percorso = nome_libero("),
+    "SV04": (SA, "    if gia is not None:  # l'handoff automatico della stessa sessione", "    if False:"),
     "SV05": (SA, "            if scanner.trova(una):", "            if False:"),
     "SV06": (SA, "    if letto[\"headless\"]:", "    if False:"),
     "SV07": (SA, "            return p.parent\n", "            return Path(git(cwd, \"rev-parse\", \"--show-toplevel\"))\n"),
@@ -50,7 +50,7 @@ VELENI = {
     "SV10": (SA, "and not mm.memoria_accesa():", "and False:"),
     "SV11": (SA, "            return slug(m.group(1)), None", "            return \"\", None"),
     "SV12": (SA, "        return slug_del_progetto(cartella), cartella", "        return slug(cartella.name), cartella"),
-    "SV13": (SA, "                             correzioni_della_sessione(sid, scanner), dopo))", "                             [], dopo))"),
+    "SV13": (SA, "                    correzioni_della_sessione(sid, scanner), dopo)", "                    [], dopo)"),
 }
 SEGRETO = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 

@@ -500,7 +500,7 @@ nome della guardia che ha bloccato, `chiede` con il nome della guardia che chied
 `errore` con il nome di una guardia che si rompe, mai il comando. Dal 21/11/2026 `errore` conta anche le volte in cui `commit-secret-gate` non riesce a leggere le modifiche di un commit, con la causa in una parola da un elenco chiuso (`strumento-mancante`, `tempo-scaduto`, `errore`, `troppi-file`): mai il messaggio di git né la cartella. `web-egress-guard.py` e `protect_claude_md.py` registrano
 `chiede` allo stesso modo. I nomi delle guardie e delle regole vengono da un elenco chiuso in `bin/telemetria.py`, lo stesso del server: un nome fuori elenco non parte. Un hook PostToolUse e PostToolUseFailure (`bin/telemetria-esito.sh`) registra `confermata` quando
 lo strumento parte dopo una domanda di guardia, anche se poi fallisce: l'unico legame è l'id della chiamata, che resta in
-`session-env/telemetria-attese.json` fino all'esito. `bin/aggiorna-applica.sh`
+`session-env/telemetria-attese.json`, con l'ora della domanda, fino all'esito o alla chiusura della sua sessione, al massimo un giorno. Il file resta sul computer. `bin/aggiorna-applica.sh`
 registra `aggiorna` con l'esito e, dopo un conflitto, i file che lo bloccano come righe `deriva`: solo i file di Arturo, un file tuo conta come `file:altro`. `/aggiorna` registra il no e il ritorno indietro, `/setup` la fase raggiunta.
 L'invio in background registra `claude` quando cambia la versione di Claude Code. `deriva.py` registra `deriva` solo quando cambia l'elenco dei file e degli hook di Arturo
 cambiati o spenti, e `config` una volta al giorno se la config è rotta. Con la telemetria spenta nessuno di loro scrive. `arturo telemetria mostra`

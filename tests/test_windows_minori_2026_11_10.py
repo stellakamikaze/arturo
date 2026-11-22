@@ -126,8 +126,10 @@ def prova(repo: Path, solo: str = "") -> list:
 
 # (caso, file, testo giusto, testo rotto): ogni veleno toglie la riga che il caso sorveglia.
 VELENI = [
-    ("WM01", "bin/aggiornamenti.py", '        if SERVIZI_CLAUDE.match(" ".join(argomenti.split()[1:])):\n',
-     '        if SERVIZI_CLAUDE.search(" ".join(argomenti.split()[1:])):\n'),
+    ("WM01", "bin/aggiornamenti.py", '            if SERVIZI_CLAUDE.match(_dopo_il_programma(riga.split("\\t", 1)[-1])):\n',
+     '            if SERVIZI_CLAUDE.search(_dopo_il_programma(riga.split("\\t", 1)[-1])):\n'),
+    ("WM01", "bin/aggiornamenti.py", '        if SERVIZI_CLAUDE.match(_dopo_il_programma(riga, prog)):\n',
+     '        if SERVIZI_CLAUDE.search(_dopo_il_programma(riga, prog)):\n'),
     ("WM01", "bin/aggiornamenti.py", 'SERVIZI_CLAUDE = re.compile(r"(?:daemon run|bg-spare --bg-spare|bg-pty-host --bg-pty-host)(?=\\s|$)")',
      'SERVIZI_CLAUDE = re.compile(r"(?:daemon|bg-spare|bg-pty-host)(?=\\s|$)")'),
     ("WM02", "bin/segnala.py", '    if programma == "clip":\n', '    if False:\n'),

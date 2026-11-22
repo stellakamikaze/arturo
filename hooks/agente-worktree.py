@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
-from radici import radice_orsa  # noqa: E402
+from radici import radice_orsa, scrivi_atomico  # noqa: E402
 
 COPIA_AGENTE = re.compile(r"[/\\]\.claude[/\\]worktrees[/\\]agent-[^/\\]+$")
 SCRITTURA = {"Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"}
@@ -56,10 +56,7 @@ def leggi(f: Path) -> dict:
 
 
 def scrivi(f: Path, dati: dict) -> None:
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_suffix(".tmp")
-    tmp.write_text(json.dumps(dati, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, f)
+    scrivi_atomico(f, json.dumps(dati, ensure_ascii=False))
 
 
 def pulisci(d: Path) -> None:

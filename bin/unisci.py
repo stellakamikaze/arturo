@@ -156,6 +156,10 @@ def piano_handoff(perdente: str, vincitore: str) -> list:
                 while nome in presi:
                     ora += dt.timedelta(minutes=1)
                     nome = ora.strftime("HANDOFF_%Y-%m-%d_%H-%M.md")
+            elif nome.startswith("."):
+                # Un file col punto (.ultimo-fine-completo) diventava "-<perdente>.ultimo-fine-completo": un nome
+                # col trattino davanti e visibile (revisione del 20/11, bug 16). Il perdente va in coda e il punto resta.
+                nome = f"{nome}-{perdente}"
             else:
                 base, punto, est = nome.partition(".")
                 nome = f"{base}-{perdente}{punto}{est}"
@@ -327,7 +331,35 @@ def copia(perdente: str, vincitore: str, r: dict) -> Path:
 
 # --- scrittura --------------------------------------------------------------------------------------
 
-def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list) -> None:
+def ripristina(backup: Path, creati: list) -> list:
+    """Rimette i file della copia di sicurezza e toglie quelli che l'unione ha creato. Torna i file non rimessi."""
+    voci = json.loads((backup / "manifesto.json").read_text(encoding="utf-8"))["file"]
+    origini = {v["origine"] for v in voci}
+    for f in reversed(creati):
+        if str(f) not in origini:
+            try:
+                Path(f).unlink()
+            except OSError:
+                pass
+    mancati = []
+    for v in voci:
+        origine, copia_f = Path(v["origine"]), Path(v["copia"])
+        try:
+            origine.parent.mkdir(parents=True, exist_ok=True)
+            if v.get("cartella"):
+                if origine.exists():
+                    shutil.rmtree(str(origine))
+                shutil.copytree(str(copia_f), str(origine))
+            else:
+                shutil.copy2(str(copia_f), str(origine))
+        except OSError:
+            mancati.append(str(origine))
+    return mancati
+
+
+def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list, creati: list | None = None) -> None:
+    """`creati` riceve ogni file che non c'era prima, prima di crearlo: ripristina() li toglie."""
+    creati = [] if creati is None else creati
     oggi = ts.oggi()
     giorno = f"{oggi.day}/{oggi.month}/{oggi.year}"
     if r["todo"]:
@@ -342,6 +374,7 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list) -> None:
     if r["handoff"]:
         hd_v.mkdir(parents=True, exist_ok=True)
         for p, nome in r["handoff"]:
+            creati.append(hd_v / nome)
             shutil.move(str(p), str(hd_v / nome))
         try:
             hd_p.rmdir()
@@ -377,9 +410,11 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list) -> None:
         if dest.exists():
             dest = archivio / f"{sch_p.stem}-unito-{ts.oggi().isoformat()}.md"
         rn.scrivi_atomico(sch_p, scheda_archiviata(testi[sch_p], vincitore))
+        creati.append(dest)
         os.replace(sch_p, dest)
     elif sch_p:
         rn.scrivi_atomico(sch_p, rn.scheda_nuova(testi[sch_p], perdente, vincitore))
+        creati.append(sch_p.with_name(f"progetto-{vincitore}.md"))
         os.replace(sch_p, sch_p.with_name(f"progetto-{vincitore}.md"))
     elif sch_v:
         fm, corpo = dividi_scheda(testi[sch_v])
@@ -425,11 +460,24 @@ def unisci(perdente_nome: str, vincitore_nome: str, prova: bool = False, come_js
                 print(f"AVVISO: {x}")
         return 0
     backup = copia(perdente, vincitore, r)
-    if fonte is not None:
-        fatto = esito_fonte(chiama_fonte(["unisci", perdente, vincitore, "--backup", str(backup / "fonte"),
-                                          "--json"]), avvisi, perdente)
-        a["fonte"] = fatto
-    scrivi(perdente, vincitore, r, avvisi)
+    # Prima le scritture locali, che si possono rimettere dalla copia, poi la fonte esterna, che non torna
+    # indietro. Fino al 22/11/2026 l'ordine era l'opposto e senza ritorno: un errore in scrivi() lasciava i task
+    # della fonte già uniti, i todo spostati e gli handoff a metà (revisione del 20/11, bug 16).
+    creati: list = []
+    try:
+        scrivi(perdente, vincitore, r, avvisi, creati)
+        if fonte is not None:
+            fatto = esito_fonte(chiama_fonte(["unisci", perdente, vincitore, "--backup", str(backup / "fonte"),
+                                              "--json"]), avvisi, perdente)
+            a["fonte"] = fatto
+    except BaseException as e:
+        mancati = ripristina(backup, creati)
+        stato = (f"non ho potuto rimettere {len(mancati)} file, li trovi in {backup}: {', '.join(mancati[:3])}"
+                 if mancati else f"ho rimesso tutto com'era dalla copia {backup}")
+        if isinstance(e, Ferma):
+            raise Ferma(e.codice, f"{e}. Unione annullata: {stato}") from None
+        print(f"ERRORE: l'unione si è fermata a metà ({type(e).__name__}): {stato}", file=sys.stderr)
+        raise
     if come_json:
         print(json.dumps({**a, "prova": False, "fatto": True, "backup": str(backup)}, ensure_ascii=False))
     else:

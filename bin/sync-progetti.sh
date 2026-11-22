@@ -28,6 +28,19 @@ fi
 
 echo "=== Progetti in $ROOT ==="
 
+# Rimette lo stash del repository $1 con la sua selezione in stage (--index). Fino al 22/11/2026 il pop era
+# senza --index: i file preparati per un commit parziale tornavano tutti fuori dallo stage (revisione del
+# 20/11, bug 11). Se lo stage non si può rimettere ("Conflicts in index"), git non tocca niente e lo stash
+# resta: allora il pop semplice rimette almeno le modifiche. Stampa l'output di git, esce come il pop.
+rimetti_stash() {
+  local out
+  out=$(LC_ALL=C git -C "$1" stash pop --index 2>&1) && { printf '%s\n' "$out"; return 0; }
+  case "$out" in
+    *"without --index"*|*"Conflicts in index"*) LC_ALL=C git -C "$1" stash pop 2>&1 ;;
+    *) printf '%s\n' "$out"; return 1 ;;
+  esac
+}
+
 for dir in "$ROOT"/*/; do
   [ -d "$dir/.git" ] || continue
   name=$(basename "$dir")
@@ -97,7 +110,7 @@ for dir in "$ROOT"/*/; do
     esac
     # Prima del pull nessun rebase era a metà (controllo sopra): se ce n'è uno, è di questo pull.
     git -C "$dir" rebase --abort 2>/dev/null
-    [ "$STASHED" = "1" ] && git -C "$dir" stash pop 2>/dev/null
+    [ "$STASHED" = "1" ] && rimetti_stash "$dir" >/dev/null 2>&1
     ERRORS=$((ERRORS + 1))
     continue
   fi
@@ -105,7 +118,7 @@ for dir in "$ROOT"/*/; do
   AFTER=$(git -C "$dir" rev-parse HEAD 2>/dev/null)
 
   if [ "$STASHED" = "1" ]; then
-    if git -C "$dir" stash pop 2>&1 | grep -qE "CONFLITTO|conflict"; then
+    if rimetti_stash "$dir" | grep -qiE "conflitto|conflict"; then
       echo "  ATTENZIONE: stash pop con conflitti - risolvi a mano"
       ERRORS=$((ERRORS + 1))
     else

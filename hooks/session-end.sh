@@ -70,8 +70,9 @@ find ~/.claude -maxdepth 1 \( -name 'claude-md-unlock-*' -o -name 'config-unlock
 find ~/.claude/session-env -maxdepth 1 -name 'retrieve-*.seen' -mtime +0 -exec rm -f {} + 2>/dev/null
 # I registri dei commit per sessione della regola git-amend (block-dangerous.py dopo, 3/11/2026).
 find ~/.claude/session-env -maxdepth 1 -name 'commit-*.json' -mtime +0 -exec rm -f {} + 2>/dev/null
-# Le conferme chieste dalle guardie e rimaste senza esito (un no): gli id valgono per una sessione.
-rm -f ~/.claude/session-env/telemetria-attese.json 2>/dev/null
+# Le conferme chieste dalle guardie e rimaste senza esito (un no) le toglie `telemetria.py fine`, qui sopra:
+# solo quelle di questa sessione. Fino al 22/11/2026 qui si cancellava il file intero, con le conferme in attesa
+# delle altre sessioni aperte (revisione del 20/11, bug 21).
 
 # Il resto solo in una directory di progetto. In un worktree .git è un file, non una cartella.
 if [ ! -e "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then

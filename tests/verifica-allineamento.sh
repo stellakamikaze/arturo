@@ -280,6 +280,10 @@ BANCHI=(
   # I bug medi A4-A10 della revisione del 20/11 (22/11/2026, #6250): lucchetto della coda, salvataggio dopo un
   # /fine a metà, sblocchi fuori dai progetti, a capo Windows, /arturo:fine, pulizia plugin, cause del pull.
   test_revisione_medi_2026_11_22.py
+  # I bug bassi 11-21 della revisione del 20/11 (22/11/2026, #6389): stash con lo stage, CLAUDE.md nella pulizia,
+  # falso ripristino, lucchetto dei todo, hook della memoria, unisci e migra con ritorno, handoff automatici,
+  # temporanei unici, home con spazi, conferme della telemetria.
+  test_revisione_bassi_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -608,6 +612,8 @@ BASELINE=(
   "test_avvio_tetto_2026_11_22.py e57fe9f"
   # I bug medi A4-A10 della revisione del 20/11 (22/11/2026, #6250): rossi tutti e sette. d0f56af, il dev prima.
   "test_revisione_medi_2026_11_22.py d0f56af"
+  # I bug bassi 11-21 della revisione del 20/11 (22/11/2026, #6389): rossi tutti e undici. 1e84201, il dev prima.
+  "test_revisione_bassi_2026_11_22.py 1e84201"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

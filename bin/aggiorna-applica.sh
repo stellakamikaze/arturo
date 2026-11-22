@@ -321,8 +321,16 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
     return 0
   fi
   if ! git reset -q --keep "$nuovo"; then
-    if [ "$(git rev-parse HEAD)" = "$prima" ] && pulita && controlla "$RADICE"; then
+    # Un reset --keep che si rifiuta non cambia niente. Se HEAD è ancora quello di prima, la copia è com'era:
+    # i file con modifiche nuove sono di un'altra sessione, arrivate dopo il controllo iniziale. Fino al 22/11/2026
+    # quelle modifiche facevano cadere "pulita", e il messaggio diceva RIPRISTINO NON RIUSCITO su una config
+    # intatta (revisione del 20/11, bug 13).
+    if [ "$(git rev-parse HEAD)" = "$prima" ]; then
       echo "APPLICAZIONE ANNULLATA: git non ha potuto sostituire i file (vedi sopra). La copia è com'era prima"
+      if ! pulita; then
+        echo "Questi file hanno modifiche non salvate arrivate durante l'applicazione: salvale con /fine e rilancia."
+        modificati | sed 's/^/  /'
+      fi
       return 1
     fi
   fi

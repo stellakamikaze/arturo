@@ -57,7 +57,7 @@ sys.path.insert(0, str(QUI.parent / "scripts"))
 sys.path.insert(0, str(QUI.parent / "hooks"))
 import melchior_match as mm  # noqa: E402
 import melchior_recall as mr  # noqa: E402
-from radici import radice_arturo  # noqa: E402
+from radici import radice_arturo, scrivi_atomico  # noqa: E402
 
 AIUTO = __doc__.split("\n\n")[3] if __doc__ else ""
 
@@ -551,10 +551,7 @@ def comando_scheda(argv: list) -> int:
         testo, aggiunte = aggiorna_scheda(testo_nuova_scheda(s, cosa, titolo, cartella, alias), "", "", "", [], voci)
         esito = "creata"
     if esito != "invariata":
-        f.parent.mkdir(parents=True, exist_ok=True)
-        tmp = f.with_name(f".{f.name}.tmp")
-        tmp.write_text(testo, encoding="utf-8")
-        os.replace(str(tmp), str(f))
+        scrivi_atomico(f, testo)
     print(f"scheda {esito}: {breve(f)} · decisioni nuove {aggiunte['decisione']} · errori nuovi {aggiunte['errore']}")
     return 0
 
@@ -586,11 +583,7 @@ def leggi_registro() -> dict:
 
 
 def scrivi_registro(dati: dict) -> None:
-    f = file_registro()
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f".{f.name}.tmp")
-    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    os.replace(str(tmp), str(f))
+    scrivi_atomico(file_registro(), json.dumps(dati, ensure_ascii=False, indent=1) + "\n")
 
 
 def oggi() -> str:
@@ -652,10 +645,7 @@ def comando_nota(argv: list) -> int:
     f = mm.MEMORY_DIR / mm.CARTELLA_TIPO[a.tipo] / f"{nome}.md"
     corpo = "\n".join(["---", f"name: {nome}", f"description: {_valore_fm(descrizione)}", f"type: {a.tipo}",
                        f"created: {oggi()}", "---", testo]) + "\n"
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f".{f.name}.tmp")
-    tmp.write_text(corpo, encoding="utf-8")
-    os.replace(str(tmp), str(f))
+    scrivi_atomico(f, corpo)
     dati = leggi_registro()
     dati["voci"].append({"nome": nome, "file": f.relative_to(mm.MEMORY_DIR).as_posix(), "descrizione": descrizione,
                          "giorno": oggi(), "annuncio": None, "tolta": False})
@@ -839,9 +829,7 @@ def igiene(prova: bool = False) -> dict:
             else:
                 continue
             if not prova and nuovo != testo:
-                tmp = p.with_name(f".{p.name}.tmp")
-                tmp.write_text(nuovo, encoding="utf-8")
-                os.replace(str(tmp), str(p))
+                scrivi_atomico(p, nuovo)
 
     voci, altrui = [], []
     for _d, p in file_note(cartelle()):

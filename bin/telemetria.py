@@ -944,6 +944,22 @@ def _leggi_attese() -> dict:
         return {}
 
 
+ATTESA_MASSIMA = 86400  # secondi: una conferma senza esito da un giorno è un no, anche senza la chiusura
+
+
+def _guardia_di(voce) -> str | None:
+    """La guardia di una voce delle attese: {"guardia", "ora"}, o la sola stringa delle versioni di prima."""
+    if isinstance(voce, dict):
+        g = voce.get("guardia")
+        return g if isinstance(g, str) else None
+    return voce if isinstance(voce, str) else None
+
+
+def _scaduta(voce) -> bool:
+    ora = voce.get("ora") if isinstance(voce, dict) else None
+    return not isinstance(ora, (int, float)) or time.time() - ora > ATTESA_MASSIMA
+
+
 def chiede(guardia: str, uso: str) -> None:
     """Una guardia ha chiesto conferma: registra `chiede` e ricorda la chiamata fino all'esito."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", uso or ""):
@@ -953,9 +969,39 @@ def chiede(guardia: str, uso: str) -> None:
         return
     file_attese().parent.mkdir(parents=True, exist_ok=True)
     with ts.Lucchetto(file_attese()):
-        attese = _leggi_attese()
-        attese[uso] = guardia
+        attese = {k: v for k, v in _leggi_attese().items() if not _scaduta(v)}
+        attese[uso] = {"guardia": guardia, "ora": int(time.time())}
         ts.scrivi_json_atomico(file_attese(), dict(list(attese.items())[-50:]))
+
+
+def togli_attese_della_sessione(transcript: Path) -> None:
+    """Alla chiusura di una sessione: toglie le conferme rimaste senza esito (un no) di quella sessione sola.
+    Una chiamata è della sessione se il suo tool_use_id sta nel suo transcript. Fino al 22/11/2026 session-end.sh
+    cancellava il file intero, con le conferme in attesa delle sessioni ancora aperte: il loro sì non contava più
+    (revisione del 20/11, bug 21). Le voci più vecchie di un giorno si tolgono comunque."""
+    f = file_attese()
+    if not f.exists():
+        return
+    with ts.Lucchetto(f):
+        attese = _leggi_attese()
+        cercate, viste = set(attese), set()
+        try:
+            if transcript.stat().st_size <= TRANSCRIPT_MASSIMO:
+                with open(transcript, encoding="utf-8", errors="replace") as t:
+                    for riga in t:
+                        viste.update(u for u in cercate - viste if u in riga)
+        except OSError:
+            pass
+        resto = {k: v for k, v in attese.items() if k not in viste and not _scaduta(v)}
+        if resto == attese:
+            return
+        if resto:
+            ts.scrivi_json_atomico(f, resto)
+        else:
+            try:
+                f.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def esito(dati: dict) -> None:
@@ -967,7 +1013,7 @@ def esito(dati: dict) -> None:
         return
     with ts.Lucchetto(file_attese()):
         attese = _leggi_attese()
-        guardia = attese.pop(uso, None)
+        guardia = _guardia_di(attese.pop(uso, None))
         if guardia is None:
             return
         if attese:
@@ -1162,10 +1208,16 @@ def fine_sessione(dati: dict) -> None:
     che chiude, e dal 15/11/2026 (M7 della memoria) la memoria una volta al giorno e il richiamo della sessione.
     Una sessione senza messaggi della persona non registra niente. Non usa la rete e non solleva."""
     try:
-        if perche_spenta() or not isinstance(dati, dict):
+        if not isinstance(dati, dict):
             return
         sessione, percorso = dati.get("session_id"), dati.get("transcript_path")
         if not isinstance(sessione, str) or not sessione or not isinstance(percorso, str) or not percorso:
+            return
+        try:  # anche a telemetria spenta: il file l'ha scritto quando era accesa
+            togli_attese_della_sessione(Path(percorso))
+        except Exception:  # noqa: BLE001
+            pass
+        if perche_spenta():
             return
         if sessione in (leggi_stato().get("sessioni_chiuse") or []):
             return
