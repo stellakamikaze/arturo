@@ -1,7 +1,20 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { argomentiInizio, decidi, domandaAperta, nomeTool, spenta, testoDomande, vediBozza } from '../hooks/rotazione/rotazione'
+import {
+  argomentiInizio,
+  contaGiro,
+  decidi,
+  domandaAperta,
+  GIRI_MAX,
+  messaggioDellaPersona,
+  nomeTool,
+  spenta,
+  testoDomande,
+  tettoGiri,
+  tracciaPulita,
+  vediBozza,
+} from '../hooks/rotazione/rotazione'
 
 // Il nome che il motore finto dà al tool: il mod usa quello, qualunque sia il nome del plugin.
 const TOOL = 'mcp__prova__ruota'
@@ -80,6 +93,49 @@ describe('domanda aperta dopo ruota (segnalazione n. 65)', () => {
   test('argomenti di /inizio con la domanda: --in-attesa in fondo, su una riga', () => {
     expect(argomentiInizio({ progetto: 'arturo', compito: 'step 3', domanda: 'Va bene\n così?' }))
       .toBe('arturo -- --rotazione step 3 --in-attesa Va bene così?')
+  })
+})
+
+// #6334, 22/11/2026: freni fuori dal modello, un tetto di giri e lo stop dopo due giri a vuoto.
+describe('conto dei giri', () => {
+  test('primo giro con traccia: ruota, giro 1, nessun vuoto', () => {
+    expect(contaGiro(undefined, 'commit abc', 10)).toEqual({ azione: 'ruota', giri: { n: 1, vuoti: 0, traccia: 'commit abc' } })
+  })
+  test('un giro vuoto: ruota ancora', () => {
+    expect(contaGiro({ n: 1, vuoti: 0, traccia: 'commit abc' }, '', 10).azione).toBe('ruota')
+  })
+  test('due giri vuoti di fila: ferma', () => {
+    const r = contaGiro({ n: 3, vuoti: 1, traccia: 'commit abc' }, '', 10)
+    expect(r.azione).toBe('ferma')
+    expect(r.azione === 'ferma' && r.motivo).toContain('2 giri di fila senza niente di nuovo')
+  })
+  test('la stessa traccia del giro prima vale come vuota', () => {
+    const uno = contaGiro({ n: 1, vuoti: 0, traccia: 'commit abc' }, 'commit abc', 10)
+    expect(uno).toEqual({ azione: 'ruota', giri: { n: 2, vuoti: 1, traccia: 'commit abc' } })
+    expect(contaGiro(uno.giri, 'commit abc', 10).azione).toBe('ferma')
+  })
+  test('una traccia nuova dopo un vuoto azzera i vuoti', () => {
+    expect(contaGiro({ n: 2, vuoti: 1, traccia: 'commit abc' }, 'commit def', 10).giri.vuoti).toBe(0)
+  })
+  test('tetto: il giro oltre il tetto ferma, quello al tetto ruota', () => {
+    expect(contaGiro({ n: 9, vuoti: 0, traccia: 'a' }, 'b', 10).azione).toBe('ruota')
+    const r = contaGiro({ n: 10, vuoti: 0, traccia: 'b' }, 'c', 10)
+    expect(r.azione === 'ferma' && r.motivo).toContain('10 giri di fila senza un tuo messaggio')
+  })
+  test('traccia che non dice niente: vuota', () => {
+    expect(['', ' - ', 'niente', 'Nessuna traccia.', 'nulla', 'n/a'].map(tracciaPulita)).toEqual(['', '', '', '', '', ''])
+    expect(tracciaPulita('commit  abc\n#6334')).toBe('commit abc #6334')
+    expect(tracciaPulita(undefined)).toBe('')
+  })
+  test('ARTURO_ROTAZIONE_GIRI: un intero da 1 in su, altrimenti il tetto di default', () => {
+    expect([undefined, '', '0', 'tanti', '-3', '4'].map(tettoGiri)).toEqual([GIRI_MAX, GIRI_MAX, GIRI_MAX, GIRI_MAX, GIRI_MAX, 4])
+  })
+  test('il /inizio della rotazione non è un messaggio della persona', () => {
+    expect(messaggioDellaPersona('/inizio arturo -- --rotazione step 2')).toBe(false)
+    expect(messaggioDellaPersona('/arturo:inizio arturo -- --rotazione step 2')).toBe(false)
+    expect(messaggioDellaPersona('/inizio arturo -- step 2')).toBe(true)
+    expect(messaggioDellaPersona('vai avanti')).toBe(true)
+    expect(messaggioDellaPersona('')).toBe(false)
   })
 })
 
@@ -378,4 +434,44 @@ test('finding 69: $.session.usage che fallisce a fine turno non lascia la rotazi
   await $.turn.complete(fineTurno('answer')).catch(() => undefined)
   await clock.advance(20_000)
   expect(d.comandi.length).toBe(dopoTurno1)
+})
+
+// #6334: il freno vive nel mod, non nelle istruzioni al modello.
+type Motore = Parameters<Parameters<typeof test>[1]>[0]
+async function giro($: Motore, clock: { advance(ms: number): Promise<unknown> }, traccia: string): Promise<string> {
+  const r = await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'step', traccia } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(1_000)
+  await $.session.end(fine)
+  await clock.advance(2_000)
+  return JSON.stringify(r)
+}
+
+test('#6334: due giri di fila senza traccia nuova, il secondo non ruota', async ($, on) => {
+  const d = motore(on)
+  on('prompt.submit', (_, e) => e as never)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  expect(await giro($, clock, 'commit abc')).toContain('Rotazione armata')
+  expect(await giro($, clock, 'commit abc')).toContain('Rotazione armata')
+  const n = d.comandi.length
+  expect(await giro($, clock, '')).toContain('Rotazione fermata')
+  expect(d.comandi.length).toBe(n)
+  expect(d.toast.at(-1)).toContain('2 giri di fila senza niente di nuovo')
+})
+
+test('#6334: il tetto di giri ferma il giro, un messaggio della persona lo azzera', async ($, on) => {
+  const d = motore(on, { env: { ARTURO_ROTAZIONE_GIRI: '2' } })
+  on('prompt.submit', (_, e) => e as never)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  expect(await giro($, clock, 'commit 1')).toContain('Rotazione armata')
+  await $.prompt.submit({ text: '/inizio arturo -- --rotazione step' } as never)
+  expect(await giro($, clock, 'commit 2')).toContain('Rotazione armata')
+  const n = d.comandi.length
+  expect(await giro($, clock, 'commit 3')).toContain('Rotazione fermata')
+  expect(d.comandi.length).toBe(n)
+  expect(d.toast.at(-1)).toContain('2 giri di fila senza un tuo messaggio')
+  await $.prompt.submit({ text: 'continua pure' } as never)
+  expect(await giro($, clock, 'commit 4')).toContain('Rotazione armata')
 })

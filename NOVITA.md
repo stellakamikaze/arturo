@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — La rotazione si ferma da sola quando gira a vuoto
+
+**Cosa cambia**: la rotazione riparte da sola a ogni passo chiuso. Adesso si ferma in due casi. Il primo:
+due giri di fila che non lasciano niente di nuovo (nessun commit, nessun task chiuso, nessun file). Il
+secondo: dieci giri di fila senza un tuo messaggio. Sotto il prompt vedi il motivo, e Claude chiude con il
+riepilogo di cosa ha fatto. Al tuo prossimo messaggio il conto riparte da zero. Per un tetto diverso:
+`export ARTURO_ROTAZIONE_GIRI=20` prima di aprire Claude.
+
+**Il principio**: un ciclo che riparte da solo ha bisogno di freni fuori dal modello. Il conto lo tiene il
+mod, non le istruzioni a Claude: un modello che gira in tondo non si accorge di girare in tondo. A ogni giro
+Claude scrive cosa ha lasciato lo step, e due tracce vuote o uguali di fila fermano il giro.
+
+---
+
 ## 2026-11-22 — Una guardia lenta chiede conferma invece di lasciar passare il comando
 
 **Cosa cambia**: se le guardie di un comando Bash non finiscono entro 25 secondi, Arturo ferma quella in

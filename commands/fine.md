@@ -50,15 +50,19 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   sì` dell'handoff, col testo. Il prossimo `/fine` scritto dalla persona le propone.
 - **Poi la rotazione.** Con la coda a `rc=0` scegli il passo dopo. Se è un passo di Claude (Chi `io`), la
   chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
-  `mcp__arturo__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
+  `mcp__arturo__ruota` con `progetto` (lo slug), `compito` (il passo dopo in una frase) e `traccia` (cosa
+  ha lasciato lo step chiuso: commit, task chiuso, file; vuota se niente di nuovo). È l'ultima
   azione del turno. Mai chiudere con "scrivi /clear e poi /inizio": quel passo lo fa `ruota`.
+- **Il mod tiene il conto dei giri.** Dopo due giri di fila senza una traccia nuova, o oltre 10 giri senza un
+  messaggio della persona (`ARTURO_ROTAZIONE_GIRI` cambia il tetto), `ruota` risponde "Rotazione fermata".
+  Lì non richiami il tool: chiudi con la raccolta dei risultati. Il conto riparte al messaggio dopo.
 - **Un rilascio pronto vuole una riapertura vera.** Prima di `ruota` lancia
   `python3 ~/.claude/bin/arturo aggiornamenti riapri`. Con uscita 0 non ruotare: il `/clear` non chiude Claude
   Code, e il rilascio resta fermo. Chiudi con la riga che stampa e con "chiudi e riapri Claude Code, poi
   scrivi **/inizio <slug>**".
 - **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
   la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la
-  persona ha scritto durante il turno; il tool risponde "Rotazione spenta". Il fine leggero resta fatto:
+  persona ha scritto durante il turno; il tool risponde "Rotazione spenta" o "Rotazione fermata". Il fine leggero resta fatto:
   la chiusura alla persona è la raccolta dei risultati, cioè l'esito, una riga per materiale con la sua
   posizione e il prossimo passo con chi lo fa. Se il tool non c'è (mod spento),
   chiudi con "scrivi **/clear** e poi **/inizio <slug>**".
