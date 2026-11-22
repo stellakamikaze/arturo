@@ -275,6 +275,8 @@ BANCHI=(
   test_fine_avvisi_2026_11_22.py
   # arturo contesto legge git mentre la fonte esterna dei todo risponde (22/11/2026, #6317).
   test_parallelo_2026_11_22.py
+  # Le letture della FASE 4 di /inizio partono insieme con arturo apertura (22/11/2026, #6368).
+  test_apertura_2026_11_22.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -591,6 +593,8 @@ BASELINE=(
   "test_tetto_guardie_2026_11_22.py e1a03e6"
   # Git e la fonte esterna dei todo in fila in arturo contesto (22/11/2026, #6317). 300567c, il dev prima.
   "test_parallelo_2026_11_22.py 300567c radice"
+  # Senza arturo apertura le letture della FASE 4 vanno in fila (22/11/2026, #6368). 2120b4d, il dev prima.
+  "test_apertura_2026_11_22.py 2120b4d radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

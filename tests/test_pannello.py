@@ -32,6 +32,7 @@ Sulla base fc6459f ogni controllo deve fallire.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import re
@@ -531,20 +532,22 @@ def sezione(testo: str, titolo: str) -> str:
     return m.group(1)
 
 
+# Col plugin il mod arriva dentro Arturo, con l'id arturo@arturo (review del 7/11/2026, finding 75).
+LISTE_DEL_MOD = (('[{"id": "arturo@skills-dir", "enabled": true}]', "mod caricato"),
+                 ('[{"id": "arturo@arturo", "enabled": true}]', "mod caricato"),
+                 ('[{"id": "arturo@arturo", "enabled": false}]', "mod assente"),
+                 ('[{"id": "arturo@skills-dir", "enabled": false}]', "mod assente"),
+                 ('[{"id": "dafare@skills-dir", "enabled": true}]', "mod assente"),
+                 ('[{"id": "altro@skills-dir", "enabled": true}]', "mod assente"))
+
+
 def controllo_del_mod(testo: str, dove: str) -> None:
     """Il modello non vede i comandi di un mod: la skill todo e /inizio sanno se il pannello c'è da
     `claude plugin list --json`. La riga si lancia davvero su tre liste finte."""
     righe = [r.strip() for r in testo.splitlines() if r.strip().startswith("claude plugin list --json")]
     assert len(righe) == 1, f"U11 {dove}: il controllo del pannello con claude plugin list --json: {righe}"
-    # Col plugin il mod arriva dentro Arturo, con l'id arturo@arturo (review del 7/11/2026, finding 75).
-    attesi = (('[{"id": "arturo@skills-dir", "enabled": true}]', "mod caricato"),
-              ('[{"id": "arturo@arturo", "enabled": true}]', "mod caricato"),
-              ('[{"id": "arturo@arturo", "enabled": false}]', "mod assente"),
-              ('[{"id": "arturo@skills-dir", "enabled": false}]', "mod assente"),
-              ('[{"id": "dafare@skills-dir", "enabled": true}]', "mod assente"),
-              ('[{"id": "altro@skills-dir", "enabled": true}]', "mod assente"))
     with tempfile.TemporaryDirectory() as tmp:
-        for lista, atteso in attesi:
+        for lista, atteso in LISTE_DEL_MOD:
             finta = Path(tmp) / "lista.json"
             finta.write_text(lista, encoding="utf-8")
             riga = righe[0].replace("claude plugin list --json", f'cat "{finta}"', 1)
@@ -567,7 +570,19 @@ def test_u11(repo: Path) -> None:
     for riga in [r for r in todo.splitlines() if "/dafare" in r]:
         prima = todo.splitlines()[todo.splitlines().index(riga) - 1]
         assert "[solo se" in riga or "[solo se" in prima, f"U11 /inizio propone /dafare senza condizione: {riga!r}"
-    controllo_del_mod(sezione(inizio, "## FASE 4: Carica i Todo con Cross-Reference"), "commands/inizio.md FASE 4")
+    # Dal 22/11/2026 (#6368) la FASE 4 lancia le sue letture insieme con arturo apertura: il controllo del
+    # pannello sta in bin/apertura.py e si prova sulle stesse liste finte.
+    fase4 = sezione(inizio, "## FASE 4: Carica i Todo con Cross-Reference")
+    assert "python3 ~/.claude/bin/arturo apertura" in fase4 and "mod caricato" in fase4, \
+        "U11 /inizio FASE 4 non lancia arturo apertura o non dice quando il pannello c'è"
+    sys.path.insert(0, str(repo / "bin"))
+    try:
+        apertura = importlib.import_module("apertura")
+    finally:
+        sys.path.pop(0)
+    for lista, atteso in LISTE_DEL_MOD:
+        uscita = apertura.mod_dal_json(lista)
+        assert uscita == atteso, f"U11 bin/apertura.py: con {lista} il controllo dice {uscita!r}, atteso {atteso!r}"
     assert "/dafare" in read(repo / "README.md"), "U11 il README non nomina /dafare"
     novita = read(repo / "NOVITA.md")
     # Piu' entry dello stesso giorno: conta che la entry ci sia, non che stia in cima.

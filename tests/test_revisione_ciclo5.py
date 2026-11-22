@@ -164,8 +164,10 @@ def blocco(testo: str, dopo: str, codice: str) -> str:
 
 
 def righe_todo(testo: str) -> str:
-    """Le sole righe che leggono i todo con la CLI, per lanciarle senza il resto del blocco."""
-    return "\n".join(r for r in testo.splitlines() if "arturo" in r and " todo" in r and not r.lstrip().startswith("#"))
+    """Le sole righe che leggono i todo con la CLI, per lanciarle senza il resto del blocco. Dal 22/11/2026
+    (#6368) la FASE 4 di /inizio li legge con `arturo apertura`, che lancia insieme le letture."""
+    return "\n".join(r for r in testo.splitlines()
+                     if "arturo" in r and (" todo" in r or " apertura" in r) and not r.lstrip().startswith("#"))
 
 
 # --- X01 ----------------------------------------------------------------------------------------
