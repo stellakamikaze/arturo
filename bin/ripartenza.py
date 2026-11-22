@@ -16,7 +16,9 @@ Uscita: il file, con versione, sid e quando aggiunti. `n` è il numero che la pe
 Tetti: FILONI filoni, VOCI voci in tutto, TESTO caratteri per campo. Un campo sconosciuto si scarta.
 
 Esce 2 se lo schema è rotto (lo dice su stderr, così Claude corregge). Senza CLAUDE_CODE_SESSION_ID esce 0 e
-non scrive: la ripartenza fuori da una sessione non ha una checklist. Si spegne con ARTURO_RIPARTENZA=0.
+non scrive: la ripartenza fuori da una sessione non ha una checklist. Senza la cartella di Volta
+(~/.config/herdr-app) esce 0 e non scrive: la checklist la legge solo Volta, e chi non la usa non deve
+trovarsi file di Volta (22/11/2026, rilievo A9). Si spegne con ARTURO_RIPARTENZA=0.
 Solo libreria standard, Python 3.8+. Banco: tests/test_ripartenza_2026_11_17.py.
 """
 from __future__ import annotations
@@ -124,6 +126,11 @@ def pulisci(grezzo) -> dict:
     return dati
 
 
+def volta_presente() -> bool:
+    """Volta tiene la sua config in ~/.config/herdr-app, sul Mac e su Windows: senza, nessuno legge la checklist."""
+    return (Path.home() / ".config" / "herdr-app").is_dir()
+
+
 def main(argv: list) -> int:
     if argv[:1] != ["scrivi"] or len(argv) > 1:
         print(USO, file=sys.stderr)
@@ -135,6 +142,9 @@ def main(argv: list) -> int:
     except (ValueError, json.JSONDecodeError) as e:
         print(f"arturo ripartenza: schema rotto: {e}", file=sys.stderr)
         return 2
+    if not volta_presente():
+        print("arturo ripartenza: Volta non c'è, niente checklist")
+        return 0
     sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     if not SID.match(sid):
         print("arturo ripartenza: nessuna sessione, niente checklist")

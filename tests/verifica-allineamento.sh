@@ -242,6 +242,8 @@ BANCHI=(
   test_monitor_giorno_2026_11_20.py
   # La ripartenza di /inizio come dati per la checklist di Volta (17/11/2026, #5910).
   test_ripartenza_2026_11_17.py
+  # I testi pubblici dicono cosa c'è nel rilascio (revisione del 22/11/2026, A3 A9 A10, #6418).
+  test_testi_pubblici.py
   # L'aspetto della persona in personale/aspetto.json: scheda, barra, /dafare, DERIVA (proposta n. 73, #5432).
   test_aspetto_2026_11_18.py
   # La sandbox di Claude Code come opzione della persona, spenta di default (19/11/2026, #6098).
@@ -617,6 +619,8 @@ BASELINE=(
   "test_revisione_medi_2026_11_22.py d0f56af"
   # I bug bassi 11-21 della revisione del 20/11 (22/11/2026, #6389): rossi tutti e undici. 1e84201, il dev prima.
   "test_revisione_bassi_2026_11_22.py 1e84201"
+  # I testi pubblici (22/11/2026, #6418): roadmap sui rami, frase di /inizia/, Volta nel metodo. 40d4e4a, il dev prima.
+  "test_testi_pubblici.py 40d4e4a"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -722,6 +726,8 @@ VELENI=(
   test_fine_gia_chiusa_2026_11_22.py
   # Gli avvisi di /fine (#6275): ogni rottura dell'anteprima in fine-coda.py fa rosso il suo caso FA.
   test_fine_avvisi_2026_11_22.py
+  # I testi pubblici (#6418): ogni rottura di roadmap, README, metodo o disegno fa rosso il suo caso TP.
+  test_testi_pubblici.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

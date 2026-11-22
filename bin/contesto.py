@@ -713,6 +713,9 @@ def main(argv: list) -> int:
         righe.append("rotazione: sì (sessione aperta dalla rotazione automatica)")
     if attesa:
         righe.append(f"in attesa: {attesa}")
+    if not rotazione and (Path.home() / ".config" / "herdr-app").is_dir():
+        # La checklist della ripartenza la legge solo Volta: senza la sua cartella /inizio non la scrive (A9).
+        righe.append("VOLTA: sì, passa la ripartenza alla checklist con arturo ripartenza scrivi")
     quota = riga_quota()
     if quota:
         righe.append(quota)

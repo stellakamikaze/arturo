@@ -62,7 +62,7 @@ Più avanti, la voce "Esportare un progetto e limitare cosa Claude legge" porta 
 Per cominciare servono tre passi:
 
 1. Installa Claude Code (vedi [Requisiti](#requisiti)).
-2. Scrivi `claude` e incolla questa frase: `Installa Arturo: https://arturo.stellakamikaze.org/inizia/`. Claude installa Arturo e ti chiede un sì prima di ogni passo (vedi [Con Claude Code](#con-claude-code-consigliata)).
+2. Scrivi `claude` e incolla questa frase: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`. Claude installa Arturo e ti chiede un sì prima di ogni passo (vedi [Con Claude Code](#con-claude-code-consigliata)).
 3. Scrivi `/exit` e riapri con `claude`, perché comandi e guardie si caricano all'avvio della sessione; poi scrivi `/setup`, che ti guida una cosa per volta.
 
 Arturo si aggiorna da solo, come Claude Code. Quando esce una versione nuova la barra in basso te lo dice, e alla chiusura della sessione si installa. Si installano solo i rilasci firmati da chi mantiene Arturo. Se preferisci guardare prima, `arturo aggiornamenti manuali` lo spegne e `/aggiorna` ti mostra cosa arriva.
@@ -85,7 +85,7 @@ Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le cre
 ### Con Claude Code (consigliata)
 
 1. Installa Claude Code col comando di Anthropic e fai il login.
-2. Scrivi `claude` e incolla: `Installa Arturo: https://arturo.stellakamikaze.org/inizia/`
+2. Scrivi `claude` e incolla: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`
 3. Claude scarica lo script, lo confronta con la copia su GitHub e lo lancia dopo il tuo sì. Se manca un programma, lo installa col tuo sì: le finestre di sistema le confermi tu.
 4. Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Login, conversazioni, plugin e il tuo `CLAUDE.md` restano dove sono. I file che Arturo sostituisce vanno in una copia con la data nel nome.
 5. Scrivi `/exit`, poi `claude`, poi `/setup`.

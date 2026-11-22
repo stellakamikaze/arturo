@@ -13,6 +13,8 @@ RP05 una ripartenza di più di due giorni si cancella alla scrittura dopo; una r
 RP06 la cartella segue CLAUDE_CONFIG_DIR, come la sonda di Volta.
 RP07 /inizio: il modello JSON della FASE 5 passa lo schema del comando, e la FASE 6 dice come leggere
      ogni parte del messaggio della checklist.
+RP08 senza la cartella di Volta (~/.config/herdr-app) esce 0 e non scrive, e /inizio passa la checklist
+     solo se la FASE 1 stampa la riga VOLTA (22/11/2026, rilievo A9).
 
 Con --avvelena ogni controllo riceve una copia del repository rotta nel punto che sorveglia, e deve
 fallire col suo codice e il motivo atteso (VELENI). Solo libreria standard. Nessun modello.
@@ -50,6 +52,7 @@ class Banco:
         self.home = Path(tempfile.mkdtemp(prefix="arturo-ripartenza."))
         self.claude = self.home / ".claude"
         self.claude.mkdir()
+        (self.home / ".config" / "herdr-app").mkdir(parents=True)
 
     def lancia(self, dati, *argomenti: str, sid: str = SID, **env_extra: str) -> subprocess.CompletedProcess:
         env = dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), PYTHONDONTWRITEBYTECODE="1")
@@ -144,8 +147,20 @@ def test_rp07(b: Banco) -> None:
         assert parola in fase6 and gesto in fase6, f"RP07 la FASE 6 non dice come leggere {parola!r}"
 
 
+def test_rp08(b: Banco) -> None:
+    shutil.rmtree(b.home / ".config" / "herdr-app")
+    r = b.lancia(BUONO)
+    cartella = b.claude / "cache" / "ripartenza"
+    assert r.returncode == 0 and not (cartella.exists() and any(cartella.iterdir())), \
+        f"RP08 senza Volta ha scritto la checklist: exit {r.returncode}"
+    testo = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8")
+    assert "[solo se la FASE 1 stampa `VOLTA`]" in testo, "RP08 /inizio passa la checklist anche senza Volta"
+    contesto = (b.repo / "bin" / "contesto.py").read_text(encoding="utf-8")
+    assert '"VOLTA: ' in contesto, "RP08 il contesto non stampa la riga VOLTA"
+
+
 CASI = (("RP01", test_rp01), ("RP02", test_rp02), ("RP03", test_rp03), ("RP04", test_rp04),
-        ("RP05", test_rp05), ("RP06", test_rp06), ("RP07", test_rp07))
+        ("RP05", test_rp05), ("RP06", test_rp06), ("RP07", test_rp07), ("RP08", test_rp08))
 
 VELENI = (
     ("RP01", [("bin/ripartenza.py", '    if isinstance(v, str) and v.lstrip("#").isdigit():\n'
@@ -158,6 +173,7 @@ VELENI = (
                'return Path.home() / ".claude" / "cache" / "ripartenza"')], "CLAUDE_CONFIG_DIR"),
     ("RP07", [("commands/inizio.md", "python3 ~/.claude/bin/arturo ripartenza scrivi <<'RIPARTENZA'",
                "python3 ~/.claude/scripts/ripartenza-scrivi.py <<'RIPARTENZA'")], "non lancia"),
+    ("RP08", [("bin/ripartenza.py", "    if not volta_presente():\n", "    if False:\n")], "senza Volta"),
 )
 
 

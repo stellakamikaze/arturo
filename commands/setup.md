@@ -56,8 +56,8 @@ riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5
 
 Se `impostazioni stato` non dice "clone", Arturo è un plugin: segui `~/.claude/shared/setup-plugin.md`.
 
-Se `~/.claude` NON è un repo git, Arturo non è installato: fermati. Di' alla persona di seguire
-https://arturo.stellakamikaze.org/inizia/, poi di scrivere `/exit`, `claude` e `/setup`. A mano, a
+Se `~/.claude` NON è un repo git, Arturo non è installato: fermati. Di' alla persona di incollare in Claude Code
+`Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`, poi di scrivere `/exit`, `claude` e `/setup`. A mano, a
 Claude Code chiuso: il blocco di https://arturo.stellakamikaze.org/installa/#a-mano-esteso (su Windows in
 **Git Bash**, non in PowerShell).
 

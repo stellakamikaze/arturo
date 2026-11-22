@@ -13,6 +13,66 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — I testi di Arturo dicono cosa c'è nel rilascio
+
+**Cosa cambia**: la roadmap dice lo stato di ogni voce da quello che c'è nel rilascio firmato, non da quello che sta sui rami di sviluppo. Lo storico delle chat, l'intervista, il fascicolo e gli spazi risultavano "su un ramo di sviluppo" e invece sono nel plugin dalla 0.2.16. La frase da incollare per installare Arturo è una sola, la stessa del sito: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`. Volta, la finestra che chi mantiene Arturo sta provando, esce dai testi che valgono per tutti: `/inizio` passa la checklist della ripartenza solo se Volta c'è, il metodo non la nomina più e le voci di queste novità su Volta dicono che è una prova. Il disegno di `docs/come-e-fatto.md` mostra anche il mod e lo Sportello, il server a cui Arturo manda gli eventi d'uso e le segnalazioni:
+
+```diagramma
+  tu
+   │  chiedi, correggi, scrivi come scrivi
+   ▼
+┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
+│  6 Orsa: CLAUDE.md · personale/<skill>.md · memoria · todo · handoff      │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
+│  cresce con le correzioni e con le proposte della Scoperta, col tuo sì    │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ Arturo la legge e la rispetta
+┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
+│  cosa fa per te, dalle fondamenta alla crescita:                          │
+│    1 Protezione .......... guardie che chiedono un sì, segreti fermati    │
+│    2 Metodo .............. brief, freni, fatto vuol dire verificato       │
+│    3 Memoria ............. /inizio, /fine, handoff, todo, Melchior        │
+│    4 Collegamenti ........ posta, agenda, documenti, pagine web           │
+│    5 Scoperta ............ ti propone cosa automatizzare, con le prove    │
+│    sempre: Ingresso (/setup, aggiornamenti) · Misura (banchi, /segnala)   │
+│                                                                           │
+│  il mod, dentro Claude Code: testata, rotazione, redazione dei segreti,   │
+│    cache fredda, apertura dei risultati, /dafare                          │
+│  manda allo Sportello: eventi d'uso (se li accetti in /setup), /segnala   │
+│                                                                           │
+│  adattati da progetti aperti, dentro Arturo:                              │
+│    humanizer ............. ◄── blader/humanizer (MIT)                     │
+│    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
+│    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
+│                                                                           │
+│  consigliati, li installi dalla loro fonte:                               │
+│    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
+│    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
+│    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │
+│    scrape ................ ◄── D4Vinci/Scrapling (BSD-3)                  │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ hook, skill, comandi, permessi
+┌─ Claude Code ───────────────────────────────── di Anthropic, a pagamento ─┐
+│  il programma nel terminale: legge e scrive i file, lancia i comandi      │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ la conversazione esce dal tuo computer
+                       il modello (Claude, sui server di Anthropic)
+
+┌─ Sportello di Arturo ──────────── server/, un Worker Cloudflare con D1 ───┐
+│  riceve da Arturo: eventi d'uso con un id casuale, mai testi o file;      │
+│    le segnalazioni di /segnala e il contatto, se lo dai                   │
+│  restituisce: le risposte alle tue segnalazioni                           │
+│  cosa tiene e per quanto: docs/privacy.md                                 │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**Il principio**: una pagina pubblica descrive quello che la persona riceve oggi. Una funzione che sta solo su un ramo, o solo sul computer di chi mantiene Arturo, non è ancora sua.
+
+**A chi serve**: a chi legge la roadmap per sapere cosa può già usare, e a chi installa Arturo per la prima volta.
+
+---
+
 ## 2026-11-22 — La memoria propone meno note che Claude non apre
 
 **Cosa cambia**: a ogni messaggio Arturo propone a Claude le note che c'entrano, ma nell'ultima settimana Claude
@@ -718,7 +778,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: quando una sessione si ferma per un motivo che non dipende da te, la ripresa non deve aspettare te. Le decisioni invece restano tue: dove serve una tua risposta, Volta non scrive niente.
 
-**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo.
+**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
@@ -728,7 +788,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: un gesto veloce ogni tanto si sbaglia. Una conferma a ogni chiusura rallenta tutte le altre; dieci secondi per tornare indietro non chiedono niente a nessuno.
 
-**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W.
+**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
@@ -738,7 +798,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: la ripartenza era già un elenco numerato da leggere. Spuntarlo e annotarlo costa meno che riscrivere i numeri a mano, e le parole restano le stesse del terminale.
 
-**A chi serve**: a chi lavora con Volta e apre più progetti al giorno.
+**A chi serve**: a chi lavora con Volta e apre più progetti al giorno. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
@@ -748,7 +808,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: un computer acceso per un lavoro non vuol dire che tu sia lì. Il segnale resta sulle tue macchine: non entra nel repository, nella telemetria o nelle segnalazioni.
 
-**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background.
+**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 

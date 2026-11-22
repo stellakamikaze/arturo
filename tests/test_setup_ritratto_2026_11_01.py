@@ -164,7 +164,7 @@ def test_sr09(repo: Path) -> None:
     nove = fase(setup, "9")
     assert "rm -f ~/.claude/session-env/setup-fase" in nove, "SR09 la FASE 9 non toglie il segno per ripartire"
     zero = fase(setup, "0")
-    assert "https://arturo.stellakamikaze.org/inizia/" in zero, "SR09 la FASE 0 non rimanda a /inizia/"
+    assert "Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md" in zero, "SR09 la FASE 0 non rimanda alla frase di INIZIA.md (#6091)"
     blocco = zero.split("```bash\n", 1)[1].split("```", 1)[0]
     with tempfile.TemporaryDirectory() as d:
         home = Path(d)
