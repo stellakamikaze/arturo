@@ -271,7 +271,7 @@ def prova(repo: Path) -> list[str]:
         senza_arturo = tmp / "orsa-senza-identita"
         senza_arturo.mkdir()
         # EMAIL: Git ricava l'indirizzo da utente e nome del computer, ma su un computer senza dominio
-        # (Balthasar: feder@Balthasar.(none)) lo rifiuta, e anche il commit fallisce. Con EMAIL l'identità
+        # (un PC Windows: utente@PC.(none)) lo rifiuta, e anche il commit fallisce. Con EMAIL l'identità
         # automatica esiste su ogni macchina, e useConfigOnly la ignora lo stesso (#6383).
         env_auto = {**git_env, "CLAUDE_CONFIG_DIR": str(senza_arturo), "EMAIL": "prova@computer.example"}
         repo_auto = tmp / "prog-auto"
