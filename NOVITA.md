@@ -27,6 +27,19 @@ vale solo per il suo comando, e il commit si controlla dove gira davvero.
 
 ---
 
+## 2026-11-22 — Le protezioni leggono comandi dieci volte più lunghi
+
+**Cosa cambia**: un comando Bash di oltre 100.000 caratteri, come uno script python scritto dentro il
+comando, ti chiedeva sempre conferma, perché le protezioni non facevano in tempo a leggerlo. Adesso lo leggono
+fino a 1.000.000 di caratteri e lo giudicano come un comando corto. Un comando di 74.000 caratteri passa i
+controlli in 0,3 secondi invece di 3; uno da un milione in meno di 4.
+
+**Il principio**: le protezioni giudicano come prima. La scelta di quali protezioni far partire ha le stesse
+regole, scritte in Python invece che in bash, e un banco ha confrontato le scelte vecchie e nuove su 52.148
+comandi veri: una sola differenza, corretta.
+
+---
+
 ## 2026-11-22 — I comandi Bash partono prima
 
 **Cosa cambia**: ogni comando Bash passa dalle protezioni di Arturo prima di partire, e adesso quel

@@ -31,7 +31,8 @@ else
 fi
 
 INPUT=$(cat)
-# Un solo python3 legge l'evento e prepara le tre copie del comando (hooks/evento_bash.py, 22/11/2026, #6327):
+# Un solo python3 legge l'evento, prepara le copie del comando e fa il pre-filtro (hooks/evento_bash.py
+# prefiltra e hooks/prefiltro_bash.py, 22/11/2026, #6327):
 #   COMMAND        il comando com'è scritto;
 #   GUARD_COMMAND  il comando che leggono le guardie: senza gli heredoc che vanno a un lettore e che nessuno
 #                  esegue (heredoc.py, Heredoc.dati: `cat <<'EOF' | bash` e i confini incerti restano interi),
@@ -41,31 +42,46 @@ INPUT=$(cat)
 #                  su stdin: come argomento, oltre il limite del sistema (circa 1 MB su macOS, 128 KB per
 #                  argomento su Linux) python non partiva e ogni guardia leggeva "niente da dire" (review del
 #                  10/11/2026, n. 9). Un byte che non è UTF-8 si sostituisce, e la lettura non cade;
-#   USO_ID         il tool_use_id, per la telemetria delle conferme.
-# Prima erano jq e due python3, circa 50 ms a ogni comando Bash. Su Windows (`crlf`) il CR davanti a un LF si
+#   USO_ID         il tool_use_id, per la telemetria delle conferme;
+#   VISTE          le parole del pre-filtro: quali guardie partono, e se il comando è git puro. I pattern e la
+#                  loro storia stanno in prefiltro_bash.py. Fino al 22/11/2026 erano regex di bash, circa 13 µs
+#                  per carattere: 18 secondi su 300.000 caratteri;
+#   RIDOTTO        il comando di comms-prefilter.py, senza gli heredoc scritti su file e vuoto per un comando di
+#                  sola lettura. Lo leggono comms-guard ed exfil-guard in COMMS_REDUCED. Vale solo con la vista
+#                  `ridotto`.
+# Prima erano jq e quattro python3, circa 50 ms a ogni comando Bash. Su Windows (`crlf`) il CR davanti a un LF si
 # toglie: jq e python scrivevano ogni a capo come CRLF, e le guardie vedevano un comando diverso da quello che
 # esegue bash (30/10/2026). Su Mac e Linux il comando resta intatto.
+# Su macOS e Windows il disco ignora le maiuscole: `RM -rf`, `Git push --force` e `GH repo delete` fanno partire
+# `rm`, `git` e `gh`. Con `nocase` il pre-filtro confronta i nomi senza le maiuscole (revisione del 10/11/2026,
+# HK-1b); le opzioni restano esatte. Con `zsh` cerca i glob nelle opzioni, che in zsh falliscono.
 # I campi arrivano con la lunghezza in byte nella prima riga, e si tagliano con LC_ALL=C: un `$(...)` solo legge
 # a blocchi, mentre `read -d ''` da una pipe legge un byte alla volta. Se le lunghezze non tornano col testo,
 # tutti i campi restano vuoti e più sotto si chiede conferma.
-COMMAND=""; GUARD_COMMAND=""; GUARD_INPUT=""; USO_ID=""
+COMMAND=""; GUARD_COMMAND=""; GUARD_INPUT=""; USO_ID=""; VISTE=""; RIDOTTO=""
 leggi_evento() {
-    local LC_ALL=C tutto testa l0="" l1="" l2="" l3="" crlf=""
-    [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && crlf=crlf
-    tutto=$(printf '%s' "$INPUT" | python3 "$ARTURO_HOOKS/evento_bash.py" leggi $crlf 2>/dev/null; printf x)
+    local LC_ALL=C tutto testa l0="" l1="" l2="" l3="" l4="" l5="" opzioni=()
+    [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && opzioni+=(crlf)
+    [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && opzioni+=(nocase)
+    [[ "${SHELL##*/}" == zsh ]] && opzioni+=(zsh)
+    tutto=$(printf '%s' "$INPUT" | python3 "$ARTURO_HOOKS/evento_bash.py" prefiltra ${opzioni[@]+"${opzioni[@]}"} 2>/dev/null; printf x)
     tutto=${tutto%x}
     [[ "$tutto" == *$'\n'* ]] || return 0
     testa=${tutto%%$'\n'*}
     tutto=${tutto#*$'\n'}
-    read -r l0 l1 l2 l3 <<< "$testa"
-    [[ "$l0" =~ ^[0-9]+$ && "$l1" =~ ^[0-9]+$ && "$l2" =~ ^[0-9]+$ && "$l3" =~ ^[0-9]+$ ]] || return 0
-    (( ${#tutto} == l0 + l1 + l2 + l3 )) || return 0
+    read -r l0 l1 l2 l3 l4 l5 <<< "$testa"
+    [[ "$l0" =~ ^[0-9]+$ && "$l1" =~ ^[0-9]+$ && "$l2" =~ ^[0-9]+$ && "$l3" =~ ^[0-9]+$ && "$l4" =~ ^[0-9]+$ && "$l5" =~ ^[0-9]+$ ]] || return 0
+    (( ${#tutto} == l0 + l1 + l2 + l3 + l4 + l5 )) || return 0
     COMMAND=${tutto:0:l0}
     GUARD_COMMAND=${tutto:l0:l1}
     GUARD_INPUT=${tutto:l0+l1:l2}
     USO_ID=${tutto:l0+l1+l2:l3}
+    VISTE=" ${tutto:l0+l1+l2+l3:l4} "
+    RIDOTTO=${tutto:l0+l1+l2+l3+l4:l5}
 }
 leggi_evento
+# Vero se il pre-filtro ha visto $1.
+vista() { [[ "$VISTE" == *" $1 "* ]]; }
 
 # Senza un lettore del JSON nessuna guardia vede il comando: con un python3 che non parte (su Windows il
 # rimando del Microsoft Store esce 49), COMMAND restava vuoto e ogni comando passava in silenzio (revisione del
@@ -76,83 +92,50 @@ if [[ -z "$COMMAND" && "$INPUT" =~ $_RE_HA_COMANDO ]]; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non leggono il comando: manca un python3 che funziona. Conferma solo se sai cosa fa. Per sistemare: /diagnosi."}}'
     exit 0
 fi
-# Su Windows la shell converte gli argomenti che sembrano path prima di passarli a un programma
-# nativo: `/bin/rm -rf ~/Documents` arrivava alle guardie come `C:/Program Files/.../rm` e nessuna
-# lo riconosceva. Dove l'argomento è il testo del comando la conversione si spegne. Fuori da
-# Windows MSYS2_ARG_CONV_EXCL non conta.
-# Oltre 100.000 caratteri le guardie non finiscono in tempo: block-dangerous impiegava 20 secondi su 300.000 e
-# minuti su un milione, e il comando partiva senza un giudizio o cadeva sul tempo massimo dell'hook. Un
-# comando così lungo dopo la riduzione degli heredoc non è un uso normale: si chiede conferma (#5262, n. 9).
-# Dal 22/11/2026 (#5347) block-dangerous è lineare (1 secondo su 300.000), ma il pre-filtro qui sotto no: le
-# regex di bash costano circa 13 µs per carattere, e a 300.000 il dispatcher arrivava a 18 secondi su 30. Il
-# limite si alza quando il pre-filtro passa in Python (#6327).
-# Questa conferma e quella della copia illeggibile qui sotto escono con printf, senza ask_guard: run_guard e la
-# telemetria nascono più in basso e leggono GUARD_INPUT, che qui manca o non si costruisce in tempo. Non
-# entrano in confermeGuardie e non passano da attenua: sono casi rari, e una conferma in più è il lato sicuro
-# (#5361, rilievo 11).
-if [[ ${#GUARD_COMMAND} -gt 100000 ]]; then
-    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Comando troppo lungo per le guardie (oltre 100.000 caratteri): non lo hanno letto. Conferma solo se sai cosa fa, oppure metti il contenuto in un file."}}'
+# Oltre 1.000.000 di caratteri le guardie non finiscono in tempo, e il comando cade sul tempo massimo
+# dell'hook. Un comando così lungo dopo la riduzione degli heredoc non è un uso normale: si chiede conferma
+# (#5262, n. 9). Il limite era 100.000 finché il pre-filtro era in bash (#5347, #6327): dal 22/11/2026 il
+# pre-filtro è in Python: su un Mac il dispatcher intero, con tutte le guardie in gioco, impiega 1,5 secondi su
+# 380.000 caratteri e 3,7 su un milione, contro un tempo massimo di 30 (banco PB04). Oltre il limite del sistema
+# per l'ambiente (circa 1 MB su macOS, 128 KB per variabile su Linux) COMMS_REDUCED non passa a comms-guard ed
+# exfil-guard: la guardia non parte e run_guard chiede conferma, il lato sicuro.
+# Questa conferma e le due qui sotto escono con printf, senza ask_guard: run_guard e la telemetria nascono più
+# in basso e leggono GUARD_INPUT, che qui manca o non serve. Non entrano in confermeGuardie e non passano da
+# attenua: sono casi rari, e una conferma in più è il lato sicuro (#5361, rilievo 11).
+if [[ ${#GUARD_COMMAND} -gt 1000000 ]]; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Comando troppo lungo per le guardie (oltre 1.000.000 di caratteri): non lo hanno letto. Conferma solo se sai cosa fa, oppure metti il contenuto in un file."}}'
     exit 0
 fi
 # Senza la copia dell'evento nessuna guardia vede il comando: si chiede conferma, come sopra per COMMAND.
-if [[ -n "$COMMAND" && "$GUARD_INPUT" != *'"command"'* ]]; then
+if [[ -n "$COMMAND" && -z "$GUARD_INPUT" ]]; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non riescono a leggere questo comando (troppo lungo o con caratteri non validi). Conferma solo se sai cosa fa."}}'
     exit 0
 fi
+# Il pre-filtro si è rotto: non si sa quali guardie servono, e nessuna si salta.
+if vista errore; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Il pre-filtro delle guardie si è fermato su questo comando. Conferma solo se sai cosa fa. Per sistemare: /diagnosi."}}'
+    exit 0
+fi
 unset COMMS_REDUCED
-# Il pre-filtro confronta anche il comando senza virgolette e senza barre rovesciate: per bash `\x27rm\x27 -rf`,
-# `"rm" -rf`, `r\m -rf`, `git pu\sh` e `~/.cl\x27\x27aude` sono `rm -rf`, `git push` e `~/.claude`, e le guardie
-# li leggono già così. Il pre-filtro no, e non le chiamava (review del 10/11/2026, n. 7). Serve solo a
-# decidere se una guardia parte: la guardia riceve sempre il comando com'è scritto.
-_APICE="'"
-_SCIOLTO="${GUARD_COMMAND//\\$'\n'/}"
-_SCIOLTO="${_SCIOLTO//$_APICE/}"
-_SCIOLTO="${_SCIOLTO//\"/}"
-_SCIOLTO="${_SCIOLTO//\\/}"
+# Il comando ridotto passa a comms-guard ed exfil-guard: lo stesso testo per tutte e due.
+esporta_ridotto() { vista ridotto && export COMMS_REDUCED="$RIDOTTO"; return 0; }
 
 # --- Glob dentro un'opzione, in zsh ---
-# `--include=*.md` senza virgolette in zsh e' un glob che non trova niente: il comando
-# muore con "no matches found" prima di partire. Le parti fra virgolette, i backslash e
-# gli heredoc si mascherano prima del match: li' zsh non espande.
-if [[ "${SHELL##*/}" == zsh && "$COMMAND" == *--*=*\** ]]; then
-    _OPTGLOB=$(MSYS2_ARG_CONV_EXCL='*' python3 -c 'import re,sys
-c=sys.argv[1]
-if "<<" in c: sys.exit()
-out=[]; q=None; i=0
-while i<len(c):
-    ch=c[i]
-    if ch=="\\" and q!="'"'"'": out.append("QQ"); i+=2; continue
-    if q is None and ch in "'"'"'\"": q=ch; out.append("Q")
-    elif q is not None: out.append("Q"); q=None if ch==q else q
-    else: out.append(ch)
-    i+=1
-m=re.search(r"(?:^|[\s;&|(])(--[A-Za-z][\w-]*=[^\s;&|()<>]*\*[^\s;&|()<>]*)", "".join(out))
-if m: print(m.group(1))' "$COMMAND" 2>/dev/null)
-    # Con la riga di session-start.sh in $CLAUDE_ENV_FILE (marcatore arturo-zsh-come-bash) zsh ha
-    # nonomatch e un glob senza file resta la parola scritta: il comando parte e il blocco non serve.
-    # Claude Code esegue quel file solo prima dei comandi del tool Bash, non di Monitor (3/11/2026).
-    if [[ -n "$_OPTGLOB" ]] && printf '%s' "$INPUT" | python3 -c 'import glob, json, os, sys
-d = json.load(sys.stdin)
-sid = str(d.get("session_id") or "")
-conf = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
-if d.get("tool_name") != "Bash" or not sid or "/" in sid or ".." in sid: sys.exit(1)
-for f in glob.glob(os.path.join(conf, "session-env", sid, "sessionstart-hook-*.sh")):
-    if "arturo-zsh-come-bash" in open(f, encoding="utf-8", errors="replace").read(): sys.exit(0)
-sys.exit(1)' 2>/dev/null; then
-        _OPTGLOB=""
-    fi
-    if [[ -n "$_OPTGLOB" ]]; then
-        _OPT="${_OPTGLOB%%=*}"; _VAL="${_OPTGLOB#*=}"
-        echo "BLOCCATO: in zsh '$_OPTGLOB' senza virgolette e' un glob che fallisce con 'no matches found'. Scrivi $_OPT='$_VAL'." >&2
-        exit 2
-    fi
+# `--include=*.md` senza virgolette in zsh è un glob che non trova niente: il comando muore con "no matches
+# found" prima di partire. Il pre-filtro scrive la parola nella vista `glob-zsh=`; se la sessione ha la riga di
+# session-start.sh che accende nonomatch (marcatore arturo-zsh-come-bash in $CLAUDE_ENV_FILE), la vista non c'è
+# (prefiltro_bash.py, _glob_opzione).
+if [[ "$VISTE" == *" glob-zsh="* ]]; then
+    _OPTGLOB=${VISTE#* glob-zsh=}; _OPTGLOB=${_OPTGLOB%% *}
+    _OPT="${_OPTGLOB%%=*}"; _VAL="${_OPTGLOB#*=}"
+    echo "BLOCCATO: in zsh '$_OPTGLOB' senza virgolette e' un glob che fallisce con 'no matches found'. Scrivi $_OPT='$_VAL'." >&2
+    exit 2
 fi
 
 # --- timeout su macOS ---
-# Sui Mac `timeout` non esiste: `command not found` va su stderr, la pipeline riceve
-# stdout vuoto e la diagnosi finisce sul servizio sbagliato. Esclusi ssh, docker exec
-# e heredoc: li' `timeout` gira su una macchina Linux.
-_NL=$'\n'
+# Sui Mac `timeout` non esiste: `command not found` va su stderr, la pipeline riceve stdout vuoto e la diagnosi
+# finisce sul servizio sbagliato. Il testo lo guarda il pre-filtro (vista `timeout`: fuori da virgolette, senza
+# ssh, docker exec ed heredoc); qui si guarda se il programma c'è.
 # La guardia può girare con un PATH più corto della shell di Claude, che legge il profilo della persona: lì
 # /opt/homebrew/bin c'è, qui a volte no, e `timeout` di coreutils veniva bloccato anche dove esiste
 # (20/11/2026, 11 blocchi in 7 giorni). Contano anche le cartelle di Homebrew; ARTURO_TIMEOUT_CARTELLE le
@@ -165,173 +148,10 @@ _timeout_c_e() {
   done
   return 1
 }
-PATTERN_TIMEOUT="(^|[;&|(\`${_NL}])[[:space:]]*((sudo|env|command|exec)[[:space:]]+)?timeout[[:space:]]+(-[^[:space:]]+[[:space:]]+([A-Z]+[[:space:]]+)?)*[0-9]"
-PATTERN_REMOTE='(^|[[:space:];&|(])(ssh|docker[[:space:]]+exec|kubectl[[:space:]]+exec)[[:space:]]|<<'
-# Il match si ripete sul comando con le parti fra virgolette mascherate: un
-# `git commit -m "fix; timeout 30"` non e' un timeout. Se python fallisce resta il comando intero.
-if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! _timeout_c_e; then
-    _SENZAQ=$(MSYS2_ARG_CONV_EXCL='*' python3 -c 'import sys
-c=sys.argv[1]; out=[]; q=None; i=0
-while i<len(c):
-    ch=c[i]
-    if ch=="\\" and q!="'"'"'": out.append("QQ"); i+=2; continue
-    if q is None and ch in "'"'"'\"": q=ch; out.append("Q")
-    elif q is not None: out.append("Q"); q=None if ch==q else q
-    else: out.append(ch)
-    i+=1
-print("".join(out))' "$COMMAND" 2>/dev/null) || _SENZAQ="$COMMAND"
-    [[ -n "$_SENZAQ" ]] || _SENZAQ="$COMMAND"
-fi
-if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! _timeout_c_e; then
+if vista timeout && ! _timeout_c_e; then
     echo "BLOCCATO: 'timeout' non esiste su questo sistema. Fallirebbe con 'command not found' e stdout vuoto. Usa il parametro timeout del tool Bash, 'curl --max-time N', oppure 'cmd & pid=\$!; sleep N; kill \$pid'." >&2
     exit 2
 fi
-
-# Su macOS e Windows il disco ignora le maiuscole: `RM -rf`, `Git push --force` e `GH repo delete`
-# fanno partire `rm`, `git` e `gh`. I pattern del pre-filtro si confrontano col comando attraverso
-# `somiglia`, che lì ignora le maiuscole (revisione del 10/11/2026, HK-1b). Su Linux `RM` è un altro file e
-# il confronto resta esatto. nocasematch si accende solo dentro `somiglia`: tutti gli altri confronti di
-# questo file (i punti del .local, il nome della regola, "tace", le opzioni di git) restano esatti.
-_SENZA_MAIUSCOLE=0
-[[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && _SENZA_MAIUSCOLE=1
-# $1 = il testo del comando, $2 = un pattern del pre-filtro.
-somiglia() {
-    local rc
-    [[ $_SENZA_MAIUSCOLE -eq 1 ]] && shopt -s nocasematch
-    [[ "$1" =~ $2 ]]
-    rc=$?
-    shopt -u nocasematch
-    return $rc
-}
-
-# Una scrittura su file: una redirezione verso un file che non è /dev/null, o un programma che scrive il file
-# che riceve. Il percorso protetto può non comparire nel testo: un link (`echo x > lnk/settings.json`), un glob
-# (`~/.claud[e]/…`), una cartella raggiunta con un cd che il pre-filtro non segue. block-dangerous risolve il
-# percorso vero, quindi parte su ogni scrittura (11/11/2026, #5262, review n. 4 e 7). Costa un processo in più
-# sui comandi che scrivono; le letture restano fuori.
-# 20/11/2026 (#5361, rilievo 1 della revisione strutturale dell'11/11): anche gpatch, chgrp e git checkout,
-# restore e reset, che `_writes_config` giudica. Senza, `git -C lnk checkout -- settings.json` con lnk verso
-# ~/.claude passava: la guardia chiedeva, il pre-filtro non la chiamava. Un programma che `_writes_config`
-# impara a giudicare entra anche qui, con un caso nel banco GC08 (tests/test_guardie_cieche_2026_11_11.py).
-_SENZA_NULL="${_SCIOLTO//\/dev\/null/}"
-PATTERN_SCRIVE='(^|[^-0-9&>])[0-9]?>[>|]?[[:space:]]*[^&>([:space:]]|&>|(^|[^[:alnum:]_.-])(cp|mv|tee|dd|install|ln|rsync|touch|truncate|sponge|tar|gtar|bsdtar|unzip|patch|gpatch|ditto|chmod|chown|chgrp)([[:space:]]|$)|(^|[^[:alnum:]_.-])git([[:space:]][^;&|]*)?[[:space:]](checkout|restore|reset)([[:space:]]|$)'
-
-# Vero se il pattern $1 si trova nel comando delle guardie o nella sua forma senza virgolette. Senza virgolette né
-# barre le due forme sono lo stesso testo, e il secondo confronto si salta: PATTERN_DANGER costa circa 13 µs per
-# carattere, 1,3 secondi su 100.000 (#5347, 22/11/2026).
-vede() { somiglia "$GUARD_COMMAND" "$1" || { [[ "$_SCIOLTO" != "$GUARD_COMMAND" ]] && somiglia "$_SCIOLTO" "$1"; }; }
-
-# --- Pattern pre-filtro (in variabili: evita problemi in [[ =~ ]]) ---
-# gh ancorato a inizio comando/segmento, MA tollerando i prefissi che non cambiano
-# il comando eseguito: assegnazioni env (FOO=bar), `env`, `command`, `\gh`. Senza
-# questo, `FOO=1 gh repo delete` o `command gh ...` eludono i guard gh.
-_GH_PREFIX='(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(command[[:space:]]+)?\\?'
-# 9/10/2026: la parola gh in qualunque posizione (dopo un a capo, in una subshell,
-# col path completo). gh-destructive-guard legge gia' tutto il comando.
-PATTERN_GH_ANY='(^|[^[:alnum:]_.-])gh[[:space:]]'
-PATTERN_GIT_TEXT='(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(commit|log|show|tag|stash[[:space:]]+(push|save))'
-PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:]]|$)|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|http\.client|git[[:space:]]+(send-email|imap-send)'
-# 21/11/2026 (#6259, S8): l'invio con gws dietro una variabile (`G=gws; $G gmail +send`), gli inviti di
-# calendario con sendUpdates, la condivisione di un file di Drive, mailgun sugli host regionali, nodemailer e
-# i link che aprono WhatsApp o Telegram con il testo già scritto.
-PATTERN_COMMS+='|\+send([[:space:]]|$)|drafts[[:space:]]+send|sendUpdates|sendNotifications|permissions[[:space:]]+(create|update)|mailgun\.net|nodemailer|wa\.me/|whatsapp\.com/send|whatsapp://|t\.me/share|tg://msg'
-# block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
-# scrittura su git hook e servizi di avvio automatico,
-# lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
-# 20/10/2026: la cartella delle credenziali anche senza la barra finale (`find ~/.claude/data/credentials | xargs cat`).
-# 10/11/2026 (#5097): dopo la pipe anche `|&`, un commento, un gruppo che si apre e sudo o doas con le opzioni.
-# 10/11/2026 (#5122): nel gruppo anche altri comandi prima dell'interprete, separati da `;`, `&` o a capo
-# (`[:cntrl:]` contiene l'a capo, che fra parentesi quadre non si scrive `\n`).
-# 11/11/2026 (#5261): la parola unlock: il nome del file scritto (uno sblocco, settings.json) sta nella
-# sorgente di un cp e non dopo `.claude/`. Il pre-filtro risparmia un processo: un sì in più costa poco, un
-# no è un buco.
-# 20/11/2026 (#5361, rilievo 3): tolte le alternative che contenevano `\.claude` (cp, mv, install, ln e rsync
-# vicino a `.claude`, `.claude/settings`, `.claude/arturo`, `.claude/data/credentials`, `.claude/…unlock`) e
-# PATTERN_CD_CLAUDE: dal #5262 le copre tutte `\.claude` da solo. Se un giorno `\.claude` si restringe, le
-# forme da coprire di nuovo sono nei banchi GC01 e GC04 (tests/test_guardie_cieche_2026_11_11.py).
-# 13/11/2026 (HK-6): l'avvio automatico su Windows, la cartella Start Menu/Programs/Startup, i profili di
-# PowerShell, schtasks, reg add/import/restore/load, sc create, Register-ScheduledTask e New-Service.
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|&?[[:space:]]*(#.*)?([({][[:space:]]*([^|]*[;&[:cntrl:]][[:space:]]*)?)?((sudo|doas)[[:space:]][^|;&]*)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php|powershell|pwsh)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|unlock|\.claude|(^|[;&|(){[:cntrl:]])[[:space:]]*\$[{A-Za-z_]|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|Start[[:space:]]+Menu|profile\.ps1|schtasks|(^|[^[:alnum:]_.-])reg(\.exe)?[[:space:]]+(add|import|restore|load)|(^|[^[:alnum:]_.-])sc(\.exe)?[[:space:]]+create|Register-ScheduledTask|New-Service|\.ssh([/[:space:]\"'"'"';&|)]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws([/[:space:]\"'"'"';&|)]|$)|\.gnupg([/[:space:]\"'"'"';&|)]|$)|\.secrets([/[:space:]\"'"'"';&|)]|$)|\.netrc|security[[:space:]]+(find-(generic|internet)-password|dump-keychain)|\.[^[:space:]/]*[]*?[][^[:space:]/]*/|(^|[[:space:]/=:({,<])\.[^[:space:]/]*[]*?[{}][^[:space:]/]*|\.(config|docker|kube)/[^[:space:];&|]*[]*?[{]|dotglob|[Gg][Ll][Oo][Bb]_?[Dd][Oo][Tt][Ss]|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|rm(dir)?Sync|\.rm[[:space:]]*\(|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
-# 21/11/2026 (#6259, rilievi S4-S9 e S13 della revisione del 20/11): le forme che block-dangerous ora giudica e
-# che il pre-filtro non gli passava. Banco: tests/test_aggiramenti_2026_11_21.py.
-#   S5  `bash -c "$(curl …)"`, un curl o un wget che scrive un file seguito da un altro comando (scarica ed
-#       esegui), base64 -d, xxd -r e openssl enc verso una shell;
-#   S6  find che cerca per nome e legge (-exec, xargs), git credential, la cronologia della shell;
-#   S9  remove_tree e FileUtils di perl e ruby, docker con una cartella montata, diskutil e newfs.
-PATTERN_DANGER+='|-[a-zA-Z]*c[[:space:]]+\$\([[:space:]]*(curl|wget|fetch)'
-PATTERN_DANGER+='|curl[[:space:]][^;&|]*(-[a-zA-Z]*[oOJ]|--output|--remote-name)[^;&|]*[;&[:cntrl:]]|wget[[:space:]][^;&|]*[;&[:cntrl:]]'
-PATTERN_DANGER+='|base64[[:space:]][^|;&]*(-[a-zA-Z]*[dD]|--decode)|xxd[[:space:]][^|;&]*-[a-zA-Z]*r|openssl[[:space:]]+(enc|base64)'
-PATTERN_DANGER+='|find[[:space:]].*-i?(name|path|wholename|regex)[[:space:]].*(-(exec|execdir|ok|okdir)[[:space:]]|xargs)'
-PATTERN_DANGER+='|git[[:space:]]([^|;&]*[[:space:]])?credential(-[a-z]+)?[[:space:]]|git-credential|_history|\.zhistory'
-PATTERN_DANGER+='|remove_tree|FileUtils|rm_rf|(^|[^[:alnum:]_.-])(docker|podman|nerdctl)[[:space:]].*(-v|--volume|--mount)'
-PATTERN_DANGER+='|(^|[^[:alnum:]_.-])(diskutil|newfs(_[a-z0-9]+)?)[[:space:]]'
-# 21/11/2026 (#6279): un nome che comincia col punto e porta un glob o una graffa, anche senza la barra
-# dopo: `cd ~/.s?? && cat i?_ed25519`, `cat ~/.s{sh,x}/i?_ed25519`, `cat ~/{.ssh,x}/i*`, `cat ~/.np?rc`,
-# `grep -r x ~/.s??`. Il percorso lo risolve block-dangerous (_segreti_risolti). Passa anche un filtro di jq
-# come `.items[]`: costa un processo in più e block-dangerous tace. Anche un glob dopo `.config/`, `.docker/` o
-# `.kube/` (`head ~/.config/g?/h*`), e `shopt -s dotglob` o `setopt globdots`, con cui `*` entra in `.ssh`.
-# Banco: tests/test_glob_segreti_2026_11_21.py.
-# 11/11/2026 (#5262, review n. 7): ogni comando che nomina `.claude` (`~/.claude//settings.json`, `H=~/.claude`,
-# `~/.claude.json`), e una variabile al posto del programma (`X=rm; $X -rf`): block-dangerous li risolve già.
-# 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
-# PATTERN_GIT_CLEAN, che parte prima dello skip git-puro.
-# 7/11/2026 (review, finding 1 8 9): l'interprete dopo la pipe chiuso da ; ) " o && e con sudo -E; ogni
-# sed (le regole sed-w e sed-e le giudica block-dangerous); rmtree anche senza il prefisso shutil.;
-# Remove-Item e powershell o pwsh, che su Windows cancellano cartelle.
-# 13/11/2026 (HK-5): powershell e pwsh dopo la pipe (`curl u | powershell -`), rmSync, rmdirSync e fs.rm( di
-# node, che block-dangerous giudica come shutil.rmtree.
-# Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
-# Dal 15/10/2026 parte anche su un commit a capo, in una subshell o in $( ), dopo `env VAR=… `
-# o assegnazioni, e con opzioni di git prima di commit (-c k=v, -C dir, --no-pager).
-# Dal 15/10/2026 anche dentro virgolette (`bash -c 'git commit'`, `eval "git commit"`) e dopo
-# nohup, time, xargs e sudo: commit-secret-gate.py sa già leggerli, il pre-filtro non lo chiamava.
-# 11/11/2026 (#5262, review n. 7): anche dopo then, else, do, `{` e `!`, e con un percorso davanti a git.
-PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|xargs|sudo|then|else|elif|do|if|while|until|!|\{)[[:space:]]+)*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(([^[:space:];&|]*/)?git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit|gh[[:space:]]+pr[[:space:]]+create)"
-# exfil: upload di un FILE LOCALE con curl o wget (`-F @file`, `-T`, `--upload-file`, `-d @file`), la forma
-# con cui una chiave o un dump escono dalla macchina. Dal 28/10/2026 il POST generico e il codice python
-# che chiama la rete non passano più da qui: li giudica il classificatore di auto mode (contratto delle
-# guardie: certezze all'hook, dubbi al classificatore). Le email via smtplib restano a comms-guard.
-# _FINE_ARG chiude un argomento nella shell (uno spazio) o in una lista python (`'curl', '-d', '@x'`):
-# con il solo spazio un invio da subprocess.run([...]) passava senza conferma (21/10/2026, #3645).
-_FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
-# Un & seguito da un carattere che non è spazio né operatore sta dentro l'URL (`?a=1&b=2`) e non chiude
-# il comando: prima `curl "https://x/?a=1&b=2" -d @file` passava senza conferma (30/10/2026).
-# Qui il confronto resta esatto anche su macOS e Windows, perché le opzioni contano la maiuscola (`-T` carica
-# un file, `-t` no; `-F` è un form, `-f` no): senza, quasi ogni curl faceva partire due processi in più. Solo
-# i nomi dei due programmi sono scritti in ogni maiuscola (HK-1b).
-PATTERN_EXFIL='([cC][uU][rR][lL]|[wW][gG][eE][tT])([^|;&]|&[^[:space:]&|;])*(-[[:alnum:]]*F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-[[:alnum:]]*T'"$_FINE_ARG"'|-[[:alnum:]]*T[^[:space:]]|--data-urlencode'"$_FINE_ARG"'*["'"'"']?[^[:space:]=@"'"'"']*@|--upload-file|--(post|body)-file|-[[:alnum:]]*d'"$_FINE_ARG"'*["'"'"']?@|--data[a-z-]*'"$_FINE_ARG"'*["'"'"']?@|--json'"$_FINE_ARG"'*["'"'"']?@|--url-query'"$_FINE_ARG"'*["'"'"']?@)'
-# Il GET non passa da exfil-guard (ramo tolto il 30/10/2026, #4325). Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
-# nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
-# chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
-# legge archive.org con urllib riceveva "Invio di dati (POST/upload)".
-# 11/11/2026 (#5262, review n. 7): nc, ncat, netcat e socat anche senza pipe (`nc host 443 < file`).
-PATTERN_EGRESS_SOSPETTO='(^|[^[:alnum:]_.-])(nc|ncat|netcat|socat)([[:space:]]|$)|/dev/(tcp|udp)/'
-# Una redirezione verso /dev/tcp scrive in rete anche da un comando che sembra sola lettura (`echo x > /dev/tcp/…`).
-PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
-# git clean -f con opzioni in mezzo (`git -C dir clean -fdx`, `git -c k=v clean --force`).
-# Anche l'inizio di --force (`--forc`, git lo accetta) e `-c clean.requireForce=false`, che cancella
-# senza -f (20/10/2026, #3525).
-# git branch -D e git stash drop: dal 31/10/2026 li giudica block-dangerous (tace se il lavoro esiste
-# altrove), non più un deny. Partono prima dello skip git-puro, come git clean.
-# Dal 7/11/2026 anche git worktree remove (finding 9): la regola git-worktree c'era, ma il dispatcher non
-# la chiamava.
-PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--d|-[[:alpha:]]*d)|stash[[:space:]]+(drop|clear)|worktree[[:space:]]+remove)'
-# Ogni git push (7/11/2026, finding 5): block-dangerous guarda il flag di forza in qualunque posizione.
-PATTERN_GIT_PUSH='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?push([[:space:]]|$)'
-# Un push con la destinazione riscritta da -c, --config-env o GIT_CONFIG_* (1/11/2026): lo giudica block-dangerous.
-PATTERN_GIT_DEST='(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*(-c|--config-env)[^|;&]*[[:space:]]push|GIT_CONFIG_(COUNT|KEY_[0-9]+|PARAMETERS)='
-# git commit --amend su un commit che questa sessione non ha fatto (3/11/2026, #4187): lo giudica block-dangerous.
-PATTERN_GIT_AMEND='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?commit[[:space:]]([^|;&]*[[:space:]])?--am'
-# 21/11/2026 (#6259, S4 e S9): git config (core.fsmonitor, core.pager, alias con `!`), reset, checkout, restore
-# e credential li giudica block-dangerous. Partono prima dello skip git-puro, o `git log && git -C x reset
-# --hard` passava come testo inerte.
-# Anche `git -c chiave=valore` e `--config-env`: `git -c core.fsmonitor='sh -c …' status` esegue il valore.
-PATTERN_GIT_ALTRI='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(config|reset|checkout|restore|credential(-[a-z]+)?)([[:space:]]|$)|(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(-c[[:space:]]|--config-env)'
-PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--f)|(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*[cC]lean\.[rR]equire[fF]orce'
-# data-guard: operazioni DATI irreversibili non coperte da block-dangerous
-# (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).
-# 13/11/2026 (HK-5): su Windows robocopy con /MIR o /PURGE (in Git Bash anche `//MIR`) e reg delete.
-PATTERN_DATA='[Rr][Oo][Bb][Oo][Cc][Oo][Pp][Yy][^|&;]*[[:space:]]["'"'"']?/+([Mm][Ii][Rr]|[Pp][Uu][Rr][Gg][Ee])|(^|[^[:alnum:]_.-])[Rr][Ee][Gg][[:space:]]+[Dd][Ee][Ll][Ee][Tt][Ee]|[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa][Bb][Aa][Ss][Ee]|[Ss][Cc][Hh][Ee][Mm][Aa])|[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]|[Dd][Ee][Ll][Ee][Tt][Ee][[:space:]]+[Ff][Rr][Oo][Mm]|docker([[:space:]]+compose|-compose)[^|&;]*[[:space:]]down[^|&;]*(-v|--volumes)|rsync[^|&;]*--del(ete)?([^[:alnum:]_]|$)|>[[:space:]]*[^>[:space:]|&;]*\.(db|sqlite|sqlite3|sql|dump)'
 
 # Esegue un guard: un crash o stdout non decisionale diventa ask, mai allow implicito.
 # $1 = la guardia che si e' rotta: la telemetria la registra come `errore`.
@@ -499,166 +319,39 @@ danger_una_volta() {
     run_guard block-dangerous.py
 }
 
-# I sottocomandi di git che il pre-filtro conosce (lo stesso elenco di _GIT_NOTI in commit-secret-gate.py). Un
-# nome fuori da qui può essere un alias di commit (`git -c alias.ci=commit ci`, `git salva`): lo risolve il gate
-# (21/11/2026, #6259, S10).
-_GIT_NOTI=" add am annotate apply archive bisect blame branch bundle cat-file check-attr check-ignore checkout cherry cherry-pick clean clone commit commit-graph commit-tree config count-objects credential describe diff diff-files diff-index diff-tree difftool fetch filter-branch for-each-ref format-patch fsck gc grep gui hash-object help init log ls-files ls-remote ls-tree lfs maintenance merge merge-base merge-file mergetool mktree mv name-rev notes pack-refs prune pull push range-diff read-tree rebase reflog remote repack replace rerere reset restore rev-list rev-parse revert rm send-email shortlog show show-branch show-ref sparse-checkout stage stash status submodule switch symbolic-ref tag update-index update-ref verify-commit verify-tag version whatchanged worktree write-tree "
-_RE_GIT_SOTTO='(^|[^[:alnum:]_.-])git[[:space:]]+((-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+[[:space:]]+|-[^[:space:]]+[[:space:]]+)*([A-Za-z][A-Za-z0-9_-]*)(.*)$'
-git_sottocomando_ignoto() {
-    local resto="$_SCIOLTO" giri=0
-    while [[ $giri -lt 20 && "$resto" =~ $_RE_GIT_SOTTO ]]; do
-        [[ "$_GIT_NOTI" == *" ${BASH_REMATCH[4]} "* ]] || return 0
-        resto="${BASH_REMATCH[5]}"
-        giri=$((giri + 1))
-    done
-    return 1
-}
-
-# Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message).
-if somiglia "$COMMAND" "$PATTERN_COMMIT" || vede "$PATTERN_COMMIT" || git_sottocomando_ignoto; then
-    run_guard commit-secret-gate.py
-fi
+# Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message). Parte anche su un nome di
+# sottocomando che il pre-filtro non conosce, che può essere un alias di commit (#6259, S10).
+vista commit && run_guard commit-secret-gate.py
 # Prima di ogni git push il gate scansiona i commit che il remoto non ha ancora (S10).
-vede "$PATTERN_GIT_PUSH" && run_guard commit-secret-gate.py push
+vista push && run_guard commit-secret-gate.py push
 
-# git clean -f cancella i file non tracciati, che git non sa ridare: PRIMA dello skip git-puro, che
+# git clean -f, git branch -D, push, una destinazione riscritta, amend, config, reset, checkout, restore,
+# credential, e un programma nascosto con una parola pericolosa (#6323): PRIMA dello skip git-puro, che
 # altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
-vede "$PATTERN_GIT_CLEAN" && danger_una_volta
-vede "$PATTERN_GIT_PERDE" && danger_una_volta
-vede "$PATTERN_GIT_PUSH" && danger_una_volta
-vede "$PATTERN_GIT_DEST" && danger_una_volta
-vede "$PATTERN_GIT_AMEND" && danger_una_volta
-vede "$PATTERN_GIT_ALTRI" && danger_una_volta
-# 22/11/2026 (#6323): un programma nascosto alle guardie (nome calcolato, alias, funzione, xargs, testo verso una
-# shell, codice di un interprete) con una parola pericolosa nel comando. Lo giudica block-dangerous (regola
-# codice-nascosto, _programma_nascosto); i percorsi dei segreti li porta già PATTERN_DANGER.
-PATTERN_NASCOSTO='\$[({A-Za-z_]|`|(^|[^[:alnum:]_.-])(g?xargs|alias|python[0-9.]*|perl|ruby|node|nodejs|php|deno|bun|osascript|sh|bash|zsh|dash|ksh|fish|pwsh|powershell)(\.exe)?([^[:alnum:]_.-]|$)|[[:alnum:]_][[:space:]]*\([[:space:]]*\)'
-PATTERN_PAROLA_PERICOLOSA='(^|[^[:alnum:]_.$-])(rm|unlink|shred|push|reset|clean|curl|wget|bw|gh)([^[:alnum:]_-]|$)'
-vede "$PATTERN_NASCOSTO" && vede "$PATTERN_PAROLA_PERICOLOSA" && danger_una_volta
+vista danger-git && danger_una_volta
 
-# --- Skip pre-filtro su git puro (commit/log/show...): i message possono
-# contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se
-# ogni segmento (; && || | e newline) inizia con git o cd, altrimenti si prosegue.
-# I newline vanno collassati in un sentinello PRIMA di spogliare le stringhe
-# quotate: un messaggio -m multi-riga altrimenti resterebbe non spogliato (sed
-# lavora riga per riga) e i suoi segmenti farebbero fallire il check. Il
-# sentinello resta poi un separatore di comando nello split (newline = come ;). ---
-# Lo skip git-puro spoglia le stringhe quotate per capire se ogni segmento e' git/cd.
-# Ma bash ESEGUE `$(...)`, i backtick e le process substitution <()/>() ANCHE dentro
-# le doppie virgolette: `git commit -m "$(comando)"` verrebbe ridotto a `git commit -m`,
-# dichiarato git-puro, e ogni guard saltato mentre la sostituzione gira. Se il comando
-# contiene una sostituzione, NON e' git-puro: si prosegue coi guard.
-PATTERN_SUBST='\$\(|`|<\(|>\('
-# `--no-index` fa leggere a git diff e git grep un file qualunque del disco, anche una chiave: non è testo
-# inerte, e il comando passa da block-dangerous (11/11/2026, #5262).
-# Tre confronti, ognuno con la sua regola sulle maiuscole (HK-1b):
-# - il programma e il sottocomando (PATTERN_GIT_TEXT) passano da `somiglia`: `Git log` è `git log`;
-# - le opzioni (PATTERN_GIT_OPZIONI) restano esatte: `-c` (configurazione) e `-C` (cartella) sono opzioni
-#   diverse, e git non accetta `--OUTPUT`;
-# - i sottocomandi che inviano (PATTERN_GIT_INVIA) passano da `somiglia`: sono programmi a parte nella
-#   cartella di git, e il disco li trova anche scritti `Send-Email`.
-PATTERN_GIT_OPZIONI='(^|[[:space:]])(--output|--exec-path|--config-env|--no-index|-c[[:space:]])|(^|[^>])>>?[^&|;]'
-PATTERN_GIT_INVIA='send-email|imap-send'
-_GIT_TESTO=0
-somiglia "$COMMAND" "$PATTERN_GIT_TEXT" && _GIT_TESTO=1
-_GIT_UNSAFE=0
-if [[ "$COMMAND" =~ $PATTERN_GIT_OPZIONI ]] || somiglia "$COMMAND" "$PATTERN_GIT_INVIA"; then
-    _GIT_UNSAFE=1
-fi
-if [[ $_GIT_TESTO -eq 1 && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && $_GIT_UNSAFE -eq 0 ]]; then
-    # Le virgolette si leggono come le legge bash (forma_comando.py, shlex): lo strip con
-    # sed accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
-    # comandi in mezzo. Ogni programma eseguito deve essere git o cd, anche col path
-    # completo o in un blocco. Virgolette che non tornano o errore di python: non e'
-    # git puro, e il comando passa dalle guardie.
-    GIT_PURE=0
-    # Come per le guardie: su Windows un argomento che sembra un path verrebbe convertito.
-    MSYS2_ARG_CONV_EXCL='*' py_cache "$ARTURO_HOOKS/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
-    [[ $GIT_PURE -eq 1 ]] && exit 0
-fi
+# --- Skip git puro (commit, log, show...): i messaggi possono contenere "rm -rf" o "smtplib" come testo, e non
+# sono esecuzioni. Il pre-filtro dà `git-puro` solo se ogni programma eseguito è git o cd (forma_comando.py,
+# git_puro), senza sostituzioni e senza le opzioni che scrivono o leggono file fuori dal repository. ---
+vista git-puro && exit 0
 
 # Opzioni Git che possono cambiare scritture o comportamento non sono testo inerte.
-[[ $_GIT_TESTO -eq 1 && $_GIT_UNSAFE -eq 1 ]] && danger_una_volta
+vista git-opzioni && danger_una_volta
 
-# Comms guard: invii email/messaggi esterni (draft-first). Il match si rifa' sul CODICE eseguito:
-# comms-prefilter.py toglie gli heredoc scritti su file e tace sui comandi di sola lettura
-# (`grep -ril smtplib .`), che nominano un invio senza farlo. Se il pre-filtro non gira, si
-# giudica il comando intero.
-invio_in_vista() { somiglia "$1" "$PATTERN_COMMS" || [[ "$1" == *"gws "* && "$1" == *"messages send"* ]]; }
-if invio_in_vista "$GUARD_COMMAND"; then
-    COMMS_REDUCED=$(py_cache "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
-    if invio_in_vista "$COMMS_REDUCED"; then
-        export COMMS_REDUCED
-        run_guard comms-guard.py
-    fi
+# Comms guard: invii email/messaggi esterni (draft-first), giudicati sul codice eseguito.
+if vista comms; then
+    esporta_ridotto
+    run_guard comms-guard.py
 fi
 
-# Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb...
+# Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb, segreti, link verso un
+# percorso protetto, sessione dentro ~/.claude, .git o una cartella dei segreti...
 # Prima le guardie personali di prima-danger; sui comandi che nominano .claude, se il .local ha una
 # danger-claude, decide lei e block-dangerous resta come riserva.
-# 4/11/2026 (#4566): una scrittura relativa dopo un `cd` dentro ~/.claude, o con la sessione già lì
-# (`cd ~/.claude && echo x > plugins/cache/...`, `> hooks/a.py`), non nomina il percorso protetto: il
-# pre-filtro testuale non la vedeva e block-dangerous, che risolve il percorso, non partiva. Il `cd` lo vede
-# `\.claude` di PATTERN_DANGER (dal 20/11/2026 senza un pattern suo, #5361); la sessione già lì la vede
-# _RE_CWD_CLAUDE.
-_RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
-# Con la sessione dentro `.git`, `cp x hooks/pre-commit` scrive un hook di git senza nominare `.git/hooks`
-# (11/11/2026, #5262): block-dangerous risolve il percorso, il pre-filtro guarda la cartella della sessione.
-_RE_CWD_GIT='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.git(["/\\])'
-# Con la sessione dentro una cartella dei segreti, `cat github` legge una chiave senza nominarla (review del
-# 10/11/2026, problema 10, #5263): block-dangerous risolve il percorso dalla cartella della sessione.
-_RE_CWD_SEGRETI='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.(ssh|aws|gnupg|secrets)(["/\\])'
-# Un link già sul disco verso una chiave o verso la config (`cat k`, `cat lnk/github` con lnk verso ~/.ssh)
-# non nomina il segreto: block-dangerous risolve il percorso, il pre-filtro non lo chiamava (21/11/2026, #6200).
-# Qui ogni parola che sembra un percorso si controlla pezzo per pezzo con `-L`, senza processi; solo se un pezzo
-# è un link, `readlink -f` dà il percorso vero, che si confronta con PATTERN_DANGER. La cartella di primo livello
-# non conta: su macOS /tmp, /var ed /etc sono link verso /private. Se readlink non risponde, parte la guardia.
-# Banco: GC12 in tests/test_guardie_cieche_2026_11_11.py.
-_RE_CWD_VALORE='"cwd"[[:space:]]*:[[:space:]]*"([^"]*)"'
-link_in_vista() {
-    local cwd="" parola p vero n=0 letti=0
-    local -a parole
-    [[ "$INPUT" =~ $_RE_CWD_VALORE ]] && cwd="${BASH_REMATCH[1]}"
-    [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && cwd="${cwd//\\\\//}"
-    IFS=$' \t\n;&|()<>' read -r -d '' -a parole <<< "$_SCIOLTO"
-    for parola in "${parole[@]}"; do
-        (( ++n > 300 )) && return 0
-        [[ "$parola" == *=* ]] && parola="${parola#*=}"
-        [[ -z "$parola" || "$parola" == -* || "$parola" == *['$*?[{`']* ]] && continue
-        case "$parola" in
-            "~/"*) p="$HOME/${parola#\~/}" ;;
-            /*) p="$parola" ;;
-            *) [[ -n "$cwd" ]] || continue; p="$cwd/$parola" ;;
-        esac
-        vero="$p"
-        while [[ "$p" == /*/* ]]; do
-            if [[ -L "$p" ]]; then
-                (( ++letti > 8 )) && return 0
-                vero=$(readlink -f -- "$vero" 2>/dev/null) && [[ -n "$vero" ]] || return 0
-                somiglia "$vero" "$PATTERN_DANGER" && return 0
-                break
-            fi
-            p="${p%/*}"
-        done
-    done
-    return 1
-}
-# Su Windows i percorsi hanno anche le barre rovesciate (`"C:\Users\x\.claude\settings.json"`), e PATTERN_DANGER
-# cerca `.claude/`: il pre-filtro prova anche il comando con le barre dritte (review del 9/11/2026, #5096).
-# Anche il `cd` si leggeva con le barre dritte (#5121): `cd "C:\...\.claude\data"` ha `.claude` seguito da una
-# barra rovesciata. Dal #5262 `\.claude` non chiede niente dopo il nome, e le barre dritte servono alle altre
-# voci (`\.git/hooks`, `\.ssh/`, `\.config/gh/hosts`).
-_GUARD_DRITTO="$GUARD_COMMAND"
-if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
-    _GUARD_DRITTO="${GUARD_COMMAND//\\//}"
-fi
-# Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config (7/11/2026,
-# finding 11). Dal 10/11/2026 lo copre `somiglia`, che lì confronta PATTERN_DANGER senza le maiuscole.
-# Fuori da Windows _GUARD_DRITTO è GUARD_COMMAND, già confrontato da `vede`: il terzo confronto si salta (#5347).
-if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || { [[ "$_GUARD_DRITTO" != "$GUARD_COMMAND" ]] && somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER"; } || somiglia "$INPUT" "$_RE_CWD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_GIT" || somiglia "$INPUT" "$_RE_CWD_SEGRETI" || link_in_vista; then
+if vista danger; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
-    if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then
+    if [[ -n "$_DC" ]] && vista claude; then
         _RISERVA=block-dangerous.py; _SENZA_ALLOW=1
         run_locale "$_DC"
     else
@@ -666,46 +359,30 @@ if vede "$PATTERN_DANGER" || somiglia "$_SENZA_NULL" "$PATTERN_SCRIVE" || { [[ "
     fi
 fi
 
-# Exfil guard: upload di un file locale verso host esterni -> ask. Come per comms, si giudica il
-# codice eseguito: COMMS_REDUCED e' il comando senza gli heredoc scritti su file (vuoto se
-# il comando solo legge). Se il pre-filtro non gira, si giudica il comando intero.
-# 21/11/2026 (#6202): anche senza virgolette e barre, come la guardia, che legge `cu''rl` e `"curl"` come curl.
-if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL || "$_SCIOLTO" =~ $PATTERN_EXFIL ]]; then
-    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(py_cache "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
-    _RIDOTTO_SCIOLTO="${COMMS_REDUCED//\\$'\n'/}"
-    _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//$_APICE/}"
-    _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//\"/}"
-    _RIDOTTO_SCIOLTO="${_RIDOTTO_SCIOLTO//\\/}"
-    if [[ "$COMMS_REDUCED" =~ $PATTERN_EXFIL || "$_RIDOTTO_SCIOLTO" =~ $PATTERN_EXFIL ]]; then
-        export COMMS_REDUCED
-        run_guard exfil-guard.py
-    fi
+# Exfil guard: upload di un file locale verso host esterni -> ask, sul codice eseguito come per comms.
+if vista exfil; then
+    esporta_ridotto
+    run_guard exfil-guard.py
 fi
 
-# I canali di PATTERN_EGRESS_SOSPETTO (17/10/2026, #3506, ridotti il 28/10) passano da exfil-guard, sul codice eseguito come
-# per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
-# `echo`, che lì scrive in rete.
-if vede "$PATTERN_EGRESS_SOSPETTO"; then
-    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(py_cache "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
-    if somiglia "$COMMS_REDUCED" "$PATTERN_EGRESS_SOSPETTO" || { [[ "$COMMS_REDUCED" == "$GUARD_COMMAND" ]] && somiglia "$_SCIOLTO" "$PATTERN_EGRESS_SOSPETTO"; }; then
-        export COMMS_REDUCED
-        run_guard exfil-guard.py
-    elif [[ "$GUARD_COMMAND" =~ $PATTERN_DEV_TCP ]]; then
-        export COMMS_REDUCED=$GUARD_COMMAND
-        run_guard exfil-guard.py
-    fi
+# I canali di rete grezzi (nc, socat, /dev/tcp) passano da exfil-guard, sul codice eseguito. Una redirezione
+# verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su `echo`, che lì scrive in rete.
+if vista egress; then
+    esporta_ridotto
+    run_guard exfil-guard.py
+elif vista egress-tcp; then
+    export COMMS_REDUCED=$GUARD_COMMAND
+    run_guard exfil-guard.py
 fi
 
 # Data guard: operazioni distruttive sui DATI (SQL drop, volumi, rsync --delete) -> ask.
-# 21/11/2026 (#6202): anche senza virgolette e barre: `rs"y"nc --delete` e `'DR''OP TABLE t'`.
-vede "$PATTERN_DATA" && run_guard data-guard.py
+vista data && run_guard data-guard.py
 
-# GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
-# 21/11/2026 (#6259, S7): anche curl, wget e httpie verso api.github.com, che fanno le stesse chiamate di `gh api`.
-{ somiglia "$COMMAND" "$PATTERN_GH_ANY" || vede "$PATTERN_GH_ANY" || vede 'api\.github\.com'; } && run_guard gh-destructive-guard.py
+# GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...), anche via api.github.com.
+vista gh && run_guard gh-destructive-guard.py
 
 # Guardie personali del punto finale, sui comandi che nominano .claude.
-if [[ "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then
+if vista claude; then
     for _i in $(locali finale); do run_locale "$_i"; done
 fi
 
@@ -715,7 +392,7 @@ fi
 # file scritto stanno in data/handoffs/ o in projects/<p>/memory/, i programmi sono di una
 # lista breve, e settings, hook e file di unlock non compaiono nel testo eseguito.
 # Altrimenti il ramo tace e decide il flusso normale dei permessi.
-if [[ "$COMMAND" == *".claude/"* ]] && py_cache "$ARTURO_HOOKS/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
+if vista memoria && py_cache "$ARTURO_HOOKS/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"scrittura di un handoff o di una memoria in ~/.claude: approvata dal ramo memoria del dispatcher"}}'
     exit 0
 fi

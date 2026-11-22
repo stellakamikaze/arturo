@@ -233,7 +233,7 @@ FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml
                      "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
 
 # --- Ramo A: upload di un file locale ---
-# Le stesse forme di PATTERN_EXFIL nel dispatcher. _FINE_ARG chiude un argomento nella shell
+# Le stesse forme di PATTERN_EXFIL nel pre-filtro (prefiltro_bash.py). _FINE_ARG chiude un argomento nella shell
 # (uno spazio) o in una lista python (`'curl', '-d', '@x'`, 21/10/2026).
 _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
 # -F e --form caricano un file solo con `nome=@file` o `nome=<file` (31/10/2026): `-F "email=a@b.it"` è un

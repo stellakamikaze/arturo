@@ -259,6 +259,8 @@ BANCHI=(
   test_lista_letterale_2026_11_22.py
   # Le guardie di Bash più veloci con gli stessi giudizi: parole lineari, un python3 solo, bytecode (22/11/2026, #6327).
   test_parole_veloci_2026_11_22.py
+  # Il pre-filtro del dispatcher di Bash in Python, lineare, e il limite a 1.000.000 di caratteri (22/11/2026, #6327).
+  test_prefiltro_python_2026_11_22.py
   # La verifica dei rilasci accetta solo firme SSH (21/11/2026, #6258, rilievo S1 della revisione del 20/11).
   test_firme_ssh_2026_11_21.py
   # Commit e push della coda di /fine passano dal controllo dei segreti (21/11/2026, #6249, rilievi A2 e A3).
@@ -559,6 +561,8 @@ BASELINE=(
   # Le guardie veloci (22/11/2026, #6327, #5347): parole ed evento_bash.py non ci sono, block-dangerous oltre 8 s.
   # 663bcba, il dev prima.
   "test_parole_veloci_2026_11_22.py 663bcba"
+  # Il pre-filtro in Python (22/11/2026, #6327): il modulo non c'è e il limite è 100.000. 5fdb286, il dev prima.
+  "test_prefiltro_python_2026_11_22.py 5fdb286"
   # La lista letterale (22/11/2026, #6353): codice-nascosto chiede sul GET di curl in subprocess.run. f69db25, il dev prima.
   "test_lista_letterale_2026_11_22.py f69db25"
   # Un tag firmato PGP passa dal portachiavi della persona (21/11/2026, #6258). ff920f0, il dev prima.

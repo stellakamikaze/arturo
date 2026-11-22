@@ -135,7 +135,7 @@ def nomi_sciolti(testo: str, nomi) -> str:
 
 
 def sciolto(testo: str) -> str:
-    """Il testo senza righe continuate, virgolette e barre, come `_SCIOLTO` del dispatcher: `'DR''OP TABLE t'`
+    """Il testo senza righe continuate, virgolette e barre, come `_sciolto` del pre-filtro (prefiltro_bash.py): `'DR''OP TABLE t'`
     diventa `DROP TABLE t`. Serve a una seconda lettura che può solo aggiungere conferme, mai toglierle."""
     return re.sub(r"['\"\\]", "", testo.replace("\\\n", ""))
 

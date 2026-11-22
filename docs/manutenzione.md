@@ -57,7 +57,7 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    RT23, che vale solo su Windows (`salti=1`).
    Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
    Un commit che insegna a una guardia un programma o un percorso nuovo aggiorna, nello stesso commit, il
-   `PATTERN_*` del dispatcher che la chiama, il docstring della guardia e la sua riga nel README. Il ritardo si
+   `PATTERN_*` del pre-filtro che la chiama (`hooks/prefiltro_bash.py`, poi `genera`), il docstring della guardia e la sua riga nel README. Il ritardo si
    era ripetuto su due commit di fila (#5261 e #5262); GC08 e GC10 di `test_guardie_cieche_2026_11_11.py`
    controllano la parte che si può controllare (#5361).
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle

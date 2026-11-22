@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """La parte Python di bash-dispatcher.sh: un processo al posto di tre, e le guardie dalla cache (#6327, 22/11/2026).
 
-Modulo del dispatcher, non un hook. Due comandi:
+Modulo del dispatcher, non un hook. Tre comandi:
 
   evento_bash.py leggi [crlf]
       Legge su stdin il JSON del PreToolUse e scrive su stdout quattro campi: il comando com'è scritto
@@ -17,6 +17,12 @@ Modulo del dispatcher, non un hook. Due comandi:
       riceve mai meno di quello che bash esegue.
       I campi seguono le regole della shell di prima: gli a capo in coda spariscono, come in `$(...)`, e un
       byte nullo sparisce, come lo toglieva bash.
+
+  evento_bash.py prefiltra [crlf] [nocase] [zsh]
+      Come `leggi`, con due campi in più: le viste del pre-filtro (hooks/prefiltro_bash.py), cioè le guardie
+      che devono partire, e il comando ridotto di comms-prefilter, vuoto se nessun ramo lo chiede. `nocase`
+      confronta i nomi dei programmi senza maiuscole (macOS e Windows), `zsh` cerca i glob nelle opzioni. Lo
+      usa il dispatcher dal 22/11/2026 (#6327): prima i confronti erano regex di bash, 13 µs per carattere.
 
   evento_bash.py esegui FILE [ARG...]
       Esegue lo script FILE come `python3 FILE ARG...`, ma dal bytecode in __pycache__: uno script lanciato
@@ -68,7 +74,8 @@ def _riduci_heredoc(comando):
         return comando
 
 
-def leggi(crlf):
+def _campi(crlf):
+    """I quattro campi di `leggi`, più il JSON letto e il testo grezzo dell'evento."""
     import json
     campi = ["", "", "", ""]
     grezzo = sys.stdin.buffer.read().decode("utf-8", "replace")
@@ -103,10 +110,38 @@ def leggi(crlf):
             campi[2] = ""
         uso = dati.get("tool_use_id")
         campi[3] = uso if isinstance(uso, str) and "\0" not in uso else ""
+    return campi, dati, grezzo
+
+
+def _scrivi(campi):
     dati_campi = [c.encode("utf-8", "replace") for c in campi]
     testa = " ".join(str(len(c)) for c in dati_campi).encode("ascii") + b"\n"
     sys.stdout.buffer.write(testa + b"".join(dati_campi))
     return 0
+
+
+def leggi(crlf):
+    return _scrivi(_campi(crlf)[0])
+
+
+def prefiltra(opzioni):
+    """I campi di `leggi`, poi le viste del pre-filtro (hooks/prefiltro_bash.py) separate da spazi e il comando
+    ridotto di comms-prefilter. Un errore del pre-filtro dà la sola vista `errore`, e il dispatcher chiede
+    conferma: una guardia che non si sa se serve non si salta."""
+    campi, dati, grezzo = _campi("crlf" in opzioni)
+    viste, ridotto = [], None
+    if campi[0] and isinstance(dati, dict):
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "arturo_prefiltro_bash", os.path.join(os.path.dirname(os.path.abspath(__file__)), "prefiltro_bash.py"))
+            pf = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(pf)
+            viste, ridotto = pf.analizza(campi[0], campi[1], grezzo, dati, senza_maiuscole="nocase" in opzioni,
+                                         windows="crlf" in opzioni, zsh="zsh" in opzioni)
+        except Exception:
+            viste, ridotto = ["errore"], None
+    return _scrivi(campi + [" ".join(viste), ridotto or ""])
 
 
 def _bytecode_controllato(percorso):
@@ -149,9 +184,11 @@ def esegui(percorso, argomenti):
 def main():
     if sys.argv[1:2] == ["leggi"]:
         return leggi(sys.argv[2:3] == ["crlf"])
+    if sys.argv[1:2] == ["prefiltra"]:
+        return prefiltra(set(sys.argv[2:]))
     if sys.argv[1:2] == ["esegui"] and len(sys.argv) >= 3:
         return esegui(sys.argv[2], sys.argv[3:])
-    sys.stderr.write("uso: evento_bash.py leggi [crlf] | esegui FILE [ARG...]\n")
+    sys.stderr.write("uso: evento_bash.py leggi [crlf] | prefiltra [crlf] [nocase] [zsh] | esegui FILE [ARG...]\n")
     return 64
 
 

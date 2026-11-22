@@ -46,8 +46,17 @@ def main() -> int:
     devono = ["bash -c 'git commit -m x'", 'eval "git commit -am y"', "xargs git commit",
               "nohup git commit -m z", "sudo git commit -m w", "git commit -m a"]
     non_devono = ["echo commit", "git log --oneline", "ls commit/"]
-    r = subprocess.run([BASH, "-c", PROVA_COMMIT, "_", str(repo / "hooks" / "bash-dispatcher.sh"),
-                        *devono, *non_devono], capture_output=True, text=True, timeout=30)
+    prefiltro = repo / "hooks" / "prefiltro_bash.py"
+    if prefiltro.is_file():
+        # Dal 22/11/2026 (#6327) il pre-filtro sta in Python: PATTERN_COMMIT è lo stesso pattern di bash.
+        spec_pf = importlib.util.spec_from_file_location("s01_prefiltro_bash", prefiltro)
+        pf = importlib.util.module_from_spec(spec_pf)
+        spec_pf.loader.exec_module(pf)
+        uscita = "".join(f"{'PARTE' if pf.PATTERN_COMMIT.trova(c) else 'SALTA'} {c}\n" for c in devono + non_devono)
+        r = subprocess.CompletedProcess([], 0, uscita, "")
+    else:
+        r = subprocess.run([BASH, "-c", PROVA_COMMIT, "_", str(repo / "hooks" / "bash-dispatcher.sh"),
+                            *devono, *non_devono], capture_output=True, text=True, timeout=30)
     righe = r.stdout.splitlines()
     persi = [c for c in devono if f"PARTE {c}" not in righe]
     troppi = [c for c in non_devono if f"SALTA {c}" not in righe]
