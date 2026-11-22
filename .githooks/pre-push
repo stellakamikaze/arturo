@@ -36,10 +36,19 @@ fi
 
 zero='0000000000000000000000000000000000000000'
 rosso=0
+# I commit che un ramo di questo remoto ha già sono pubblici, e si sono controllati al loro arrivo: come nella
+# CI (.github/workflows/igiene.yml) non contano. Il rilascio 0.2.23 si è fermato su main per un nome nel
+# messaggio di un commit già su origin/dev da tre ore (22/11/2026, #6425). Prima del push i rami remoti
+# conosciuti qui non hanno ancora i commit nuovi: un nome nuovo resta controllato.
+gia_pubblici=""
+remoto="${1:-}"
+if [ -n "$remoto" ] && git remote | grep -qxF -- "$remoto"; then
+  gia_pubblici=" --not --remotes=$remoto"
+fi
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "${local_sha:-}" ] || [ "$local_sha" = "$zero" ] && continue
   if [ "$remote_sha" != "$zero" ] && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
-    intervallo="${remote_sha}..${local_sha}"
+    intervallo="${remote_sha}..${local_sha}${gia_pubblici}"
   else
     intervallo="${local_sha} --not --remotes"
   fi

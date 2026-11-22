@@ -23,6 +23,9 @@ IG08 (18/11/2026, #6063) il workflow toglie anche i commit che un altro ramo pub
      un ramo che porta commit vecchi e unirlo in dev non danno rosso. Un ramo che contiene già il commit spinto
      non conta, così due rami spinti insieme non si tolgono a vicenda un nome nuovo. In una pull request contano
      tutti i rami di origin, e il commit di un fork resta controllato. Il passo del workflow gira davvero, in bash.
+IG09 (22/11/2026, #6425) l'hook pre-push toglie, come il workflow, i commit che un ramo del remoto ha già: main
+     che avanza fino a un commit già su origin/dev, col nome nel messaggio, parte. Un nome in un commit nuovo
+     sopra resta bloccato, e così un commit che solo un altro remoto conosce.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -292,8 +295,57 @@ def test_ig08(repo: Path) -> None:
         assert esito(zero, ramo, "ramo") == 1, "IG08 il primo push di un ramo nuovo non controlla i suoi commit nuovi"
 
 
+def test_ig09(repo: Path) -> None:
+    gancio = repo / ".githooks" / "pre-push"
+    assert gancio.is_file(), "IG09 manca .githooks/pre-push"
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        pubblico = base / "stellakamikaze" / "arturo.git"
+        altro = base / "altro" / "progetto.git"
+        r = base / "lavoro"
+        env = dict(os.environ, **GIT_ENV, HOME=str(base), ARTURO_IGIENE_IMPRONTE_EXTRA=impronta_prova(repo))
+        env.pop("PRE_PUSH_SKIP", None)
+
+        def git(*a: str, ok: bool = True, salta: bool = False, cartella: Path = r) -> subprocess.CompletedProcess:
+            e = dict(env, PRE_PUSH_SKIP="1") if salta else env
+            p = subprocess.run(["git", "-C", str(cartella), *a], env=e, capture_output=True, text=True, timeout=120)
+            assert not ok or p.returncode == 0, f"IG09 git {' '.join(a)}: {p.stderr}"
+            return p
+        for nudo in (pubblico, altro):
+            nudo.mkdir(parents=True)
+            git("init", "-q", "--bare", cartella=nudo)
+        r.mkdir()
+        git("init", "-q", "-b", "dev")
+        (r / "tests").mkdir()
+        (r / "tests" / "igiene.py").write_bytes((repo / "tests" / "igiene.py").read_bytes())
+        (r / ".githooks").mkdir()
+        (r / ".githooks" / "pre-push").write_bytes(gancio.read_bytes())
+        (r / ".githooks" / "pre-push").chmod(0o755)
+        git("config", "core.hooksPath", ".githooks")
+        git("remote", "add", "origin", str(pubblico))
+        git("remote", "add", "altro", str(altro))
+        git("add", "-A")
+        git("commit", "-q", "-m", "base pulita")
+        git("push", "-q", "origin", "dev", "dev:main")
+        # Un nome nel messaggio di un commit già arrivato su origin/dev (spinto da una macchina senza l'hook).
+        git("commit", "-q", "--allow-empty", "-m", f"su dev\n\nprovato da {PROVA}")
+        git("push", "-q", "origin", "dev", salta=True)
+        p = git("push", "-q", "origin", "dev:main", ok=False)
+        assert p.returncode == 0, f"IG09 main non avanza fino a un commit già su origin/dev: {p.stderr[-400:]}"
+        # Un commit nuovo col nome, sopra, resta bloccato.
+        git("commit", "-q", "--allow-empty", "-m", f"nuovo\n\ncon {PROVA}")
+        p = git("push", "-q", "origin", "dev:main", ok=False)
+        assert p.returncode != 0 and "BLOCK" in p.stderr, f"IG09 l'hook lascia partire un nome nuovo: {p.stderr[-400:]}"
+        # Un commit che conosce solo un altro remoto non è pubblico nel repository di Arturo.
+        git("push", "-q", "altro", "dev")
+        p = git("push", "-q", "origin", "dev:main", ok=False)
+        assert p.returncode != 0 and "BLOCK" in p.stderr, \
+            f"IG09 un commit noto solo a un altro remoto conta come già pubblico: {p.stderr[-400:]}"
+
+
 TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04, "IG05": test_ig05,
-         "IG06": test_ig06, "IG07": test_ig07, "IG08": test_ig08}
+         "IG06": test_ig06, "IG07": test_ig07, "IG08": test_ig08,
+         "IG09": test_ig09}
 
 
 def main() -> int:
