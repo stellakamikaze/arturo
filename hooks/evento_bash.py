@@ -30,7 +30,8 @@ Modulo del dispatcher, non un hook. Tre comandi:
       ms su 65. Il bytecode è a hash controllato (PEP 552): Python lo usa solo se l'impronta del sorgente è
       quella di quando l'ha compilato, anche dopo una modifica nello stesso secondo e con la stessa
       lunghezza. Se la cartella non è scrivibile, Python compila in memoria come prima. Codice d'uscita,
-      stdout e stderr sono quelli dello script.
+      stdout e stderr sono quelli dello script. Con ARTURO_RESTANTE=N lo script ha al massimo N secondi (fra
+      0,5 e 25): oltre esce con 1, e il dispatcher chiede conferma (#6363).
 
 Solo libreria standard, Python 3.8 o successivo.
 """
@@ -169,6 +170,17 @@ def _bytecode_controllato(percorso):
 
 def esegui(percorso, argomenti):
     import importlib.util
+    # ARTURO_RESTANTE: i secondi che restano all'hook, scritti dal dispatcher a ogni guardia (25 meno quelli già
+    # passati). Oltre, la guardia esce con 1 e il dispatcher chiede conferma. Senza, su 90.000 caratteri di `curl`
+    # ripetuti block-dangerous impiegava 83 secondi: Claude Code ferma l'hook dopo 30, e il comando partiva senza
+    # giudizio (22/11/2026, #6363). faulthandler conta da un suo thread, anche su Windows e dentro una regex.
+    restante = os.environ.get("ARTURO_RESTANTE")
+    if restante is not None:
+        try:
+            import faulthandler
+            faulthandler.dump_traceback_later(min(max(float(restante), 0.5), 25.0), exit=True)
+        except Exception:
+            pass
     percorso = os.path.abspath(percorso)
     _bytecode_controllato(percorso)
     sys.argv = [percorso] + list(argomenti)

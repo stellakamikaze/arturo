@@ -24,8 +24,11 @@ guardia_file() { if [[ -f "$ARTURO_HOOKS/$1" ]]; then printf '%s' "$ARTURO_HOOKS
 # direttamente, block-dangerous si ricompilava dal sorgente a ogni comando, circa 19 ms su 65. Senza
 # evento_bash.py (un'installazione a metà) parte lo script com'era: `python3` su un file che manca esce 2, che
 # qui vuol dire blocco.
+# Ogni guardia riceve i secondi che restano all'hook, 25 meno quelli passati ($SECONDS di bash): oltre, esce e
+# run_guard la prende per rotta, cioè una conferma. Claude Code ferma l'hook dopo 30 secondi, e il comando partiva
+# senza giudizio: su 90.000 caratteri di `curl` ripetuti block-dangerous impiegava 83 secondi (#6363).
 if [[ -f "$ARTURO_HOOKS/evento_bash.py" ]]; then
-    py_cache() { python3 "$ARTURO_HOOKS/evento_bash.py" esegui "$@"; }
+    py_cache() { ARTURO_RESTANTE=$(( 25 - SECONDS )) python3 "$ARTURO_HOOKS/evento_bash.py" esegui "$@"; }
 else
     py_cache() { python3 "$@"; }
 fi

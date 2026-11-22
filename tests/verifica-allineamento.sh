@@ -299,6 +299,8 @@ IN_FILA=(
   test_aggiorna_https_2026_11_17.py
   # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
   test_revisione_2026_11_07.py
+  # Il tetto di 25 secondi per le guardie (22/11/2026, #6363): misura decine di secondi, gira in fila.
+  test_tetto_guardie_2026_11_22.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -583,6 +585,8 @@ BASELINE=(
   "test_fine_gia_chiusa_2026_11_22.py b54e244"
   # L'avviso del sync della config a ogni sessione viva (22/11/2026, #6275). e1a03e6, il dev prima.
   "test_fine_avvisi_2026_11_22.py e1a03e6 radice"
+  # Le guardie senza tetto di tempo (22/11/2026, #6363): l'hook va oltre i 30 secondi su curl ripetuti. e1a03e6, il dev prima.
+  "test_tetto_guardie_2026_11_22.py e1a03e6"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

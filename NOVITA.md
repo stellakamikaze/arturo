@@ -13,6 +13,17 @@ modo di lavorare.
 
 ---
 
+## 2026-11-22 — Una guardia lenta chiede conferma invece di lasciar passare il comando
+
+**Cosa cambia**: se le guardie di un comando Bash non finiscono entro 25 secondi, Arturo ferma quella in
+corso e ti chiede conferma.
+
+**Il principio**: Claude Code ferma un hook dopo 30 secondi, e allora il comando parte senza giudizio. Su un
+comando di 90.000 caratteri fatto di `curl` ripetuti, costruito per rallentarla, block-dangerous impiegava 83
+secondi. Un comando normale non arriva vicino al tetto: uno di 300.000 caratteri si giudica in pochi secondi.
+
+---
+
 ## 2026-11-22 — /fine avvisa le altre sessioni solo quando le riguarda
 
 **Cosa cambia**: prima di salvare la configurazione, `/fine` avvisava ogni sessione aperta che il salvataggio
@@ -22,6 +33,8 @@ aperte una sessione riceveva due avvisi inutili, e ogni volta interrompeva la pe
 
 **Il principio**: l'elenco dei file viene dalle stesse regole del salvataggio vero, provate su una copia
 dell'indice di git. Un file che il salvataggio lascia fuori non fa partire nessun avviso.
+
+---
 
 ## 2026-11-22 — Un /fine su una sessione già chiusa non riparte
 
