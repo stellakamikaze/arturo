@@ -110,7 +110,8 @@ def test_m03(repo: Path) -> None:
 def test_m05(repo: Path) -> None:
     assert "setup-repository.md" in read(repo / "commands" / "setup.md") and \
         "remote rename origin upstream" in read(repo / "shared" / "setup-repository.md"), "M05 /setup crea origin senza tenere Arturo come upstream"
-    assert "remote rename origin upstream" in read(repo / "README.md"), "M05 README sostituisce origin e perde gli aggiornamenti di Arturo"
+    # Dal 22/11/2026 il README installa il plugin: niente clone, niente origin da rinominare (TP06 di
+    # test_testi_pubblici.py). La forma di prima resta in shared/setup-repository.md, per /setup.
     assert "upstream" in read(repo / "commands" / "novita.md"), "M05 /novita cerca aggiornamenti solo su origin"
     # Dal 16/10/2026 l'avviso di session-start lo dà bin/aggiornamenti.py, che sceglie upstream quando
     # c'è (AA11 lo prova col comportamento).
@@ -152,9 +153,10 @@ def test_m08(repo: Path) -> None:
 
 
 def test_m10(repo: Path) -> None:
+    # Fino al 22/11/2026 M10 voleva docs/ e NOVITA.md nella riga dell'installazione per copia. Col plugin la
+    # copia a mano non c'è più: chi copiava le cartelle restava senza aggiornamenti e senza firma.
     line = next((row for row in read(repo / "README.md").splitlines() if "innestare Arturo" in row), "")
-    for item in ("docs/", "NOVITA.md"):
-        assert item in line, f"M10 l'installazione per copia omette {item}"
+    assert not line, "M10 il README spiega ancora l'installazione per copia, senza aggiornamenti né firma"
 
 
 def test_m11(repo: Path) -> None:

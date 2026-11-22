@@ -13,6 +13,12 @@ TP04 docs/come-e-fatto.md mostra il mod e lo Sportello (server/), con la riga in
      privacy.md; la copia del disegno in testa a NOVITA è uguale (lo controlla anche Q06 di test_mod_skill.py).
 TP05 la ripresa da sola: la voce della roadmap dice che per gli utenti di Arturo è da fare, finché la logica
      sta solo in Volta (A3, D3).
+TP06 il README installa il plugin (D2, passo 5b): la sezione Installazione dà i due comandi del plugin e non ha più
+     il clone in ~/.claude, il blocco B= né il remote da rinominare.
+TP07 chi usa più computer ha i suoi passi: docs/migrazione.md ha la sezione "Con più computer" col pull e lo script
+     d'installazione, e i due messaggi di bin/migra.py rimandano lì invece di "si fa a mano".
+TP08 lo spegnimento della copia ha una data in ROADMAP: la voce del passaggio la dice, e "Da decidere" la porta
+     col task che la conferma (#5270).
 
 Con --avvelena ogni controllo riceve una copia del repository rotta nel punto che sorveglia, e deve fallire
 col suo codice e il motivo atteso (VELENI). Con --baseline-ref la controprova: sulla base ogni caso è rosso.
@@ -100,7 +106,46 @@ def test_tp05(repo: Path) -> None:
     assert "da fare per chi usa Arturo" in stato, "TP05 la voce della ripresa non dice che per gli utenti è da fare"
 
 
-CASI = (("TP01", test_tp01), ("TP02", test_tp02), ("TP03", test_tp03), ("TP04", test_tp04), ("TP05", test_tp05))
+def sezione(testo: str, titolo: str) -> str:
+    """Il testo di una sezione markdown che comincia con `titolo`, fino al titolo dello stesso livello dopo."""
+    m = re.search(r"^(#+) " + re.escape(titolo) + r".*?$(.*?)(?=^\1 |\Z)", testo, re.M | re.S)
+    return m.group(2) if m else ""
+
+
+def test_tp06(repo: Path) -> None:
+    inst = sezione(read(repo / "README.md"), "Installazione")
+    assert inst, "TP06 il README non ha la sezione Installazione"
+    for riga in ("claude plugin marketplace add stellakamikaze/arturo#catalogo", "claude plugin install arturo@arturo"):
+        assert riga in inst, f"TP06 il README non installa il plugin: manca {riga}"
+    for vecchio in ("git clone", 'B="$HOME/.claude-backup-', "remote rename origin upstream", "riporta-tuoi.sh"):
+        assert vecchio not in inst, f"TP06 il README installa ancora il clone: {vecchio}"
+
+
+def test_tp07(repo: Path) -> None:
+    piu = sezione(read(repo / "docs" / "migrazione.md"), "Con più computer")
+    assert piu, "TP07 docs/migrazione.md non ha la sezione Con più computer"
+    for riga in ("git -C ~/.claude pull --ff-only", "curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash",
+                 "arturo migra --unica-macchina"):
+        assert riga in piu, f"TP07 i passi per più computer non dicono {riga}"
+    migra = read(repo / "bin" / "migra.py")
+    assert "si fa a mano" not in migra, "TP07 bin/migra.py dice ancora che con più computer si fa a mano"
+    assert migra.count("docs/migrazione.md, sezione Con più computer") == 2, \
+        "TP07 i messaggi di bin/migra.py non rimandano ai passi per più computer"
+
+
+def test_tp08(repo: Path) -> None:
+    roadmap = read(repo / "ROADMAP.md")
+    voce = sezione(roadmap, "Il passaggio al plugin per chi usa già Arturo")
+    data = re.search(r"\b\d{1,2} (gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|"
+                     r"novembre|dicembre) 20\d\d\b", voce)
+    assert data and "spegnimento della copia" in voce, "TP08 la voce del passaggio non dà la data di spegnimento della copia"
+    decidere = sezione(roadmap, "Da decidere")
+    riga = next((r for r in decidere.splitlines() if data.group(0) in r), "")
+    assert "#5270" in riga, "TP08 Da decidere non porta la data di spegnimento col task che la conferma"
+
+
+CASI = (("TP01", test_tp01), ("TP02", test_tp02), ("TP03", test_tp03), ("TP04", test_tp04), ("TP05", test_tp05),
+        ("TP06", test_tp06), ("TP07", test_tp07), ("TP08", test_tp08))
 
 VELENI = (
     ("TP01", [("ROADMAP.md", "Stato: uscito nella 0.2.4.", "Stato: in corso, su dev.")], "parla dei rami"),
@@ -110,10 +155,14 @@ VELENI = (
                "Volta la elimina alla chiusura, `/fine` non le scrive l'handoff")], "metodo"),
     ("TP04", [("docs/come-e-fatto.md", "┌─ Sportello di Arturo", "┌─ Server di Arturo")], "Sportello"),
     ("TP05", [("ROADMAP.md", "Stato: da fare per chi usa Arturo.", "Stato: in corso.")], "ripresa"),
+    ("TP06", [("README.md", "claude plugin install arturo@arturo", "git clone https://github.com/stellakamikaze/arturo.git")],
+     "installa"),
+    ("TP07", [("bin/migra.py", "docs/migrazione.md, sezione Con più computer", "si fa a mano")], "più computer"),
+    ("TP08", [("ROADMAP.md", "<!-- task: #5270 -->", "")], "Da decidere"),
 )
 
 FILE = ("ROADMAP.md", "README.md", "NOVITA.md", "bin/arturo", "shared/metodo.md", "commands/setup.md",
-        "docs/come-e-fatto.md")
+        "docs/come-e-fatto.md", "docs/migrazione.md", "bin/migra.py")
 
 
 def copia_di(repo: Path) -> Path:

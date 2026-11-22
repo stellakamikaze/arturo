@@ -59,7 +59,7 @@ Più avanti, la voce "Esportare un progetto e limitare cosa Claude legge" porta 
 
 ## Installazione
 
-Per cominciare servono tre passi:
+Arturo si installa come plugin di Claude Code. Per cominciare servono tre passi:
 
 1. Installa Claude Code (vedi [Requisiti](#requisiti)).
 2. Scrivi `claude` e incolla questa frase: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`. Claude installa Arturo e ti chiede un sì prima di ogni passo (vedi [Con Claude Code](#con-claude-code-consigliata)).
@@ -87,48 +87,29 @@ Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le cre
 1. Installa Claude Code col comando di Anthropic e fai il login.
 2. Scrivi `claude` e incolla: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`
 3. Claude scarica lo script, lo confronta con la copia su GitHub e lo lancia dopo il tuo sì. Se manca un programma, lo installa col tuo sì: le finestre di sistema le confermi tu.
-4. Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Login, conversazioni, plugin e il tuo `CLAUDE.md` restano dove sono. I file che Arturo sostituisce vanno in una copia con la data nel nome.
+4. Lo script aggiunge a Claude Code il catalogo di Arturo, controlla che indichi un rilascio firmato e fa installare il plugin. Poi controlla che la copia installata sia proprio quel rilascio. Login, conversazioni, `CLAUDE.md` e i tuoi plugin restano come sono. In `settings.json` Claude Code accende solo il plugin: permessi, regole di blocco e barra in basso li aggiunge `/setup`, col tuo sì.
 5. Scrivi `/exit`, poi `claude`, poi `/setup`.
 
 ### A mano
 
-Con Claude Code chiuso, nel Terminale (macOS e Linux) o in Git Bash (Windows). La riga lancia lo stesso script:
+Nel Terminale (macOS e Linux) o in Git Bash (Windows). La riga lancia lo stesso script:
 
 ```bash
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato, con git o come plugin, si ferma e rimanda a `/aggiorna`. Lo script installa solo l'ultimo rilascio firmato; il blocco qui sotto scarica la punta di main senza controllare la firma. Per leggere ogni comando, o per reinstallare Arturo da capo, questo blocco mette da parte `~/.claude`, clona Arturo e riporta i file di Claude Code e i tuoi:
+Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato, come plugin o come copia dentro `~/.claude`, si ferma e lo dice. Lo script controlla la firma del rilascio prima di installare. I due comandi qui sotto fanno la stessa installazione senza quel controllo: Claude Code installa il rilascio che il catalogo indica, e l'avvio di Arturo controlla poi la copia con la firma.
 
 ```bash
-B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
-[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
-if git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"; then
-# Tornano login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato prima
-# tornano i tuoi file: istruzioni, memoria, todo, handoff, scelte, file .local, skill e comandi tuoi.
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
-  CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
-  hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local hooks/inventario.local bin/fonte-task.local data/memory data/memoria data/todo \
-  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
-  session-env/segnala.json session-env/novita-viste; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
-done
-[ -d "$B" ] && bash "$HOME/.claude/bin/riporta-tuoi.sh" "$B"
-elif [ -d "$B" ]; then
-  rm -rf "$HOME/.claude" && mv "$B" "$HOME/.claude" && echo "Scaricamento non riuscito: ~/.claude è tornata com'era."
-fi
+claude plugin marketplace add stellakamikaze/arturo#catalogo
+claude plugin install arturo@arturo
 ```
 
-Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, per esempio), `/setup` li ritrova nella copia messa da parte e, col tuo sì, li riporta.
+Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`.
 
-Per innestare Arturo a copia, senza un clone dentro `~/.claude`, clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `firme/` e `NOVITA.md` dentro `~/.claude/`. Chi copia non riceve l'aggiornamento automatico: ricopia tutte le cartelle a ogni rilascio, e cancella a mano i file che la voce di [`NOVITA.md`](NOVITA.md) dice tolti.
+### Arturo dentro `~/.claude` (la forma di prima)
 
-> **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
-> ```bash
-> git -C ~/.claude remote rename origin upstream   # Arturo resta raggiungibile: /aggiorna scarica da qui
-> gh repo create mio-claude --private --source ~/.claude --remote origin --push
-> # oppure, se il repo esiste già:  git -C ~/.claude remote add origin <URL-del-tuo-repo>
-> ```
+Prima del plugin Arturo si installava come copia dentro `~/.claude`, col repository git di Arturo in quella cartella. Quella forma riceve ancora gli aggiornamenti firmati, con `/aggiorna` e alla chiusura della sessione, fino alla data scritta nella [roadmap](ROADMAP.md). Per passare al plugin c'è `arturo migra`, che fa prima una copia di sicurezza e si annulla con `arturo migra indietro`. Con più computer i passi sono diversi: li dice [`docs/migrazione.md`](docs/migrazione.md).
 
 ### Il comando `arturo` nel terminale
 
@@ -678,7 +659,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Multi-macchina
 
-Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` scarica le modifiche delle tue altre macchine. Anche il sync passa dalla copia di prova di `/aggiorna`: se il risultato non è integro, la config resta com'era e `/inizio` te lo dice. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
+Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` scarica le modifiche delle tue altre macchine. Anche il sync passa dalla copia di prova di `/aggiorna`: se il risultato non è integro, la config resta com'era e `/inizio` te lo dice. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Col plugin il repository contiene solo i tuoi file: su ogni computer `~/.claude` è il clone del tuo repository privato, e il plugin si installa su ognuno con lo script. Chi aveva Arturo come copia dentro `~/.claude` su più computer passa al plugin coi passi di [`docs/migrazione.md`](docs/migrazione.md#con-più-computer).
 
 ---
 
@@ -700,7 +681,7 @@ La strada avanzata è la CLI `gws`: serve se vuoi più account Google (lavoro + 
 
 | Sintomo | Causa probabile | Rimedio |
 |---|---|---|
-| `/fine` dice "Config push non riuscito" | hai clonato il repo originale, non un tuo fork (nessun accesso in scrittura) | normale; per sincronizzare imposta un tuo `origin` (vedi [Installazione](#installazione)) |
+| `/fine` dice "Config push non riuscito" | `~/.claude` è il clone del repo di Arturo, non un tuo repository (nessun accesso in scrittura) | normale con la forma di prima; per sincronizzare passa al plugin e fai di `~/.claude` un tuo repository privato (vedi [`docs/migrazione.md`](docs/migrazione.md)) |
 | Claude Code fa qualcosa di strano e non sai se è colpa di Arturo | una skill, un hook o un plugin della config | apri `claude --safe-mode`: parte senza config, quindi **senza le guardie di Arturo**. Se lì il problema sparisce, la causa è nella config: richiudi subito e lancia `/diagnosi`, che passa anche `claude doctor` e i test dei mod |
 | `/system-audit` segnala `hook diretto mancante` | un file citato in `settings.json` non c'è (copia manuale incompleta) | ricopia il file da Arturo e rilancia `/system-audit` |
 | Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, scrivi `/segnala` (o apri una issue col comando esatto) |

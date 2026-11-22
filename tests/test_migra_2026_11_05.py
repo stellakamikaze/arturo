@@ -27,7 +27,7 @@ MG18 la forma upstream con --unica-macchina (segnalazione n. 62, 9/11/2026): il 
      origin; la prova dice PRONTA, la migrazione toglie i file di Arturo con un commit, .git e .gitignore restano,
      il plugin c'è; `migra indietro` annulla quel commit con un revert e rimette i file com'erano;
 MG08 l'avviso dell'avvio: dal clone una riga che nomina `migra --prova` e `migra indietro`, una volta al giorno;
-     con Arturo come upstream la riga dice "a mano"; dal codice fuori dall'Orsa (il plugin) niente; su un sistema
+     con Arturo come upstream la riga rimanda ai passi per più computer di docs/migrazione.md (22/11/2026); dal codice fuori dall'Orsa (il plugin) niente; su un sistema
      dove il passaggio non è provato, oggi Windows, niente (review del 7/11/2026, finding 99).
 
 I casi della review del 7/11/2026 (finding 14, 23, 84, 86) chiamano le funzioni di migra.py su un clone piccolo,
@@ -650,7 +650,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
         if 'python3 "$ARTURO_CODICE/bin/migra.py" avviso' not in avvio:
             rossi.append("MG08 avviso: hooks/session-start.sh non lancia migra.py avviso")
         if "ARTURO PLUGIN" not in primo or "migra --prova" not in primo or "migra indietro" not in primo \
-                or secondo.strip() or "a mano" not in con_upstream or fuori.strip():
+                or secondo.strip() or "sezione Con più computer" not in con_upstream or fuori.strip():
             rossi.append(f"MG08 avviso: primo {primo[:80]!r}, secondo {secondo[:60]!r}, upstream {con_upstream[-80:]!r}, "
                          f"fuori {fuori[:60]!r}")
     return rossi

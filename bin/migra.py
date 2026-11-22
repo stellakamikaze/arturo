@@ -246,7 +246,7 @@ def analizza(orsa: Path, unica: bool = False) -> dict:
             a["ferma"].append("il tuo ~/.claude è un repository tuo con Arturo come upstream. Se lo usi solo su questo "
                               "computer, rilancia con --unica-macchina: i file di Arturo escono con un commit nel tuo "
                               "repository, e .git resta. Se lo usi su più computer, la migrazione di uno toglierebbe "
-                              "Arturo agli altri: per questa forma scrivi a chi mantiene Arturo con /segnala, si fa a mano")
+                              "Arturo agli altri senza avviso: segui i passi di docs/migrazione.md, sezione Con più computer")
     for segno, cosa in (("rebase-merge", "un rebase"), ("rebase-apply", "un rebase"), ("MERGE_HEAD", "un merge")):
         percorso = git(orsa, "rev-parse", "--git-path", segno).stdout.strip()
         if percorso and esiste(orsa / percorso if not os.path.isabs(percorso) else Path(percorso)):
@@ -827,7 +827,7 @@ def avviso() -> str:
                         f"con `{comando} migra --prova --unica-macchina` vede cosa cambierebbe, senza che niente cambi; "
                         f"la migrazione vera si lancia da un Terminale con Claude Code chiuso (`{comando} migra "
                         "--unica-macchina`), e `migra indietro` rimette tutto com'era. Con più computer il passaggio "
-                        "si fa a mano con chi mantiene Arturo: può scrivergli con /segnala.")
+                        "ha i suoi passi in docs/migrazione.md, sezione Con più computer: un computer alla volta, col secondo che scarica il commit e installa il plugin prima di riaprire Claude Code.")
     return testa + (f"con `{comando} migra --prova` vede cosa cambierebbe, senza che niente cambi, e può mandare il "
                     "rapporto a chi mantiene Arturo con /segnala. La migrazione vera si lancia da un Terminale con "
                     f"Claude Code chiuso (`{comando} migra`), fa prima una copia di sicurezza, e "

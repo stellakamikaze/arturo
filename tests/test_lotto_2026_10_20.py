@@ -8,7 +8,8 @@ LT03 README, /aggiorna, SECURITY e la docstring di aggiornamenti.py conoscono il
      verificabile", che non è una compromissione; /segnala manda il solo tag del rilascio (#3552).
 LT04 un hook di terzi in testa a Notification o senza `command` non fa cadere K09 e i banchi M (#3596).
 LT05 l'avvio non usa più osascript, e il README racconta le schede nel Terminale di macOS (#3587).
-LT06 l'installazione del README, eseguita in una HOME usa e getta con una ~/.claude già usata, riporta
+LT06 dal 22/11/2026 il README installa il plugin e non ha più il blocco che sposta ~/.claude (fino ad allora:
+     l'installazione del README, eseguita in una HOME usa e getta con una ~/.claude già usata, riportava
      login, sessioni, cronologia e plugin, e git li ignora (#3594).
 LT07 /diagnosi lancia sempre `claude doctor` e i test di tutti i mod, e README e /diagnosi spiegano
      `claude --safe-mode` dicendo che spegne le guardie (#3595).
@@ -118,36 +119,13 @@ def test_lt05(repo: Path) -> None:
 def test_lt06(repo: Path) -> None:
     import re
     readme = (repo / "README.md").read_text(encoding="utf-8")
-    blocco = re.search(r"```bash\n(B=\"\$HOME/\.claude-backup.*?)```", readme, re.S)
-    assert blocco and "projects" in blocco.group(1), \
-        "LT06 l'installazione del README sposta tutta ~/.claude e non riporta login, sessioni e plugin"
+    assert not re.search(r"```bash\n(B=\"\$HOME/\.claude-backup.*?)```", readme, re.S) \
+        and "claude plugin install arturo@arturo" in readme, \
+        "LT06 l'installazione del README sposta ancora tutta ~/.claude invece di installare il plugin"
     setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
     # Dal 9/11/2026 /setup non ha una copia sua del blocco: rimanda alla guida (review del 7/11, L10).
     assert "#a-mano-esteso" in setup and "git clone https://github.com/stellakamikaze/arturo.git" not in setup, \
         "LT06 /setup ha un suo comando di installazione invece del rimando alla guida"
-    if not (repo / ".git").exists():
-        return  # copia senza storia (controprova): basta la parte sul testo
-    with tempfile.TemporaryDirectory() as d:
-        home = Path(d) / "home"
-        vecchia = home / ".claude"
-        (vecchia / "projects" / "-x").mkdir(parents=True)
-        (vecchia / "projects" / "-x" / "s.jsonl").write_text("{}", encoding="utf-8")
-        (vecchia / "plugins").mkdir()
-        (vecchia / "plugins" / "p.json").write_text("{}", encoding="utf-8")
-        for f in (".credentials.json", "history.jsonl", "settings.json"):
-            (vecchia / f).write_text("{}", encoding="utf-8")
-        script = blocco.group(1).replace("https://github.com/stellakamikaze/arturo.git", repo.as_posix())
-        r = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=120,
-                           env=env_di(home), check=False)
-        nuova = home / ".claude"
-        for f in (".credentials.json", "history.jsonl", "projects/-x/s.jsonl", "plugins/p.json"):
-            assert (nuova / f).exists(), f"LT06 dopo l'installazione manca {f}: {r.stderr[:200]}"
-        assert (nuova / "bin").is_dir(), f"LT06 il clone non è avvenuto: {r.stderr[:200]}"
-        sporchi = subprocess.run(["git", "-C", str(nuova), "status", "--porcelain"], capture_output=True,
-                                 text=True, env=env_di(home), check=False).stdout.strip()
-        assert not sporchi, f"LT06 git vede i file della persona: {sporchi[:200]}"
-        backup = [x for x in home.iterdir() if x.name.startswith(".claude-backup-")]
-        assert backup and (backup[0] / "settings.json").exists(), "LT06 il backup della vecchia config manca"
 
 
 def test_lt07(repo: Path) -> None:

@@ -132,11 +132,13 @@ Strato: Metodo, con la Memoria.
 
 ### Il passaggio al plugin per chi usa già Arturo {#passaggio}
 
-Stato: pronto. Il comando è `arturo migra`. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Chi mantiene Arturo decide quando chiederlo a tutti.
+Stato: pronto, anche per chi usa più computer. Il comando è `arturo migra`. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Data proposta per lo spegnimento della copia: 31 gennaio 2027.
 
 Strato: Ingresso.
 
-Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale.
+Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale. Con più computer si passa un computer alla volta, coi passi di `docs/migrazione.md`.
+
+Le persone nuove entrano dal plugin: lo script d'installazione installa il plugin al posto della copia dentro `~/.claude`. La copia riceve gli aggiornamenti firmati fino al 31 gennaio 2027. Dopo quella data i rilasci escono solo come plugin, e l'avvio della copia ricorda il passaggio. La data è una proposta, e la conferma chi mantiene Arturo (voce "Da decidere").
 
 <!-- task: #4534 -->
 
@@ -240,6 +242,7 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 - Su quale Mac e con quale account fare la prova del plugin da zero. <!-- task: #4565 -->
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
+- Se spegnere la copia dentro `~/.claude` il 31 gennaio 2027, come propone la voce "Il passaggio al plugin per chi usa già Arturo". <!-- task: #5270 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
 - Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
