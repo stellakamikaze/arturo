@@ -1,0 +1,5 @@
+# I dati che cambiano a ogni /fine e a ogni prompt: stanno sul ramo sync, non su main (D5, 22/11/2026).
+# Un path per riga, relativo alla config. bin/sync_transito.py li legge.
+data/handoffs
+data/progetti/stati.json
+data/memory
