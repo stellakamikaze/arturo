@@ -27,6 +27,7 @@ import json
 import math
 import os
 import secrets
+import socketserver
 import sys
 import threading
 import time
@@ -506,6 +507,18 @@ def sorveglia(stato: Stato) -> None:
             return
 
 
+class ServerLocale(ThreadingHTTPServer):
+    """ThreadingHTTPServer senza socket.getfqdn all'avvio.
+
+    HTTPServer.server_bind chiede il nome completo dell'indirizzo, e su un Mac con la risoluzione inversa lenta
+    la domanda dura 35 secondi prima che la pagina si apra (runner macOS di GitHub, #6454, 23/11/2026). Il nome
+    serve solo ai CGI, che qui non ci sono."""
+
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = str(self.server_address[0]), self.server_address[1]
+
+
 def main(argv: list, progetto: str = "generale") -> int:
     for flusso in (sys.stdout, sys.stderr):
         try:
@@ -526,7 +539,7 @@ def main(argv: list, progetto: str = "generale") -> int:
         return 3
     stato = Stato(secrets.token_urlsafe(32), progetto, inattivo_da(os.environ.get("ARTURO_WEB_INATTIVO")))
     try:
-        server = ThreadingHTTPServer((HOST, args.porta), crea_gestore(stato))
+        server = ServerLocale((HOST, args.porta), crea_gestore(stato))
     except (OSError, OverflowError) as e:
         motivo = perche_porta(e) if isinstance(e, OSError) else "il numero di porta non è valido"
         print(f"arturo web: non riesco ad aprire la porta {args.porta} su {HOST}: {motivo}. "
