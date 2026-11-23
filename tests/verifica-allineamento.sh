@@ -304,6 +304,8 @@ BANCHI=(
   # falso ripristino, lucchetto dei todo, hook della memoria, unisci e migra con ritorno, handoff automatici,
   # temporanei unici, home con spazi, conferme della telemetria.
   test_revisione_bassi_2026_11_22.py
+  # I dati di transito sul ramo sync (23/11/2026, #6424, D5): giro, lucchetto, minuto, segreti, merge union, coda.
+  test_sync_transito.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -636,6 +638,8 @@ BASELINE=(
   "test_revisione_bassi_2026_11_22.py 1e84201"
   # I testi pubblici (22/11/2026, #6418): roadmap sui rami, frase di /inizia/, Volta nel metodo. 40d4e4a, il dev prima.
   "test_testi_pubblici.py 40d4e4a"
+  # I dati di transito sul ramo sync (23/11/2026, #6424): senza bin/sync_transito.py rossi tutti e dodici. 88a5f8d, il dev prima.
+  "test_sync_transito.py 88a5f8d"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

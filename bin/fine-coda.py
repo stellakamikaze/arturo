@@ -115,6 +115,27 @@ INDICE_MEMORIA = "data/memory/index.md"
 # Il segno del fine completo (rotazione automatica, 3/11/2026), nella cartella dell'handoff.
 SEGNO_COMPLETO = ".ultimo-fine-completo"
 
+# I dati di transito (handoff, stati, memoria) passano dal ramo sync quando questa macchina l'ha migrato
+# (bin/sync_transito.py --migra, revisione del 22/11/2026, D5): la coda non li mette più nel commit su main.
+# Senza il git dir del ramo sync resta il comportamento di prima.
+SYNC_TRANSITO = Path(__file__).resolve().parent / "sync_transito.py"
+
+
+def sync_attivo():
+    return (CL / ".git-sync" / "HEAD").exists() and SYNC_TRANSITO.is_file()
+
+
+def in_transito(rel):
+    """Il path sta sotto un path di data/transito.paths, e il ramo sync è attivo."""
+    if not sync_attivo():
+        return False
+    try:
+        elenco = [r.strip().rstrip("/") for r in (QUI.parent / "data" / "transito.paths")
+                  .read_text(encoding="utf-8").splitlines() if r.strip() and not r.strip().startswith("#")]
+    except OSError:
+        return False
+    return any(rel == p or rel.startswith(p + "/") for p in elenco)
+
 
 # I file sensibili di .gitignore ("MAI committare") e le cartelle che si rigenerano restano fuori anche
 # verso un remote privato: git add -f scavalcherebbe .gitignore. La coda li nomina (review del 7/11/2026,
@@ -586,12 +607,15 @@ def aggiungi_per_percorso():
                       f"(visibilità: {vis or 'sconosciuta'}). Restano su questa macchina.")
     saltati = {}
     if vis == "PRIVATE":
-        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()], saltati))
+        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()
+                                                    and not in_transito(p)], saltati))
         if not ok:
             falliti.append(f"{', '.join(PRIVATI)}: {ultima(err)}")
         # Gli handoff senza -f: una riga della persona nel .gitignore (un progetto riservato) va rispettata.
-        if (CL / "data" / "handoffs").exists():
+        if (CL / "data" / "handoffs").exists() and not in_transito("data/handoffs"):
             aggiungi("-A", "--", "data/handoffs")
+        if sync_attivo():
+            esiti.append("handoff, stati e memoria: sul ramo sync (bin/sync_transito.py)")
     else:
         esiti.append(f"CLAUDE.md, personale/, handoff, todo e memoria solo su questa macchina: il remote "
                      f"non risulta privato (visibilità: {vis or 'sconosciuta'})")
@@ -611,14 +635,16 @@ def aggiungi_della_sessione(handoff, slug):
     origin_arturo = bool(RE_ARTURO.search(origin))
     vis = visibilita(origin) if origin and not origin_arturo else ""
     falliti, esiti = [], ["add: solo i path della sessione"]
-    if handoff:
+    if sync_attivo():
+        esiti.append("handoff e indice: sul ramo sync (bin/sync_transito.py)")
+    elif handoff:
         cartella = handoff.parent.relative_to(CL.resolve()).as_posix()
         for p in (handoff.relative_to(CL.resolve()).as_posix(), "data/handoffs/INDEX.md", f"{cartella}/{SEGNO_COMPLETO}"):
             if (CL / p).exists():
                 ok, err = aggiungi("-A", "--", p)
                 if not ok:
                     falliti.append(f"{p}: {ultima(err)}")
-    if slug and git("ls-files", "--", f"data/handoffs/{slug}/")[1].strip():
+    if slug and not sync_attivo() and git("ls-files", "--", f"data/handoffs/{slug}/")[1].strip():
         ok, err = aggiungi("-u", "--", f"data/handoffs/{slug}/")
         if not ok:
             falliti.append(f"data/handoffs/{slug}/: {ultima(err)}")
@@ -1008,7 +1034,7 @@ def coda(a, ap, suoi):
     if blocca:
         print(f"fine-coda: personale/fine-coda.py (prima-commit) blocca: {blocca}")
         return 4
-    extra = [p for p in dict.fromkeys(extra + extra2) if p and not p.startswith(("/", ".."))]
+    extra = [p for p in dict.fromkeys(extra + extra2) if p and not p.startswith(("/", "..")) and not in_transito(p)]
     if extra and vis != "PRIVATE":
         # personale/ e i .local sono ignorati da Arturo: senza un remote privato restano fuori
         rc, _, err = git("add", "-A", "--", *extra)
@@ -1111,6 +1137,15 @@ def coda(a, ap, suoi):
             ok, perche = push(origin)
             esiti.append("config: push riuscito" if ok else f"config: push non riuscito ({perche}), "
                          f"{avanti or '?'} commit da ritentare")
+
+    # 11. dati di transito: commit raggruppato sul ramo sync, push al massimo una volta al minuto
+    if sync_attivo():
+        rc, out, err = run([PY, str(SYNC_TRANSITO), "--subito"], 240, env=dict(os.environ, SYNC_TRANSITO_CLAUDE=str(CL)))
+        if rc == 7:
+            print("coda: " + " · ".join(esiti))
+            print(out.strip())
+            return 7
+        esiti.append(ultima(out, err) if rc == 0 else f"sync dei dati di transito rc={rc}: {ultima(out, err)}")
 
     print("coda: " + " · ".join(esiti))
     return 3 if offline else 0
