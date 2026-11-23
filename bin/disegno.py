@@ -62,3 +62,9 @@ def segno_sotto(percento: float, testo: str, colonne: int = 30) -> str:
     """La riga sotto la barra con un segno all'altezza dell'ultima colonna piena: "   └ testo"."""
     piene = max(1, min(colonne, round(colonne * percento / 100)))
     return " " * (piene - 1) + "└ " + testo
+
+
+def titolo(testo: str, larghezza: int = 60) -> str:
+    """Una riga titolo per un gruppo: "── TOCCA A TE · 2 ─────────", larga `larghezza` colonne."""
+    testa = "── " + testo + " "
+    return testa + "─" * max(3, larghezza - len(testa))
