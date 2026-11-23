@@ -13,6 +13,32 @@ modo di lavorare.
 
 ---
 
+## 2026-11-23 — Arturo si legge meglio, anche nella console di Windows
+
+**Cosa cambia**: i riquadri, le barre e le liste che Arturo stampa usano solo caratteri che la console di Windows mostra coi suoi font: angoli dritti, linee semplici, blocchi pieni e vuoti, lettere accentate. Prima alcuni segni (gli angoli arrotondati, la freccia, la spunta, i tre puntini) lì diventavano quadratini.
+- La barra in basso, nella console di Windows, scrive `^ Arturo` al posto della freccia, `ok` al posto della spunta e `...` al posto dei tre puntini. Su Mac, Linux e Windows Terminal resta come prima. `ARTURO_SEGNI=ascii` o `ARTURO_SEGNI=unicode` sceglie a mano.
+- `arturo todo` apre ogni gruppo con una riga titolo (`── TOCCA A TE · 2 ───`), mette i titoli in colonna e un `!` davanti a una scadenza passata, che così si vede anche senza colori. `arturo todo progetti` ha una barra corta di quanto è chiuso.
+- La chiusura di `/fine` dà i fatti tecnici in cinque righe in colonna (chiuso, controlli, config, segnala, riprendi), non più in una riga sola. Il brief prima di un lavoro allinea le etichette.
+- `arturo rotazione`, `arturo segnalazioni` e `arturo memoria stato` vanno a capo entro 78 colonne, senza spezzare un comando, un percorso o una frase fra virgolette.
+
+**Perché**: chi usa Arturo su Windows leggeva quadratini al posto dei segni, e le righe da 220 caratteri andavano a capo a metà parola nei terminali stretti.
+
+**A chi serve**: a chi usa Arturo su Windows, e a chi legge le liste nel terminale.
+
+---
+
+## 2026-11-23 — La rotazione parte a metà contesto, e la soglia la scegli tu
+
+**Cosa cambia**: quando Claude chiude un compito, fa il commit, chiude il todo e passa al compito dopo nella stessa sessione. Il salvataggio con `/fine --rotazione` e la sessione nuova arrivano solo quando il contesto supera il 50%, oppure dalle 18 col `/fine` completo del giorno. L'avviso del contesto adesso scatta al 50% e non più al 65%. Alla prima sessione dopo l'aggiornamento Claude ti mostra un riquadro con la regola nuova.
+
+**Come cambi la soglia**: di' a Claude "rotazione al 40%", oppure lancia `arturo rotazione 40`. Vale ogni numero da 30 a 70: più basso salva più spesso, più alto resta di più nella stessa sessione. `arturo rotazione` dice la soglia di oggi, `arturo rotazione togli` torna al 50%. La scelta sta in `~/.claude/personale/rotazione.txt` e gli aggiornamenti non la toccano. Se in `settings.json` hai impostato `CLAUDE_CTX_WARN`, vince quella, come prima.
+
+**Perché**: sul Mac di chi mantiene Arturo la rotazione è partita 299 volte in una settimana, quasi due minuti l'una, più un `/inizio` nuovo dopo ogni giro: circa nove ore di attesa. Il modello risponde in 3 secondi a chiamata, quindi la lentezza stava nei salvataggi. Con la soglia a metà contesto Claude ricorda anche il lavoro fatto prima, nella stessa sessione.
+
+**A chi serve**: a chi lascia lavorare Claude su un piano a più passi.
+
+---
+
 ## 2026-11-22 — I testi di Arturo dicono cosa c'è nel rilascio
 
 **Cosa cambia**: la roadmap dice lo stato di ogni voce da quello che c'è nel rilascio firmato, non da quello che sta sui rami di sviluppo. Lo storico delle chat, l'intervista, il fascicolo e gli spazi risultavano "su un ramo di sviluppo" e invece sono nel plugin dalla 0.2.16. La frase da incollare per installare Arturo è una sola, la stessa del sito: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`. Volta, la finestra che chi mantiene Arturo sta provando, esce dai testi che valgono per tutti: `/inizio` passa la checklist della ripartenza solo se Volta c'è, il metodo non la nomina più e le voci di queste novità su Volta dicono che è una prova. Il disegno di `docs/come-e-fatto.md` mostra anche il mod e lo Sportello, il server a cui Arturo manda gli eventi d'uso e le segnalazioni:

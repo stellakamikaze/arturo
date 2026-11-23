@@ -19,7 +19,9 @@ if [ -z "${ARTURO_AVVIO_CORPO:-}" ] && [ "${ARTURO_AVVIO_TETTO_MS:-7500}" != 0 ]
   case "$_tetto_ms" in (*[!0-9]*|"") _tetto_ms=7500 ;; esac
   _inizio_us=${EPOCHREALTIME//[.,]/}
   mkdir -p "$HOME/.claude/session-env" 2>/dev/null
-  exec 3< <(ARTURO_AVVIO_CORPO=1 "$BASH" "${BASH_SOURCE[0]}" 2>"$HOME/.claude/session-env/avvio-errori.log")
+  # exec: bash 3.2 (macOS) non sostituisce la subshell col comando e la lascia viva con lo stderr dell'hook
+  # aperto fino alla fine del lavoro, e Claude Code aspetta (#6454, 23/11/2026).
+  exec 3< <(export ARTURO_AVVIO_CORPO=1; exec "$BASH" "${BASH_SOURCE[0]}" 2>"$HOME/.claude/session-env/avvio-errori.log")
   _tagliato=0
   while :; do
     if [ -n "$_inizio_us" ]; then
@@ -35,11 +37,17 @@ if [ -z "${ARTURO_AVVIO_CORPO:-}" ] && [ "${ARTURO_AVVIO_TETTO_MS:-7500}" != 0 ]
     fi
     if [ "$_resta_ms" -le 0 ] || [ "$_attesa" = 0 ]; then _tagliato=1; break; fi
     _riga=""
+    _prima=$SECONDS
     if IFS= read -r -t "$_attesa" _riga <&3; then
       printf '%s\n' "$_riga"
     else
       _rc=$?
-      if [ "$_rc" -gt 128 ]; then _tagliato=1; elif [ -n "$_riga" ]; then printf '%s\n' "$_riga"; fi
+      # bash 3.2 esce con 1 sia allo scadere sia a fine flusso: lì lo scadere si riconosce dal tempo passato.
+      if [ "$_rc" -gt 128 ] || { [ -z "$_inizio_us" ] && [ $(( SECONDS - _prima )) -ge "$_attesa" ]; }; then
+        _tagliato=1
+      elif [ -n "$_riga" ]; then
+        printf '%s\n' "$_riga"
+      fi
       break
     fi
   done
@@ -144,7 +152,14 @@ if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compa
 fi
 
 # Reminder context management
-echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) Arturo chiude con /fine --rotazione, sempre, anche col contesto leggero. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, verso il 65% del contesto il compito si chiude e si salva con /fine."
+# La soglia vera viene da bin/rotazione.py (arturo rotazione N, 23/11/2026), che stampa anche, una volta,
+# l'avviso della rotazione nuova per chi usava già Arturo. Senza python3 resta la riga di Arturo.
+CONTEXT_RIGA=$([ -f "$ARTURO_CODICE/bin/rotazione.py" ] && python3 "$ARTURO_CODICE/bin/rotazione.py" riga 2>/dev/null)
+if [ -n "$CONTEXT_RIGA" ]; then
+  printf '%s\n' "$CONTEXT_RIGA"
+else
+  echo "CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%) o dalle 18. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine."
+fi
 
 # La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
 # Arturo e dell'Orsa. Senza ruoli la riga non esce.

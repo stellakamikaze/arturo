@@ -14,7 +14,8 @@ Y03 `arturo memoria cerca` (scripts/melchior_recall.py): BM25 su frontmatter e c
 Y04 lo scanner delle scritture avvisa su injection e segreti nelle note e negli handoff, senza mai
     stampare il segreto, e tace sui file di progetto, sulle note pulite e sugli URL locali.
 Y05 `arturo memoria controlla`: frontmatter mancante, description mancante, YAML rotto, indice
-    che punta a un file assente. Un [[link]] senza nota è "da scrivere", non un errore.
+    che punta a un file assente. Un [[link]] senza nota è "da scrivere", non un errore; se la nota
+    sta in _archive/ è fra le archiviate, col successore vivo di superseded_by o unito_in.
 Y06 la memoria resta locale: niente telemetria, data/memoria/ e data/memory/ fuori da git, nessun
     host fidato scritto nel codice oltre localhost, nessun percorso di una persona.
 Y07 /setup ha la fase della memoria, non chiede e non la riaccende: una riga sola, senza comandi;
@@ -352,6 +353,17 @@ def test_y05(repo: Path) -> None:
         assert any("corta.md" in a["file"] and "MEMORY.md" in a["motivo"] for a in esito["avvisi"]), \
             "Y05 una nota fuori dall'indice non è segnalata"
         assert not any("nota-futura" in e["motivo"] for e in esito["errori"]), "Y05 un [[link]] senza nota è un errore"
+        (lab.mem / "_archive").mkdir()
+        (lab.mem / "_archive" / "vecchia.md").write_text(
+            "---\nname: vecchia\ndescription: d\nsuperseded_by: \"[[feedback_pytest]]\"\n---\n", encoding="utf-8")
+        (lab.mem / "_archive" / "spenta.md").write_text("---\nname: spenta\ndescription: d\n---\n", encoding="utf-8")
+        (lab.mem / "rimanda.md").write_text("---\nname: rimanda\ndescription: d\n---\n[[vecchia]] e [[spenta]]\n",
+                                            encoding="utf-8")
+        esito = json.loads(lab.arturo("controlla", "--json").stdout)
+        archiviate = {v["link"]: v["successore"] for v in esito.get("archiviate", [])}
+        assert archiviate == {"vecchia": "feedback_pytest", "spenta": ""} and \
+            not {"vecchia", "spenta"} & {v["link"] for v in esito["da_scrivere"]}, \
+            f"Y05 un link a una nota archiviata: archiviate {archiviate}, da scrivere {esito['da_scrivere']}"
     finally:
         lab.chiudi()
 
@@ -1203,6 +1215,10 @@ VELENI = (
      "l'igiene non segnala"),
     ("Y21", [("shared/metodo.md", "~/.claude/personale/humanizer.md", "il CLAUDE.md")], "il metodo non dice"),
     ("Y21", [("bin/riporta-tuoi.sh", "deciso il 2/11/2026", "deciso da Federico il 2/11/2026")], "fuori dai crediti"),
+    ("Y05", [("bin/memoria.py", "                    if b in archivio:\n", "                    if False:\n")],
+     "un link a una nota archiviata"),
+    ("Y05", [("bin/memoria.py", '            dopo = campo(fm, "superseded_by") or campo(fm, "unito_in") or ""\n',
+              '            dopo = ""\n')], "un link a una nota archiviata"),
     ("Y22", [("hooks/subagent-memory-context.py", "    if mm.memoria_accesa() and mm.elenco_note():", "    if mm.memoria_accesa():")],
      "riceve il promemoria a memoria vuota"),
     ("Y24", [("hooks/melchior_match.py", "    s += min(answers_hits, TETTO_ANSWERS)\n", "    s += answers_hits\n")],

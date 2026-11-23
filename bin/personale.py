@@ -314,6 +314,19 @@ def separa(verso: str = "", commit: bool = True, r: Path | None = None) -> int:
     return 0
 
 
+def citato(codice: Path, nome: str) -> bool:
+    """True se un file di skill, comandi, hook o bin di Arturo nomina il file personale `nome`."""
+    for cartella in ("skills", "commands", "hooks", "bin"):
+        for f in (codice / cartella).rglob("*"):
+            if f.suffix in (".md", ".py", ".sh", ".js") and f.is_file() and f.name != "personale.py":
+                try:
+                    if nome in f.read_text(encoding="utf-8", errors="ignore"):
+                        return True
+                except OSError:
+                    continue
+    return False
+
+
 def elenco() -> int:
     r = radice()
     mie = sorted(list((r / "personale").glob("*.md")) + list((r / "personale").glob("*.sh")))
@@ -322,8 +335,14 @@ def elenco() -> int:
     # lascia la sua aggiunta senza nessuno che la legga.
     # Un file personale vale anche per una skill (docs/strati.md, "Estendere una skill senza copiarla"):
     # personale/humanizer.md è la voce della persona, e non va mai proposto da cancellare (4/11/2026, #4719).
-    orfani = [f for f in mie if f.suffix == ".md" and not (r / "commands" / f.name).exists()
-              and not (r / "skills" / f.stem / "SKILL.md").exists()]
+    # Col plugin skill e comandi di Arturo stanno nella cartella del codice, non in ~/.claude, e una skill
+    # può leggere un file personale con un altro nome (revisione legge personale/revisione-sviluppatore.md):
+    # un file citato per nome da skill, comandi, hook o bin di Arturo ha un lettore (23/11/2026).
+    codice = Path(os.path.realpath(__file__)).parent.parent
+    orfani = [f for f in mie if f.suffix == ".md"
+              and not any((d / "commands" / f.name).exists() or (d / "skills" / f.stem / "SKILL.md").exists()
+                          for d in (r, codice))
+              and not citato(codice, f"personale/{f.name}")]
     if orfani:
         print("Senza comando (Arturo non ha più /" + ", /".join(f.stem for f in orfani) + "): "
               + ", ".join(f"personale/{f.name}" for f in orfani)

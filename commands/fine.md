@@ -24,9 +24,13 @@ fa ripartire le fasi anche su una sessione chiusa.
 
 ## Modo rotazione (`--rotazione`)
 
-Lo lancia Claude, mai la persona, a ogni compito chiuso: uno step del piano compiuto o un incarico finito,
-con i test verdi e la sonda fatta. Parte sempre, anche col contesto leggero e anche quando non c'è un passo
-dopo: è la raccolta dei risultati (handoff del giorno, todo, memoria, commit). Un compito conta quando ha
+Lo lancia Claude, mai la persona, a compito chiuso (uno step del piano compiuto o un incarico finito, con i
+test verdi e la sonda fatta) e solo a contesto oltre la soglia della rotazione (50% di default; la persona la
+cambia con `arturo rotazione N`, da 30 a 70): lo dice l'avviso CONTEXT WARNING. Dalle 18 parte
+anche sotto il 50%, come fine completo del giorno. È la raccolta dei risultati (handoff del giorno, todo,
+memoria, commit). Sotto la soglia il compito chiuso lascia commit, push e todo chiuso, e la sessione parte col
+passo dopo nello stesso contesto (23/11/2026: prima partiva a ogni compito chiuso, e sul Mac di chi mantiene
+Arturo 136 rotazioni a settimana costavano circa 6 ore). Un compito conta quando ha
 lasciato una traccia da salvare: un commit, un file, un documento, una decisione, un todo cambiato.
 Un'azione senza traccia (accendere la musica, leggere uno stato) non lo fa partire.
 La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la coda il tool `ruota` del mod
@@ -394,11 +398,20 @@ staleness**, se la sessione ha toccato documenti `.md`. Per entrambi leggi `~/.c
 La chiusura non ristampa la ripartenza di `/inizio`. Il messaggio ha, in quest'ordine:
 1. una riga per file o materiale della FASE 1 con la posizione finale, anche gli scarti;
 2. la Ripartenza dell'handoff in tre righe, col prossimo passo;
-3. la riga tecnica: "chiuso · commit a1b2c3d · handoff HANDOFF_2026-10-03_18-40.md · gate verde · validate
-   ok · retention: 1 tolto · config: push riuscito · segnalazione: nessuna · riprendi: /inizio libro".
-   Config: "push riuscito", "niente da pushare", "push non riuscito: N commit da ritentare" o "solo
-   locale". Segnalazione: "inviata n. N", "in coda", "proposta, non inviata", "domanda fatta" o "nessuna". Un passo
-   saltato o fallito lo dice al suo posto.
+3. il blocco tecnico, in un blocco di codice: cinque righe, l'etichetta a sinistra in 12 colonne e i fatti
+   dopo, senza bordo (un bordo scritto a mano esce storto, 23/11/2026). Così si legge nel Terminale del Mac e
+   nella console di Windows:
+   ```
+   chiuso      commit a1b2c3d · handoff HANDOFF_2026-10-03_18-40.md
+   controlli   gate verde · validate ok · retention: 1 tolto
+   config      push riuscito
+   segnala     nessuna
+   riprendi    /inizio libro
+   ```
+   config: "push riuscito", "niente da pushare", "push non riuscito: N commit da ritentare" o "solo
+   locale". segnalazione: "inviata n. N", "in coda", "proposta, non inviata", "domanda fatta" o "nessuna".
+   Un passo saltato o fallito lo dice al suo posto, sulla sua riga. Solo caratteri semplici: lettere, cifre,
+   "·" e ":", niente emoji né spunte.
 
 Se la FASE 7 o la FASE 8 hanno scritto memoria, segue il blocco **Memoria applicata** (un percorso per riga
 e cosa è cambiato). Poi, in una chiusura che la persona legge (non nel giro che ruota), lancia

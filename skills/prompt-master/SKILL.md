@@ -56,16 +56,18 @@ Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di mas
 
 ```
 BRIEF
-Obiettivo: [azione precisa, verbo concreto, non la parafrasi della richiesta]
-Output: [forma, formato, dove finisce]
-Vincoli: [cosa deve e non deve accadere; regole del CLAUDE.md applicabili]
-Fatto quando: [criterio verificabile, binario dove possibile]
-Skill: [/nome e perché in poche parole, oppure "nessuna"]
+Obiettivo:       [azione precisa, verbo concreto, non la parafrasi della richiesta]
+Output:          [forma, formato, dove finisce]
+Vincoli:         [cosa deve e non deve accadere; regole del CLAUDE.md applicabili]
+Fatto quando:    [criterio verificabile, binario dove possibile]
+Skill:           [/nome e perché in poche parole, oppure "nessuna"]
 Dove non arrivo: [la parte che resta alla persona e cosa faccio io al suo posto; solo se c'è]
-Assunzioni: [cosa sto dando per scontato]
-Da chiarire: [max 3 punti]
+Assunzioni:      [cosa sto dando per scontato]
+Da chiarire:     [max 3 punti]
 ```
 
+- Le etichette stanno in colonna: il testo di ogni riga parte alla colonna 18, così il blocco si legge
+  dall'alto in basso anche nella console di Windows. Niente bordo intorno: scritto a mano esce storto.
 - **La riga Skill è sempre presente.** Scegli dall'elenco delle skill di questa sessione per
   giudizio sul lavoro da fare, non per parole chiave. Se una skill che la persona non ha nominato
   fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi "nessuna". Questa skill (prompt-master) non conta: c'è

@@ -70,6 +70,7 @@ def sonda(base, coppie, attesa=60, passo=5):
 
 def _selftest():
     import http.server
+    import socketserver
     import tempfile
     import threading
     d = tempfile.mkdtemp(prefix="sonda-servito-")
@@ -94,7 +95,13 @@ def _selftest():
         def log_message(self, *a):
             pass
 
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    class Server(http.server.ThreadingHTTPServer):
+        # Senza socket.getfqdn: sul runner macOS di GitHub dura 35 s (#6454, come ServerLocale di arturo_web.py).
+        def server_bind(self):
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = str(self.server_address[0]), self.server_address[1]
+
+    srv = Server(("127.0.0.1", 0), H)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     casi = [

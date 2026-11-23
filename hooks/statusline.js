@@ -38,6 +38,12 @@ const GIT_VIVO_MAX_S = 600;          // oltre: il pid del git precedente non si 
 // ne apre una visibile, la finestra che lampeggia (review del 7/11/2026, finding 54). Senza detached,
 // con stdio 'ignore', windowsHide dà CREATE_NO_WINDOW e i figli ereditano la console nascosta.
 const STACCATO = process.platform !== 'win32';
+// I segni della barra (23/11/2026). La console di Windows coi suoi font (Consolas, Lucida Console, i raster
+// di cmd) mostra bene solo i caratteri di CP850: ↑ ✓ … diventano quadratini. Windows Terminal li mostra, e
+// lì c'è WT_SESSION. ARTURO_SEGNI=ascii o unicode sceglie a mano (anche per i banchi). │ █ ░ · stanno in CP850.
+const SEGNI_ASCII = process.env.ARTURO_SEGNI === 'ascii' ||
+  (process.env.ARTURO_SEGNI !== 'unicode' && process.platform === 'win32' && !process.env.WT_SESSION);
+const SEGNI = SEGNI_ASCII ? { su: '^', fatto: 'ok', taglio: '...' } : { su: '↑', fatto: '✓', taglio: '…' };
 // Senza detached però libuv mette il figlio in un job con KILL_ON_JOB_CLOSE: muore quando la barra esce,
 // prima di finire git status o controlla (#5119, provato su Windows 11 il 10/11/2026). Su Windows il lavoro
 // lo lancia allora un Python ponte, nascosto: il nipote esce da solo dal job (libuv lo crea con
@@ -238,17 +244,17 @@ function aggiornamentoSegmento(sessione) {
   } catch (e) {}
   // Un allarme sulla firma viene prima: a chi ha una copia non verificata non si dice "riapri".
   const riapri = daRiaprire(sessione);
-  if (riapri && stato.compromesso !== true) return ` │ \x1b[36m↑ Arturo ${riapri} installata · riapri Claude Code\x1b[0m`;
+  if (riapri && stato.compromesso !== true) return ` │ \x1b[36m${SEGNI.su} Arturo ${riapri} installata · riapri Claude Code\x1b[0m`;
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
   if (!versione) return '';
-  if (fermoDaUnGiorno(stato)) return ` │ \x1b[33m↑ Arturo ${versione} · chiudi e riapri Claude Code: /clear non basta\x1b[0m`;
-  if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
+  if (fermoDaUnGiorno(stato)) return ` │ \x1b[33m${SEGNI.su} Arturo ${versione} · chiudi e riapri Claude Code: /clear non basta\x1b[0m`;
+  if (stato.stato === 'pronto') return ` │ \x1b[36m${SEGNI.su} Arturo ${versione} · si installa alla chiusura\x1b[0m`;
   // Una firma che manca o non torna non si scavalca con /aggiorna (17/10/2026, #3504).
   // La copia non verificata è rimasta installata e la chiusura ha disattivato il plugin (11/11/2026).
   if (stato.compromesso === true && stato.disattivato === true) return ` │ \x1b[31m! Arturo disattivato: la copia ${versione} non è verificata. Segnala a chi mantiene Arturo. Dopo la sua risposta: claude plugin enable arturo@arturo\x1b[0m`;
   if (stato.compromesso === true) return ` │ \x1b[31m! Arturo ${versione} · possibile compromissione: non aggiornare, segnala a chi mantiene Arturo\x1b[0m`;
-  if (stato.non_verificabile === true) return ` │ \x1b[33m↑ Arturo ${versione} · aggiorna git e OpenSSH per installarlo\x1b[0m`;
-  if (stato.stato === 'manuale' || stato.stato === 'bloccato') return ` │ \x1b[33m↑ Arturo ${versione} · serve /aggiorna\x1b[0m`;
+  if (stato.non_verificabile === true) return ` │ \x1b[33m${SEGNI.su} Arturo ${versione} · aggiorna git e OpenSSH per installarlo\x1b[0m`;
+  if (stato.stato === 'manuale' || stato.stato === 'bloccato') return ` │ \x1b[33m${SEGNI.su} Arturo ${versione} · serve /aggiorna\x1b[0m`;
   return '';
 }
 
@@ -328,7 +334,7 @@ function sessioneChiusa(sessione, transcript, adesso) {
 
 function chiusuraSegmento(sessione, transcript) {
   const progetto = sessioneChiusa(sessione, transcript).replace(/[^\w.-]/g, '').slice(0, 40);
-  return progetto ? ` │ \x1b[48;5;98;97;1m ✓ chiusa · /inizio ${progetto} \x1b[0m` : '';
+  return progetto ? ` │ \x1b[48;5;98;97;1m ${SEGNI.fatto} chiusa · /inizio ${progetto} \x1b[0m` : '';
 }
 
 // --- L'aspetto della persona (proposta n. 73, 18/11/2026) ------------------
@@ -360,7 +366,7 @@ function aggiuntaPersona(nome, dati) {
     const pulito = testo.replace(/\x1b\[[0-9;]*m|[\x00-\x1f\x7f-\x9f]/g, m => (m.length > 1 ? m : ''));
     const visibile = pulito.replace(/\x1b\[[0-9;]*m/g, '');
     if (!visibile.trim()) return '';
-    return ` │ ${visibile.length > 60 ? visibile.slice(0, 59) + '…' : pulito}\x1b[0m`;
+    return ` │ ${visibile.length > 60 ? visibile.slice(0, 60 - SEGNI.taglio.length) + SEGNI.taglio : pulito}\x1b[0m`;
   } catch (e) {
     return '';
   }
@@ -439,7 +445,7 @@ function quotaSegmento(rate) {
 const PROGETTO_MAX = 24, RAMO_MAX = 16, TASK_MAX = 36;
 function accorcia(testo, max) {
   const s = String(testo || '');
-  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+  return s.length > max ? s.slice(0, max - SEGNI.taglio.length) + SEGNI.taglio : s;
 }
 
 function slug(nome) {
@@ -477,7 +483,7 @@ process.stdin.on('end', () => {
     const remaining = data.context_window?.remaining_percentage;
 
     // Context usato, scala GREZZA (100 - remaining): una scala sola per statusline,
-    // context-monitor e la regola della rotazione al ~65% (3/10/2026; in Arturo dal 20/10/2026).
+    // context-monitor e la regola della rotazione al ~50% (3/10/2026; in Arturo dal 20/10/2026; 50% dal 23/11/2026).
     // Prima la barra normalizzava sul context utile (tolto il 16,5% di autocompact) e
     // mostrava ~7 punti in più di quanto dicesse la regola.
     let ctx = '';

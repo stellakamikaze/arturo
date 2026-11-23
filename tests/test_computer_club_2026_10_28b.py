@@ -249,6 +249,9 @@ def test_cc12(repo: Path) -> None:
     testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
     blocco = testo.split("BRIEF\nObiettivo:", 1)[-1].split("```", 1)[0]
     assert "\nDove non arrivo:" in blocco, "CC12 il modello del brief non ha la riga Dove non arrivo"
+    # 23/11/2026: le etichette in colonna, il testo parte alla stessa colonna in ogni riga.
+    colonne = {len(r) - len(r.split(":", 1)[1].lstrip()) for r in ("Obiettivo:" + blocco).strip().splitlines()}
+    assert len(colonne) == 1, f"CC12 le righe del brief non partono alla stessa colonna: {sorted(colonne)}"
     regola = testo.split("**Dove non arrivi, dillo nel brief, prima di provarci.**", 1)
     assert len(regola) == 2, "CC12 prompt-master non dice di dichiarare prima dove Claude non arriva"
     regola = regola[1].split("\n- ", 1)[0]

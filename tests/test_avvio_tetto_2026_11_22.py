@@ -5,7 +5,8 @@ Su un computer Windows Claude Code annullava hooks/session-start.sh al timeout d
 20/11: lo stesso hook dura 4 secondi a macchina ferma e 11 sotto carico. Un hook annullato perde tutto quello
 che ha stampato, e il fetch in background moriva con lui.
 
-AT01 un passo lento non fa sforare il tetto: l'hook esce in tempo, con le righe già uscite e la riga AVVIO;
+AT01 un passo lento non fa sforare il tetto: l'hook esce in tempo, con le righe già uscite e la riga AVVIO,
+     anche con /bin/bash 3.2 su macOS (#6454: su dev 9cbb926 rosso solo lì, uscita dopo 6,2 s e senza AVVIO);
 AT02 un avvio veloce esce intero, nell'ordine, e il JSON di stdin arriva al lavoro (source compact);
 AT03 il fetch staccato finisce anche se l'albero dei processi di chi l'ha lanciato viene chiuso subito;
 AT04 un tentativo di fetch senza esito ferma i nuovi per 30 minuti, non per 6 ore;
@@ -66,9 +67,21 @@ def casa(tmp: Path, repo: Path, personale: str = "") -> Path:
     return home
 
 
-def avvia(home: Path, progetto: Path, dati: dict, **env: str):
+def bash_da_provare() -> list:
+    """Il bash del PATH e, su macOS, anche /bin/bash 3.2: è quello di chi non ha installato un bash nuovo.
+
+    Il 3.2 esce con 1 sia allo scadere di read -t sia a fine flusso, e non sostituisce la subshell di <(...) col
+    comando: con bash 5 nel PATH il banco non vedeva né l'uno né l'altro (#6454, 23/11/2026)."""
+    vecchio = "/bin/bash"
+    if sys.platform == "darwin" and os.path.exists(vecchio) \
+            and os.path.realpath(vecchio) != os.path.realpath(BASH):
+        return [BASH, vecchio]
+    return [BASH]
+
+
+def avvia(home: Path, progetto: Path, dati: dict, bash: str = BASH, **env: str):
     inizio = time.monotonic()
-    esito = subprocess.run([BASH, str(home / ".claude" / "hooks" / "session-start.sh")], input=json.dumps(dati),
+    esito = subprocess.run([bash, str(home / ".claude" / "hooks" / "session-start.sh")], input=json.dumps(dati),
                            cwd=progetto, capture_output=True, text=True, encoding="utf-8", errors="replace",
                            env=ambiente(home, **env), timeout=60)
     return esito.stdout, time.monotonic() - inizio
@@ -88,17 +101,26 @@ def butta(tmp: Path) -> None:
 
 
 def caso_tetto(repo: Path) -> list:
+    """Un rosso al massimo, anche con due bash: il codice del caso conta una volta sola."""
+    for bash in bash_da_provare():
+        rossi = tetto_con(repo, bash)
+        if rossi:
+            return rossi
+    return []
+
+
+def tetto_con(repo: Path, bash: str) -> list:
     tmp = nuova_cartella()
     try:
         home = casa(tmp, repo, "sleep 6\necho PERSONALE-FINE\n")
         progetto = tmp / "progetto"
         progetto.mkdir()
-        uscita, durata = avvia(home, progetto, {"source": "startup"}, ARTURO_AVVIO_TETTO_MS="2000")
+        uscita, durata = avvia(home, progetto, {"source": "startup"}, bash, ARTURO_AVVIO_TETTO_MS="2000")
         rossi = []
         if durata > 4.5:
-            rossi.append(f"AT01 l'hook con un passo di 6 secondi esce dopo {durata:.1f} s, oltre il tetto di 2")
+            rossi.append(f"AT01 l'hook con un passo di 6 secondi esce dopo {durata:.1f} s con {bash}, oltre il tetto di 2")
         elif "DIRECTORY:" not in uscita or "AVVIO:" not in uscita:
-            rossi.append(f"AT01 mancano le righe già uscite o la riga AVVIO: {uscita[-300:]!r}")
+            rossi.append(f"AT01 mancano le righe già uscite o la riga AVVIO con {bash}: {uscita[-300:]!r}")
         time.sleep(6)  # il lavoro rimasto finisce prima della pulizia
         return rossi
     finally:
@@ -106,21 +128,29 @@ def caso_tetto(repo: Path) -> list:
 
 
 def caso_intero(repo: Path) -> list:
+    for bash in bash_da_provare():
+        rossi = intero_con(repo, bash)
+        if rossi:
+            return rossi
+    return []
+
+
+def intero_con(repo: Path, bash: str) -> list:
     tmp = nuova_cartella()
     try:
         home = casa(tmp, repo, "echo PERSONALE-FINE\n")
         progetto = tmp / "progetto"
         progetto.mkdir()
         (home / ".claude" / "session-env" / "ultimo-fetch").write_text(str(int(time.time())), encoding="utf-8")
-        uscita, _ = avvia(home, progetto, {"source": "compact"})
+        uscita, _ = avvia(home, progetto, {"source": "compact"}, bash)
         righe = uscita.splitlines()
         if "AVVIO:" in uscita:
-            return [f"AT02 un avvio veloce viene tagliato: {uscita[-300:]!r}"]
+            return [f"AT02 un avvio veloce viene tagliato con {bash}: {uscita[-300:]!r}"]
         if not righe or righe[-1] != "PERSONALE-FINE" or "COMPACT APPENA AVVENUTO" not in uscita:
-            return [f"AT02 l'avvio non esce intero e nell'ordine, o stdin non arriva: {uscita[-300:]!r}"]
+            return [f"AT02 l'avvio non esce intero e nell'ordine, o stdin non arriva, con {bash}: {uscita[-300:]!r}"]
         i = [n for n, r in enumerate(righe) if r.startswith("DIRECTORY:")]
         if not i or i[0] > righe.index("PERSONALE-FINE"):
-            return [f"AT02 l'ordine delle righe è cambiato: {righe!r}"]
+            return [f"AT02 l'ordine delle righe è cambiato con {bash}: {righe!r}"]
         return []
     finally:
         butta(tmp)
