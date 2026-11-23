@@ -172,7 +172,7 @@ def prova(repo, ref):
 
 # Ogni veleno rompe in bin/fine-coda.py il punto che il suo caso sorveglia.
 VELENI = {
-    "FA03": ("    if os.name == \"nt\":\n        return True\n    try:", "    return True\n    try:"),
+    "FA03": ("    if os.name == \"nt\":\n        return _viva_windows(pid)\n    try:", "    return True\n    try:"),
     "FA04": ("sid == mia or ", ""),
     "FA05": ("                    for ago, r in aghi.items():", "                    for ago, r in {}.items():"),
     "FA07": ("        if aggiungi_per_percorso()[\"falliti\"]:\n            return None\n"

@@ -687,12 +687,38 @@ def cartella_sessioni():
     return radice_orsa() / "sessions"
 
 
-def viva(pid):
-    """Il processo esiste ancora. Su Windows os.kill chiude il processo: lì vale il file della sessione."""
-    if os.name == "nt":
-        return True
+def _viva_windows(pid: int) -> bool:
+    """Su Windows os.kill(pid, 0) manda un Ctrl+C: lo stato si legge da OpenProcess e GetExitCodeProcess.
+    Prima la funzione diceva sempre viva, e gli avvisi di /fine contavano le sessioni chiuse (#6440)."""
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ctypes.get_last_error() == 5  # accesso negato: il processo c'è, è di un altro utente
     try:
-        os.kill(int(pid), 0)
+        codice = wintypes.DWORD()
+        if not k.GetExitCodeProcess(h, ctypes.byref(codice)):
+            return True
+        return codice.value == 259  # STILL_ACTIVE
+    finally:
+        k.CloseHandle(h)
+
+
+def viva(pid):
+    """Il processo esiste ancora."""
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        return False
+    if os.name == "nt":
+        return _viva_windows(pid)
+    try:
+        os.kill(pid, 0)
     except (ProcessLookupError, ValueError, TypeError):
         return False
     except PermissionError:

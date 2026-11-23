@@ -316,8 +316,14 @@ def rapporto(a: dict) -> str:
     va a chi mantiene Arturo con /segnala."""
     orsa = a["orsa"]
     adesso = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    cc = subprocess.run([os.environ.get("ARTURO_CLAUDE") or "claude", "--version"], capture_output=True, text=True,
-                        timeout=30).stdout.strip() if shutil.which(os.environ.get("ARTURO_CLAUDE") or "claude") else "?"
+    # Il percorso che which trova: su Windows è claude.cmd o claude.exe, e "claude" nudo dà FileNotFoundError
+    # a CreateProcess, che non prova le estensioni di PATHEXT (sonda #6455, MG01).
+    prog = shutil.which(os.environ.get("ARTURO_CLAUDE") or "claude")
+    try:
+        cc = subprocess.run([prog, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                            timeout=30).stdout.strip() if prog else "?"
+    except (OSError, subprocess.SubprocessError):
+        cc = "?"
     righe = [f"RAPPORTO DI MIGRAZIONE (arturo migra --prova) · {adesso}",
              f"Arturo {a['versione'] or '?'} (clone, base {a['base'][:8] or '?'}) · {platform.system()} "
              f"{platform.release()} · Claude Code {cc or '?'} · Python {platform.python_version()}", ""]
@@ -474,7 +480,8 @@ def passo(cartella: Path, nome: str) -> None:
 # --- i passi -------------------------------------------------------------------------------------------
 
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
-    comando = [os.environ.get("ARTURO_CLAUDE") or "claude", "plugin", *argomenti]
+    nome = os.environ.get("ARTURO_CLAUDE") or "claude"
+    comando = [shutil.which(nome) or nome, "plugin", *argomenti]  # claude.cmd su Windows: come in rapporto()
     # Anche `claude plugin` chiude con gli hook del clone: session-end.sh lancerebbe l'aggiornamento automatico
     # staccato, proprio mentre i file di Arturo stanno uscendo da ~/.claude (6/11/2026).
     env = {**os.environ, "ARTURO_AGGIORNAMENTI": "manuali"}
