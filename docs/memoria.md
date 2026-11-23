@@ -107,6 +107,9 @@ Una nota nuova scritta in `~/.claude/data/memory/` va da sola nella cartella del
 in `profilo/`, `feedback` in `feedback/`, `project` in `progetti/`, `reference` in `reference/`.
 `arturo memoria controlla` trova le note senza queste righe, le righe che non si leggono e i
 collegamenti rotti.
+Un `[[nome]]` senza nota non è un errore. Se la nota sta in `_archive/`, il controllo lo mette fra le
+archiviate e mostra il successore, quando la nota ne ha uno (`superseded_by` o `unito_in`). Gli altri
+link senza nota restano "da scrivere".
 
 ## Passare un progetto a un collega
 
