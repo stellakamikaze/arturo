@@ -36,9 +36,12 @@ GPG = shutil.which("gpg")
 
 
 def percorso_gpg(cartella: Path) -> str:
-    """Il gpg di Git per Windows è un programma msys: C:\\... con le barre rovesciate gli sembra un percorso
-    relativo e ci attacca davanti la cartella corrente. C:/... lo legge giusto (#6455)."""
-    return cartella.as_posix() if os.name == "nt" else str(cartella)
+    """Il gpg di Git per Windows è un programma msys: C:\\... e anche C:/... gli sembrano percorsi relativi, e ci
+    attacca davanti la cartella corrente (sonda sul runner, #6455). Lui legge /c/... ."""
+    if os.name != "nt":
+        return str(cartella)
+    p = cartella.as_posix()
+    return "/" + p[0].lower() + p[2:] if len(p) > 1 and p[1] == ":" else p
 
 
 class Lab:
