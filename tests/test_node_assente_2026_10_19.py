@@ -50,15 +50,39 @@ def casa_finta(repo: Path, radice: Path) -> Path:
 
 def senza_node(radice: Path) -> str:
     """Un PATH con i soli comandi di sistema che servono, e senza node."""
+    nomi = ("sh", "bash", "cat", "sed", "find", "git", "hostname", "scutil", "date", "mkdir",
+            "grep", "head", "tr", "basename", "dirname", "python3", "uname", "printf", "rm")
+    if os.name == "nt":
+        # Su Windows un programma di msys aperto da un link non trova la sua DLL: grep falliva in silenzio e NA03
+        # scriveva il PATH due volte (#6455). Qui bastano le cartelle vere dei comandi, purché senza node.
+        cartelle = []
+        for nome in nomi:
+            vero = shutil.which(nome)
+            cartella = str(Path(vero).parent) if vero else ""
+            if cartella and cartella not in cartelle and shutil.which("node", path=cartella) is None:
+                cartelle.append(cartella)
+        return os.pathsep.join(cartelle)
     bin_ = radice / "bin"
     bin_.mkdir()
-    for nome in ("sh", "bash", "cat", "sed", "find", "git", "hostname", "scutil", "date", "mkdir",
-                 "grep", "head", "tr", "basename", "dirname", "python3", "uname", "printf", "rm"):
+    for nome in nomi:
         vero = shutil.which(nome)
         if vero:
             link(bin_ / nome, Path(vero))
     assert shutil.which("node", path=str(bin_)) is None
     return str(bin_)
+
+
+def per_bash(percorsi: str) -> str:
+    """Percorsi separati da os.pathsep, nella forma che l'hook divide sui due punti: su Windows C:\\x è /c/x."""
+    if os.name != "nt":
+        return percorsi
+    fuori = []
+    for d in percorsi.split(os.pathsep):
+        d = d.replace("\\", "/")
+        if len(d) > 1 and d[1] == ":":
+            d = "/" + d[0].lower() + d[2:]
+        fuori.append(d)
+    return ":".join(fuori)
 
 
 def comando_barra(repo: Path) -> str:
@@ -110,7 +134,7 @@ def test_na03(repo: Path) -> None:
         ambiente = radice / "env-sessione"
         env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": base, "ARTURO_BANCHI_AVVIO": "0",
                "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "CLAUDE_ENV_FILE": str(ambiente),
-               "ARTURO_PATH_CANDIDATE": f"{brew}:{base}:{radice / 'non-esiste'}"}
+               "ARTURO_PATH_CANDIDATE": per_bash(os.pathsep.join([str(brew), base, str(radice / "non-esiste")]))}
         for giro in (1, 2):
             p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
                                cwd=radice, capture_output=True, text=True, timeout=60)
@@ -119,7 +143,7 @@ def test_na03(repo: Path) -> None:
         testo = ambiente.read_text(encoding="utf-8") if ambiente.exists() else ""
         righe = [r for r in testo.splitlines() if "arturo-path-completo" in r]
         assert len(righe) == 1, f"NA03 il PATH completo va scritto una volta sola: {righe!r}"
-        assert f'export PATH="$PATH:{brew}"' in righe[0], f"NA03 la riga non mette in coda solo {brew}: {righe[0]!r}"
+        assert f'export PATH="$PATH:{per_bash(str(brew))}"' in righe[0], f"NA03 la riga non mette in coda solo {brew}: {righe[0]!r}"
 
 
 TESTS = {"NA01": test_na01, "NA02": test_na02, "NA03": test_na03}
