@@ -36,6 +36,7 @@ import threading
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from server_locale import ServerLocale  # noqa: E402
 from test_sportello_2026_11_04 import Lab  # noqa: E402
 
 NOME, EMAIL = "Persona Prova", "prova@example.com"
@@ -80,7 +81,7 @@ class Server:
             def log_message(self, *_):
                 pass
 
-        self.http = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Gestore)
+        self.http = ServerLocale(("127.0.0.1", 0), Gestore)
         threading.Thread(target=self.http.serve_forever, daemon=True).start()
         self.url = f"http://127.0.0.1:{self.http.server_address[1]}"
         atexit.register(self.http.shutdown)

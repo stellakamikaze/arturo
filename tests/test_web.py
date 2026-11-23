@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""W01-W17: la pagina dei todo nel browser, `arturo web` (ciclo 3, 3/10/2026).
+"""W01-W18: la pagina dei todo nel browser, `arturo web` (ciclo 3, 3/10/2026).
 
 W01 parte e ascolta solo su 127.0.0.1, si ferma dopo 30 minuti, --host non esiste e le
 opzioni sbagliate rispondono in italiano. W02 la chiave: senza, niente pagina e niente API.
@@ -20,6 +20,7 @@ la pagina. W16 il tavolo dei progetti: da_dove nella vista e niente percorso, /a
 con chiave, Host e Origin, storia con i numeri e non con gli uid.
 W17 con una fonte esterna (~/.claude/arturo/fonte-task.local) la pagina non parte: dice che legge solo
 l'archivio di Arturo e rimanda a /dafare, e non scrive niente (review del 7/11/2026, finding 62).
+W18 la pagina parte subito anche con la risoluzione inversa di 127.0.0.1 lenta (runner macOS, #6454).
 
 Ogni server parte davvero (--non-aprire --porta 0) in una HOME isolata e si chiude sempre.
 Sulla base 6ef1c0c (l'ultimo commit prima del ciclo 3) ogni controllo deve fallire.
@@ -243,7 +244,7 @@ def test_w01(repo: Path) -> None:
     # Senza rete il controllo dall'esterno non c'è: il sorgente deve legare il server a 127.0.0.1.
     sorgente = read(repo / "bin" / "arturo_web.py")
     assert re.search(r'^HOST = "127\.0\.0\.1"$', sorgente, re.M), "W01 HOST non è 127.0.0.1"
-    legami = re.findall(r"ThreadingHTTPServer\(\(([^,]+),", sorgente)
+    legami = re.findall(r"(?:ThreadingHTTPServer|ServerLocale)\(\(([^,]+),", sorgente)
     assert legami == ["HOST"], f"W01 il server non si lega a HOST: {legami}"
 
 
@@ -892,10 +893,36 @@ def test_w17(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_w18(repo: Path) -> None:
+    """La pagina parte subito anche quando la risoluzione inversa di 127.0.0.1 è lenta (#6454, 23/11/2026).
+
+    Sul runner macOS di GitHub socket.getfqdn("127.0.0.1") dura 35 s, e HTTPServer la chiama all'avvio: W01 non
+    vedeva il link entro 15 s. Qui un sitecustomize rende getfqdn lenta di 30 s anche sul Mac di chi prova."""
+    def prova(c: Casa) -> None:
+        lento = c.home.parent / "getfqdn-lento"
+        lento.mkdir()
+        (lento / "sitecustomize.py").write_text(
+            "import socket, time\n"
+            "def _lenta(*_a, **_k):\n"
+            "    time.sleep(30)\n"
+            "    return 'localhost'\n"
+            "socket.getfqdn = _lenta\n", encoding="utf-8")
+        altro = os.environ.get("PYTHONPATH")
+        percorso = str(lento) + (os.pathsep + altro if altro else "")
+        inizio = time.monotonic()
+        with Server(c, PYTHONPATH=percorso) as s:
+            durata = time.monotonic() - inizio
+            assert durata < 10, f"W18 con getfqdn lenta il link arriva dopo {durata:.1f} s"
+            assert s.vista(), "W18 con getfqdn lenta la pagina parte ma non risponde"
+
+    con_casa(repo, prova)
+
+
 TESTS = {
     "W01": test_w01, "W02": test_w02, "W03": test_w03, "W04": test_w04, "W05": test_w05,
     "W06": test_w06, "W07": test_w07, "W08": test_w08, "W09": test_w09, "W10": test_w10,
     "W11": test_w11, "W12": test_w12, "W13": test_w13, "W14": test_w14, "W15": test_w15, "W16": test_w16, "W17": test_w17,
+    "W18": test_w18,
 }
 
 
