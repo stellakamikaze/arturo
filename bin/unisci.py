@@ -5,7 +5,8 @@ Uso: arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]
 
 Nasce dal piano di Volta del 20/11/2026 (Fase 4, #6187): in Volta c'erano doppioni come volta, herdr-arturo
 e volta-celeste, e l'unione si faceva a mano. Il comando porta dal perdente al vincitore:
-  - i todo del perdente, aperti e chiusi, e la sua riga di stato se è più recente;
+  - i todo del perdente, aperti e chiusi, e la sua riga di stato se è più recente; la riga del perdente
+    poi si toglie, così un secondo giro sullo stesso doppione esce 2 con "è già unito";
   - gli handoff, con "- Nome:" e "- Filone:" riscritti; un nome di file già preso dal vincitore passa al
     primo minuto libero, così resta un handoff che /inizio legge; INDEX.md si rigenera;
   - la scheda: il vincitore prende negli alias il perdente e i suoi alias, i campi del codice che non ha
@@ -19,8 +20,19 @@ Prima di scrivere il comando copia tutto quello che cambia in data/progetti/unio
 rilegge la copia e conta i file: se la copia non torna, si ferma senza scrivere. --prova stampa
 l'anteprima e non scrive niente; --json dà l'anteprima o l'esito in JSON, per Volta.
 Si rifiuta se i due progetti hanno due cartelle di codice con repo diversi: due codici non si uniscono qui.
-Exit: 0 fatto · 2 non si può (repo diversi, niente da unire, copia che non torna, rifiuto della fonte)
-· 3 uso sbagliato o fonte giù.
+
+Miscellanea (22/11/2026, "Elimina progetto" di Volta, e arturo progetti elimina): un'unione con vincitore
+`miscellanea` elimina il perdente. Miscellanea raccoglie la memoria dei progetti eliminati e nient'altro:
+  - se non ha ancora una scheda, nasce con la prima eliminazione (titolo "Miscellanea");
+  - non prende cartella, repo e macchina del perdente, e due repo diversi non fermano l'eliminazione: la
+    cartella del codice resta su disco com'è, e l'anteprima lo dice;
+  - la riga di stato del perdente non passa: Miscellanea non ha uno stato suo;
+  - Miscellanea non si elimina e non entra in un altro progetto.
+Exit: 0 fatto · 1 guasto a metà (un'eccezione: il JSON lo dice, il traceback va in errore.txt nella copia)
+· 2 non si può (repo diversi, niente da unire, copia che non torna, rifiuto della fonte) · 3 uso sbagliato
+o fonte giù. Con --json ogni errore porta `tipo` (gia_unito, transitorio, scelta, riparabile), `fase` e
+`backup`; la copia ha esito.json con la fase raggiunta (#6314). Un secondo giro dopo un guasto a metà
+riprende quello che resta: la sezione "## Da <perdente>" della scheda non si ripete e i link rimasti si finiscono.
 """
 from __future__ import annotations
 
@@ -46,15 +58,40 @@ import todo_store as ts  # noqa: E402
 ATTESA_FONTE = 300  # secondi: la fonte sposta i task uno per uno
 NOME_HANDOFF = re.compile(r"^HANDOFF_(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})\.md$")
 CAMPI_CODICE = ("cartella", "repo", "macchina")
+MISCELLANEA = "miscellanea"
+TITOLO_MISCELLANEA = "Miscellanea"
+COSA_MISCELLANEA = "Raccoglie la memoria dei progetti eliminati da Volta: todo, handoff e schede."
 
 
 GIU = {"giu": True}  # l'anteprima con la fonte giù: l'unione vera non parte
 
 
+# Il tipo di ogni errore, nel JSON per Volta (#6314): gia_unito non è un guasto; transitorio si riprova più
+# tardi; scelta chiede una decisione alla persona; riparabile lo sistema una sessione di Arturo, poi rilancia.
+TIPI = ("gia_unito", "transitorio", "scelta", "riparabile")
+
+
 class Ferma(Exception):
-    def __init__(self, codice: int, testo: str):
+    def __init__(self, codice: int, testo: str, tipo: str = "scelta"):
         super().__init__(testo)
         self.codice = codice
+        self.tipo = tipo if tipo in TIPI else "scelta"
+
+
+# Il giro in corso: la cartella della copia e la fase raggiunta. esito.json nella copia li registra, così una
+# sessione di riparazione sa dove l'unione si è fermata (#6314).
+CORSA: dict = {"backup": None, "fase": "raccolta"}
+
+
+def fase(nome: str, **altro) -> None:
+    CORSA["fase"] = nome
+    if CORSA["backup"] is not None:
+        dati = {"fase": nome, "fatto": nome == "fatto", **altro}
+        try:
+            (CORSA["backup"] / "esito.json").write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n",
+                                                        encoding="utf-8")
+        except OSError:
+            pass
 
 
 # --- frontmatter ------------------------------------------------------------------------------------
@@ -97,7 +134,8 @@ def metti(fm: list, chiave: str, valore: str) -> list:
     return fuori
 
 
-def scheda_vincitrice(testo_v: str, testo_p: str, perdente: str, vincitore: str, giorno: str) -> str:
+def scheda_vincitrice(testo_v: str, testo_p: str, perdente: str, vincitore: str, giorno: str,
+                      archivio: bool = False) -> str:
     fm_v, corpo_v = dividi_scheda(testo_v)
     fm_p, corpo_p = dividi_scheda(testo_p)
     alias = [a for a in lista(campo(fm_v, "alias")) if cx.slug(a) != vincitore]
@@ -105,11 +143,13 @@ def scheda_vincitrice(testo_v: str, testo_p: str, perdente: str, vincitore: str,
         if cx.slug(a) != vincitore and cx.slug(a) not in (cx.slug(x) for x in alias):
             alias.append(a)
     fm_v = metti(fm_v, "alias", f"[{', '.join(alias)}]")
-    for c in CAMPI_CODICE:
+    for c in () if archivio else CAMPI_CODICE:
         if not campo(fm_v, c) and campo(fm_p, c):
             fm_v = metti(fm_v, c, campo(fm_p, c))
     corpo_v = corpo_v.rstrip("\n") + "\n" if corpo_v.strip() else ""
     unito = f"\n## Da {perdente} (unito il {giorno})\n\n{corpo_p.strip()}\n" if corpo_p.strip() else ""
+    if re.search(r"^## Da " + re.escape(perdente) + r" \(unito il ", corpo_v, re.M):
+        unito = ""  # un giro fermato dopo la scheda l'aveva già scritta: il secondo non la ripete (#6314)
     return "---\n" + "".join(fm_v) + "---\n" + corpo_v + unito
 
 
@@ -146,7 +186,7 @@ def piano_handoff(perdente: str, vincitore: str) -> list:
         if os.path.realpath(hd_p) == os.path.realpath(hd_v):
             return []
         raise Ferma(2, f"la cartella degli handoff {hd_p} è un collegamento a {os.path.realpath(hd_p)}: "
-                       "sistemala a mano, poi rilancia")
+                       "sistemala a mano, poi rilancia", "riparabile")
     presi = {p.name for p in hd_v.iterdir()} if cx.e_cartella(hd_v) else set()
     fuori = []
     for p in sorted(hd_p.iterdir()):
@@ -208,7 +248,7 @@ def chiama_fonte(argomenti: list) -> tuple:
     return r.returncode, dati if isinstance(dati, dict) else None, errore
 
 
-def esito_fonte(risposta, avvisi: list, perdente: str, prova: bool = False):
+def esito_fonte(risposta, avvisi: list, perdente: str, prova: bool = False, dopo_copia: bool = False):
     """Il JSON della fonte, oppure None con un avviso; Ferma se la fonte rifiuta, o se è giù fuori dall'anteprima."""
     if risposta is None:
         return None
@@ -217,7 +257,7 @@ def esito_fonte(risposta, avvisi: list, perdente: str, prova: bool = False):
         avvisi.extend(str(a) for a in dati.get("avvisi") or [])
         return dati
     if codice == 2 and dati and dati.get("rifiuto"):
-        raise Ferma(2, f"la fonte dei task rifiuta l'unione: {dati['rifiuto']}")
+        raise Ferma(2, f"la fonte dei task rifiuta l'unione: {dati['rifiuto']}", "scelta")
     if codice == 2:
         avvisi.append(f"la fonte dei task non sa unire ({errore or 'verbo unisci sconosciuto'}): i task di "
                       f"{perdente} restano lì, spostali a mano")
@@ -226,19 +266,37 @@ def esito_fonte(risposta, avvisi: list, perdente: str, prova: bool = False):
         avvisi.append(f"la fonte dei task è giù (uscita {codice}): l'anteprima non conta i suoi task, e l'unione "
                       "vera aspetta che torni")
         return GIU
-    raise Ferma(3, f"la fonte dei task è giù o incerta (uscita {codice}: {errore}): niente scritto, riprova dopo")
+    if dopo_copia:
+        # la fonte sposta i task uno per uno: se cade a metà, una parte può essere già passata (#6314)
+        raise Ferma(3, f"la fonte dei task è caduta durante l'unione (uscita {codice}: {errore}): i file non sono "
+                       "toccati, ma la fonte può aver spostato una parte dei task; rilancia l'unione quando torna",
+                    "transitorio")
+    raise Ferma(3, f"la fonte dei task è giù o incerta (uscita {codice}: {errore}): niente scritto, riprova dopo",
+                "transitorio")
+
+
+def scheda_miscellanea() -> tuple:
+    """(percorso, testo) della scheda di Miscellanea da creare: dove arturo memoria scheda la scriverebbe."""
+    import memoria as me  # noqa: PLC0415
+    if not me.mm.memoria_accesa():
+        raise Ferma(2, "la memoria di Arturo è spenta: Miscellanea non ha dove nascere (arturo memoria accendi)", "scelta")
+    f = me.mm.MEMORY_DIR / "progetti" / f"progetto-{MISCELLANEA}.md"
+    return f, me.testo_nuova_scheda(MISCELLANEA, COSA_MISCELLANEA, TITOLO_MISCELLANEA, "", [])
 
 
 def raccogli(perdente: str, vincitore: str) -> dict:
+    archivio = vincitore == MISCELLANEA
     cod_p, cod_v = codice_di(perdente), codice_di(vincitore)
+    if archivio:
+        cod_v = (None, "")
     if cod_p[0] and cod_v[0] and cod_p[0] != cod_v[0] and not (cod_p[1] and cod_p[1] == cod_v[1]):
         raise Ferma(2, f"{perdente} e {vincitore} hanno due cartelle di codice con repo diversi "
                        f"({cod_p[0]}: {cod_p[1] or 'senza repo'}; {cod_v[0]}: {cod_v[1] or 'senza repo'}). "
-                       "Due codici non si uniscono qui: unisci prima i repo, o tieni due progetti")
+                       "Due codici non si uniscono qui: unisci prima i repo, o tieni due progetti", "scelta")
     todo = rn.todo_del(perdente)
     stati = ts.stati()
     stato_p, stato_v = stati.get(perdente), stati.get(vincitore)
-    porta_stato = bool(stato_p) and (not stato_v or stato_p["ts"] > stato_v["ts"])
+    porta_stato = not archivio and bool(stato_p) and (not stato_v or stato_p["ts"] > stato_v["ts"])
     handoff = piano_handoff(perdente, vincitore)
     sch_p, sch_v = pg.scheda_di(perdente), pg.scheda_di(vincitore)
     if sch_p and sch_v and os.path.samefile(sch_p, sch_v):
@@ -250,24 +308,41 @@ def raccogli(perdente: str, vincitore: str) -> dict:
                 testi[f] = f.read_text(encoding="utf-8")
                 dividi_scheda(testi[f])
     except (OSError, UnicodeDecodeError, ValueError) as e:
-        raise Ferma(2, f"scheda non leggibile: {e}")
+        raise Ferma(2, f"scheda non leggibile: {e}", "riparabile")
+    nuova_v = False
+    if archivio and sch_v is None:
+        # Miscellanea nasce qui: la sua scheda la scrive scrivi(), dopo la copia di sicurezza
+        sch_v, testi_v = scheda_miscellanea()
+        testi[sch_v] = testi_v
+        nuova_v = True
     terminali = schede_terminali(perdente)
-    if not (todo or stato_p or handoff or sch_p or terminali):
-        raise Ferma(2, f"non trovo niente di {perdente}: né todo, né stato, né handoff, né scheda")
     salta = {f for f in (sch_p, sch_v) if f is not None}
     link = {f: t for f, t in rn.link_nelle_note(perdente, vincitore, None).items() if f not in salta}
+    if not (todo or stato_p or handoff or sch_p or terminali):
+        gia = bool(sch_v) and perdente in (cx.slug(a) for a in lista(campo(dividi_scheda(testi[sch_v])[0], "alias")))
+        # un giro fermato mentre riscriveva i link lascia solo link: il secondo giro li finisce (#6314)
+        if gia and not link:
+            raise Ferma(2, f"{perdente} è già unito in {vincitore}: non resta niente da unire", "gia_unito")
+        if not gia:
+            raise Ferma(2, f"non trovo niente di {perdente}: né todo, né stato, né handoff, né scheda", "scelta")
     return {"todo": todo, "stato_p": stato_p, "porta_stato": porta_stato, "handoff": handoff,
-            "sch_p": sch_p, "sch_v": sch_v, "testi": testi, "link": link, "terminali": terminali}
+            "sch_p": sch_p, "sch_v": sch_v, "testi": testi, "link": link, "terminali": terminali,
+            "archivio": archivio, "nuova_v": nuova_v, "cartella_p": cod_p[0] if archivio else None}
 
 
 def anteprima(perdente: str, vincitore: str, r: dict, fonte, avvisi: list) -> dict:
     rinominati = [{"da": p.name, "a": nome} for p, nome in r["handoff"] if p.name != nome]
-    if r["sch_p"] and r["sch_v"]:
+    if r.get("archivio") and r["sch_p"]:
+        scheda = (f"{r['sch_p'].name} entra in {r['sch_v'].name}" + (", che nasce adesso" if r.get("nuova_v") else "")
+                  + ", l'originale va in _archive/progetti/")
+    elif r["sch_p"] and r["sch_v"]:
         scheda = f"{r['sch_p'].name} entra in {r['sch_v'].name}, l'originale va in _archive/progetti/"
     elif r["sch_p"]:
         scheda = f"{r['sch_p'].name} diventa progetto-{vincitore}.md"
     else:
         scheda = "nessuna scheda del perdente"
+    if r.get("cartella_p"):
+        avvisi.append(f"la cartella del codice {r['cartella_p']} resta dov'è: Miscellanea tiene solo la memoria")
     return {"perdente": perdente, "vincitore": vincitore, "todo": len(r["todo"]),
             "stato": r["porta_stato"],
             "handoff": sum(1 for p, _ in r["handoff"] if p.name.startswith("HANDOFF_")),
@@ -309,6 +384,10 @@ def copia(perdente: str, vincitore: str, r: dict) -> Path:
         if extra.is_file():
             file.append(extra)
     manifesto = []
+    n = 1
+    while dest.exists():  # due giri nello stesso secondo: il secondo prende un suffisso
+        n += 1
+        dest = dest.with_name(f"{ora}-{n}-{perdente}-in-{vincitore}")
     dest.mkdir(parents=True, exist_ok=False)
     for n, f in enumerate(f for f in file if f.is_file() or f.is_dir()):
         copia_f = dest / "file" / f"{n:03d}-{f.name}"
@@ -327,7 +406,8 @@ def copia(perdente: str, vincitore: str, r: dict) -> Path:
                  if not Path(v["copia"]).exists()
                  or (not v.get("cartella") and impronta(Path(v["copia"])) != v["sha256"])]
     if len(riletto) != len(manifesto) or sbagliati:
-        raise Ferma(2, f"la copia di sicurezza in {dest} non torna ({len(sbagliati)} file): niente scritto")
+        raise Ferma(2, f"la copia di sicurezza in {dest} non torna ({len(sbagliati)} file): niente scritto",
+                    "riparabile")
     return dest
 
 
@@ -369,9 +449,13 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list, creati: list | 
         ts._scrivi_molti(eventi, ts.percorso())
         rimasti = rn.todo_del(perdente)
         if rimasti:
-            raise Ferma(2, f"rileggendo il registro {len(rimasti)} todo hanno ancora {perdente}: mi fermo qui")
+            raise Ferma(2, f"rileggendo il registro {len(rimasti)} todo hanno ancora {perdente}: mi fermo qui",
+                        "riparabile")
     if r["porta_stato"]:
         ts.scrivi_stato(vincitore, r["stato_p"]["riga"])
+    if r["stato_p"]:
+        # la riga del perdente teneva vivo il suo nome in arturo progetti, e un secondo giro passava a zero (#6213)
+        ts.togli_stato(perdente)
     hd_p, hd_v = cx.handoff_dir() / perdente, cx.handoff_dir() / vincitore
     if r["handoff"]:
         hd_v.mkdir(parents=True, exist_ok=True)
@@ -403,7 +487,9 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list, creati: list | 
             avvisi.append("INDEX.md non rigenerato: " + (g.stderr.strip().splitlines() or ["errore"])[-1])
     sch_p, sch_v, testi = r["sch_p"], r["sch_v"], r["testi"]
     if sch_p and sch_v:
-        nuovo_v = scheda_vincitrice(testi[sch_v], testi[sch_p], perdente, vincitore, giorno)
+        nuovo_v = scheda_vincitrice(testi[sch_v], testi[sch_p], perdente, vincitore, giorno, r.get("archivio", False))
+        if r.get("nuova_v"):
+            sch_v.parent.mkdir(parents=True, exist_ok=True)
         rn.scrivi_atomico(sch_v, link_testo(nuovo_v, perdente, vincitore))
         radice = next((x for x in pg.radici_memoria() if dentro(sch_p, x)), sch_p.parent)
         archivio = radice / "_archive" / "progetti"
@@ -419,6 +505,8 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list, creati: list | 
         creati.append(sch_p.with_name(f"progetto-{vincitore}.md"))
         os.replace(sch_p, sch_p.with_name(f"progetto-{vincitore}.md"))
     elif sch_v:
+        if r.get("nuova_v"):
+            sch_v.parent.mkdir(parents=True, exist_ok=True)
         fm, corpo = dividi_scheda(testi[sch_v])
         alias = lista(campo(fm, "alias"))
         if perdente not in (cx.slug(a) for a in alias):
@@ -446,9 +534,11 @@ def link_testo(testo: str, perdente: str, vincitore: str) -> str:
 def unisci(perdente_nome: str, vincitore_nome: str, prova: bool = False, come_json: bool = False) -> int:
     perdente, vincitore = cx.slug(perdente_nome), cx.slug(vincitore_nome)
     if not perdente or not vincitore:
-        raise Ferma(3, "i due nomi devono avere almeno una lettera o una cifra")
+        raise Ferma(3, "i due nomi devono avere almeno una lettera o una cifra", "scelta")
+    if perdente == MISCELLANEA:
+        raise Ferma(3, "Miscellanea non si elimina e non entra in un altro progetto: raccoglie i progetti eliminati", "scelta")
     if perdente == vincitore:
-        raise Ferma(3, f'"{perdente_nome}" e "{vincitore_nome}" sono lo stesso progetto, {vincitore}')
+        raise Ferma(3, f'"{perdente_nome}" e "{vincitore_nome}" sono lo stesso progetto, {vincitore}', "scelta")
     avvisi: list = []
     r = raccogli(perdente, vincitore)
     fonte = esito_fonte(chiama_fonte(["unisci", perdente, vincitore, "--prova", "--json"]), avvisi, perdente, prova)
@@ -462,24 +552,29 @@ def unisci(perdente_nome: str, vincitore_nome: str, prova: bool = False, come_js
                 print(f"AVVISO: {x}")
         return 0
     backup = copia(perdente, vincitore, r)
+    CORSA["backup"] = backup
+    fase("copia")
     # Prima le scritture locali, che si possono rimettere dalla copia, poi la fonte esterna, che non torna
     # indietro. Fino al 22/11/2026 l'ordine era l'opposto e senza ritorno: un errore in scrivi() lasciava i task
     # della fonte già uniti, i todo spostati e gli handoff a metà (revisione del 20/11, bug 16).
     creati: list = []
     try:
+        fase("scrittura")
         scrivi(perdente, vincitore, r, avvisi, creati)
         if fonte is not None:
+            fase("fonte")
             fatto = esito_fonte(chiama_fonte(["unisci", perdente, vincitore, "--backup", str(backup / "fonte"),
-                                              "--json"]), avvisi, perdente)
+                                              "--json"]), avvisi, perdente, dopo_copia=True)
             a["fonte"] = fatto
     except BaseException as e:
         mancati = ripristina(backup, creati)
         stato = (f"non ho potuto rimettere {len(mancati)} file, li trovi in {backup}: {', '.join(mancati[:3])}"
                  if mancati else f"ho rimesso tutto com'era dalla copia {backup}")
         if isinstance(e, Ferma):
-            raise Ferma(e.codice, f"{e}. Unione annullata: {stato}") from None
+            raise Ferma(e.codice, f"{e}. Unione annullata: {stato}", e.tipo) from None
         print(f"ERRORE: l'unione si è fermata a metà ({type(e).__name__}): {stato}", file=sys.stderr)
         raise
+    fase("fatto", avvisi=avvisi)
     if come_json:
         print(json.dumps({**a, "prova": False, "fatto": True, "backup": str(backup)}, ensure_ascii=False))
     else:
@@ -497,14 +592,34 @@ def main(argv: list) -> int:
     if len(nomi) != 2 or any(a.startswith("-") for a in nomi):
         print("uso: arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]", file=sys.stderr)
         return 3
+    CORSA.update(backup=None, fase="raccolta")
     try:
         return unisci(nomi[0], nomi[1], prova, come_json)
     except Ferma as e:
-        if come_json:
-            print(json.dumps({"perdente": cx.slug(nomi[0]), "vincitore": cx.slug(nomi[1]), "fatto": False,
-                              "rifiuto": str(e), "codice": e.codice}, ensure_ascii=False))
-        print(f"Errore: {e}", file=sys.stderr)
-        return e.codice
+        return errore(nomi, str(e), e.codice, e.tipo, come_json)
+    except Exception as e:  # noqa: BLE001 - un guasto a metà va detto a Volta in JSON, con la copia di prima
+        import traceback
+        dettaglio = traceback.format_exc()
+        if CORSA["backup"] is not None:
+            try:
+                (CORSA["backup"] / "errore.txt").write_text(dettaglio, encoding="utf-8")
+            except OSError:
+                pass
+        print(dettaglio, file=sys.stderr, end="")
+        return errore(nomi, f"guasto durante la fase {CORSA['fase']}: {type(e).__name__}: {e}", 1, "riparabile",
+                      come_json)
+
+
+def errore(nomi: list, testo: str, codice: int, tipo: str, come_json: bool) -> int:
+    """Esito d'errore: esito.json nella copia, se c'è; il JSON per Volta con tipo, fase e copia; la riga su stderr."""
+    backup = CORSA["backup"]
+    fase(CORSA["fase"], rifiuto=testo, tipo=tipo, codice=codice)
+    if come_json:
+        print(json.dumps({"perdente": cx.slug(nomi[0]), "vincitore": cx.slug(nomi[1]), "fatto": False,
+                          "rifiuto": testo, "codice": codice, "tipo": tipo, "fase": CORSA["fase"],
+                          "backup": str(backup) if backup else None}, ensure_ascii=False))
+    print(f"Errore: {testo}", file=sys.stderr)
+    return codice
 
 
 if __name__ == "__main__":

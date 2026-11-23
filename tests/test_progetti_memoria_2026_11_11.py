@@ -29,6 +29,9 @@ PM17 le coppie scartate (--scartate FILE): n dispari la toglie, n pari la rimett
      un file che non è JSON esce 4 e non dà un elenco vuoto.
 PM15 uno slug della fonte che è già alias di una scheda (vecchio-nome) si fonde nella voce della scheda
      (22/11/2026): non nasce un progetto nuovo, e la voce prende la categoria della fonte.
+PM18 un nome alternativo già unito (21/11/2026): la sua cartella di handoff è un collegamento a quella del
+     progetto, quindi non ha handoff suoi. Non resta una voce a parte: entra negli alias, anche con la sua
+     cartella di codice. Dove il sistema non fa creare collegamenti il caso si salta.
 
 Veleno: --avvelena rompe bin/progetti.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso (VELENI del gate).
@@ -46,7 +49,7 @@ import time
 import os
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17", "PM18"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
@@ -77,6 +80,7 @@ VELENI = {
     # terzo elemento: il file da rompere, se non è bin/progetti.py
     "PM16": ("(d == 1 and corto >= 5)", "(d == 1 and corto >= 50)", "doppioni.py"),
     "PM17": ("if isinstance(n, int) and n % 2 == 1:", "if True:", "doppioni.py"),
+    "PM18": ("or not cx.e_cartella(d) or collegata(d):", "or not cx.e_cartella(d):"),
 }
 
 
@@ -171,7 +175,13 @@ def prova(lab: Lab) -> list:
     (lab.base / "vecchio-nome").mkdir()
     (scheda.parent / "progetto-titolata.md").write_text("---\nname: progetto-titolata\ntitolo: \"TITOLO-SCHEDA\"\ndescription: x\n---\n",
                                                         encoding="utf-8")
-    (scheda.parent / "progetto-con-index.md").write_text("---\nname: progetto-con-index\nalias: [vecchio-nome]\n---\n", encoding="utf-8")
+    (scheda.parent / "progetto-con-index.md").write_text("---\nname: progetto-con-index\nalias: [vecchio-nome, nome-unito]\n---\n", encoding="utf-8")
+    (lab.base / "nome-unito").mkdir()
+    try:
+        os.symlink("con-index", str(lab.h / "nome-unito"), target_is_directory=True)
+        collegamenti = True
+    except (OSError, NotImplementedError):
+        collegamenti = False  # Windows senza il permesso dei collegamenti
     lab.scrivi_handoff("titolata", "2026-10-02_09-00", "in progress", "PASSO-TITOLATA")
     lunghe = "".join(f"  - domanda {n}\n" for n in range(50))
     (scheda.parent / "progetto-sola-scheda.md").write_text(
@@ -204,6 +214,9 @@ def prova(lab: Lab) -> list:
     if v.get("dove") != "~/Documents/ClaudeCode/sola-src" or v.get("macchine") != ["studio", "torre"] \
             or v.get("repo") != "stellakamikaze/sola" or "chiusa-sola" in p:
         rossi.append(f"PM14 scheda sola: {v} chiusa in elenco={'chiusa-sola' in p}")
+    v = p.get("con-index", {})
+    if collegamenti and ("nome-unito" in p or "nome-unito" not in v.get("alias", []) or v.get("filoni") != 2 or not v.get("cartella")):
+        rossi.append(f"PM18 nome già unito, handoff collegati: nome-unito in elenco={'nome-unito' in p} con-index={v}")
     if p.get("solo-handoff", {}).get("descrizione") != "DESCRIZIONE-DALLA-SCHEDA":
         rossi.append(f"PM08 scheda: {p.get('solo-handoff')}")
 
@@ -307,7 +320,10 @@ def main() -> int:
                     inerti.append(f"{caso}: il punto da rompere compare {testo.count(vecchio)} volte")
                     continue
                 sorgente.write_text(testo.replace(vecchio, rotto), encoding="utf-8")
-                if not any(r.startswith(caso + " ") for r in prova(lab)):
+                rossi = prova(lab)
+                if caso == "PM18" and not (lab.h / "nome-unito").is_symlink():
+                    continue  # senza collegamenti il caso non gira, e il veleno non ha niente da rompere
+                if not any(r.startswith(caso + " ") for r in rossi):
                     inerti.append(f"{caso}: la rottura non lo fa rosso")
         assert not inerti, "veleni che non attaccano:\n" + "\n".join(inerti)
         print(f"VELENI_ROSSI={','.join(CASI)} veleni={len(CASI)}")

@@ -6,6 +6,8 @@ Uso: arturo progetti [--json]
      arturo progetti rinomina VECCHIO NUOVO [--prova]   (bin/rinomina.py, proposta n. 90)
      arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]   (bin/unisci.py, #6187)
      arturo progetti doppioni [--json] [--scartate FILE]   (bin/doppioni.py, #6422: le coppie probabili)
+     arturo progetti elimina PROGETTO [--prova] [--json]   (bin/elimina.py: la memoria va in Miscellanea)
+     arturo progetti nuovo "NOME" --cosa "una riga" [--json]   (bin/nuovo_progetto.py: la scheda di un progetto nuovo)
 
 Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha già su disco.
   - le cartelle della base dei progetti (PROJECTS_BASE);
@@ -18,8 +20,9 @@ Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha
   - il catalogo della fonte esterna dei task (fonte-task.local, verbo facoltativo "catalogo --json"): i
     progetti che stanno nello strumento della persona, con titolo, categoria e i nomi alternativi (alias).
 
-Un nome alternativo senza handoff suoi (il nome vecchio di un progetto, il nome che ha nello strumento)
-entra nella voce del progetto, in "alias". Un nome alternativo con i suoi handoff resta una voce a parte:
+Un nome alternativo senza handoff suoi (il nome vecchio di un progetto, il nome che ha nello strumento,
+un nome la cui cartella di handoff è un collegamento a quella del progetto) entra nella voce del progetto,
+in "alias". Un nome alternativo con i suoi handoff resta una voce a parte:
 la persona lo apre da solo con /inizio, e dalla fonte prende solo la categoria.
 Se la fonte non conosce "catalogo" o non risponde, resta l'elenco locale con un avviso.
 
@@ -64,15 +67,29 @@ def cartelle() -> dict:
     return fuori
 
 
+def collegata(d: Path) -> bool:
+    """Una cartella di handoff che è un collegamento a quella di un altro progetto (herdr-arturo -> volta,
+    dopo un'unione): quegli handoff sono dell'altro. Contarli lasciava il nome vecchio in elenco come
+    progetto a parte, e Volta proponeva di unire due progetti già uniti (21/11/2026)."""
+    try:
+        if not d.is_symlink():
+            return False
+        vera = Path(os.path.realpath(d))
+        return vera.name != d.name and vera.parent == Path(os.path.realpath(d.parent))
+    except OSError:
+        return False
+
+
 def ultimi_handoff() -> dict:
-    """{slug: (nome cartella, data, percorso dell'ultimo handoff)}: si leggono solo i nomi dei file."""
+    """{slug: (nome cartella, data, percorso dell'ultimo handoff)}: si leggono solo i nomi dei file.
+    Un collegamento alla cartella di un altro progetto non conta (collegata)."""
     fuori = {}
     try:
         voci = sorted(cx.handoff_dir().iterdir())
     except OSError:
         return fuori
     for d in voci:
-        if d.name.startswith(".") or not cx.e_cartella(d):
+        if d.name.startswith(".") or not cx.e_cartella(d) or collegata(d):
             continue
         lista = cx.handoff_di(d.name)
         s = cx.slug(d.name)
@@ -344,6 +361,12 @@ def main(argv: list) -> int:
     if argv[:1] == ["doppioni"]:
         import doppioni
         return doppioni.main(argv[1:])
+    if argv[:1] == ["elimina"]:
+        import elimina
+        return elimina.main(argv[1:])
+    if argv[:1] == ["nuovo"]:
+        import nuovo_progetto
+        return nuovo_progetto.main(argv[1:])
     if argv[:1] == ["titolo"]:
         if len(argv) != 3:
             print('uso: arturo progetti titolo <slug> "<Titolo>"', file=sys.stderr)

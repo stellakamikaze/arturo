@@ -657,21 +657,44 @@ def scrivi_stato(progetto: str, riga: str, file: Path | None = None) -> dict:
     return letto
 
 
+def togli_stato(progetto: str, file: Path | None = None) -> None:
+    """Toglie la riga di stato di un progetto che non esiste più (unito in un altro, #6213).
+
+    Il file si scrive solo in coda: la riga nuova ha `riga` vuota e `tolto`, e vale come le altre per data.
+    Un Arturo più vecchio la salta perché è vuota, e lì il progetto sparito resta in elenco."""
+    progetto = pulisci(progetto).strip()
+    if not progetto:
+        raise ErroreTodo("manca il progetto")
+    voce = {"v": 1, "ts": _adesso(), "progetto": progetto, "riga": "", "tolto": True}
+    destino = percorso_stati(file)
+    with Lucchetto(destino):
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with open(destino, "a", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(voce, ensure_ascii=False) + "\n")
+    if progetto in stati(file):
+        raise ErroreTodo("la riga di stato si rilegge ancora dal file: niente è cambiato")
+
+
 def stati(file: Path | None = None) -> dict:
-    """L'ultima riga di stato di ogni progetto: {progetto: {"riga", "ts"}}. Una riga rotta si salta."""
-    fuori = {}
+    """L'ultima riga di stato di ogni progetto: {progetto: {"riga", "ts"}}. Una riga rotta si salta.
+
+    Una riga con `tolto` cancella quelle scritte prima per lo stesso progetto (togli_stato)."""
+    ultime = {}
     for riga in _righe(percorso_stati(file)):
         try:
             v = json.loads(riga)
         except ValueError:
             continue
         if not (isinstance(v, dict) and isinstance(v.get("progetto"), str) and isinstance(v.get("riga"), str)
-                and isinstance(v.get("ts"), str) and v["riga"].strip()):
+                and isinstance(v.get("ts"), str)):
             continue
-        attuale = fuori.get(v["progetto"])
+        tolto = v.get("tolto") is True
+        if not tolto and not v["riga"].strip():
+            continue
+        attuale = ultime.get(v["progetto"])
         if attuale is None or v["ts"] >= attuale["ts"]:
-            fuori[v["progetto"]] = {"riga": pulisci(v["riga"]), "ts": v["ts"]}
-    return fuori
+            ultime[v["progetto"]] = {"riga": pulisci(v["riga"]), "ts": v["ts"], "tolto": tolto}
+    return {p: {"riga": v["riga"], "ts": v["ts"]} for p, v in ultime.items() if not v["tolto"]}
 
 
 def registra(numero, tipo: str, dati: dict, file: Path | None = None, atteso: dict | None = None) -> dict:

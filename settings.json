@@ -238,6 +238,16 @@
             "async": true
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh idle",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionEnd": [
@@ -261,6 +271,16 @@
             "async": true
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh idle",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Notification": [
@@ -277,6 +297,16 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "permission_prompt|elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh blocked",
+            "timeout": 5
           }
         ]
       }
@@ -365,6 +395,16 @@
             "command": "python3 ~/.claude/hooks/web-egress-guard.py",
             "timeout": 20,
             "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh blocked",
+            "timeout": 5
           }
         ]
       }
@@ -497,6 +537,21 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/titolo-sessione.py",
+            "timeout": 60,
+            "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh working",
+            "timeout": 5
           }
         ]
       }
@@ -553,6 +608,21 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/titolo-sessione.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh working",
+            "timeout": 5
           }
         ]
       }
@@ -588,6 +658,21 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/titolo-sessione.py",
+            "timeout": 60,
+            "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh done",
+            "timeout": 5
           }
         ]
       }
@@ -600,6 +685,17 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/herdr-stato.sh blocked",
+            "timeout": 5
           }
         ]
       }

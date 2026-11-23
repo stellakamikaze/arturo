@@ -87,6 +87,8 @@ REPO="$HOME/.claude"
 
 BANCHI=(
   test_ritratto_2026_11_01.py
+  # Il contesto del progetto e la sintesi della testata di Volta (12/11/2026, TC01-TC06).
+  test_testata_contesto_2026_11_12.py
   test_setup_ritratto_2026_11_01.py
   test-block-dangerous-falsi-positivi.py
   test-web-egress-guard.py
@@ -158,6 +160,13 @@ BANCHI=(
   test_fine_profilo_2026_10_30.py
   test_fine_coda_2026_10_30.py
   test_fonte_task_2026_10_30.py
+  test_progetti_memoria_2026_11_11.py
+  # arturo progetti rinomina: un progetto cambia nome in un passo, il nome vecchio resta valido (proposta n. 90, #6095).
+  test_rinomina_2026_11_19.py
+  # arturo progetti unisci: due progetti doppioni diventano uno, con copia di sicurezza prima (#6187).
+  test_unisci_2026_11_20.py
+  # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
+  test_elimina_nuovo_2026_11_22.py
   test_strati_2026_11_02.py
   test_impacchetta_2026_11_03.py
   test_lavoro_proprio_2026_10_31.py
@@ -230,6 +239,8 @@ BANCHI=(
   test_rinomina_2026_11_19.py
   # arturo progetti unisci: due progetti doppioni diventano uno, con copia di sicurezza prima (#6187).
   test_unisci_2026_11_20.py
+  # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
+  test_elimina_nuovo_2026_11_22.py
   # Il file di sessione ha un solo padrone (C1, 23/11/2026): ogni rottura di scheda_file.py o del verbo fa rosso il suo caso SE.
   test_scheda_file.py
   # La carta di una sessione per la Coda di Volta, ora in Arturo (passo 9, 23/11/2026, #6422).
@@ -686,6 +697,16 @@ VELENI=(
   test_attrito_2026_11_20.py
   # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
   test_windows_minori_2026_11_10.py
+  # Il contesto del progetto e la testata (12/11/2026): ogni rottura fa rosso il suo caso TC.
+  test_testata_contesto_2026_11_12.py
+  # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
+  test_progetti_memoria_2026_11_11.py
+  # arturo progetti rinomina (#6095): ogni rottura di rinomina.py o di contesto.py fa rosso il suo caso RN.
+  test_rinomina_2026_11_19.py
+  # arturo progetti unisci (#6187): ogni rottura di unisci.py fa rosso il suo caso UN.
+  test_unisci_2026_11_20.py
+  # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
+  test_elimina_nuovo_2026_11_22.py
   # /revisione (17/11/2026): ogni riga tolta fa rosso il suo caso RV.
   test_revisione_2026_11_17.py
   # #5877 (17/11/2026): ogni riga tolta fa rosso il suo caso PV.
@@ -714,6 +735,8 @@ VELENI=(
   test_rinomina_2026_11_19.py
   # arturo progetti unisci (#6187): ogni rottura di unisci.py fa rosso il suo caso UN.
   test_unisci_2026_11_20.py
+  # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
+  test_elimina_nuovo_2026_11_22.py
   # Il file di sessione (C1): ogni rottura di scheda_file.py o di arturo sessione fa rosso il suo caso SE.
   test_scheda_file.py
   # La carta di sessione (#6422): ogni rottura di carta-sessione.py fa rosso il suo caso CS.
@@ -786,6 +809,11 @@ while IFS= read -r -d '' file; do
       avvolto="$FIXTURE/workflow-check.js"
       { echo '(async () => {'; sed 's/^export const meta/const meta/' "$REPO/$file"; echo '})()'; } > "$avvolto"
       node --check "$avvolto" || { echo "FAIL: $file non è un workflow valido" >&2; exit 1; }
+      ;;
+    shared/volta/mods/*.js)
+      # I mod di Herdr sono moduli ES (import da "gpui-kit" e "herdr"): node li legge come .mjs.
+      cp "$REPO/$file" "$FIXTURE/herdr-mod-check.mjs"
+      node --check "$FIXTURE/herdr-mod-check.mjs" || { echo "FAIL: $file non è un modulo valido" >&2; exit 1; }
       ;;
     *) node --check "$REPO/$file" ;;
   esac
