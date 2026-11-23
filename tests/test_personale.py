@@ -200,6 +200,13 @@ def test_p05(repo: Path) -> None:
         senza = next((riga for riga in elenco.splitlines() if riga.startswith("Senza comando")), "")
         assert "personale/humanizer.md" in elenco and "humanizer" not in senza and "personale/strato.md" in senza, \
             f"P05 il file personale di una skill risulta orfano: {elenco!r}"
+        # Col plugin le skill stanno nella cartella del codice, e una skill legge un file personale con un
+        # altro nome: revisione legge personale/revisione-sviluppatore.md, che non risulta orfano (23/11/2026).
+        (lab.utente / "personale" / "revisione-sviluppatore.md").write_text("Sviluppatore.\n", encoding="utf-8")
+        elenco = arturo(lab, "personale", "elenco").stdout
+        senza = next((riga for riga in elenco.splitlines() if riga.startswith("Senza comando")), "")
+        assert "revisione-sviluppatore" not in senza and "personale/strato.md" in senza, \
+            f"P05 un file personale letto da una skill di Arturo risulta orfano: {elenco!r}"
     con_lab(prova, repo)
 
 
