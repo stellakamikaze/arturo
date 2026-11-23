@@ -357,8 +357,8 @@ def comando_controlla(argv: list) -> int:
         for v in esito["da_scrivere"]:
             print(f"  - [[{v['link']}]] in {v['file']}:{v['riga']}")
     if esito.get("archiviate"):
-        print(f"\nARCHIVIATE ({len(esito['archiviate'])}): link [[nome]] a una nota in _archive/. Il link regge "
-              "come storia; dove c'è un successore vivo, il link può puntare a lui.")
+        print("\n" + a_capo(f"ARCHIVIATE ({len(esito['archiviate'])}): link [[nome]] a una nota in _archive/. Il link "
+                            "regge come storia; dove c'è un successore vivo, il link può puntare a lui."))
         for v in esito["archiviate"]:
             dopo = f" → [[{v['successore']}]]" if v["successore"] else ""
             print(f"  - [[{v['link']}]] in {v['file']}:{v['riga']}{dopo}")
