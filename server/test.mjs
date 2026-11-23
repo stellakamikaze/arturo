@@ -1029,13 +1029,19 @@ const casi = {
       settimana: [{ installazione: "1a2b3c4d-aaaa", giorniAttivi: 5, sessioni: 9 }], media: { installazioni: 1.4, sessioni: 2 }, chiede: [],
       setupIniziati: 0, setupFiniti: 0, segnalazioni: [], feedback: 0, download: 0, github: 0,
       indietro: [{ installazione: "9c0d1e2f-cccc", rilascio: "v0.2.1", ultima: "2026-10-12", nuovo: "v0.2.3", dal: "2026-10-05" }],
+      sbloccate: ["77aa88bb-dddd"],
     });
     await giornaliero({ ...f, adesso });
     const e = f.stato.email[0];
-    assert.deepEqual(e.task.map((t) => t.fp), ["auto:arturo:indietro:9c0d1e2f:v0.2.3", "auto:arturo:banco:5e6f7a8b:test_guardie.py",
-      e.task[2] && e.task[2].fp], "V53 i task delle righe da fare");
+    // Dal 23/11/2026 (revisione del 22/11, A7) la chiave del task di sblocco non porta la versione, chi è "invio a terzi", e
+    // un'installazione sbloccata porta in coda la chiusura del suo task.
+    assert.deepEqual(e.task.map((t) => t.fp), ["auto:arturo:indietro:9c0d1e2f", "auto:arturo:banco:5e6f7a8b:test_guardie.py",
+      e.task[2] && e.task[2].fp, "auto:arturo:indietro:77aa88bb"], "V53 i task delle righe da fare");
+    assert.equal(e.task[0].chi, "invio a terzi", "V53 il task di sblocco è intestato a Claude");
+    assert.match(e.task[0].note, /Ferma alla v0\.2\.1 dal 2026-10-05 \(\d+ giorni\), c'è la v0\.2\.3/, "V53 la nota non dice versione e giorni di fermo");
+    assert.deepEqual(e.task[3], { fp: "auto:arturo:indietro:77aa88bb", azione: "chiudi" }, "V53 la chiusura del task di un'installazione sbloccata");
     assert.match(e.task[2].fp, /^auto:arturo:deriva:1a2b3c4d:[a-z0-9]+$/, "V53 il task della deriva");
-    assert.deepEqual(e.task.map((t) => t.titolo), ["Sbloccare l'aggiornamento di 9c0d1e2f alla v0.2.3", "Riparare il banco test_guardie.py su 5e6f7a8b",
+    assert.deepEqual(e.task.slice(0, 3).map((t) => t.titolo), ["Sbloccare l'aggiornamento di 9c0d1e2f", "Riparare il banco test_guardie.py su 5e6f7a8b",
       "Guardare la deriva di 1a2b3c4d: hook spenti"], "V53 i titoli dei task");
     assert.match(e.html, /Ieri una installazione ha usato Arturo|Ieri 1 installazione ha usato Arturo/, "V53 il titolo del recap");
     assert.match(e.html, /media era 1,4 installazioni e 2 sessioni/, "V53 il confronto con la settimana prima");
@@ -1062,7 +1068,7 @@ const casi = {
     assert.match(e.html, /1 installazione è rimasta ferma/, "V54 le ferme non sono contate");
     assert.match(e.html, /E altre 2\./, "V54 le guardie oltre le prime dieci non vanno in una riga");
     assert.doesNotMatch(e.html, /g10\.py/, "V54 la tabella delle guardie supera le dieci righe");
-    assert.deepEqual(e.task.map((t) => t.fp), ["auto:arturo:indietro:9c0d1e2f:v0.2.3"], "V54 il task di chi è rimasto indietro");
+    assert.deepEqual(e.task.map((t) => t.fp), ["auto:arturo:indietro:9c0d1e2f"], "V54 il task di chi è rimasto indietro");
   },
   // Review del 7/11/2026, lotto L3 (#4973). V55 (finding 37): la deriva fa un task solo per un'installazione vista in più
   // giorni, al massimo dieci per email, e la nota dice solo nomi degli elenchi chiusi, mai un percorso del client.

@@ -45,12 +45,23 @@ function ostacoli(deriva) {
 
 // Le righe da fare, ognuna con il suo task. Le config rotte hanno già il task dalla loro email (taskRotta in
 // logica.js): qui hanno una riga senza task, così il recap non ne fa un secondo.
+// Il task di sblocco di un'installazione rimasta indietro (revisione del 22/11/2026, A7). La chiave non porta più la versione
+// d'arrivo: prima ogni rilascio apriva un task nuovo per la stessa persona (11 aperti il 22/11, 4 per un solo id). Il primo
+// passo è un messaggio alla persona, che Claude non manda: chi = "invio a terzi". Versione e giorni di fermo stanno nella nota.
+export const chiaveIndietro = (installazione) => `indietro:${corto(installazione)}`;
+
+// Le chiusure (A7): un task con azione "chiudi" per ogni installazione sbloccata, con lo stesso fp del suo task di sblocco.
+// Il ponte che legge la casella chiude il task aperto con quel fp, e ignora un fp senza task aperto.
+export const chiusure = (sbloccate) => (sbloccate || []).map((x) => ({ fp: task(chiaveIndietro(x), "chiusura").fp, azione: "chiudi" }));
+
 function daFare({ indietro = [], banchi = [], deriva = [], config = [] }, giorno) {
   const righe = [];
   for (const x of indietro) {
+    const giorni = giorno && x.dal ? Math.max(0, Math.round((Date.parse(`${giorno}T12:00:00Z`) - Date.parse(`${x.dal}T12:00:00Z`)) / 86400000)) : null;
     righe.push({ testo: `L'installazione di ${idCorto(x.installazione)} è ferma alla ${x.rilascio} dal ${breve(x.dal)}: serve un /aggiorna a mano per la ${x.nuovo}.`,
-      task: task(`indietro:${corto(x.installazione)}:${x.nuovo}`, `Sbloccare l'aggiornamento di ${idCorto(x.installazione)} alla ${x.nuovo}`,
-        { note: `Ferma alla ${x.rilascio}, attiva il ${x.ultima}. Il primo passo è chiedere un /aggiorna a mano.` }) });
+      task: task(chiaveIndietro(x.installazione), `Sbloccare l'aggiornamento di ${idCorto(x.installazione)}`,
+        { chi: "invio a terzi", note: `Ferma alla ${x.rilascio} dal ${x.dal}${giorni === null ? "" : ` (${giorni} giorni)`}, c'è la ${x.nuovo}, `
+          + `attiva il ${x.ultima}. Il primo passo è scrivere alla persona di lanciare /aggiorna a mano.` }) });
   }
   for (const x of banchi) {
     righe.push({ testo: `Il banco ${x.valore} è rosso su ${idCorto(x.installazione)} (${x.versione}), dal ${breve(x.dal)}.`,
@@ -196,7 +207,7 @@ export function recapGiorno(r, g, { giorno, leggi = "" } = {}) {
       piede: [vuote.length ? `Niente da dire su: ${vuote.join(", ")}.` : "", conti, ARRIVATI,
         "Arriva ogni mattina alle 8, se il giorno prima è successo qualcosa."].filter(Boolean),
     }),
-    task: fare.map((x) => x.task).filter(Boolean),
+    task: [...fare.map((x) => x.task).filter(Boolean), ...chiusure(g ? g.sbloccate : [])],
   };
 }
 
@@ -285,7 +296,7 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
         `Eventi scartati perché fuori elenco: ${r.scartati || 0} · avvisi non partiti: Telegram ${r.telegramKo || 0}, email ${r.emailKo || 0}.`,
         "Arriva ogni lunedì, anche vuoto: se manca, il server è fermo."].filter(Boolean),
     }),
-    task: fare.map((x) => x.task).filter(Boolean),
+    task: [...fare.map((x) => x.task).filter(Boolean), ...chiusure(m.sbloccate)],
   };
 }
 

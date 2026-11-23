@@ -183,6 +183,19 @@ export function archivio(db, { interne = [] } = {}) {
       const forme = await ultimi("evento = 'sessione' AND valore <> ''");
       return fuori.map((x) => ({ ...x, esito: esiti.get(x.installazione) || "", forma: forme.get(x.installazione) || "" }));
     },
+    // Le installazioni sbloccate (revisione del 22/11/2026, A7): avvisate come indietro negli ultimi 30 giorni (il contatore
+    // indietro:<id> di avvisiIndietro), attive negli ultimi LIMITI.fermaGiorni giorni e non più indietro. Il loro task di
+    // sblocco si chiude da solo: il recap porta per ognuna un task con azione "chiudi". Ripetere la chiusura non fa danni.
+    async sbloccate(al, indietro = null) {
+      const ferme = new Set((indietro || (await this.indietro(al))).map((x) => x.installazione));
+      const righe = (await db.prepare(
+        `SELECT DISTINCT substr(chiave, 10) AS installazione FROM contatori
+         WHERE chiave LIKE 'indietro:%' AND giorno <> 'sempre' AND giorno > date(?, '-30 day') AND giorno <= ?
+           AND substr(chiave, 10) IN (SELECT installazione FROM eventi
+             WHERE giorno > date(?, '-${Number(LIMITI.fermaGiorni)} day') AND giorno <= ?)
+         ORDER BY 1`).bind(al, al, al, al).all()).results;
+      return righe.map((x) => x.installazione).filter((x) => !ferme.has(x)).slice(0, LIMITI.taskDerivaPerEmail);
+    },
     // Il giorno dell'ultimo avviso con questa chiave, per non ripeterlo ogni mattina.
     async ultimoAvviso(chiave) {
       const r = await db.prepare("SELECT MAX(giorno) AS giorno FROM contatori WHERE chiave = ? AND giorno <> 'sempre'").bind(chiave).first();
@@ -196,8 +209,10 @@ export function archivio(db, { interne = [] } = {}) {
       const tutte = async (sql, ...valori) => (await db.prepare(sql).bind(...valori).all()).results;
       const uno = async (sql, ...valori) => ((await db.prepare(sql).bind(...valori).first()) || { n: 0 }).n;
       const trenta = "giorno > date(?, '-30 day') AND giorno <= ?";
+      const indietro = await this.indietro(al);
       return {
-        indietro: await this.indietro(al),
+        indietro,
+        sbloccate: await this.sbloccate(al, indietro),
         // L'ultima fase vista per installazione, se non è arrivata in fondo e tace da 3 giorni.
         setupFermi: await tutte(
           `SELECT e.valore AS valore, COUNT(*) AS n FROM eventi e
@@ -341,7 +356,7 @@ export function archivio(db, { interne = [] } = {}) {
         feedback: await contatore("feedback"),
         download: await contatore("sito:download"),
         github: await contatore("sito:github"),
-        indietro: await this.indietro(al),
+        ...(await (async () => { const indietro = await this.indietro(al); return { indietro, sbloccate: await this.sbloccate(al, indietro) }; })()),
       };
     },
     async riepilogo(dal, al, { settimana = false } = {}) {

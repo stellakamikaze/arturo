@@ -572,6 +572,20 @@ const casi = {
     assert.match(testo, /exfil-guard\.py {2}2 \/ 1 \/ 100%, giudice 1, 1 installazione/, "QI1 la quota di sì conta i sì del giudice");
     assert.match(testo, /Senza le 2 installazioni di chi mantiene Arturo/, "QI1 il riepilogo non dice che le interne sono fuori");
   },
+  // Le installazioni sbloccate (revisione del 22/11/2026, A7): avvisate come indietro negli ultimi 30 giorni, attive negli ultimi
+  // giorni e non più indietro. Una ancora indietro, una ferma e una avvisata da più di 30 giorni restano fuori.
+  async QS2() {
+    const a = archivio(d1());
+    const ev = (installazione, giorno) => a.scriviEventi([{ giorno, installazione, versione: "v1", sistema: "Darwin", evento: "sessione",
+      valore: "" }], `${giorno}T10:00:00Z`);
+    for (const [io, avviso, ultima] of [["aaaa1111-x", "2026-10-01", "2026-10-12"], ["bbbb2222-x", "2026-10-02", "2026-10-12"],
+      ["cccc3333-x", "2026-10-03", "2026-10-01"], ["dddd4444-x", "2026-09-01", "2026-10-12"]]) {
+      await a.incrementa(avviso, `indietro:${io}`);
+      await ev(io, ultima);
+    }
+    const sbloccate = await a.sbloccate(AL, [{ installazione: "bbbb2222-x" }]);
+    assert.deepEqual(sbloccate, ["aaaa1111-x"], "QS2 le sbloccate non sono le avvisate, attive e non più indietro");
+  },
   // Le migrazioni passano da `wrangler d1 migrations apply` (revisione del 22/11/2026, A4): segna-migrazioni.sql elenca
   // ogni file di migrazioni/, così un D1 nuovo fatto con schema.sql non le riapplica. Gira su schema.sql senza errori.
   async QM2() {

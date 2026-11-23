@@ -151,7 +151,11 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
 - **Ogni mattina, su Telegram, le installazioni rimaste indietro (23/10/2026)**: attive negli ultimi
   3 giorni e senza un rilascio uscito da almeno 3. Contano solo le installazioni viste in almeno due
   giorni, e un rilascio con la data nel futuro non conta. Un avviso per installazione ogni 7 giorni,
-  al massimo 5 al giorno. Nasce da due installazioni del 23/10: un difetto dell'aggiornamento automatico gli
+  al massimo 5 al giorno. Il recap ne fa un task, uno per installazione con la chiave `indietro:<id corto>` (dal
+  23/11/2026, revisione del 22/11, A7: prima la chiave portava la versione d'arrivo, e ogni rilascio apriva un task
+  nuovo per la stessa persona). Il task è "invio a terzi", perché il primo passo è un messaggio alla persona, e la nota
+  dice versione e giorni di fermo. Quando l'installazione avvisata torna attiva e non è più indietro, il recap porta
+  la chiusura del task (`azione: "chiudi"` nell'header). Nasce da due installazioni del 23/10: un difetto dell'aggiornamento automatico gli
   impediva di ricevere la correzione, e solo un `/aggiorna` a mano li ha sbloccati.
 - **Il lunedì** arriva sempre il riepilogo della settimana prima, da lunedì a domenica in ora di Roma
   (24/10/2026: prima perdeva il lunedì di sette giorni prima e contava il lunedì appena cominciato), anche vuoto. Si apre con "Dove migliorare
