@@ -4,7 +4,8 @@
 Handoff, stati dei progetti, note e log di Melchior cambiano a ogni /fine e a ogni prompt. Su `main` facevano
 176 commit al giorno e un merge driver per ogni file. Qui stanno in un secondo git dentro la stessa cartella:
 `<config>/.git-sync`, con work tree `<config>`, ramo `sync`. I file restano dove li cercano hook e script.
-Quali path passano di qui lo dice `data/transito.paths` (uno per riga, # commenta).
+Quali path passano di qui lo dice `data/transito.paths` (uno per riga, # commenta). Il perché e la
+migrazione un computer alla volta: docs/ramo-sync.md.
 
 Uso:
   sync_transito.py --giro        commit raggruppato dei path di transito, poi il push se è passato il minuto

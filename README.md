@@ -415,6 +415,7 @@ docs/diagram-design.md Come installare diagram-design (diagrammi) dall'upstream
 docs/come-e-fatto.md Il disegno di Arturo: Orsa, Arturo, Claude Code e i progetti da cui dipende
 docs/privacy.md      Cosa raccoglie la telemetria, per quanto, e i tuoi diritti
 docs/browser-e-macchina.md Per chi sviluppa: come Claude sceglie macchina, browser e profilo
+docs/ramo-sync.md    Con più computer: handoff, stati e memoria sul ramo sync, fuori da main, e come si migra
 tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
 firme/               La chiave pubblica dei rilasci: l'aggiornamento automatico installa solo i tag firmati con essa
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
@@ -659,7 +660,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Multi-macchina
 
-Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` scarica le modifiche delle tue altre macchine. Anche il sync passa dalla copia di prova di `/aggiorna`: se il risultato non è integro, la config resta com'era e `/inizio` te lo dice. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Col plugin il repository contiene solo i tuoi file: su ogni computer `~/.claude` è il clone del tuo repository privato, e il plugin si installa su ognuno con lo script. Chi aveva Arturo come copia dentro `~/.claude` su più computer passa al plugin coi passi di [`docs/migrazione.md`](docs/migrazione.md#con-più-computer).
+Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` scarica le modifiche delle tue altre macchine. Anche il sync passa dalla copia di prova di `/aggiorna`: se il risultato non è integro, la config resta com'era e `/inizio` te lo dice. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Col plugin il repository contiene solo i tuoi file: su ogni computer `~/.claude` è il clone del tuo repository privato, e il plugin si installa su ognuno con lo script. Chi aveva Arturo come copia dentro `~/.claude` su più computer passa al plugin coi passi di [`docs/migrazione.md`](docs/migrazione.md#con-più-computer). Handoff, stati dei progetti e memoria possono stare su un ramo a parte, `sync`, così `main` riceve solo le tue regole: perché e come si passa, un computer alla volta, in [`docs/ramo-sync.md`](docs/ramo-sync.md).
 
 ---
 
