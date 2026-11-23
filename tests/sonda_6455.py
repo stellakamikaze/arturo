@@ -12,6 +12,8 @@ elenco = [r.strip() for r in (repo / "tests" / "sonda_6455.txt").read_text(encod
           if r.strip() and not r.startswith("#")]
 py38 = os.environ.get("PY38", "")
 print("bash:", shutil.which("bash"), "sh:", shutil.which("sh"), "python3:", shutil.which("python3"), flush=True)
+print("TMPDIR:", os.environ.get("TMPDIR"), "TEMP:", os.environ.get("TEMP"), "TMP:", os.environ.get("TMP"),
+      "HOME:", os.environ.get("HOME"), "USERPROFILE:", os.environ.get("USERPROFILE"), flush=True)
 rossi = 0
 for voce in elenco:
     tipo, _, banco = voce.partition(":")
