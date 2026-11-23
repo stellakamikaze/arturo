@@ -152,7 +152,14 @@ if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compa
 fi
 
 # Reminder context management
-echo "CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%) o dalle 18. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine."
+# La soglia vera viene da bin/rotazione.py (arturo rotazione N, 23/11/2026), che stampa anche, una volta,
+# l'avviso della rotazione nuova per chi usava già Arturo. Senza python3 resta la riga di Arturo.
+CONTEXT_RIGA=$([ -f "$ARTURO_CODICE/bin/rotazione.py" ] && python3 "$ARTURO_CODICE/bin/rotazione.py" riga 2>/dev/null)
+if [ -n "$CONTEXT_RIGA" ]; then
+  printf '%s\n' "$CONTEXT_RIGA"
+else
+  echo "CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%) o dalle 18. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine."
+fi
 
 # La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
 # Arturo e dell'Orsa. Senza ruoli la riga non esce.
