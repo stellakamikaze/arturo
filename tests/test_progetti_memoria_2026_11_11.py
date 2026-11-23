@@ -23,6 +23,10 @@ PM13 `arturo progetti titolo <slug> "<Titolo>"` scrive solo la riga `titolo:` de
      non c'è esce 2 e non crea niente.
 PM14 il catalogo sono le schede della memoria (13/11/2026): una scheda aperta senza cartella né handoff compare, con dove,
      macchine e repo del frontmatter anche oltre la quarantesima riga; una scheda chiusa da sola no.
+PM16 `arturo progetti doppioni --json` (23/11/2026, #6422): due nomi che cambiano di una lettera, ognuno coi suoi
+     handoff, sono una coppia, e resta quello con più filoni; una cartella senza handoff (guscio) non entra.
+PM17 le coppie scartate (--scartate FILE): n dispari la toglie, n pari la rimette, un numero solo vale n 1;
+     un file che non è JSON esce 4 e non dà un elenco vuoto.
 PM15 uno slug della fonte che è già alias di una scheda (vecchio-nome) si fonde nella voce della scheda
      (22/11/2026): non nasce un progetto nuovo, e la voce prende la categoria della fonte.
 
@@ -42,7 +46,7 @@ import time
 import os
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
@@ -70,6 +74,9 @@ VELENI = {
     "PM14": ('aperte = {s for s, n in note.items() if n.get("status") != "closed"}', "aperte = set()"),
     "PM15": ('        gruppo += [propri[s]', '        gruppo += [] and [propri[s]'),
     "PM13": ("        righe[i] = nuova\n", "        righe[i:fine] = [nuova]\n"),
+    # terzo elemento: il file da rompere, se non è bin/progetti.py
+    "PM16": ("(d == 1 and corto >= 5)", "(d == 1 and corto >= 50)", "doppioni.py"),
+    "PM17": ("if isinstance(n, int) and n % 2 == 1:", "if True:", "doppioni.py"),
 }
 
 
@@ -231,6 +238,38 @@ def prova(lab: Lab) -> list:
             or (scheda.parent / "progetto-non-esiste.md").exists():
         rossi.append(f"PM13 verbo titolo: rc={r1.returncode},{r2.returncode},{r3.returncode} uno={uno!r} due={due!r}")
 
+    # PM16-PM17: doppioni. Due nomi a una lettera, e un guscio (solo la cartella) che non deve entrare.
+    lab.locale(None)
+    lab.scrivi_handoff("teleclub", "2026-11-10_09-00", "in progress", "primo")
+    lab.scrivi_handoff("teleclub", "2026-11-11_09-00", "in progress", "secondo")
+    lab.scrivi_handoff("telecub", "2026-11-09_09-00", "in progress", "vecchio")
+    (lab.base / "telecubo").mkdir()
+    r = lab.arturo("progetti", "doppioni", "--json")
+    try:
+        coppie = {c["chiave"]: c for c in json.loads(r.stdout)["coppie"]}
+    except (ValueError, KeyError):
+        coppie = {}
+    c = coppie.get("teleclub|telecub", {})
+    if r.returncode != 0 or c.get("vincitore") != "teleclub" or c.get("perdente") != "telecub" \
+            or any("telecubo" in k for k in coppie):
+        rossi.append(f"PM16 coppia a una lettera: rc={r.returncode} coppie={sorted(coppie)} voce={c}")
+    scarti = lab.tmp / "scartate.json"
+
+    def con_scarti(contenuto):
+        scarti.write_text(contenuto, encoding="utf-8")
+        x = lab.arturo("progetti", "doppioni", "--json", "--scartate", str(scarti))
+        try:
+            return x.returncode, {k["chiave"] for k in json.loads(x.stdout)["coppie"]}
+        except (ValueError, KeyError):
+            return x.returncode, None
+
+    uno = con_scarti('{"teleclub|telecub": 1700000000000}')
+    n1 = con_scarti('{"teleclub|telecub": {"n": 1, "quando": 5}}')
+    n2 = con_scarti('{"teleclub|telecub": {"n": 2, "quando": 5}}')
+    rotto = con_scarti("{non json")
+    if uno != (0, set()) or n1 != (0, set()) or n2[0] != 0 or "teleclub|telecub" not in (n2[1] or ()) or rotto != (4, None):
+        rossi.append(f"PM17 scartate: numero solo={uno} n1={n1} n2={n2} rotto={rotto}")
+
     lab.locale(SENZA)
     p, avvisi, r = lab.progetti()
     if r.returncode != 0 or "aria" not in p or "tutto-vero" not in p or "solo-handoff" not in p \
@@ -259,10 +298,10 @@ def main() -> int:
     if argomenti.avvelena:
         inerti = []
         for caso in CASI:
-            vecchio, rotto = VELENI[caso]
+            vecchio, rotto = VELENI[caso][:2]
             with tempfile.TemporaryDirectory(prefix="arturo-pm-") as tmp:
                 lab = Lab(Path(argomenti.repo), Path(tmp))
-                sorgente = lab.cl / "bin" / "progetti.py"
+                sorgente = lab.cl / "bin" / (VELENI[caso][2] if len(VELENI[caso]) > 2 else "progetti.py")
                 testo = sorgente.read_text(encoding="utf-8")
                 if testo.count(vecchio) != 1:
                     inerti.append(f"{caso}: il punto da rompere compare {testo.count(vecchio)} volte")
