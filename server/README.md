@@ -6,7 +6,9 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   `logica.js` (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`, `setup`,
   `chiede`, `confermata`, `errore`, `claude`, e dal 3/11/2026 `durata`, `turni` e `skill`, che il client
   registra alla chiusura della sessione: le prime due solo in fasce, la terza solo coi nomi di `SKILL` o
-  `altro`). Ogni evento ha il giorno e mai l'ora. `config`
+  `altro`; dal 23/11/2026 `giudicata`, una conferma a cui ha detto sì il giudice dei permessi della persona e
+  non lei: le tabelle delle guardie la contano nella colonna "Giudice", e la quota di sì guarda solo le
+  conferme arrivate alla persona). Ogni evento ha il giorno e mai l'ora. `config`
   (config rotta) manda subito un'email, una al giorno per installazione. Il server accetta ancora
   `tappa`, che il client non manda più dal 16/10/2026, per non perdere i dati dei client non
   aggiornati: in coda all'elenco, si toglie dopo qualche settimana.
@@ -137,6 +139,11 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
     server, mai col titolo o il testo di una segnalazione. Dal 8/11/2026 la deriva fa un task solo per
     un'installazione arrivata in almeno due giorni, al massimo dieci per email, e la nota dice solo nomi degli elenchi
     chiusi. Il valore dell'header sta entro 900 caratteri: una nota più lunga si accorcia.
+- **Le installazioni di chi mantiene Arturo (23/11/2026, revisione del 22/11, A6).** Con la variabile del Worker
+  `INSTALLAZIONI_INTERNE` (prime 8 cifre degli id, separate da virgole) "Dove migliorare", memoria, comandi e guardie
+  del riepilogo contano solo le altre installazioni, e dicono quante ne hanno tolte. Le rimaste indietro, le config
+  rotte e i banchi rossi restano per tutte: sono guasti da guardare, non statistiche. Un valore che non è un id di 8
+  cifre esadecimali si scarta.
 - **I banchi delle guardie rossi (4/11/2026)** stanno nel recap del mattino e nell'email del lunedì, sotto le
   config rotte: banco, id corto, versione dell'evento più recente e primo giorno visto. Il client manda
   l'evento `banchi` solo quando l'elenco dei rossi di quel computer cambia: un banco che resta rosso non si

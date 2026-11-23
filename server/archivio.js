@@ -14,7 +14,18 @@ const SETUP_DAL = "2026-10-15";
 const VISTE = `installazione IN (SELECT installazione FROM eventi GROUP BY installazione
   HAVING COUNT(DISTINCT ricevuto_giorno) >= ${Number(LIMITI.giorniGuardie)})`;
 
-export function archivio(db) {
+// Le installazioni di chi mantiene Arturo (revisione del 22/11/2026, A6): le prime 8 cifre dell'id, dalla var del Worker
+// INSTALLAZIONI_INTERNE. Fanno quasi metà delle sessioni, e spostavano i numeri che decidono cosa correggere: "Dove
+// migliorare", memoria, comandi e guardie le lasciano fuori. Le rimaste indietro e i guasti (config, banchi) no.
+// Solo esadecimali di 8 caratteri: l'elenco entra nella query come testo, mai un valore che arriva da una richiesta.
+export function interneValide(elenco) {
+  const lista = Array.isArray(elenco) ? elenco : String(elenco || "").split(/[^0-9A-Za-z]+/);
+  return [...new Set(lista.map((x) => String(x).trim().toLowerCase()).filter((x) => /^[0-9a-f]{8}$/.test(x)))].sort();
+}
+
+export function archivio(db, { interne = [] } = {}) {
+  const fuori = interneValide(interne);
+  const ESTERNE = fuori.length ? `${VISTE} AND substr(installazione, 1, 8) NOT IN (${fuori.map((x) => `'${x}'`).join(", ")})` : VISTE;
   return {
     // Gli eventi del giorno di un'installazione. Il totale di tutte sta nel contatore "eventi".
     async contaEventi(installazione, giorno) {
@@ -190,47 +201,48 @@ export function archivio(db) {
         // L'ultima fase vista per installazione, se non è arrivata in fondo e tace da 3 giorni.
         setupFermi: await tutte(
           `SELECT e.valore AS valore, COUNT(*) AS n FROM eventi e
-           JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'setup' AND ${VISTE} GROUP BY installazione) m ON e.rowid = m.r
+           JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'setup' AND ${ESTERNE} GROUP BY installazione) m ON e.rowid = m.r
            WHERE e.valore <> 'fine' AND e.giorno > date(?, '-30 day') AND e.giorno <= date(?, '-3 day')
              AND e.installazione NOT IN (SELECT installazione FROM eventi WHERE evento = 'setup' AND valore = 'fine')
            GROUP BY e.valore ORDER BY n DESC`, al, al),
         setupFiniti: await uno(
-          `SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND valore = 'fine' AND ${trenta} AND ${VISTE}`, al, al),
+          `SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND valore = 'fine' AND ${trenta} AND ${ESTERNE}`, al, al),
         setupIniziati: await uno(
-          `SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND ${trenta} AND ${VISTE}`, al, al),
+          `SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND ${trenta} AND ${ESTERNE}`, al, al),
         // Chi non ha mai lanciato /setup: installazioni nate da SETUP_DAL (il primo rilascio che manda
         // gli eventi di /setup) e negli ultimi 30 giorni, da almeno un giorno, senza nessun evento setup.
         // Prima di SETUP_DAL lo zero non vuol dire niente.
         setupMai: await uno(
-          `SELECT COUNT(*) AS n FROM (SELECT installazione FROM eventi WHERE ${VISTE} GROUP BY installazione
+          `SELECT COUNT(*) AS n FROM (SELECT installazione FROM eventi WHERE ${ESTERNE} GROUP BY installazione
              HAVING MIN(giorno) >= ? AND MIN(giorno) > date(?, '-30 day') AND MIN(giorno) <= date(?, '-1 day') AND SUM(evento = 'setup') = 0)`,
           SETUP_DAL, al, al),
         // Quante volte una guardia chiede, e quante volte la persona conferma.
         // Ogni numero dice quante installazioni lo producono.
         conferme: await tutte(
-          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata,
+          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata, SUM(evento = 'giudicata') AS giudicata,
              COUNT(DISTINCT installazione) AS installazioni FROM eventi
-           WHERE evento IN ('chiede', 'confermata') AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al, al),
+           WHERE evento IN ('chiede', 'confermata', 'giudicata') AND ${trenta} AND ${ESTERNE} GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al, al),
         // Le stesse, sommate per guardia: block-dangerous (dal 22/10/2026) e commit-secret-gate (dal 23/10) mandano <guardia>.<regola>, e
         // con tante regole le altre guardie uscirebbero dalle prime 20 di `conferme` (#3799).
         confermeGuardie: await tutte(
           `SELECT CASE WHEN instr(valore, '.py.') > 0 THEN substr(valore, 1, instr(valore, '.py.') + 2) ELSE valore END AS valore,
-             SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata,
+             SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata, SUM(evento = 'giudicata') AS giudicata,
              COUNT(DISTINCT installazione) AS installazioni FROM eventi
-           WHERE evento IN ('chiede', 'confermata') AND ${trenta} AND ${VISTE} GROUP BY 1 ORDER BY chiede DESC LIMIT 20`, al, al),
+           WHERE evento IN ('chiede', 'confermata', 'giudicata') AND ${trenta} AND ${ESTERNE} GROUP BY 1 ORDER BY chiede DESC LIMIT 20`, al, al),
         errori: await tutte(
           `SELECT valore, COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
-           WHERE evento = 'errore' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
+           WHERE evento = 'errore' AND ${trenta} AND ${ESTERNE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
         aggiornaStorti: await tutte(
           `SELECT versione, valore, COUNT(*) AS n FROM eventi
-           WHERE evento = 'aggiorna' AND valore <> 'applicato' AND ${trenta} AND ${VISTE} GROUP BY versione, valore ORDER BY n DESC LIMIT 20`, al, al),
+           WHERE evento = 'aggiorna' AND valore <> 'applicato' AND ${trenta} AND ${ESTERNE} GROUP BY versione, valore ORDER BY n DESC LIMIT 20`, al, al),
         // La finestra della ritenzione sta in ritenzione() (logica.js): per ogni soglia, le nate nei 30 giorni prima.
         ritenzione: ritenzione(await tutte(
           "SELECT installazione, MIN(giorno) AS prima, MAX(giorno) AS ultima FROM eventi WHERE giorno <= ? GROUP BY installazione", al), al),
         claude: await tutte(
           `SELECT valore, COUNT(DISTINCT installazione) AS n FROM eventi
-           WHERE evento = 'claude' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
+           WHERE evento = 'claude' AND ${trenta} AND ${ESTERNE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
         memoria: await this.memoria(al),
+        interne: fuori.length,
       };
     },
     // Se la memoria serve (15/11/2026, M7 della memoria, #5672): le due misure del piano, il tempo dalla prima sessione
@@ -243,22 +255,22 @@ export function archivio(db) {
       const trenta = "giorno > date(?, '-30 day') AND giorno <= ?";
       const salvati = (await db.prepare(
         `SELECT COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
-         WHERE evento = 'salvataggio' AND ${trenta} AND ${VISTE}`).bind(al, al).first()) || {};
+         WHERE evento = 'salvataggio' AND ${trenta} AND ${ESTERNE}`).bind(al, al).first()) || {};
       return {
-        sessioni: await uno(`SELECT COUNT(*) AS n FROM eventi WHERE evento = 'sessione' AND ${trenta} AND ${VISTE}`, al, al),
+        sessioni: await uno(`SELECT COUNT(*) AS n FROM eventi WHERE evento = 'sessione' AND ${trenta} AND ${ESTERNE}`, al, al),
         inizio: await tutte(
-          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'inizio' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY valore`, al, al),
+          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'inizio' AND ${trenta} AND ${ESTERNE} GROUP BY valore ORDER BY valore`, al, al),
         primoFine: tempoPrimoFine(await tutte(
           `SELECT installazione, MIN(giorno) AS prima, MIN(CASE WHEN evento = 'comando' AND valore = 'fine' THEN giorno END) AS fine
            FROM eventi WHERE giorno <= ? GROUP BY installazione HAVING MIN(giorno) > date(?, '-30 day')`, al, al)),
         // L'ultimo stato visto per installazione: accesa con le note in fasce, o spenta.
         stato: await tutte(
           `SELECT e.valore AS valore, COUNT(*) AS n FROM eventi e
-           JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'memoria' AND ${trenta} AND ${VISTE}
+           JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'memoria' AND ${trenta} AND ${ESTERNE}
                  GROUP BY installazione) m ON e.rowid = m.r
            GROUP BY e.valore ORDER BY n DESC, e.valore`, al, al),
         richiamo: await tutte(
-          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'richiamo' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC, valore`, al, al),
+          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'richiamo' AND ${trenta} AND ${ESTERNE} GROUP BY valore ORDER BY n DESC, valore`, al, al),
         salvataggi: { n: Number(salvati.n) || 0, installazioni: Number(salvati.installazioni) || 0 },
       };
     },
@@ -320,8 +332,8 @@ export function archivio(db) {
         settimana: attive(await this.uso(meno(7), al)).map(({ installazione, giorniAttivi, sessioni }) => ({ installazione, giorniAttivi, sessioni })),
         media: { installazioni: somma("installazioni") / 7, sessioni: somma("sessioni") / 7 },
         chiede: await tutte(
-          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata, COUNT(DISTINCT installazione) AS installazioni
-           FROM eventi WHERE evento IN ('chiede', 'confermata') AND giorno = ? GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al),
+          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata, SUM(evento = 'giudicata') AS giudicata, COUNT(DISTINCT installazione) AS installazioni
+           FROM eventi WHERE evento IN ('chiede', 'confermata', 'giudicata') AND giorno = ? GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al),
         setupIniziati: await uno("SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND giorno = ?", al),
         setupFiniti: await uno("SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND valore = 'fine' AND giorno = ?", al),
         segnalazioni: await tutte(
@@ -349,11 +361,11 @@ export function archivio(db) {
         versioni: await colonna("versione"),
         sistemi: await colonna("sistema"),
         comandi: (await db.prepare(
-          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'comando' AND giorno > ? AND giorno <= ? AND ${VISTE}
+          `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'comando' AND giorno > ? AND giorno <= ? AND ${ESTERNE}
            GROUP BY valore ORDER BY n DESC LIMIT 20`).bind(dal, al).all()).results,
         guardie: (await db.prepare(
           `SELECT valore, COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
-           WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`)
+           WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${ESTERNE} GROUP BY valore ORDER BY n DESC LIMIT 20`)
           .bind(dal, al).all()).results,
         aggiorna: await gruppo("aggiorna"),
         config: await gruppo("config"),
@@ -369,7 +381,7 @@ export function archivio(db) {
           .bind(dal, al, dal, al).all()).results,
         deriva: await this.deriva(dal, al, settimana),
         guardieFrequenti: settimana ? (await db.prepare(
-          `SELECT installazione, valore, COUNT(*) AS n FROM eventi WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${VISTE}
+          `SELECT installazione, valore, COUNT(*) AS n FROM eventi WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${ESTERNE}
            GROUP BY installazione, valore HAVING n >= ? ORDER BY n DESC LIMIT 20`)
           .bind(dal, al, LIMITI.guardieFrequenti).all()).results : null,
         migliorare: settimana ? await this.miglioramento(al) : null,

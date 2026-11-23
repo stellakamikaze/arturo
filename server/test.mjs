@@ -177,7 +177,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "memoria", "richiamo", "salvataggio", "inizio"], "V08 l'elenco degli eventi");
+      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "memoria", "richiamo", "salvataggio", "inizio", "giudicata"], "V08 l'elenco degli eventi");
   },
   async V10() {
     const f = finti();
@@ -519,7 +519,7 @@ const casi = {
       conferme: [{ valore: "block-dangerous.py.rm-cartella", chiede: 21, confermata: 1, installazioni: 2 }],
       errori: [], ritenzione: { nuove: 0, soglie: [] } } };
     const testo = testoRiepilogo(r, "prova");
-    assert.match(testo, /quota di sì, installazioni\):\n {2}block-dangerous\.py {2}42 \/ 2 \/ 5%, 2 installazioni\n {2}exfil-guard\.py {2}1 \/ 0 \/ 0%, 1 installazione\n/,
+    assert.match(testo, /quota di sì sulle arrivate alla persona, sì del giudice, installazioni\):\n {2}block-dangerous\.py {2}42 \/ 2 \/ 5%, 2 installazioni\n {2}exfil-guard\.py {2}1 \/ 0 \/ 0%, 1 installazione\n/,
       "V29 le conferme non sono sommate per guardia");
     assert.match(testo, /Per regola, dove la guardia la dice:\n {2}block-dangerous\.py\.rm-cartella {2}21 \/ 1 \/ 5%, 2 installazioni\n/,
       "V29 manca il dettaglio per regola");

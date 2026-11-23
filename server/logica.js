@@ -170,6 +170,9 @@ export const EVENTI = {
   richiamo: /^(0|1|2-5|6-20|>20)\/(0|1|2-5|6-20|>20)$/,
   salvataggio: /^automatico$/,
   inizio: /^(persona|rotazione)$/,
+  // Dal 23/11/2026 (revisione del 22/11, A6): una conferma chiesta da una guardia a cui ha detto sì il giudice dei permessi,
+  // non la persona. Prima contava come `confermata`, e una guardia sembrava chiedere a vuoto.
+  giudicata: GUARDIA_E_REGOLA,
 };
 // Le soglie della ritenzione: installazioni ancora vive dopo 7, 30 e 60 giorni dalla prima volta.
 // Sessanta giorni è il criterio di successo di Arturo (uso vivo dopo due mesi).
@@ -670,17 +673,20 @@ export function testoMigliorare(m) {
   if (!m) return [];
   const righe = (elenco, riga, vuoto = "  niente") => elenco && elenco.length ? elenco.map(riga) : [vuoto];
   const per = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
-  const conferma = (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede)}, ${installazioni(x.installazioni)}`;
+  // Dal 23/11/2026 (A6) la quota di sì si calcola sulle conferme arrivate alla persona: quelle decise dal giudice stanno a parte.
+  const conferma = (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede - (x.giudicata || 0))}`
+    + `${x.giudicata ? `, giudice ${x.giudicata}` : ""}, ${installazioni(x.installazioni)}`;
   const r = m.ritenzione || { nuove: 0, soglie: [] };
   return [
     "DOVE MIGLIORARE ARTURO (ultimi 30 giorni, numeri e non verdetti)",
     `Contano solo le installazioni viste dal server in almeno ${LIMITI.giorniGuardie} giorni diversi, salvo la ritenzione.`,
+    ...(m.interne ? [`Senza le ${installazioni(m.interne)} di chi mantiene Arturo (INSTALLAZIONI_INTERNE), salvo le rimaste indietro.`] : []),
     "",
     `Setup: ${m.setupIniziati || 0} iniziati, ${m.setupFiniti || 0} arrivati in fondo, ${m.setupMai || 0} installazioni nuove che non l'hanno mai lanciato. Fermi da più di 3 giorni, per ultima fase vista:`,
     ...righe(m.setupFermi, (x) => `  ${x.n}  ${x.valore}`, "  nessuno"),
     "",
     `Guardie: contano solo le installazioni viste in almeno ${LIMITI.giorniGuardie} giorni diversi. Una guardia non si allenta sulla sola base di questi numeri.`,
-    "Guardie che chiedono conferma (chiede / confermata / quota di sì, installazioni):",
+    "Guardie che chiedono conferma (chiede / confermata / quota di sì sulle arrivate alla persona, sì del giudice, installazioni):",
     ...righe(m.confermeGuardie || m.conferme, conferma, "  nessuna"),
     "Per regola, dove la guardia la dice:",
     ...righe((m.conferme || []).filter((x) => x.valore.includes(".py.")), conferma, "  nessuna"),

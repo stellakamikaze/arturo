@@ -2,7 +2,10 @@
 // Deploy e query utili: server/README.md.
 import { EmailMessage } from "cloudflare:email";
 import { gestisci, programmato, mime, avvisoTelegram, intestazioneTask } from "./logica.js";
-import { archivio } from "./archivio.js";
+import { archivio as archivioD1 } from "./archivio.js";
+
+// Le installazioni di chi mantiene Arturo (A6, 23/11/2026): var INSTALLAZIONI_INTERNE, prime 8 cifre separate da virgole.
+const archivio = (env) => archivioD1(env.DB, { interne: env.INSTALLAZIONI_INTERNE || "" });
 
 // Dal 5/11/2026 l'email porta anche l'HTML e, se il Worker ha INTESTAZIONE_TASK e TASK_PROGETTO, un header per task.
 function posta(env) {
@@ -26,11 +29,11 @@ function limite(env) {
 
 export default {
   async fetch(request, env) {
-    return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env), token: env.RIEPILOGO_TOKEN,
+    return gestisci(request, { archivio: archivio(env), posta: posta(env), avviso: avvisoTelegram(env), token: env.RIEPILOGO_TOKEN,
       limite: limite(env), leggi: env.LEGGI_SEGNALAZIONI || "", versione: env.VERSIONE_SERVER || "" });
   },
   async scheduled(evento, env, ctx) {
-    ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env),
+    ctx.waitUntil(programmato({ archivio: archivio(env), posta: posta(env), avviso: avvisoTelegram(env),
       leggi: env.LEGGI_SEGNALAZIONI || "" }));
   },
 };

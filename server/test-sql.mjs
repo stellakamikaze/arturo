@@ -70,7 +70,7 @@ const casi = {
       ["2026-10-12", "aaaaaaaa", "errore", "data-guard.py"], ["2026-10-12", "bbbbbbbb", "errore", "data-guard.py"],
     ]);
     const m = await a.miglioramento(AL);
-    assert.deepEqual(m.conferme, [{ valore: "exfil-guard.py", chiede: 2, confermata: 1, installazioni: 2 }], "Q02 conferme");
+    assert.deepEqual(m.conferme, [{ valore: "exfil-guard.py", chiede: 2, confermata: 1, giudicata: 0, installazioni: 2 }], "Q02 conferme");
     assert.deepEqual(m.errori, [{ valore: "data-guard.py", n: 2, installazioni: 2 }], "Q02 errori");
   },
   // Aggiornamenti non applicati per versione, ritenzione dalla prima e dall'ultima volta, Claude Code.
@@ -135,7 +135,7 @@ const casi = {
     finte.push({ giorno: "2026-10-12", installazione: "ffffffff", versione: "v1", sistema: "Darwin", evento: "errore", valore: "exfil-guard.py" });
     await a.scriviEventi(finte, "2026-10-12T10:00:00Z");
     const m = await a.miglioramento(AL);
-    assert.deepEqual(m.conferme, [{ valore: "data-guard.py", chiede: 1, confermata: 1, installazioni: 1 }],
+    assert.deepEqual(m.conferme, [{ valore: "data-guard.py", chiede: 1, confermata: 1, giudicata: 0, installazioni: 1 }],
       "Q10 le conferme contano un'installazione vista in un giorno solo");
     assert.deepEqual(m.errori, [{ valore: "exfil-guard.py", n: 1, installazioni: 1 }], "Q10 gli errori contano un'installazione vista in un giorno solo");
     const r = await a.riepilogo("2026-10-01", AL, { settimana: true });
@@ -171,8 +171,8 @@ const casi = {
     const m = await (await con(righe)).miglioramento(AL);
     assert.ok(!m.conferme.some((x) => x.valore === "exfil-guard.py"), "Q12 prova: exfil-guard.py resta nelle prime 20 regole");
     assert.deepEqual(m.confermeGuardie, [
-      { valore: "block-dangerous.py", chiede: 42, confermata: 2, installazioni: 2 },
-      { valore: "exfil-guard.py", chiede: 1, confermata: 0, installazioni: 1 },
+      { valore: "block-dangerous.py", chiede: 42, confermata: 2, giudicata: 0, installazioni: 2 },
+      { valore: "exfil-guard.py", chiede: 1, confermata: 0, giudicata: 0, installazioni: 1 },
     ], "Q12 le conferme per guardia");
   },
   // Le installazioni rimaste indietro, con le query vere (23/10/2026): conta la versione dell'ultimo evento,
@@ -430,7 +430,7 @@ const casi = {
     assert.deepEqual(g.uso.map((x) => x.installazione).sort(), ["aaaaaaaa-1", "cccccccc-3"], "QG1 chi ha usato Arturo il giorno");
     assert.equal(g.settimana.find((x) => x.installazione === "aaaaaaaa-1").giorniAttivi, 2, "QG1 i giorni attivi della settimana");
     assert.deepEqual([g.media.installazioni, g.media.sessioni], [3 / 7, 3 / 7], "QG1 la media dei sette giorni prima");
-    assert.deepEqual(g.chiede, [{ valore: "exfil-guard.py", chiede: 1, confermata: 1, installazioni: 1 }], "QG1 le conferme del giorno");
+    assert.deepEqual(g.chiede, [{ valore: "exfil-guard.py", chiede: 1, confermata: 1, giudicata: 0, installazioni: 1 }], "QG1 le conferme del giorno");
     assert.deepEqual([g.setupIniziati, g.setupFiniti, g.download, g.feedback], [1, 1, 2, 0], "QG1 setup e sito");
     assert.deepEqual(g.segnalazioni, [{ id: 1, tipo: "problema", stato: "ricevuta" }], "QG1 le segnalazioni del giorno");
     const email = [];
@@ -548,6 +548,29 @@ const casi = {
     const riga = await archivio(vecchia).segnalazione(1);
     assert.deepEqual([riga.stato, riga.seguiti, riga.pacchetto, riga.contatto_nome, riga.contatto_email], ["ricevuta", "[]", "", "", ""],
       "QM1 le righe di prima non prendono i default");
+  },
+  // Il giudice e chi mantiene Arturo (revisione del 22/11/2026, A6): `giudicata` sta in una colonna sua, e le installazioni di
+  // INSTALLAZIONI_INTERNE restano fuori da "Dove migliorare" e dai comandi. Un valore che non è un id di 8 cifre si scarta.
+  async QI1() {
+    const a = archivio(d1(), { interne: "aaaaaaaa, zz, BBBBBBBB; drop" });
+    for (const io of ["aaaaaaaa-1", "bbbbbbbb-1", "cccccccc-1"]) {
+      for (const g of ["2026-10-01", "2026-10-10"]) {
+        await a.scriviEventi([{ giorno: g, installazione: io, versione: "v1", sistema: "Darwin", evento: "sessione", valore: "" }], `${g}T10:00:00Z`);
+      }
+      const ev = ["chiede", "chiede", "confermata", "giudicata"].map((evento) => ({ giorno: "2026-10-10", installazione: io, versione: "v1",
+        sistema: "Darwin", evento, valore: "exfil-guard.py" }));
+      ev.push({ giorno: "2026-10-10", installazione: io, versione: "v1", sistema: "Darwin", evento: "comando", valore: "fine" });
+      await a.scriviEventi(ev, "2026-10-10T11:00:00Z");
+    }
+    const r = await a.riepilogo("2026-10-06", AL, { settimana: true });
+    assert.deepEqual(r.migliorare.conferme, [{ valore: "exfil-guard.py", chiede: 2, confermata: 1, giudicata: 1, installazioni: 1 }],
+      "QI1 le conferme contano chi mantiene Arturo o non separano il giudice");
+    assert.equal(r.migliorare.interne, 2, "QI1 l'elenco delle interne non scarta i valori storti");
+    assert.deepEqual(r.comandi, [{ valore: "fine", n: 1 }], "QI1 i comandi contano chi mantiene Arturo");
+    assert.equal(r.installazioni, 3, "QI1 le installazioni attive non contano più tutte");
+    const testo = testoMigliorare(r.migliorare).join("\n");
+    assert.match(testo, /exfil-guard\.py {2}2 \/ 1 \/ 100%, giudice 1, 1 installazione/, "QI1 la quota di sì conta i sì del giudice");
+    assert.match(testo, /Senza le 2 installazioni di chi mantiene Arturo/, "QI1 il riepilogo non dice che le interne sono fuori");
   },
   // Le migrazioni passano da `wrangler d1 migrations apply` (revisione del 22/11/2026, A4): segna-migrazioni.sql elenca
   // ogni file di migrazioni/, così un D1 nuovo fatto con schema.sql non le riapplica. Gira su schema.sql senza errori.

@@ -96,11 +96,12 @@ function cosaHaUsato(x) {
 // Le guardie in una tabella: bloccate e conferme chieste, le prime dieci, il resto in una riga.
 function guardie(bloccate, chieste) {
   const m = new Map();
-  for (const x of bloccate || []) m.set(x.valore, { valore: x.valore, bloccato: x.n, chiede: 0, confermata: 0 });
+  for (const x of bloccate || []) m.set(x.valore, { valore: x.valore, bloccato: x.n, chiede: 0, confermata: 0, giudicata: 0 });
   for (const x of chieste || []) {
-    const r = m.get(x.valore) || { valore: x.valore, bloccato: 0, chiede: 0, confermata: 0 };
+    const r = m.get(x.valore) || { valore: x.valore, bloccato: 0, chiede: 0, confermata: 0, giudicata: 0 };
     r.chiede += Number(x.chiede) || 0;
     r.confermata += Number(x.confermata) || 0;
+    r.giudicata += Number(x.giudicata) || 0;
     m.set(x.valore, r);
   }
   const righe = [...m.values()].sort((a, b) => b.bloccato + b.chiede - (a.bloccato + a.chiede));
@@ -108,8 +109,8 @@ function guardie(bloccate, chieste) {
 }
 
 function tabellaGuardie(g) {
-  return tabella(["Guardia", "Bloccato", "Chiesto", "Sì"], g.righe.map((x) => [codice(x.valore), x.bloccato, x.chiede,
-    x.chiede ? `${x.confermata} (${per(x.confermata, x.chiede)})` : "-"]), { numeriche: [1, 2, 3] }) +
+  return tabella(["Guardia", "Bloccato", "Chiesto", "Giudice", "Sì"], g.righe.map((x) => [codice(x.valore), x.bloccato, x.chiede, x.giudicata,
+    x.chiede ? `${x.confermata} (${per(x.confermata, x.chiede - x.giudicata)})` : "-"]), { numeriche: [1, 2, 3, 4] }) +
     (g.resto ? paragrafo(`E altre ${g.resto} con meno volte.`, { attenuato: true }) : "");
 }
 
@@ -209,8 +210,9 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
   const ferme = (r.uso || []).length - uso.length;
   const conferme = (elenco, nome) => {
     const righe = (elenco || []).slice(0, DIECI);
-    return righe.length ? tabella([nome, "Chiede", "Sì", "Dove"], righe.map((x) => [codice(x.valore), x.chiede,
-      `${x.confermata} (${per(x.confermata, x.chiede)})`, x.installazioni]), { numeriche: [1, 2, 3] }) +
+    // Dal 23/11/2026 (A6) "Giudice" sono i sì del giudice dei permessi, e la quota di sì conta solo le conferme arrivate alla persona.
+    return righe.length ? tabella([nome, "Chiede", "Giudice", "Sì", "Dove"], righe.map((x) => [codice(x.valore), x.chiede, x.giudicata || 0,
+      `${x.confermata} (${per(x.confermata, x.chiede - (x.giudicata || 0))})`, x.installazioni]), { numeriche: [1, 2, 3, 4] }) +
       ((elenco || []).length > DIECI ? paragrafo(`E altre ${elenco.length - DIECI}.`, { attenuato: true }) : "") : "";
   };
   const regole = (m.conferme || []).filter((x) => x.valore.includes(".py."));
@@ -231,7 +233,8 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
       { numeriche: [1, 2] }), { nota: ferme ? `${uno(ferme, "installazione è rimasta ferma", "installazioni sono rimaste ferme")} tutta la settimana.` : "" })),
     sezione("Dove migliorare Arturo", paragrafo(setupTesto) +
       ((m.setupFermi || []).length ? paragrafo(`Fermi da più di 3 giorni: ${m.setupFermi.map((x) => `${x.valore} (${x.n})`).join(", ")}.`, { attenuato: true }) : ""),
-    { nota: `Ultimi 30 giorni, numeri e non verdetti. Contano le installazioni viste in almeno ${LIMITI.giorniGuardie} giorni, salvo la ritenzione.` }),
+    { nota: `Ultimi 30 giorni, numeri e non verdetti. Contano le installazioni viste in almeno ${LIMITI.giorniGuardie} giorni, salvo la ritenzione.`
+      + (m.interne ? ` Senza le ${m.interne} installazioni di chi mantiene Arturo, salvo le rimaste indietro.` : "") }),
     se((m.confermeGuardie || m.conferme || []).length, "conferme delle guardie", () => sezione("Guardie che chiedono conferma",
       conferme(m.confermeGuardie || m.conferme, "Guardia") + (regole.length ? `<div style="height:12px"></div>${conferme(regole, "Regola")}` : ""),
       { nota: "\"Dove\" è il numero di installazioni. Una guardia non si allenta sulla sola base di questi numeri." })),
