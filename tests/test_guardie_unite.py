@@ -104,6 +104,11 @@ def env_di(home: Path, **extra: str) -> dict:
     env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", ""),
            "PYTHONDONTWRITEBYTECODE": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "ARTURO_TELEMETRIA": "0",
            "TMPDIR": os.environ.get("TMPDIR", "/tmp")}
+    # Su Windows Python 3.8 senza SYSTEMROOT non parte ("failed to get random numbers"): Claude Code la passa
+    # sempre agli hook, il banco deve fare lo stesso (sonda #6455, sesto giro)
+    for nome in ("SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT"):
+        if os.name == "nt" and os.environ.get(nome):
+            env[nome] = os.environ[nome]
     env.update(extra)
     return env
 
@@ -353,8 +358,10 @@ def test_g206(repo: Path) -> None:
                         'rm -rf "$TMPDIR/x"', "rm -rf node_modules dist", "git commit -m 'tolto rm -rf dal README'"):
             if esito(comando) != "silent":
                 p = _bash_hook(home, "block-dangerous.py", comando, radice)
-                raise AssertionError(f"G206 falso allarme: {comando!r}: {motivo(p)[:200]} "
-                                     f"(TMPDIR {os.environ.get('TMPDIR')!r}, home {str(home)!r})")
+                # banchi-avvio.sh riporta la prima riga con "Error", tagliata a 160: il motivo va in testa,
+                # e la riga del sorgente non deve contenere quella parola
+                testo = f"G206 {motivo(p)[:70]!r} TMPDIR={os.environ.get('TMPDIR')} per {comando!r}"
+                assert False, testo
         # Su Windows %TEMP% sta dentro la home e resta temporanea, come per /fine (16/10/2026).
         temp = home / "AppData" / "Local" / "Temp"
 
@@ -624,6 +631,12 @@ def test_g211(repo: Path) -> None:
                           "grep", "tr", "wc", "dirname", "env"):
             percorso = shutil.which(programma, path=ricerca)
             if percorso:
+                if os.name == "nt":
+                    # Mai un link su Windows: un programma msys aperto da un link non trova msys-2.0.dll, e
+                    # il dispatcher taceva prima di arrivare a timeout (sonda #6455, quinto giro)
+                    (senza_timeout / programma).write_text(f'#!/bin/sh\nexec "{Path(percorso).as_posix()}" "$@"\n',
+                                                          encoding="utf-8")
+                    continue
                 try:
                     (senza_timeout / programma).symlink_to(percorso)
                 except OSError as e:  # Windows senza il privilegio dei link: uno script che rimanda al programma

@@ -694,6 +694,10 @@ def _link_in_vista(sciolto, grezzo, somiglia, windows):
             p = casa + "/" + parola[2:]
         elif parola.startswith("/"):
             p = parola
+        elif windows and re.match(r"[A-Za-z]:[/\\]", parola):
+            # `cat C:/Users/x/k` è già assoluto: attaccato alla cartella corrente il link non si vedeva (GC12 sul
+            # runner Windows, sonda #6455)
+            p = parola
         elif cwd:
             p = cwd + "/" + parola
         else:
