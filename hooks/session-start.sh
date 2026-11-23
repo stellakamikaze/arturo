@@ -19,7 +19,9 @@ if [ -z "${ARTURO_AVVIO_CORPO:-}" ] && [ "${ARTURO_AVVIO_TETTO_MS:-7500}" != 0 ]
   case "$_tetto_ms" in (*[!0-9]*|"") _tetto_ms=7500 ;; esac
   _inizio_us=${EPOCHREALTIME//[.,]/}
   mkdir -p "$HOME/.claude/session-env" 2>/dev/null
-  exec 3< <(ARTURO_AVVIO_CORPO=1 "$BASH" "${BASH_SOURCE[0]}" 2>"$HOME/.claude/session-env/avvio-errori.log")
+  # exec: bash 3.2 (macOS) non sostituisce la subshell col comando e la lascia viva con lo stderr dell'hook
+  # aperto fino alla fine del lavoro, e Claude Code aspetta (#6454, 23/11/2026).
+  exec 3< <(export ARTURO_AVVIO_CORPO=1; exec "$BASH" "${BASH_SOURCE[0]}" 2>"$HOME/.claude/session-env/avvio-errori.log")
   _tagliato=0
   while :; do
     if [ -n "$_inizio_us" ]; then
@@ -35,11 +37,17 @@ if [ -z "${ARTURO_AVVIO_CORPO:-}" ] && [ "${ARTURO_AVVIO_TETTO_MS:-7500}" != 0 ]
     fi
     if [ "$_resta_ms" -le 0 ] || [ "$_attesa" = 0 ]; then _tagliato=1; break; fi
     _riga=""
+    _prima=$SECONDS
     if IFS= read -r -t "$_attesa" _riga <&3; then
       printf '%s\n' "$_riga"
     else
       _rc=$?
-      if [ "$_rc" -gt 128 ]; then _tagliato=1; elif [ -n "$_riga" ]; then printf '%s\n' "$_riga"; fi
+      # bash 3.2 esce con 1 sia allo scadere sia a fine flusso: lì lo scadere si riconosce dal tempo passato.
+      if [ "$_rc" -gt 128 ] || { [ -z "$_inizio_us" ] && [ $(( SECONDS - _prima )) -ge "$_attesa" ]; }; then
+        _tagliato=1
+      elif [ -n "$_riga" ]; then
+        printf '%s\n' "$_riga"
+      fi
       break
     fi
   done
