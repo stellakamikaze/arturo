@@ -94,8 +94,9 @@ def _evento(comando: str, cwd: str = "/tmp", **altro) -> str:
 def test_sp02(repo: Path) -> None:
     guardia = repo / "hooks" / "block-dangerous.py"
     lungo = "python3 -c \"" + "print('a b c d');" * 5_247 + "\""
+    quarto = "python3 -c \"" + "print('a b c d');" * 1_312 + "\""
     esiti = []
-    for comando in (lungo, lungo + "\nrm -rf ~/Documents/progetto"):
+    for comando in (quarto, lungo, lungo + "\nrm -rf ~/Documents/progetto"):
         inizio = time.perf_counter()
         try:
             p = subprocess.run([sys.executable, str(guardia)], input=_evento(comando), capture_output=True,
@@ -104,8 +105,14 @@ def test_sp02(repo: Path) -> None:
             raise AssertionError(f"SP02 block-dangerous oltre 8 secondi su {len(comando)} caratteri")
         decisione = json.loads(p.stdout)["hookSpecificOutput"]["permissionDecision"] if p.stdout.strip() else \
             ("block" if p.returncode == 2 else "silent")
-        esiti.append((decisione, round(time.perf_counter() - inizio, 1)))
-    assert [e[0] for e in esiti] == ["silent", "ask"], f"SP02 giudizi cambiati sul comando lungo: {esiti}"
+        esiti.append((decisione, round(time.perf_counter() - inizio, 2)))
+    assert [e[0] for e in esiti] == ["silent", "silent", "ask"], f"SP02 giudizi cambiati sul comando lungo: {esiti}"
+    # Il tetto di 8 secondi non basta da solo: sul runner Linux della CI il codice di 663bcba ci sta sotto, e la
+    # controprova non lo distingueva (#6453). Il rapporto fra il comando intero e un suo quarto vale su ogni
+    # macchina: col quadrato 16 (14,6 misurato su 663bcba), lineare 4 al più (2,6 oggi, col tempo di avvio).
+    crescita = esiti[1][1] / max(esiti[0][1], 0.05)
+    assert crescita < 6, f"SP02 block-dangerous cresce col quadrato: {esiti[0][1]} s su un quarto, " \
+                         f"{esiti[1][1]} s sul comando intero (x{crescita:.1f})"
 
 
 def test_sp03(repo: Path) -> None:

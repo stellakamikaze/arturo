@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """I controlli indipendenti di /inizio girano insieme (#6317, 22/11/2026).
 
-PA01 arturo contesto legge git mentre la fonte esterna dei todo risponde: almeno una chiamata a git cade
-     fra l'inizio e la fine della lettura della fonte. Prima git partiva solo dopo la fonte, che può
+PA01 arturo contesto legge git mentre la fonte esterna dei todo risponde: la maggioranza delle chiamate a git
+     cade prima della fine della lettura della fonte. Prima git partiva solo dopo la fonte, che può
      aspettare fino a 90 s la rete.
 PA02 l'uscita resta la stessa: GIT viene prima dei todo, i todo della fonte ci sono.
 
@@ -97,11 +97,13 @@ def prova(lab: Lab) -> list:
         chiamate = [float(x) for x in lab.log_git.read_text(encoding="utf-8").split()]
     except (OSError, ValueError):
         chiamate = []
-    # PA01
-    dentro = [t for t in chiamate if inizio is not None and inizio < t < fine]
-    if r.returncode != 0 or not dentro:
+    # PA01: la maggioranza delle chiamate prima della fine della fonte. "Fra inizio e fine" non bastava: la fonte
+    # scrive l'inizio dopo l'avvio di Python, e sul runner Linux della CI le 11 chiamate finivano prima (#6453).
+    # Su 300567c 2 chiamate cadono prima della fonte e 9 dopo la fine; oggi tutte e 11 prima della fine.
+    prima = [t for t in chiamate if fine is not None and t < fine]
+    if r.returncode != 0 or not chiamate or len(prima) * 2 <= len(chiamate):
         rossi.append(f"PA01 git insieme alla fonte: rc={r.returncode} fonte={inizio}..{fine} "
-                     f"git={len(chiamate)} chiamate, {len(dentro)} durante la fonte")
+                     f"git={len(chiamate)} chiamate, {len(prima)} prima della fine della fonte")
     # PA02
     out = r.stdout
     if r.returncode != 0 or "TODO-DALLA-FONTE" not in out or "GIT" not in out \

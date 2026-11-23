@@ -850,7 +850,8 @@ def igiene(prova: bool = False) -> dict:
                 continue
             sim = len(pa & pb) / len(pa | pb)
             if sim >= SOGLIA_COPPIA:
-                coppie.append((round(sim, 2), breve(a), breve(b)))
+                # os.scandir non ordina: senza sorted la coppia esce girata su ext4 e dritta su APFS.
+                coppie.append((round(sim, 2), *sorted((breve(a), breve(b)))))
     coppie.sort(key=lambda c: (-c[0], c[1], c[2]))
 
     esito = controlla()

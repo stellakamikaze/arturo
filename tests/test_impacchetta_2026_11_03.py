@@ -273,7 +273,10 @@ def prova(repo: Path) -> list[str]:
         # EMAIL: Git ricava l'indirizzo da utente e nome del computer, ma su un computer senza dominio
         # (un PC Windows: utente@PC.(none)) lo rifiuta, e anche il commit fallisce. Con EMAIL l'identità
         # automatica esiste su ogni macchina, e useConfigOnly la ignora lo stesso (#6383).
-        env_auto = {**git_env, "CLAUDE_CONFIG_DIR": str(senza_arturo), "EMAIL": "prova@computer.example"}
+        # GIT_AUTHOR_NAME: Git prende il nome dal nome completo dell'utente (GECOS), e sul runner Linux della
+        # CI è vuoto: git var fallisce anche con EMAIL (#6453). L'indirizzo resta quello automatico.
+        env_auto = {**git_env, "CLAUDE_CONFIG_DIR": str(senza_arturo), "EMAIL": "prova@computer.example",
+                    "GIT_AUTHOR_NAME": NOME_AUTOMATICO}
         repo_auto = tmp / "prog-auto"
         esegui(["git", "init", "-q", str(repo_auto)], env=env_auto)
         automatica = esegui(identita + [str(repo_auto)], env=env_auto)
@@ -456,12 +459,16 @@ def mod_impacchetta(repo: Path):
     return carica(repo / "bin" / "impacchetta.py")
 
 
+NOME_AUTOMATICO = "Utente Computer"
+
+
 def identita_senza_email() -> bool:
     """Git ricava un'identità automatica anche senza EMAIL: sul Mac, dove il nome del computer ha un dominio
     (.local). Lì il veleno di IP21 su EMAIL non ha cosa rompere: attacca dove Git la rifiuta, come su Windows."""
     with tempfile.TemporaryDirectory() as tmp:
         env = {k: v for k, v in os.environ.items() if k not in ("EMAIL", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL")}
-        env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        # Lo stesso nome del caso: qui conta solo se Git ricava l'indirizzo.
+        env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME=NOME_AUTOMATICO)
         subprocess.run(["git", "init", "-q", tmp], capture_output=True, env=env)
         r = subprocess.run(["git", "-C", tmp, "var", "GIT_AUTHOR_IDENT"], capture_output=True, env=env)
         return r.returncode == 0
