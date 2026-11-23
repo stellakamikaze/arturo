@@ -44,9 +44,12 @@ def main():
     else:
         # La risalita si ferma alla home: il nome della home è il nome dell'utente, e se
         # coincide con quello di una scheda, la cartella contenitore la proponeva a ogni
-        # avvio (#5868, 17/11/2026).
+        # avvio (#5868, 17/11/2026). Anche la cwd si risolve: su Windows resta col nome corto 8.3 con cui
+        # il processo è partito (RUNNER~1 sul runner di GitHub), la home risolta ha quello lungo, e il confronto
+        # non si fermava mai (provato su Windows 11 il 23/11/2026).
         cwd = Path.cwd()
         try:
+            cwd = cwd.resolve()
             home = Path.home().resolve()
             fermi = {home, *home.parents}
         except (RuntimeError, OSError):
