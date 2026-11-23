@@ -258,6 +258,9 @@ def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
     handoff, altrimenti il nome con l'handoff più recente. I nomi senza handoff entrano nel capo."""
     for c in catalogo:
         gruppo = [c["slug"]] + [a for a in c["alias"] if a != c["slug"]]
+        # uno slug della fonte che è già alias di una voce fusa prima (scheda o fonte) è quella voce, non un progetto nuovo
+        propri = {a: v["slug"] for v in voci.values() for a in v["alias"]}
+        gruppo += [propri[s] for s in list(gruppo) if s not in voci and s in propri and propri[s] not in gruppo]
         presenti = [voci[s] for s in gruppo if s in voci]
         if presenti:
             capo = max(presenti, key=lambda v: (v["handoff"] and v["slug"] == c["slug"], v["data"], v["cartella"],

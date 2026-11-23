@@ -23,6 +23,8 @@ PM13 `arturo progetti titolo <slug> "<Titolo>"` scrive solo la riga `titolo:` de
      non c'è esce 2 e non crea niente.
 PM14 il catalogo sono le schede della memoria (13/11/2026): una scheda aperta senza cartella né handoff compare, con dove,
      macchine e repo del frontmatter anche oltre la quarantesima riga; una scheda chiusa da sola no.
+PM15 uno slug della fonte che è già alias di una scheda (vecchio-nome) si fonde nella voce della scheda
+     (22/11/2026): non nasce un progetto nuovo, e la voce prende la categoria della fonte.
 
 Veleno: --avvelena rompe bin/progetti.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso (VELENI del gate).
@@ -40,7 +42,7 @@ import time
 import os
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
@@ -48,6 +50,7 @@ CATALOGO = ('import json, sys\n'
             '    {"slug": "aria", "titolo": "Tutto Vero", "categoria": "Prodotti", "alias": ["tutto-vero"]},\n'
             '    {"slug": "madre", "titolo": "Madre", "categoria": "Dev", "alias": ["filone"]},\n'
             '    {"slug": "solo-fonte", "titolo": "Solo Fonte", "categoria": "Clienti", "alias": []},\n'
+            '    {"slug": "vecchio-nome", "titolo": "Fonte Vecchio", "categoria": "Clienti", "alias": []},\n'
             '    {"slug": "titolata", "titolo": "Dalla Fonte", "categoria": "Clienti", "alias": []}]}))\n')
 SENZA = 'import sys\nsys.exit(2)\n'
 # caso -> (testo di bin/progetti.py, testo rotto): ogni rottura deve far rosso il suo caso
@@ -65,6 +68,7 @@ VELENI = {
     "PM11": ('            if v["handoff"]:  # un filone', '            if False:  # un filone'),
     "PM12": ('= capo["titolo"] or c["titolo"], c["categoria"]', '= c["titolo"] or capo["titolo"], c["categoria"]'),
     "PM14": ('aperte = {s for s, n in note.items() if n.get("status") != "closed"}', "aperte = set()"),
+    "PM15": ('        gruppo += [propri[s]', '        gruppo += [] and [propri[s]'),
     "PM13": ("        righe[i] = nuova\n", "        righe[i:fine] = [nuova]\n"),
 }
 
@@ -212,6 +216,9 @@ def prova(lab: Lab) -> list:
     if p.get("titolata", {}).get("titolo") != "TITOLO-SCHEDA" or "vecchio-nome" in p \
             or "vecchio-nome" not in p.get("con-index", {}).get("alias", []):
         rossi.append(f"PM12 titolo e alias della scheda: titolata={p.get('titolata')} vecchio-nome in elenco={'vecchio-nome' in p} "
+                     f"con-index={p.get('con-index')}")
+    if "vecchio-nome" in p or p.get("con-index", {}).get("categoria") != "Clienti":
+        rossi.append(f"PM15 slug della fonte uguale a un alias: vecchio-nome in elenco={'vecchio-nome' in p} "
                      f"con-index={p.get('con-index')}")
     prima_s = scheda.read_text(encoding="utf-8")
     r1 = lab.arturo("progetti", "titolo", "solo-handoff", "Nome Nuovo")
