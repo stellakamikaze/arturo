@@ -6,6 +6,7 @@ import sys
 import time
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 repo = Path(__file__).resolve().parents[1]
 elenco = [r.strip() for r in (repo / "tests" / "sonda_6455.txt").read_text(encoding="utf-8").splitlines()
           if r.strip() and not r.startswith("#")]
