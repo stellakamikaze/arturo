@@ -199,7 +199,7 @@ def prova(repo: Path) -> list[str]:
         spec.loader.exec_module(hub)
     finally:
         sys.path.remove(str(repo / "hooks"))
-    eventi = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure"}
+    eventi = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure", "prompt": "UserPromptSubmit"}
     for voce, righe in hub.TABELLA.items():
         for _m, _p, file, argomenti, _t, _c in righe:
             nome = file.split("/")[-1]

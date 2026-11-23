@@ -387,7 +387,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 In tutto, Arturo porta:
 
-- **39 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **40 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
@@ -398,7 +398,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               39 guardie e automazioni, più 14 strumenti che usano
+hooks/               40 guardie e automazioni, più 14 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -457,9 +457,9 @@ Fuori dal dispatcher:
 - `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`; un rosso non ti interrompe: i banchi ripartono dopo 30 minuti e il nome del banco rosso arriva a chi mantiene Arturo con l'evento `banchi` della telemetria; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), riga `SPORTELLO` quando chi mantiene Arturo ha risposto a una tua segnalazione, invito a `/segnala` (si spegne con `arturo segnala basta`), riga `SETUP` una volta al giorno se la prima configurazione non è finita (solo per le installazioni nate dal 16/10), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
-- `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
-  `personale/`, dice a Claude di leggerle. Sui messaggi che non sono comandi ricorda che ogni richiesta di lavoro, anche breve, comincia con PROMPT + BRIEF; domande e conversazione hanno risposta diretta. Prima di un ultracode aggiunge quanto costa e quanta quota resta nella finestra di 5 ore. Rimette davanti a Claude, a ogni messaggio, le correzioni che gli hai dato nella sessione (`arturo correzione`). Ferma un `/fine` su una sessione già chiusa: se la sessione ha già l'handoff e dopo l'ultimo `/fine` non è arrivato nessun messaggio, `bin/fine-gia-chiusa.py` scarta il prompt prima che parta il modello (dal 22/11/2026; `/fine --forza` lo fa partire comunque). Per spegnere il promemoria, cancella il blocco `cat` finale
-  dello script.
+- `inject-now.py` — gira dentro `hub.py prompt`, insieme al ricordo della memoria (`memory-retrieve.py`), senza processi in più; `inject-now.sh` resta come guscio per le config vecchie. Inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
+  `personale/`, dice a Claude di leggerle. Sui messaggi che non sono comandi ricorda che ogni richiesta di lavoro, anche breve, comincia con PROMPT + BRIEF; domande e conversazione hanno risposta diretta. Prima di un ultracode aggiunge quanto costa e quanta quota resta nella finestra di 5 ore. Rimette davanti a Claude, a ogni messaggio, le correzioni che gli hai dato nella sessione (`arturo correzione`). Ferma un `/fine` su una sessione già chiusa: se la sessione ha già l'handoff e dopo l'ultimo `/fine` non è arrivato nessun messaggio, `bin/fine-gia-chiusa.py` scarta il prompt prima che parta il modello (dal 22/11/2026; `/fine --forza` lo fa partire comunque). Per spegnere il promemoria, svuota `PROMEMORIA`
+  in `inject-now.py`.
 - `estensione-skill.py` — PostToolUse su `Skill`: quando Claude sceglie da solo una skill di Arturo e hai scritto aggiunte tue in `personale/<skill>.md`, le mette nel contesto subito dopo la skill. Per i comandi che scrivi tu lo fa `inject-now.sh`. Quando parte una skill tua, segna il suo nome nella sessione e mette nel contesto la sua lista "Finito quando" con gli "Attrezzi"; per una skill che chiami tu a mano, con la barra e il suo nome, lo lancia `inject-now.sh`.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `scheda-terminale.py` — il nome del progetto nel titolo della scheda, e il colore della scheda per lo stato: verde se Claude aspetta te, giallo mentre lavora, rosso se il turno si è fermato per un errore (API giù, limite raggiunto). Il colore c'è in Windows Terminal e in iTerm2, e lì il titolo è il solo progetto. Il titolo è il progetto: "LAVORANDO · arturo" mentre Claude lavora, anche a turno finito se aspetta un comando o un agente lanciato in background (l'hook lo legge dal transcript; un server lasciato acceso come vite non conta), e "SBLOCCA · arturo" quando Claude aspetta te: una richiesta di permesso, una domanda, un errore, o un minuto fermo. Dopo un permesso che hai concesso, "SBLOCCA" resta finché quel comando non finisce: Claude Code non avvisa gli hook quando la richiesta si chiude. Nel Terminale di macOS una scheda in secondo piano che aspetta te suona anche la campanella, e la prima sessione toglie dal titolo processo, cartella e indicatore di attività (`arturo schede`): crea il profilo "Arturo", copia del tuo, e lo mette su tutte le schede; `arturo schede ripristina` rimette quello di prima. Il progetto è quello che `/inizio` ha trovato (non le parole che hai scritto), oppure la cartella di progetto in cui Claude scrive i file. Su macOS l'hook scrive sul terminale della sessione di Claude Code, trovato risalendo i processi. Senza `/inizio` e senza file scritti vale il repository git, poi la cartella. Perché il titolo resti, `settings.json` spegne quello automatico di Claude Code (`CLAUDE_CODE_DISABLE_TERMINAL_TITLE`). In Windows Terminal non colora una scheda aperta con `--tabColor`.
@@ -475,7 +475,7 @@ Fuori dal dispatcher:
 
 **Cosa registrano gli hook per la telemetria.** Gli hook scrivono poche righe nella coda
 `~/.claude/data/telemetria/coda.jsonl`, senza rete; la coda parte in un lotto al massimo ogni sei ore.
-`session-start.sh` registra l'evento `sessione` e manda la coda in background. `inject-now.sh`
+`session-start.sh` registra l'evento `sessione` e manda la coda in background. `inject-now.py`
 registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo
 conta come `altro`, senza il nome. `bash-dispatcher.sh` registra `guardia` con il
 nome della guardia che ha bloccato, `chiede` con il nome della guardia che chiede conferma (per `block-dangerous`, `exfil-guard` e `data-guard` anche il nome della regola, per `commit-secret-gate` solo la famiglia del segreto, per `comms-guard` solo la famiglia del canale, come `email` o `chat`, mai il servizio) ed

@@ -239,6 +239,12 @@ def test_q07(repo: Path) -> None:
     assert not (repo / "skills" / "impeccable").exists(), "Q07 la skill impeccable è copiata in Arturo"
 
 
+def _promemoria(repo: Path) -> Path:
+    """Il promemoria sta in inject-now.py dal 23/11/2026 (#6492); prima in inject-now.sh."""
+    py = repo / "hooks" / "inject-now.py"
+    return py if py.is_file() else repo / "hooks" / "inject-now.sh"
+
+
 def test_q08(repo: Path) -> None:
     # Federico, 15/10/2026: il brief c'è su ogni richiesta di lavoro, anche breve (supera il 14/10).
     testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
@@ -246,7 +252,7 @@ def test_q08(repo: Path) -> None:
     assert "Il brief c'è sempre" in importante, "Q08 la sezione Importante non dice che il brief c'è sempre"
     assert "chiare e piccole" not in testo and "chiara e piccola non ha brief" not in testo, \
         "Q08 prompt-master esclude ancora le richieste piccole"
-    promemoria = read(repo / "hooks" / "inject-now.sh")
+    promemoria = read(_promemoria(repo))
     assert "anche piccolo" in promemoria and "chiare e piccole" not in promemoria, \
         "Q08 il promemoria di inject-now esclude ancora le richieste piccole"
 
@@ -256,7 +262,7 @@ def test_q09(repo: Path) -> None:
     # anche se la copia di prima c'è ancora. Il brief resta su ogni richiesta, il corpo si carica una volta.
     testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
     importante = testo.split("## Importante", 1)[-1].split("## MODALITÀ PROMPT ESTERNO", 1)[0]
-    promemoria = read(repo / "hooks" / "inject-now.sh")
+    promemoria = read(_promemoria(repo))
     for nome, t in (("la skill", importante), ("il promemoria di inject-now", promemoria)):
         assert "una volta per sessione" in t and "compattazione" in t, f"Q09 {nome} non dice che il corpo si carica una volta"
     assert "a ogni richiesta di lavoro: il corpo si legge" not in importante, "Q09 la skill chiede ancora di ricaricarsi a ogni richiesta"

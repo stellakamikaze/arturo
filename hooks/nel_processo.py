@@ -99,3 +99,26 @@ def esegui(percorso, argomenti, payload, guardia=None, tetto=0.0):
         except Exception:
             pass
     return codice, b_out.getvalue(), b_err.getvalue(), scaduto
+
+
+def lancia(percorso, argomenti, payload, ambiente=None):
+    """Come `esegui`, e in più rimette ambiente e cartella com'erano: lo script dopo non vede le loro
+    modifiche. `ambiente` si aggiunge a os.environ solo per questo script. Torna (codice, stdout, stderr,
+    scaduto)."""
+    prima_env = dict(os.environ)
+    prima_cwd = os.getcwd()
+    if ambiente:
+        os.environ.update(ambiente)
+    st = stato()
+    try:
+        return esegui(percorso, argomenti, payload)
+    finally:
+        ripristina(st)
+        if dict(os.environ) != prima_env:
+            os.environ.clear()
+            os.environ.update(prima_env)
+        try:
+            if os.getcwd() != prima_cwd:
+                os.chdir(prima_cwd)
+        except OSError:
+            pass

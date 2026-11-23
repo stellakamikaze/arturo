@@ -14,6 +14,8 @@ HU05 parità coi veri hook: per quattro eventi tipici hub dà le stesse decision
 HU06 il tetto complessivo: un hook fermo in una chiamata lunga non fa perdere ciò che è già raccolto.
 HU07 un hook rotto non ferma gli altri e finisce nel registro.
 HU08 ogni hook trova argv e path suoi, anche dopo uno che li ha cambiati.
+HU09 la voce `prompt` (UserPromptSubmit, B4): il testo semplice diventa additionalContext, un codice 2 ferma gli
+     hook dopo, e coi veri hook il contesto porta l'ora e le righe di inject-now.sh lanciato da solo.
 
 Sulla base 9cbb926 (dev prima di hub) sono tutti rossi: hub.py non c'è.
 """
@@ -28,7 +30,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["HU01", "HU02", "HU03", "HU04", "HU05", "HU06", "HU07", "HU08"]
+CASI = ["HU01", "HU02", "HU03", "HU04", "HU05", "HU06", "HU07", "HU08", "HU09"]
 DISCRIMINANTI = list(CASI)
 
 FINTI = {
@@ -41,6 +43,8 @@ FINTI = {
     "fermo.py": 'import time; time.sleep(20); print("tardi")',
     "rotto.py": 'raise RuntimeError("guasto finto")',
     "sporca.py": 'import sys; sys.argv[:] = ["x", "sporco"]; sys.path.insert(0, "/sporco"); print("")',
+    "testo.py": 'import sys; sys.stdin.read(); print("riga semplice")',
+    "segna.py": 'import os, sys; sys.stdin.read(); open(os.path.join(os.path.dirname(__file__), "segnato"), "w").write("x")',
     "argomenti.py": 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "A=" + ",".join(sys.argv[1:]) + ";P=" + str("/sporco" in sys.path)}}))',
 }
 
@@ -193,6 +197,27 @@ def prova(repo: Path) -> list[str]:
         ctx = (_json(out).get("hookSpecificOutput") or {}).get("additionalContext", "")
         if ctx != "A=uno,due;P=False":
             rossi.append(f"HU08 atteso 'A=uno,due;P=False', avuto {ctx!r}")
+
+        prompt = {"session_id": "hu9", "hook_event_name": "UserPromptSubmit", "cwd": tmp, "prompt": "rifai la tabella"}
+        t = _tabella(tmp, {"prompt": [["", None, f("testo.py"), [], 5, None]]})
+        rc, out, err, _ = _hub(repo, "prompt", prompt, t, casa)
+        hso = _json(out).get("hookSpecificOutput") or {}
+        if rc != 0 or hso.get("hookEventName") != "UserPromptSubmit" or hso.get("additionalContext") != "riga semplice":
+            rossi.append(f"HU09 testo semplice: atteso additionalContext 'riga semplice', avuto rc={rc} {out[:160]!r}")
+        t = _tabella(tmp, {"prompt": [["", None, f("blocca.py"), [], 5, None], ["", None, f("segna.py"), [], 5, None]]})
+        rc, out, err, _ = _hub(repo, "prompt", prompt, t, casa)
+        if rc != 2 or "fermo qui" not in err or os.path.exists(f("segnato")):
+            rossi.append(f"HU09 codice 2: atteso rc 2 senza l'hook dopo, avuto rc={rc} segnato={os.path.exists(f('segnato'))}")
+        rc, out, err, _ = _hub(repo, "prompt", prompt, None, casa, {"ARTURO_MEMORIA": "0"})
+        ctx = (_json(out).get("hookSpecificOutput") or {}).get("additionalContext", "")
+        solo = subprocess.run(["bash", str(repo / "hooks" / "inject-now.sh")], input=json.dumps(prompt).encode("utf-8"),
+                              capture_output=True, timeout=60,
+                              env=dict(os.environ, ARTURO_TELEMETRIA="0", ARTURO_MEMORIA="0", HOME=casa, USERPROFILE=casa))
+        righe = [r for r in solo.stdout.decode("utf-8", "replace").splitlines()[1:] if r.strip()]
+        if rc != 0 or not ctx.startswith("Ora corrente: ") or "BRIEF:" not in ctx or not righe or \
+                any(r not in ctx for r in righe):
+            rossi.append(f"HU09 voce prompt coi veri hook: rc={rc}, contesto {ctx[:160]!r}, inject-now.sh da solo "
+                         f"{len(righe)} righe")
     return sorted(rossi)
 
 

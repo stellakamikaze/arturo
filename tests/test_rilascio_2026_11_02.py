@@ -72,7 +72,7 @@ def test_rl02(repo: Path) -> None:
     vetrina = len(re.findall(r"^- \*\*`/", rotta, re.MULTILINE))
     assert f"{PAROLE.get(vetrina, vetrina)} comandi, e Arturo" in rotta, \
         f"RL02 la rotta mostra {vetrina} comandi ma il testo ne conta un altro numero"
-    riga = next((r for r in readme.splitlines() if r.startswith("- `inject-now.sh`")), "")
+    riga = next((r for r in readme.splitlines() if r.startswith("- `inject-now.py`")), "")
     blocco = readme[readme.index(riga):readme.index("- `input-notifier-start.sh`")] if riga else ""
     assert "ultracode" in blocco, "RL02 il README non dice che inject-now avvisa prima di un ultracode"
     pannello = read(repo / "skills" / "arturo" / "hooks" / "dafare" / "register.tsx")
@@ -145,7 +145,7 @@ def test_rl05(repo: Path) -> None:
 
 
 def test_rl06(repo: Path) -> None:
-    promemoria = " ".join(read(repo / "hooks" / "inject-now.sh").split("<<'PROMEMORIA'", 1)[-1].split())
+    promemoria = " ".join(read(repo / "hooks" / "inject-now.py").split('PROMEMORIA = """', 1)[-1].split())
     assert "correzione a lavoro iniziato è una riga" in promemoria and "Brief corretto" in promemoria, \
         "RL06 il promemoria chiede prompt e brief interi anche per una correzione a lavoro iniziato"
 

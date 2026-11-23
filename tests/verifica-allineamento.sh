@@ -644,7 +644,7 @@ BASELINE=(
   "test_testi_pubblici.py 40d4e4a"
   # I dati di transito sul ramo sync (23/11/2026, #6424): senza bin/sync_transito.py rossi tutti e dodici. 88a5f8d, il dev prima.
   "test_sync_transito.py 88a5f8d"
-  # hooks/hub.py (23/11/2026, #6492): senza hub rossi tutti e otto. 9cbb926, il dev prima.
+  # hooks/hub.py (23/11/2026, #6492): senza hub rossi tutti e nove. 9cbb926, il dev prima.
   "test_hub.py 9cbb926"
   # Il dispatcher in Python dentro hub (23/11/2026, #6492): su hub senza dispatcher rossi tutti e sette. bcb3907, il ramo prima.
   "test_dispatcher.py bcb3907"

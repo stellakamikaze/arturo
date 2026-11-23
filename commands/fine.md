@@ -19,7 +19,7 @@ Tre regole per tutte le fasi:
 
 **Sessione già chiusa.** Se dopo l'ultimo /fine riuscito di questa sessione non è arrivato nessun messaggio,
 non rifare le fasi: chiudi con una riga, "Sessione già chiusa alle HH:MM, niente di nuovo da salvare". Di
-solito il giro non arriva qui, perché `inject-now.sh` lo ferma prima (`bin/fine-gia-chiusa.py`). `--forza`
+solito il giro non arriva qui, perché `inject-now.py` lo ferma prima (`bin/fine-gia-chiusa.py`). `--forza`
 fa ripartire le fasi anche su una sessione chiusa.
 
 ## Modo rotazione (`--rotazione`)

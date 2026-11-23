@@ -11,8 +11,8 @@ import re
 import sys
 from pathlib import Path
 
-EVENTI = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure"}
-_VOCE_HUB = re.compile(r"hooks/hub\.py[\"']? (pre|post|postfail)\b")
+EVENTI = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure", "prompt": "UserPromptSubmit"}
+_VOCE_HUB = re.compile(r"hooks/hub\.py[\"']? (pre|post|postfail|prompt)\b")
 
 
 def tabella(repo: Path) -> dict:

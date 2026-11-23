@@ -110,8 +110,9 @@ def _registrati() -> set:
 
 
 # Un file della TABELLA di hub e quello che lo lanciava prima: bash-dispatcher.sh è il guscio di
-# dispatcher.py, telemetria-esito.sh lanciava bin/telemetria.py esito.
+# dispatcher.py, inject-now.sh di inject-now.py, telemetria-esito.sh lanciava bin/telemetria.py esito.
 EQUIVALENTI = {"hooks/dispatcher.py": ("hooks/bash-dispatcher.sh",),
+               "hooks/inject-now.py": ("hooks/inject-now.sh",),
                "bin/telemetria.py": ("bin/telemetria-esito.sh",)}
 
 

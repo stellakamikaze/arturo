@@ -6,8 +6,9 @@ Perché: su Windows ogni processo costa 0,1-0,9 s, mentre la logica di un hook n
 ogni Bash avviava 3 hook prima e 6 dopo: 1,6 s di mediana prima del comando, e in 3 giorni 56 hook di
 prompt e di avvio annullati per tempo scaduto (misura del 23/11 sui transcript).
 
-Voci: `pre` (PreToolUse), `post` (PostToolUse), `postfail` (PostToolUseFailure). La TABELLA dice, per
-ogni voce, quali hook girano su quale strumento, nell'ordine di settings.json.
+Voci: `pre` (PreToolUse), `post` (PostToolUse), `postfail` (PostToolUseFailure), `prompt`
+(UserPromptSubmit). La TABELLA dice, per ogni voce, quali hook girano su quale strumento, nell'ordine di
+settings.json. Nella voce `prompt` un codice 2 (il prompt si scarta) ferma gli hook dopo.
 
 Come gira un hook:
 - il suo file si esegue come `__main__`, col bytecode in cache (come `evento_bash.py esegui`);
@@ -77,10 +78,16 @@ TABELLA = {
         ("", None, "hooks/memory-firma.py", [], 5, None),
         ("Bash", "gws", "hooks/gws-esito.py", [], 10, None),
     ],
+    # inject-now.py (ex inject-now.sh, #6492 B4) e il ricordo della memoria: prima due processi più fino a 7
+    # python3 avviati da inject-now.sh, a ogni messaggio.
+    "prompt": [
+        ("", None, "hooks/inject-now.py", [], 4, None),
+        ("", None, "hooks/memory-retrieve.py", [], 5, None),
+    ],
 }
 
 # Il timeout di hub in settings.json, per voce: il tetto complessivo parte da qui.
-TETTO_VOCE = {"pre": 30, "post": 30, "postfail": 15}
+TETTO_VOCE = {"pre": 30, "post": 30, "postfail": 15, "prompt": 10}
 MARGINE = 1.5
 ORDINE = {"deny": 3, "ask": 2, "allow": 1}
 
@@ -290,7 +297,7 @@ def _registra(voce, righe):
 def main(argv):
     voce = argv[1] if len(argv) > 1 else ""
     if voce not in TETTO_VOCE:
-        sys.stderr.write("uso: hub.py pre|post|postfail\n")
+        sys.stderr.write("uso: hub.py pre|post|postfail|prompt\n")
         return 64
     payload = sys.stdin.buffer.read()
     try:
@@ -300,7 +307,7 @@ def main(argv):
     if not isinstance(dati, dict):
         dati = {}
     evento = dati.get("hook_event_name") or {"pre": "PreToolUse", "post": "PostToolUse",
-                                               "postfail": "PostToolUseFailure"}[voce]
+                                               "postfail": "PostToolUseFailure", "prompt": "UserPromptSubmit"}[voce]
     raccolta = Raccolta(evento)
     vero_out, vero_err = sys.stdout, sys.stderr
 
@@ -350,6 +357,8 @@ def main(argv):
         if codice not in (0, 2):
             registro.append("%s codice %s: %s" % (nome, codice, err.decode("utf-8", "replace")[:300]))
         raccolta.aggiungi(codice, out, err)
+        if codice == 2 and voce == "prompt":
+            break
     _registra(voce, registro)
     emetti()
     return _codice_corrente[0]

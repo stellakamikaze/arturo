@@ -449,13 +449,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/inject-now.sh",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/memory-retrieve.py",
-            "timeout": 5
+            "command": "python3 ~/.claude/hooks/hub.py prompt",
+            "timeout": 10
           },
           {
             "type": "command",

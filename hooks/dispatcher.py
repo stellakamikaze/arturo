@@ -118,23 +118,7 @@ class Dispatcher:
 
     def py(self, percorso, argomenti, entrata, ambiente=None):
         """Uno script Python nello stesso processo. Torna (codice, stdout, stderr) in bytes."""
-        prima_env = dict(os.environ)
-        prima_cwd = os.getcwd()
-        if ambiente:
-            os.environ.update(ambiente)
-        st = nel_processo.stato()
-        try:
-            codice, out, err, scaduto = nel_processo.esegui(percorso, argomenti, entrata)
-        finally:
-            nel_processo.ripristina(st)
-            if dict(os.environ) != prima_env:
-                os.environ.clear()
-                os.environ.update(prima_env)
-            try:
-                if os.getcwd() != prima_cwd:
-                    os.chdir(prima_cwd)
-            except OSError:
-                pass
+        codice, out, err, scaduto = nel_processo.lancia(percorso, argomenti, entrata, ambiente)
         if scaduto:
             # Interrotto da hub a fine tempo: una guardia ferma a metà non ha giudicato, e vale come rotta.
             return 1, b"", err

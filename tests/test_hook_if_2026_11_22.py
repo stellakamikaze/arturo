@@ -61,7 +61,7 @@ def _chiave(comando: str) -> str:
     return (m.group(1) + (m.group(2) or "")) if m else comando
 
 
-VOCI_HUB = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure"}
+VOCI_HUB = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure", "prompt": "UserPromptSubmit"}
 
 
 def _con_if(hooks: dict) -> dict:
@@ -88,7 +88,7 @@ def _cablate(hooks: dict) -> set:
     """Gli eventi dove una voce lancia hooks/hub.py <voce>."""
     fuori = set()
     for evento, h in _voci(hooks):
-        m = re.search(r"hooks/hub\.py[\"']? (pre|post|postfail)\b", h.get("command", ""))
+        m = re.search(r"hooks/hub\.py[\"']? (pre|post|postfail|prompt)\b", h.get("command", ""))
         if m and VOCI_HUB[m.group(1)] == evento:
             fuori.add(evento)
     return fuori

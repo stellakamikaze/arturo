@@ -53,7 +53,7 @@ from pathlib import Path
 CASI = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10", "ST11", "ST12", "ST13"]
 DISCRIMINANTI = ["ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10", "ST11", "ST12", "ST13"]
 BASH = shutil.which("bash") or "bash"
-CODICE = ["hooks/bash-dispatcher.sh", "hooks/inject-now.sh", "hooks/session-start.sh", "bin/telemetria-esito.sh"]
+CODICE = ["hooks/bash-dispatcher.sh", "hooks/inject-now.sh", "hooks/inject-now.py", "hooks/session-start.sh", "bin/telemetria-esito.sh"]
 # Ammessi: il file delle preferenze della persona e la cartella delle sue guardie.
 AMMESSE = re.compile(r'ORSA_HOOKS=|bash-dispatcher\.local')
 # ST08: le radici scritte a mano vietate e le eccezioni, ognuna col perché. None esclude il file,
@@ -147,6 +147,8 @@ def prova(repo: Path, ref: str | None) -> list[str]:
 
         fissi = []
         for rel in CODICE:
+            if not (plugin / rel).is_file():  # inject-now.py c'è dal 23/11/2026 (#6492)
+                continue
             for n, riga in enumerate((plugin / rel).read_text(encoding="utf-8").splitlines(), 1):
                 if riga.lstrip().startswith("#") or AMMESSE.search(riga):
                     continue
