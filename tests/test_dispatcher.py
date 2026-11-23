@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DP01-DP06: il dispatcher delle guardie di Bash in Python, dentro hooks/hub.py (#6492, 23/11/2026).
+"""DP01-DP07: il dispatcher delle guardie di Bash in Python, dentro hooks/hub.py (#6492, 23/11/2026).
 
 bash-dispatcher.sh è diventato un guscio di hooks/dispatcher.py, e settings.json lancia hub.py su ogni evento
 di strumento: prima delle guardie di Bash partivano bash, un python per il pre-filtro e uno per guardia.
@@ -10,11 +10,13 @@ DP02 il tetto: con block-dangerous fermo 60 secondi, la voce Bash|Monitor di set
      lancia Claude Code (`bash -c`), chiede conferma entro 29 secondi.
 DP03 con un python3 che non parte (esce 49, come il rimando del Microsoft Store) la stessa voce chiede
      conferma: un comando non parte mai senza giudizio.
-DP04 una guardia .py gira nel processo di hub: il pid che vede è quello di hub.
+DP04 una guardia .py gira nel processo di hub: due guardie della stessa chiamata vedono lo stesso pid.
 DP05 una guardia non sporca quella dopo: ambiente e cartella tornano com'erano, COMMS_REDUCED passa.
 DP06 settings.json: nessuna voce lancia ancora bash-dispatcher.sh, la voce di Bash ha la coda che chiede,
      le voci pre di hub hanno onFailure block, e nessun hook della TABELLA di hub parte anche da solo sullo
      stesso evento.
+DP07 con zsh un glob in un'opzione (`--include=*.md`) si blocca anche se SHELL arriva come percorso Windows
+     (`C:\\...\\usr\\bin\\zsh`, come lo passa Git Bash a Python): su Windows R12 e MP04 erano rossi.
 
 Sulla base bcb3907 (hub senza dispatcher) sono tutti rossi.
 """
@@ -33,7 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from salti_windows import dichiara  # noqa: E402
 
-CASI = ["DP01", "DP02", "DP03", "DP04", "DP05", "DP06"]
+CASI = ["DP01", "DP02", "DP03", "DP04", "DP05", "DP06", "DP07"]
 DISCRIMINANTI = list(CASI)
 WINDOWS = os.name == "nt"
 BASH = shutil.which("bash") or "bash"
@@ -147,25 +149,39 @@ def prova(repo: Path) -> list[str]:
         vero = (hooks / "block-dangerous.py").read_text(encoding="utf-8")
         _finto(casa, "block-dangerous.py", 'import json, os, sys\nsys.stdin.read()\nprint(json.dumps({"hookSpecificOutput": '
                '{"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": '
-               '"%s|%s|%s" % (os.getpid(), os.environ.get("DP_SPORCO"), os.environ.get("COMMS_REDUCED") is not None)}}))\n')
-        p = subprocess.Popen([sys.executable, str(hooks / "hub.py"), "pre"], stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-        out, _err = p.communicate(_evento("rm -rf ~/Documents/progetto", str(casa)).encode(), timeout=60)
-        motivo = (json.loads(out or b"{}").get("hookSpecificOutput") or {}).get("permissionDecisionReason", "")
-        if motivo.split("|")[0] != str(p.pid):
-            rossi.append(f"DP04 block-dangerous non gira nel processo di hub ({p.pid}): {motivo!r}")
-
+               '"%s|%s|%s|%s" % (os.getpid(), os.environ.get("DP_SPORCO"), os.environ.get("COMMS_REDUCED") is not None, '
+               'os.getcwd())}}))\n')
+        # comms-guard e poi block-dangerous sulla stessa chiamata: nel processo di hub vedono lo stesso pid, come
+        # processi a parte due pid diversi. Il pid di Popen non serve: in un venv di Windows python.exe è un
+        # lanciatore, e l'interprete è un suo figlio.
         vero_comms = (hooks / "comms-guard.py").read_text(encoding="utf-8")
-        _finto(casa, "comms-guard.py", "import os, sys\nsys.stdin.read()\nos.environ['DP_SPORCO'] = '1'\n"
-               f"os.chdir({str(radice)!r})\n")
+        pid_comms = radice / "pid-comms"
+        _finto(casa, "comms-guard.py", f"import os, sys\nsys.stdin.read()\nopen({str(pid_comms)!r}, 'w').write(str(os.getpid()))\n"
+               f"os.environ['DP_SPORCO'] = '1'\nos.chdir({str(radice)!r})\n")
         ev = _evento("gws gmail +send --to a@b.it; rm -rf ~/Documents/progetto", str(casa)).encode()
         p = subprocess.run([sys.executable, str(hooks / "hub.py"), "pre"], input=ev, capture_output=True, env=env,
-                           timeout=60)
+                           timeout=60, cwd=str(casa))
         e = _esito(p)
-        if e[1] != "ask" or (e[2] or "").split("|")[1:] != ["None", "True"]:
-            rossi.append(f"DP05 atteso ambiente pulito e COMMS_REDUCED passato, avuto {e}")
+        campi = (e[2] or "").split("|")
+        comms = pid_comms.read_text(encoding="utf-8") if pid_comms.exists() else ""
+        if not comms or campi[0] != comms:
+            rossi.append(f"DP04 comms-guard ({comms or 'non partita'}) e block-dangerous ({campi[0]}) non girano nello "
+                         "stesso processo")
+        cartella = os.path.realpath(campi[3]) if len(campi) > 3 else ""
+        if e[1] != "ask" or campi[1:3] != ["None", "True"] or cartella == os.path.realpath(radice):
+            rossi.append(f"DP05 atteso ambiente e cartella puliti e COMMS_REDUCED passato, avuto {e}")
         (hooks / "comms-guard.py").write_text(vero_comms, encoding="utf-8")
         (hooks / "block-dangerous.py").write_text(vero, encoding="utf-8")
+
+        # Git Bash passa SHELL a Python come percorso Windows: zsh resta zsh, e il glob in un'opzione si blocca.
+        ev = _evento("grep -rn parola --include=*.md .", str(casa)).encode()
+        esiti = {}
+        for shell in ("/bin/zsh", "C:\\Program Files\\G" + "it\\usr\\bin\\zsh", "C:\\msys64\\usr\\bin\\zsh.exe", "/bin/bash"):
+            p = subprocess.run([sys.executable, str(hooks / "hub.py"), "pre"], input=ev, capture_output=True,
+                               env=dict(env, SHELL=shell), timeout=60)
+            esiti[shell] = p.returncode
+        if list(esiti.values()) != [2, 2, 2, 0]:
+            rossi.append(f"DP07 il glob in un'opzione con zsh non si blocca con ogni forma di SHELL: {esiti}")
 
     s = json.loads((repo / "settings.json").read_text(encoding="utf-8")).get("hooks", {})
     voci = [(e, g.get("matcher"), h) for e, gruppi in s.items() for g in gruppi for h in g.get("hooks", [])]

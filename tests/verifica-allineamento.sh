@@ -646,7 +646,7 @@ BASELINE=(
   "test_sync_transito.py 88a5f8d"
   # hooks/hub.py (23/11/2026, #6492): senza hub rossi tutti e otto. 9cbb926, il dev prima.
   "test_hub.py 9cbb926"
-  # Il dispatcher in Python dentro hub (23/11/2026, #6492): su hub senza dispatcher rossi tutti e sei. bcb3907, il ramo prima.
+  # Il dispatcher in Python dentro hub (23/11/2026, #6492): su hub senza dispatcher rossi tutti e sette. bcb3907, il ramo prima.
   "test_dispatcher.py bcb3907"
 )
 

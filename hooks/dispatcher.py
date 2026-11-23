@@ -294,7 +294,10 @@ class Dispatcher:
             opzioni |= {"crlf", "nocase"}
         elif sys.platform == "darwin":
             opzioni.add("nocase")
-        if os.environ.get("SHELL", "").rsplit("/", 1)[-1] == "zsh":
+        # Git Bash passa SHELL a un programma nativo come percorso Windows (`C:\...\usr\bin\zsh`): il nome si
+        # prende dopo l'ultima barra di tutti e due i tipi, come `${SHELL##*/}` sul valore POSIX.
+        shell = re.split(r"[\\/]", os.environ.get("SHELL", ""))[-1]
+        if shell.lower() in ("zsh", "zsh.exe"):
             opzioni.add("zsh")
         try:
             campi, dati, grezzo = evento_bash.campi_da(self.grezzo, "crlf" in opzioni)
