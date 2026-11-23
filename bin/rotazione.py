@@ -91,22 +91,63 @@ def riga_contesto(n: int) -> str:
             f"solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine.")
 
 
+LARGHEZZA = 62  # colonne dentro il bordo: con i due spazi di margine il riquadro sta in 66
+
+
+def barra(n: int, colonne: int = 30) -> str:
+    """Il contesto come barra: pieno fino alla soglia, vuoto dopo."""
+    piene = round(colonne * n / 100)
+    return "█" * piene + "░" * (colonne - piene)
+
+
+def riquadro(righe: List[str]) -> str:
+    """Le righe dentro un bordo arrotondato, tutte della stessa larghezza. "---" è un separatore.
+    Solo caratteri larghi una colonna (niente emoji): così il bordo destro resta dritto in ogni terminale."""
+    fuori = ["  ╭" + "─" * LARGHEZZA + "╮"]
+    for r in righe:
+        if r == "---":
+            fuori.append("  ├" + "─" * LARGHEZZA + "┤")
+        else:
+            if len(r) > LARGHEZZA - 2:  # due colonne di margine a destra, come a sinistra
+                raise ValueError(f"riga del riquadro troppo lunga ({len(r)}): {r!r}")
+            fuori.append("  │" + r.ljust(LARGHEZZA) + "│")
+    fuori.append("  ╰" + "─" * LARGHEZZA + "╯")
+    return "\n".join(fuori)
+
+
 def avviso(n: int) -> str:
     cmd = comando_arturo()
-    corpo = "\n".join((
-        "  ┌─ NOVITÀ DI ARTURO: il salvataggio automatico della sessione cambia ─────────────",
-        "  │ Prima: a ogni compito chiuso Claude salvava con /fine --rotazione e ripartiva",
-        "  │ con una sessione nuova. Ogni giro costava quasi due minuti, più un /inizio.",
-        "  │ Adesso: a compito chiuso Claude fa il commit, chiude il todo e continua nella",
-        f"  │ stessa sessione. Salva e riparte pulito solo quando il contesto supera il {n}%,",
-        "  │ oppure dalle 18 col /fine del giorno.",
-        "  │ Cosa migliora: meno attese (sul Mac di chi mantiene Arturo erano 299 giri in",
-        "  │ una settimana, circa 9 ore) e Claude ricorda il lavoro fatto prima, nella",
-        "  │ stessa sessione.",
-        f"  │ Vuoi un'altra soglia? Di' a Claude \"rotazione al 40%\" (da {MINIMO} a {MASSIMO}):",
-        "  │ più bassa salva più spesso, più alta resta di più nella stessa sessione.",
-        "  └──────────────────────────────────────────────────────────────────────────────",
-    ))
+    corpo = riquadro([
+        "",
+        "   NOVITÀ DI ARTURO",
+        "   Il salvataggio automatico della sessione cambia",
+        "",
+        "---",
+        "",
+        "   PRIMA     a ogni compito chiuso Claude salvava, apriva",
+        "             una sessione nuova e ripartiva con /inizio.",
+        "             Quasi due minuti a ogni giro.",
+        "",
+        "   ADESSO    a compito chiuso fa il commit, chiude il todo",
+        "             e continua nella stessa sessione. Salva e",
+        f"             riparte pulito oltre il {n}% del contesto,",
+        "             oppure dalle 18.",
+        "",
+        f"   contesto  {barra(n)}  {n}%",
+        f"             {' ' * (len(barra(n).rstrip('░')) - 1)}▲ qui salva",
+        "",
+        "   MEGLIO    meno attese: sul Mac di chi mantiene Arturo",
+        "             erano 299 giri in una settimana, circa 9 ore.",
+        "             E Claude ricorda il lavoro fatto prima.",
+        "",
+        "---",
+        "",
+        "   VUOI UN'ALTRA SOGLIA?   di' a Claude  \"rotazione al 40%\"",
+        "",
+        f"   da {MINIMO} a {MASSIMO}: più bassa salva più spesso, più alta resta",
+        "   di più nella stessa sessione.",
+        "",
+    ])
     return ("AVVISO DA DARE ALLA PERSONA: nella tua prima risposta di questa sessione, prima di tutto il resto, "
             "mostra questo riquadro così com'è, in un blocco di codice. Poi lancia "
             f"`{cmd} rotazione visto` e non ripeterlo più. Se la persona chiede un'altra soglia, lancia "

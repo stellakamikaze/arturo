@@ -30,7 +30,7 @@ RT10 `arturo rotazione 40` (bin/rotazione.py, 23/11/2026) scrive la soglia della
 RT11 `arturo rotazione togli` torna al 50%: al 45% usato context-monitor.js tace.
 RT12 una soglia fuori scala (80, 20, "tanto") esce 3 e non scrive niente; CLAUDE_CTX_WARN vince sul file.
 RT13 chi usava già Arturo (data/setup-fatto) riceve dalla riga di session-start.sh l'avviso della rotazione nuova,
-     con la soglia vera e i comandi; dopo `arturo rotazione visto` non esce più, e session-start.sh chiama la riga.
+     con la soglia vera, i comandi e il bordo del riquadro dritto; dopo `arturo rotazione visto` non esce più, e session-start.sh chiama la riga.
 RT14 chi installa adesso (senza setup-fatto né novità viste) riceve solo la riga CONTEXT, senza l'avviso.
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
@@ -83,6 +83,8 @@ VELENI = [
     (["RT11"], "bin/rotazione.py", "            file_soglia().unlink()\n", "            pass\n"),
     (["RT12"], "bin/rotazione.py", "    return n if MINIMO <= n <= MASSIMO else None", "    return n"),
     (["RT13"], "bin/rotazione.py", "    if argv == [\"visto\"]:\n        scrivi(", "    if argv == [\"visto\"]:\n        print("),
+    (["RT13"], "bin/rotazione.py", '            fuori.append("  │" + r.ljust(LARGHEZZA) + "│")',
+     '            fuori.append("  │" + r + "│")'),
     (["RT14"], "bin/rotazione.py", "if not file_visto().exists() and persona_di_prima():", "if not file_visto().exists():"),
 ]
 
@@ -363,6 +365,9 @@ def rt13(lab: Lab):
         return "l'avviso non esce per chi aveva già Arturo"
     if "rotazione visto" not in uscita or "rotazione N" not in uscita:
         return "l'avviso non dice i comandi"
+    bordo = {len(r) for r in uscita.splitlines() if r.startswith("  ╭") or r.startswith("  │") or r.startswith("  ╰")}
+    if len(bordo) != 1:
+        return f"le righe del riquadro hanno larghezze diverse: {sorted(bordo)}"
     if rotazione(lab, "visto").returncode != 0:
         return "arturo rotazione visto non esce 0"
     uscita = rotazione(lab, "riga").stdout
