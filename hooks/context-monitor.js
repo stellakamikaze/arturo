@@ -12,7 +12,8 @@
 //    as additionalContext, which the agent sees in its conversation
 //
 // Thresholds:
-//   WARNING  (remaining <= 35%): Agent should wrap up current task
+//   WARNING  (remaining <= 50%): Agent should wrap up current task (35% until 23/11/2026: the rotation
+//            moved from every closed task to half context, so the warning marks the rotation point)
 //   CRITICAL (remaining <= 25%): Agent should stop immediately and save state
 //
 // Debounce: 5 tool uses between warnings to avoid spam
@@ -27,7 +28,7 @@ const path = require('path');
 // far too eager). Surfacing the metric is the legitimate part (the model can't
 // perceive its own remaining context); the exact cutoff is a tunable, not a law.
 // Override with CLAUDE_CTX_WARN / CLAUDE_CTX_CRIT (percent remaining).
-const WARNING_THRESHOLD = Number(process.env.CLAUDE_CTX_WARN) || 35;  // remaining % to advise wrap-up
+const WARNING_THRESHOLD = Number(process.env.CLAUDE_CTX_WARN) || 50;  // remaining % to advise wrap-up
 const CRITICAL_THRESHOLD = Number(process.env.CLAUDE_CTX_CRIT) || 25; // remaining % to advise stop
 const STALE_SECONDS = 60;      // ignore metrics older than 60s
 const DEBOUNCE_CALLS = 5;      // min tool uses between warnings

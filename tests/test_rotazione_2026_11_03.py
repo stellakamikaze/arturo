@@ -13,10 +13,11 @@ RT03 arturo contesto libro -- --rotazione scrivere i test: "compito: scrivere i 
 RT04 arturo contesto libro -- scrivere i test: il compito, e nessuna riga rotazione.
 RT05 arturo contesto --stdin con la marca, nella forma di commands/inizio.md: compito e rotazione.
 RT06 --rotazione prima di " -- " resta un'opzione sconosciuta: exit 3, nessuna riga rotazione.
-RT07 il fine leggero parte a ogni compito chiuso, anche senza rotazione (4/11/2026): l'avviso di
-     hooks/session-start.sh lega /fine --rotazione al compito chiuso e il tool ruota al passo dopo di
-     Claude; commands/fine.md dice che parte sempre, che un'azione senza traccia non lo fa partire e che
-     senza rotazione il fine resta fatto.
+RT07 il fine leggero parte a compito chiuso solo a contesto oltre il 50% o dalle 18 (23/11/2026; dal 4/11 partiva
+     sempre): l'avviso di hooks/session-start.sh lega /fine --rotazione al CONTEXT WARNING e il tool ruota al
+     passo dopo di Claude; commands/fine.md dice il 50%, che sotto si continua nello stesso contesto, che
+     un'azione senza traccia non lo fa partire e che senza rotazione il fine resta fatto; context-monitor.js
+     avvisa al 50% rimasto.
 RT08 context-monitor.js tace nei subagenti (review del 7/11/2026, finding 48): con la metrica della
      sessione al 30% una chiamata con agent_id non riceve l'avviso di rotazione e non tocca il file del
      debounce; la sessione principale subito dopo lo riceve.
@@ -63,8 +64,10 @@ VELENI = [
     (["RT03", "RT05"], "bin/contesto.py", "        parole = parole[1:]\n", "        parole = parole[0:]\n"),
     (["RT04"], "bin/contesto.py", "    if rotazione:\n        righe.append(", "    if True:\n        righe.append("),
     (["RT06"], "bin/contesto.py", 'if p != "--tutti"]', 'if p not in ("--tutti", "--rotazione")]'),
-    (["RT07"], "hooks/session-start.sh", "a ogni compito chiuso con una traccia",
-     "a ogni passo chiuso con una traccia"),
+    (["RT07"], "hooks/session-start.sh", "solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)",
+     "a ogni compito chiuso"),
+    (["RT07"], "hooks/context-monitor.js", "Number(process.env.CLAUDE_CTX_WARN) || 50;",
+     "Number(process.env.CLAUDE_CTX_WARN) || 35;"),
     (["RT08"], "hooks/context-monitor.js", "    if (data.agent_id) {", "    if (false) {"),
     (["RT09"], "bin/contesto.py", "separa_attesa(compito) if rotazione else", "separa_attesa(compito) if False else"),
     (["RT09"], "commands/inizio.md", "Con la riga `in attesa: <domanda>` non parti", "Con la riga `in attesa: <domanda>` parti"),
@@ -221,12 +224,15 @@ def rt07(lab: Lab):
     if not avvio.exists() or not fine.exists():
         return "hooks/session-start.sh o commands/fine.md assente"
     riga = next((x for x in avvio.read_text(encoding="utf-8").splitlines() if "CONTEXT:" in x), "")
-    mancano = [f for f in ("a ogni compito chiuso", "/fine --rotazione, sempre", "solo se il passo dopo è tuo")
-               if f not in riga]
+    mancano = [f for f in ("solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)", "nello stesso contesto",
+                           "solo se il passo dopo è tuo") if f not in riga]
+    monitor = lab.cl / "hooks" / "context-monitor.js"
+    if not monitor.exists() or "Number(process.env.CLAUDE_CTX_WARN) || 50;" not in monitor.read_text(encoding="utf-8"):
+        mancano.append("context-monitor.js con l'avviso al 50%")
     testo = fine.read_text(encoding="utf-8")
     inizio = testo.find("## Modo rotazione")
     sezione = testo[inizio:testo.find("\n## ", inizio + 1)] if inizio >= 0 else ""
-    mancano += [f for f in ("a ogni compito chiuso", "Parte sempre", "Un'azione senza traccia",
+    mancano += [f for f in ("solo a contesto oltre il 50%", "nello stesso contesto", "Un'azione senza traccia",
                             "Il fine leggero resta fatto") if f not in " ".join(sezione.split())]
     if mancano:
         return f"mancano {mancano} · CONTEXT {riga[:160]!r}"

@@ -152,7 +152,7 @@ if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compa
 fi
 
 # Reminder context management
-echo "CONTEXT: a ogni compito chiuso con una traccia (commit, file, decisione, todo) Arturo chiude con /fine --rotazione, sempre, anche col contesto leggero. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, verso il 65% del contesto il compito si chiude e si salva con /fine."
+echo "CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%) o dalle 18. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine."
 
 # La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
 # Arturo e dell'Orsa. Senza ruoli la riga non esce.

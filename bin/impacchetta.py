@@ -59,7 +59,7 @@ CODICE = ("bin", "hooks", "shared", "tools", "scripts", "docs", "firme", "agents
 # (finding 77). Vale tra i backtick, dove un testo dà un percorso da aprire.
 RELATIVO = re.compile(r"(?<![\w/~$}.-])`(?:shared|docs)/[\w.-]")
 METODO = 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/metodo.sh"'
-# I comandi che lancia anche Claude, come nel clone: /fine --rotazione a ogni compito chiuso (commands/fine.md),
+# I comandi che lancia anche Claude, come nel clone: /fine --rotazione a contesto oltre il 50% (commands/fine.md),
 # /segnala da /fine FASE 10, /diagnosi da /inizio FASE 6, /creaskill dal metodo, dall'intervista e da /setup
 # FASE 10 (21/11/2026, #6277). Gli altri li lancia solo la persona (review del 7/11/2026, finding 74: con
 # disable-model-invocation il giro della rotazione col plugin non partiva).

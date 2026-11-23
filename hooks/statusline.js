@@ -477,7 +477,7 @@ process.stdin.on('end', () => {
     const remaining = data.context_window?.remaining_percentage;
 
     // Context usato, scala GREZZA (100 - remaining): una scala sola per statusline,
-    // context-monitor e la regola della rotazione al ~65% (3/10/2026; in Arturo dal 20/10/2026).
+    // context-monitor e la regola della rotazione al ~50% (3/10/2026; in Arturo dal 20/10/2026; 50% dal 23/11/2026).
     // Prima la barra normalizzava sul context utile (tolto il 16,5% di autocompact) e
     // mostrava ~7 punti in più di quanto dicesse la regola.
     let ctx = '';
