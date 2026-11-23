@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 import telemetria  # noqa: E402
 import contatto as contatti  # noqa: E402
+from disegno import a_capo  # noqa: E402
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
 from radici import comando_arturo, radice_arturo, radice_orsa  # noqa: E402
 
@@ -1081,13 +1082,13 @@ def main(argv: list) -> int:
                 cambia_stato(lambda s: s.__setitem__("modo", "manuali" if resto[0] == "manuali" else None))
             modo, perche = modo_segnalazioni()
             if modo == "manuali":
-                print("Segnalazioni a mano: Claude prepara il testo, te lo mostra e chiede \"La mando?\". "
-                      + ("" if leggi_stato().get("modo") == "manuali" else f"Vale perché {perche}. ")
-                      + "Per farle partire da sole: arturo segnalazioni automatiche")
+                print(a_capo("Segnalazioni a mano: Claude prepara il testo, te lo mostra e chiede \"La mando?\". "
+                             + ("" if leggi_stato().get("modo") == "manuali" else f"Vale perché {perche}. ")
+                             + "\nPer farle partire da sole: arturo segnalazioni automatiche"))
             else:
-                print("Segnalazioni automatiche: quando qualcosa di Arturo si inceppa, Claude scrive la segnalazione e "
-                      "la manda a chi mantiene Arturo, poi ti dice cosa è partito e come ritirarla. "
-                      "Per tornare alla domanda: arturo segnalazioni manuali")
+                print(a_capo("Segnalazioni automatiche: quando qualcosa di Arturo si inceppa, Claude scrive la "
+                             "segnalazione e la manda a chi mantiene Arturo, poi ti dice cosa è partito e come "
+                             "ritirarla.\nPer tornare alla domanda: arturo segnalazioni manuali"))
             return 0
         if comando == "invia":
             return invia(_opzioni(resto, ("--canale", "--file")))

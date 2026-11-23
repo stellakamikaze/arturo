@@ -55,9 +55,11 @@ from pathlib import Path
 QUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(QUI.parent / "scripts"))
 sys.path.insert(0, str(QUI.parent / "hooks"))
+sys.path.append(str(QUI))  # in fondo: disegno.py, senza coprire i moduli di scripts/ e hooks/
 import melchior_match as mm  # noqa: E402
 import melchior_recall as mr  # noqa: E402
 from radici import radice_arturo, scrivi_atomico  # noqa: E402
+from disegno import a_capo  # noqa: E402
 
 AIUTO = __doc__.split("\n\n")[3] if __doc__ else ""
 
@@ -236,9 +238,9 @@ def stato() -> int:
         print("Cartelle tue:")
         for d in mie:
             print(f"  - {breve(d)} ({len(file_note([d]))} note)")
-    print("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione.")
-    print("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce.")
-    print(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}.")
+    print(a_capo("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione."))
+    print(a_capo("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce."))
+    print(a_capo(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}."))
     print('Accendi con "arturo memoria accendi", spegni con "arturo memoria spegni".')
     return 0
 

@@ -32,12 +32,14 @@ RT12 una soglia fuori scala (80, 20, "tanto") esce 3 e non scrive niente; CLAUDE
 RT13 chi usava già Arturo (data/setup-fatto) riceve dalla riga di session-start.sh l'avviso della rotazione nuova,
      con la soglia vera, i comandi, il bordo del riquadro dritto e solo caratteri di CP850 (la console di Windows); dopo `arturo rotazione visto` non esce più, e session-start.sh chiama la riga.
 RT14 chi installa adesso (senza setup-fatto né novità viste) riceve solo la riga CONTEXT, senza l'avviso.
+RT15 `arturo rotazione` va a capo entro 78 colonne e tiene il comando su una riga sua; a_capo() di disegno.py non
+     spezza un percorso lungo né il testo fra virgolette (23/11/2026, le uscite di stato da 220 caratteri).
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
 
 Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05, RT07, RT08 e RT09; RT04 e RT06
-sono invarianti. RT10-RT14 sono rossi anche lì: bin/rotazione.py non c'è. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
+sono invarianti. RT10-RT15 sono rossi anche lì: bin/rotazione.py non c'è. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
 che lo sorvegliano.
 """
 from __future__ import annotations
@@ -53,8 +55,8 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
             "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js",
             # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
@@ -86,6 +88,8 @@ VELENI = [
     (["RT13"], "bin/disegno.py", '        fuori.append(MARGINE + "│" + r.ljust(larghezza) + "│")',
      '        fuori.append(MARGINE + "│" + r + "│")'),
     (["RT13"], "bin/disegno.py", 'fuori = [MARGINE + "┌"', 'fuori = [MARGINE + "╭"'),
+    (["RT15"], "bin/disegno.py", '.replace(" ", "\\0"), testo)', '.replace(" ", " "), testo)'),
+    (["RT15"], "bin/rotazione.py", "        print(a_capo(stato()))", "        print(stato())"),
     (["RT14"], "bin/rotazione.py", "if not file_visto().exists() and persona_di_prima():", "if not file_visto().exists():"),
 ]
 
@@ -392,8 +396,24 @@ def rt14(lab: Lab):
         return "chi installa adesso riceve l'avviso"
 
 
+def rt15(lab: Lab):
+    uscita = rotazione(lab, CLAUDE_CTX_WARN="50").stdout
+    lunghe = [r for r in uscita.splitlines() if len(r) > 78]
+    if lunghe or not any(r.startswith("Per usare arturo rotazione N,") for r in uscita.splitlines()):
+        return f"arturo rotazione non va a capo bene: {uscita!r}"
+    percorso = "/una/cartella/" + "molto-lunga/" * 8 + "memoria.md"
+    codice = ("import sys; sys.path.insert(0, sys.argv[1]); from disegno import a_capo; "
+              "print(a_capo(sys.argv[2]))")
+    frase = "parola " * 9 + 'e chiede "La mando?" prima di partire. Cosa ricorda e dove: ' + percorso
+    r = subprocess.run([sys.executable, "-B", "-c", codice, str(lab.cl / "bin"), frase], capture_output=True,
+                       text=True, encoding="utf-8", timeout=60)
+    righe = r.stdout.splitlines()
+    if percorso not in righe or not any('"La mando?"' in x for x in righe):
+        return f"a_capo spezza un percorso o le virgolette: {righe!r} {r.stderr[-200:]!r}"
+
+
 PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08,
-         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14}
+         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14, "RT15": rt15}
 
 
 def prova(repo: Path, ref: str | None) -> list:

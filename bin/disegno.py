@@ -14,6 +14,8 @@ Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
+import re
+import textwrap
 from typing import Sequence
 
 ANGOLI = "┌┐└┘"
@@ -62,3 +64,18 @@ def segno_sotto(percento: float, testo: str, colonne: int = 30) -> str:
     """La riga sotto la barra con un segno all'altezza dell'ultima colonna piena: "   └ testo"."""
     piene = max(1, min(colonne, round(colonne * percento / 100)))
     return " " * (piene - 1) + "└ " + testo
+
+
+def a_capo(testo: str, larghezza: int = 78) -> str:
+    """Una frase lunga va a capo a `larghezza` colonne, fra due parole: un percorso o un comando lungo non si
+    spezza, va su una riga sua, e così il testo fra virgolette ("La mando?", "arturo memoria accendi"). Un
+    terminale stretto o la console di Windows spezzano altrimenti a metà parola."""
+    unito = re.sub(r'"[^"\n]*"', lambda m: m.group(0).replace(" ", "\0"), testo)
+    return "\n".join(textwrap.fill(r, larghezza, break_long_words=False, break_on_hyphens=False) or r
+                     for r in unito.split("\n")).replace("\0", " ")
+
+
+def titolo(testo: str, larghezza: int = 60) -> str:
+    """Una riga titolo per un gruppo: "── TOCCA A TE · 2 ─────────", larga `larghezza` colonne."""
+    testa = "── " + testo + " "
+    return testa + "─" * max(3, larghezza - len(testa))
