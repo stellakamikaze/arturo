@@ -29,6 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
+import contextlib
 import tempfile
 import time
 from pathlib import Path
@@ -73,6 +74,21 @@ def uso(nome: str, inp: dict, tid: str) -> dict:
 def risultato(tid: str, testo: str) -> dict:
     return {"type": "user", "entrypoint": "cli", "toolUseResult": {},
             "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tid, "content": testo}]}}
+
+
+@contextlib.contextmanager
+def cartella_prova():
+    """Una cartella temporanea che alla fine riprova a cancellarsi per dieci secondi: su Windows un processo che
+    l'hook ha lasciato andare lavora ancora lì e la tiene aperta (WinError 32, sonda sul runner, #6455)."""
+    tmp = tempfile.mkdtemp(prefix="arturo-sv-")
+    try:
+        yield tmp
+    finally:
+        for _ in range(20):
+            shutil.rmtree(tmp, ignore_errors=True)
+            if not os.path.exists(tmp):
+                break
+            time.sleep(0.5)
 
 
 class Lab:
@@ -304,7 +320,7 @@ def main() -> int:
         inerti = []
         for caso in CASI:
             dove, vecchio, rotto = VELENI[caso]
-            with tempfile.TemporaryDirectory(prefix="arturo-sv-") as tmp:
+            with cartella_prova() as tmp:
                 lab = Lab(Path(argomenti.repo), Path(tmp))
                 sorgente = lab.cl / dove
                 testo = sorgente.read_text(encoding="utf-8")
@@ -317,7 +333,7 @@ def main() -> int:
         assert not inerti, "veleni che non attaccano:\n" + "\n".join(inerti)
         print(f"VELENI_ROSSI={','.join(CASI)} veleni={len(CASI)}")
         return 0
-    with tempfile.TemporaryDirectory(prefix="arturo-sv-") as tmp:
+    with cartella_prova() as tmp:
         rossi = prova(Lab(Path(argomenti.repo), Path(tmp)))
     for r in rossi:
         print("ROSSO", r)
