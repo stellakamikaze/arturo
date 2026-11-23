@@ -143,7 +143,11 @@ def test_na03(repo: Path) -> None:
         testo = ambiente.read_text(encoding="utf-8") if ambiente.exists() else ""
         righe = [r for r in testo.splitlines() if "arturo-path-completo" in r]
         assert len(righe) == 1, f"NA03 il PATH completo va scritto una volta sola: {righe!r}"
-        assert f'export PATH="$PATH:{per_bash(str(brew))}"' in righe[0], f"NA03 la riga non mette in coda solo {brew}: {righe[0]!r}"
+        # Su Windows msys chiama /usr/bin nel PATH le cartelle di Git che i candidati del banco scrivono come
+        # /c/Program Files/Git/...: rientrano in coda dopo brew-bin, e qui conta solo che la coda parta da lì.
+        coda = f'export PATH="$PATH:{per_bash(str(brew))}'
+        fini = ('"', ":") if os.name == "nt" else ('"',)
+        assert any(coda + f in righe[0] for f in fini), f"NA03 la riga non mette in coda solo {brew}: {righe[0]!r}"
 
 
 TESTS = {"NA01": test_na01, "NA02": test_na02, "NA03": test_na03}

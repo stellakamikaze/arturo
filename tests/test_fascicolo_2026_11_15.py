@@ -93,7 +93,8 @@ class Banco:
         home = home or self.home
         home.mkdir(parents=True, exist_ok=True)
         return subprocess.run([sys.executable, str(self.repo / "bin" / script), *argomenti], env=self.env(home),
-                              cwd=str(self.uscita), capture_output=True, text=True, timeout=120)
+                              cwd=str(self.uscita), capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=120)
 
     def esporta(self, *altro: str) -> subprocess.CompletedProcess:
         return self.lancia("esporta", "festival", "--in", str(self.uscita), "--materiali", str(self.materiali),
@@ -311,9 +312,9 @@ def test_fa12(b: Banco) -> None:
         prima = _fotografia(b.radice)
         cmd = [sys.executable, str(senza / "bin" / "fascicolo.py")]
         e = subprocess.run(cmd + ["esporta", "festival", "--in", str(b.uscita)], env=b.env(b.home),
-                           capture_output=True, text=True, timeout=120)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         i = subprocess.run(cmd + ["importa", str(f)], env=b.env(b.collega), capture_output=True, text=True,
-                           timeout=120)
+                           encoding="utf-8", errors="replace", timeout=120)
         assert e.returncode == 4 and i.returncode == 4, \
             f"FA12 senza scanner esporta esce con {e.returncode} e importa con {i.returncode}"
         assert _fotografia(b.radice) == prima, "FA12 senza scanner qualcosa è stato scritto"

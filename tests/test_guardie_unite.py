@@ -347,7 +347,10 @@ def test_g206(repo: Path) -> None:
             assert esito(comando) == "ask", f"G206 cancellazione non vista: {comando}"
         for comando in ("python3 - <<'EOF'\nprint('rm -rf ~')\nEOF", "D=$TMPDIR/prova; rm -rf $D",
                         'rm -rf "$TMPDIR/x"', "rm -rf node_modules dist", "git commit -m 'tolto rm -rf dal README'"):
-            assert esito(comando) == "silent", f"G206 falso allarme: {comando!r}"
+            if esito(comando) != "silent":
+                p = _bash_hook(home, "block-dangerous.py", comando, radice)
+                raise AssertionError(f"G206 falso allarme: {comando!r}: {motivo(p)[:200]} "
+                                     f"(TMPDIR {os.environ.get('TMPDIR')!r}, home {str(home)!r})")
         # Su Windows %TEMP% sta dentro la home e resta temporanea, come per /fine (16/10/2026).
         temp = home / "AppData" / "Local" / "Temp"
 
@@ -637,8 +640,11 @@ def test_g211(repo: Path) -> None:
         # Il lanciatore Git\bin\bash.exe rimetterebbe /usr/bin, e timeout, nel PATH (#5167).
         assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, bash=BASH_PATH_RIDOTTO,
                           **nudo) == "silent", "G211 timeout citato in un messaggio fra virgolette blocca il comando"
-        assert dispatcher(home, "timeout 5 ls", radice, bash=BASH_PATH_RIDOTTO, **nudo) == "block", \
-            "G211 timeout vero senza coreutils passa"
+        if dispatcher(home, "timeout 5 ls", radice, bash=BASH_PATH_RIDOTTO, **nudo) != "block":
+            dove = subprocess.run([BASH_PATH_RIDOTTO, "-c", 'command -v timeout; echo "PATH=$PATH"; '
+                                   'echo "CARTELLE=${ARTURO_TIMEOUT_CARTELLE-assente}"'], capture_output=True,
+                                  text=True, env=env_di(home, **nudo), timeout=60, check=False)
+            raise AssertionError(f"G211 timeout vero senza coreutils passa: {(dove.stdout + dove.stderr)[-300:]!r}")
         assert dispatcher(home, "grep -rn --include=*.md x .", radice, SHELL="/bin/zsh") == "block", \
             "G211 il glob in un'opzione sotto zsh passa"
         for comando in ("echo ciao | mail -c copia@esempio.org dest", "mail $DEST < lettera.txt"):

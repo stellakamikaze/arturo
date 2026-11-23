@@ -137,9 +137,14 @@ def trascrizione(lab: Lab, sid: str, righe: int) -> Path:
 def lancia_hook(lab: Lab, evento: str, sid: str, tr: Path, risposta: str, chiamate: Path, **altro):
     bin_ = lab.tmp / "bin"
     bin_.mkdir(exist_ok=True)
-    cl = bin_ / "claude"
-    cl.write_text(CLAUDE_FINTO, encoding="utf-8")
-    cl.chmod(0o755)
+    if os.name == "nt":
+        # Windows non lancia uno script con lo shebang: which trova claude.cmd, che passa al python vero
+        (bin_ / "claude.py").write_text(CLAUDE_FINTO, encoding="utf-8")
+        (bin_ / "claude.cmd").write_text(f'@"{sys.executable}" "%~dp0claude.py" %*\r\n', encoding="utf-8")
+    else:
+        cl = bin_ / "claude"
+        cl.write_text(CLAUDE_FINTO, encoding="utf-8")
+        cl.chmod(0o755)
     env = lab.env(TC_RISPOSTA=risposta, TC_CHIAMATE=str(chiamate), **altro)
     env["PATH"] = str(bin_) + os.pathsep + env.get("PATH", "")
     ev = {"hook_event_name": evento, "session_id": sid, "transcript_path": str(tr)}
