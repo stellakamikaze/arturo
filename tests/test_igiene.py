@@ -174,8 +174,10 @@ def test_ig06(repo: Path) -> None:
         (r / ".githooks" / "pre-push").write_bytes(gancio.read_bytes())
         (r / ".githooks" / "pre-push").chmod(0o755)
         git("config", "core.hooksPath", ".githooks")
-        git("remote", "add", "origin", str(pubblico))
-        git("remote", "add", "altro", str(altro))
+        # as_posix: l'hook riconosce .../stellakamikaze/arturo con le barre dritte, come in ogni URL vero; con
+        # C:\...\stellakamikaze\arturo.git su Windows lo prendeva per un altro repository (#6455).
+        git("remote", "add", "origin", pubblico.as_posix())
+        git("remote", "add", "altro", altro.as_posix())
         git("add", "-A")
         git("commit", "-q", "-m", "base pulita")
         assert git("push", "-q", "origin", "dev", ok=False).returncode == 0, "IG06 l'hook blocca un push pulito"
@@ -328,8 +330,10 @@ def test_ig09(repo: Path) -> None:
         (r / ".githooks" / "pre-push").write_bytes(gancio.read_bytes())
         (r / ".githooks" / "pre-push").chmod(0o755)
         git("config", "core.hooksPath", ".githooks")
-        git("remote", "add", "origin", str(pubblico))
-        git("remote", "add", "altro", str(altro))
+        # as_posix: l'hook riconosce .../stellakamikaze/arturo con le barre dritte, come in ogni URL vero; con
+        # C:\...\stellakamikaze\arturo.git su Windows lo prendeva per un altro repository (#6455).
+        git("remote", "add", "origin", pubblico.as_posix())
+        git("remote", "add", "altro", altro.as_posix())
         git("add", "-A")
         git("commit", "-q", "-m", "base pulita")
         git("push", "-q", "origin", "dev", "dev:main")
