@@ -425,13 +425,14 @@ mkdir -p ~/.claude/data && date +%Y-%m-%d > ~/.claude/data/setup-fatto && rm -f 
 
 ## FASE 10 — Il primo lavoro vero
 
-Con il ritratto proponi tre lavori da dieci minuti sul materiale vero della persona, uno per riga,
+Prima segui `~/.claude/shared/setup-herdr.md`.
+Con il ritratto proponi tre lavori da dieci minuti sul suo materiale vero, uno per riga,
 il primo consigliato: lo stato di un progetto trovato, letto dai suoi file, poi /inizio col sì;
 /guidami se ci sono sessioni recenti; una bozza nella sua voce di una cosa che il ritratto mostra
 ricorrente. Fai quello che sceglie e mostra l'esito. Se la bozza le piace, proponile
 di farne una skill: col sì lancia `/creaskill` su quel lavoro. Senza ritratto, o se lo chiede, usa
 `~/.claude/commands/sparring.md`: le sue tre domande diventano conferme del ritratto.
-Se preferisce esplorare da solo, indicagli `~/.claude/docs/principi/README.md` e chiudi.
+Per esplorare da solo, indicagli `~/.claude/docs/principi/README.md` e chiudi.
 
 ---
 
