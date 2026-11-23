@@ -316,7 +316,7 @@ def rapporto(a: dict) -> str:
     va a chi mantiene Arturo con /segnala."""
     orsa = a["orsa"]
     adesso = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    cc = subprocess.run([os.environ.get("ARTURO_CLAUDE") or "claude", "--version"], capture_output=True, text=True,
+    cc = subprocess.run([_eseguibile_claude(), "--version"], capture_output=True, text=True,
                         timeout=30).stdout.strip() if shutil.which(os.environ.get("ARTURO_CLAUDE") or "claude") else "?"
     righe = [f"RAPPORTO DI MIGRAZIONE (arturo migra --prova) · {adesso}",
              f"Arturo {a['versione'] or '?'} (clone, base {a['base'][:8] or '?'}) · {platform.system()} "
@@ -473,8 +473,15 @@ def passo(cartella: Path, nome: str) -> None:
 
 # --- i passi -------------------------------------------------------------------------------------------
 
+def _eseguibile_claude() -> str:
+    """Il percorso della CLI di Claude Code. Su Windows npm installa claude.cmd: CreateProcess senza shell non
+    trova un nome senza .exe (WinError 2, gate 45247537994 del 23/11/2026), shutil.which sì."""
+    nome = os.environ.get("ARTURO_CLAUDE") or "claude"
+    return shutil.which(nome) or nome
+
+
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
-    comando = [os.environ.get("ARTURO_CLAUDE") or "claude", "plugin", *argomenti]
+    comando = [_eseguibile_claude(), "plugin", *argomenti]
     # Anche `claude plugin` chiude con gli hook del clone: session-end.sh lancerebbe l'aggiornamento automatico
     # staccato, proprio mentre i file di Arturo stanno uscendo da ~/.claude (6/11/2026).
     env = {**os.environ, "ARTURO_AGGIORNAMENTI": "manuali"}
