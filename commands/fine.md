@@ -25,9 +25,10 @@ fa ripartire le fasi anche su una sessione chiusa.
 ## Modo rotazione (`--rotazione`)
 
 Lo lancia Claude, mai la persona, a compito chiuso (uno step del piano compiuto o un incarico finito, con i
-test verdi e la sonda fatta) e solo a contesto oltre il 50%: lo dice l'avviso CONTEXT WARNING. Dalle 18 parte
+test verdi e la sonda fatta) e solo a contesto oltre la soglia della rotazione (50% di default; la persona la
+cambia con `arturo rotazione N`, da 30 a 70): lo dice l'avviso CONTEXT WARNING. Dalle 18 parte
 anche sotto il 50%, come fine completo del giorno. È la raccolta dei risultati (handoff del giorno, todo,
-memoria, commit). Sotto il 50% il compito chiuso lascia commit, push e todo chiuso, e la sessione parte col
+memoria, commit). Sotto la soglia il compito chiuso lascia commit, push e todo chiuso, e la sessione parte col
 passo dopo nello stesso contesto (23/11/2026: prima partiva a ogni compito chiuso, e sul Mac di chi mantiene
 Arturo 136 rotazioni a settimana costavano circa 6 ore). Un compito conta quando ha
 lasciato una traccia da salvare: un commit, un file, un documento, una decisione, un todo cambiato.

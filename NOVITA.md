@@ -13,13 +13,15 @@ modo di lavorare.
 
 ---
 
-## 2026-11-23 — La rotazione parte a metà contesto, non a ogni compito chiuso
+## 2026-11-23 — La rotazione parte a metà contesto, e la soglia la scegli tu
 
-**Cosa cambia**: quando Claude chiude un compito, fa il commit, chiude il todo e passa al compito dopo nella stessa sessione. Il salvataggio con `/fine --rotazione` e la sessione nuova arrivano solo quando il contesto supera il 50%, oppure dalle 18 col `/fine` completo del giorno. L'avviso del contesto adesso scatta al 50% e non più al 65%.
+**Cosa cambia**: quando Claude chiude un compito, fa il commit, chiude il todo e passa al compito dopo nella stessa sessione. Il salvataggio con `/fine --rotazione` e la sessione nuova arrivano solo quando il contesto supera il 50%, oppure dalle 18 col `/fine` completo del giorno. L'avviso del contesto adesso scatta al 50% e non più al 65%. Alla prima sessione dopo l'aggiornamento Claude ti mostra un riquadro con la regola nuova.
 
-**Perché**: sul Mac di chi mantiene Arturo la rotazione partiva 136 volte a settimana, con 2-3 minuti e una decina di passi ogni volta, più un `/inizio` nuovo dopo ogni giro. Erano circa sei ore a settimana di attesa. Il modello risponde in 3 secondi a chiamata: la lentezza stava nei salvataggi.
+**Come cambi la soglia**: di' a Claude "rotazione al 40%", oppure lancia `arturo rotazione 40`. Vale ogni numero da 30 a 70: più basso salva più spesso, più alto resta di più nella stessa sessione. `arturo rotazione` dice la soglia di oggi, `arturo rotazione togli` torna al 50%. La scelta sta in `~/.claude/personale/rotazione.txt` e gli aggiornamenti non la toccano. Se in `settings.json` hai impostato `CLAUDE_CTX_WARN`, vince quella, come prima.
 
-**A chi serve**: a chi lascia lavorare Claude su un piano a più passi. Chi vuole la soglia di prima la imposta con `CLAUDE_CTX_WARN=35` nelle variabili d'ambiente di `settings.json`.
+**Perché**: sul Mac di chi mantiene Arturo la rotazione è partita 299 volte in una settimana, quasi due minuti l'una, più un `/inizio` nuovo dopo ogni giro: circa nove ore di attesa. Il modello risponde in 3 secondi a chiamata, quindi la lentezza stava nei salvataggi. Con la soglia a metà contesto Claude ricorda anche il lavoro fatto prima, nella stessa sessione.
+
+**A chi serve**: a chi lascia lavorare Claude su un piano a più passi.
 
 ---
 
