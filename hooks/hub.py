@@ -28,7 +28,6 @@ guardia stampa ciò che ha raccolto ed esce, così Claude Code non butta via le 
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import subprocess
@@ -39,7 +38,7 @@ import time
 QUI = os.path.dirname(os.path.abspath(__file__))
 RADICE = os.path.dirname(QUI)
 sys.path.insert(0, QUI)
-import evento_bash  # noqa: E402  il bytecode in cache, come per le guardie del dispatcher
+import nel_processo  # noqa: E402  esegue un hook come __main__, dal bytecode in cache
 
 EDIT = "Edit|MultiEdit|Write|NotebookEdit"
 WEB_EGRESS = ("WebFetch|mcp__jina__.*|mcp__tavily__.*|mcp__playwright__browser_navigate|"
@@ -55,6 +54,9 @@ TABELLA = {
         (EDIT + "|Bash", None, "hooks/agente-worktree.py", [], 5, None),
         ("Read|Grep", None, "hooks/block-dangerous.py", [], 10, None),
         (EDIT, None, "hooks/protect_claude_md.py", [], 20, None),
+        # Il dispatcher delle guardie di Bash (dispatcher.py, ex bash-dispatcher.sh): ha un suo tetto di 25 s,
+        # e oltre chiede conferma. In settings.json la voce di Bash ha la coda che chiede anche se hub muore.
+        ("Bash|Monitor", None, "hooks/dispatcher.py", [], 30, None),
         ("Bash", "gws", "hooks/gws-esito.py", [], 10, None),
         ("mcp__.*[Dd]raft.*", None, "hooks/bozze-mcp-auto-approve.py", [], 5, None),
         (WEB_EGRESS, None, "hooks/web-egress-guard.py", [], 20, None),
@@ -170,73 +172,10 @@ class Guardia:
 _codice_corrente = [0]
 
 
-def _stato():
-    return (sys.argv, sys.stdin, sys.stdout, sys.stderr, list(sys.path), sys.modules.get("__main__"))
-
-
-def _ripristina(stato):
-    """Rimette argv, flussi, path e __main__. Un'interruzione arrivata in ritardo non lo lascia a metà."""
-    for _ in range(5):
-        try:
-            sys.argv, sys.stdin, sys.stdout, sys.stderr = stato[:4]
-            sys.path[:] = stato[4]
-            if stato[5] is not None:
-                sys.modules["__main__"] = stato[5]
-            return
-        except KeyboardInterrupt:
-            continue
-
-
-def _nel_processo(percorso, argomenti, payload, guardia, tetto):
-    """Esegue l'hook come __main__ nello stesso processo. Torna (codice, stdout, stderr, scaduto).
-    Il chiamante rimette lo stato con _ripristina anche se un'interruzione esce di qui."""
-    import importlib.util
-    try:
-        evento_bash._bytecode_controllato(percorso)
-    except Exception:
-        pass
-    entrata = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
-    b_out, b_err = io.BytesIO(), io.BytesIO()
-    uscita = io.TextIOWrapper(b_out, encoding="utf-8", write_through=True)
-    errori = io.TextIOWrapper(b_err, encoding="utf-8", write_through=True)
-    codice, scaduto = 0, False
-    sys.argv = [percorso] + argomenti
-    sys.stdin, sys.stdout, sys.stderr = entrata, uscita, errori
-    sys.path.insert(0, os.path.dirname(percorso))
-    guardia.inizia(time.monotonic() + tetto)
-    try:
-        try:
-            spec = importlib.util.spec_from_file_location("__main__", percorso)
-            modulo = importlib.util.module_from_spec(spec)
-            sys.modules["__main__"] = modulo
-            spec.loader.exec_module(modulo)
-        except SystemExit as e:
-            c = e.code
-            codice = 0 if c is None else (c if isinstance(c, int) else 1)
-            if not isinstance(c, (int, type(None))):
-                errori.write(str(c))
-        except KeyboardInterrupt:
-            scaduto = True
-        except BaseException as e:  # un hook rotto non ferma gli altri
-            codice = 1
-            errori.write("%s: %s" % (type(e).__name__, e))
-    except KeyboardInterrupt:  # l'interruzione arrivata fra un passo e l'altro
-        scaduto = True
-    finally:
-        guardia.finisce()
-    try:
-        import signal
-        if hasattr(signal, "SIGALRM"):
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, signal.SIG_DFL)
-    except Exception:
-        pass
-    for f in (uscita, errori):
-        try:
-            f.flush()
-        except Exception:
-            pass
-    return codice, b_out.getvalue(), b_err.getvalue(), scaduto
+# L'esecuzione nello stesso processo sta in nel_processo.py, comune con dispatcher.py.
+_stato = nel_processo.stato
+_ripristina = nel_processo.ripristina
+_nel_processo = nel_processo.esegui
 
 
 def _in_processo_a_parte(percorso, argomenti, payload, tetto):

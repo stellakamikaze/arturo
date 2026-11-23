@@ -347,14 +347,14 @@ Le tue preferenze, i file `.local`, stanno in `~/.claude/arturo/`. Un file `.loc
 
 ## Come funziona: il dispatcher
 
-Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo instrada **solo** verso i guard rilevanti. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard: resta un solo `python3`, `hooks/evento_bash.py`, che legge l'evento.
+Ogni comando `Bash` passa da un unico router, `hooks/dispatcher.py`, che lo instrada **solo** verso i guard rilevanti. Dal 23/11/2026 il router gira dentro `hooks/hub.py`, l'unico processo che `settings.json` lancia per evento: hub e router lanciano gli hook e i guard Python nel loro processo, senza un `python3` nuovo per ognuno. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard. Se hub non risponde entro 25 secondi, il comando chiede conferma.
 
 ```
          comando Bash
               │
               ▼
    ┌──────────────────────┐
-   │ bash-dispatcher.sh    │  prosa heredoc inerte ridotta; ambiguità → originale
+   │ hub.py → dispatcher.py│  prosa heredoc inerte ridotta; ambiguità → originale
    └──────────┬───────────┘
               │
               ▼
@@ -387,7 +387,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 In tutto, Arturo porta:
 
-- **37 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **39 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
@@ -398,7 +398,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               37 guardie e automazioni, più 13 strumenti che usano
+hooks/               39 guardie e automazioni, più 14 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -642,7 +642,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
   - In `~/.ssh` il deny copre le chiavi per nome (`id_*`, `*.pem`, `*.key`, `*.ppk`, `*_rsa`, `*_ed25519`, `*_ecdsa`, `*_dsa`), non `config` né `known_hosts`. Una chiave privata con un nome libero (`~/.ssh/github`) la ferma `block-dangerous.py`, che dal 1/11/2026 guarda anche il tool Read: chiede conferma per ogni file di `~/.ssh` che non è `config`, `known_hosts`, `authorized_keys` o una chiave `.pub`.
 - **Host interni e API fidate.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname, la sua rete o il suo dominio col punto davanti (`.esempio.org`, vale anche per i sottodomini) in `arturo/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Un servizio esterno che usi con la tua chiave va in `arturo/api-fidate.local`, un nome host esatto per riga (niente reti, niente `*`). I due file sono tuoi, nessun aggiornamento li tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
-- **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
+- **Disattivare un guard.** Commenta la chiamata `run_guard` in `hooks/dispatcher.py` (per i guard dei comandi Bash) o la riga della `TABELLA` in `hooks/hub.py` (per gli altri hook). Poi rilancia `/system-audit`.
 - **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (se modifichi il comando, il prossimo `/aggiorna` le sposta lì da solo, oppure lo fai subito con `/aggiorna personale`; con un tuo repository della config succede solo se è privato, altrimenti le modifiche restano dove sono). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).
 - **Pulizia mensile.** `bash ~/.claude/bin/monthly-cleanup.sh --prova` elenca cosa toglierebbe (tasks, shell-snapshots e paste-cache vecchi di Claude Code, cache dei package manager) senza toccare niente. Senza `--prova` pulisce. Facoltativi: `PULIZIA_CARTELLA_PROGETTI=<cartella>` archivia in `_archivio/` i file sciolti fermi da 60 giorni (li sposta, non li cancella), `PULIZIA_PREFISSI_LAUNCHAGENT="com.esempio."` segnala su macOS i tuoi LaunchAgent non caricati, `PULIZIA_CACHE=0` salta le cache.

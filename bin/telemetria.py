@@ -112,7 +112,7 @@ EVENTI = {
     # persona, non lei. Il giudice lascia un segno (`giudicata`, qui sotto) e `esito` registra questo al posto di confermata.
     "giudicata": re.compile(r"^[a-z0-9_.-]{1,60}$"),
 }
-# Le guardie di Arturo che parlano alla telemetria: quelle che bash-dispatcher.sh lancia con run_guard,
+# Le guardie di Arturo che parlano alla telemetria: quelle che hooks/dispatcher.py lancia con run_guard,
 # più web-egress-guard.py e protect_claude_md.py, che chiamano chiede da sole. Un nome fuori elenco non
 # si registra: un hook della persona con un nome suo, o un client modificato, non fa uscire uno slug
 # parlante (24/10/2026). Lo stesso elenco sta in server/logica.js; il banco TF03 (tests/test_telemetria_f1_2026_10_24.py) lo confronta col repository.

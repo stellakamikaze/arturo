@@ -493,9 +493,9 @@ const casi = {
       await scrivi("2026-10-12", `finta-${String(i).padStart(4, "0")}`, "file:docs/preventivo-rossi.md");
     }
     await scrivi("2026-10-11", "vera-0001", "insieme:1", "2026-10-11");
-    await scrivi("2026-10-12", "vera-0001", "hook:bash-dispatcher.sh", "2026-10-12");
+    await scrivi("2026-10-12", "vera-0001", "hook:hub.py", "2026-10-12");
     await scrivi("2026-08-01", "ferma-0001", "insieme:1", "2026-08-01");
-    await scrivi("2026-08-02", "ferma-0001", "hook:bash-dispatcher.sh", "2026-08-02");
+    await scrivi("2026-08-02", "ferma-0001", "hook:hub.py", "2026-08-02");
     query = 0;
     const d = await a.deriva("2026-10-06", AL, true);
     assert.ok(query <= 3, `Q22 la deriva fa una query per installazione: ${query}`);

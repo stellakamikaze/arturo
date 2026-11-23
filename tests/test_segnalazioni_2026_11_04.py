@@ -25,6 +25,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 AGENTE = "a04cb91be82a48937"
 
@@ -123,8 +125,8 @@ def test_aw05(repo: Path) -> None:
     hooks = s.get("hooks", {})
     avvio_ok = any(comando == h.get("command") for g in hooks.get("SubagentStart", []) for h in g.get("hooks", []))
     assert avvio_ok, "AW05 settings.json non registra l'hook su SubagentStart"
-    gruppi = [g for g in hooks.get("PreToolUse", []) if any(comando == h.get("command") for h in g.get("hooks", []))]
-    coperti = {n for g in gruppi for n in str(g.get("matcher", "")).split("|")}
+    # Dal 23/11/2026 (#6492) su PreToolUse l'hook parte dalla voce di hub.
+    coperti = {n for m in voci_hook.matcher(repo, "PreToolUse", "agente-worktree.py") for n in m.split("|")}
     assert {"Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"} <= coperti, f"AW05 PreToolUse non copre la scrittura: {coperti}"
     logica = (repo / "server" / "logica.js").read_text(encoding="utf-8")
     elenco = re.search(r"DERIVA_HOOK = \[(.*?)\];", logica, re.S)

@@ -29,6 +29,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 BASH = shutil.which("bash") or "bash"
 SPENGONO_I_FLAG = ("DISABLE_TELEMETRY", "DO_NOT_TRACK", "DISABLE_GROWTHBOOK",
@@ -75,10 +77,9 @@ def decisione(home: str, strumento: str, comando: str) -> str:
 
 
 def test_tm02(repo: Path) -> None:
-    nomi = []
-    for blocco in pretooluse(repo):
-        if any("bash-dispatcher.sh" in h.get("command", "") for h in blocco.get("hooks", [])):
-            nomi = [x.strip() for x in blocco.get("matcher", "").replace(",", "|").split("|")]
+    # Dal 23/11/2026 (#6492) il dispatcher è hooks/dispatcher.py, dentro hub.
+    nomi = [x.strip() for m in voci_hook.matcher(repo, "PreToolUse", "bash-dispatcher.sh")
+            + voci_hook.matcher(repo, "PreToolUse", "dispatcher.py") for x in m.replace(",", "|").split("|")]
     assert "Monitor" in nomi, f"TM02 il dispatcher non scatta su Monitor (matcher {nomi})"
     with tempfile.TemporaryDirectory() as td:
         home = os.path.realpath(td)
@@ -93,7 +94,9 @@ def test_tm02(repo: Path) -> None:
 
 def test_tm03(repo: Path) -> None:
     for guardia in GUARDIE:
-        voci = [h for b in pretooluse(repo) for h in b.get("hooks", []) if guardia in h.get("command", "")]
+        # Dal 23/11/2026 (#6492) le guardie partono dalla voce di hub, e bash-dispatcher.sh è dispatcher.py.
+        nomi = (guardia, "dispatcher.py") if guardia == "bash-dispatcher.sh" else (guardia,)
+        voci = [h for n in nomi for _m, h in voci_hook.voci(repo, "PreToolUse", n)]
         assert voci and all(h.get("onFailure") == "block" for h in voci), \
             f"TM03 {guardia} lascia passare l'azione se non parte (manca onFailure block)"
 
@@ -112,9 +115,8 @@ def test_tm05(repo: Path) -> None:
 
 
 def test_tm06(repo: Path) -> None:
-    blocchi = [b for b in pretooluse(repo)
-               if {"Read", "Grep"} <= {x.strip() for x in b.get("matcher", "").split("|")}]
-    voci = [h for b in blocchi for h in b.get("hooks", []) if "block-dangerous.py" in h.get("command", "")]
+    voci = [h for m, h in voci_hook.voci(repo, "PreToolUse", "block-dangerous.py")
+            if {"Read", "Grep"} <= {x.strip() for x in m.split("|")}]
     assert voci and all(h.get("onFailure") == "block" and isinstance(h.get("timeout"), int)
                         and 0 < h["timeout"] <= 30 for h in voci),         f"TM06 la guardia su Read e Grep lascia leggere se non parte (onFailure block e timeout): {voci}"
 

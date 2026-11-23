@@ -96,7 +96,23 @@ def _registrati() -> set:
         for gruppo in gruppi:
             for hook in gruppo.get("hooks", []):
                 file.update(re.findall(r"\$\{CLAUDE_PLUGIN_ROOT\}/((?:hooks|bin)/[^\s\"']+)", hook.get("command", "")))
+    # hooks/hub.py lancia nel suo processo gli hook della sua TABELLA (#6492, 23/11/2026): contano come
+    # registrati, insieme ai file che facevano lo stesso lavoro prima di hub.
+    if "hooks/hub.py" in file:
+        try:
+            testo = (CODICE / "hooks" / "hub.py").read_text(encoding="utf-8")
+        except OSError:
+            testo = ""
+        for f in re.findall(r"\"((?:hooks|bin)/[A-Za-z0-9_.-]+\.(?:py|sh|js))\"", testo):
+            file.add(f)
+            file.update(EQUIVALENTI.get(f, ()))
     return file
+
+
+# Un file della TABELLA di hub e quello che lo lanciava prima: bash-dispatcher.sh è il guscio di
+# dispatcher.py, telemetria-esito.sh lanciava bin/telemetria.py esito.
+EQUIVALENTI = {"hooks/dispatcher.py": ("hooks/bash-dispatcher.sh",),
+               "bin/telemetria.py": ("bin/telemetria-esito.sh",)}
 
 
 def doppi(settings: dict) -> list:

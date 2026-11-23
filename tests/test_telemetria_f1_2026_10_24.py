@@ -46,6 +46,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 
 def _carica(nome: str, file: str):
@@ -160,6 +162,8 @@ def test_tf03(repo: Path) -> None:
     # I nomi che gli hook passano davvero alla telemetria.
     dispatcher = read(repo / "hooks" / "bash-dispatcher.sh")
     emessi = set(re.findall(r"run_guard ([a-z0-9_.-]+\.py)", dispatcher))
+    # Dal 23/11/2026 (#6492) le guardie di Bash le chiama hooks/dispatcher.py.
+    emessi |= set(re.findall(r"""run_guard\(\s*["']([a-z0-9_.-]+\.py)["']""", read(repo / "hooks" / "dispatcher.py")))
     for f in (repo / "hooks").glob("*.py"):
         testo = read(f)
         emessi |= set(re.findall(r"""\.chiede\(\s*["']([a-z0-9_.-]+\.py)["']""", testo))
@@ -304,10 +308,9 @@ def _combacia(matcher, strumento: str) -> bool:
 
 
 def esiti(repo: Path, evento: str, strumento: str) -> list:
-    impostazioni = json.loads(read(repo / "settings.json"))
-    return [str(h.get("command", "")) for g in impostazioni.get("hooks", {}).get(evento, [])
-            if _combacia(g.get("matcher"), strumento) for h in g.get("hooks", [])
-            if "telemetria-esito.sh" in str(h.get("command", ""))]
+    # Dal 23/11/2026 (#6492) l'esito lo registra bin/telemetria.py esito, dentro la voce di hub.
+    return [str(h.get("command", "")) for nome in ("telemetria-esito.sh", "telemetria.py")
+            for m, h in voci_hook.voci(repo, evento, nome) if _combacia(m, strumento)]
 
 
 def chiede_su(lab, strumento: str, uso: str) -> str:
@@ -395,6 +398,10 @@ def test_us04(repo: Path) -> None:
     base = json.loads(json.dumps(arrivo))
     base["hooks"].pop("PostToolUseFailure", None)
     base["hooks"]["PostToolUse"] = [g for g in base["hooks"]["PostToolUse"] if g.get("matcher") != "Monitor"]
+    # Dal 23/11/2026 (#6492) l'esito parte dalla voce post di hub: Monitor è una parte del suo matcher.
+    for g in base["hooks"]["PostToolUse"]:
+        if any("hub.py post" in h.get("command", "") for h in g.get("hooks", [])):
+            g["matcher"] = "|".join(t for t in g.get("matcher", "").split("|") if t != "Monitor")
     # La persona, o un'app come iTerm2: un hook suo nell'ultimo gruppo di PostToolUse e un permesso.
     nostro = json.loads(json.dumps(base))
     nostro["hooks"]["PostToolUse"][-1]["hooks"].append({"type": "command", "command": "bash ~/.iterm2/cc-status.sh"})
@@ -408,9 +415,11 @@ def test_us04(repo: Path) -> None:
         assert r.returncode == 0, f"US04 l'unione va in conflitto per un hook della persona in PostToolUse: {r.stderr.strip()!r}"
         unito = json.loads(f["nostro"].read_text(encoding="utf-8"))
     hooks = unito.get("hooks", {})
-    monitor = [h["command"] for g in hooks.get("PostToolUse", []) if g.get("matcher") == "Monitor" for h in g["hooks"]]
+    monitor = [h["command"] for g in hooks.get("PostToolUse", []) if "Monitor" in g.get("matcher", "").split("|")
+               for h in g["hooks"]]
     fallito = [h["command"] for g in hooks.get("PostToolUseFailure", []) for h in g["hooks"]]
-    assert any("telemetria-esito.sh" in c for c in monitor) and any("telemetria-esito.sh" in c for c in fallito), \
+    esito = ("telemetria-esito.sh", "hub.py post")
+    assert any(e in c for c in monitor for e in esito) and any(e in c for c in fallito for e in esito), \
         f"US04 l'unione non porta i matcher nuovi della telemetria: Monitor {monitor}, PostToolUseFailure {fallito}"
     assert "bash ~/.iterm2/cc-status.sh" in json.dumps(hooks) and "Bash(npm test:*)" in unito["permissions"]["allow"], \
         "US04 l'unione perde le aggiunte della persona"

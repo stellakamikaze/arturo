@@ -16,8 +16,9 @@ su un `python3 -c` di 94.000 caratteri. Tre cause, ognuna con un controllo:
         rotto.
   SP05  evento_bash.py esegui lancia uno script come python3: argomenti, codice d'uscita, __name__, cartella dei
         moduli. Il bytecode è a hash controllato: una modifica con la stessa lunghezza e la stessa data si vede.
-  SP06  il dispatcher fa partire un solo python3 su un comando semplice (prima due, più jq), e le guardie passano
-        da evento_bash.py esegui. Senza evento_bash.py ogni comando chiede conferma.
+  SP06  il dispatcher fa partire un solo python3 su un comando semplice (prima due, più jq), e dal 23/11/2026
+        (#6492) anche quando una guardia parla: block-dangerous gira nel processo di dispatcher.py. Senza
+        evento_bash.py ogni comando chiede conferma.
 
 Con --baseline-ref ogni controllo deve fallire col suo codice: su 663bcba parole ed evento_bash.py non ci sono,
 segmenti_parole non si ricorda e block-dangerous va oltre gli 8 secondi.
@@ -235,8 +236,9 @@ def test_sp06(repo: Path) -> None:
         registro.unlink()
         assert _dispatcher(casa, f"rm -rf {casa}/Documents/progetto", ambiente) == "ask", "SP06 rm -rf non chiede"
         avvii = registro.read_text(encoding="utf-8").splitlines()
-        assert any("evento_bash.py esegui" in a and "block-dangerous.py" in a for a in avvii), \
-            f"SP06 block-dangerous non passa da evento_bash.py esegui: {avvii}"
+        # Dal 23/11/2026 (#6492) dispatcher.py lancia block-dangerous nel suo processo: un solo python3 anche qui.
+        assert len(avvii) == 1 and "dispatcher.py" in avvii[0], \
+            f"SP06 block-dangerous non gira nel processo del dispatcher: {avvii}"
         (casa / ".claude" / "hooks" / "evento_bash.py").unlink()
         assert _dispatcher(casa, "ls -la", ambiente) == "ask", "SP06 senza evento_bash.py un comando passa muto"
 

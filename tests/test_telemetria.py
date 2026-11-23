@@ -36,6 +36,8 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 
 class Server:
@@ -357,10 +359,12 @@ def test_m13(repo: Path) -> None:
     assert "clienti" not in json.dumps(lab.coda()) + attese.read_text(encoding="utf-8"), "M13 il comando esce"
     # Il PostToolUse vero, preso dal settings.json di Arturo.
     impostazioni = json.loads(read(repo / "settings.json"))
-    esito = next(str(h.get("command", "")) for g in impostazioni["hooks"]["PostToolUse"] for h in g["hooks"]
-                 if "telemetria-esito.sh" in str(h.get("command", "")))
-    dopo = lambda uso: subprocess.run([BASH, "-c", esito], input=json.dumps({"tool_use_id": uso}),  # noqa: E731
-                                      capture_output=True, text=True, env=lab.env, timeout=60)
+    # Dal 23/11/2026 (#6492) l'esito lo registra bin/telemetria.py esito, dentro la voce post di hub.
+    esito = next(h.get("command", "") for nome in ("telemetria-esito.sh", "telemetria.py")
+                 for _m, h in voci_hook.voci(repo, "PostToolUse", nome))
+    dopo = lambda uso, strumento="Bash": subprocess.run(  # noqa: E731
+        [BASH, "-c", esito], input=json.dumps({"tool_name": strumento, "tool_use_id": uso}),
+        capture_output=True, text=True, env=lab.env, timeout=60)
     assert dopo("toolu_99").returncode == 0 and len(lab.coda()) == 1, "M13 un'altra chiamata conta come conferma"
     assert dopo("toolu_01").returncode == 0, "M13 il PostToolUse fallisce"
     assert [e["evento"] for e in lab.coda()] == ["chiede", "confermata"], f"M13 la conferma non c'è: {lab.coda()}"
@@ -372,7 +376,8 @@ def test_m13(repo: Path) -> None:
                                                     "tool_use_id": "toolu_03"}))
     assert '"ask"' in r.stdout, f'M13 il comando con «”» non chiede conferma: {r.stdout[:200]}'
     cp1252 = dict(lab.env, PYTHONIOENCODING="cp1252", PYTHONUTF8="0")
-    entrata = json.dumps({"tool_use_id": "toolu_03", "tool_input": {"command": virgolette}}, ensure_ascii=False)
+    entrata = json.dumps({"tool_name": "Bash", "tool_use_id": "toolu_03", "tool_input": {"command": virgolette}},
+                         ensure_ascii=False)
     r = subprocess.run([BASH, "-c", esito], input=entrata.encode("utf-8"), capture_output=True, env=cp1252, timeout=60)
     assert r.returncode == 0 and [e["evento"] for e in lab.coda()][-2:] == ["chiede", "confermata"], \
         f'M13 la conferma di un comando con «”» non entra (pipe cp1252): {lab.coda()[-2:]}'
@@ -382,10 +387,10 @@ def test_m13(repo: Path) -> None:
     r = subprocess.run([sys.executable, str(lab.home / ".claude" / "hooks" / "protect_claude_md.py")],
                        input=json.dumps(entrata), capture_output=True, text=True, env=lab.env, timeout=60)
     assert '"ask"' in r.stdout, f"M13 la guardia sui file non chiede: {r.stdout[:200]}"
-    scrittura = next(g for g in impostazioni["hooks"]["PostToolUse"] if "Write" in g.get("matcher", "")
-                     and any("telemetria-esito.sh" in str(h.get("command", "")) for h in g["hooks"]))
+    scrittura = [m for nome in ("telemetria-esito.sh", "telemetria.py")
+                 for m in voci_hook.matcher(repo, "PostToolUse", nome) if "Write" in m.split("|")]
     assert scrittura, "M13 nessun PostToolUse di Write registra la conferma"
-    assert dopo("toolu_02").returncode == 0
+    assert dopo("toolu_02", "Write").returncode == 0
     assert [e["valore"] for e in lab.coda()][-2:] == ["protect_claude_md.py", "protect_claude_md.py"], \
         f"M13 chiede e confermata della guardia sui file: {lab.coda()}"
 

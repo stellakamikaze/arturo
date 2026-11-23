@@ -19,6 +19,9 @@ HI04 le guardie non hanno `if`: il filtro è best-effort, e un comando che Claud
 HI05 hooks/hooks.json del plugin (bin/impacchetta.py) porta gli stessi `if`.
 HI06 gli hook col filtro, su un comando che la regola lascia passare senza la parola (`echo $(date)`), tacciono.
 
+Dal 23/11/2026 (#6492) questi hook girano dentro hooks/hub.py, e la parola della TABELLA di hub fa il lavoro
+di `if`: vale come `Bash(*parola*)` sulla voce di hub del suo evento. HI02-HI05 leggono le due fonti.
+
 Sulla base a1f5927 (dev prima della modifica) sono rossi HI02 e HI05.
 """
 from __future__ import annotations
@@ -41,7 +44,7 @@ ATTESI = {
     ("PostToolUseFailure", "hooks/gws-esito.py"): "Bash(*gws*)",
     ("PostToolUse", "hooks/block-dangerous.py dopo"): "Bash(*commit*)",
 }
-GUARDIE = ("bash-dispatcher.sh", "protect_claude_md.py", "web-egress-guard.py", "credential-leak-scanner.py",
+GUARDIE = ("bash-dispatcher.sh", "dispatcher.py", "protect_claude_md.py", "web-egress-guard.py", "credential-leak-scanner.py",
            "prompt-injection-scanner.py", "memory-write-scanner.py", "agente-worktree.py")
 
 
@@ -58,14 +61,53 @@ def _chiave(comando: str) -> str:
     return (m.group(1) + (m.group(2) or "")) if m else comando
 
 
+VOCI_HUB = {"pre": "PreToolUse", "post": "PostToolUse", "postfail": "PostToolUseFailure"}
+
+
 def _con_if(hooks: dict) -> dict:
     return {(evento, _chiave(h.get("command", ""))): h["if"] for evento, h in _voci(hooks) if "if" in h}
+
+
+def _tabella_hub(repo: Path) -> list:
+    """Le righe di hooks/hub.py come (evento, chiave, parola), solo per le voci cablate in `hooks`."""
+    f = repo / "hooks" / "hub.py"
+    if not f.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("hub_hi", f)
+    hub = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(repo / "hooks"))
+    try:
+        spec.loader.exec_module(hub)
+    finally:
+        sys.path.remove(str(repo / "hooks"))
+    return [(VOCI_HUB[voce], file + (" " + " ".join(argomenti) if argomenti else ""), parola)
+            for voce, righe in hub.TABELLA.items() for _m, parola, file, argomenti, _t, _c in righe]
+
+
+def _cablate(hooks: dict) -> set:
+    """Gli eventi dove una voce lancia hooks/hub.py <voce>."""
+    fuori = set()
+    for evento, h in _voci(hooks):
+        m = re.search(r"hooks/hub\.py[\"']? (pre|post|postfail)\b", h.get("command", ""))
+        if m and VOCI_HUB[m.group(1)] == evento:
+            fuori.add(evento)
+    return fuori
+
+
+def _con_filtro(repo: Path, hooks: dict) -> dict:
+    """`if` di settings più la parola delle righe di hub sugli eventi dove hub è cablato."""
+    tutti = _con_if(hooks)
+    cablate = _cablate(hooks)
+    for evento, chiave, parola in _tabella_hub(repo):
+        if parola and evento in cablate:
+            tutti.setdefault((evento, chiave), f"Bash(*{parola}*)")
+    return tutti
 
 
 def prova(repo: Path) -> list[str]:
     rossi = []
     hooks = json.loads((repo / "settings.json").read_text(encoding="utf-8")).get("hooks", {})
-    con_if = _con_if(hooks)
+    con_if = _con_filtro(repo, hooks)
 
     fuori = [f"{e} {k}" for (e, k) in con_if if e not in EVENTI_TOOL]
     if fuori:
@@ -90,6 +132,8 @@ def prova(repo: Path) -> list[str]:
     guardie = [f"{e} {h.get('command')}" for e, h in _voci(hooks) if "if" in h
                and (any(g in h.get("command", "") for g in GUARDIE)
                     or ("block-dangerous.py" in h.get("command", "") and " dopo" not in h.get("command", "")))]
+    guardie += [f"{e} {k} (hub, parola {p})" for e, k, p in _tabella_hub(repo) if p
+                and (any(g in k for g in GUARDIE) or (k == "hooks/block-dangerous.py"))]
     if guardie:
         rossi.append(f"HI04 guardie con if, best-effort: {guardie}")
 
@@ -98,7 +142,7 @@ def prova(repo: Path) -> list[str]:
     sys.path.insert(0, str(repo / "bin"))
     try:
         spec.loader.exec_module(modulo)
-        plugin = _con_if(modulo.hooks_json({"hooks": hooks})["hooks"])
+        plugin = _con_filtro(repo, modulo.hooks_json({"hooks": hooks})["hooks"])
     finally:
         sys.path.remove(str(repo / "bin"))
     mancano = [f"{k[0]} {k[1]}" for k, v in ATTESI.items() if plugin.get(k) != v]

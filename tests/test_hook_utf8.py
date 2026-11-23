@@ -35,6 +35,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 # Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
 BASH = shutil.which("bash") or "bash"
@@ -76,6 +78,7 @@ def script_hook_bin(repo: Path) -> list:
     """Gli script Python di bin/ che settings.json lancia come hook, anche passando da un .sh."""
     comandi = json.dumps(json.loads((repo / "settings.json").read_text(encoding="utf-8")).get("hooks", {}))
     nomi = set(re.findall(r"bin/([\w.-]+\.py)", comandi))
+    nomi.update(f[4:] for f in voci_hook.file_lanciati(repo) if f.startswith("bin/") and f.endswith(".py"))
     for sh in re.findall(r"bin/([\w.-]+\.sh)", comandi):
         if (repo / "bin" / sh).is_file():
             nomi.update(re.findall(r"bin/([\w.-]+\.py)", (repo / "bin" / sh).read_text(encoding="utf-8")))
