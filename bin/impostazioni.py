@@ -113,6 +113,7 @@ def _registrati() -> set:
 # dispatcher.py, inject-now.sh di inject-now.py, telemetria-esito.sh lanciava bin/telemetria.py esito.
 EQUIVALENTI = {"hooks/dispatcher.py": ("hooks/bash-dispatcher.sh",),
                "hooks/inject-now.py": ("hooks/inject-now.sh",),
+               "hooks/context-monitor.py": ("hooks/context-monitor.js",),
                "bin/telemetria.py": ("bin/telemetria-esito.sh",)}
 
 

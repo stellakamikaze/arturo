@@ -72,6 +72,8 @@ TABELLA = {
         ("Bash|WebFetch|WebSearch|mcp__.*", None, "hooks/credential-leak-scanner.py", [], 10, None),
         ("Skill", None, "hooks/estensione-skill.py", [], 5, None),
         (EDIT + "|Bash", None, "hooks/memory-write-scanner.py", [], 6, None),
+        # context-monitor.py (ex context-monitor.js, #6492 B5): un processo node in meno dopo ogni Bash e Edit.
+        (EDIT + "|Bash", None, "hooks/context-monitor.py", [], 5, None),
     ],
     "postfail": [
         ("", None, "bin/telemetria.py", ["esito"], 10, "telemetria-attese"),

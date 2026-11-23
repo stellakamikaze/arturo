@@ -387,7 +387,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 In tutto, Arturo porta:
 
-- **40 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **41 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
@@ -398,7 +398,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               40 guardie e automazioni, più 14 strumenti che usano
+hooks/               41 guardie e automazioni, più 14 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -453,7 +453,7 @@ Fuori dal dispatcher:
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
 - `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `memory-firma.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria, accesa di default: vedi "La memoria".
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
-- `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
+- `context-monitor.py` — gira dentro `hub.py post` dopo Bash ed Edit, senza node: avvisa quando il context si avvicina alla soglia di rotazione. La percentuale è quella della barra, misurata sulla finestra della compattazione automatica (`autoCompactWindow`) quando è più piccola di quella del modello. `context-monitor.js` resta come guscio per le config vecchie.
 - `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`; un rosso non ti interrompe: i banchi ripartono dopo 30 minuti e il nome del banco rosso arriva a chi mantiene Arturo con l'evento `banchi` della telemetria; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), riga `SPORTELLO` quando chi mantiene Arturo ha risposto a una tua segnalazione, invito a `/segnala` (si spegne con `arturo segnala basta`), riga `SETUP` una volta al giorno se la prima configurazione non è finita (solo per le installazioni nate dal 16/10), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
