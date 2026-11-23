@@ -11,18 +11,29 @@ Uso:
   sync_transito.py --subito      come --giro: lo chiama la coda di /fine a fine corsa
   sync_transito.py --migra       crea .git-sync e il ramo sync (con --prova stampa soltanto, non scrive)
   sync_transito.py --stato       una riga: commit locali non spinti, ultimo push, lucchetto
+  sync_transito.py --prima-del-pull [main]    prima del pull di main: commit dei path di transito e segno
+                                              "pull in corso", che ferma i giri fino al passo dopo. Se il
+                                              pull toglie path di transito cambiati qui, tornano alla copia
+                                              di main: la nuova è nel ramo sync, e l'autostash non va in
+                                              conflitto
+  sync_transito.py --dopo-il-pull <sha>       dopo il pull di main (sha = HEAD di main prima del pull):
+                                              ripristina i file che main ha smesso di tracciare, commit,
+                                              fetch e rebase del ramo sync anche dentro il minuto
 
 Un solo giro alla volta per macchina (lucchetto .git-sync/lock col pid) e al massimo un push al minuto
 (.git-sync/ultimo-push). Un giro che trova il lucchetto occupato esce 0 senza fare niente. Il push parte solo
 se il remote è privato: con origin sul repository pubblico di Arturo, o senza origin, i commit restano locali.
+Un giro senza commit nuovi né commit da spingere non tocca la rete.
 Prima del commit la guardia dei segreti (hooks/commit-secret-gate.py) legge le righe nuove: una chiave trovata
-ferma il giro (exit 7), e il file la nomina senza mostrare il valore.
+ferma il giro (exit 7), e il file la nomina senza mostrare il valore. Più di 25 file cancellati in un giro
+fermano il commit (exit 4): di solito è un pull di main fatto a mano, che toglie dal disco i path di transito.
 
-Exit: 0 fatto o niente da fare · 4 rebase a metà o conflitto: il ramo sync resta com'era · 5 uso sbagliato
-· 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
+Exit: 0 fatto o niente da fare · 4 rebase a metà, conflitto o troppe cancellazioni: il ramo sync resta com'era
+· 5 uso sbagliato · 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
 
 Variabili per i banchi: SYNC_TRANSITO_CLAUDE (la radice), SYNC_TRANSITO_MINUTO (secondi fra due push, 60),
-SYNC_TRANSITO_VISIBILITA (PRIVATE per saltare gh).
+SYNC_TRANSITO_VISIBILITA (PRIVATE per saltare gh). SYNC_TRANSITO_CANCELLAZIONI_OK=1 lascia passare un giro
+con più di 25 cancellazioni, dopo averle guardate.
 """
 from __future__ import annotations
 
@@ -33,6 +44,7 @@ import re
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -53,6 +65,8 @@ CARTELLE_SENSIBILI = {"secrets", "credentials"}
 RIGENERABILI = {".venv", "venv", "node_modules", "__pycache__"}
 DIFF = ["--no-color", "--no-ext-diff", "--no-textconv", "--unified=0", "--no-renames"]
 LUCCHETTO_VECCHIO = 600  # secondi: un giro dura pochi secondi, oltre è di un processo morto male
+PULL_VECCHIO = 600  # un segno "pull in corso" più vecchio è di un pull morto a metà: i giri ripartono
+TANTE_CANCELLAZIONI = 25
 _OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
 
 
@@ -308,6 +322,16 @@ def commit(guardia, esiti):
     if not staged:
         esiti.append("niente da committare")
         return 0
+    tolti = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "--diff-filter=D", "-z")[1]
+             .split("\0") if p]
+    if len(tolti) > TANTE_CANCELLAZIONI and os.environ.get("SYNC_TRANSITO_CANCELLAZIONI_OK") != "1":
+        # Un pull di main fatto a mano, dopo il commit che toglie i path di transito da main, li cancella dal
+        # disco: spinte sul ramo sync, quelle cancellazioni toglierebbero i file a tutte le macchine.
+        git("reset", "-q")
+        esiti.append(f"STOP, {len(tolti)} file cancellati dal disco (fra cui {tolti[0]}): niente commit. "
+                     f"Se le cancellazioni sono volute, rilancia con SYNC_TRANSITO_CANCELLAZIONI_OK=1; se no "
+                     f"python3 bin/sync_transito.py --dopo-il-pull <HEAD di main prima del pull> li ripristina")
+        return 4
     ferma = segreti(guardia, ("diff", "--cached", *DIFF))
     if ferma:
         print("\n".join(ferma))
@@ -387,12 +411,45 @@ def secondi_dall_ultimo_push():
         return 1e9
 
 
-def giro():
+def segno_pull():
+    return SYNC / "pull-in-corso"
+
+
+def pull_in_corso():
+    try:
+        return time.time() - segno_pull().stat().st_mtime < PULL_VECCHIO
+    except OSError:
+        return False
+
+
+def migrato():
     if not (CL / ".git").exists() or not percorsi():
         print("sync: config senza git o nessun path di transito: niente da fare")
-        return 0
+        return False
     if not (SYNC / "HEAD").exists():
         print("sync: il ramo sync non c'è su questa macchina (python3 bin/sync_transito.py --migra): niente da fare")
+        return False
+    return True
+
+
+def aspetta_lucchetto(secondi=30):
+    """Il lucchetto per il pull, che non può rimandare al minuto dopo: aspetta che il giro in corso finisca."""
+    fine = time.time() + secondi
+    while True:
+        lucchetto = prendi_lucchetto()
+        if lucchetto is not None or time.time() > fine:
+            return lucchetto
+        time.sleep(0.5)
+
+
+def giro():
+    if not migrato():
+        return 0
+    if pull_in_corso() or any((CL / ".git" / n).is_dir() for n in ("rebase-merge", "rebase-apply")):
+        # Fra il pull di main e il ripristino i path di transito possono mancare dal disco: un giro adesso
+        # committerebbe le loro cancellazioni. Il segno lo toglie --dopo-il-pull; un rebase di main a metà
+        # ferma i giri finché qualcuno non lo chiude.
+        print("sync: pull della config in corso, riprovo al prossimo minuto")
         return 0
     lucchetto = prendi_lucchetto()
     if lucchetto is None:
@@ -414,6 +471,8 @@ def giro():
                 git("rev-list", "--count", "HEAD")[1].strip() or 0)
         if not spingibile:
             esiti.append(f"solo locale ({perche})")
+        elif avanti in ("", "0") and git("rev-parse", "--verify", "-q", f"origin/{RAMO}")[0] == 0:
+            pass  # niente di nuovo da spingere: il giro non tocca la rete
         elif secondi_dall_ultimo_push() < float(os.environ.get("SYNC_TRANSITO_MINUTO") or 60) \
                 and avanti not in ("", "0"):
             esiti.append("push al prossimo minuto")
@@ -426,6 +485,211 @@ def giro():
         return 0
     finally:
         lascia_lucchetto(lucchetto)
+
+
+# --- pull della config -------------------------------------------------------------------------------------
+
+def prima_del_pull(ramo_main="main"):
+    """Prima del pull di main: il segno che ferma i giri e il commit di ciò che c'è su disco, così il ramo sync
+    ha l'ultima copia dei file anche se il pull li toglie."""
+    if not migrato():
+        return 0
+    try:
+        segno_pull().write_text(f"{os.getpid()} {time.time()}\n", encoding="utf-8")
+    except OSError as e:
+        print(f"sync: segno del pull non scritto ({e}): niente commit prima del pull")
+        return 6
+    lucchetto = aspetta_lucchetto()
+    if lucchetto is None:
+        print("sync: il lucchetto resta preso da un altro giro: niente commit prima del pull")
+        return 0
+    esiti = []
+    try:
+        prepara()
+        if a_meta():
+            print("sync: STOP, rebase a metà in .git-sync. Guarda con git --git-dir=.git-sync status.")
+            return 4
+        rc = commit(guardia_segreti(), esiti)
+        if rc == 0:
+            libera_per_il_pull(ramo_main, esiti)
+        print("sync prima del pull: " + " · ".join(esiti))
+        return rc
+    finally:
+        lascia_lucchetto(lucchetto)
+
+
+def libera_per_il_pull(ramo_main, esiti):
+    """Se il pull porta la cancellazione di path di transito che qui sono cambiati, quei file tornano alla
+    copia di main: con l'autostash, modifica contro cancellazione è un conflitto che ferma il pull. La copia
+    nuova sta già nel ramo sync (il commit appena fatto), e --dopo-il-pull la rimette su disco."""
+    if git_main("fetch", "-q", "origin", ramo_main, timeout=90)[0] != 0:
+        return
+    # tre punti: solo le cancellazioni arrivate dal remote, non i file aggiunti da commit locali non spinti
+    out = git_main("diff", "--name-only", "--no-renames", "--diff-filter=D", "-z", f"HEAD...origin/{ramo_main}",
+                   "--", *percorsi())[1]
+    tolti = [p for p in out.split("\0") if p]
+    salvi = []
+    for i in range(0, len(tolti), 200):
+        pezzo = tolti[i:i + 200]
+        out = git_main("diff", "--name-only", "--no-renames", "-z", "HEAD", "--", *pezzo)[1]
+        sporchi = [p for p in out.split("\0") if p]
+        # solo i file che il ramo sync ha identici al disco: gli altri (esclusi, o fermati dalla guardia) restano
+        diversi = set(p for p in git("diff", "--name-only", "--no-renames", "-z", "HEAD", "--", *sporchi)[1]
+                      .split("\0") if p) if sporchi else set()
+        nel_ramo = set(p for p in git("ls-tree", "-r", "-z", "--name-only", "HEAD", "--", *sporchi)[1]
+                       .split("\0") if p) if sporchi else set()
+        salvi += [p for p in sporchi if p in nel_ramo and p not in diversi]
+    for i in range(0, len(salvi), 200):
+        git_main("checkout", "HEAD", "--", *salvi[i:i + 200])
+    if salvi:
+        esiti.append(f"{len(salvi)} file che il pull toglie tornati alla copia di main (la nuova sta nel ramo sync)")
+
+
+def ripristina(main_prima, esiti):
+    """I file di transito che il pull di main ha tolto dal disco, ripresi dal ramo sync. Solo quelli che main
+    adesso ignora: è il commit che toglie i path da main. Una cancellazione vera, come la retention di una
+    macchina non ancora migrata, li lascia tracciati e non ignorati, e resta."""
+    if not main_prima or git_main("cat-file", "-e", f"{main_prima}^{{commit}}")[0] != 0:
+        return
+    rc, out, _ = git_main("diff", "--name-only", "--no-renames", "--diff-filter=D", "-z", main_prima, "HEAD",
+                          "--", *percorsi())
+    mancanti = [p for p in out.split("\0") if p and not (CL / p).exists()] if rc == 0 else []
+    ignorati = []
+    for i in range(0, len(mancanti), 200):
+        # -z vale solo con --stdin: una riga per path, senza virgolette sugli accenti
+        out = git_main("-c", "core.quotePath=false", "check-ignore", "--no-index", "--", *mancanti[i:i + 200])[1]
+        ignorati += [p for p in out.splitlines() if p in mancanti]
+    nel_ramo = []
+    for i in range(0, len(ignorati), 200):
+        out = git("ls-tree", "-r", "-z", "--name-only", "HEAD", "--", *ignorati[i:i + 200])[1]
+        nel_ramo += [p for p in out.split("\0") if p]
+    for i in range(0, len(nel_ramo), 200):
+        rc, out, err = git("checkout", "HEAD", "--", *nel_ramo[i:i + 200])
+        if rc != 0:
+            esiti.append(f"ripristino non riuscito: {ultima(err, out)}")
+            return
+    if nel_ramo:
+        esiti.append(f"ripristinati {len(nel_ramo)} file che main non traccia più")
+
+
+def aggiorna(esiti):
+    """Fetch e rebase del ramo sync, anche dentro il minuto: il pull porta i dati delle altre macchine."""
+    rc, out, err = git("ls-remote", "--exit-code", "--heads", "origin", RAMO, timeout=60)
+    if rc == 2:
+        esiti.append(f"ramo {RAMO} non ancora su origin")
+        return 0
+    if rc != 0:
+        esiti.append(f"remote non raggiunto: {ultima(err, out)}")
+        return 0
+    rc, out, err = git("fetch", "-q", "origin", RAMO, timeout=90)
+    if rc != 0:
+        esiti.append(f"fetch non riuscito: {ultima(err, out)}")
+        return 0
+    if git("merge-base", "--is-ancestor", f"origin/{RAMO}", "HEAD")[0] == 0:
+        esiti.append(f"ramo {RAMO} già allineato")
+        return 0
+    prima = git("rev-parse", "HEAD")[1].strip()
+    ok, perche = fai_rebase()
+    if not ok:
+        esiti.append(perche)
+        return 4
+    n = git("rev-list", "--count", f"{prima}..HEAD")[1].strip() if prima else "?"
+    esiti.append(f"ramo {RAMO} aggiornato ({n} commit arrivati)")
+    return 0
+
+
+def dopo_il_pull(main_prima):
+    if not migrato():
+        return 0
+    lucchetto = aspetta_lucchetto()
+    if lucchetto is None:
+        print("sync dopo il pull: il lucchetto resta preso da un altro giro, il ramo sync si aggiorna al prossimo pull")
+        return 0
+    esiti = []
+    try:
+        prepara()
+        if a_meta():
+            print("sync: STOP, rebase a metà in .git-sync. Guarda con git --git-dir=.git-sync status.")
+            return 4
+        ripristina(main_prima, esiti)
+        rc = commit(guardia_segreti(), esiti)
+        if rc == 0:
+            if origine()[1]:
+                rc = aggiorna(esiti)
+            else:
+                esiti.append("solo locale")
+        print("sync dopo il pull: " + " · ".join(esiti))
+        return rc
+    finally:
+        try:
+            segno_pull().unlink()
+        except OSError:
+            pass
+        lascia_lucchetto(lucchetto)
+
+
+def blob(gitfn, rif):
+    """Il contenuto di un oggetto (HEAD:path), o None se non c'è."""
+    p = subprocess.run(["git", *gitfn, "cat-file", "blob", rif], capture_output=True, timeout=60)
+    return p.stdout if p.returncode == 0 else None
+
+
+def unisci_tre(rel, base, mio, loro):
+    """(bytes, ok): la fusione a tre del file, col driver che .gitattributes gli dà. ok False = conflitto."""
+    driver = git_main("check-attr", "merge", "--", rel)[1].rsplit(": ", 1)[-1].strip()
+    with tempfile.TemporaryDirectory(prefix="sync-aggancio-") as d:
+        fo, fa, fb = (Path(d) / n for n in ("base", "mio", "loro"))
+        fo.write_bytes(base or b"")
+        fa.write_bytes(mio)
+        fb.write_bytes(loro)
+        comando = git_main("config", "--get", f"merge.{driver}.driver")[1].strip() \
+            if driver not in ("union", "unspecified", "set", "unset", "") else ""
+        if comando:
+            rc = subprocess.run(comando.replace("%O", f'"{fo}"').replace("%A", f'"{fa}"').replace("%B", f'"{fb}"'),
+                                shell=True, capture_output=True, timeout=60).returncode
+        else:
+            rc = subprocess.run(["git", "merge-file", "-q", *(["--union"] if driver == "union" else []),
+                                 str(fa), str(fo), str(fb)], capture_output=True, timeout=60).returncode
+        return fa.read_bytes(), rc == 0
+
+
+def allinea_aggancio():
+    """Dopo l'aggancio a un ramo sync che un'altra macchina ha già: il disco di questa macchina si allinea al
+    ramo senza togliere niente. Un file che manca qui si riprende dal ramo: committato come cancellato, il
+    primo giro lo toglierebbe a tutte le macchine. Un file diverso si fonde a tre, con la copia di main come
+    base: senza cambi locali vince il ramo, coi cambi locali passano tutti e due. In conflitto resta la copia
+    di questa macchina, e quella del ramo resta nella sua storia."""
+    rc, out, _ = git("diff", "--name-only", "--no-renames", "-z")
+    cambiati = [p for p in out.split("\0") if p] if rc == 0 else []
+    ripresi, fusi, conflitti = 0, 0, []
+    for rel in cambiati:
+        loro = blob([f"--git-dir={SYNC}"], f"HEAD:{rel}")
+        if loro is None:
+            continue
+        pieno = CL / rel
+        if not pieno.exists():
+            if git("checkout", "HEAD", "--", rel)[0] == 0:
+                ripresi += 1
+            continue
+        mio = pieno.read_bytes()
+        base = blob(["-C", str(CL)], f"HEAD:{rel}")
+        if base == mio:
+            git("checkout", "HEAD", "--", rel)
+            ripresi += 1
+            continue
+        if base == loro:
+            continue  # solo questa macchina l'ha cambiato: il primo giro lo committa
+        unito, ok = unisci_tre(rel, base, mio, loro)
+        if ok:
+            pieno.write_bytes(unito)
+            fusi += 1
+        else:
+            conflitti.append(rel)
+    parti = [f"{ripresi} file presi dal ramo"] if ripresi else []
+    parti += [f"{fusi} fusi coi cambi di questa macchina"] if fusi else []
+    parti += [f"{len(conflitti)} in conflitto, tengo la copia di questa macchina ({', '.join(conflitti[:5])})"] \
+        if conflitti else []
+    return (": " + ", ".join(parti)) if parti else ""
 
 
 def migra(prova):
@@ -448,7 +712,7 @@ def migra(prova):
             # e il primo giro committa la differenza.
             git("symbolic-ref", "HEAD", f"refs/heads/{RAMO}")
             git("reset", "-q", f"origin/{RAMO}")
-            print(f"sync: ramo {RAMO} di origin agganciato")
+            print(f"sync: ramo {RAMO} di origin agganciato" + allinea_aggancio())
     rc = giro()
     return rc
 
@@ -471,8 +735,14 @@ def main(argv):
     g.add_argument("--subito", action="store_true")
     g.add_argument("--migra", action="store_true")
     g.add_argument("--stato", action="store_true")
+    g.add_argument("--prima-del-pull", nargs="?", const="main", metavar="RAMO_MAIN")
+    g.add_argument("--dopo-il-pull", metavar="SHA")
     ap.add_argument("--prova", action="store_true")
     a = ap.parse_args(argv)
+    if a.prima_del_pull is not None:
+        return prima_del_pull(a.prima_del_pull)
+    if a.dopo_il_pull is not None:
+        return dopo_il_pull(a.dopo_il_pull)
     if a.migra:
         return migra(a.prova)
     if a.stato:
