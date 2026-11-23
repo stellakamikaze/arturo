@@ -15,7 +15,10 @@ AV06 chi installa da zero non riceve la storia di Arturo come novità da leggere
 AV07 col plugin NOVITA.md sta accanto al codice, e l'avvio conta lo stesso le voci non viste;
 AV08 l'avvio lancia il controllo staccato: chi ha una barra sua non lancia quello della barra di Arturo;
 AV09 senza ARTURO_RADICE lo stato va in CLAUDE_CONFIG_DIR, dove lo legge la barra;
-AV10 dopo /aggiorna la barra smette di dire "serve /aggiorna" subito (revisione del 6/11/2026, AV06-AV10).
+AV10 dopo /aggiorna la barra smette di dire "serve /aggiorna" subito (revisione del 6/11/2026, AV06-AV10);
+AV11 nella console di Windows (ARTURO_SEGNI=ascii, o win32 senza Windows Terminal) la barra dice "^ Arturo" e non
+     "↑ Arturo", e tutta la riga sta in CP850: ↑ ✓ … lì diventano quadratini (23/11/2026). AV04 fissa i segni
+     Unicode con ARTURO_SEGNI=unicode, così vale anche sul runner Windows.
 
 Gira su una copia del repository senza git (così aggiornamenti.py si crede il plugin), con una CLI di Claude
 finta: niente rete. Sulla base 3b5e6c3 sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -25,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,7 +36,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["AV01", "AV02", "AV03", "AV04", "AV05", "AV06", "AV07", "AV08", "AV09", "AV10"]
+CASI = ["AV01", "AV02", "AV03", "AV04", "AV05", "AV06", "AV07", "AV08", "AV09", "AV10", "AV11"]
 DISCRIMINANTI = list(CASI)
 NODE = shutil.which("node") or "node"
 
@@ -122,6 +126,7 @@ def prova(repo: Path) -> list[str]:
 
         entrata = json.dumps({"model": {"display_name": "Opus"}, "workspace": {"current_dir": str(casa)}})
         env_barra = {k: v for k, v in env.items() if k != "CLAUDE_CONFIG_DIR"}
+        env_barra["ARTURO_SEGNI"] = "unicode"
         stato_file.write_text(json.dumps({"controllato": int(time.time()), "versione": "0.2.6", "stato": "manuale",
                                           "plugin": True}), encoding="utf-8")
         barra = esegui([NODE, str(copia / "hooks" / "statusline.js")], input=entrata, env=env_barra).stdout
@@ -194,6 +199,19 @@ def prova(repo: Path) -> list[str]:
         barra2 = esegui([NODE, str(copia / "hooks" / "statusline.js")], input=entrata, env=env_barra).stdout
         if "GIÀ AGGIORNATO" not in aggiorna.stdout or "serve /aggiorna" in barra2:
             rossi.append(f"AV10 dopo /aggiorna: {aggiorna.stdout[-120:]!r}, barra {barra2[-100:]!r}")
+
+        stato_file.write_text(json.dumps({"controllato": int(time.time()), "versione": "0.2.6", "stato": "manuale",
+                                          "plugin": True}), encoding="utf-8")
+        barra3 = esegui([NODE, str(copia / "hooks" / "statusline.js")], input=entrata,
+                        env={**env_barra, "ARTURO_SEGNI": "ascii"}).stdout
+        visibile = re.sub(r"\x1b\[[0-9;]*m", "", barra3)
+        try:
+            visibile.encode("cp850")
+            fuori = ""
+        except UnicodeEncodeError as e:
+            fuori = e.object[e.start:e.end]
+        if "^ Arturo 0.2.6 · serve /aggiorna" not in visibile or fuori:
+            rossi.append(f"AV11 barra per la console di Windows: {visibile[-120:]!r}, fuori da CP850 {fuori!r}")
     return rossi
 
 
@@ -205,6 +223,7 @@ VELENI = [
     ("AV03", "bin/aggiornamenti.py",
      '        return 0\n    _, radici = _moduli()\n    orsa = radici.radice_orsa()\n',
      '        pass\n    _, radici = _moduli()\n    orsa = radici.radice_orsa()\n'),
+    ("AV11", "hooks/statusline.js", "{ su: '^', fatto: 'ok', taglio: '...' }", "{ su: '↑', fatto: '✓', taglio: '…' }"),
     ("AV04", "hooks/statusline.js", "const AGG_SCRIPT = path.join(CODICE_AGG, 'bin', 'aggiornamenti.py');",
      "const AGG_SCRIPT = path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py');"),
     ("AV05", "hooks/session-start.sh", 'elif [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then',
