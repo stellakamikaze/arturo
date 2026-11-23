@@ -3,7 +3,7 @@
 // archivio finto: qui si prova che le query dicono quello che il riepilogo promette.
 // Uso: node server/test-sql.mjs   (Node 22 o successivo; esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
 import { recapSettimana } from "./recap.js";
@@ -548,6 +548,19 @@ const casi = {
     const riga = await archivio(vecchia).segnalazione(1);
     assert.deepEqual([riga.stato, riga.seguiti, riga.pacchetto, riga.contatto_nome, riga.contatto_email], ["ricevuta", "[]", "", "", ""],
       "QM1 le righe di prima non prendono i default");
+  },
+  // Le migrazioni passano da `wrangler d1 migrations apply` (revisione del 22/11/2026, A4): segna-migrazioni.sql elenca
+  // ogni file di migrazioni/, così un D1 nuovo fatto con schema.sql non le riapplica. Gira su schema.sql senza errori.
+  async QM2() {
+    const segna = readFileSync(new URL("./segna-migrazioni.sql", import.meta.url), "utf8");
+    const file = readdirSync(new URL("./migrazioni/", import.meta.url)).filter((n) => n.endsWith(".sql")).sort();
+    const mancano = file.filter((n) => !segna.includes(`('${n}')`));
+    assert.deepEqual(mancano, [], "QM2 una migrazione non sta in segna-migrazioni.sql");
+    const nuovo = d1();
+    nuovo.db.exec(segna);
+    nuovo.db.exec(segna);
+    const fatte = nuovo.db.prepare("SELECT name FROM d1_migrations ORDER BY name").all().map((r) => r.name);
+    assert.deepEqual(fatte, file, "QM2 segna-migrazioni.sql non segna le migrazioni una volta ciascuna");
   },
 };
 

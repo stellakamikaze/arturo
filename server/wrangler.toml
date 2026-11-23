@@ -18,6 +18,8 @@ crons = ["0 6 * * *"]   # ogni mattina alle 7 ora italiana (alle 8 con l'ora leg
 binding = "DB"
 database_name = "arturo"
 database_id = "ID_DEL_DATABASE"
+# Le migrazioni (23/11/2026): `npx wrangler@4 d1 migrations apply arturo --remote` applica quelle nuove, in ordine di nome.
+migrations_dir = "migrazioni"
 
 [[send_email]]
 name = "POSTA"

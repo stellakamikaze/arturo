@@ -971,11 +971,15 @@ async function spedisci(archivio, posta, messaggio, adesso) {
 
 // `limite(tipo, request)` è il limite per IP del Worker (binding Rate Limiting): falso quando la
 // richiesta va oltre. Senza binding, come nei test e in un fork che non lo configura, lascia passare.
+// `versione` è VERSIONE_SERVER del Worker: lo sha che stampa server/versione.sh al deploy (revisione del 22/11/2026, A4).
+// GET / lo dice, e firma-rilascio-arturo.sh lo legge per fermarsi se il rilascio porta un server/ più nuovo.
 export async function gestisci(request, { archivio, posta, avviso = async () => {}, adesso = new Date(), token,
-  limite = async () => true, leggi = "" }) {
+  limite = async () => true, leggi = "", versione = "" }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
-    return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, segnalazioni e feedback. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
+    const v = /^[0-9a-f]{7,40}$/.test(versione) ? versione : "sconosciuta";
+    return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, segnalazioni e feedback. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n"
+      + `Versione del server: ${v}\n`,
       { headers: { "content-type": "text/plain; charset=utf-8" } });
   }
   // Il riepilogo in JSON, per chi mantiene Arturo: lo legge la routine del lunedì che propone le correzioni.

@@ -84,7 +84,9 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
 | `archivio.js` | Le query su D1, compresa "Dove migliorare Arturo". |
 | `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`), all'invio email (`env.POSTA`) e a Telegram. |
 | `schema.sql` | Le quattro tabelle: `eventi`, `segnalazioni`, `contatori`, `feedback`. |
-| `migrazioni/` | Le modifiche allo schema di un archivio già in uso, una per file con la data. |
+| `migrazioni/` | Le modifiche allo schema di un archivio già in uso, una per file con la data. Dal 23/11/2026 le applica `wrangler d1 migrations apply`. |
+| `segna-migrazioni.sql` | Segna come fatte tutte le migrazioni, per un D1 nuovo creato con `schema.sql`. Ogni migrazione nuova entra anche qui (caso QM2). |
+| `versione.sh` | La versione del codice del server: lo sha dell'ultimo commit che tocca i `.js`, `schema.sql` o `migrazioni/`. Il deploy la passa come `VERSIONE_SERVER`. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
 | `test.mjs` | Il banco: `node server/test.mjs` prova `logica.js` con un archivio e una posta finti. |
 | `test-sql.mjs` | Il banco delle query: `node server/test-sql.mjs` prova `archivio.js` su SQLite in memoria (Node 22). |
@@ -173,12 +175,16 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
 
    ```bash
    npx wrangler@4 d1 execute arturo --remote --file schema.sql
+   npx wrangler@4 d1 execute arturo --remote --file segna-migrazioni.sql
    ```
+
+   Il secondo comando segna come fatte le migrazioni di `migrazioni/`: `schema.sql` ha già tutte le colonne.
 
 3. Prepara la config fuori dal repository, così i tuoi indirizzi non finiscono in un commit:
 
    ```bash
    mkdir -p ~/arturo-deploy && cp logica.js archivio.js worker.js email.js recap.js versioni.js schema.sql ~/arturo-deploy/
+   cp -R migrazioni ~/arturo-deploy/ && bash versione.sh > ~/arturo-deploy/VERSIONE
    sed -e 's/DOMINIO_DEL_SERVER/dati.tuodominio.org/' \
        -e 's/ID_DEL_DATABASE/<database_id>/' \
        -e 's/DESTINATARIO_VERIFICATO/tu@esempio.org/g' \
@@ -190,9 +196,12 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
    wrangler e non finisce in nessun file):
 
    ```bash
-   cd ~/arturo-deploy && npx wrangler@4 deploy
+   cd ~/arturo-deploy && npx wrangler@4 deploy --var "VERSIONE_SERVER:$(cat VERSIONE)"
    npx wrangler@4 secret put RIEPILOGO_TOKEN
    ```
+
+   `VERSIONE_SERVER` è la versione del codice che pubblichi (`versione.sh`, revisione del 22/11/2026). Senza,
+   `GET /` dice "Versione del server: sconosciuta", e chi rilascia non sa quale codice gira.
 
    L'output di `deploy` elenca i binding (`env.POSTA`, `env.DB`), il dominio e il cron `0 6 * * *`.
    Senza il token `GET /v1/riepilogo` risponde sempre 401: è il comportamento sicuro.
@@ -210,7 +219,7 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
    Senza i due secret non parte niente verso Telegram. Il token del bot è un segreto: chi lo ha
    può scrivere a nome del bot, quindi non va in nessun file né in un commit.
 
-5. Prova che risponde. Un `GET /` restituisce una riga di testo:
+5. Prova che risponde. Un `GET /` restituisce due righe di testo, la seconda con la versione del server:
 
    ```bash
    curl https://dati.tuodominio.org/
@@ -222,8 +231,12 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
    variabile non parte niente.
 
 Per un aggiornamento ripeti i passi 3 e 4. Il database e i dati restano. Prima del passo 4 applica le
-migrazioni nuove di `migrazioni/`, in ordine di data: il passo 2 crea solo le tabelle che mancano e non aggiunge
-colonne. Senza `migrazioni/2026-11-04-sportello.sql` il Worker dello sportello non salva più nessuna
+migrazioni nuove, da `~/arturo-deploy` dopo il passo 3: `npx wrangler@4 d1 migrations apply arturo --remote`.
+Wrangler applica in ordine di nome solo quelle che `d1_migrations` non ha ancora, e le segna. Il passo 2 crea solo
+le tabelle che mancano e non aggiunge colonne. Un D1 creato prima del 23/11/2026 riceve una volta sola
+`segna-migrazioni.sql`, perché le migrazioni di allora erano già applicate a mano con `d1 execute`.
+L'ordine è sempre migrazione, Worker, client: `firma-rilascio-arturo.sh` di chi mantiene Arturo legge la versione
+in `GET /` e non firma un rilascio che porta un `server/` più nuovo del Worker. Senza `migrazioni/2026-11-04-sportello.sql` il Worker dello sportello non salva più nessuna
 segnalazione: l'INSERT cerca colonne che non ci sono. Prima di un `ALTER` leggi un export della tabella.
 
 L'MCP di Cloudflare non basta per il deploy: la sua autorizzazione non scrive su D1. Usa

@@ -1233,6 +1233,15 @@ const casi = {
     assert.deepEqual(r.righe.map((x) => [x.evento, x.valore]), buoni, "V64 i valori buoni della memoria non passano tutti");
     assert.equal(r.scartati, cattivi.length, "V64 un valore fuori fascia della memoria passa");
   },
+  // GET / dice la versione del server (revisione del 22/11/2026, A4): lo sha di server/versione.sh, che il deploy passa come
+  // VERSIONE_SERVER. Senza, o con un valore che non è uno sha, dice "sconosciuta": la firma del rilascio allora si ferma.
+  async V67() {
+    const f = finti();
+    const riga = async (versione) => (await (await gestisci(new Request("https://arturo.example/"), { ...f, versione })).text()).split("\n")[1];
+    assert.equal(await riga("0123456789ab"), "Versione del server: 0123456789ab", "V67 GET / non dice la versione del server");
+    assert.equal(await riga(""), "Versione del server: sconosciuta", "V67 senza VERSIONE_SERVER GET / non dice sconosciuta");
+    assert.equal(await riga("<b>x</b>"), "Versione del server: sconosciuta", "V67 una VERSIONE_SERVER che non è uno sha passa in GET /");
+  },
 };
 
 // `node test.mjs V31 V32` fa girare i soli casi nominati (serve al veleno di un caso alla volta).

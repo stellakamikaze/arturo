@@ -40,6 +40,12 @@ modo: "gate toccati" o "gate rilascio". Lo script di firma di chi rilascia cerca
   elenca i sistemi rossi;
 - nessuna run finita: si ferma sempre, e dice come lanciarla.
 
+**Il server prima del client** (dal 23/11/2026, revisione del 22/11, A4). Lo stesso script legge la versione del
+Worker in `GET /` (`Versione del server: <sha>`, la var `VERSIONE_SERVER` che il deploy prende da
+`server/versione.sh`). Se il rilascio porta un `server/` diverso da quello del Worker, e non già contenuto in
+quello, si ferma prima della chiave: prima le migrazioni (`wrangler d1 migrations apply`) e il deploy, poi la firma.
+Si ferma anche con un Worker che non dice la versione o gira un commit che il repository non ha.
+
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
 1. **Gate verde**: `ARTURO_GATE_RILASCIO=1 bash tests/verifica-allineamento.sh` esce con `0`. Banchi, controprove e veleni
@@ -279,7 +285,7 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   seguiti) e `rispondi N --stato S --testo FILE [--versione V] --conferma`. Gli stati: `ricevuta`, `serve-info`
   (la persona risponde con `segnala seguito`), `in-lavoro`, `chiusa`, `rifiutata`. La risposta la legge chi ha
   segnalato: si scrive per lei. Seguito e ritiro suonano su Telegram col solo numero. Il pacchetto tecnico si
-  svuota dopo 90 giorni. Per il deploy, prima la migrazione `server/migrazioni/2026-11-04-sportello.sql`, poi
+  svuota dopo 90 giorni. Per il deploy, prima le migrazioni nuove (`wrangler d1 migrations apply`), poi
   il Worker, poi il rilascio del client (`server/README.md`).
 - **Smistamento e correzione automatici (14/11/2026).** Una routine giornaliera di chi mantiene Arturo lancia
   `arturo-contributi.py smista`: Claude headless senza strumenti dà a ogni segnalazione nuova un tipo
