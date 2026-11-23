@@ -206,11 +206,37 @@ def file_lucchetto():
     return SYNC / "lock"
 
 
-def viva(pid):
-    if os.name == "nt":
-        return True
+def _viva_windows(pid: int) -> bool:
+    """Come in fine-coda.py: su Windows os.kill(pid, 0) manda un Ctrl+C, e prima un lucchetto di un giro
+    morto restava valido per sempre (ST04, sonda #6455)."""
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ctypes.get_last_error() == 5  # accesso negato: il processo c'è
     try:
-        os.kill(int(pid), 0)
+        codice = wintypes.DWORD()
+        if not k.GetExitCodeProcess(h, ctypes.byref(codice)):
+            return True
+        return codice.value == 259  # STILL_ACTIVE
+    finally:
+        k.CloseHandle(h)
+
+
+def viva(pid):
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        return False
+    if os.name == "nt":
+        return _viva_windows(pid)
+    try:
+        os.kill(pid, 0)
         return True
     except (ValueError, ProcessLookupError):
         return False
