@@ -268,6 +268,7 @@ export function recapSettimana(r, { lunedi, domenica } = {}) {
         ["Salvataggi automatici", x.salvataggi.n, x.salvataggi.installazioni, "-"],
       ], { numeriche: [1, 2, 3] }), {
         nota: `${f.mediana === null ? "Nessun primo /fine ancora." : `Primo /fine dopo ${f.mediana} giorni (mediana).`} ` +
+          `Installazioni che mandano gli eventi della memoria, le sole che contano: ${x.installazioni}. ` +
           `Dalla rotazione: ${x.rotazione} /inizio, fuori dal conto. "Su" dei salvataggi conta le installazioni. ` +
           `Stato: ${x.stato.length ? x.stato.map((s) => `${s.valore} ${s.n}`).join(", ") : "nessun dato"}.`,
       });

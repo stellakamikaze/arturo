@@ -308,6 +308,13 @@ export function calcolaIndietro(attive, versioni, al, giorni = LIMITI.fermaGiorn
   return fuori.sort((x, y) => (x.dal < y.dal ? -1 : x.dal > y.dal ? 1 : 0));
 }
 
+// Le installazioni attive con una versione che non è un rilascio (revisione del 22/11/2026, A14): calcolaIndietro le salta,
+// perché non sa a quale rilascio sono. Senza questa riga un'installazione "sconosciuta" non risultava mai ferma.
+export function sconosciute(attive) {
+  return (attive || []).filter((a) => !rilascio(a.versione)).map((a) => ({ installazione: a.installazione, versione: a.versione || "",
+    ultima: a.ultima })).sort((x, y) => (x.installazione < y.installazione ? -1 : 1));
+}
+
 // nosniff e no-store su ogni risposta (revisione siti del 19/11/2026, #6124): sono dati di una persona o
 // di un modulo, non pagine da tenere in cache.
 function risposta(status, dati) {
@@ -652,7 +659,7 @@ export function misureMemoria(mem) {
   const richiamo = m.richiamo || [];
   const somma = (filtro) => richiamo.filter(filtro).reduce((s, x) => s + (Number(x.n) || 0), 0);
   return {
-    persona, rotazione, sessioni: Math.max((m.sessioni || 0) - rotazione, 0),
+    persona, rotazione, sessioni: Math.max((m.sessioni || 0) - rotazione, 0), installazioni: Number(m.installazioni) || 0,
     primoFine: m.primoFine || { nate: 0, conFine: 0, mediana: null },
     stato: m.stato || [],
     richiamo: { sessioni: somma(() => true), conProposte: somma((x) => !x.valore.startsWith("0/")),
@@ -698,6 +705,9 @@ export function testoMigliorare(m) {
     ...righe(m.indietro, (x) => `  ${corto(x.installazione)}  ferma alla ${x.rilascio}, manca dal ${x.dal}, c'è la ${x.nuovo}`
       + `${x.forma ? `, ${x.forma}` : ""}, ultimo esito ${x.esito || "nessuno"}`, "  nessuna"),
     "",
+    "Versione sconosciuta, non si sa se sono indietro (attive, con una versione che non è un rilascio):",
+    ...righe(m.sconosciute, (x) => `  ${corto(x.installazione)}  ${x.versione || "senza versione"}, attiva il ${x.ultima}`, "  nessuna"),
+    "",
     "Aggiornamenti non applicati (versione, esito, volte):",
     ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),
     "",
@@ -721,6 +731,7 @@ export function testoMemoria(mem) {
   const f = x.primoFine;
   return [
     "Memoria:",
+    `  Installazioni che mandano gli eventi della memoria, le sole che contano qui: ${x.installazioni}.`,
     `  /inizio scritto dalla persona: ${x.persona} su ${x.sessioni} sessioni non aperte dalla rotazione (${per(x.persona, x.sessioni)}); dalla rotazione: ${x.rotazione}.`,
     `  Primo /fine: ${f.conFine} su ${installazioni(f.nate)} nate negli ultimi 30 giorni` +
       (f.mediana === null ? "." : `, dopo ${f.mediana} ${f.mediana === 1 ? "giorno" : "giorni"} (mediana).`),

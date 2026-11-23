@@ -586,6 +586,28 @@ const casi = {
     const sbloccate = await a.sbloccate(AL, [{ installazione: "bbbb2222-x" }]);
     assert.deepEqual(sbloccate, ["aaaa1111-x"], "QS2 le sbloccate non sono le avvisate, attive e non più indietro");
   },
+  // Per persona (revisione del 22/11/2026, A14): la vista uso porta forma e ultimo stato della memoria; le quote della memoria
+  // contano solo le installazioni che mandano gli eventi della memoria; un'installazione con una versione che non è un
+  // rilascio sta nella riga delle sconosciute.
+  async QU2() {
+    const a = await con([
+      ["2026-10-01", "aaaa1111-x", "sessione", "plugin", "v0.2.20"], ["2026-10-12", "aaaa1111-x", "sessione", "plugin", "v0.2.20"],
+      ["2026-10-12", "aaaa1111-x", "memoria", "accesa:1-10", "v0.2.20"], ["2026-10-12", "aaaa1111-x", "inizio", "persona", "v0.2.20"],
+      ["2026-10-01", "bbbb2222-x", "sessione", "clone", "v0.1.2"], ["2026-10-12", "bbbb2222-x", "sessione", "clone", "v0.1.2"],
+      ["2026-10-12", "bbbb2222-x", "sessione", "clone", "v0.1.2"],
+      ["2026-10-01", "cccc3333-x", "sessione", "", "sconosciuta"], ["2026-10-12", "cccc3333-x", "sessione", "", "sconosciuta"],
+    ]);
+    const uso = new Map((await a.uso("2026-10-06", AL)).map((x) => [x.installazione, x]));
+    assert.deepEqual([uso.get("aaaa1111-x").forma, uso.get("aaaa1111-x").memoria, uso.get("bbbb2222-x").forma, uso.get("bbbb2222-x").memoria],
+      ["plugin", "accesa:1-10", "clone", ""], "QU2 la vista uso non dice forma e memoria per persona");
+    const m = await a.miglioramento(AL);
+    assert.deepEqual([m.memoria.sessioni, m.memoria.installazioni], [2, 1], "QU2 le quote della memoria contano chi non manda l'evento");
+    assert.deepEqual(m.sconosciute, [{ installazione: "cccc3333-x", versione: "sconosciuta", ultima: "2026-10-12" }],
+      "QU2 manca la riga delle versioni sconosciute");
+    const testo = testoMigliorare(m).join("\n");
+    assert.match(testo, /Versione sconosciuta[^\n]*\n {2}cccc3333 {2}sconosciuta, attiva il 2026-10-12/, "QU2 il riepilogo non mostra le sconosciute");
+    assert.match(testo, /Installazioni che mandano gli eventi della memoria, le sole che contano qui: 1\./, "QU2 il riepilogo non dice su quante");
+  },
   // Le migrazioni passano da `wrangler d1 migrations apply` (revisione del 22/11/2026, A4): segna-migrazioni.sql elenca
   // ogni file di migrazioni/, così un D1 nuovo fatto con schema.sql non le riapplica. Gira su schema.sql senza errori.
   async QM2() {

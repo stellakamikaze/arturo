@@ -1,6 +1,6 @@
 // L'archivio del server di Arturo: le query su D1. Separato da worker.js, che importa cloudflare:email,
 // così test-sql.mjs prova le query vere su SQLite con node, senza Cloudflare.
-import { LIMITI, ritenzione, calcolaIndietro, derivaPubblica, tempoPrimoFine } from "./logica.js";
+import { LIMITI, ritenzione, calcolaIndietro, sconosciute, derivaPubblica, tempoPrimoFine } from "./logica.js";
 
 // v2026-10-15: da qui /setup manda i suoi eventi alla telemetria.
 const SETUP_DAL = "2026-10-15";
@@ -173,6 +173,8 @@ export function archivio(db, { interne = [] } = {}) {
         `SELECT versione, MIN(giorno) AS prima, COUNT(DISTINCT installazione) AS n FROM eventi
          WHERE giorno <= ? AND ${VISTE} GROUP BY versione`, al);
       const fuori = calcolaIndietro(attive, versioni, al);
+      // Una versione che non è un rilascio (un tag della persona, `sconosciuta`) non risulta mai indietro: dal 23/11/2026
+      // (revisione del 22/11, A14) le installazioni attive con una versione così stanno in una riga loro (sconosciute).
       if (!fuori.length) return fuori;
       // Perché è ferma (14/11/2026, #5610): l'ultimo esito di un aggiornamento e la forma dell'installazione, plugin
       // o clone. Prima il riepilogo diceva chi era fermo e non il perché.
@@ -196,6 +198,14 @@ export function archivio(db, { interne = [] } = {}) {
          ORDER BY 1`).bind(al, al, al, al).all()).results;
       return righe.map((x) => x.installazione).filter((x) => !ferme.has(x)).slice(0, LIMITI.taskDerivaPerEmail);
     },
+    // Le installazioni attive negli ultimi LIMITI.fermaGiorni giorni con una versione che non è un rilascio (A14, 23/11/2026).
+    async sconosciute(al) {
+      return sconosciute((await db.prepare(
+        `SELECT e.installazione AS installazione, e.versione AS versione, m.ultima AS ultima FROM eventi e
+         JOIN (SELECT installazione, MAX(rowid) AS r, MAX(giorno) AS ultima FROM eventi
+               WHERE giorno > date(?, '-${Number(LIMITI.fermaGiorni)} day') AND giorno <= ? AND ${VISTE} GROUP BY installazione) m
+         ON e.rowid = m.r`).bind(al, al).all()).results);
+    },
     // Il giorno dell'ultimo avviso con questa chiave, per non ripeterlo ogni mattina.
     async ultimoAvviso(chiave) {
       const r = await db.prepare("SELECT MAX(giorno) AS giorno FROM contatori WHERE chiave = ? AND giorno <> 'sempre'").bind(chiave).first();
@@ -212,6 +222,7 @@ export function archivio(db, { interne = [] } = {}) {
       const indietro = await this.indietro(al);
       return {
         indietro,
+        sconosciute: await this.sconosciute(al),
         sbloccate: await this.sbloccate(al, indietro),
         // L'ultima fase vista per installazione, se non è arrivata in fondo e tace da 3 giorni.
         setupFermi: await tutte(
@@ -271,8 +282,12 @@ export function archivio(db, { interne = [] } = {}) {
       const salvati = (await db.prepare(
         `SELECT COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
          WHERE evento = 'salvataggio' AND ${trenta} AND ${ESTERNE}`).bind(al, al).first()) || {};
+      // Dal 23/11/2026 (revisione del 22/11, A14) le sessioni contano solo le installazioni che mandano gli eventi della memoria:
+      // prima la quota di /inizio divideva anche per le sessioni delle versioni che `inizio` non lo mandano.
+      const mandano = `installazione IN (SELECT installazione FROM eventi WHERE evento IN ('memoria', 'richiamo', 'inizio') AND ${trenta})`;
       return {
-        sessioni: await uno(`SELECT COUNT(*) AS n FROM eventi WHERE evento = 'sessione' AND ${trenta} AND ${ESTERNE}`, al, al),
+        sessioni: await uno(`SELECT COUNT(*) AS n FROM eventi WHERE evento = 'sessione' AND ${trenta} AND ${ESTERNE} AND ${mandano}`, al, al, al, al),
+        installazioni: await uno(`SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE ${trenta} AND ${ESTERNE} AND ${mandano}`, al, al, al, al),
         inizio: await tutte(
           `SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = 'inizio' AND ${trenta} AND ${ESTERNE} GROUP BY valore ORDER BY valore`, al, al),
         primoFine: tempoPrimoFine(await tutte(
@@ -306,6 +321,13 @@ export function archivio(db, { interne = [] } = {}) {
         `SELECT installazione, evento, valore, COUNT(*) AS n FROM eventi
          WHERE evento IN ('comando', 'aggiorna', 'durata', 'turni', 'skill') AND ${finestra}
          GROUP BY installazione, evento, valore ORDER BY n DESC`, dal, al);
+      // Forma (plugin o clone) e ultimo stato della memoria, per persona (revisione del 22/11/2026, A14): l'ultimo valore visto.
+      const ultimi = {};
+      for (const x of await tutte(
+        `SELECT installazione, evento, valore FROM eventi WHERE rowid IN (SELECT MAX(rowid) FROM eventi
+           WHERE evento IN ('sessione', 'memoria') AND valore <> '' AND giorno <= ? GROUP BY installazione, evento)`, al)) {
+        (ultimi[x.installazione] ||= {})[x.evento] = x.valore;
+      }
       const setup = new Set((await tutte(
         "SELECT DISTINCT installazione FROM eventi WHERE evento = 'setup' AND valore = 'fine' AND giorno <= ?", al))
         .map((x) => x.installazione));
@@ -326,6 +348,7 @@ export function archivio(db, { interne = [] } = {}) {
           durata: conta("durata"), turni: conta("turni"), skill: conta("skill"),
           setupFinito: setup.has(installazione),
           segnalazioni: segnalazioni.get(installazione) || 0,
+          forma: (ultimi[installazione] || {}).sessione || "", memoria: (ultimi[installazione] || {}).memoria || "",
         };
       });
     },
