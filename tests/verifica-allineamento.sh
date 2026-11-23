@@ -306,6 +306,8 @@ BANCHI=(
   test_revisione_bassi_2026_11_22.py
   # I dati di transito sul ramo sync (23/11/2026, #6424, D5): giro, lucchetto, minuto, segreti, merge union, coda.
   test_sync_transito.py
+  # Un processo per evento: hooks/hub.py lancia insieme gli hook Python e ne fonde le uscite (23/11/2026, #6492).
+  test_hub_2026_11_23.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -640,6 +642,8 @@ BASELINE=(
   "test_testi_pubblici.py 40d4e4a"
   # I dati di transito sul ramo sync (23/11/2026, #6424): senza bin/sync_transito.py rossi tutti e dodici. 88a5f8d, il dev prima.
   "test_sync_transito.py 88a5f8d"
+  # hooks/hub.py (23/11/2026, #6492): senza hub rossi tutti e otto. 9cbb926, il dev prima.
+  "test_hub_2026_11_23.py 9cbb926"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
