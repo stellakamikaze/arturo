@@ -104,6 +104,11 @@ def env_di(home: Path, **extra: str) -> dict:
     env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", ""),
            "PYTHONDONTWRITEBYTECODE": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "ARTURO_TELEMETRIA": "0",
            "TMPDIR": os.environ.get("TMPDIR", "/tmp")}
+    # Su Windows Python 3.8 senza SYSTEMROOT non parte ("failed to get random numbers"): Claude Code la passa
+    # sempre agli hook, il banco deve fare lo stesso (sonda #6455, sesto giro)
+    for nome in ("SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT"):
+        if os.name == "nt" and os.environ.get(nome):
+            env[nome] = os.environ[nome]
     env.update(extra)
     return env
 
