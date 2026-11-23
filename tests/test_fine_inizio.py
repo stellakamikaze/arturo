@@ -1741,7 +1741,9 @@ def test_f36(repo: Path) -> None:
 
 
 def test_f37(repo: Path) -> None:
-    chiusura = read(repo / "commands" / "fine.md").split("## Chiusura", 1)[1].split("\n## ", 1)[0]
+    parti = read(repo / "commands" / "fine.md").split("## Chiusura", 1)
+    assert len(parti) == 2, "F37 /fine non ha la sezione Chiusura"
+    chiusura = parti[1].split("\n## ", 1)[0]
     blocco = re.search(r"```\n((?:   \S.*\n)+)   ```", chiusura)
     assert blocco, f"F37 la chiusura di /fine non ha il blocco tecnico in un blocco di codice: {chiusura[:400]!r}"
     righe = [r[3:] for r in blocco.group(1).splitlines()]
