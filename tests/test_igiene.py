@@ -36,12 +36,16 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 import yaml
+
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
 
 QUI = Path(__file__).resolve().parent
 PROVA = "zorbaquix"  # inventato: nessun significato, nessuna persona
@@ -253,7 +257,7 @@ def test_ig08(repo: Path) -> None:
 
         def esito(prima: str, dopo: str, ramo: str, evento: str = "push") -> int:
             env = dict(ambiente, PRIMA=prima, DOPO=dopo, RAMO=ramo, EVENTO=evento)
-            return subprocess.run(["bash", "-e", "-c", blocco], cwd=str(r), env=env, capture_output=True, text=True,
+            return subprocess.run([BASH_VERO, "-e", "-c", blocco], cwd=str(r), env=env, capture_output=True, text=True,
                                   timeout=60).returncode
 
         git("init", "-q", "-b", "dev")

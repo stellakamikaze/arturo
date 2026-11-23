@@ -33,6 +33,9 @@ import tempfile
 import time
 from pathlib import Path
 
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
+
 CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12", "SV13"]
 SA = "bin/salva-automatico.py"
 # caso -> (file, testo, testo rotto)
@@ -165,7 +168,7 @@ def prova(lab: Lab) -> list:
     r = lab.salva("s-auto", lab.progetto)
     nuovi = [p for p in lab.handoff() if p != fine]
     testo = nuovi[0].read_text(encoding="utf-8") if len(nuovi) == 1 else ""
-    gate = subprocess.run(["bash", str(lab.cl / "bin" / "handoff-gate.sh"), str(nuovi[0])], capture_output=True,
+    gate = subprocess.run([BASH_VERO, str(lab.cl / "bin" / "handoff-gate.sh"), str(nuovi[0])], capture_output=True,
                           text=True, env=lab.env(), timeout=60) if nuovi else None
     attesi = ["- Salvato: in automatico", "- Sessione: s-auto", "ULTIMA-RICHIESTA", str(scritto),
               "Rileggere la scena del tram", "## Task Pendenti", "Branch: main"]
@@ -258,7 +261,7 @@ def prova(lab: Lab) -> list:
     r = lab.salva("s-corretta", lab.progetto)
     con = [p for p in lab.handoff() if "- Sessione: s-corretta" in p.read_text(encoding="utf-8")]
     testo = con[0].read_text(encoding="utf-8") if len(con) == 1 else ""
-    gate = subprocess.run(["bash", str(lab.cl / "bin" / "handoff-gate.sh"), str(con[0])], capture_output=True,
+    gate = subprocess.run([BASH_VERO, str(lab.cl / "bin" / "handoff-gate.sh"), str(con[0])], capture_output=True,
                           text=True, env=lab.env(), timeout=60) if con else None
     c = subprocess.run([sys.executable, "-B", str(lab.cl / "bin" / "contesto.py"), "mio-libro"], capture_output=True,
                        text=True, encoding="utf-8", errors="replace", env=lab.env(), timeout=60, cwd=str(lab.home))
@@ -276,7 +279,7 @@ def prova(lab: Lab) -> list:
     lab.transcript("s-hook", [utente("chiudi il capitolo tre")])
     dati = json.dumps({"session_id": "s-hook", "transcript_path": str(lab.projects / "s-hook.jsonl"),
                        "cwd": str(lab.progetto), "reason": "prompt_input_exit"})
-    subprocess.run(["bash", str(lab.cl / "hooks" / "session-end.sh")], input=dati, capture_output=True, text=True,
+    subprocess.run([BASH_VERO, str(lab.cl / "hooks" / "session-end.sh")], input=dati, capture_output=True, text=True,
                    env=lab.env(), timeout=60, cwd=str(lab.progetto))
     visto = False
     for _ in range(100):

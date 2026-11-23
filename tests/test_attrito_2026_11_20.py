@@ -26,6 +26,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
+
 BASE = "0c1daea"
 _QUI = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("banco_ms_at", _QUI / "test_guardie_memoria_sblocco_2026_11_11.py")
@@ -268,7 +271,7 @@ def at08(b: Banco) -> int:
         for nome in con_banchi:
             (config / "tests" / nome).write_text("pass\n", encoding="utf-8")
         env = dict(ms._env(b.home), ARTURO_DIR=str(config), ARTURO_TELEMETRIA="0")
-        p = subprocess.run(["bash", str(config / "tests" / "banchi-avvio.sh")], env=env, capture_output=True,
+        p = subprocess.run([BASH_VERO, str(config / "tests" / "banchi-avvio.sh")], env=env, capture_output=True,
                            text=True, encoding="utf-8", timeout=300, check=False)
         esito = (config / "cache" / "banchi-ultimo-esito.txt").read_text(encoding="utf-8").splitlines()[:1]
         return p.returncode, (esito or [""])[0]

@@ -43,6 +43,7 @@ import importlib.util
 import os
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,9 @@ from pathlib import Path
 QUI = Path(__file__).resolve().parent
 sys.path.append(str(QUI.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
+
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
 
 CL = Path(os.environ.get("SYNC_TRANSITO_CLAUDE") or radice_orsa())
 SYNC = CL / ".git-sync"
@@ -150,7 +154,7 @@ def origine():
                 return url, vis == "PRIVATE", f"visibilità {vis or 'sconosciuta'}"
     except OSError:
         pass
-    rc, out, _ = run(["bash", "-c", 'gh repo view "$1" --json visibility -q .visibility', "gh", url], 30)
+    rc, out, _ = run([BASH_VERO, "-c", 'gh repo view "$1" --json visibility -q .visibility', "gh", url], 30)
     vis = out.strip() if rc == 0 else ""
     if vis:
         try:

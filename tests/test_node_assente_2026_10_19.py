@@ -27,6 +27,10 @@ from pathlib import Path
 
 from salti_windows import SaltoWindows, dichiara, link
 
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
+SH_VERO = shutil.which("sh") or "/bin/sh"
+
 ENTRATA = json.dumps({
     "model": {"display_name": "Opus 5.5"},
     "workspace": {"current_dir": "/tmp"},
@@ -68,14 +72,14 @@ def test_na01(repo: Path) -> None:
         # ARTURO_NODE_DIRS vuota: anche Homebrew e ~/.local/bin senza node, come su una macchina che non l'ha
         # (dal 15/11/2026 il comando della barra cerca node anche lì, per il PATH minimo di ssh).
         env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice), "ARTURO_NODE_DIRS": ""}
-        p = subprocess.run(["/bin/sh", "-c", comando_barra(repo)], input=ENTRATA, env=env,
+        p = subprocess.run([SH_VERO, "-c", comando_barra(repo)], input=ENTRATA, env=env,
                            capture_output=True, text=True, timeout=20)
         assert p.returncode == 0 and "node" in p.stdout, \
             f"NA01 senza node la barra non dice cosa manca: rc={p.returncode} out={p.stdout!r} err={p.stderr[-200:]!r}"
         node = shutil.which("node")
         if node:
-            env["PATH"] = f"{Path(node).parent}:{env['PATH']}"
-            p = subprocess.run(["/bin/sh", "-c", comando_barra(repo)], input=ENTRATA, env=env,
+            env["PATH"] = f"{Path(node).parent}{os.pathsep}{env['PATH']}"
+            p = subprocess.run([SH_VERO, "-c", comando_barra(repo)], input=ENTRATA, env=env,
                                capture_output=True, text=True, timeout=20)
             assert p.returncode == 0 and "quota 5 ore 15%" in p.stdout and "manca node" not in p.stdout, \
                 f"NA01 con node la barra non è quella di statusline.js: {p.stdout!r}"
@@ -87,7 +91,7 @@ def test_na02(repo: Path) -> None:
         home = casa_finta(repo, radice)
         env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice), "ARTURO_BANCHI_AVVIO": "0",
                "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "ARTURO_PATH_CANDIDATE": ""}
-        p = subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
+        p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
                            cwd=radice, capture_output=True, text=True, timeout=60)
         assert any(r.startswith("NODE: manca node") for r in p.stdout.splitlines()), \
             f"NA02 senza node l'avvio non lo dice: rc={p.returncode} out={p.stdout[-400:]!r}"
@@ -108,7 +112,7 @@ def test_na03(repo: Path) -> None:
                "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "CLAUDE_ENV_FILE": str(ambiente),
                "ARTURO_PATH_CANDIDATE": f"{brew}:{base}:{radice / 'non-esiste'}"}
         for giro in (1, 2):
-            p = subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
+            p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
                                cwd=radice, capture_output=True, text=True, timeout=60)
             assert not any(r.startswith("NODE:") for r in p.stdout.splitlines()), \
                 f"NA03 giro {giro}: node c'è in {brew} ma l'avvio dice che manca: {p.stdout[-400:]!r}"
