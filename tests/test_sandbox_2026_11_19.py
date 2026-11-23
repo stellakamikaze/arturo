@@ -55,8 +55,17 @@ def ambiente(radice: Path) -> dict:
 
 def arturo(repo: Path, radice: Path, codice: str, *argomenti: str) -> subprocess.CompletedProcess:
     assert (repo / "bin" / "sandbox.py").is_file(), f"{codice} manca bin/sandbox.py"
-    r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "sandbox", *argomenti], env=ambiente(radice),
-                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    comando = [sys.executable, str(repo / "bin" / "arturo"), "sandbox", *argomenti]
+    if sys.platform == "win32":
+        # Su Windows accendi non scrive niente per scelta (#6322, SB08): SB01-SB07 provano le voci di macOS e
+        # Linux, quindi qui sandbox.py crede di stare su Linux, come SB08 crede di stare su Windows (#6455).
+        script = repo / "bin" / "sandbox.py"
+        comando = [sys.executable, "-c",
+                   "import importlib.util, sys; "
+                   f"spec = importlib.util.spec_from_file_location('sandbox_linux', {str(script)!r}); "
+                   "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); "
+                   f"sys.platform = 'linux'; sys.exit(m.main({list(argomenti)!r}))"]
+    r = subprocess.run(comando, env=ambiente(radice), capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert r.returncode == 0, f"{codice} arturo sandbox {' '.join(argomenti)} esce {r.returncode}: {r.stdout!r} {r.stderr!r}"
     return r
 

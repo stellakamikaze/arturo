@@ -61,7 +61,9 @@ TIPI = [
 ]
 GRASSETTO = re.compile(r"\*\*(.+?)\*\*")
 RACCOMANDA = re.compile(r"^\s*(?:\*\*)?(?:RACCOMANDAZIONE|Raccomandazione|Da dove partirei|Raccomando)(?:\*\*)?\s*[:.]?\s*(?:\*\*)?\s*(.+)$", re.M)
-PERCORSO = re.compile(r"(?<![\w/.~-])((?:~|/)[^\s`'\"()<>\[\]]+\.(?:%s))\b" % "|".join(ESTENSIONI), re.I)
+# Anche C:\... e C:/...: su Windows Claude scrive i percorsi con la lettera dell'unità (#6455, CS02).
+PERCORSO = re.compile(r"(?<![\w/.~-])((?:~|/|[A-Za-z]:[\\/])[^\s`'\"()<>\[\]]+\.(?:%s))\b" % "|".join(ESTENSIONI),
+                      re.I)
 LINK = re.compile(r"https?://[^\s`'\"()<>\[\]]+")
 
 

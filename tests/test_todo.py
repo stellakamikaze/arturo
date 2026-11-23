@@ -489,17 +489,32 @@ def test_t16(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         file = Path(tmp) / "eventi.jsonl"
         ts.aggiungi({"titolo": "Scegliere", "chi": "decidi"}, file)
-        scritture = []
-        vera = os.write
+        scritture, del_registro = [], set()
+        vera, apri = os.write, os.open
+
+        # Contano solo le write nel registro: su Windows anche il lucchetto (eventi.jsonl.lock) scrive il suo
+        # segno con os.write, e T16 ne vedeva due (#6455).
+        def apre(percorso, *a, **k):
+            fd = apri(percorso, *a, **k)
+            if os.path.normcase(str(percorso)) == os.path.normcase(str(file)):
+                del_registro.add(fd)
+            return fd
 
         def conta(fd, dati):
-            scritture.append(dati)
+            if fd in del_registro:
+                scritture.append(dati)
             return vera(fd, dati)
-        os.write = conta
+
+        chiudi = os.close
+
+        def chiude(fd):  # un numero di fd chiuso torna libero per il lucchetto
+            del_registro.discard(fd)
+            return chiudi(fd)
+        os.write, os.open, os.close = conta, apre, chiude
         try:
             ts.deciso(1, "piano B", file)
         finally:
-            os.write = vera
+            os.write, os.open, os.close = vera, apri, chiudi
         assert len(scritture) == 1 and scritture[0].count(b"\n") == 2, \
             f"T16 deciso non scrive in una sola write: {len(scritture)} write"
 
