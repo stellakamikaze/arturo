@@ -1,0 +1,44 @@
+# Sonda di #6455, solo sul ramo sonda-6455-win: non va su dev.
+name: sonda-6455
+on:
+  push:
+    branches: [sonda-6455-win]
+permissions:
+  contents: read
+jobs:
+  sonda:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Git senza conversione degli a capo
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.longpaths true
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: Strumenti
+        run: |
+          uv python install 3.8
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          python -m pip install --disable-pip-version-check pyyaml
+          npm install -g @anthropic-ai/claude-code
+          if ! command -v python3 >/dev/null 2>&1; then
+            cp "$(command -v python)" "$(dirname "$(command -v python)")/python3.exe"
+          fi
+      - name: Sonda
+        run: |
+          export PY38="$(uv python find 3.8)"
+          python tests/sonda_6455.py
