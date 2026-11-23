@@ -251,6 +251,11 @@
           },
           {
             "type": "command",
+            "command": "python3 ~/.claude/hooks/carta-sessione.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
@@ -284,6 +289,17 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/agente-worktree.py",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/carta-sessione.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       },
@@ -528,6 +544,12 @@
           },
           {
             "type": "command",
+            "command": "python3 ~/.claude/hooks/carta-sessione.py",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
@@ -555,6 +577,12 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/carta-sessione.py",
+            "timeout": 10,
+            "async": true
+          },
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",

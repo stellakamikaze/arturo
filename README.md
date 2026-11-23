@@ -387,7 +387,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 In tutto, Arturo porta:
 
-- **34 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
+- **35 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
@@ -398,7 +398,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure lanc
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               34 guardie e automazioni, più 13 strumenti che usano
+hooks/               35 guardie e automazioni, più 13 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)

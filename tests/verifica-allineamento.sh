@@ -232,6 +232,8 @@ BANCHI=(
   test_unisci_2026_11_20.py
   # Il file di sessione ha un solo padrone (C1, 23/11/2026): ogni rottura di scheda_file.py o del verbo fa rosso il suo caso SE.
   test_scheda_file.py
+  # La carta di una sessione per la Coda di Volta, ora in Arturo (passo 9, 23/11/2026, #6422).
+  test_carta_sessione.py
   # Il salvataggio automatico di una sessione chiusa senza /fine (M4, #5672).
   test_salva_automatico.py
   # Gli eventi della memoria nella telemetria: memoria, richiamo, salvataggio, inizio (M7, #5672).
@@ -327,7 +329,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_scheda_file.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py test_fine_gia_chiusa_2026_11_22.py test_fine_avvisi_2026_11_22.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_scheda_file.py test_carta_sessione.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py test_fine_gia_chiusa_2026_11_22.py test_fine_avvisi_2026_11_22.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -714,6 +716,8 @@ VELENI=(
   test_unisci_2026_11_20.py
   # Il file di sessione (C1): ogni rottura di scheda_file.py o di arturo sessione fa rosso il suo caso SE.
   test_scheda_file.py
+  # La carta di sessione (#6422): ogni rottura di carta-sessione.py fa rosso il suo caso CS.
+  test_carta_sessione.py
   # Il salvataggio automatico (M4, #5672): ogni rottura di salva-automatico.py, dell'hook o di contesto.py fa rosso il suo caso SV.
   test_salva_automatico.py
   # La telemetria della memoria (M7, #5672): ogni rottura di telemetria.py, inject-now.sh o salva-automatico.py fa rosso il suo caso TM.
