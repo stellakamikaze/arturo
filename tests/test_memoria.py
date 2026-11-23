@@ -1138,7 +1138,7 @@ TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y0
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
 VELENI = (
-    ("Y01", [("hooks/memory-autoload.py", "            if q in fermi:\n                break\n", "")],
+    ("Y01", [("hooks/memory-autoload.py", "            if q in fermi or vera in fermi:\n                break\n", "")],
      "risale oltre la home"),
     ("Y08", [("hooks/melchior_match.py", "        if vero in visti:\n            continue\n", ""),
              ("hooks/melchior_match.py", "            if chiave in visti:\n                continue\n", "")],
