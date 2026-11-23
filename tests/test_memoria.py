@@ -758,7 +758,9 @@ def test_y18(repo: Path) -> None:
         assert "dormiente:" not in giovane.read_text(encoding="utf-8"), "Y18 una nota di ieri è dormiente"
         assert vecchia.is_file() and "Testo di tariffe-vecchie." in vecchia.read_text(encoding="utf-8"), \
             "Y18 l'igiene cancella o rovina la nota dormiente"
-        assert any("preventivi-studio-grafico" in a and "preventivi-studio-grafico-bis" in b for _s, a, b in e["coppie"]), \
+        # La coppia in qualsiasi ordine: l'ordine dei file cambia fra APFS ed ext4 (#6453).
+        assert any("preventivi-studio-grafico.md" in a + b and "preventivi-studio-grafico-bis.md" in a + b
+                   for _s, a, b in e["coppie"]), \
             f"Y18 la coppia quasi uguale non è segnalata: {e['coppie']}"
         assert any("manca-del-tutto.md" in v["motivo"] for v in e["link_rotti"]), \
             f"Y18 il link rotto non è segnalato: {e['link_rotti']}"

@@ -863,6 +863,7 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
                 t in ("--recursive", "--dereference-recursive") or (t.startswith("-") and not t.startswith("--")
                                                                     and ("r" in t or "R" in t)) for t in args))
         basi = [b for b in _basi_dopo_cd(cds, cwd) if b] if cwd else []
+        visti = set()  # una parola ripetuta ha lo stesso giudizio (LG05, #6453)
         j = 0
         while j < len(args):
             a = args[j]
@@ -874,6 +875,9 @@ def _segreti_risolti(command: str, cwd: str) -> bool:
                 a = a.split("=", 1)[1]
             elif a.startswith("-") or not a or (" " in a.strip() and not a.startswith(("/", "~", "$"))):
                 continue  # un'opzione, o prosa
+            if a in visti:
+                continue
+            visti.add(a)
             # le graffe prima di tutto, come nella shell: `~/.s{sh,x}/i?_ed25519` (21/11/2026, #6279)
             for parola in (_espandi_graffe(a) if "{" in a else [a]):
                 t = _expand_vars(parola)
@@ -1820,11 +1824,14 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
         liberi = [t for t in toks[1:] if not t.startswith("-")]
         # mv di una cartella che contiene la config (`mv ~/.claude x`, `mv ~/.claude/plugins /tmp/p`): le
         # guardie spariscono dal posto in cui Claude Code le cerca.
-        if cmd0 == "mv" and any(_contiene_protetti(q) for t in liberi[:-1] for q in _risolti(t, base_cwd, link)):
+        # dict.fromkeys: una parola ripetuta ha lo stesso giudizio, e ognuna costa letture del disco (LG05, #6453).
+        if cmd0 == "mv" and any(_contiene_protetti(q) for t in dict.fromkeys(liberi[:-1])
+                                for q in _risolti(t, base_cwd, link)):
             return True
         # chmod e chown su una cartella protetta o che la contiene (`chmod 000 ~/.claude/hooks`).
         if cmd0 in ("chmod", "chown", "chgrp") and any(
-                protetto(q) or _contiene_protetti(q, False) for t in liberi for q in _risolti(t, base_cwd, link)):
+                protetto(q) or _contiene_protetti(q, False) for t in dict.fromkeys(liberi)
+                for q in _risolti(t, base_cwd, link)):
             return True
         if cmd0 in _ARCHIVI and base_cwd:
             if assegnate is None:
@@ -3762,7 +3769,9 @@ def _sposta_cartella(command, cwd):
         casa = os.path.normpath(_home())
         for base in _basi_dopo_cd(cds, cwd):
             dest = _resolve(destinazione, base)
-            for sorgente in liberi:
+            # Una sorgente ripetuta ha lo stesso giudizio: senza doppioni `mv ` ripetuto fino a 90.000
+            # caratteri passa da 4 a meno di 1 secondo, e sul runner Linux della CI da 8,5 (LG05, #6453).
+            for sorgente in dict.fromkeys(liberi):
                 p = _resolve(sorgente, base)
                 if not p:
                     continue
