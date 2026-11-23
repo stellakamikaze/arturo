@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent / "hooks")
 from radici import comando_arturo, radice_orsa  # noqa: E402
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
-from disegno import barra, riquadro, segno_sotto  # noqa: E402
+from disegno import a_capo, barra, riquadro, segno_sotto  # noqa: E402
 
 PREDEFINITA = 50
 MINIMO = 30
@@ -158,7 +158,7 @@ def stato() -> str:
     n, fonte = soglia()
     testo = {
         "ambiente": f"rotazione al {n}% del contesto usato, dalla variabile CLAUDE_CTX_WARN={os.environ.get('CLAUDE_CTX_WARN')} "
-                    f"(percento rimasto): vince sul file. Per usare arturo rotazione N, togli la variabile da settings.json",
+                    f"(percento rimasto): vince sul file.\nPer usare arturo rotazione N, togli la variabile da settings.json",
         "file": f"rotazione al {n}% del contesto usato, scelta da te in {file_soglia()}",
         "arturo": f"rotazione al {n}% del contesto usato, la soglia di Arturo",
     }[fonte]
@@ -171,7 +171,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(__doc__.split("\n\n")[1])
         return 0
     if not argv:
-        print(stato())
+        print(a_capo(stato()))
         return 0
     if argv == ["riga"]:
         print(riga())

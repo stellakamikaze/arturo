@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-23 — Arturo si legge meglio, anche nella console di Windows
+
+**Cosa cambia**: i riquadri, le barre e le liste che Arturo stampa usano solo caratteri che la console di Windows mostra coi suoi font: angoli dritti, linee semplici, blocchi pieni e vuoti, lettere accentate. Prima alcuni segni (gli angoli arrotondati, la freccia, la spunta, i tre puntini) lì diventavano quadratini.
+- La barra in basso, nella console di Windows, scrive `^ Arturo` al posto della freccia, `ok` al posto della spunta e `...` al posto dei tre puntini. Su Mac, Linux e Windows Terminal resta come prima. `ARTURO_SEGNI=ascii` o `ARTURO_SEGNI=unicode` sceglie a mano.
+- `arturo todo` apre ogni gruppo con una riga titolo (`── TOCCA A TE · 2 ───`), mette i titoli in colonna e un `!` davanti a una scadenza passata, che così si vede anche senza colori. `arturo todo progetti` ha una barra corta di quanto è chiuso.
+- La chiusura di `/fine` dà i fatti tecnici in cinque righe in colonna (chiuso, controlli, config, segnala, riprendi), non più in una riga sola. Il brief prima di un lavoro allinea le etichette.
+- `arturo rotazione`, `arturo segnalazioni` e `arturo memoria stato` vanno a capo entro 78 colonne, senza spezzare un comando, un percorso o una frase fra virgolette.
+
+**Perché**: chi usa Arturo su Windows leggeva quadratini al posto dei segni, e le righe da 220 caratteri andavano a capo a metà parola nei terminali stretti.
+
+**A chi serve**: a chi usa Arturo su Windows, e a chi legge le liste nel terminale.
+
+---
+
 ## 2026-11-23 — La rotazione parte a metà contesto, e la soglia la scegli tu
 
 **Cosa cambia**: quando Claude chiude un compito, fa il commit, chiude il todo e passa al compito dopo nella stessa sessione. Il salvataggio con `/fine --rotazione` e la sessione nuova arrivano solo quando il contesto supera il 50%, oppure dalle 18 col `/fine` completo del giorno. L'avviso del contesto adesso scatta al 50% e non più al 65%. Alla prima sessione dopo l'aggiornamento Claude ti mostra un riquadro con la regola nuova.
