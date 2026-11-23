@@ -140,7 +140,11 @@ def test_g201(repo: Path) -> None:
             return decisione(hook(home, "protect_claude_md.py", dati, radice))
 
         for path in bersagli:
-            assert esito(path) == "deny", f"G201 scrittura su un percorso di avvio senza unlock: {path.relative_to(home)}"
+            if esito(path) != "deny":
+                dati = {"tool_name": "Write", "tool_input": {"file_path": str(path), "content": "x"}, "session_id": "g201"}
+                p = hook(home, "protect_claude_md.py", dati, radice)
+                raise AssertionError(f"G201 scrittura su un percorso di avvio senza unlock: {path.relative_to(home)}: "
+                                     f"rc {p.returncode} {(p.stdout + p.stderr)[-300:]!r}")
         (home / ".claude" / "system-unlock-g201").touch()
         for path in bersagli:
             assert esito(path) == "allow", f"G201 l'unlock di sistema non sblocca {path.relative_to(home)}"

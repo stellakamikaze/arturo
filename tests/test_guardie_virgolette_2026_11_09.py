@@ -651,6 +651,9 @@ TESTS = {"GV01": test_gv01, "GV02": test_gv02, "GV03": test_gv03, "GV04": test_g
          "GV16": test_gv16, "GV17": test_gv17}
 # I falsi positivi tacciono anche sulla base: il veleno non li tocca.
 SENZA_VELENO = {"GV08", "GV10", "GV13", "GV15", "GV17"}
+# Su Windows la base (block-dangerous di ce1cafc) piegava già le maiuscole: lì il veleno è verde per forza
+# (sonda #6455, 23/11/2026). Sul Mac il veleno resta e morde.
+SENZA_VELENO_WINDOWS = {"GV05": "la base piegava già le maiuscole su win32"}
 GUARDIE = ("block-dangerous.py", "bash-dispatcher.sh", "protect_claude_md.py", "forma_comando.py",
            "gh-destructive-guard.py", "commit-secret-gate.py", "comms-prefilter.py", "heredoc.py", "data-guard.py")
 
@@ -663,6 +666,9 @@ def avvelena(repo: Path, ref: str) -> int:
     inerti, rossi = [], []
     for codice, test in TESTS.items():
         if codice in SENZA_VELENO:
+            continue
+        if WINDOWS and codice in SENZA_VELENO_WINDOWS:
+            print(f"VELENO {codice} SALTATO su Windows: {SENZA_VELENO_WINDOWS[codice]}")
             continue
         copia = Path(tempfile.mkdtemp(prefix="arturo-veleno."))
         try:
