@@ -163,7 +163,8 @@ vanno lì, come le tue.
 - **Su GitHub, solo se la copia è privata**: se la tua `~/.claude` è collegata a un repository
   privato su GitHub (in gergo, un remote privato), `/fine` salva lì anche le note di
   `data/memory/`, così le ritrovi sugli altri computer. Se il repository è pubblico, o se non c'è,
-  le note restano solo su questo computer.
+  le note restano solo su questo computer. Su un computer passato al ramo sync le note vanno su quel
+  ramo, con gli handoff, e non sul ramo principale: [`ramo-sync.md`](ramo-sync.md).
 
 ## Cosa resta sul computer oltre alle note
 
