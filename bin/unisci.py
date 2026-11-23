@@ -39,6 +39,8 @@ sys.path.insert(0, str(QUI))
 import contesto as cx  # noqa: E402
 import progetti as pg  # noqa: E402
 import rinomina as rn  # noqa: E402
+sys.path.insert(0, str(QUI.parent / "hooks"))
+import scheda_file as sf  # noqa: E402
 import todo_store as ts  # noqa: E402
 
 ATTESA_FONTE = 300  # secondi: la fonte sposta i task uno per uno
@@ -424,8 +426,8 @@ def scrivi(perdente: str, vincitore: str, r: dict, avvisi: list, creati: list | 
                               + "---\n" + corpo)
     for f, testo in r["link"].items():
         rn.scrivi_atomico(f, testo)
-    for f, dati in r["terminali"].items():
-        rn.scrivi_atomico(f, json.dumps({**dati, "progetto": vincitore}, ensure_ascii=False))
+    for f in r["terminali"]:  # il progetto passa dal padrone del file di sessione, che tiene fonte e segni
+        sf.imposta_progetto(f.stem, vincitore, forza=True)
 
 
 def dentro(f: Path, radice: Path) -> bool:

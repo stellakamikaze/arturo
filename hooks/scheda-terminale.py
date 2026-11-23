@@ -47,6 +47,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_orsa  # noqa: E402
+import scheda_file  # noqa: E402
 import aspetto_valori as aspetto  # noqa: E402
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
@@ -454,8 +455,9 @@ def main() -> int:
     progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "prompt"
     if not progetto and evento == "PostToolUse":
         progetto, fonte = progetto_da_strumento(dati)
-        # il progetto che la persona ha dato dalla finestra di Volta vale come /inizio (14/11/2026)
-        if fonte == "file" and salvato.get("fonte") in ("inizio", "persona"):
+        # un progetto già deciso (persona, inizio, volta, teletrasporto) non lo cambia un file scritto: la regola
+        # delle fonti sta in scheda_file.py (C1, 22/11/2026)
+        if progetto and scheda_file.cede(salvato.get("fonte"), fonte):
             progetto = ""
         # Un cd di Bash dentro un progetto sposta una scheda che conosce solo la cartella: una richiesta
         # libera aperta nella base dei progetti non resta "Senza progetto" mentre lavora in uno (14/11/2026).
@@ -481,14 +483,7 @@ def main() -> int:
         # un file a parte e si sostituisce, così nessuno legge uno stato scritto a metà.
         if adesso < float(leggi(f).get("quando") or 0):
             return 0
-        f.parent.mkdir(parents=True, exist_ok=True)
-        provvisorio = f.with_name(f"{f.stem}.{os.getpid()}.tmp")
-        nuovo = {"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}
-        # i segni di Volta (spostata, inizio) restano finché il progetto è quello che li ha scritti
-        if salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
-            nuovo.update({k: salvato[k] for k in ("spostata", "inizio", "sessionId") if k in salvato})
-        provvisorio.write_text(json.dumps(nuovo), encoding="utf-8")
-        os.replace(str(provvisorio), str(f))
+        scheda_file.imposta_progetto(sessione, progetto, fonte, stato=stato, quando=adesso)
     scrivi(sequenze(stato, progetto, campanella=evento in FERMANO and stato != "lavoro"))
     return 0
 

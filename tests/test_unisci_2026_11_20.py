@@ -49,7 +49,7 @@ VELENI = {
     "UN09": ("unisci.py", '    if codice == 2 and dati and dati.get("rifiuto"):', '    if False:'),
     "UN10": ("unisci.py", '    if prova:\n        avvisi.append(f"la fonte dei task è giù', '    if True:\n        avvisi.append(f"la fonte dei task è giù'),
     "UN11": ("unisci.py", '"--backup", str(backup / "fonte"),', ''),
-    "UN12": ("unisci.py", '{**dati, "progetto": vincitore}', '{**dati}'),
+    "UN12": ("unisci.py", 'sf.imposta_progetto(f.stem, vincitore, forza=True)', 'sf.imposta_progetto(f.stem, "x", forza=True)'),
     "UN13": ("unisci.py", "    if hd_p.is_symlink() or", "    if False and"),
 }
 
