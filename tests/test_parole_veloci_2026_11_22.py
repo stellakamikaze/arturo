@@ -8,7 +8,8 @@ su un `python3 -c` di 94.000 caratteri. Tre cause, ognuna con un controllo:
         forme che usano le guardie: segmenti_parole, lexer e shlex.split. shlex allungava la parola un carattere
         alla volta, e il costo cresceva col quadrato.
   SP02  block-dangerous giudica un `python3 -c` di 94.000 caratteri in meno di 8 secondi (prima 13), e un rm in
-        coda allo stesso comando chiede ancora conferma.
+        coda allo stesso comando chiede ancora conferma. Dal 24/11/2026 (#6623) anche il triplo, 268.000
+        caratteri, sta sotto gli 8 secondi: su Windows il codice vecchio cresce poco e il solo rapporto non basta.
   SP03  segmenti_parole e le altre letture del comando si ricordano per tutto il processo, e ogni chiamante
         riceve una lista sua: modificarla non sporca la chiamata dopo.
   SP04  evento_bash.py leggi dà comando, comando delle guardie, copia dell'evento e tool_use_id, con le lunghezze
@@ -21,7 +22,7 @@ su un `python3 -c` di 94.000 caratteri. Tre cause, ognuna con un controllo:
         evento_bash.py ogni comando chiede conferma.
 
 Con --baseline-ref ogni controllo deve fallire col suo codice: su 663bcba parole ed evento_bash.py non ci sono,
-segmenti_parole non si ricorda e block-dangerous va oltre gli 8 secondi.
+segmenti_parole non si ricorda e block-dangerous va oltre gli 8 secondi sul comando triplo.
 """
 from __future__ import annotations
 
@@ -96,8 +97,9 @@ def test_sp02(repo: Path) -> None:
     guardia = repo / "hooks" / "block-dangerous.py"
     lungo = "python3 -c \"" + "print('a b c d');" * 5_247 + "\""
     quarto = "python3 -c \"" + "print('a b c d');" * 1_312 + "\""
+    triplo = "python3 -c \"" + "print('a b c d');" * 15_741 + "\""
     esiti = []
-    for comando in (quarto, lungo, lungo + "\nrm -rf ~/Documents/progetto"):
+    for comando in (quarto, lungo, lungo + "\nrm -rf ~/Documents/progetto", triplo):
         inizio = time.perf_counter()
         try:
             p = subprocess.run([sys.executable, str(guardia)], input=_evento(comando), capture_output=True,
@@ -107,10 +109,15 @@ def test_sp02(repo: Path) -> None:
         decisione = json.loads(p.stdout)["hookSpecificOutput"]["permissionDecision"] if p.stdout.strip() else \
             ("block" if p.returncode == 2 else "silent")
         esiti.append((decisione, round(time.perf_counter() - inizio, 2)))
-    assert [e[0] for e in esiti] == ["silent", "silent", "ask"], f"SP02 giudizi cambiati sul comando lungo: {esiti}"
+    assert [e[0] for e in esiti] == ["silent", "silent", "ask", "silent"], \
+        f"SP02 giudizi cambiati sul comando lungo: {esiti}"
     # Il tetto di 8 secondi non basta da solo: sul runner Linux della CI il codice di 663bcba ci sta sotto, e la
-    # controprova non lo distingueva (#6453). Il rapporto fra il comando intero e un suo quarto vale su ogni
-    # macchina: col quadrato 16 (14,6 misurato su 663bcba), lineare 4 al più (2,6 oggi, col tempo di avvio).
+    # controprova non lo distingueva (#6453). Il rapporto fra il comando intero e un suo quarto vale su Linux e
+    # macOS: col quadrato 16 (14,6 misurato su 663bcba), lineare 4 al più (2,6 oggi, col tempo di avvio).
+    # Su Windows 663bcba ha una parte lineare grande e cresce solo da x4 a x7,9, a cavallo di 6, e sui runner
+    # veloci il comando intero sta sotto gli 8 secondi: la controprova è caduta 2 volte su 12 (#6623). Il comando
+    # triplo chiude il buco: 663bcba va oltre gli 8 secondi anche sul runner più veloce visto (circa 21 s
+    # stimati), il codice di oggi resta lineare (3,6 s al più su Windows con quattro giri insieme).
     crescita = esiti[1][1] / max(esiti[0][1], 0.05)
     assert crescita < 6, f"SP02 block-dangerous cresce col quadrato: {esiti[0][1]} s su un quarto, " \
                          f"{esiti[1][1]} s sul comando intero (x{crescita:.1f})"
