@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-24 — Il ramo sync gira anche dal plugin
+
+**Cosa cambia**: il plugin porta adesso `data/transito.paths`, l'elenco dei file che il ramo `sync` salva e scarica. Il plugin 0.2.24 aveva lo script del ramo ma non l'elenco: lo script installato non trovava niente da salvare e si fermava senza dire niente.
+
+Nello stesso rilascio:
+- Il ramo `sync` non salva più un file con i segni di un conflitto (le righe `<<<<<<<` e `>>>>>>>`): il giro si ferma e nomina il file. Una riga `=======` da sola passa, perché in Markdown è un titolo.
+- La riga `AVVISO:` del giro fermo da 10 minuti scatta anche quando `git add` o il commit falliscono, quando una chiave finisce fra i file da salvare e quando un rebase di `main` resta a metà. La riga dice il motivo.
+
+**Perché**: il 24/11, dopo l'aggiornamento a 0.2.24, il ramo `sync` di un computer migrato è rimasto fermo per alcuni minuti, con esito 0 e nessun avviso. Il 12 e il 13/11 un file con i segni di un conflitto era entrato nel ramo.
+
+**A chi serve**: a chi usa Arturo come plugin su più computer, col ramo `sync`.
+
+---
+
 ## 2026-11-24 — Le shell rimaste accese si chiudono all'avvio
 
 **Cosa cambia**: all'avvio di ogni sessione Arturo cerca le shell dei comandi di Claude che non hanno più una sessione dietro, e le chiude. Scrive cosa ha chiuso in `~/.claude/data/logs/shell-orfane.log`.
