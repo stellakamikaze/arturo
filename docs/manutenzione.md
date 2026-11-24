@@ -32,8 +32,12 @@ Senza cambi dopo l'ultimo tag, niente rilascio.
 repository pubblico e senza segreti. A ogni push su `dev` fa `--toccati` sui file cambiati dal push prima
 (`ARTURO_GATE_BASE`, GS12); un push senza "prima" fa il giro completo. Sul tag `v*`, e a mano da Actions
 ("Run workflow", oppure `gh workflow run gate.yml --ref dev`), fa `--rilascio`. Il nome della run dice il
-modo: "gate toccati" o "gate rilascio". Lo script di firma di chi rilascia cerca sul commit l'ultima run
-"gate rilascio" finita, prima di prendere la chiave:
+modo: "gate toccati" o "gate rilascio". Il rilascio gira in 4 parti per sistema, 12 computer in tutto
+(dal 24/11/2026: prima Windows durava 109 minuti). `tests/esegui_gate.py --parte I/N` divide i lavori coi
+pesi di `tests/gate-pesi.json`; server, shell, js e audit girano nella parte 1. Quando le parti si
+sbilanciano, rifai i pesi dal log di una run verde:
+`gh run view <id> --log > run.log` e poi `python3 tests/esegui_gate.py pesi --root . run.log`.
+Lo script di firma di chi rilascia cerca sul commit l'ultima run "gate rilascio" finita, prima di prendere la chiave:
 
 - verde sui tre sistemi: il rilascio esce, anche il giorno dopo il precedente;
 - non verde: esce solo se l'ultimo tag ha almeno 7 giorni, o con `--sicurezza "motivo"`, e lo script
