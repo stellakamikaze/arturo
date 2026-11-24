@@ -33,6 +33,9 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import attesi_senza_salti, dichiara  # noqa: E402
+
 CASI = ["FW01", "FW02", "FW03", "FW04"]
 DISCRIMINANTI = ["FW01", "FW02", "FW03", "FW04"]
 LANCI = ["bin/aggiornamenti.py", "bin/telemetria.py", "hooks/gws-esito.py", "hooks/gws-token-health.py"]
@@ -79,8 +82,11 @@ def prova(repo: Path) -> list:
 
 def fw04(barra: Path) -> str:
     node = shutil.which("node")
-    if os.name == "nt" or node is None or not barra.exists():
-        return ""  # su Windows niente sh per il git finto; senza node la barra non gira
+    if os.name == "nt":
+        dichiara("FW04", "su Windows il git finto è uno script con #!, che Windows non lancia")
+        return ""
+    if node is None or not barra.exists():
+        return ""  # senza node la barra non gira
     with tempfile.TemporaryDirectory(prefix="arturo-fw04-") as d:
         d = Path(d)
         casa, finti, repo = d / "casa", d / "finti", d / "progetto"
@@ -122,7 +128,8 @@ def main() -> int:
     rossi = prova(Path(a.repo))
     if a.baseline_ref:
         codici = [r.split()[0] for r in rossi]
-        assert codici == DISCRIMINANTI, f"baseline non discriminante: rossi {codici}, attesi {DISCRIMINANTI}"
+        attesi = attesi_senza_salti(DISCRIMINANTI)
+        assert codici == attesi, f"baseline non discriminante: rossi {codici}, attesi {attesi}"
         print(f"BASELINE_DISCRIMINANTE={','.join(codici)}")
         return 0
     for r in rossi:

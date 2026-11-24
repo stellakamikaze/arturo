@@ -25,6 +25,12 @@ for arg in "$@"; do
   esac
 done
 [[ "${ARTURO_GATE_RILASCIO:-}" == 1 ]] && RILASCIO=--rilascio
+# ARTURO_GATE_PARTE=I/N (24/11/2026): la CI divide i lavori su N computer per sistema (.github/workflows/gate.yml).
+# La parte I fa girare solo i suoi lavori (tests/esegui_gate.py --parte); server, shell, js e audit girano nella
+# parte 1. Senza la variabile c'è una parte sola, come sul Mac di chi lancia il gate a mano.
+PARTE="${ARTURO_GATE_PARTE:-}"
+unset ARTURO_GATE_PARTE
+[[ -z "$PARTE" || "$PARTE" =~ ^[0-9]+/[0-9]+$ ]] || { echo "FAIL: ARTURO_GATE_PARTE=$PARTE: serve I/N" >&2; exit 2; }
 for tool in bash python3 git node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: $tool mancante" >&2; exit 1; }
 done
@@ -233,14 +239,6 @@ BANCHI=(
   test_spazi_2026_11_16.py
   # Le forme della Scoperta (automazione, sintesi, pagina) e i lavori dello storico che tornano (16/11/2026, Fase D, #5702).
   test_scoperta_forme_2026_11_16.py
-  # arturo progetti, portato da herdr: l'elenco dei progetti dalla memoria, per Volta (M3, #5672).
-  test_progetti_memoria_2026_11_11.py
-  # arturo progetti rinomina: un progetto cambia nome in un passo, il nome vecchio resta valido (proposta n. 90, #6095).
-  test_rinomina_2026_11_19.py
-  # arturo progetti unisci: due progetti doppioni diventano uno, con copia di sicurezza prima (#6187).
-  test_unisci_2026_11_20.py
-  # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
-  test_elimina_nuovo_2026_11_22.py
   # Il file di sessione ha un solo padrone (C1, 23/11/2026): ogni rottura di scheda_file.py o del verbo fa rosso il suo caso SE.
   test_scheda_file.py
   # La carta di una sessione per la Coda di Volta, ora in Arturo (passo 9, 23/11/2026, #6422).
@@ -342,6 +340,8 @@ IN_FILA=(
   test_guardie_lineari_2026_11_22.py
   # Il tetto di 7,5 secondi per l'avvio e il fetch staccato (22/11/2026, #6370): misura secondi, gira in fila.
   test_avvio_tetto_2026_11_22.py
+  # Le shell in background di una sessione chiusa (24/11/2026): lancia processi veri e aspetta, gira in fila.
+  test_shell_orfane.py
   # Il dispatcher di Bash in Python dentro hub (23/11/2026, #6492): DP02 misura il tetto di 25 s, gira in fila.
   test_dispatcher.py
 )
@@ -648,6 +648,8 @@ BASELINE=(
   "test_sync_transito.py 88a5f8d"
   # hooks/hub.py (23/11/2026, #6492): senza hub rossi tutti e nove. 9cbb926, il dev prima.
   "test_hub.py 9cbb926"
+  # Le shell orfane chiuse all'avvio (24/11/2026): senza bin/shell-orfane.py rossi tutti e cinque. 9d460bb, il dev prima.
+  "test_shell_orfane.py 9d460bb"
   # Il dispatcher in Python dentro hub (23/11/2026, #6492): su hub senza dispatcher rossi tutti e sette. bcb3907, il ramo prima.
   "test_dispatcher.py bcb3907"
   # hooks/continua.py (24/11/2026): senza l'hook rossi tutti e sette. 067606f, il ramo di hub prima.
@@ -745,14 +747,6 @@ VELENI=(
   test_spazi_2026_11_16.py
   # Le forme della Scoperta (16/11/2026): ogni rottura di scoperta_forme.py, scoperta.py o /fine fa rosso il suo caso SF.
   test_scoperta_forme_2026_11_16.py
-  # arturo progetti (M3, #5672): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
-  test_progetti_memoria_2026_11_11.py
-  # arturo progetti rinomina (#6095): ogni rottura di rinomina.py o di contesto.py fa rosso il suo caso RN.
-  test_rinomina_2026_11_19.py
-  # arturo progetti unisci (#6187): ogni rottura di unisci.py fa rosso il suo caso UN.
-  test_unisci_2026_11_20.py
-  # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
-  test_elimina_nuovo_2026_11_22.py
   # Il file di sessione (C1): ogni rottura di scheda_file.py o di arturo sessione fa rosso il suo caso SE.
   test_scheda_file.py
   # La carta di sessione (#6422): ogni rottura di carta-sessione.py o di fine_turno.py fa rosso il suo caso CS.
@@ -785,11 +779,21 @@ VELENI=(
 # sceglie quanti worker; il default è metà dei core, al massimo 4.
 ESITO=0
 python3 -B "$ROOT/tests/esegui_gate.py" esegui --root "$ROOT" --fixture "$FIXTURE/lavori" $PARZIALE_MODO $RILASCIO \
-  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" --elenchi \
+  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} ${PARTE:+--parte "$PARTE"} --py38 "$PY38" --elenchi \
   --banchi "${BANCHI[@]}" --in-fila "${IN_FILA[@]}" --banchi-py38 "${PY38_BANCHI[@]}" \
   --controprove "${BASELINE[@]}" --veleni "${VELENI[@]}" || ESITO=$?
 if [[ -n "$PARZIALE_MODO" ]]; then
   echo "PARZIALE ($PARZIALE_MODO): fatti solo una parte dei lavori; per un rilascio serve un giro completo"
+  exit "$ESITO"
+fi
+if [[ -n "$PARTE" && "${PARTE%%/*}" != 1 ]]; then
+  salti=$(grep -c . "$ARTURO_SALTI" || true)
+  [[ "$salti" == 0 ]] || sed 's/^/  /' "$ARTURO_SALTI"
+  echo "PARTE $PARTE: fatti solo i lavori di questa parte (salti=$salti); server, shell, js e audit girano nella parte 1"
+  if [[ "$ESITO" != 0 ]]; then
+    echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)"
+    echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)" >&2
+  fi
   exit "$ESITO"
 fi
 

@@ -38,14 +38,25 @@ def link(nuovo: Path, bersaglio: Path, cartella: bool = False) -> None:
         raise
 
 
+# I codici saltati in questo processo. Una controprova non può chiedere rosso a un caso che su Windows non
+# gira: li toglie dagli attesi con attesi_senza_salti() (24/11/2026, #6455).
+SALTATI: list = []
+
+
 def dichiara(codice: str, motivo: object = MOTIVO) -> None:
     """Stampa la riga SALTO e la aggiunge al file $ARTURO_SALTI, che il gate riporta nell'esito."""
     riga = f"SALTO {codice}: {motivo}"
+    SALTATI.append(codice)
     print(riga)
     percorso = os.environ.get("ARTURO_SALTI")
     if percorso:
         with open(percorso, "a", encoding="utf-8") as f:
             f.write(riga + "\n")
+
+
+def attesi_senza_salti(attesi) -> list:
+    """Gli attesi di una controprova, senza i casi che questo processo ha dichiarato saltati."""
+    return [c for c in attesi if c not in SALTATI]
 
 
 def _togli_sola_lettura(funzione, percorso, _errore) -> None:

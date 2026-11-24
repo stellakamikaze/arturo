@@ -1248,6 +1248,51 @@ const casi = {
     assert.equal(await riga(""), "Versione del server: sconosciuta", "V67 senza VERSIONE_SERVER GET / non dice sconosciuta");
     assert.equal(await riga("<b>x</b>"), "Versione del server: sconosciuta", "V67 una VERSIONE_SERVER che non è uno sha passa in GET /");
   },
+  async V68() {
+    // I campanelli del sito partono dopo la risposta (24/11/2026): con `dopo` (ctx.waitUntil) il feedback e il download
+    // rispondono anche se Telegram non ha ancora risposto, e l'avviso arriva lo stesso quando la promessa finisce.
+    const f = finti();
+    let libera;
+    const fermo = new Promise((ok) => { libera = ok; });
+    const lento = async (t) => { await fermo; f.stato.avvisi.push(t); };
+    const rimandati = [];
+    const dopo = (p) => { rimandati.push(p); };
+    const m = new FormData();
+    for (const [k, v] of Object.entries({ tipo: "idea", testo: "Una prova del campanello." })) m.append(k, v);
+    const prima = await Promise.race([
+      gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, avviso: lento, adesso, dopo }),
+      new Promise((ok) => setTimeout(() => ok("appesa"), 200)),
+    ]);
+    assert.notEqual(prima, "appesa", "V68 il feedback aspetta Telegram prima di rispondere");
+    assert.equal(prima.status, 201, "V68 il feedback con dopo() non è accettato");
+    const sito = await Promise.race([
+      gestisci(post("/v1/sito", { tipo: "download", pagina: "/installa/", sistema: "mac" }), { ...f, avviso: lento, adesso, dopo }),
+      new Promise((ok) => setTimeout(() => ok("appesa"), 200)),
+    ]);
+    assert.notEqual(sito, "appesa", "V68 il download aspetta Telegram prima di rispondere");
+    assert.equal(rimandati.length, 2, "V68 i campanelli di feedback e download non passano da dopo()");
+    assert.equal(f.stato.avvisi.length, 0, "V68 l'avviso è partito prima del tempo");
+    libera();
+    await Promise.all(rimandati);
+    assert.equal(f.stato.avvisi[0], "Arturo: feedback n. 1 · idea · sito", "V68 l'avviso rimandato del feedback non arriva");
+    assert.equal(f.stato.avvisi.length, 2, "V68 l'avviso rimandato del download non arriva");
+  },
+  async V69() {
+    // Telegram ha 5 secondi (24/11/2026): la chiamata porta un AbortSignal, e una chiamata interrotta conta come fallita.
+    const { avvisoTelegram } = logica;
+    const env = { TELEGRAM_TOKEN: "finto", TELEGRAM_CHAT: "42" };
+    let segnale = null;
+    await avvisoTelegram(env, async (url, init) => {
+      segnale = init.signal;
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }));
+    })("prova");
+    assert.ok(segnale instanceof AbortSignal, "V69 la chiamata a Telegram non ha un tempo massimo");
+    const f = finti();
+    const interrotto = async () => { throw new DOMException("The operation was aborted due to timeout", "TimeoutError"); };
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }),
+      { ...f, avviso: avvisoTelegram(env, interrotto), adesso });
+    assert.equal(f.stato.conteggi["2026-10-13 telegram-ko"], 1, "V69 un Telegram che non risponde in tempo non è contato in telegram-ko");
+  },
 };
 
 // `node test.mjs V31 V32` fa girare i soli casi nominati (serve al veleno di un caso alla volta).

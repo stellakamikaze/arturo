@@ -58,6 +58,9 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import attesi_senza_salti, dichiara  # noqa: E402
+
 CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13",
         "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "PC26"]
 DISCRIMINANTI = list(CASI)
@@ -484,8 +487,9 @@ def caso_pc21(repo, tmp, chiavi) -> list:
 
 
 def caso_pc22(repo, tmp, chiavi) -> list:
-    if os.name == "nt":
-        return []  # su Windows il lucchetto ha solo la scadenza: os.kill(pid, 0) chiuderebbe il processo
+    if os.name == "nt":  # su Windows il lucchetto ha solo la scadenza: os.kill(pid, 0) chiuderebbe il processo
+        dichiara("PC22", "su Windows il lucchetto dell'aggiornamento ha solo la scadenza, senza il pid")
+        return []
     s = Scena(repo, tmp / "pc22", chiavi)
     morto = fd.esegui([sys.executable, "-c", "import os; print(os.getpid())"], env=s.env).stdout.strip()
     blocco = s.orsa / "session-env" / "aggiornamento.lock"
@@ -725,7 +729,8 @@ def main() -> int:
     rossi = prova(Path(argomenti.repo), argomenti.solo)
     if argomenti.baseline_ref:
         codici = sorted({r.split()[0] for r in rossi})
-        assert codici == DISCRIMINANTI, f"baseline non discriminante: rossi {codici}, attesi {DISCRIMINANTI}"
+        attesi = attesi_senza_salti(DISCRIMINANTI)
+        assert codici == attesi, f"baseline non discriminante: rossi {codici}, attesi {attesi}"
         print(f"BASELINE_DISCRIMINANTE={','.join(codici)}")
         return 0
     for r in rossi:

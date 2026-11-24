@@ -3,7 +3,10 @@
 # in rilasci firmati. Qui gira tests/verifica-allineamento.sh sui tre sistemi, solo nel repository pubblico:
 #   - a ogni push su dev, --toccati: solo i lavori con una fonte fra i file cambiati dal push prima
 #     (ARTURO_GATE_BASE). Un push senza "prima" (ramo nuovo, storia riscritta) fa il giro completo;
-#   - a ogni tag di rilascio v*, e a mano (Actions, "Run workflow"), --rilascio: il giro completo.
+#   - a ogni tag di rilascio v*, e a mano (Actions, "Run workflow"), --rilascio: il giro completo, diviso in
+#     4 parti per sistema (24/11/2026: Windows 109 minuti, Mac 93 su un computer solo). Ogni parte fa i suoi
+#     lavori (tests/esegui_gate.py --parte, pesi in tests/gate-pesi.json); server, shell, js e audit la parte 1.
+#     Il push su dev resta in una parte: i lavori toccati sono pochi.
 # Il nome della run dice il modo. scripts/firma-rilascio-arturo.sh della config di chi rilascia cerca una run
 # "gate rilascio" verde sul commit prima di firmare (docs/manutenzione.md). Niente segreti, permessi in sola
 # lettura, azioni fissate a un commit.
@@ -32,6 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        parte: ${{ fromJSON((github.event_name == 'push' && github.ref_type == 'branch') && '["1/1"]' || '["1/4","2/4","3/4","4/4"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 150
     defaults:
@@ -80,6 +84,8 @@ jobs:
             echo "MODO=--rilascio" >> "$GITHUB_ENV"
           fi
       - name: Gate
+        env:
+          ARTURO_GATE_PARTE: ${{ matrix.parte }}
         run: |
           python3 --version; python3.8 --version || true; node --version; claude --version
           bash tests/verifica-allineamento.sh "$MODO"

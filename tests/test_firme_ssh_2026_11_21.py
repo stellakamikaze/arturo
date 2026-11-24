@@ -106,7 +106,10 @@ def carica(repo: Path):
 def lab(repo: Path) -> Iterator[Lab]:
     # Il portachiavi in una cartella corta: gpg-agent apre lì il suo socket, e un percorso oltre i 104 caratteri
     # non si apre ("File name too long"). Nel gate TMPDIR è già lungo: il portachiavi va in /tmp, se c'è.
-    gnupg = Path(tempfile.mkdtemp(prefix="fsg", dir="/tmp" if os.path.isdir("/tmp") else None))
+    # Su Windows il gate mette TEMP dentro la cartella del lavoro, e gpg-agent non parte ("exit status 2", gate
+    # 45346315140): il portachiavi va nella Temp vera della persona, sotto LOCALAPPDATA (#6455).
+    corta = Path(os.environ.get("LOCALAPPDATA", "")) / "Temp" if os.name == "nt" else Path("/tmp")
+    gnupg = Path(tempfile.mkdtemp(prefix="fsg", dir=str(corta) if corta.is_dir() else None))
     gnupg.chmod(0o700)
     env = dict(os.environ, GNUPGHOME=percorso_gpg(gnupg))
     try:

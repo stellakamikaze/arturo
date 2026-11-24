@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-24 — Le shell rimaste accese si chiudono all'avvio
+
+**Cosa cambia**: all'avvio di ogni sessione Arturo cerca le shell dei comandi di Claude che non hanno più una sessione dietro, e le chiude. Scrive cosa ha chiuso in `~/.claude/data/logs/shell-orfane.log`.
+- Tocca solo le shell di Claude (quelle con `shell-snapshots` nel comando) con almeno 2 minuti di vita e senza una sessione di Claude per padre. Le shell delle sessioni aperte restano.
+- Una shell che deve restare accesa porta nel comando il segno `arturo:tieni`.
+- `python3 ~/.claude/bin/shell-orfane.py elenca` mostra cosa chiuderebbe, senza chiudere niente.
+- `/fine` ferma le shell in background della sessione, e un'attesa che deve continuare diventa un todo con la data o un job di `bgjob.sh`.
+
+**Perché**: quando una sessione si chiude, Claude Code lascia accese le shell lanciate in background. Su un Mac, in 11 giorni, erano 23: cicli d'attesa via ssh fino a sera, server di prova, ricerche su disco. Una leggeva un log su un altro computer ogni 15 minuti per 16 ore, e il suo esito non lo leggeva più nessuno.
+
+**A chi serve**: a chi fa aspettare a Claude un lavoro lungo, su questo computer o su un altro. Su Windows non cambia niente.
+
+---
+
 ## 2026-11-24 — Claude non si ferma su un passo suo
 
 **Cosa cambia**: a fine turno Arturo legge l'ultima risposta di Claude. Se dice che il passo dopo è di Claude ("il prossimo passo è mio", "Prossimo passo: ... (io)"), e non c'è una domanda per te, Claude continua da solo nello stesso turno.
@@ -36,6 +50,25 @@ modo di lavorare.
 **Perché**: ogni comando faceva partire fino a una decina di processi Python, e su Windows l'antivirus esamina ognuno. Su un computer lento questo voleva dire secondi di attesa a ogni passo.
 
 **A chi serve**: a tutti, di più a chi usa Arturo su Windows o su un computer lento.
+
+---
+
+## 2026-11-24 — La memoria passa fra i computer da sola, ogni minuto
+
+**Cosa cambia**: chi usa Arturo su più computer, con `~/.claude` su un repository privato di GitHub, può tenere memoria, handoff e stati dei progetti su un ramo a parte, `sync`. Un giro li salva e li spinge ogni minuto, e ogni 5 minuti scarica quelli degli altri computer, anche senza `/fine`. Prima una nota scritta su un computer restava lì fino al `/fine`, e una sessione chiusa senza `/fine` la lasciava sul disco.
+- Se due computer cambiano lo stesso file, il giro non si ferma più. Una nota di memoria tiene le righe di tutte e due le versioni, un handoff tiene quella scritta per ultima. La versione che perde resta nella storia del ramo.
+- Se il giro resta fermo 10 minuti, stampa una riga `AVVISO:` una volta sola, e `sync_transito.py --stato` dice `BLOCCATO`. La config della persona può mandare quella riga dove vuole, per esempio su Telegram.
+- Su Windows il ramo funziona anche con mille note e coi fine riga di Windows, e i collegamenti simbolici restano fuori.
+- Il passaggio si fa un computer alla volta, con `bin/sync_transito.py --migra --prova` e poi `--migra`. I passi stanno in `docs/ramo-sync.md`. Chi non migra lavora come prima.
+
+Nello stesso rilascio:
+- `arturo progetti` non rimette in elenco le schede chiuse, e `arturo memoria controlla` separa i link a note archiviate da quelli ancora da scrivere.
+- Il gate dei rilasci gira in CI su Linux, Mac e Windows. Senza la CI verde esce al massimo un rilascio a settimana.
+- Correzioni per Windows: percorsi con spazi, nomi corti delle cartelle temporanee, la CLI di Claude Code trovata dal PATH (`WinError 2`), i banchi letti in UTF-8.
+
+**Perché**: il 24/11 su un computer di chi mantiene Arturo c'erano 26 note non salvate e 4 commit di ritardo, e su un altro un solo conflitto teneva fermi 20 commit. La memoria serve a tutti i computer nello stesso momento, non al `/fine` di uno.
+
+**A chi serve**: a chi lavora con Arturo su più di un computer.
 
 ---
 
