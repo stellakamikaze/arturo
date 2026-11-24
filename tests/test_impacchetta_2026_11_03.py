@@ -40,6 +40,8 @@ IP21 senza identità di Arturo né email nella config, identita-git.sh CARTELLA 
 IP22 nel pacchetto creaskill è chiamabile dal modello: senza disable-model-invocation e con la sua
      description. Il metodo dice a Claude di proporre /creaskill, e /inizio lo apre dopo la risposta
      sul lavoro che torna, col percorso del pacchetto (21/11/2026, #6277);
+IP23 il pacchetto porta data/transito.paths uguale al repository: bin/sync_transito.py lo legge accanto a sé, e
+     senza il ramo sync non trova nessun path (plugin 0.2.24, #6621, 24/11/2026);
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
@@ -59,7 +61,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11", "IP12", "IP13", "IP14", "IP15",
-        "IP16", "IP17", "IP18", "IP19", "IP20", "IP21", "IP22"]
+        "IP16", "IP17", "IP18", "IP19", "IP20", "IP21", "IP22", "IP23"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -104,6 +106,11 @@ def prova(repo: Path) -> list[str]:
         if esito.returncode != 0 or not (pacchetto / ".claude-plugin" / "plugin.json").exists():
             return [f"IP01 il generatore fallisce: {(esito.stdout + esito.stderr)[-200:]!r}"] + \
                    [f"{c} pacchetto non generato" for c in CASI[1:]]
+
+        transito_repo, transito_pacchetto = repo / "data" / "transito.paths", pacchetto / "data" / "transito.paths"
+        if not transito_pacchetto.is_file() or (transito_repo.is_file() and
+                                                 transito_pacchetto.read_bytes() != transito_repo.read_bytes()):
+            rossi.append("IP23 data/transito.paths manca nel pacchetto o è diverso dal repository")
 
         comandi = sorted(p.stem for p in (repo / "commands").glob("*.md"))
         mancanti = []
@@ -445,6 +452,7 @@ VELENI = [
      '_scrivi(orsa() / "settings.json", frammento)'),
     ("IP12", "bin/impostazioni.py", "    if mancano and not forza:\n", "    if False:\n"),
     ("IP13", "bin/impostazioni.py", "    trovati = doppi(settings)\n", "    trovati = []\n"),
+    ("IP23", "bin/impacchetta.py", '\n        "data/transito.paths"]', "]"),
 ]
 
 
