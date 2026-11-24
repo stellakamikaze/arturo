@@ -227,7 +227,8 @@ class Raccolta:
                 d = None
             if not isinstance(d, dict):
                 if self.evento in ("UserPromptSubmit", "SessionStart"):
-                    self.contesti.append(testo)
+                    # Su Windows Python scrive \r\n anche nel processo: il contesto resta a righe \n come sul Mac.
+                    self.contesti.append(testo.replace("\r\n", "\n"))
                 return
             hso = d.get("hookSpecificOutput") or {}
             if isinstance(hso, dict):

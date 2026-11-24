@@ -109,7 +109,11 @@ def test_sp03(repo: Path) -> None:
         home = Path(tmp)
         (home / ".claude" / "hooks").mkdir(parents=True)
         shutil.copy(repo / "hooks" / "statusline.js", home / ".claude" / "hooks" / "statusline.js")
-        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", ""), "TMPDIR": tmp}
+        # os.tmpdir() di node legge TMPDIR su Mac e Linux, TEMP e TMP su Windows.
+        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", ""), "TMPDIR": tmp,
+               "TEMP": tmp, "TMP": tmp}
+        if os.environ.get("SYSTEMROOT"):
+            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
 
         def barra(remaining, finestra, chiave):
             impostazioni = home / ".claude" / "settings.json"

@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -210,7 +211,8 @@ def prova(repo: Path) -> list[str]:
             rossi.append(f"HU09 codice 2: atteso rc 2 senza l'hook dopo, avuto rc={rc} segnato={os.path.exists(f('segnato'))}")
         rc, out, err, _ = _hub(repo, "prompt", prompt, None, casa, {"ARTURO_MEMORIA": "0"})
         ctx = (_json(out).get("hookSpecificOutput") or {}).get("additionalContext", "")
-        solo = subprocess.run(["bash", str(repo / "hooks" / "inject-now.sh")], input=json.dumps(prompt).encode("utf-8"),
+        # Su Windows "bash" per nome è quello di WSL (System32): si prende il bash del PATH, Git Bash.
+        solo = subprocess.run([shutil.which("bash") or "bash", str(repo / "hooks" / "inject-now.sh")], input=json.dumps(prompt).encode("utf-8"),
                               capture_output=True, timeout=60,
                               env=dict(os.environ, ARTURO_TELEMETRIA="0", ARTURO_MEMORIA="0", HOME=casa, USERPROFILE=casa))
         righe = [r for r in solo.stdout.decode("utf-8", "replace").splitlines()[1:] if r.strip()]
