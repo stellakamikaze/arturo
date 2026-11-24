@@ -116,8 +116,16 @@ def escluso(rel):
     return nome.endswith(".pyc") or any(x in RIGENERABILI for x in parti[:-1])
 
 
+def collegamenti():
+    """I path che main tiene come collegamenti simbolici (modo 120000). Su Windows Git li scrive come file di
+    testo col nome della destinazione: dentro il ramo sync diventerebbero file veri, e sul Mac il rebase si
+    fermerebbe sul collegamento vero ("impossibile scollegare l'HEAD", una macchina Windows, 24/11/2026)."""
+    out = git_main("ls-files", "-s", "-z", "--", *percorsi())[1]
+    return {r.split("\t", 1)[1] for r in out.split("\0") if r.startswith("120000 ") and "\t" in r}
+
+
 def file_di_transito():
-    """I file su disco sotto i path di transito, senza gli esclusi."""
+    """I file su disco sotto i path di transito, senza gli esclusi e senza i collegamenti simbolici."""
     out = []
     for p in percorsi():
         pieno = CL / p
@@ -128,7 +136,8 @@ def file_di_transito():
             dirs[:] = [d for d in dirs if d != ".git" and d not in RIGENERABILI]
             base = Path(cartella).relative_to(CL).as_posix()
             out += [f"{base}/{n}" for n in nomi]
-    return [x for x in dict.fromkeys(out) if not escluso(x)]
+    link = collegamenti()
+    return [x for x in dict.fromkeys(out) if not escluso(x) and x not in link and not (CL / x).is_symlink()]
 
 
 def origine():
@@ -325,8 +334,9 @@ def aggiungi():
         if rc != 0:
             return False, ultima(err, out)
     # Un file diventato escluso (un lucchetto, una chiave) non deve restare nel ramo: fuori dall'indice, non dal disco.
+    link = collegamenti()
     for x in git("ls-files", "-z")[1].split("\0"):
-        if x and escluso(x):
+        if x and (escluso(x) or x in link):
             git("rm", "-q", "--cached", "--", x)
     return True, ""
 

@@ -37,7 +37,9 @@ di passaggio vanno sul ramo `sync`.
 - **Windows** (24/11/2026). Il ramo sync prende `core.autocrlf` da main, perché il work tree è lo stesso:
   con `false` fisso, su Windows ogni file in CRLF risultava cambiato. I path di `git add` e `git commit --only`
   passano da un file (`--pathspec-from-file`): nella riga di comando mille note superano i 32.767 caratteri di
-  Windows (WinError 206). Casi ST18 e ST19 del banco.
+  Windows (WinError 206). Casi ST18 e ST19 del banco. I collegamenti simbolici che main tiene (modo 120000)
+  restano fuori dal ramo: su Windows sono file di testo col nome della destinazione, e sul Mac il rebase si
+  fermerebbe sul collegamento vero. Se uno è già entrato, il giro lo toglie dall'indice (caso ST20).
 - **Solo su un repository privato.** Se `origin` è il repository pubblico di Arturo, o se manca, o se
   `gh` non dice `PRIVATE`, i commit restano su questo computer. Il ramo sync non va mai sul repository
   pubblico.
