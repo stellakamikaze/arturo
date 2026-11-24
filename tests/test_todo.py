@@ -20,7 +20,8 @@ vede nella storia. T16 deciso scrive nota e passaggio a io in una sola write,
 solo da decidi e mai su un todo chiuso. T17 la versione degli eventi e quella
 delle viste sono separate, anche nel JSON della CLI. T18 il contratto:
 CHIAVI_TODO, scadenza_testo e la descrizione dei gruppi. T19 Lucchetto pubblico
-e scrivi_json_atomico. T21 COMANDI fa
+e scrivi_json_atomico; un .lock in cancellazione che risponde PermissionError a stat() vale come occupato
+(#6622, Windows con Python 3.8). T21 COMANDI fa
 aiuto, smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
 T23 tabella degli stati e conteggi per progetto stanno nel store. T24 /aggiorna
 mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio. T25 da_dove sceglie il todo
@@ -260,16 +261,19 @@ def test_t08(repo: Path) -> None:
     def prova(c: Casa) -> None:
         c.cli("aggiungi", "Todo comune", "--progetto", "p")
 
-        def crea(n: int) -> int:
-            return c.cli("aggiungi", f"processo {n}", "--progetto", "p", ok=False).returncode
+        def crea(n: int) -> subprocess.CompletedProcess:
+            return c.cli("aggiungi", f"processo {n}", "--progetto", "p", ok=False)
 
-        def annota(n: int) -> int:
-            return c.cli("nota", "1", f"nota {n}", ok=False).returncode  # le note non passano dal lucchetto
+        def annota(n: int) -> subprocess.CompletedProcess:
+            return c.cli("nota", "1", f"nota {n}", ok=False)  # fuori da Windows le note non passano dal lucchetto
         with ThreadPoolExecutor(max_workers=12) as pool:
-            esiti = list(pool.map(crea, range(24)))
+            fatti = list(pool.map(crea, range(24)))
         with ThreadPoolExecutor(max_workers=16) as pool:
-            esiti += list(pool.map(annota, range(64)))
-        assert esiti == [0] * 88, f"T08 {88 - esiti.count(0)} scritture in parallelo fallite"
+            fatti += list(pool.map(annota, range(64)))
+        cadute = [r for r in fatti if r.returncode != 0]
+        # L'errore del primo processo caduto entra nel messaggio: senza, il gate diceva solo quante (#6622).
+        assert not cadute, (f"T08 {len(cadute)} scritture in parallelo fallite, la prima: "
+                            f"{' '.join(cadute[0].args[3:])}: {cadute[0].stderr.strip()[-600:]}" if cadute else "")
         righe = [r for r in read(c.registro).splitlines() if r.strip()]
         assert len(righe) == 89, f"T08 eventi persi o spezzati: {len(righe)} righe su 89"
         for r in righe:
@@ -653,6 +657,29 @@ def test_t19(repo: Path) -> None:
         with lucchetto:
             assert (base / "stato.json.lock").exists(), "T19 il lucchetto con una stringa non crea il .lock"
         assert not (base / "stato.json.lock").exists(), "T19 il lucchetto con una stringa non si libera"
+        # Su Windows con Python 3.8 un .lock appena cancellato da un altro processo risponde PermissionError
+        # anche a stat(): vale come occupato, e al giro dopo il lucchetto si prende (#6622). Qui lo si
+        # simula: il .lock di un altro sparisce mentre stat() risponde "accesso negato".
+        lock = base / "stato.json.lock"
+        lock.write_text("altro-processo", encoding="ascii")
+        vero_stat = Path.stat
+        colpi = []
+
+        def stat_in_cancellazione(self, *a, **k):
+            if self.name == lock.name and not colpi:
+                colpi.append(str(self))
+                lock.unlink()
+                raise PermissionError(13, "Access is denied", str(self))
+            return vero_stat(self, *a, **k)
+        with mock.patch.object(ts, "_IN_CANCELLAZIONE", (PermissionError,), create=True), \
+                mock.patch.object(Path, "stat", stat_in_cancellazione):
+            try:
+                with ts.Lucchetto(file):
+                    assert lock.exists(), "T19 dopo il .lock in cancellazione il lucchetto non crea il suo"
+            except PermissionError as errore:
+                raise AssertionError(f"T19 un .lock in cancellazione fa cadere il lucchetto: {errore}")
+        assert colpi, "T19 la prova del .lock in cancellazione non passa da stat()"
+        assert not lock.exists(), "T19 il lucchetto preso dopo il .lock in cancellazione non si libera"
 
 
 def test_t21(repo: Path) -> None:
