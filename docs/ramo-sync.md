@@ -29,8 +29,11 @@ di passaggio vanno sul ramo `sync`.
   che trova il lucchetto preso esce senza fare niente. Un lucchetto più vecchio di 10 minuti è di un
   processo morto, e il giro dopo lo riprende.
 - **Al massimo un push al minuto.** Il commit locale parte sempre. Il push parte solo se dall'ultimo
-  (`.git-sync/ultimo-push`) è passato un minuto, altrimenti aspetta il giro dopo. Un giro senza commit
-  nuovi e col ramo già spinto non usa la rete.
+  (`.git-sync/ultimo-push`) è passato un minuto, altrimenti aspetta il giro dopo.
+- **I dati degli altri arrivano ogni 5 minuti** (24/11/2026). Un giro col ramo già spinto fa fetch e rebase di
+  `origin/sync` se dall'ultimo fetch (`.git-sync/ultimo-fetch`) sono passati 5 minuti
+  (`SYNC_TRANSITO_ENTRATA`, in secondi). Così una macchina che non scrive niente riceve lo stesso le note
+  delle altre. Dentro i 5 minuti un giro senza commit nuovi non usa la rete.
 - **Solo su un repository privato.** Se `origin` è il repository pubblico di Arturo, o se manca, o se
   `gh` non dice `PRIVATE`, i commit restano su questo computer. Il ramo sync non va mai sul repository
   pubblico.
@@ -73,7 +76,7 @@ a mano                               sync_transito.py --stato       commit non s
 
 - **Il pull di `/inizio` di Arturo non chiama ancora il ramo sync.** `bin/aggiorna-applica.sh`, in modo
   `sync`, aggiorna solo `main`. Su un computer migrato i dati degli altri computer arrivano al primo giro
-  che spinge, perché il push fa prima un rebase su `origin/sync`. La config che chiama
+  che spinge, perché il push fa prima un rebase su `origin/sync`, oppure al giro in entrata dei 5 minuti. La config che chiama
   `--prima-del-pull` e `--dopo-il-pull` dal suo pull li riceve subito.
 - **Il commit che toglie i path da `main` non lo fa Arturo.** Finché `main` traccia ancora i path di
   transito, gli stessi file stanno su tutti e due i rami: funziona, e `main` riceve solo i commit di chi

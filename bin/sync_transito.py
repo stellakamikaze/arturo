@@ -401,8 +401,36 @@ def push(esiti):
         (SYNC / "ultimo-push").write_text(f"{time.time()}\n", encoding="utf-8")
     except OSError:
         pass
+    segna_fetch()  # il push ha appena fatto fetch e rebase: l'entrata riparte da qui
     esiti.append("push riuscito")
     return 0
+
+
+def segna_fetch():
+    try:
+        (SYNC / "ultimo-fetch").write_text(f"{time.time()}\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def secondi_dall_ultimo_fetch():
+    try:
+        return time.time() - float((SYNC / "ultimo-fetch").read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return 1e9
+
+
+def entrata(esiti):
+    """I dati delle altre macchine, anche senza niente da spingere (24/11/2026): ogni SYNC_TRANSITO_ENTRATA
+    secondi (300) un fetch e un rebase del ramo sync. Prima arrivavano solo col push di questa macchina o col
+    pull della config, e una macchina ferma restava indietro. Un giro dentro i 5 minuti non tocca la rete."""
+    if secondi_dall_ultimo_fetch() < float(os.environ.get("SYNC_TRANSITO_ENTRATA") or 300):
+        return 0
+    suoi = []
+    rc = aggiorna(suoi)
+    segna_fetch()
+    esiti += [e for e in suoi if "già allineato" not in e and "non ancora su origin" not in e]
+    return rc
 
 
 def secondi_dall_ultimo_push():
@@ -479,6 +507,11 @@ def giro():
             esiti.append("push al prossimo minuto")
         else:
             rc = push(esiti)
+            if rc:
+                print("sync: " + " · ".join(esiti))
+                return rc
+        if spingibile and git("rev-list", "--count", f"origin/{RAMO}..HEAD")[1].strip() in ("", "0"):
+            rc = entrata(esiti)
             if rc:
                 print("sync: " + " · ".join(esiti))
                 return rc

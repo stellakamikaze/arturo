@@ -21,6 +21,8 @@ ST14 più di 25 file cancellati in un giro: exit 4, niente commit; con SYNC_TRAN
 ST15 un giro senza niente di nuovo non tocca la rete: con origin irraggiungibile esce 0 senza errori.
 ST16 la seconda macchina si aggancia senza un handoff che il ramo ha: non lo cancella dal ramo e lo riprende
      su disco; un file cambiato solo sul ramo vince, uno cambiato da tutte e due le parti si fonde.
+ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
+     dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
 
 La coda di /fine (bin/fine-coda.py) con il ramo sync:
 FY01 con .git-sync migrato: handoff e indice non entrano nel commit su main né vanno sul remote main; li porta
@@ -341,6 +343,25 @@ def st15(tmp):
         return f"rc={r.returncode} {r.stdout!r}{r.stderr!r}"
 
 
+def st17(tmp):
+    origin = coppia(tmp)
+    a = Macchina(tmp, "a", origin)
+    a.scrivi("data/memory/uno.md", "uno\n")
+    a.lancia("--migra")
+    b = Macchina(tmp, "b", origin)
+    b.scrivi("data/memory/uno.md", "uno\n")
+    b.lancia("--migra")
+    a.scrivi("data/memory/nota-di-a.md", "scritta su a\n")
+    a.lancia("--giro", env=dict(a.env, SYNC_TRANSITO_MINUTO="0"))
+    nota = b.cl / "data/memory/nota-di-a.md"
+    r = b.lancia("--giro")
+    if r.returncode != 0 or nota.exists():
+        return f"dentro i 5 minuti: rc={r.returncode} nota={nota.exists()} {r.stdout!r}"
+    r = b.lancia("--giro", env=dict(b.env, SYNC_TRANSITO_ENTRATA="0"))
+    if r.returncode != 0 or not nota.exists() or "aggiornato" not in r.stdout or b.sync("status", "--short"):
+        return f"dopo i 5 minuti: rc={r.returncode} nota={nota.exists()} {r.stdout!r}{r.stderr!r}"
+
+
 def st16(tmp):
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
@@ -422,7 +443,7 @@ def fy03(tmp):
 
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
-        ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16),
+        ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
 
 
