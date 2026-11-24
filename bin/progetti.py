@@ -268,7 +268,28 @@ def catalogo_schede() -> list:
     """Le schede con titolo o alias, nella forma del catalogo della fonte: i loro nomi alternativi si
     fondono come quelli della fonte, e il titolo della scheda vince (fondi lo tiene)."""
     return [{"slug": s, "titolo": v["titolo"], "categoria": "", "alias": v["alias"]}
-            for s, v in sorted(schede().items()) if v.get("alias")]
+            for s, v in sorted(schede().items()) if v.get("alias") and v.get("status") != "closed"]
+
+
+def nomi_chiusi() -> set:
+    """I nomi (slug e alias) delle schede chiuse: status closed, oppure spostate in _archive/. Il catalogo
+    della fonte tiene le commesse chiuse, e senza questo filtro un progetto archiviato tornava in elenco
+    col suo nome della fonte (riordino del 24/11/2026)."""
+    fuori = set()
+    for radice in radici_memoria():
+        try:
+            trovate = sorted(radice.rglob("progetto-*.md"))
+        except OSError:
+            continue
+        for f in trovate:
+            parti = f.relative_to(radice).parts
+            archiviata = "_archive" in parti
+            if not archiviata and any(p[:1] in "._" for p in parti):
+                continue
+            v = testa(f)
+            if archiviata or v.get("status") == "closed":
+                fuori |= {cx.slug(f.stem[len("progetto-"):]), *v["alias"]}
+    return fuori - {""}
 
 
 def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
@@ -312,7 +333,12 @@ def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
 
 def elenco() -> dict:
     avvisi = []
-    voci = fondi(fondi(locali(), catalogo_schede(), marca=False), catalogo_fonte(avvisi))
+    voci = fondi(locali(), catalogo_schede(), marca=False)
+    # un nome della fonte che appartiene solo a schede chiuse non torna in elenco; se è anche di una voce viva, resta
+    chiusi, vivi = nomi_chiusi(), set(voci) | {a for v in voci.values() for a in v["alias"]}
+    catalogo = [c for c in catalogo_fonte(avvisi)
+                if not ({c["slug"], *c["alias"]} & chiusi) or {c["slug"], *c["alias"]} & vivi]
+    voci = fondi(voci, catalogo)
     ordinati = sorted(voci.values(), key=lambda v: v["slug"])
     ordinati.sort(key=lambda v: v["data"], reverse=True)
     return {"versione": VERSIONE, "progetti": ordinati, "avvisi": avvisi}
