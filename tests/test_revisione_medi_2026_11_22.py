@@ -290,7 +290,10 @@ def main() -> int:
     rossi = prova(Path(argomenti.repo).resolve())
     if argomenti.baseline_ref:
         codici = sorted({r.split()[0] for r in rossi})
-        assert codici == DISCRIMINANTI, f"baseline non discriminante: rossi {codici}, attesi {DISCRIMINANTI}"
+        # Su Windows l'handoff-gate della base legge già gli a capo \r\n: RM07 lì è verde anche sulla base
+        # (sonda 45363564837 del 24/11/2026), e il caso si prova su macOS e Linux.
+        attesi = [c for c in DISCRIMINANTI if not (os.name == "nt" and c == "RM07")]
+        assert codici == attesi, f"baseline non discriminante: rossi {codici}, attesi {attesi}"
         print(f"BASELINE_DISCRIMINANTE={','.join(codici)}")
         return 0
     for r in rossi:
