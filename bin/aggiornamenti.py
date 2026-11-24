@@ -160,10 +160,21 @@ def leggi(f: Path) -> dict:
 
 
 def scrivi(f: Path, dati: dict) -> None:
+    """Il file temporaneo ha un nome unico (mkstemp). Fino al 22/11/2026 era aggiornamento.json.tmp per tutti: due
+    sessioni avviate insieme si pestavano, e il secondo os.replace falliva in silenzio (revisione del 20/11, bug 19).
+    Non usa radici.scrivi_atomico: una copia vecchia riceve questo script prima degli altri file (_moduli)."""
     f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f.name + ".tmp")
-    tmp.write_text(json.dumps(dati, ensure_ascii=False), encoding="utf-8")
-    os.replace(str(tmp), str(f))
+    fd, tmp = tempfile.mkstemp(prefix=f".{f.name}.", suffix=".tmp", dir=str(f.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as uscita:
+            uscita.write(json.dumps(dati, ensure_ascii=False))
+        os.replace(tmp, str(f))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def scrivi_stato(r: Path, stato: dict, chiusura: bool = False) -> None:
@@ -393,6 +404,33 @@ def processi_claude() -> int:
 SERVIZI_CLAUDE = re.compile(r"(?:daemon run|bg-spare --bg-spare|bg-pty-host --bg-pty-host)(?=\s|$)")
 
 
+def programma(riga: str) -> str:
+    """Il programma di una riga di `ps -Ao args=`: il primo pezzo, oppure un percorso con spazi che finisce in
+    /claude e che esiste. Con una home come "/Users/Mario Rossi" il primo pezzo era "/Users/Mario": la sessione
+    non contava, e migra partiva con una sessione aperta (revisione del 20/11, bug 20)."""
+    riga = riga.strip()
+    primo = riga.split(None, 1)[0] if riga else ""
+    if os.path.basename(primo) == "claude":
+        return primo
+    for m in re.finditer(r"/claude(?=\s|$)", riga):
+        candidato = riga[:m.end()]
+        if " " in candidato and os.path.isabs(candidato) and os.path.isfile(candidato):
+            return candidato
+    return primo
+
+
+def _dopo_il_programma(argomenti: str, prog: str = "") -> str:
+    """Gli argomenti dopo il programma, a spazi singoli. Su Windows il programma con spazi sta fra virgolette."""
+    a = argomenti.strip()
+    if prog and a.startswith(prog):
+        resto = a[len(prog):]
+    elif a.startswith('"') and a.find('"', 1) > 0:
+        resto = a[a.find('"', 1) + 1:]
+    else:
+        resto = a.split(None, 1)[1] if len(a.split(None, 1)) > 1 else ""
+    return " ".join(resto.split())
+
+
 def conta_sessioni(righe: list, windows: bool) -> int:
     """Quante righe dei processi sono sessioni di Claude Code. Il ponte con Chrome
     (`claude --chrome-native-host`) non è una sessione: resta acceso finché Chrome è aperto, e contato
@@ -401,16 +439,17 @@ def conta_sessioni(righe: list, windows: bool) -> int:
     for riga in righe:
         if not riga.strip() or "--chrome-native-host" in riga:
             continue
-        argomenti = riga.split("\t", 1)[-1] if windows else riga
-        if SERVIZI_CLAUDE.match(" ".join(argomenti.split()[1:])):
-            continue
         if windows:
+            if SERVIZI_CLAUDE.match(_dopo_il_programma(riga.split("\t", 1)[-1])):
+                continue
             if "AnthropicClaude" not in riga and "WindowsApps" not in riga and \
                     (re.search(r"\\\.local\\bin\\claude\.exe", riga, re.I) or "claude-code" in riga.lower()):
                 conta += 1
             continue
-        parti = riga.split()
-        if os.path.basename(parti[0]) == "claude" or "@anthropic-ai/claude-code" in riga:
+        prog = programma(riga)
+        if SERVIZI_CLAUDE.match(_dopo_il_programma(riga, prog)):
+            continue
+        if os.path.basename(prog) == "claude" or "@anthropic-ai/claude-code" in riga:
             conta += 1
     return conta
 

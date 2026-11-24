@@ -20,14 +20,18 @@ Tre regole per tutte le fasi:
 
 **Sessione già chiusa.** Se dopo l'ultimo /fine riuscito di questa sessione non è arrivato nessun messaggio,
 non rifare le fasi: chiudi con una riga, "Sessione già chiusa alle HH:MM, niente di nuovo da salvare". Di
-solito il giro non arriva qui, perché `inject-now.sh` lo ferma prima (`bin/fine-gia-chiusa.py`). `--forza`
+solito il giro non arriva qui, perché `inject-now.py` lo ferma prima (`bin/fine-gia-chiusa.py`). `--forza`
 fa ripartire le fasi anche su una sessione chiusa.
 
 ## Modo rotazione (`--rotazione`)
 
-Lo lancia Claude, mai la persona, a ogni compito chiuso: uno step del piano compiuto o un incarico finito,
-con i test verdi e la sonda fatta. Parte sempre, anche col contesto leggero e anche quando non c'è un passo
-dopo: è la raccolta dei risultati (handoff del giorno, todo, memoria, commit). Un compito conta quando ha
+Lo lancia Claude, mai la persona, a compito chiuso (uno step del piano compiuto o un incarico finito, con i
+test verdi e la sonda fatta) e solo a contesto oltre la soglia della rotazione (50% di default; la persona la
+cambia con `arturo rotazione N`, da 30 a 70): lo dice l'avviso CONTEXT WARNING. Dalle 18 parte
+anche sotto il 50%, come fine completo del giorno. È la raccolta dei risultati (handoff del giorno, todo,
+memoria, commit). Sotto la soglia il compito chiuso lascia commit, push e todo chiuso, e la sessione parte col
+passo dopo nello stesso contesto (23/11/2026: prima partiva a ogni compito chiuso, e sul Mac di chi mantiene
+Arturo 136 rotazioni a settimana costavano circa 6 ore). Un compito conta quando ha
 lasciato una traccia da salvare: un commit, un file, un documento, una decisione, un todo cambiato.
 Un'azione senza traccia (accendere la musica, leggere uno stato) non lo fa partire.
 La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la coda il tool `ruota` del mod
@@ -90,6 +94,11 @@ Lo script legge la trascrizione (file scritti, uscite dei comandi, file nuovi in
 oggetti creati online), salta `~/.claude` e propone per ogni voce un `destino` col motivo. Con `rc=2`
 (manca l'id o la trascrizione) o `rc=124` (oltre 120 secondi: non rilanciarlo) ricostruisci l'elenco dalla
 conversazione e dillo nella riga tecnica. Aggiungi i file che lo script non ha visto e i punti pendenti.
+
+**Shell in background.** Ferma con `TaskStop` le shell `run_in_background` e i Monitor della sessione ancora
+accesi, salvo il fine leggero di una rotazione che riprende lo stesso lavoro. Un'attesa che deve continuare
+diventa un todo con la data o un job di `bgjob.sh` (`${CLAUDE_PLUGIN_ROOT}/shared/lavori-lunghi.md`, Regole): Claude Code
+non spegne queste shell alla chiusura, e il loro esito non lo legge più nessuno.
 
 **Uscita breve a sessione vuota.** Se valgono tutte e quattro le condizioni, salta le fasi 2-8 e 10:
 - l'inventario non ha file né oggetti;
@@ -172,6 +181,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo aggiungi "passo che viene dopo" --
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo stato "a che punto è il progetto, in una frase"
 ```
 
+- **Il todo della sessione** (#4994). Se la sessione è partita da "Lavoraci" in Herdr (il compito di
+  `/inizio` o il messaggio "Lavoriamo sul todo #ID"), quel todo è in corso e il pannello dice che Claude
+  ci lavora. Lavoro finito: `fatto ID --titolo-atteso="titolo"`. Lavoro non finito: `riprendi ID
+  --titolo-atteso="titolo"` più una `nota` col punto a cui è arrivato. Dopo `/fine` un todo non resta in
+  corso, salvo con `--rotazione` quando il passo dopo continua lo stesso todo.
 - Un item che può partire solo dopo un altro nasce legato con `--dopo ID`: `/inizio` e le viste lo
   saltano finché ID è aperto, e mettono avanti chi lo sblocca.
 - La riga di stato si scrive a ogni `/fine`: una frase sul punto in cui è il progetto, letta da chi non c'era
@@ -390,11 +404,20 @@ staleness**, se la sessione ha toccato documenti `.md`. Per entrambi leggi `${CL
 La chiusura non ristampa la ripartenza di `/inizio`. Il messaggio ha, in quest'ordine:
 1. una riga per file o materiale della FASE 1 con la posizione finale, anche gli scarti;
 2. la Ripartenza dell'handoff in tre righe, col prossimo passo;
-3. la riga tecnica: "chiuso · commit a1b2c3d · handoff HANDOFF_2026-10-03_18-40.md · gate verde · validate
-   ok · retention: 1 tolto · config: push riuscito · segnalazione: nessuna · riprendi: /inizio libro".
-   Config: "push riuscito", "niente da pushare", "push non riuscito: N commit da ritentare" o "solo
-   locale". Segnalazione: "inviata n. N", "in coda", "proposta, non inviata", "domanda fatta" o "nessuna". Un passo
-   saltato o fallito lo dice al suo posto.
+3. il blocco tecnico, in un blocco di codice: cinque righe, l'etichetta a sinistra in 12 colonne e i fatti
+   dopo, senza bordo (un bordo scritto a mano esce storto, 23/11/2026). Così si legge nel Terminale del Mac e
+   nella console di Windows:
+   ```
+   chiuso      commit a1b2c3d · handoff HANDOFF_2026-10-03_18-40.md
+   controlli   gate verde · validate ok · retention: 1 tolto
+   config      push riuscito
+   segnala     nessuna
+   riprendi    /inizio libro
+   ```
+   config: "push riuscito", "niente da pushare", "push non riuscito: N commit da ritentare" o "solo
+   locale". segnalazione: "inviata n. N", "in coda", "proposta, non inviata", "domanda fatta" o "nessuna".
+   Un passo saltato o fallito lo dice al suo posto, sulla sua riga. Solo caratteri semplici: lettere, cifre,
+   "·" e ":", niente emoji né spunte.
 
 Se la FASE 7 o la FASE 8 hanno scritto memoria, segue il blocco **Memoria applicata** (un percorso per riga
 e cosa è cambiato). Poi, in una chiusura che la persona legge (non nel giro che ruota), lancia

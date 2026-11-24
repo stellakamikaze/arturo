@@ -41,6 +41,10 @@ Ogni cosa ricordata è una nota: un file di testo con poche righe in testa e il 
   si sposta, e Arturo continua a proporla quando c'entra. La prima volta che torna proposta, l'igiene
   dopo toglie il segno. L'igiene segnala anche i collegamenti rotti e le note quasi uguali, che
   conviene unire, e lo fa senza Claude e senza cancellare niente.
+- L'igiene dice anche la precisione del richiamo: quante note proposte Claude ha poi letto nella
+  settimana. Una nota che Arturo propone tante volte e Claude non apre mai perde punti: un punto ogni
+  10 proposte senza lettura, al massimo tre, e solo per le proposte degli ultimi 30 giorni. La prima
+  lettura azzera il conto. Le letture le registra un hook della persona: senza, il conto non parte.
 - Quando un comando fallisce, Arturo guarda il testo dell'errore. Se una nota porta quel testo nel
   campo `firma:`, Arturo dice a Claude dov'è la lezione già scritta, una volta per sessione. Così lo
   stesso errore non si risolve da capo ogni volta.
@@ -87,10 +91,25 @@ I preventivi partono dal modello dell'anno scorso, con le tariffe del listino.
   (parole che devono richiamare la nota), `firma` (pezzi esatti di un messaggio d'errore, almeno 8
   caratteri: quando un comando fallisce con quel testo, Arturo propone la nota).
 
+Il campo `answers` (le domande a cui la nota risponde, una convenzione di chi mantiene Arturo) pesa
+al massimo due punti, come il corpo: una lista lunga non fa uscire la nota a ogni messaggio.
+
+### Note lunghe
+
+Una nota sopra 30 KiB si divide in due, e l'igiene elenca quelle da dividere:
+- la scheda, col nome di sempre: le regole che valgono oggi, la lista dei controlli e al massimo
+  una decina di `answers` corte;
+- la storia, `<nome>-storia.md` nella stessa cartella: gli episodi datati e le domande lunghe, con
+  `stato: dormiente` in testa. Arturo non la propone da sola, ma `arturo memoria cerca` la trova.
+La scheda finisce con un collegamento alla storia, `[[<nome>-storia]]`.
+
 Una nota nuova scritta in `~/.claude/data/memory/` va da sola nella cartella del suo tipo: `user`
 in `profilo/`, `feedback` in `feedback/`, `project` in `progetti/`, `reference` in `reference/`.
 `arturo memoria controlla` trova le note senza queste righe, le righe che non si leggono e i
 collegamenti rotti.
+Un `[[nome]]` senza nota non è un errore. Se la nota sta in `_archive/`, il controllo lo mette fra le
+archiviate e mostra il successore, quando la nota ne ha uno (`superseded_by` o `unito_in`). Gli altri
+link senza nota restano "da scrivere".
 
 ## Passare un progetto a un collega
 
@@ -147,7 +166,8 @@ vanno lì, come le tue.
 - **Su GitHub, solo se la copia è privata**: se la tua `~/.claude` è collegata a un repository
   privato su GitHub (in gergo, un remote privato), `/fine` salva lì anche le note di
   `data/memory/`, così le ritrovi sugli altri computer. Se il repository è pubblico, o se non c'è,
-  le note restano solo su questo computer.
+  le note restano solo su questo computer. Su un computer passato al ramo sync le note vanno su quel
+  ramo, con gli handoff, e non sul ramo principale: [`ramo-sync.md`](ramo-sync.md).
 
 ## Cosa resta sul computer oltre alle note
 

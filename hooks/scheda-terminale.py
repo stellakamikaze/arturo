@@ -25,6 +25,9 @@ dalla persona nella finestra di Volta (fonte "persona") non lo cambia un file sc
 Limite noto: dopo un permesso concesso Claude Code non manda eventi finché lo strumento non finisce, quindi
 "SBLOCCA" resta per tutta la durata del comando approvato. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
+Il progetto che la persona sceglie dalla finestra di Volta (volta_sonda.py progetto, #5292) ha fonte "persona":
+nessun evento lo riscrive, nemmeno un altro /inizio, e SessionEnd lascia il file, così la sessione fermata
+tiene il suo progetto nell'elenco. Si cambia di nuovo dalla finestra; lo toglie la pulizia dopo una settimana ferma.
 La barra in basso (hooks/statusline.js) legge il progetto da questo file: il nome resta come lo ha
 trovato la scheda, e la barra lo confronta col repository passando dallo slug dai due lati (#4262).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
@@ -47,6 +50,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_orsa  # noqa: E402
+import scheda_file  # noqa: E402
 import aspetto_valori as aspetto  # noqa: E402
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
@@ -451,11 +455,13 @@ def main() -> int:
         return 0
     # Lo slug risolto da /inizio ("inizio") non lo scavalca un file toccato; il testo scritto dopo /inizio
     # ("prompt") sì, perché può essere un nome che il risolutore non ha trovato.
-    progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "prompt"
+    persona = salvato.get("fonte") == "persona" and bool(salvato.get("progetto"))
+    progetto, fonte = ("", "") if persona else (progetto_da_prompt(str(dati.get("prompt") or "")), "prompt")
     if not progetto and evento == "PostToolUse":
         progetto, fonte = progetto_da_strumento(dati)
-        # il progetto che la persona ha dato dalla finestra di Volta vale come /inizio (14/11/2026)
-        if fonte == "file" and salvato.get("fonte") in ("inizio", "persona"):
+        # un progetto già deciso (persona, inizio, volta, teletrasporto) non lo cambia un file scritto: la regola
+        # delle fonti sta in scheda_file.py (C1, 22/11/2026)
+        if progetto and scheda_file.cede(salvato.get("fonte"), fonte):
             progetto = ""
         # Un cd di Bash dentro un progetto sposta una scheda che conosce solo la cartella: una richiesta
         # libera aperta nella base dei progetti non resta "Senza progetto" mentre lavora in uno (14/11/2026).
@@ -470,10 +476,11 @@ def main() -> int:
     if not progetto:
         progetto, fonte = progetto_da_cartella(str(dati.get("cwd") or os.getcwd())), "cartella"
     if stato == "fine":
-        try:
-            f.unlink()
-        except OSError:
-            pass
+        if not persona:
+            try:
+                f.unlink()
+            except OSError:
+                pass
     elif salvato.get("stato") == stato and salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
         return 0  # niente cambia: è il caso comune di PostToolUse
     else:
@@ -481,14 +488,7 @@ def main() -> int:
         # un file a parte e si sostituisce, così nessuno legge uno stato scritto a metà.
         if adesso < float(leggi(f).get("quando") or 0):
             return 0
-        f.parent.mkdir(parents=True, exist_ok=True)
-        provvisorio = f.with_name(f"{f.stem}.{os.getpid()}.tmp")
-        nuovo = {"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}
-        # i segni di Volta (spostata, inizio) restano finché il progetto è quello che li ha scritti
-        if salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
-            nuovo.update({k: salvato[k] for k in ("spostata", "inizio", "sessionId") if k in salvato})
-        provvisorio.write_text(json.dumps(nuovo), encoding="utf-8")
-        os.replace(str(provvisorio), str(f))
+        scheda_file.imposta_progetto(sessione, progetto, fonte, stato=stato, quando=adesso)
     scrivi(sequenze(stato, progetto, campanella=evento in FERMANO and stato != "lavoro"))
     return 0
 

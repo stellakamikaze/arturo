@@ -246,7 +246,7 @@ def analizza(orsa: Path, unica: bool = False) -> dict:
             a["ferma"].append("il tuo ~/.claude è un repository tuo con Arturo come upstream. Se lo usi solo su questo "
                               "computer, rilancia con --unica-macchina: i file di Arturo escono con un commit nel tuo "
                               "repository, e .git resta. Se lo usi su più computer, la migrazione di uno toglierebbe "
-                              "Arturo agli altri: per questa forma scrivi a chi mantiene Arturo con /segnala, si fa a mano")
+                              "Arturo agli altri senza avviso: segui i passi di docs/migrazione.md, sezione Con più computer")
     for segno, cosa in (("rebase-merge", "un rebase"), ("rebase-apply", "un rebase"), ("MERGE_HEAD", "un merge")):
         percorso = git(orsa, "rev-parse", "--git-path", segno).stdout.strip()
         if percorso and esiste(orsa / percorso if not os.path.isabs(percorso) else Path(percorso)):
@@ -316,8 +316,14 @@ def rapporto(a: dict) -> str:
     va a chi mantiene Arturo con /segnala."""
     orsa = a["orsa"]
     adesso = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    cc = subprocess.run([os.environ.get("ARTURO_CLAUDE") or "claude", "--version"], capture_output=True, text=True,
-                        timeout=30).stdout.strip() if shutil.which(os.environ.get("ARTURO_CLAUDE") or "claude") else "?"
+    # Il percorso che which trova: su Windows è claude.cmd o claude.exe, e "claude" nudo dà FileNotFoundError
+    # a CreateProcess, che non prova le estensioni di PATHEXT (sonda #6455, MG01).
+    prog = shutil.which(os.environ.get("ARTURO_CLAUDE") or "claude")
+    try:
+        cc = subprocess.run([prog, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                            timeout=30).stdout.strip() if prog else "?"
+    except (OSError, subprocess.SubprocessError):
+        cc = "?"
     righe = [f"RAPPORTO DI MIGRAZIONE (arturo migra --prova) · {adesso}",
              f"Arturo {a['versione'] or '?'} (clone, base {a['base'][:8] or '?'}) · {platform.system()} "
              f"{platform.release()} · Claude Code {cc or '?'} · Python {platform.python_version()}", ""]
@@ -474,7 +480,8 @@ def passo(cartella: Path, nome: str) -> None:
 # --- i passi -------------------------------------------------------------------------------------------
 
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
-    comando = [os.environ.get("ARTURO_CLAUDE") or "claude", "plugin", *argomenti]
+    nome = os.environ.get("ARTURO_CLAUDE") or "claude"
+    comando = [shutil.which(nome) or nome, "plugin", *argomenti]  # claude.cmd su Windows: come in rapporto()
     # Anche `claude plugin` chiude con gli hook del clone: session-end.sh lancerebbe l'aggiornamento automatico
     # staccato, proprio mentre i file di Arturo stanno uscendo da ~/.claude (6/11/2026).
     env = {**os.environ, "ARTURO_AGGIORNAMENTI": "manuali"}
@@ -642,6 +649,21 @@ def cmd_migra(unica: bool = False) -> int:
         print(f"FERMA: {str(errore).rstrip('.')}. Torno indietro.", file=sys.stderr)
         indietro(cartella, conserva=False)
         return uscita
+    except BaseException as errore:
+        # Ctrl-C o un errore che nessuno aspettava, anche dentro togli_arturo, che toglie .git per primo. Fino
+        # al 22/11/2026 qui non tornava indietro niente: ~/.claude restava senza .git e con metà dei file, senza
+        # una riga che dicesse come tornare (revisione del 20/11, bug 18).
+        ritorno = f"python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro"
+        print(f"FERMA: la migrazione si è interrotta ({type(errore).__name__}). Torno indietro.", file=sys.stderr)
+        try:
+            indietro(cartella, conserva=False)
+        except BaseException:
+            print(f"Il ritorno non è finito. Con Claude Code chiuso lancia da un Terminale: {ritorno}", file=sys.stderr)
+            raise
+        if isinstance(errore, KeyboardInterrupt):
+            return 130
+        print(f"Se qualcosa non torna, con Claude Code chiuso: {ritorno}", file=sys.stderr)
+        raise
     print(f"MIGRATO: Arturo è un plugin, e ~/.claude tiene solo i tuoi file. Apri Claude Code come sempre.\n"
           f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro")
     if a.get("regole_doppie"):
@@ -812,7 +834,7 @@ def avviso() -> str:
                         f"con `{comando} migra --prova --unica-macchina` vede cosa cambierebbe, senza che niente cambi; "
                         f"la migrazione vera si lancia da un Terminale con Claude Code chiuso (`{comando} migra "
                         "--unica-macchina`), e `migra indietro` rimette tutto com'era. Con più computer il passaggio "
-                        "si fa a mano con chi mantiene Arturo: può scrivergli con /segnala.")
+                        "ha i suoi passi in docs/migrazione.md, sezione Con più computer: un computer alla volta, col secondo che scarica il commit e installa il plugin prima di riaprire Claude Code.")
     return testa + (f"con `{comando} migra --prova` vede cosa cambierebbe, senza che niente cambi, e può mandare il "
                     "rapporto a chi mantiene Arturo con /segnala. La migrazione vera si lancia da un Terminale con "
                     f"Claude Code chiuso (`{comando} migra`), fa prima una copia di sicurezza, e "

@@ -130,6 +130,13 @@ def main():
 
 
 if __name__ == "__main__":
+    # Claude Code legge UTF-8. Su Windows la pipe è in cp1252: la freccia della riga mandava l'hook in
+    # eccezione, e la firma su Windows taceva sempre (22/11/2026, Y23 rosso su Windows).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     try:
         sys.exit(main())
     except Exception:

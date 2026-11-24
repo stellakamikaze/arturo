@@ -17,7 +17,29 @@ successivo.
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
+
+
+def scrivi_atomico(path, testo: str) -> None:
+    """Scrive `testo` in `path`: chi legge trova il file vecchio o quello nuovo, mai mezzo. A capo sempre \\n.
+
+    Il file temporaneo ha un nome unico nella stessa cartella (mkstemp). Fino al 22/11/2026 molti scrittori
+    usavano un .tmp dal nome fisso: due sessioni che scrivevano insieme lo stesso file (aggiornamento.json
+    all'avvio) si pestavano, e il secondo os.replace falliva in silenzio (revisione del 20/11, bug 19)."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporaneo = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(testo)
+        os.replace(temporaneo, str(path))
+    except BaseException:
+        try:
+            os.unlink(temporaneo)
+        except OSError:
+            pass
+        raise
 
 
 def radice_arturo() -> Path:

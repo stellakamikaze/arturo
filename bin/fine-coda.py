@@ -6,7 +6,12 @@ qui girano in un processo solo. Il giudizio resta in /fine: destino dei file, ha
 salvare degli handoff in uscita (il dry-run della retention), memoria.
 
 Uso:
-  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--rotazione] [--trailer <riga>] [-- <argomenti tuoi>]
+  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--rotazione] [--solo-percorsi] [--trailer <riga>] [-- <argomenti tuoi>]
+
+--solo-percorsi: il passo 6 non aggiunge per cartella. Entrano solo l'handoff, l'indice, il segno del fine
+completo, le uscite della retention già tracciate nella cartella dello slug e i path dell'aggancio personale.
+Serve a chi tiene più sessioni sulla stessa config: le modifiche delle altre restano fuori dal commit e la
+riga "fuori dal commit" le elenca (revisione del 22/11/2026, passo 2).
 
 --leggero: il fine leggero della rotazione automatica (/fine --rotazione, 3/11/2026). Salta la retention,
 che aspetta il fine completo. Senza --leggero la coda scrive la data di oggi (AAAA-MM-GG) in
@@ -50,9 +55,11 @@ una riga sola quando non c'è nessuno da avvisare. Niente commit, niente gate, l
 I path dell'aggancio personale non entrano nell'anteprima. FINE_CODA_SESSIONI sposta le sessioni (banchi).
 
 Aggancio personale: se esiste ~/.claude/personale/fine-coda.py, la coda lo lancia ai passi 5 e 8 con un
-JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage"}. Risponde
-su stdout {"esiti": [...], "path": [...], "blocca": null o "motivo"}. I "path" (relativi a ~/.claude)
-entrano nel commit di sync. Exit 0 fatto, 3 servizio giù (la coda prosegue e lo dice), 4 blocca.
+JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage", "leggero",
+"rotazione"}. Risponde su stdout {"esiti": [...], "path": [...], "blocca": null o "motivo"}. I "path"
+(relativi a ~/.claude) entrano nel commit: quelli sotto data/memory nel commit della memoria, gli altri nel
+commit di sync. Un file che l'aggancio mette in stage da sé entra anche lui. Exit 0 fatto, 3 servizio giù
+(la coda prosegue e lo dice), 4 blocca.
 
 Exit:
   0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
@@ -107,6 +114,27 @@ PRIVATI = ["CLAUDE.md", "data/todo", "personale", "data/memory"]
 INDICE_MEMORIA = "data/memory/index.md"
 # Il segno del fine completo (rotazione automatica, 3/11/2026), nella cartella dell'handoff.
 SEGNO_COMPLETO = ".ultimo-fine-completo"
+
+# I dati di transito (handoff, stati, memoria) passano dal ramo sync quando questa macchina l'ha migrato
+# (bin/sync_transito.py --migra, revisione del 22/11/2026, D5): la coda non li mette più nel commit su main.
+# Senza il git dir del ramo sync resta il comportamento di prima.
+SYNC_TRANSITO = Path(__file__).resolve().parent / "sync_transito.py"
+
+
+def sync_attivo():
+    return (CL / ".git-sync" / "HEAD").exists() and SYNC_TRANSITO.is_file()
+
+
+def in_transito(rel):
+    """Il path sta sotto un path di data/transito.paths, e il ramo sync è attivo."""
+    if not sync_attivo():
+        return False
+    try:
+        elenco = [r.strip().rstrip("/") for r in (QUI.parent / "data" / "transito.paths")
+                  .read_text(encoding="utf-8").splitlines() if r.strip() and not r.strip().startswith("#")]
+    except OSError:
+        return False
+    return any(rel == p or rel.startswith(p + "/") for p in elenco)
 
 
 # I file sensibili di .gitignore ("MAI committare") e le cartelle che si rigenerano restano fuori anche
@@ -579,12 +607,15 @@ def aggiungi_per_percorso():
                       f"(visibilità: {vis or 'sconosciuta'}). Restano su questa macchina.")
     saltati = {}
     if vis == "PRIVATE":
-        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()], saltati))
+        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()
+                                                    and not in_transito(p)], saltati))
         if not ok:
             falliti.append(f"{', '.join(PRIVATI)}: {ultima(err)}")
         # Gli handoff senza -f: una riga della persona nel .gitignore (un progetto riservato) va rispettata.
-        if (CL / "data" / "handoffs").exists():
+        if (CL / "data" / "handoffs").exists() and not in_transito("data/handoffs"):
             aggiungi("-A", "--", "data/handoffs")
+        if sync_attivo():
+            esiti.append("handoff, stati e memoria: sul ramo sync (bin/sync_transito.py)")
     else:
         esiti.append(f"CLAUDE.md, personale/, handoff, todo e memoria solo su questa macchina: il remote "
                      f"non risulta privato (visibilità: {vis or 'sconosciuta'})")
@@ -594,6 +625,31 @@ def aggiungi_per_percorso():
                     esiti.append(f"{p} tolto dal tracciamento di git, i file restano su questa macchina")
     return {"origin": origin, "origin_arturo": origin_arturo, "vis": vis, "saltati": saltati,
             "falliti": falliti, "righe": righe, "esiti": esiti}
+
+
+def aggiungi_della_sessione(handoff, slug):
+    """Il passo 6 con --solo-percorsi: niente add per cartella. Entrano l'handoff, l'indice, il segno del fine
+    completo e le uscite della retention già tracciate nella cartella dello slug; il resto lo nomina l'aggancio
+    personale. Gli handoff senza -f, come nel passo 6 per cartella: una riga del .gitignore va rispettata."""
+    origin = git("remote", "get-url", "origin")[1].strip()
+    origin_arturo = bool(RE_ARTURO.search(origin))
+    vis = visibilita(origin) if origin and not origin_arturo else ""
+    falliti, esiti = [], ["add: solo i path della sessione"]
+    if sync_attivo():
+        esiti.append("handoff e indice: sul ramo sync (bin/sync_transito.py)")
+    elif handoff:
+        cartella = handoff.parent.relative_to(CL.resolve()).as_posix()
+        for p in (handoff.relative_to(CL.resolve()).as_posix(), "data/handoffs/INDEX.md", f"{cartella}/{SEGNO_COMPLETO}"):
+            if (CL / p).exists():
+                ok, err = aggiungi("-A", "--", p)
+                if not ok:
+                    falliti.append(f"{p}: {ultima(err)}")
+    if slug and not sync_attivo() and git("ls-files", "--", f"data/handoffs/{slug}/")[1].strip():
+        ok, err = aggiungi("-u", "--", f"data/handoffs/{slug}/")
+        if not ok:
+            falliti.append(f"data/handoffs/{slug}/: {ultima(err)}")
+    return {"origin": origin, "origin_arturo": origin_arturo, "vis": vis, "saltati": {},
+            "falliti": falliti, "righe": [], "esiti": esiti}
 
 
 def da_salvare_fuori_data():
@@ -631,12 +687,38 @@ def cartella_sessioni():
     return radice_orsa() / "sessions"
 
 
-def viva(pid):
-    """Il processo esiste ancora. Su Windows os.kill chiude il processo: lì vale il file della sessione."""
-    if os.name == "nt":
-        return True
+def _viva_windows(pid: int) -> bool:
+    """Su Windows os.kill(pid, 0) manda un Ctrl+C: lo stato si legge da OpenProcess e GetExitCodeProcess.
+    Prima la funzione diceva sempre viva, e gli avvisi di /fine contavano le sessioni chiuse (#6440)."""
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ctypes.get_last_error() == 5  # accesso negato: il processo c'è, è di un altro utente
     try:
-        os.kill(int(pid), 0)
+        codice = wintypes.DWORD()
+        if not k.GetExitCodeProcess(h, ctypes.byref(codice)):
+            return True
+        return codice.value == 259  # STILL_ACTIVE
+    finally:
+        k.CloseHandle(h)
+
+
+def viva(pid):
+    """Il processo esiste ancora."""
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        return False
+    if os.name == "nt":
+        return _viva_windows(pid)
+    try:
+        os.kill(pid, 0)
     except (ProcessLookupError, ValueError, TypeError):
         return False
     except PermissionError:
@@ -838,6 +920,8 @@ def main(argv):
                     help="fine leggero della rotazione: niente retention e niente segno del fine completo")
     ap.add_argument("--rotazione", action="store_true",
                     help="giro in rotazione (anche il completo delle 18): l'handoff non chiede /clear alla persona")
+    ap.add_argument("--solo-percorsi", action="store_true",
+                    help="niente add per cartella: solo handoff, indice, segno, retention e path dell'aggancio")
     ap.add_argument("--avvisi", action="store_true",
                     help="solo l'anteprima: quali altre sessioni vive avvisare, senza commit (exit 3: nessuna)")
     ap.error = lambda m: (sys.stderr.write(f"fine-coda: {m}\n"), sys.exit(5))
@@ -867,7 +951,8 @@ def coda(a, ap, suoi):
     slug = a.slug or (handoff.parent.name if handoff else "")
     if slug and ("/" in slug or "\\" in slug or slug.startswith(".")):
         ap.error(f"slug non valido: {slug}")
-    base = {"handoff": str(handoff or ""), "slug": slug, "radice": str(CL), "argomenti": suoi}
+    base = {"handoff": str(handoff or ""), "slug": slug, "radice": str(CL), "argomenti": suoi,
+            "leggero": bool(a.leggero), "rotazione": bool(a.rotazione or a.leggero)}
     esiti, offline = [], False
 
     # 1. config integra. Un rebase fermo sui soli file derivati, lasciato da una coda di prima, si chiude.
@@ -943,7 +1028,7 @@ def coda(a, ap, suoi):
         esiti.append("config senza git: niente commit")
         print("coda: " + " · ".join(esiti))
         return 3 if offline else 0
-    p6 = aggiungi_per_percorso()
+    p6 = aggiungi_della_sessione(handoff, slug) if a.solo_percorsi else aggiungi_per_percorso()
     for r in p6["righe"]:
         print(r)
     esiti += p6["esiti"]
@@ -975,7 +1060,7 @@ def coda(a, ap, suoi):
     if blocca:
         print(f"fine-coda: personale/fine-coda.py (prima-commit) blocca: {blocca}")
         return 4
-    extra = [p for p in dict.fromkeys(extra + extra2) if p and not p.startswith(("/", ".."))]
+    extra = [p for p in dict.fromkeys(extra + extra2) if p and not p.startswith(("/", "..")) and not in_transito(p)]
     if extra and vis != "PRIVATE":
         # personale/ e i .local sono ignorati da Arturo: senza un remote privato restano fuori
         rc, _, err = git("add", "-A", "--", *extra)
@@ -987,7 +1072,8 @@ def coda(a, ap, suoi):
         if not ok:
             print(f"fine-coda: git add fallito sui path dell'aggancio personale: {ultima(err)}")
             return 6
-        staged = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "-z")[1].split("\0") if p]
+    # Di nuovo dall'indice: l'aggancio può aver messo in stage un file da sé, anche senza "path".
+    staged = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "-z")[1].split("\0") if p]
 
     if riga_saltati(saltati):
         esiti.append(riga_saltati(saltati))
@@ -1007,7 +1093,8 @@ def coda(a, ap, suoi):
 
     # 9. commit: la memoria a parte, così si annulla da sola
     trailer = "".join(f"\n{t}" for t in a.trailer)
-    memoria = [p for p in staged if p.startswith("data/memory/")]
+    # Un log o una cache di Melchior messi in stage dall'aggancio non sono memoria applicata: vanno nel sync.
+    memoria = [p for p in staged if p.startswith("data/memory/") and not escluso(p)]
     resto = [p for p in staged if p not in memoria]
     # Commit dall'indice, mai "git commit -- <path>": con i path git riprende i file dal disco e annulla un
     # "rm --cached" (test F17). La memoria va prima, con una copia dell'indice senza il resto.
@@ -1076,6 +1163,15 @@ def coda(a, ap, suoi):
             ok, perche = push(origin)
             esiti.append("config: push riuscito" if ok else f"config: push non riuscito ({perche}), "
                          f"{avanti or '?'} commit da ritentare")
+
+    # 11. dati di transito: commit raggruppato sul ramo sync, push al massimo una volta al minuto
+    if sync_attivo():
+        rc, out, err = run([PY, str(SYNC_TRANSITO), "--subito"], 240, env=dict(os.environ, SYNC_TRANSITO_CLAUDE=str(CL)))
+        if rc == 7:
+            print("coda: " + " · ".join(esiti))
+            print(out.strip())
+            return 7
+        esiti.append(ultima(out, err) if rc == 0 else f"sync dei dati di transito rc={rc}: {ultima(out, err)}")
 
     print("coda: " + " · ".join(esiti))
     return 3 if offline else 0

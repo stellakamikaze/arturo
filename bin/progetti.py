@@ -5,6 +5,9 @@ Uso: arturo progetti [--json]
      arturo progetti titolo <slug> "<Titolo>"
      arturo progetti rinomina VECCHIO NUOVO [--prova]   (bin/rinomina.py, proposta n. 90)
      arturo progetti unisci PERDENTE VINCITORE [--prova] [--json]   (bin/unisci.py, #6187)
+     arturo progetti doppioni [--json] [--scartate FILE]   (bin/doppioni.py, #6422: le coppie probabili)
+     arturo progetti elimina PROGETTO [--prova] [--json]   (bin/elimina.py: la memoria va in Miscellanea)
+     arturo progetti nuovo "NOME" --cosa "una riga" [--json]   (bin/nuovo_progetto.py: la scheda di un progetto nuovo)
 
 Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha già su disco.
   - le cartelle della base dei progetti (PROJECTS_BASE);
@@ -17,8 +20,9 @@ Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha
   - il catalogo della fonte esterna dei task (fonte-task.local, verbo facoltativo "catalogo --json"): i
     progetti che stanno nello strumento della persona, con titolo, categoria e i nomi alternativi (alias).
 
-Un nome alternativo senza handoff suoi (il nome vecchio di un progetto, il nome che ha nello strumento)
-entra nella voce del progetto, in "alias". Un nome alternativo con i suoi handoff resta una voce a parte:
+Un nome alternativo senza handoff suoi (il nome vecchio di un progetto, il nome che ha nello strumento,
+un nome la cui cartella di handoff è un collegamento a quella del progetto) entra nella voce del progetto,
+in "alias". Un nome alternativo con i suoi handoff resta una voce a parte:
 la persona lo apre da solo con /inizio, e dalla fonte prende solo la categoria.
 Se la fonte non conosce "catalogo" o non risponde, resta l'elenco locale con un avviso.
 
@@ -63,15 +67,29 @@ def cartelle() -> dict:
     return fuori
 
 
+def collegata(d: Path) -> bool:
+    """Una cartella di handoff che è un collegamento a quella di un altro progetto (herdr-arturo -> volta,
+    dopo un'unione): quegli handoff sono dell'altro. Contarli lasciava il nome vecchio in elenco come
+    progetto a parte, e Volta proponeva di unire due progetti già uniti (21/11/2026)."""
+    try:
+        if not d.is_symlink():
+            return False
+        vera = Path(os.path.realpath(d))
+        return vera.name != d.name and vera.parent == Path(os.path.realpath(d.parent))
+    except OSError:
+        return False
+
+
 def ultimi_handoff() -> dict:
-    """{slug: (nome cartella, data, percorso dell'ultimo handoff)}: si leggono solo i nomi dei file."""
+    """{slug: (nome cartella, data, percorso dell'ultimo handoff)}: si leggono solo i nomi dei file.
+    Un collegamento alla cartella di un altro progetto non conta (collegata)."""
     fuori = {}
     try:
         voci = sorted(cx.handoff_dir().iterdir())
     except OSError:
         return fuori
     for d in voci:
-        if d.name.startswith(".") or not cx.e_cartella(d):
+        if d.name.startswith(".") or not cx.e_cartella(d) or collegata(d):
             continue
         lista = cx.handoff_di(d.name)
         s = cx.slug(d.name)
@@ -250,7 +268,28 @@ def catalogo_schede() -> list:
     """Le schede con titolo o alias, nella forma del catalogo della fonte: i loro nomi alternativi si
     fondono come quelli della fonte, e il titolo della scheda vince (fondi lo tiene)."""
     return [{"slug": s, "titolo": v["titolo"], "categoria": "", "alias": v["alias"]}
-            for s, v in sorted(schede().items()) if v.get("alias")]
+            for s, v in sorted(schede().items()) if v.get("alias") and v.get("status") != "closed"]
+
+
+def nomi_chiusi() -> set:
+    """I nomi (slug e alias) delle schede chiuse: status closed, oppure spostate in _archive/. Il catalogo
+    della fonte tiene le commesse chiuse, e senza questo filtro un progetto archiviato tornava in elenco
+    col suo nome della fonte (riordino del 24/11/2026)."""
+    fuori = set()
+    for radice in radici_memoria():
+        try:
+            trovate = sorted(radice.rglob("progetto-*.md"))
+        except OSError:
+            continue
+        for f in trovate:
+            parti = f.relative_to(radice).parts
+            archiviata = "_archive" in parti
+            if not archiviata and any(p[:1] in "._" for p in parti):
+                continue
+            v = testa(f)
+            if archiviata or v.get("status") == "closed":
+                fuori |= {cx.slug(f.stem[len("progetto-"):]), *v["alias"]}
+    return fuori - {""}
 
 
 def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
@@ -258,6 +297,9 @@ def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
     handoff, altrimenti il nome con l'handoff più recente. I nomi senza handoff entrano nel capo."""
     for c in catalogo:
         gruppo = [c["slug"]] + [a for a in c["alias"] if a != c["slug"]]
+        # uno slug della fonte che è già alias di una voce fusa prima (scheda o fonte) è quella voce, non un progetto nuovo
+        propri = {a: v["slug"] for v in voci.values() for a in v["alias"]}
+        gruppo += [propri[s] for s in list(gruppo) if s not in voci and s in propri and propri[s] not in gruppo]
         presenti = [voci[s] for s in gruppo if s in voci]
         if presenti:
             capo = max(presenti, key=lambda v: (v["handoff"] and v["slug"] == c["slug"], v["data"], v["cartella"],
@@ -291,7 +333,12 @@ def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
 
 def elenco() -> dict:
     avvisi = []
-    voci = fondi(fondi(locali(), catalogo_schede(), marca=False), catalogo_fonte(avvisi))
+    voci = fondi(locali(), catalogo_schede(), marca=False)
+    # un nome della fonte che appartiene solo a schede chiuse non torna in elenco; se è anche di una voce viva, resta
+    chiusi, vivi = nomi_chiusi(), set(voci) | {a for v in voci.values() for a in v["alias"]}
+    catalogo = [c for c in catalogo_fonte(avvisi)
+                if not ({c["slug"], *c["alias"]} & chiusi) or {c["slug"], *c["alias"]} & vivi]
+    voci = fondi(voci, catalogo)
     ordinati = sorted(voci.values(), key=lambda v: v["slug"])
     ordinati.sort(key=lambda v: v["data"], reverse=True)
     return {"versione": VERSIONE, "progetti": ordinati, "avvisi": avvisi}
@@ -337,6 +384,15 @@ def main(argv: list) -> int:
     if argv[:1] == ["unisci"]:
         import unisci
         return unisci.main(argv[1:])
+    if argv[:1] == ["doppioni"]:
+        import doppioni
+        return doppioni.main(argv[1:])
+    if argv[:1] == ["elimina"]:
+        import elimina
+        return elimina.main(argv[1:])
+    if argv[:1] == ["nuovo"]:
+        import nuovo_progetto
+        return nuovo_progetto.main(argv[1:])
     if argv[:1] == ["titolo"]:
         if len(argv) != 3:
             print('uso: arturo progetti titolo <slug> "<Titolo>"', file=sys.stderr)

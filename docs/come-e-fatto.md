@@ -29,6 +29,10 @@ il README e `strati.md` lo citano senza copiarlo.
 │    5 Scoperta ............ ti propone cosa automatizzare, con le prove    │
 │    sempre: Ingresso (/setup, aggiornamenti) · Misura (banchi, /segnala)   │
 │                                                                           │
+│  il mod, dentro Claude Code: testata, rotazione, redazione dei segreti,   │
+│    cache fredda, apertura dei risultati, /dafare                          │
+│  manda allo Sportello: eventi d'uso (se li accetti in /setup), /segnala   │
+│                                                                           │
 │  adattati da progetti aperti, dentro Arturo:                              │
 │    humanizer ............. ◄── blader/humanizer (MIT)                     │
 │    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
@@ -47,6 +51,13 @@ il README e `strati.md` lo citano senza copiarlo.
 └──────────────────────────────────┬────────────────────────────────────────┘
                                    │ la conversazione esce dal tuo computer
                        il modello (Claude, sui server di Anthropic)
+
+┌─ Sportello di Arturo ──────────── server/, un Worker Cloudflare con D1 ───┐
+│  riceve da Arturo: eventi d'uso con un id casuale, mai testi o file;      │
+│    le segnalazioni di /segnala e il contatto, se lo dai                   │
+│  restituisce: le risposte alle tue segnalazioni                           │
+│  cosa tiene e per quanto: docs/privacy.md                                 │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 La memoria (strato 3) ha un contratto suo: cosa ricorda, lo schema delle note e cosa esce dal
@@ -59,6 +70,7 @@ computer stanno in [`memoria.md`](memoria.md).
 | Claude Code | il programma su cui gira tutto | proprietaria, di Anthropic | lo installi tu | Anthropic, da solo |
 | Arturo | guardie, metodo, comandi, skill | MIT | `installa.sh`, poi i rilasci firmati | chi mantiene Arturo; si installa da solo alla chiusura della sessione |
 | Orsa | le tue istruzioni, la tua voce, la tua memoria | tua | la scrivi tu, con Claude | tu, solo tu |
+| Sportello di Arturo (`server/`) | riceve eventi d'uso e segnalazioni, ti dà le risposte | MIT | un Worker Cloudflare: non lo installi, Arturo gli scrive se lo accetti ([`privacy.md`](privacy.md)) | chi mantiene Arturo, con un deploy |
 | humanizer | toglie i tic da IA dalla prosa, seguendo la tua voce | MIT | dentro Arturo, adattato in italiano; l'originale inglese accanto | chi mantiene Arturo segue [blader/humanizer](https://github.com/blader/humanizer) e porta le versioni nuove in inglese e in italiano |
 | italiano-semplificato | rende chiaro un testo tecnico | MIT | dentro Arturo | chi mantiene Arturo |
 | prompt-master | riscrive la tua richiesta prima del lavoro | MIT | dentro Arturo, riscritto | chi mantiene Arturo, a mano dall'origine |

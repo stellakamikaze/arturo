@@ -28,6 +28,19 @@ fi
 
 echo "=== Progetti in $ROOT ==="
 
+# Rimette lo stash del repository $1 con la sua selezione in stage (--index). Fino al 22/11/2026 il pop era
+# senza --index: i file preparati per un commit parziale tornavano tutti fuori dallo stage (revisione del
+# 20/11, bug 11). Se lo stage non si può rimettere ("Conflicts in index"), git non tocca niente e lo stash
+# resta: allora il pop semplice rimette almeno le modifiche. Stampa l'output di git, esce come il pop.
+rimetti_stash() {
+  local out
+  out=$(LC_ALL=C git -C "$1" stash pop --index 2>&1) && { printf '%s\n' "$out"; return 0; }
+  case "$out" in
+    *"without --index"*|*"Conflicts in index"*) LC_ALL=C git -C "$1" stash pop 2>&1 ;;
+    *) printf '%s\n' "$out"; return 1 ;;
+  esac
+}
+
 for dir in "$ROOT"/*/; do
   [ -d "$dir/.git" ] || continue
   name=$(basename "$dir")
@@ -65,6 +78,27 @@ for dir in "$ROOT"/*/; do
     ERRORS=$((ERRORS + 1))
     continue
   fi
+  # Un HEAD staccato (un bisect, una prova su un commit) è lavoro in corso anche lui: niente stash né pull.
+  # Correzione portata dalla copia della config di chi mantiene Arturo (30/10/2026), revisione del 22/11, passo 2.
+  if ! git -C "$dir" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "ERRORE: $name ha HEAD staccato: non lo tocco, rimetti un ramo con /inizio $name"
+    ERRORS=$((ERRORS + 1))
+    continue
+  fi
+
+  # Fetch prima dello stash: un repository sporco ma già allineato non si mette da parte. Lo stash tirava
+  # indietro per qualche secondo i file di un'altra sessione al lavoro nel repository (7/11/2026, I11).
+  # Con il fetch fallito, o senza upstream, si prosegue: il pull qui sotto fallisce e dice la causa.
+  if git -C "$dir" fetch -q 2>/dev/null && [ "$(git -C "$dir" rev-list --count 'HEAD..@{u}' 2>/dev/null)" = "0" ]; then
+    echo "  Già aggiornato"
+    CONFLICTS=$(git -C "$dir" diff --name-only --diff-filter=U 2>/dev/null)
+    if [ -n "$CONFLICTS" ]; then
+      echo "  CONFLITTI:"
+      echo "$CONFLICTS" | sed 's/^/    /'
+      ERRORS=$((ERRORS + 1))
+    fi
+    continue
+  fi
 
   if [ "$TRACKED_DIRTY" = "1" ] || [ "$STAGED_DIRTY" = "1" ]; then
     if git -C "$dir" stash push -m "auto-stash-sync-$(date +%s)" >/dev/null 2>&1; then
@@ -97,7 +131,7 @@ for dir in "$ROOT"/*/; do
     esac
     # Prima del pull nessun rebase era a metà (controllo sopra): se ce n'è uno, è di questo pull.
     git -C "$dir" rebase --abort 2>/dev/null
-    [ "$STASHED" = "1" ] && git -C "$dir" stash pop 2>/dev/null
+    [ "$STASHED" = "1" ] && rimetti_stash "$dir" >/dev/null 2>&1
     ERRORS=$((ERRORS + 1))
     continue
   fi
@@ -105,7 +139,7 @@ for dir in "$ROOT"/*/; do
   AFTER=$(git -C "$dir" rev-parse HEAD 2>/dev/null)
 
   if [ "$STASHED" = "1" ]; then
-    if git -C "$dir" stash pop 2>&1 | grep -qE "CONFLITTO|conflict"; then
+    if rimetti_stash "$dir" | grep -qiE "conflitto|conflict"; then
       echo "  ATTENZIONE: stash pop con conflitti - risolvi a mano"
       ERRORS=$((ERRORS + 1))
     else

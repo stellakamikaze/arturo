@@ -478,16 +478,25 @@ class Lucchetto:
     L'archivio lo usa per dare id diversi a due todo creati nello stesso istante. Altri moduli
     lo usano per i loro file. Un lucchetto piu' vecchio di 10 secondi e' di un processo interrotto
     e si toglie da solo.
+
+    Dentro il file c'e' un segno di chi lo tiene (pid e un numero a caso). Fino al 22/11/2026 il file era
+    vuoto (revisione del 20/11, bug 14): due processi che vedevano lo stesso lucchetto vecchio lo toglievano
+    tutti e due, e il secondo toglieva quello appena preso dal primo. In piu' chi usciva cancellava il
+    lucchetto anche se nel frattempo era di un altro. Ora un lucchetto vecchio si sposta su un nome unico
+    prima di toglierlo, e si toglie solo se e' ancora vecchio; all'uscita si cancella solo il proprio.
     """
 
     # I lucchetti che questo thread tiene gia': chi lo riprende dentro il suo blocco (aggiungi, che
     # poi scrive in coda) non aspetta se stesso.
     _tenuti = threading.local()
+    VECCHIO = 10  # secondi: oltre, il lucchetto e' di un processo interrotto
+    ATTESA = 10   # secondi: oltre, l'archivio e' occupato
 
     def __init__(self, file):
         file = Path(file)
         self.file = file.with_name(file.name + ".lock")
         self.dentro = False
+        self.segno = ""
 
     def __enter__(self):
         tenuti = Lucchetto._tenuti.__dict__.setdefault("file", set())
@@ -495,30 +504,64 @@ class Lucchetto:
             self.dentro = True
             return self
         self.file.parent.mkdir(parents=True, exist_ok=True)
-        limite = time.time() + 10
+        segno = f"{os.getpid()}-{uuid.uuid4().hex}"
+        limite = time.time() + self.ATTESA
         while True:
             try:
-                os.close(os.open(str(self.file), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+                fd = os.open(str(self.file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    os.write(fd, segno.encode("ascii"))
+                finally:
+                    os.close(fd)
+                self.segno = segno
                 tenuti.add(str(self.file))
                 return self
             except _OCCUPATO:
-                try:
-                    if time.time() - self.file.stat().st_mtime > 10:
-                        self.file.unlink()  # lasciato da un processo interrotto
-                        continue
-                except FileNotFoundError:
+                if self._togli_se_vecchio(segno):
                     continue
                 if time.time() > limite:
                     raise ErroreTodo(f"archivio occupato da un altro processo: se non ce n'è uno, cancella {self.file}")
                 time.sleep(0.02)
+
+    def _vecchio(self, p: Path) -> bool:
+        return time.time() - p.stat().st_mtime > self.VECCHIO
+
+    def _togli_se_vecchio(self, segno: str) -> bool:
+        """True se il lucchetto non c'e' piu' e conviene riprovare subito."""
+        try:
+            if not self._vecchio(self.file):
+                return False
+        except FileNotFoundError:
+            return True
+        # Il rename sposta un file solo: fra due processi che vedono lo stesso lucchetto vecchio, uno solo lo prende.
+        preso = self.file.with_name(f"{self.file.name}.{segno}.vecchio")
+        try:
+            os.rename(str(self.file), str(preso))
+        except FileNotFoundError:
+            return True
+        except OSError:
+            return False  # Windows: il file e' aperto da un altro, vale come occupato
+        try:
+            if not self._vecchio(preso):
+                # Fra il controllo e lo spostamento un altro processo l'ha preso: torna al suo posto, senza
+                # sovrascrivere un lucchetto ancora piu' nuovo.
+                try:
+                    os.link(str(preso), str(self.file))
+                except OSError:
+                    pass
+            preso.unlink()
+        except FileNotFoundError:
+            pass
+        return True
 
     def __exit__(self, *_):
         if self.dentro:
             return
         Lucchetto._tenuti.__dict__.get("file", set()).discard(str(self.file))
         try:
-            self.file.unlink()
-        except FileNotFoundError:
+            if self.file.read_text(encoding="ascii", errors="replace") == self.segno:
+                self.file.unlink()
+        except (FileNotFoundError, PermissionError):
             pass
 
 
@@ -614,21 +657,44 @@ def scrivi_stato(progetto: str, riga: str, file: Path | None = None) -> dict:
     return letto
 
 
+def togli_stato(progetto: str, file: Path | None = None) -> None:
+    """Toglie la riga di stato di un progetto che non esiste più (unito in un altro, #6213).
+
+    Il file si scrive solo in coda: la riga nuova ha `riga` vuota e `tolto`, e vale come le altre per data.
+    Un Arturo più vecchio la salta perché è vuota, e lì il progetto sparito resta in elenco."""
+    progetto = pulisci(progetto).strip()
+    if not progetto:
+        raise ErroreTodo("manca il progetto")
+    voce = {"v": 1, "ts": _adesso(), "progetto": progetto, "riga": "", "tolto": True}
+    destino = percorso_stati(file)
+    with Lucchetto(destino):
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with open(destino, "a", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(voce, ensure_ascii=False) + "\n")
+    if progetto in stati(file):
+        raise ErroreTodo("la riga di stato si rilegge ancora dal file: niente è cambiato")
+
+
 def stati(file: Path | None = None) -> dict:
-    """L'ultima riga di stato di ogni progetto: {progetto: {"riga", "ts"}}. Una riga rotta si salta."""
-    fuori = {}
+    """L'ultima riga di stato di ogni progetto: {progetto: {"riga", "ts"}}. Una riga rotta si salta.
+
+    Una riga con `tolto` cancella quelle scritte prima per lo stesso progetto (togli_stato)."""
+    ultime = {}
     for riga in _righe(percorso_stati(file)):
         try:
             v = json.loads(riga)
         except ValueError:
             continue
         if not (isinstance(v, dict) and isinstance(v.get("progetto"), str) and isinstance(v.get("riga"), str)
-                and isinstance(v.get("ts"), str) and v["riga"].strip()):
+                and isinstance(v.get("ts"), str)):
             continue
-        attuale = fuori.get(v["progetto"])
+        tolto = v.get("tolto") is True
+        if not tolto and not v["riga"].strip():
+            continue
+        attuale = ultime.get(v["progetto"])
         if attuale is None or v["ts"] >= attuale["ts"]:
-            fuori[v["progetto"]] = {"riga": pulisci(v["riga"]), "ts": v["ts"]}
-    return fuori
+            ultime[v["progetto"]] = {"riga": pulisci(v["riga"]), "ts": v["ts"], "tolto": tolto}
+    return {p: {"riga": v["riga"], "ts": v["ts"]} for p, v in ultime.items() if not v["tolto"]}
 
 
 def registra(numero, tipo: str, dati: dict, file: Path | None = None, atteso: dict | None = None) -> dict:

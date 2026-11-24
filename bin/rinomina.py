@@ -35,6 +35,9 @@ import contesto as cx  # noqa: E402
 import progetti as pg  # noqa: E402
 import todo_store as ts  # noqa: E402
 
+sys.path.insert(0, str(QUI.parent / "hooks"))
+from radici import scrivi_atomico as _atomico  # noqa: E402
+
 RIGA_NOME = re.compile(r"^(- Nome:\s*)(\S+)(.*)$")
 RIGA_FILONE = re.compile(r"^(- Filone:\s*)(\S+?)(/.*)?$")
 
@@ -137,9 +140,7 @@ def index_nuovo(testo: str, vecchio: str, nuovo: str) -> str:
 
 
 def scrivi_atomico(f: Path, testo: str) -> None:
-    tmp = f.with_name(f".{f.name}.rinomina")
-    tmp.write_text(testo, encoding="utf-8")
-    os.replace(tmp, f)
+    _atomico(f, testo)
 
 
 def rinomina(vecchio_nome: str, nuovo_nome: str, prova: bool = False) -> int:

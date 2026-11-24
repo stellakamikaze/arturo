@@ -37,10 +37,12 @@ from radici import radice_orsa  # noqa: E402
 
 ACCESS_LOG = mm.access_log_path()  # un file per macchina, vedi melchior_match
 STATE_DIR = radice_orsa() / "session-env"
-SCORE_MIN = 4          # soglia conservativa — CONGELATA (R7): mai abbassarla né
-                       # ritoccare i pesi; il fix per una nota che non emerge è
-                       # arricchirne il frontmatter; il recall profondo è
-                       # scripts/melchior_recall.py (BM25, a mano) e poi grep
+SCORE_MIN = 4          # soglia conservativa — CONGELATA (R7): mai abbassarla; il fix
+                       # per una nota che non emerge è arricchirne name, description o
+                       # triggers; il recall profondo è scripts/melchior_recall.py (BM25,
+                       # a mano) e poi grep. I pesi sono cambiati una volta, con la
+                       # revisione del 22/11/2026 (O7): answers ha un tetto
+                       # di +2 e una nota proposta e mai letta perde punti (con_penalita)
 MIN_DISTINCT = 2       # >=2 token distinti devono matchare (scarta il match da 1 token che colpisce piu' campi)
 MAX_SUGGEST = 6        # tetto per messaggio (3→6 post-audit 2026-07-07: il 3 seppelliva bersagli nei cluster densi)
 MIN_TOKENS = 2         # sotto questo, prompt troppo povero → skip
@@ -118,6 +120,22 @@ def log_access(paths, context):
     mm.registra_accessi(paths, context, log_path=ACCESS_LOG)
 
 
+def con_penalita(scored):
+    """Toglie i punti alle note proposte tante volte e mai lette (revisione del 22/11/2026, O7), poi
+    rifiltra sulla soglia. Solo le note di data/memory: il log conosce solo quelle."""
+    conto = mm.non_lette()
+    if not conto:
+        return scored
+    out = []
+    for s, p, fm in scored:
+        if mm.in_memory_dir(p):
+            s -= mm.penalita_non_lette(conto.get(p.name, 0))
+        if s >= SCORE_MIN:
+            out.append((s, p, fm))
+    out.sort(key=lambda x: (-x[0], x[1].name, str(x[1])))
+    return out
+
+
 def parole_del_prompt(prompt):
     if len(prompt) > 2 * TESTA_CODA:
         prompt = prompt[:TESTA_CODA] + "\n" + prompt[-TESTA_CODA:]
@@ -146,6 +164,9 @@ def main():
         return
 
     scored = mm.rank(tokens, want_body=True, min_score=SCORE_MIN, min_distinct=MIN_DISTINCT)
+    if not scored:
+        return
+    scored = con_penalita(scored)
     if not scored:
         return
 

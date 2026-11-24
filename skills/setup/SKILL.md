@@ -58,8 +58,8 @@ riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5
 
 Se `impostazioni stato` non dice "clone", Arturo è un plugin: segui `${CLAUDE_PLUGIN_ROOT}/shared/setup-plugin.md`.
 
-Se `~/.claude` NON è un repo git, Arturo non è installato: fermati. Di' alla persona di seguire
-https://arturo.stellakamikaze.org/inizia/, poi di scrivere `/exit`, `claude` e `/setup`. A mano, a
+Se `~/.claude` NON è un repo git, Arturo non è installato: fermati. Di' alla persona di incollare in Claude Code
+`Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`, poi di scrivere `/exit`, `claude` e `/setup`. A mano, a
 Claude Code chiuso: il blocco di https://arturo.stellakamikaze.org/installa/#a-mano-esteso (su Windows in
 **Git Bash**, non in PowerShell).
 
@@ -427,13 +427,14 @@ mkdir -p ~/.claude/data && date +%Y-%m-%d > ~/.claude/data/setup-fatto && rm -f 
 
 ## FASE 10 — Il primo lavoro vero
 
-Con il ritratto proponi tre lavori da dieci minuti sul materiale vero della persona, uno per riga,
+Prima segui `${CLAUDE_PLUGIN_ROOT}/shared/setup-herdr.md`.
+Con il ritratto proponi tre lavori da dieci minuti sul suo materiale vero, uno per riga,
 il primo consigliato: lo stato di un progetto trovato, letto dai suoi file, poi /inizio col sì;
 /guidami se ci sono sessioni recenti; una bozza nella sua voce di una cosa che il ritratto mostra
 ricorrente. Fai quello che sceglie e mostra l'esito. Se la bozza le piace, proponile
 di farne una skill: col sì lancia `/creaskill` su quel lavoro. Senza ritratto, o se lo chiede, usa
 `${CLAUDE_PLUGIN_ROOT}/skills/sparring/SKILL.md`: le sue tre domande diventano conferme del ritratto.
-Se preferisce esplorare da solo, indicagli `${CLAUDE_PLUGIN_ROOT}/docs/principi/README.md` e chiudi.
+Per esplorare da solo, indicagli `${CLAUDE_PLUGIN_ROOT}/docs/principi/README.md` e chiudi.
 
 ---
 

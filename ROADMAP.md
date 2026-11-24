@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-21
+Aggiornata il 2026-11-22
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico. Ogni voce dice il suo strato: Protezione, Metodo, Memoria, Collegamenti, Scoperta e Orsa, oppure Ingresso e Misura, che servono a tutti (`docs/strati.md`).
 
@@ -9,6 +9,8 @@ Se una voce ti riguarda, o se manca qualcosa che ti serve, scrivilo sulla pagina
 <!--
 Per le sessioni che sviluppano Arturo: questa è la mappa unica del lavoro (regola in docs/manutenzione.md).
 Una sessione parte da una voce e il suo /fine aggiorna "Stato" della voce e la data in testa.
+"Stato" dice cosa c'è nel rilascio firmato, non sui rami: "uscito nella 0.2.X" quando il tag lo contiene.
+Mai "su dev", "su un ramo di sviluppo" o "col prossimo rilascio": tests/test_roadmap_stato.py lo controlla.
 I task della voce stanno nel commento "task:", che il sito non mostra.
 Forma di una voce: "### Titolo {#ancora}", poi "Stato: ...", poi "Strato: ...", poi i paragrafi, poi il commento dei task.
 L'ancora non cambia mai: i commenti sul sito sono legati a lei.
@@ -62,7 +64,7 @@ L'intestazione di Claude Code, con la sua mascotte, non si può cambiare: nessun
 
 ### I testi che scrivi con Claude suonano tuoi {#scrittura}
 
-Stato: in corso. La skill `humanizer` è su dev ed esce con il prossimo rilascio.
+Stato: uscito nella 0.2.4.
 
 Strato: Metodo.
 
@@ -72,7 +74,7 @@ Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti in
 
 ### Un lavoro che torna diventa una skill tua {#skill-tue}
 
-Stato: pronto per il prossimo rilascio. Su dev ci sono la lista "Finito quando" nelle skill, le correzioni che portano il nome della skill, il destino degli script in `/fine`, l'avviso per le skill che hai già e la proposta della prima skill.
+Stato: uscito nella 0.2.21: la lista "Finito quando" nelle skill, le correzioni che portano il nome della skill, il destino degli script in `/fine`, l'avviso per le skill che hai già e la proposta della prima skill.
 
 Strato: Orsa, con il Metodo.
 
@@ -86,7 +88,7 @@ Tre cose restano fuori da questa voce. Un lavoro trovato nello storico delle cha
 
 ### Le vostre segnalazioni {#segnalazioni}
 
-Stato: in corso. Col prossimo rilascio escono quattro proposte: colori e barra in un file tuo che gli aggiornamenti non toccano, la sessione chiusa in viola, gli elenchi lunghi in un file e la riga d'esempio nel brief.
+Stato: in corso. Nella 0.2.20 sono uscite quattro proposte: colori e barra in un file tuo che gli aggiornamenti non toccano, la sessione chiusa in viola, gli elenchi lunghi in un file e la riga d'esempio nel brief.
 
 Strato: Misura.
 
@@ -98,7 +100,7 @@ Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli 
 
 ### Arturo ti propone cosa automatizzare {#scoperta}
 
-Stato: in corso. La prima versione è pronta sul ramo di sviluppo `dev` ed esce col prossimo rilascio. Comprende il comando `arturo scoperta`, l'indice che si aggiorna dopo ogni modifica, l'impronta dei file presa da `/inizio` e la proposta che arriva con `/fine`. Per ora non manda niente alla telemetria: i conteggi partiranno solo quando sarà pubblicato il testo nuovo sulla privacy.
+Stato: in corso. La prima versione è uscita nella 0.2.13, sintesi e pagine nella 0.2.16. Comprende il comando `arturo scoperta`, l'indice che si aggiorna dopo ogni modifica, l'impronta dei file presa da `/inizio` e la proposta che arriva con `/fine`. Per ora non manda niente alla telemetria: i conteggi partiranno solo quando sarà pubblicato il testo nuovo sulla privacy.
 
 Strato: Scoperta.
 
@@ -110,7 +112,7 @@ La Scoperta legge anche l'indice delle tue chat, se l'hai fatto con `/setup`: un
 
 ### Arturo parte da quello che hai già fatto con l'IA {#storico}
 
-Stato: in corso. Su un ramo di sviluppo ci sono `arturo storico`, la fase 2a di `/setup` e il testo nuovo della privacy, approvato il 15/11. Restano la prova su un'esportazione vera e la verifica dei percorsi delle impostazioni nei tre servizi.
+Stato: in prova. `arturo storico`, la fase 2a di `/setup` e il testo nuovo della privacy, approvato il 15/11, sono usciti nella 0.2.16. Mancano ancora la prova su un'esportazione vera e la verifica dei percorsi delle impostazioni nei tre servizi.
 
 Strato: Ingresso, con la Memoria.
 
@@ -120,7 +122,7 @@ Chi arriva ad Arturo ha spesso mesi di chat alle spalle, su Claude, ChatGPT o Ge
 
 ### L'intervista che continua {#intervista}
 
-Stato: in corso. Su un ramo di sviluppo ci sono `arturo intervista`, la domanda in `/inizio` e le domande per famiglia in [I mestieri della conoscenza](docs/mestieri.md). Per ora dura sei settimane dopo `/setup`, ma la durata è ancora fra le voci da decidere.
+Stato: in prova. `arturo intervista`, la domanda in `/inizio` e le domande per famiglia in [I mestieri della conoscenza](docs/mestieri.md) sono usciti nella 0.2.16. Per ora dura sei settimane dopo `/setup`, ma la durata è ancora fra le voci da decidere.
 
 Strato: Metodo, con la Memoria.
 
@@ -130,11 +132,13 @@ Strato: Metodo, con la Memoria.
 
 ### Il passaggio al plugin per chi usa già Arturo {#passaggio}
 
-Stato: pronto. Il comando è `arturo migra`. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Chi mantiene Arturo decide quando chiederlo a tutti.
+Stato: pronto, anche per chi usa più computer. Il comando è `arturo migra`. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Data proposta per lo spegnimento della copia: 31 gennaio 2027.
 
 Strato: Ingresso.
 
-Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale.
+Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale. Con più computer si passa un computer alla volta, coi passi di `docs/migrazione.md`.
+
+Le persone nuove entrano dal plugin: lo script d'installazione installa il plugin al posto della copia dentro `~/.claude`. La copia riceve gli aggiornamenti firmati fino al 31 gennaio 2027. Dopo quella data i rilasci escono solo come plugin, e l'avvio della copia ricorda il passaggio. La data è una proposta, e la conferma chi mantiene Arturo (voce "Da decidere").
 
 <!-- task: #4534 -->
 
@@ -150,7 +154,7 @@ La telemetria manda solo eventi: quale comando, quale guardia, quanto dura una s
 
 ### Assistenti per ruolo: posta, agenda, archivio {#ruoli}
 
-Stato: in corso. È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali. /monitor impara dalle tue correzioni (scarti, ripristini, mittenti, voci del report) e ha una guida per adattarlo al tuo lavoro.
+Stato: in corso. Sono usciti la parte che trova i tuoi strumenti collegati e il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali. Dalla 0.2.17 /monitor impara dalle tue correzioni (scarti, ripristini, mittenti, voci del report) e ha una guida per adattarlo al tuo lavoro; nella 0.2.21 è uscito il giro quotidiano.
 
 Strato: Collegamenti.
 
@@ -160,7 +164,7 @@ Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva
 
 ### Una sessione ferma riparte da sola {#ripresa}
 
-Stato: in corso. Nasce dalla prima `/revisione` del 17 novembre 2026. Dal 17 novembre Volta fa ripartire da sola le sessioni ferme per il limite o per la connessione persa. Restano i lavori lunghi in parallelo che aspettano il limite.
+Stato: da fare per chi usa Arturo. Nasce dalla prima `/revisione` del 17 novembre 2026. Dal 17 novembre la ripresa da sola funziona solo in Volta, la prova di chi mantiene Arturo, e deve ancora entrare in Arturo. Restano anche i lavori lunghi in parallelo che aspettano il limite.
 
 Strato: Ingresso.
 
@@ -194,7 +198,7 @@ I mestieri della conoscenza (`docs/mestieri.md`) danno al racconto gli esempi, f
 
 ### Esportare un progetto e limitare cosa Claude legge {#contesto}
 
-Stato: in corso. Su un ramo di sviluppo ci sono `arturo fascicolo esporta` e `arturo fascicolo importa`. Come limitare cosa Claude legge aspetta una decisione.
+Stato: in corso. `arturo fascicolo esporta` e `arturo fascicolo importa` sono usciti nella 0.2.16. Come limitare cosa Claude legge aspetta una decisione.
 
 Strato: Memoria, con la Protezione.
 
@@ -204,7 +208,7 @@ Il modello gira sui server dell'azienda che lo vende, ma la memoria di Arturo st
 
 ### Arturo ti propone uno spazio quando ti serve {#spazi}
 
-Stato: pronto per il prossimo rilascio.
+Stato: uscito nella 0.2.16.
 
 Strato: Orsa, con l'Ingresso.
 
@@ -238,6 +242,7 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 - Su quale Mac e con quale account fare la prova del plugin da zero. <!-- task: #4565 -->
 - Quando far partire il passaggio al plugin per chi usa già Arturo. <!-- task: #4534 -->
+- Se spegnere la copia dentro `~/.claude` il 31 gennaio 2027, come propone la voce "Il passaggio al plugin per chi usa già Arturo". <!-- task: #5270 -->
 - Quale vista dei progetti tenere, e se tenere la pagina `/dafare`. <!-- task: #3330 #3850 -->
 - Se i vecchi compiti di migrazione della configurazione personale sono superati dalla voce "Chi mantiene Arturo lo usa come voi". <!-- task: #4292 #4293 #4294 -->
 - Come limitare cosa Claude legge: quali cartelle escludere e come segnare un file come riservato (voce "Esportare un progetto e limitare cosa Claude legge"). <!-- task: #5710 -->
@@ -246,11 +251,14 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 ## Uscito di recente
 
+- 22 novembre 2026, versione 0.2.23: il messaggio di avvio arriva anche su un computer carico, `/inizio` aspetta la lettura più lenta e non la somma, e un `/fine` su una sessione già chiusa non riparte.
+- 22 novembre 2026, versione 0.2.23: su un computer lento l'avvio si ferma da solo dopo 7,5 secondi e tiene gli avvisi già scritti.
 - 22 novembre 2026, versione 0.2.22: sul Mac `/setup` accende la sandbox, le protezioni chiedono conferma quando un comando nasconde il programma che lancia, e partono più veloci su comandi dieci volte più lunghi.
 - 21 novembre 2026, versione 0.2.21: Arturo ti propone la tua prima skill quando gli dici il lavoro che rifai, ogni lavoro che torna ha la sua lista "Finito quando", e cancelli i tuoi dati d'uso dal server con un comando.
 - 19 novembre 2026, versione 0.2.20: i dati d'uso partono solo dopo la tua risposta a `/setup`.
 - 17 novembre 2026, versione 0.2.18: in Volta una sessione ferma per il limite o per la rete riparte da sola.
 - 17 novembre 2026, versione 0.2.17: `/monitor` impara dalle tue correzioni.
+- 16 novembre 2026, versione 0.2.16: Arturo legge lo storico delle tue chat, ti fa una domanda al giorno su quello che non sa del tuo lavoro, esporta un progetto per un collega e ti propone uno spazio quando ti serve.
 - 15 novembre 2026, versione 0.2.14: la memoria lavora da sola, con una scheda per ogni progetto che `/fine` scrive e `/inizio` rilegge.
 - 14 novembre 2026, versione 0.2.13: Lancillotto esce da Arturo, e i suoi dati sul server sono cancellati.
 - 11 novembre 2026, versione 0.2.11: le segnalazioni partono da sole, e subito dopo Claude ti dice cosa è partito e come ritirarla.

@@ -44,6 +44,7 @@ da fermare un hook: gli errori di registra e avvio tacciono.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -107,8 +108,11 @@ EVENTI = {
     "richiamo": re.compile(r"^(0|1|2-5|6-20|>20)/(0|1|2-5|6-20|>20)$"),
     "salvataggio": re.compile(r"^automatico$"),
     "inizio": re.compile(r"^(persona|rotazione)$"),
+    # Dal 23/11/2026 (revisione del 22/11, A6): una conferma di una guardia a cui ha detto sì il giudice dei permessi della
+    # persona, non lei. Il giudice lascia un segno (`giudicata`, qui sotto) e `esito` registra questo al posto di confermata.
+    "giudicata": re.compile(r"^[a-z0-9_.-]{1,60}$"),
 }
-# Le guardie di Arturo che parlano alla telemetria: quelle che bash-dispatcher.sh lancia con run_guard,
+# Le guardie di Arturo che parlano alla telemetria: quelle che hooks/dispatcher.py lancia con run_guard,
 # più web-egress-guard.py e protect_claude_md.py, che chiamano chiede da sole. Un nome fuori elenco non
 # si registra: un hook della persona con un nome suo, o un client modificato, non fa uscire uno slug
 # parlante (24/10/2026). Lo stesso elenco sta in server/logica.js; il banco TF03 (tests/test_telemetria_f1_2026_10_24.py) lo confronta col repository.
@@ -159,7 +163,8 @@ CAUSE = {
 # 12: una guardia che non riesce a fare il suo controllo dice perché, da un elenco chiuso (21/11/2026, #5761).
 # Sempre 12, non ancora uscita: anche exfil-guard, comms-guard e data-guard dicono la regola che chiede; di un invio
 # solo la famiglia del canale (21/11/2026, #5762).
-PROMESSA = 12
+# 13: esce `giudicata`, una conferma a cui ha detto sì il giudice dei permessi e non la persona (23/11/2026, A6, #6420).
+PROMESSA = 13
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -231,6 +236,11 @@ def file_stato() -> Path:
 def file_attese() -> Path:
     """Le conferme chieste da una guardia e non ancora eseguite: tool_use_id -> guardia."""
     return radice_orsa() / "session-env" / "telemetria-attese.json"
+
+
+def file_giudicate() -> Path:
+    """I segni del giudice dei permessi (A6, 23/11/2026): impronta della chiamata -> ora del sì."""
+    return radice_orsa() / "session-env" / "telemetria-giudicate.json"
 
 
 def file_coda() -> Path:
@@ -474,7 +484,7 @@ def normalizza(evento: str, valore: str):
         return valore if valore in SKILL else "altro"
     if evento == "guardia":
         return valore if valore in GUARDIE else None
-    if evento in ("chiede", "confermata", "errore"):
+    if evento in ("chiede", "confermata", "errore", "giudicata"):
         if valore in GUARDIE:
             return valore
         guardia = next((g for g in GUARDIE if valore.startswith(g + ".")), None)
@@ -944,6 +954,22 @@ def _leggi_attese() -> dict:
         return {}
 
 
+ATTESA_MASSIMA = 86400  # secondi: una conferma senza esito da un giorno è un no, anche senza la chiusura
+
+
+def _guardia_di(voce) -> str | None:
+    """La guardia di una voce delle attese: {"guardia", "ora"}, o la sola stringa delle versioni di prima."""
+    if isinstance(voce, dict):
+        g = voce.get("guardia")
+        return g if isinstance(g, str) else None
+    return voce if isinstance(voce, str) else None
+
+
+def _scaduta(voce) -> bool:
+    ora = voce.get("ora") if isinstance(voce, dict) else None
+    return not isinstance(ora, (int, float)) or time.time() - ora > ATTESA_MASSIMA
+
+
 def chiede(guardia: str, uso: str) -> None:
     """Una guardia ha chiesto conferma: registra `chiede` e ricorda la chiamata fino all'esito."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", uso or ""):
@@ -953,28 +979,117 @@ def chiede(guardia: str, uso: str) -> None:
         return
     file_attese().parent.mkdir(parents=True, exist_ok=True)
     with ts.Lucchetto(file_attese()):
-        attese = _leggi_attese()
-        attese[uso] = guardia
+        attese = {k: v for k, v in _leggi_attese().items() if not _scaduta(v)}
+        attese[uso] = {"guardia": guardia, "ora": int(time.time())}
         ts.scrivi_json_atomico(file_attese(), dict(list(attese.items())[-50:]))
+
+
+def togli_attese_della_sessione(transcript: Path) -> None:
+    """Alla chiusura di una sessione: toglie le conferme rimaste senza esito (un no) di quella sessione sola.
+    Una chiamata è della sessione se il suo tool_use_id sta nel suo transcript. Fino al 22/11/2026 session-end.sh
+    cancellava il file intero, con le conferme in attesa delle sessioni ancora aperte: il loro sì non contava più
+    (revisione del 20/11, bug 21). Le voci più vecchie di un giorno si tolgono comunque."""
+    f = file_attese()
+    if not f.exists():
+        return
+    with ts.Lucchetto(f):
+        attese = _leggi_attese()
+        cercate, viste = set(attese), set()
+        try:
+            if transcript.stat().st_size <= TRANSCRIPT_MASSIMO:
+                with open(transcript, encoding="utf-8", errors="replace") as t:
+                    for riga in t:
+                        viste.update(u for u in cercate - viste if u in riga)
+        except OSError:
+            pass
+        resto = {k: v for k, v in attese.items() if k not in viste and not _scaduta(v)}
+        if resto == attese:
+            return
+        if resto:
+            ts.scrivi_json_atomico(f, resto)
+        else:
+            try:
+                f.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def esito(dati: dict) -> None:
     """Dal PostToolUse o dal PostToolUseFailure: lo strumento è partito, quindi la persona ha detto sì
     alla guardia. Anche un comando che poi fallisce è un sì: fino al 24/10/2026 il PostToolUseFailure
-    non era collegato, e quel sì restava un no nel tasso delle conferme. Dei dati legge solo tool_use_id."""
+    non era collegato, e quel sì restava un no nel tasso delle conferme. Dei dati legge tool_use_id e, per il segno del
+    giudice dei permessi, sessione, strumento e ingresso (impronta): un sì del giudice diventa `giudicata` (A6, 23/11/2026)."""
     uso = dati.get("tool_use_id") if isinstance(dati, dict) else None
     if not isinstance(uso, str) or not file_attese().exists():
         return
     with ts.Lucchetto(file_attese()):
         attese = _leggi_attese()
-        guardia = attese.pop(uso, None)
+        guardia = _guardia_di(attese.pop(uso, None))
         if guardia is None:
             return
         if attese:
             ts.scrivi_json_atomico(file_attese(), attese)
         else:
             file_attese().unlink()
-    registra("confermata", guardia)
+    registra("giudicata" if _togli_giudicata(dati) else "confermata", guardia)
+
+
+GIUDICATA_MASSIMA = 3600  # secondi: un segno del giudice senza la sua chiamata dopo un'ora non vale più
+
+
+def impronta(dati: dict) -> str | None:
+    """L'impronta di una chiamata: sessione, strumento e il campo che la dice (comando, file, indirizzo), o l'ingresso intero.
+    Il PermissionRequest non porta il tool_use_id (Claude Code 2.1.3xx), e il PostToolUse sì: tutti e due portano questi
+    campi, uguali. Si tiene solo l'hash: il file non contiene mai il comando."""
+    if not isinstance(dati, dict):
+        return None
+    sessione, tool, ingresso = dati.get("session_id"), dati.get("tool_name"), dati.get("tool_input")
+    if not (isinstance(sessione, str) and sessione and isinstance(tool, str) and tool and isinstance(ingresso, dict)):
+        return None
+    campo = next((ingresso[k] for k in ("command", "file_path", "notebook_path", "url") if isinstance(ingresso.get(k), str)), None)
+    testo = campo if campo is not None else json.dumps(ingresso, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(f"{sessione}\0{tool}\0{testo}".encode("utf-8", "replace")).hexdigest()[:32]
+
+
+def _leggi_giudicate() -> dict:
+    try:
+        g = json.loads(file_giudicate().read_text(encoding="utf-8"))
+        return g if isinstance(g, dict) else {}
+    except (OSError, ValueError, UnicodeDecodeError):
+        return {}
+
+
+def giudicata(dati: dict) -> None:
+    """Dal giudice dei permessi della persona, quando dice sì (PermissionRequest con behavior allow): segna la chiamata.
+    Il suo PostToolUse arriva a `esito`, che registra `giudicata` e non `confermata`: il sì non è della persona (A6).
+    Il segno si scrive per ogni sì del giudice; conta solo se una guardia aveva chiesto conferma su quella chiamata."""
+    chiave = impronta(dati)
+    if chiave is None:
+        return
+    f = file_giudicate()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with ts.Lucchetto(f):
+        ora = int(time.time())
+        segni = {k: v for k, v in _leggi_giudicate().items() if isinstance(v, int) and ora - v <= GIUDICATA_MASSIMA}
+        segni[chiave] = ora
+        ts.scrivi_json_atomico(f, dict(list(segni.items())[-50:]))
+
+
+def _togli_giudicata(dati: dict) -> bool:
+    """Vero se la chiamata ha il segno del giudice, che si toglie: un segno vale una volta."""
+    chiave, f = impronta(dati), file_giudicate()
+    if chiave is None or not f.exists():
+        return False
+    with ts.Lucchetto(f):
+        segni = _leggi_giudicate()
+        ora = segni.pop(chiave, None)
+        if ora is None:
+            return False
+        if segni:
+            ts.scrivi_json_atomico(f, segni)
+        else:
+            f.unlink()
+    return isinstance(ora, int) and time.time() - ora <= GIUDICATA_MASSIMA
 
 
 def invia(zitto: bool = False) -> tuple:
@@ -1162,10 +1277,16 @@ def fine_sessione(dati: dict) -> None:
     che chiude, e dal 15/11/2026 (M7 della memoria) la memoria una volta al giorno e il richiamo della sessione.
     Una sessione senza messaggi della persona non registra niente. Non usa la rete e non solleva."""
     try:
-        if perche_spenta() or not isinstance(dati, dict):
+        if not isinstance(dati, dict):
             return
         sessione, percorso = dati.get("session_id"), dati.get("transcript_path")
         if not isinstance(sessione, str) or not sessione or not isinstance(percorso, str) or not percorso:
+            return
+        try:  # anche a telemetria spenta: il file l'ha scritto quando era accesa
+            togli_attese_della_sessione(Path(percorso))
+        except Exception:  # noqa: BLE001
+            pass
+        if perche_spenta():
             return
         if sessione in (leggi_stato().get("sessioni_chiuse") or []):
             return
@@ -1255,7 +1376,7 @@ def avvio() -> int:
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo (plugin o clone) e di "
                   "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
                   "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
-                  "(di un segreto e di un invio solo la famiglia), e se la persona conferma, guardie che si rompono o che non riescono a fare il loro controllo (con la causa, da un elenco chiuso), banchi di prova delle guardie rossi, memoria accesa o spenta e "
+                  "(di un segreto e di un invio solo la famiglia), e se la persona conferma o se dice sì un giudice dei permessi acceso da lei, guardie che si rompono o che non riescono a fare il loro controllo (con la causa, da un elenco chiuso), banchi di prova delle guardie rossi, memoria accesa o spenta e "
                   "quante note ricorda, quante note propone e quante Claude apre (in fasce, mai i nomi), sessioni salvate da sole senza /fine, "
                   "se /inizio parte dalla persona o dalla rotazione, fase di /setup raggiunta, esiti di /aggiorna e degli "
                   "aggiornamenti automatici, perché un aggiornamento automatico non parte (anche modifiche non salvate o una copia di prova in attesa), file e hook di Arturo cambiati, spenti o in conflitto "
@@ -1318,6 +1439,12 @@ def main(argv: list) -> int:
         return 0
     if comando == "chiede" and len(resto) == 2:
         chiede(resto[0], resto[1])
+        return 0
+    if comando == "giudicata" and not resto:
+        try:  # il giudice dei permessi della persona, col JSON del PermissionRequest sullo stdin (A6, 23/11/2026)
+            giudicata(json.loads(sys.stdin.buffer.read().decode("utf-8", "replace") or "{}"))
+        except Exception:  # noqa: BLE001 - un hook non si ferma mai per la telemetria
+            pass
         return 0
     if comando == "esito" and not resto:
         try:

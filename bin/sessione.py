@@ -35,6 +35,9 @@ AIUTO = """arturo sessione: una finestra nuova del terminale con Claude già par
   arturo sessione --todo ID              apre /inizio sul progetto del todo, col suo titolo
   --titolo-atteso=TESTO                  con --todo: si ferma se il todo ha un altro titolo
   --stampa                               scrive il comando senza aprire niente
+  arturo sessione progetto SID SLUG --fonte F   scrive il progetto nel file della sessione (cache/scheda)
+  arturo sessione spostata SID --su MACCHINA    segna che la sessione è stata spostata
+                                         il file ha un solo padrone: docs/scheda-sessione.md
 
 Lo usa il pannello /dafare (tasto o). Sul Mac apre la finestra in iTerm2 se il comando parte da iTerm2,
 altrimenti in Terminale; ARTURO_TERMINALE=iterm oppure ARTURO_TERMINALE=terminal sceglie a mano."""
@@ -134,10 +137,54 @@ def comando(sis: str, dove: Path, prompt: str) -> tuple:
     return [], a_mano
 
 
+NOME_PROGETTO = re.compile(r"^[\w.-]{1,60}$")
+
+
+def file_sessione(argv: list) -> int:
+    """`progetto SID SLUG --fonte F` e `spostata SID --su MACCHINA`: il verbo unico del file di sessione.
+    Exit 0 scritto, 2 rifiutato dalla regola delle fonti, 3 argomenti non validi."""
+    gesto, resto = argv[0], list(argv[1:])
+    sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+    import scheda_file  # noqa: PLC0415 - gli altri gesti di arturo sessione non lo richiedono
+    fonte = su = None
+    pos = []
+    while resto:
+        voce = resto.pop(0)
+        if voce == "--fonte" and resto:
+            fonte = resto.pop(0)
+        elif voce == "--su" and resto:
+            su = resto.pop(0)
+        else:
+            pos.append(voce)
+    if gesto == "progetto":
+        if len(pos) != 2 or fonte is None or not NOME_PROGETTO.match(pos[1]):
+            print("uso: arturo sessione progetto SID SLUG --fonte F", file=sys.stderr)
+            return 3
+        ok, motivo = scheda_file.imposta_progetto(pos[0], pos[1], fonte)
+        if not ok and (motivo.startswith(("sessione non", "fonte sconosciuta", "progetto vuoto"))):
+            print(motivo, file=sys.stderr)
+            return 3
+    else:
+        if len(pos) != 1 or not su:
+            print("uso: arturo sessione spostata SID --su MACCHINA", file=sys.stderr)
+            return 3
+        ok, motivo = scheda_file.segna_spostata(pos[0], su)
+        if not ok and motivo.startswith(("sessione non", "macchina vuota")):
+            print(motivo, file=sys.stderr)
+            return 3
+    if not ok:
+        print(motivo, file=sys.stderr)
+        return 2
+    print("scritto")
+    return 0
+
+
 def main(argv: list) -> int:
     if not argv or argv[0] in ("-h", "--help", "aiuto", "help"):
         print(AIUTO)
         return 0 if argv else 2
+    if argv[0] in ("progetto", "spostata"):
+        return file_sessione(argv)
     progetto, numero, stampa, titolo = "", None, False, None
     resto = list(argv)
     while resto:

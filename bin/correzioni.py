@@ -32,7 +32,7 @@ import sys
 import time
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
-from radici import radice_orsa  # noqa: E402
+from radici import radice_orsa, scrivi_atomico  # noqa: E402
 
 MASSIMO = 20         # correzioni tenute per sessione: oltre, esce la più vecchia
 LUNGHEZZA = 300      # caratteri di una correzione
@@ -94,10 +94,7 @@ def riga(numero: int, voce: dict) -> str:
 
 def scrivi(sessione: str, voci: list) -> None:
     f = file_di(sessione)
-    f.parent.mkdir(parents=True, exist_ok=True)
-    provvisorio = f.with_suffix(".tmp")
-    provvisorio.write_text(json.dumps(voci, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(provvisorio, f)
+    scrivi_atomico(f, json.dumps(voci, ensure_ascii=False, indent=1))
     limite = time.time() - GIORNI * 86400
     for vecchio in list(f.parent.glob("*.json")) + list(f.parent.glob("*.skill")):
         try:

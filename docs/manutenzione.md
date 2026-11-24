@@ -23,8 +23,32 @@ Per chi mantiene Arturo e per chi ne fa un fork. Le regole sono poche e delibera
 
 ## Portare `dev` su `main`
 
-**Il ritmo è un rilascio al giorno** (dal 31/10/2026): se `dev` ha cambi col gate verde dopo
-l'ultimo tag, quel giorno esce un rilascio. Senza cambi, niente rilascio.
+**Il ritmo è un rilascio alla settimana** (dal 23/11/2026, revisione del 22/11, D4): un cambio esce verso
+chi usa Arturo e si installa da solo, e fino al 22/11 il gate girava solo su un Mac. Il rilascio torna
+quotidiano quando il gate in CI è verde su Linux, Mac e Windows. Una correzione di sicurezza esce subito.
+Senza cambi dopo l'ultimo tag, niente rilascio.
+
+**Il gate in CI** (`.github/workflows/gate.yml`, dal 23/11/2026) gira su ubuntu, macos e windows, solo nel
+repository pubblico e senza segreti. A ogni push su `dev` fa `--toccati` sui file cambiati dal push prima
+(`ARTURO_GATE_BASE`, GS12); un push senza "prima" fa il giro completo. Sul tag `v*`, e a mano da Actions
+("Run workflow", oppure `gh workflow run gate.yml --ref dev`), fa `--rilascio`. Il nome della run dice il
+modo: "gate toccati" o "gate rilascio". Il rilascio gira in 4 parti per sistema, 12 computer in tutto
+(dal 24/11/2026: prima Windows durava 109 minuti). `tests/esegui_gate.py --parte I/N` divide i lavori coi
+pesi di `tests/gate-pesi.json`; server, shell, js e audit girano nella parte 1. Quando le parti si
+sbilanciano, rifai i pesi dal log di una run verde:
+`gh run view <id> --log > run.log` e poi `python3 tests/esegui_gate.py pesi --root . run.log`.
+Lo script di firma di chi rilascia cerca sul commit l'ultima run "gate rilascio" finita, prima di prendere la chiave:
+
+- verde sui tre sistemi: il rilascio esce, anche il giorno dopo il precedente;
+- non verde: esce solo se l'ultimo tag ha almeno 7 giorni, o con `--sicurezza "motivo"`, e lo script
+  elenca i sistemi rossi;
+- nessuna run finita: si ferma sempre, e dice come lanciarla.
+
+**Il server prima del client** (dal 23/11/2026, revisione del 22/11, A4). Lo stesso script legge la versione del
+Worker in `GET /` (`Versione del server: <sha>`, la var `VERSIONE_SERVER` che il deploy prende da
+`server/versione.sh`). Se il rilascio porta un `server/` diverso da quello del Worker, e non già contenuto in
+quello, si ferma prima della chiave: prima le migrazioni (`wrangler d1 migrations apply`) e il deploy, poi la firma.
+Si ferma anche con un Worker che non dice la versione o gira un commit che il repository non ha.
 
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
@@ -40,7 +64,9 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    Un caso nuovo entra nel banco del suo componente, col codice che segue l'ultimo (AM04 dopo
    AM03). Un banco nuovo nasce solo per un componente nuovo, o per guardie, segreti e gate dei
    commit: allora si aggiunge alle liste come prima. Un file per incidente non nasce più, perché
-   ogni file in più è una controprova e un veleno da far girare. Dentro c'è l'igiene (I03,
+   ogni file in più è una controprova e un veleno da far girare. Dal 23/11/2026 lo controlla I04 di
+   `tests/igiene.py`: un banco nuovo `test_<cosa>_AAAA_MM_GG.py` fa rosso, salvo che il nome dica
+   guardie, segreti, gate o commit (IG10). Dentro c'è l'igiene (I03,
    `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
    commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni
    branch e su ogni pull request, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie
@@ -48,13 +74,17 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
    Lo stesso controllo gira anche prima del push, in `.githooks/pre-push`, sui commit che partono verso il
    repository pubblico: un nome si ferma sul Mac e non diventa un'email "Run failed" da GitHub (10/11/2026).
+   Come su GitHub, i commit che un ramo del remoto ha già non contano: `main` avanza fino a un commit già
+   su `origin/dev` anche se il suo messaggio ha un nome (22/11/2026, #6425, IG09).
    L'hook si attiva una volta per clone, con `git config core.hooksPath .githooks`, e poi passa la mano a
    `~/.claude/git/hooks/pre-push`.
    Su Windows alcuni controlli non si possono provare (link simbolici senza la Modalità
    sviluppatore, appunti e browser veri): escono come `SALTO <codice>` da `tests/salti_windows.py`,
    e la riga finale li conta (`salti=N`) e li elenca. Il gate esce con `0` anche con dei salti, ma un
-   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove resta solo il veleno di
-   RT23, che vale solo su Windows (`salti=1`).
+   controllo saltato non è provato: il gate del rilascio gira anche su un Mac, dove restano solo i salti che
+   valgono solo su Windows (il 22/11/2026 GV07, MG03, i veleni di IP21 e RT23: `salti=6`).
+   I banchi vedono il sito utente di Python di chi lancia il gate anche nella HOME finta (`PYTHONUSERBASE`,
+   GS11): su un Mac PyYAML installato con `pip --user` sta sotto la HOME (22/11/2026, #6426).
    Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
    Un commit che insegna a una guardia un programma o un percorso nuovo aggiorna, nello stesso commit, il
    `PATTERN_*` del pre-filtro che la chiama (`hooks/prefiltro_bash.py`, poi `genera`), il docstring della guardia e la sua riga nel README. Il ritardo si
@@ -259,7 +289,7 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   seguiti) e `rispondi N --stato S --testo FILE [--versione V] --conferma`. Gli stati: `ricevuta`, `serve-info`
   (la persona risponde con `segnala seguito`), `in-lavoro`, `chiusa`, `rifiutata`. La risposta la legge chi ha
   segnalato: si scrive per lei. Seguito e ritiro suonano su Telegram col solo numero. Il pacchetto tecnico si
-  svuota dopo 90 giorni. Per il deploy, prima la migrazione `server/migrazioni/2026-11-04-sportello.sql`, poi
+  svuota dopo 90 giorni. Per il deploy, prima le migrazioni nuove (`wrangler d1 migrations apply`), poi
   il Worker, poi il rilascio del client (`server/README.md`).
 - **Smistamento e correzione automatici (14/11/2026).** Una routine giornaliera di chi mantiene Arturo lancia
   `arturo-contributi.py smista`: Claude headless senza strumenti dà a ogni segnalazione nuova un tipo

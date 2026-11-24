@@ -53,7 +53,13 @@ def main():
             fermi = set()
         names = []
         for q in [cwd, *list(cwd.parents)[:3]]:
-            if q in fermi:
+            # Anche la forma risolta: su Windows la cartella può arrivare col nome corto 8.3 (RUNNER~1) e la
+            # home risolta col nome lungo (#6455). I nomi restano quelli della cartella com'è.
+            try:
+                vera = q.resolve()
+            except (RuntimeError, OSError):
+                vera = q
+            if q in fermi or vera in fermi:
                 break
             names.append(q.name)
     found = []

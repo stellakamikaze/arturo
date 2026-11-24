@@ -55,9 +55,11 @@ from pathlib import Path
 QUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(QUI.parent / "scripts"))
 sys.path.insert(0, str(QUI.parent / "hooks"))
+sys.path.append(str(QUI))  # in fondo: disegno.py, senza coprire i moduli di scripts/ e hooks/
 import melchior_match as mm  # noqa: E402
 import melchior_recall as mr  # noqa: E402
-from radici import radice_arturo  # noqa: E402
+from radici import radice_arturo, scrivi_atomico  # noqa: E402
+from disegno import a_capo  # noqa: E402
 
 AIUTO = __doc__.split("\n\n")[3] if __doc__ else ""
 
@@ -150,9 +152,24 @@ def bersaglio(interno: str):
     return t
 
 
+def note_archiviate(dirs) -> dict:
+    """{nome: successore} delle note in <cartella>/_archive/. Il successore viene da superseded_by o unito_in
+    (lo scrive `arturo progetti unisci`), senza [[ ]] e virgolette; "" se la nota non ne ha."""
+    fuori = {}
+    for d in dirs:
+        for p in sorted((Path(d) / "_archive").rglob("*.md")):
+            fm, _ = frontmatter(leggi(p))
+            fm = fm if isinstance(fm, dict) else {}
+            dopo = campo(fm, "superseded_by") or campo(fm, "unito_in") or ""
+            dopo = re.sub(r"[\[\]\"' ]", "", str(dopo[0] if isinstance(dopo, list) and dopo else dopo)).split(",")[0]
+            for nome in {p.stem.lower(), str(campo(fm, "name") or "").lower()} - {""}:
+                fuori.setdefault(nome, dopo.lower())
+    return fuori
+
+
 def controlla(dirs=None) -> dict:
     dirs = cartelle() if dirs is None else dirs
-    errori, avvisi, da_scrivere = [], [], []
+    errori, avvisi, da_scrivere, archiviate = [], [], [], []
     elenco = file_note(dirs)
     testi = {p: leggi(p) for _d, p in elenco}
     nomi = set()
@@ -162,6 +179,7 @@ def controlla(dirs=None) -> dict:
         if isinstance(fm, dict) and campo(fm, "name"):
             nomi.add(str(campo(fm, "name")).lower())
 
+    archivio = note_archiviate(dirs)
     for _d, p in elenco:
         testo = testi[p]
         fm, _ = frontmatter(testo)
@@ -184,7 +202,11 @@ def controlla(dirs=None) -> dict:
             for w in WIKILINK.finditer(r):
                 b = bersaglio(w.group(1))
                 if b and b not in nomi:
-                    da_scrivere.append({"file": dove, "riga": n, "link": b})
+                    if b in archivio:
+                        dopo = archivio[b] if archivio[b] in nomi else ""
+                        archiviate.append({"file": dove, "riga": n, "link": b, "successore": dopo})
+                    else:
+                        da_scrivere.append({"file": dove, "riga": n, "link": b})
             for l in LINK_MD.finditer(r):
                 dest = l.group(1)
                 if "://" in dest:
@@ -212,7 +234,7 @@ def controlla(dirs=None) -> dict:
                 avvisi.append({"file": breve(p), "motivo": f"fuori da {INDICE}: Claude Code non la vede all'avvio"})
 
     return {"note": len(elenco), "cartelle": len(dirs), "errori": errori, "avvisi": avvisi,
-            "da_scrivere": da_scrivere}
+            "da_scrivere": da_scrivere, "archiviate": archiviate}
 
 
 # --- Comandi ---------------------------------------------------------------------------------
@@ -236,9 +258,9 @@ def stato() -> int:
         print("Cartelle tue:")
         for d in mie:
             print(f"  - {breve(d)} ({len(file_note([d]))} note)")
-    print("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione.")
-    print("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce.")
-    print(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}.")
+    print(a_capo("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione."))
+    print(a_capo("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce."))
+    print(a_capo(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}."))
     print('Accendi con "arturo memoria accendi", spegni con "arturo memoria spegni".')
     return 0
 
@@ -334,6 +356,12 @@ def comando_controlla(argv: list) -> int:
               "segnano una nota da scrivere più avanti.")
         for v in esito["da_scrivere"]:
             print(f"  - [[{v['link']}]] in {v['file']}:{v['riga']}")
+    if esito.get("archiviate"):
+        print("\n" + a_capo(f"ARCHIVIATE ({len(esito['archiviate'])}): link [[nome]] a una nota in _archive/. Il link "
+                            "regge come storia; dove c'è un successore vivo, il link può puntare a lui."))
+        for v in esito["archiviate"]:
+            dopo = f" → [[{v['successore']}]]" if v["successore"] else ""
+            print(f"  - [[{v['link']}]] in {v['file']}:{v['riga']}{dopo}")
     n = len(esito["errori"])
     print("\nEsito: " + ("tutto a posto." if not n else f"{n} errori da correggere."))
     return 1 if n else 0
@@ -551,10 +579,7 @@ def comando_scheda(argv: list) -> int:
         testo, aggiunte = aggiorna_scheda(testo_nuova_scheda(s, cosa, titolo, cartella, alias), "", "", "", [], voci)
         esito = "creata"
     if esito != "invariata":
-        f.parent.mkdir(parents=True, exist_ok=True)
-        tmp = f.with_name(f".{f.name}.tmp")
-        tmp.write_text(testo, encoding="utf-8")
-        os.replace(str(tmp), str(f))
+        scrivi_atomico(f, testo)
     print(f"scheda {esito}: {breve(f)} · decisioni nuove {aggiunte['decisione']} · errori nuovi {aggiunte['errore']}")
     return 0
 
@@ -586,11 +611,7 @@ def leggi_registro() -> dict:
 
 
 def scrivi_registro(dati: dict) -> None:
-    f = file_registro()
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f".{f.name}.tmp")
-    tmp.write_text(json.dumps(dati, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    os.replace(str(tmp), str(f))
+    scrivi_atomico(file_registro(), json.dumps(dati, ensure_ascii=False, indent=1) + "\n")
 
 
 def oggi() -> str:
@@ -652,10 +673,7 @@ def comando_nota(argv: list) -> int:
     f = mm.MEMORY_DIR / mm.CARTELLA_TIPO[a.tipo] / f"{nome}.md"
     corpo = "\n".join(["---", f"name: {nome}", f"description: {_valore_fm(descrizione)}", f"type: {a.tipo}",
                        f"created: {oggi()}", "---", testo]) + "\n"
-    f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f".{f.name}.tmp")
-    tmp.write_text(corpo, encoding="utf-8")
-    os.replace(str(tmp), str(f))
+    scrivi_atomico(f, corpo)
     dati = leggi_registro()
     dati["voci"].append({"nome": nome, "file": f.relative_to(mm.MEMORY_DIR).as_posix(), "descrizione": descrizione,
                          "giorno": oggi(), "annuncio": None, "tolta": False})
@@ -740,6 +758,7 @@ GIORNI_DORMIENTE = 90
 GIORNI_IGIENE = 7
 SOGLIA_COPPIA = 0.7
 MAX_COPPIE = 20
+SOGLIA_PESANTE = 30 * 1024  # una nota più grande si divide in scheda e storia (revisione del 22/11/2026, O7)
 
 
 def file_ultima_igiene() -> Path:
@@ -839,9 +858,7 @@ def igiene(prova: bool = False) -> dict:
             else:
                 continue
             if not prova and nuovo != testo:
-                tmp = p.with_name(f".{p.name}.tmp")
-                tmp.write_text(nuovo, encoding="utf-8")
-                os.replace(str(tmp), str(p))
+                scrivi_atomico(p, nuovo)
 
     voci, altrui = [], []
     for _d, p in file_note(cartelle()):
@@ -861,7 +878,8 @@ def igiene(prova: bool = False) -> dict:
                 continue
             sim = len(pa & pb) / len(pa | pb)
             if sim >= SOGLIA_COPPIA:
-                coppie.append((round(sim, 2), breve(a), breve(b)))
+                # os.scandir non ordina: senza sorted la coppia esce girata su ext4 e dritta su APFS.
+                coppie.append((round(sim, 2), *sorted((breve(a), breve(b)))))
     coppie.sort(key=lambda c: (-c[0], c[1], c[2]))
 
     esito = controlla()
@@ -872,7 +890,34 @@ def igiene(prova: bool = False) -> dict:
         f.write_text(ora.date().isoformat() + "\n", encoding="utf-8")
     return {"copertura_giorni": copertura, "dormienti": dormienti, "sveglie": sveglie,
             "coppie": coppie[:MAX_COPPIE], "coppie_totali": len(coppie), "link_rotti": rotti,
-            "voce_altrui": [{"nota": n, "nomi": v} for n, v in altrui], "prova": prova}
+            "voce_altrui": [{"nota": n, "nomi": v} for n, v in altrui], "prova": prova,
+            "precisione": precisione_richiamo(ora), "pesanti": note_pesanti()}
+
+
+def precisione_richiamo(ora=None) -> dict | None:
+    """La precisione del richiamo nell'ultima settimana (revisione del 22/11/2026, O7): quante note
+    proposte Claude ha poi letto, e le note proposte più spesso senza mai una lettura. None se questo
+    computer non registra le letture."""
+    p = mm.precisione(ora=ora, giorni=GIORNI_IGIENE)
+    if p is None:
+        return None
+    mai = sorted(((n, v[0]) for n, v in p["per_nota"].items() if v[1] == 0 and v[0] >= mm.PASSO_NON_LETTE),
+                 key=lambda x: (-x[1], x[0]))
+    return {"proposte": p["proposte"], "lette": p["lette"], "mai_lette": mai[:MAX_COPPIE], "mai_lette_totali": len(mai)}
+
+
+def note_pesanti() -> list:
+    """[(percorso breve, KiB)] delle note curate sopra SOGLIA_PESANTE: vanno divise in una scheda corta e
+    in una storia (docs/memoria.md, "Note lunghe")."""
+    out = []
+    for p in note_curate():
+        try:
+            kib = p.stat().st_size // 1024
+        except OSError:
+            continue
+        if kib * 1024 >= SOGLIA_PESANTE and not p.stem.endswith("-storia")                 and str(_chiave_fm(leggi(p), "stato") or "").strip("\"'") != "dormiente":
+            out.append((breve(p), kib))
+    return sorted(out, key=lambda x: (-x[1], x[0]))
 
 
 def igiene_dovuta() -> bool:
@@ -918,6 +963,24 @@ def comando_igiene(argv: list) -> int:
     print(f"- Link rotti: {len(e['link_rotti'])}.")
     for v in e["link_rotti"][:10]:
         print(f"    {v['file']}:{v['riga']}: {v['motivo']}")
+    pr = e.get("precisione")
+    if pr is None:
+        print("- Precisione del richiamo: questo computer non registra le letture delle note.")
+    elif pr["proposte"]:
+        print(f"- Precisione del richiamo negli ultimi {GIORNI_IGIENE} giorni: {pr['lette']} note lette su "
+              f"{pr['proposte']} proposte ({round(100 * pr['lette'] / pr['proposte'])}%).")
+        if pr["mai_lette"]:
+            print(f"  Proposte almeno {mm.PASSO_NON_LETTE} volte e mai lette: {pr['mai_lette_totali']}. Il richiamo le "
+                  "propone meno da solo; se una non serve più, archiviala:")
+            for nome, n in pr["mai_lette"]:
+                print(f"    {nome} ({n} proposte)")
+    if e["pesanti"]:
+        print(f"- Note sopra {SOGLIA_PESANTE // 1024} KiB: {len(e['pesanti'])}. Dividile in una scheda corta e in "
+              "una storia (docs/memoria.md, \"Note lunghe\"):")
+        for n, kib in e["pesanti"][:10]:
+            print(f"    {n} ({kib} KiB)")
+        if len(e["pesanti"]) > 10:
+            print(f"    e altre {len(e['pesanti']) - 10}")
     if e["voce_altrui"]:
         print(f"- Note che prendono un'altra persona come modello di stile: {len(e['voce_altrui'])}. Mostrale "
               "alla persona: col suo sì togli la riga o la nota. La sua voce va in ~/.claude/personale/humanizer.md.")

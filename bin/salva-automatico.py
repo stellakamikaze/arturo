@@ -338,16 +338,43 @@ def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richie
 def scrivi(percorso: Path, testo: str) -> None:
     percorso.parent.mkdir(parents=True, exist_ok=True)
     tmp = percorso.with_name(f".{percorso.name}.tmp-{os.getpid()}")
-    tmp.write_text(testo, encoding="utf-8")
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(testo)
     os.replace(str(tmp), str(percorso))
 
 
-def nome_libero(cartella: Path, quando: dt.datetime) -> Path:
-    for minuti in range(10):
-        p = cartella / f"HANDOFF_{quando + dt.timedelta(minutes=minuti):%Y-%m-%d_%H-%M}.md"
-        if not p.exists():
-            return p
-    return cartella / f"HANDOFF_{quando + dt.timedelta(minutes=10):%Y-%m-%d_%H-%M}.md"
+def scrivi_nuovo(cartella: Path, quando: dt.datetime, testo: str) -> Path:
+    """Scrive l'handoff nel primo minuto libero, da quando in avanti, e torna il percorso.
+
+    Il nome si prende e si scrive in un passo solo: il file intero nasce col collegamento (os.link), che non
+    sovrascrive mai. Fino al 22/11/2026 nome_libero guardava se il nome c'era e poi scrivi() faceva os.replace:
+    più schede dello stesso progetto chiuse insieme sceglievano lo stesso minuto, e restava un handoff solo
+    (revisione del 20/11, bug 17)."""
+    cartella.mkdir(parents=True, exist_ok=True)
+    tmp = cartella / f".handoff-nuovo.tmp-{os.getpid()}"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(testo)
+    try:
+        for minuti in range(24 * 60):
+            p = cartella / f"HANDOFF_{quando + dt.timedelta(minutes=minuti):%Y-%m-%d_%H-%M}.md"
+            try:
+                os.link(str(tmp), str(p))
+                return p
+            except FileExistsError:
+                continue
+            except OSError:  # un disco senza collegamenti: la creazione esclusiva fa lo stesso lavoro
+                try:
+                    with open(p, "x", encoding="utf-8", newline="\n") as f:
+                        f.write(testo)
+                    return p
+                except FileExistsError:
+                    continue
+        raise OSError(f"nessun nome libero in {cartella}")
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
 
 
 def slug_del_progetto(cartella: Path) -> str:
@@ -458,9 +485,13 @@ def main(argv: list) -> int:
     richieste = [sicura(r, scanner) for r in da_salvare[-MAX_RICHIESTE:]]
     adesso = dt.datetime.now().replace(second=0, microsecond=0)
     cartella_h = radice_orsa() / "data" / "handoffs" / s
-    percorso = gia if gia is not None else nome_libero(cartella_h, adesso)
-    scrivi(percorso, componi(s, cartella, sid, adesso, richieste, file, letto["aperti"],
-                             correzioni_della_sessione(sid, scanner), dopo))
+    testo = componi(s, cartella, sid, adesso, richieste, file, letto["aperti"],
+                    correzioni_della_sessione(sid, scanner), dopo)
+    if gia is not None:  # l'handoff automatico della stessa sessione, a un giro dopo: si riscrive
+        percorso = gia
+        scrivi(percorso, testo)
+    else:
+        percorso = scrivi_nuovo(cartella_h, adesso, testo)
     if gia is None:  # M7 della memoria: un evento per sessione salvata, non uno per giro della stessa
         telemetria = carica("telemetria", QUI / "telemetria.py")
         if telemetria is not None and hasattr(telemetria, "registra"):

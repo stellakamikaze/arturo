@@ -13,6 +13,194 @@ modo di lavorare.
 
 ---
 
+## 2026-11-24 — Le shell rimaste accese si chiudono all'avvio
+
+**Cosa cambia**: all'avvio di ogni sessione Arturo cerca le shell dei comandi di Claude che non hanno più una sessione dietro, e le chiude. Scrive cosa ha chiuso in `~/.claude/data/logs/shell-orfane.log`.
+- Tocca solo le shell di Claude (quelle con `shell-snapshots` nel comando) con almeno 2 minuti di vita e senza una sessione di Claude per padre. Le shell delle sessioni aperte restano.
+- Una shell che deve restare accesa porta nel comando il segno `arturo:tieni`.
+- `python3 $ARTURO_CODICE/bin/shell-orfane.py elenca` mostra cosa chiuderebbe, senza chiudere niente.
+- `/fine` ferma le shell in background della sessione, e un'attesa che deve continuare diventa un todo con la data o un job di `bgjob.sh`.
+
+**Perché**: quando una sessione si chiude, Claude Code lascia accese le shell lanciate in background. Su un Mac, in 11 giorni, erano 23: cicli d'attesa via ssh fino a sera, server di prova, ricerche su disco. Una leggeva un log su un altro computer ogni 15 minuti per 16 ore, e il suo esito non lo leggeva più nessuno.
+
+**A chi serve**: a chi fa aspettare a Claude un lavoro lungo, su questo computer o su un altro. Su Windows non cambia niente.
+
+---
+
+## 2026-11-24 — Claude non si ferma su un passo suo
+
+**Cosa cambia**: a fine turno Arturo legge l'ultima risposta di Claude. Se dice che il passo dopo è di Claude ("il prossimo passo è mio", "Prossimo passo: ... (io)"), e non c'è una domanda per te, Claude continua da solo nello stesso turno.
+- Arturo non fa continuare Claude se la risposta chiede qualcosa, nomina un freno (una password, un codice, un invio, un pagamento, una firma, una conferma), rimanda il passo a dopo ("quando torna online", "domani") o ha appena armato una rotazione.
+- Dopo 3 continuazioni di fila senza un tuo messaggio, Arturo lascia fermare Claude. Il conto riparte dal tuo messaggio dopo.
+- Ogni continuazione lascia una riga in `~/.claude/cache/continua/registro.jsonl`.
+
+**Perché**: Claude a volte chiudeva il turno scrivendo che il passo dopo era suo, e poi aspettava un "vai". Arturo dice già che un lavoro tuo e reversibile si fa senza chiedere: adesso un controllo lo fa valere. Sui turni di una settimana il controllo sarebbe scattato 5 volte su 1958, mai su una domanda o un freno.
+
+**A chi serve**: a chi lascia lavorare Claude su un piano a più passi.
+
+---
+
+## 2026-11-24 — Gli hook partono in un processo solo
+
+**Cosa cambia**: per ogni evento di Claude Code (un comando, un prompt, la risposta di uno strumento) `settings.json` lancia un solo processo, `hooks/hub.py`. Hub esegue al suo interno gli hook e le guardie Python, che prima partivano in un `python3` nuovo ciascuno. Anche il router dei comandi Bash, il ricordo della memoria al prompt e l'avviso sul contesto girano lì.
+- Se hub non risponde entro 25 secondi, il comando ti chiede conferma.
+- Le guardie personali in `~/.claude/arturo/bash-dispatcher.local` possono girare nello stesso processo: una riga che nomina un file `.py` lo esegue lì.
+- L'avviso sul contesto segue la finestra della compattazione che Claude Code usa davvero.
+
+**Perché**: ogni comando faceva partire fino a una decina di processi Python, e su Windows l'antivirus esamina ognuno. Su un computer lento questo voleva dire secondi di attesa a ogni passo.
+
+**A chi serve**: a tutti, di più a chi usa Arturo su Windows o su un computer lento.
+
+---
+
+## 2026-11-24 — La memoria passa fra i computer da sola, ogni minuto
+
+**Cosa cambia**: chi usa Arturo su più computer, con `~/.claude` su un repository privato di GitHub, può tenere memoria, handoff e stati dei progetti su un ramo a parte, `sync`. Un giro li salva e li spinge ogni minuto, e ogni 5 minuti scarica quelli degli altri computer, anche senza `/fine`. Prima una nota scritta su un computer restava lì fino al `/fine`, e una sessione chiusa senza `/fine` la lasciava sul disco.
+- Se due computer cambiano lo stesso file, il giro non si ferma più. Una nota di memoria tiene le righe di tutte e due le versioni, un handoff tiene quella scritta per ultima. La versione che perde resta nella storia del ramo.
+- Se il giro resta fermo 10 minuti, stampa una riga `AVVISO:` una volta sola, e `sync_transito.py --stato` dice `BLOCCATO`. La config della persona può mandare quella riga dove vuole, per esempio su Telegram.
+- Su Windows il ramo funziona anche con mille note e coi fine riga di Windows, e i collegamenti simbolici restano fuori.
+- Il passaggio si fa un computer alla volta, con `bin/sync_transito.py --migra --prova` e poi `--migra`. I passi stanno in `docs/ramo-sync.md`. Chi non migra lavora come prima.
+
+Nello stesso rilascio:
+- `arturo progetti` non rimette in elenco le schede chiuse, e `arturo memoria controlla` separa i link a note archiviate da quelli ancora da scrivere.
+- Il gate dei rilasci gira in CI su Linux, Mac e Windows. Senza la CI verde esce al massimo un rilascio a settimana.
+- Correzioni per Windows: percorsi con spazi, nomi corti delle cartelle temporanee, la CLI di Claude Code trovata dal PATH (`WinError 2`), i banchi letti in UTF-8.
+
+**Perché**: il 24/11 su un computer di chi mantiene Arturo c'erano 26 note non salvate e 4 commit di ritardo, e su un altro un solo conflitto teneva fermi 20 commit. La memoria serve a tutti i computer nello stesso momento, non al `/fine` di uno.
+
+**A chi serve**: a chi lavora con Arturo su più di un computer.
+
+---
+
+## 2026-11-23 — Arturo si legge meglio, anche nella console di Windows
+
+**Cosa cambia**: i riquadri, le barre e le liste che Arturo stampa usano solo caratteri che la console di Windows mostra coi suoi font: angoli dritti, linee semplici, blocchi pieni e vuoti, lettere accentate. Prima alcuni segni (gli angoli arrotondati, la freccia, la spunta, i tre puntini) lì diventavano quadratini.
+- La barra in basso, nella console di Windows, scrive `^ Arturo` al posto della freccia, `ok` al posto della spunta e `...` al posto dei tre puntini. Su Mac, Linux e Windows Terminal resta come prima. `ARTURO_SEGNI=ascii` o `ARTURO_SEGNI=unicode` sceglie a mano.
+- `arturo todo` apre ogni gruppo con una riga titolo (`── TOCCA A TE · 2 ───`), mette i titoli in colonna e un `!` davanti a una scadenza passata, che così si vede anche senza colori. `arturo todo progetti` ha una barra corta di quanto è chiuso.
+- La chiusura di `/fine` dà i fatti tecnici in cinque righe in colonna (chiuso, controlli, config, segnala, riprendi), non più in una riga sola. Il brief prima di un lavoro allinea le etichette.
+- `arturo rotazione`, `arturo segnalazioni` e `arturo memoria stato` vanno a capo entro 78 colonne, senza spezzare un comando, un percorso o una frase fra virgolette.
+
+**Perché**: chi usa Arturo su Windows leggeva quadratini al posto dei segni, e le righe da 220 caratteri andavano a capo a metà parola nei terminali stretti.
+
+**A chi serve**: a chi usa Arturo su Windows, e a chi legge le liste nel terminale.
+
+---
+
+## 2026-11-23 — La rotazione parte a metà contesto, e la soglia la scegli tu
+
+**Cosa cambia**: quando Claude chiude un compito, fa il commit, chiude il todo e passa al compito dopo nella stessa sessione. Il salvataggio con `/fine --rotazione` e la sessione nuova arrivano solo quando il contesto supera il 50%, oppure dalle 18 col `/fine` completo del giorno. L'avviso del contesto adesso scatta al 50% e non più al 65%. Alla prima sessione dopo l'aggiornamento Claude ti mostra un riquadro con la regola nuova.
+
+**Come cambi la soglia**: di' a Claude "rotazione al 40%", oppure lancia `arturo rotazione 40`. Vale ogni numero da 30 a 70: più basso salva più spesso, più alto resta di più nella stessa sessione. `arturo rotazione` dice la soglia di oggi, `arturo rotazione togli` torna al 50%. La scelta sta in `~/.claude/personale/rotazione.txt` e gli aggiornamenti non la toccano. Se in `settings.json` hai impostato `CLAUDE_CTX_WARN`, vince quella, come prima.
+
+**Perché**: sul Mac di chi mantiene Arturo la rotazione è partita 299 volte in una settimana, quasi due minuti l'una, più un `/inizio` nuovo dopo ogni giro: circa nove ore di attesa. Il modello risponde in 3 secondi a chiamata, quindi la lentezza stava nei salvataggi. Con la soglia a metà contesto Claude ricorda anche il lavoro fatto prima, nella stessa sessione.
+
+**A chi serve**: a chi lascia lavorare Claude su un piano a più passi.
+
+---
+
+## 2026-11-22 — I testi di Arturo dicono cosa c'è nel rilascio
+
+**Cosa cambia**: la roadmap dice lo stato di ogni voce da quello che c'è nel rilascio firmato, non da quello che sta sui rami di sviluppo. Lo storico delle chat, l'intervista, il fascicolo e gli spazi risultavano "su un ramo di sviluppo" e invece sono nel plugin dalla 0.2.16. La frase da incollare per installare Arturo è una sola, la stessa del sito: `Installa Arturo: https://github.com/stellakamikaze/arturo/blob/landing-v2/INIZIA.md`. Volta, la finestra che chi mantiene Arturo sta provando, esce dai testi che valgono per tutti: `/inizio` passa la checklist della ripartenza solo se Volta c'è, il metodo non la nomina più e le voci di queste novità su Volta dicono che è una prova. Il disegno di `docs/come-e-fatto.md` mostra anche il mod e lo Sportello, il server a cui Arturo manda gli eventi d'uso e le segnalazioni:
+
+```diagramma
+  tu
+   │  chiedi, correggi, scrivi come scrivi
+   ▼
+┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
+│  6 Orsa: CLAUDE.md · personale/<skill>.md · memoria · todo · handoff      │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
+│  cresce con le correzioni e con le proposte della Scoperta, col tuo sì    │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ Arturo la legge e la rispetta
+┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
+│  cosa fa per te, dalle fondamenta alla crescita:                          │
+│    1 Protezione .......... guardie che chiedono un sì, segreti fermati    │
+│    2 Metodo .............. brief, freni, fatto vuol dire verificato       │
+│    3 Memoria ............. /inizio, /fine, handoff, todo, Melchior        │
+│    4 Collegamenti ........ posta, agenda, documenti, pagine web           │
+│    5 Scoperta ............ ti propone cosa automatizzare, con le prove    │
+│    sempre: Ingresso (/setup, aggiornamenti) · Misura (banchi, /segnala)   │
+│                                                                           │
+│  il mod, dentro Claude Code: testata, rotazione, redazione dei segreti,   │
+│    cache fredda, apertura dei risultati, /dafare                          │
+│  manda allo Sportello: eventi d'uso (se li accetti in /setup), /segnala   │
+│                                                                           │
+│  adattati da progetti aperti, dentro Arturo:                              │
+│    humanizer ............. ◄── blader/humanizer (MIT)                     │
+│    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
+│    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
+│                                                                           │
+│  consigliati, li installi dalla loro fonte:                               │
+│    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
+│    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
+│    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │
+│    scrape ................ ◄── D4Vinci/Scrapling (BSD-3)                  │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ hook, skill, comandi, permessi
+┌─ Claude Code ───────────────────────────────── di Anthropic, a pagamento ─┐
+│  il programma nel terminale: legge e scrive i file, lancia i comandi      │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ la conversazione esce dal tuo computer
+                       il modello (Claude, sui server di Anthropic)
+
+┌─ Sportello di Arturo ──────────── server/, un Worker Cloudflare con D1 ───┐
+│  riceve da Arturo: eventi d'uso con un id casuale, mai testi o file;      │
+│    le segnalazioni di /segnala e il contatto, se lo dai                   │
+│  restituisce: le risposte alle tue segnalazioni                           │
+│  cosa tiene e per quanto: docs/privacy.md                                 │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**Il principio**: una pagina pubblica descrive quello che la persona riceve oggi. Una funzione che sta solo su un ramo, o solo sul computer di chi mantiene Arturo, non è ancora sua.
+
+**A chi serve**: a chi legge la roadmap per sapere cosa può già usare, e a chi installa Arturo per la prima volta.
+
+---
+
+## 2026-11-22 — La memoria propone meno note che Claude non apre
+
+**Cosa cambia**: a ogni messaggio Arturo propone a Claude le note che c'entrano, ma nell'ultima settimana Claude
+ne ha aperte solo l'8%. Due correzioni. Il campo `answers` pesa ora al massimo due punti, come il corpo: una
+nota con una lista lunga di domande non esce più a quasi ogni messaggio. E una nota proposta tante volte senza
+mai una lettura perde punti, finché una lettura non la riporta su. `arturo memoria igiene` dice la precisione
+della settimana, le note proposte e mai lette e le note sopra 30 KiB da dividere in una scheda corta e in una
+storia (docs/memoria.md, "Note lunghe"). Su Windows la firma d'errore ora parla: prima taceva sempre.
+
+**Il principio**: una nota che nessuno legge costa attenzione a ogni messaggio. Il caso Y24 di
+`tests/test_memoria.py` prova il tetto, la penalità e la sua uscita con la prima lettura.
+
+---
+
+## 2026-11-22 — La pulizia mensile non resta ferma durante un backup di Time Machine
+
+**Cosa cambia**: durante un backup di Time Machine su un disco di rete, la pulizia mensile poteva restare
+ferma per minuti sul conteggio delle istantanee locali. Adesso ogni controllo del sistema (spazio su disco,
+istantanee, LaunchAgent) ha un tetto di 15 secondi. Se Time Machine non risponde, la pulizia lo dice in una
+riga e arriva in fondo. Il tetto si cambia con `PULIZIA_TETTO_SEGNALI`.
+
+**Il principio**: un segnale facoltativo non deve fermare il lavoro che lo contiene. Il caso Z06 di
+`tests/test_script.py` prova un `tmutil` che non risponde: la pulizia finisce in pochi secondi.
+
+---
+
+## 2026-11-22 — Gli undici difetti piccoli della revisione del 20/11
+
+**Cosa cambia**: `/inizio --tutti` rimette i file che avevi preparato per un commit dove li avevi lasciati.
+La pulizia mensile della cartella dei progetti non sposta più `CLAUDE.md`, `AGENTS.md`, `README` e `LICENSE`
+in `_archivio`. Un aggiornamento fermato da un file che un'altra sessione sta cambiando dice "annullata" e
+nomina il file, invece di un falso "ripristino non riuscito". `arturo progetti unisci` e `arturo migra` tornano
+indietro da soli se si fermano a metà, anche con Ctrl-C. Più sessioni dello stesso progetto chiuse insieme
+hanno ognuna il suo handoff automatico. Due sessioni che scrivono lo stesso file (lo stato degli aggiornamenti,
+le correzioni, un todo, una nota della memoria) non si pestano più. Con una home che ha uno spazio nel nome
+Arturo conta bene le sessioni aperte. La chiusura di una sessione non cancella più le conferme in attesa
+delle altre.
+
+**Il principio**: sono gli undici difetti bassi della revisione del 20/11. Ognuno ha un caso nel banco
+`tests/test_revisione_bassi_2026_11_22.py`, rosso sulla versione di prima e verde adesso.
+
+---
+
 ## 2026-11-22 — L'avvio consegna il suo messaggio anche su un computer carico, e /inizio aspetta meno
 
 **Cosa cambia**: il messaggio di avvio di Arturo arriva anche quando il computer è lento o carico. Prima
@@ -675,7 +863,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: quando una sessione si ferma per un motivo che non dipende da te, la ripresa non deve aspettare te. Le decisioni invece restano tue: dove serve una tua risposta, Volta non scrive niente.
 
-**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo.
+**A chi serve**: a chi lascia lavorare le sessioni in background, di notte o con molte sessioni in parallelo. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
@@ -685,7 +873,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: un gesto veloce ogni tanto si sbaglia. Una conferma a ogni chiusura rallenta tutte le altre; dieci secondi per tornare indietro non chiedono niente a nessuno.
 
-**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W.
+**A chi serve**: a chi usa Volta e chiude spesso le sessioni con ⌘W. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
@@ -695,7 +883,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: la ripartenza era già un elenco numerato da leggere. Spuntarlo e annotarlo costa meno che riscrivere i numeri a mano, e le parole restano le stesse del terminale.
 
-**A chi serve**: a chi lavora con Volta e apre più progetti al giorno.
+**A chi serve**: a chi lavora con Volta e apre più progetti al giorno. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
@@ -705,7 +893,7 @@ Un plugin non può accendere la sandbox da solo: la scelta resta tua.
 
 **Il principio**: un computer acceso per un lavoro non vuol dire che tu sia lì. Il segnale resta sulle tue macchine: non entra nel repository, nella telemetria o nelle segnalazioni.
 
-**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background.
+**A chi serve**: a chi lavora con Volta su più computer e lancia sessioni in background. Volta è una prova di chi mantiene Arturo: per ora non è disponibile per tutti.
 
 ---
 
