@@ -274,7 +274,7 @@ def test_rl09(repo: Path) -> None:
 
 
 # I file di hooks/ che non girano da soli: moduli e strumenti che le guardie e l'avvio usano.
-STRUMENTI = ("aspetto_valori.py", "avvio-fetch.py", "controlla-config.py", "deriva.py", "evento_bash.py", "fiducia.py", "forma_comando.py",
+STRUMENTI = ("aspetto_valori.py", "avvio-fetch.py", "controlla-config.py", "deriva.py", "evento_bash.py", "fiducia.py", "fine_turno.py", "forma_comando.py",
              "heredoc.py", "melchior_match.py", "nel_processo.py", "prefiltro_bash.py", "prefiltro_regex.py", "radici.py",
              "scheda_file.py")
 

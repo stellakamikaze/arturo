@@ -7,7 +7,7 @@ ogni Bash avviava 3 hook prima e 6 dopo: 1,6 s di mediana prima del comando, e i
 prompt e di avvio annullati per tempo scaduto (misura del 23/11 sui transcript).
 
 Voci: `pre` (PreToolUse), `post` (PostToolUse), `postfail` (PostToolUseFailure), `prompt`
-(UserPromptSubmit). La TABELLA dice, per ogni voce, quali hook girano su quale strumento, nell'ordine di
+(UserPromptSubmit; azzera anche il conto di continua.py). La TABELLA dice, per ogni voce, quali hook girano su quale strumento, nell'ordine di
 settings.json. Nella voce `prompt` un codice 2 (il prompt si scarta) ferma gli hook dopo.
 
 Come gira un hook:
@@ -297,6 +297,16 @@ def _registra(voce, righe):
         pass
 
 
+def _azzera_continua(dati):
+    """Un messaggio della persona azzera il conto di continua.py (l'hook di Stop che fa continuare la sessione
+    quando il passo dopo è di Claude): il tetto conta le continuazioni di fila senza la persona."""
+    try:
+        import continua
+        continua.azzera(dati.get("session_id"))
+    except Exception:  # noqa: BLE001 - il conto che non si azzera non deve fermare il prompt
+        pass
+
+
 def main(argv):
     voce = argv[1] if len(argv) > 1 else ""
     if voce not in TETTO_VOCE:
@@ -311,6 +321,8 @@ def main(argv):
         dati = {}
     evento = dati.get("hook_event_name") or {"pre": "PreToolUse", "post": "PostToolUse",
                                                "postfail": "PostToolUseFailure", "prompt": "UserPromptSubmit"}[voce]
+    if voce == "prompt":
+        _azzera_continua(dati)
     raccolta = Raccolta(evento)
     vero_out, vero_err = sys.stdout, sys.stderr
 

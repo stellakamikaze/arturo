@@ -14,7 +14,8 @@ CS05 il tetto: una carta enorme resta sotto TETTO byte e tiene la prima domanda.
 CS06 senza Volta (nessuna ~/.config/herdr-app) e senza ARTURO_CARTE=1 l'hook non scrive niente; con la cartella
      di Volta scrive.
 
---avvelena rompe ogni regola su una copia dell'hook ed esce 0 solo se ogni rottura fa rosso il suo caso.
+--avvelena rompe ogni regola su una copia dell'hook (carta-sessione.py o fine_turno.py, il modulo comune con
+continua.py) ed esce 0 solo se ogni rottura fa rosso il suo caso.
 Solo libreria standard. Nessun modello.
 """
 from __future__ import annotations
@@ -45,6 +46,9 @@ TABELLA = [
 
 
 def carica(percorso: Path, casa: Path):
+    # fine_turno.py (il testo di fine turno e chiede(), comune con continua.py) si importa dalla cartella
+    # dell'hook: una copia avvelenata deve portare il suo, non quello già in memoria.
+    sys.modules.pop("fine_turno", None)
     spec = importlib.util.spec_from_file_location(f"carta_{abs(hash(str(percorso)))}", percorso)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
@@ -278,16 +282,20 @@ VELENI = [
 
 
 def avvelena() -> int:
-    testo = HOOK.read_text(encoding="utf-8")
+    nomi = ("carta-sessione.py", "fine_turno.py")
+    testi = {n: (HOOK.parent / n).read_text(encoding="utf-8") for n in nomi}
     morsi = 0
     for codice, vecchio, nuovo in VELENI:
-        if testo.count(vecchio) != 1:
+        dove = [n for n in nomi if testi[n].count(vecchio) == 1]
+        if len(dove) != 1 or sum(testi[n].count(vecchio) for n in nomi) != 1:
             print(f"VELENO {codice} NON SI APPLICA: {vecchio[:60]!r}")
             continue
         with tempfile.TemporaryDirectory(prefix="cs-veleno-") as d:
             copia = Path(d) / "hooks" / "carta-sessione.py"
             copia.parent.mkdir()
-            copia.write_text(testo.replace(vecchio, nuovo), encoding="utf-8")
+            for n in nomi:
+                (copia.parent / n).write_text(testi[n].replace(vecchio, nuovo) if n == dove[0] else testi[n],
+                                              encoding="utf-8")
             shutil.copy(HOOK.parent / "radici.py", copia.parent / "radici.py")
             rossi = [r for r in prova(copia) if r.startswith(f"{codice} ROSSO")]
         print(f"VELENO {codice} " + (f"ROSSO: {rossi[0][:120]}" if rossi else "NON ATTACCA"))

@@ -90,8 +90,8 @@ export const DERIVA_NOMI = {
   commands: COMANDI.map((c) => `${c}.md`),
   hooks: ["agente-worktree.py", "aspetto_valori.py", "avvio-fetch.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py",
     "carta-sessione.py", "commit-secret-gate.py", "comms-guard.py", "comms-prefilter.py", "context-monitor.js", "context-monitor.py",
-    "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "dispatcher.py", "emoji_remover.py", "estensione-skill.py",
-    "evento_bash.py", "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py",
+    "continua.py", "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "dispatcher.py", "emoji_remover.py", "estensione-skill.py",
+    "evento_bash.py", "exfil-guard.py", "fiducia.py", "fine_turno.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py",
     "herdr-stato.sh", "heredoc.py", "hub.py", "inject-now.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py",
     "memory-autoload.py", "memory-firma.py", "memory-retrieve.py", "memory-write-scanner.py", "metodo.sh", "nel_processo.py", "prefiltro_bash.py",
     "prefiltro_regex.py", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py", "scheda_file.py",
@@ -99,7 +99,7 @@ export const DERIVA_NOMI = {
     "typecheck-after-edit.py", "web-egress-guard.py"],
 };
 // Gli hook che il settings.json di Arturo dichiara (hook_dichiarati in hooks/deriva.py), più "tutti" per disableAllHooks.
-export const DERIVA_HOOK = ["agente-worktree.py", "carta-sessione.py", "gws-token-health.py", "herdr-stato.sh", "hub.py", "input-notifier-start.sh", "melchior-postwrite.py",
+export const DERIVA_HOOK = ["agente-worktree.py", "carta-sessione.py", "continua.py", "gws-token-health.py", "herdr-stato.sh", "hub.py", "input-notifier-start.sh", "melchior-postwrite.py",
   "scheda-terminale.py", "scoperta-indice.py", "session-end.sh", "session-start.sh", "subagent-memory-context.py", "titolo-sessione.py",
   "typecheck-after-edit.py"];
 
