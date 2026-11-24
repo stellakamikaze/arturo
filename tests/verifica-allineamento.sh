@@ -342,6 +342,8 @@ IN_FILA=(
   test_guardie_lineari_2026_11_22.py
   # Il tetto di 7,5 secondi per l'avvio e il fetch staccato (22/11/2026, #6370): misura secondi, gira in fila.
   test_avvio_tetto_2026_11_22.py
+  # Le shell in background di una sessione chiusa (24/11/2026): lancia processi veri e aspetta, gira in fila.
+  test_shell_orfane.py
   # Il dispatcher di Bash in Python dentro hub (23/11/2026, #6492): DP02 misura il tetto di 25 s, gira in fila.
   test_dispatcher.py
 )
@@ -648,6 +650,8 @@ BASELINE=(
   "test_sync_transito.py 88a5f8d"
   # hooks/hub.py (23/11/2026, #6492): senza hub rossi tutti e nove. 9cbb926, il dev prima.
   "test_hub.py 9cbb926"
+  # Le shell orfane chiuse all'avvio (24/11/2026): senza bin/shell-orfane.py rossi tutti e cinque. 9d460bb, il dev prima.
+  "test_shell_orfane.py 9d460bb"
   # Il dispatcher in Python dentro hub (23/11/2026, #6492): su hub senza dispatcher rossi tutti e sette. bcb3907, il ramo prima.
   "test_dispatcher.py bcb3907"
   # hooks/continua.py (24/11/2026): senza l'hook rossi tutti e sette. 067606f, il ramo di hub prima.

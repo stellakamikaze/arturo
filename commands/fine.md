@@ -94,6 +94,11 @@ oggetti creati online), salta `~/.claude` e propone per ogni voce un `destino` c
 (manca l'id o la trascrizione) o `rc=124` (oltre 120 secondi: non rilanciarlo) ricostruisci l'elenco dalla
 conversazione e dillo nella riga tecnica. Aggiungi i file che lo script non ha visto e i punti pendenti.
 
+**Shell in background.** Ferma con `TaskStop` le shell `run_in_background` e i Monitor della sessione ancora
+accesi, salvo il fine leggero di una rotazione che riprende lo stesso lavoro. Un'attesa che deve continuare
+diventa un todo con la data o un job di `bgjob.sh` (`~/.claude/shared/lavori-lunghi.md`, Regole): Claude Code
+non spegne queste shell alla chiusura, e il loro esito non lo legge più nessuno.
+
 **Uscita breve a sessione vuota.** Se valgono tutte e quattro le condizioni, salta le fasi 2-8 e 10:
 - l'inventario non ha file né oggetti;
 - `git status --short` del progetto è pulito;
