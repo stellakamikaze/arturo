@@ -36,12 +36,16 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 import yaml
+
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
 
 QUI = Path(__file__).resolve().parent
 PROVA = "zorbaquix"  # inventato: nessun significato, nessuna persona
@@ -170,8 +174,10 @@ def test_ig06(repo: Path) -> None:
         (r / ".githooks" / "pre-push").write_bytes(gancio.read_bytes())
         (r / ".githooks" / "pre-push").chmod(0o755)
         git("config", "core.hooksPath", ".githooks")
-        git("remote", "add", "origin", str(pubblico))
-        git("remote", "add", "altro", str(altro))
+        # as_posix: l'hook riconosce .../stellakamikaze/arturo con le barre dritte, come in ogni URL vero; con
+        # C:\...\stellakamikaze\arturo.git su Windows lo prendeva per un altro repository (#6455).
+        git("remote", "add", "origin", pubblico.as_posix())
+        git("remote", "add", "altro", altro.as_posix())
         git("add", "-A")
         git("commit", "-q", "-m", "base pulita")
         assert git("push", "-q", "origin", "dev", ok=False).returncode == 0, "IG06 l'hook blocca un push pulito"
@@ -253,7 +259,7 @@ def test_ig08(repo: Path) -> None:
 
         def esito(prima: str, dopo: str, ramo: str, evento: str = "push") -> int:
             env = dict(ambiente, PRIMA=prima, DOPO=dopo, RAMO=ramo, EVENTO=evento)
-            return subprocess.run(["bash", "-e", "-c", blocco], cwd=str(r), env=env, capture_output=True, text=True,
+            return subprocess.run([BASH_VERO, "-e", "-c", blocco], cwd=str(r), env=env, capture_output=True, text=True,
                                   timeout=60).returncode
 
         git("init", "-q", "-b", "dev")
@@ -324,8 +330,10 @@ def test_ig09(repo: Path) -> None:
         (r / ".githooks" / "pre-push").write_bytes(gancio.read_bytes())
         (r / ".githooks" / "pre-push").chmod(0o755)
         git("config", "core.hooksPath", ".githooks")
-        git("remote", "add", "origin", str(pubblico))
-        git("remote", "add", "altro", str(altro))
+        # as_posix: l'hook riconosce .../stellakamikaze/arturo con le barre dritte, come in ogni URL vero; con
+        # C:\...\stellakamikaze\arturo.git su Windows lo prendeva per un altro repository (#6455).
+        git("remote", "add", "origin", pubblico.as_posix())
+        git("remote", "add", "altro", altro.as_posix())
         git("add", "-A")
         git("commit", "-q", "-m", "base pulita")
         git("push", "-q", "origin", "dev", "dev:main")

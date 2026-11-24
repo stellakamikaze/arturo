@@ -43,6 +43,7 @@ import importlib.util
 import os
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,9 @@ from pathlib import Path
 QUI = Path(__file__).resolve().parent
 sys.path.append(str(QUI.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
+
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
 
 CL = Path(os.environ.get("SYNC_TRANSITO_CLAUDE") or radice_orsa())
 SYNC = CL / ".git-sync"
@@ -159,7 +163,7 @@ def origine():
                 return url, vis == "PRIVATE", f"visibilità {vis or 'sconosciuta'}"
     except OSError:
         pass
-    rc, out, _ = run(["bash", "-c", 'gh repo view "$1" --json visibility -q .visibility', "gh", url], 30)
+    rc, out, _ = run([BASH_VERO, "-c", 'gh repo view "$1" --json visibility -q .visibility', "gh", url], 30)
     vis = out.strip() if rc == 0 else ""
     if vis:
         try:
@@ -218,11 +222,37 @@ def file_lucchetto():
     return SYNC / "lock"
 
 
-def viva(pid):
-    if os.name == "nt":
-        return True
+def _viva_windows(pid: int) -> bool:
+    """Come in fine-coda.py: su Windows os.kill(pid, 0) manda un Ctrl+C, e prima un lucchetto di un giro
+    morto restava valido per sempre (ST04, sonda #6455)."""
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ctypes.get_last_error() == 5  # accesso negato: il processo c'è
     try:
-        os.kill(int(pid), 0)
+        codice = wintypes.DWORD()
+        if not k.GetExitCodeProcess(h, ctypes.byref(codice)):
+            return True
+        return codice.value == 259  # STILL_ACTIVE
+    finally:
+        k.CloseHandle(h)
+
+
+def viva(pid):
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        return False
+    if os.name == "nt":
+        return _viva_windows(pid)
+    try:
+        os.kill(pid, 0)
         return True
     except (ValueError, ProcessLookupError):
         return False

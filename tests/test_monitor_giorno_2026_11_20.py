@@ -255,7 +255,9 @@ def prova(lab: Lab) -> list:
         "    print('#41'); sys.exit(0)\n"
         "print('{\"gruppi\": []}')\n", encoding="utf-8")
     (c / "u/.claude/arturo").mkdir(parents=True)
-    (c / "u/.claude/arturo/fonte-task.local").write_text(f"comando = {sys.executable} {fuori}\n")
+    # il contratto (docs/fonte-task.md) vuole le barre dritte: shlex toglie quelle rovesciate di Windows
+    (c / "u/.claude/arturo/fonte-task.local").write_text(
+        f"comando = {Path(sys.executable).as_posix()} {fuori.as_posix()}\n")
     fonti(c, "google-connettori")
     cod, giro, err = apri(lab, c)
     cartella = Path(giro.get("cartella", c))

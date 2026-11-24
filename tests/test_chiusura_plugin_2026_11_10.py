@@ -688,6 +688,10 @@ VELENI = [
 def avvelena(repo: Path, solo: str | None = None) -> int:
     esiti = []
     veleni = [v for v in VELENI if not solo or v[0] == solo]
+    if os.name == "nt":
+        # caso_pc22 salta su Windows (il lucchetto lì ha solo la scadenza): il suo veleno non può mordere
+        print("VELENO PC22 SALTATO su Windows: il caso non gira")
+        veleni = [v for v in veleni if v[0] != "PC22"]
     for caso, rel, giusto, rotto in veleni:
         with tempfile.TemporaryDirectory() as tmp:
             copia = Path(tmp) / "repo"

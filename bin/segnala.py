@@ -497,7 +497,7 @@ def ambiente() -> str:
     # Col plugin non c'è git: la versione sta nel manifest del pacchetto (review del 7/11/2026, finding 68).
     versione = _esegui(["git", "-C", str(radice_arturo()), "describe", "--tags", "--abbrev=0", "--match", "v*"]) \
         or _versione_plugin() or "sconosciuta"
-    claude = _esegui(["claude", "--version"]) or "sconosciuta"
+    claude = _esegui([shutil.which("claude") or "claude", "--version"]) or "sconosciuta"  # claude.cmd su Windows
     return f"Arturo: {versione}\nClaude Code: {claude}\nSistema: {platform.system()} {platform.release()}"
 
 

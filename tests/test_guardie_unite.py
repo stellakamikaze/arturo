@@ -104,6 +104,11 @@ def env_di(home: Path, **extra: str) -> dict:
     env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", ""),
            "PYTHONDONTWRITEBYTECODE": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "ARTURO_TELEMETRIA": "0",
            "TMPDIR": os.environ.get("TMPDIR", "/tmp")}
+    # Su Windows Python 3.8 senza SYSTEMROOT non parte ("failed to get random numbers"): Claude Code la passa
+    # sempre agli hook, il banco deve fare lo stesso (sonda #6455, sesto giro)
+    for nome in ("SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT"):
+        if os.name == "nt" and os.environ.get(nome):
+            env[nome] = os.environ[nome]
     env.update(extra)
     return env
 
@@ -140,7 +145,11 @@ def test_g201(repo: Path) -> None:
             return decisione(hook(home, "protect_claude_md.py", dati, radice))
 
         for path in bersagli:
-            assert esito(path) == "deny", f"G201 scrittura su un percorso di avvio senza unlock: {path.relative_to(home)}"
+            if esito(path) != "deny":
+                dati = {"tool_name": "Write", "tool_input": {"file_path": str(path), "content": "x"}, "session_id": "g201"}
+                p = hook(home, "protect_claude_md.py", dati, radice)
+                raise AssertionError(f"G201 scrittura su un percorso di avvio senza unlock: {path.relative_to(home)}: "
+                                     f"rc {p.returncode} {(p.stdout + p.stderr)[-300:]!r}")
         (home / ".claude" / "system-unlock-g201").touch()
         for path in bersagli:
             assert esito(path) == "allow", f"G201 l'unlock di sistema non sblocca {path.relative_to(home)}"
@@ -347,7 +356,12 @@ def test_g206(repo: Path) -> None:
             assert esito(comando) == "ask", f"G206 cancellazione non vista: {comando}"
         for comando in ("python3 - <<'EOF'\nprint('rm -rf ~')\nEOF", "D=$TMPDIR/prova; rm -rf $D",
                         'rm -rf "$TMPDIR/x"', "rm -rf node_modules dist", "git commit -m 'tolto rm -rf dal README'"):
-            assert esito(comando) == "silent", f"G206 falso allarme: {comando!r}"
+            if esito(comando) != "silent":
+                p = _bash_hook(home, "block-dangerous.py", comando, radice)
+                # banchi-avvio.sh riporta la prima riga con "Error", tagliata a 160: il motivo va in testa,
+                # e la riga del sorgente non deve contenere quella parola
+                testo = f"G206 {motivo(p)[:70]!r} TMPDIR={os.environ.get('TMPDIR')} per {comando!r}"
+                assert False, testo
         # Su Windows %TEMP% sta dentro la home e resta temporanea, come per /fine (16/10/2026).
         temp = home / "AppData" / "Local" / "Temp"
 
@@ -449,7 +463,7 @@ def test_g209(repo: Path) -> None:
 
         def avvio(**extra: str):
             inizio = time.time()
-            p = subprocess.run([BASH, str(claude / "hooks" / "session-start.sh")], input="{}", text=True,
+            p = subprocess.run([BASH, str(claude / "hooks" / "session-start.sh")], input="{}", text=True, encoding="utf-8",
                                capture_output=True, cwd=str(progetto), env=env_di(home, **extra), timeout=60)
             ultimo.update(secondi=time.time() - inizio, rc=p.returncode, err=p.stderr)
             return p, time.time() - inizio
@@ -617,6 +631,12 @@ def test_g211(repo: Path) -> None:
                           "grep", "tr", "wc", "dirname", "env"):
             percorso = shutil.which(programma, path=ricerca)
             if percorso:
+                if os.name == "nt":
+                    # Mai un link su Windows: un programma msys aperto da un link non trova msys-2.0.dll, e
+                    # il dispatcher taceva prima di arrivare a timeout (sonda #6455, quinto giro)
+                    (senza_timeout / programma).write_text(f'#!/bin/sh\nexec "{Path(percorso).as_posix()}" "$@"\n',
+                                                          encoding="utf-8")
+                    continue
                 try:
                     (senza_timeout / programma).symlink_to(percorso)
                 except OSError as e:  # Windows senza il privilegio dei link: uno script che rimanda al programma
@@ -637,8 +657,11 @@ def test_g211(repo: Path) -> None:
         # Il lanciatore Git\bin\bash.exe rimetterebbe /usr/bin, e timeout, nel PATH (#5167).
         assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, bash=BASH_PATH_RIDOTTO,
                           **nudo) == "silent", "G211 timeout citato in un messaggio fra virgolette blocca il comando"
-        assert dispatcher(home, "timeout 5 ls", radice, bash=BASH_PATH_RIDOTTO, **nudo) == "block", \
-            "G211 timeout vero senza coreutils passa"
+        if dispatcher(home, "timeout 5 ls", radice, bash=BASH_PATH_RIDOTTO, **nudo) != "block":
+            dove = subprocess.run([BASH_PATH_RIDOTTO, "-c", 'command -v timeout; echo "PATH=$PATH"; '
+                                   'echo "CARTELLE=${ARTURO_TIMEOUT_CARTELLE-assente}"'], capture_output=True,
+                                  text=True, env=env_di(home, **nudo), timeout=60, check=False)
+            raise AssertionError(f"G211 timeout vero senza coreutils passa: {(dove.stdout + dove.stderr)[-300:]!r}")
         assert dispatcher(home, "grep -rn --include=*.md x .", radice, SHELL="/bin/zsh") == "block", \
             "G211 il glob in un'opzione sotto zsh passa"
         for comando in ("echo ciao | mail -c copia@esempio.org dest", "mail $DEST < lettera.txt"):

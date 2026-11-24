@@ -35,6 +35,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
+
 CASI = ["FG01", "FG02", "FG03", "FG04", "FG05", "FG06", "FG07", "FG08", "FG09", "FG10", "FG11", "FG12"]
 FG = "bin/fine-gia-chiusa.py"
 # Sulla base di prima (b54e244) ogni /fine parte: rossi i casi che si aspettano il blocco.
@@ -153,7 +156,7 @@ class Lab:
         return self.script(self.evento(sid, prompt))
 
     def hook(self, sid: str, prompt: str) -> subprocess.CompletedProcess:
-        return subprocess.run(["bash", str(self.cl / "hooks" / "inject-now.sh")], input=self.evento(sid, prompt),
+        return subprocess.run([BASH_VERO, str(self.cl / "hooks" / "inject-now.sh")], input=self.evento(sid, prompt),
                               capture_output=True, text=True, encoding="utf-8", errors="replace", env=self.env(),
                               timeout=60)
 

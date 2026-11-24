@@ -32,6 +32,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -42,6 +43,9 @@ sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 from radici import radice_arturo, radice_orsa  # noqa: E402
 import prova  # noqa: E402
+
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
 
 TAGLIO = 500        # caratteri per prompt: basta a capire la richiesta
 CORTO = 40          # sotto questa lunghezza un prompt porta la coda del messaggio di Claude prima
@@ -254,7 +258,8 @@ def chiave_prompt(testo: str) -> str:
 def sessioni_di(projects: Path, giorni: int, saltate: Counter | None = None) -> list:
     """Le sessioni con almeno un prompt, senza quelle di prova: saltate["prova"] le conta."""
     saltate = Counter() if saltate is None else saltate
-    lim = time.time() - giorni * 86400
+    # Mai prima del 1970: su Windows time.gmtime di un tempo negativo esce con OSError 22 (#6455, --giorni 36500).
+    lim = max(0.0, time.time() - giorni * 86400)
     da = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(lim))
     sessioni, da_sub = [], defaultdict(Counter)
     for f in glob.glob(os.path.join(str(projects), "**", "*.jsonl"), recursive=True):
@@ -392,7 +397,7 @@ def igiene(_a) -> int:
         print(f"memoria: {out.splitlines()[-1][:200] if out else 'nessuna uscita'}")
     audit = codice / "skills" / "system-audit" / "audit.sh"
     if audit.exists():
-        rc, out = _riga(["bash", str(audit)], timeout=180)
+        rc, out = _riga([BASH_VERO, str(audit)], timeout=180)
         problemi = [r for r in out.splitlines() if r.startswith(("FAIL", "WARN"))]
         print(f"system-audit: {sum(r.startswith('FAIL') for r in problemi)} FAIL, "
               f"{sum(r.startswith('WARN') for r in problemi)} WARN"

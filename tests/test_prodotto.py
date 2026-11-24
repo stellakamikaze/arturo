@@ -79,7 +79,7 @@ def test_p05(repo: Path) -> None:
 
 
 def _esegui(cmd: list[str], **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=120, **kw)
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=120, **kw)
 
 
 def test_p06(repo: Path) -> None:

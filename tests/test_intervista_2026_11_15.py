@@ -60,7 +60,7 @@ class Banco:
             env.pop(chiave, None)
         env.update(env_extra)
         return subprocess.run([sys.executable, str(self.repo / "bin" / script), *argomenti], env=env, input=stdin,
-                              capture_output=True, text=True, timeout=120)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
 
     def stato(self) -> dict:
         try:

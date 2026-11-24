@@ -2082,6 +2082,13 @@ def _temporaneo(p):
     for nome in ("TMPDIR", "TEMP", "TMP"):
         if os.environ.get(nome, "").strip():
             radici.append(dritto(os.path.normpath(os.environ[nome])))
+            if os.name == "nt":
+                # Su Windows TEMP ha spesso il nome corto 8.3 (C:\Users\RUNNER~1\...), e _reale() lo allarga nel
+                # nome lungo: senza la forma lunga, un rm nella cartella temporanea chiedeva (G206, sonda #6455)
+                try:
+                    radici.append(dritto(os.path.realpath(os.environ[nome])))
+                except (OSError, ValueError):
+                    pass
     if any(r and sotto(r, p) for r in radici):
         return False  # la cartella temporanea intera, o una che la contiene (2/11/2026, #4547)
     for r in radici:
