@@ -31,9 +31,9 @@ jobs:
       - name: Sonda, due giri py38 insieme come nel gate (worker=2) e uno py312
         run: |
           PY38="$(uv python find 3.8)"
-          "$PY38" .github/sonda-6622/sonda.py . 30 py38-a > a.log 2>&1 &
-          "$PY38" .github/sonda-6622/sonda.py . 30 py38-b > b.log 2>&1 &
-          python .github/sonda-6622/sonda.py . 30 py312 > c.log 2>&1 &
+          "$PY38" .github/sonda-6622/sonda.py . 40 py38-a > a.log 2>&1 &
+          "$PY38" .github/sonda-6622/sonda.py . 40 py38-b > b.log 2>&1 &
+          "$PY38" .github/sonda-6622/sonda.py . 40 py38-c > c.log 2>&1 &
           wait
           cat a.log b.log c.log
           echo "=== SINTESI"
