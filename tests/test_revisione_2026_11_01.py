@@ -44,6 +44,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 BASE = "e80e43d"
 _QUI = Path(__file__).resolve().parent
@@ -332,9 +334,7 @@ def _leggi(repo: Path, percorso: str, home: Path, temp: Path) -> str:
 
 
 def test_rv07(repo: Path) -> int:
-    impostazioni = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-    lettura = [g for g in impostazioni["hooks"]["PreToolUse"] if "Read" in g.get("matcher", "").split("|")]
-    assert lettura and any("block-dangerous.py" in h.get("command", "") for h in lettura[0]["hooks"]), \
+    assert any("Read" in m.split("|") for m in voci_hook.matcher(repo, "PreToolUse", "block-dangerous.py")), \
         "RV07 settings.json non manda il tool Read a block-dangerous.py"
     with tempfile.TemporaryDirectory() as d:
         home, temp, _, _ = banco(Path(d))

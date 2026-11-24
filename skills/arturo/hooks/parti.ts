@@ -22,7 +22,8 @@ export function leggiSpente(testo: string | null): Set<string> {
 
 let spente: Promise<Set<string>> | undefined
 
-async function casa($: EngineInterface): Promise<string> {
+// La cartella di casa: HOME, oppure USERPROFILE su Windows, dove Claude Code parte spesso senza HOME.
+export async function casa($: EngineInterface): Promise<string> {
   return (await $.env.get('HOME').catch(() => undefined)) ?? (await $.env.get('USERPROFILE').catch(() => undefined)) ?? ''
 }
 

@@ -10,7 +10,7 @@
 Nasce il 23/11/2026 dalla review della lentezza. Prima /fine --rotazione partiva a ogni compito chiuso:
 sul Mac di chi mantiene Arturo 299 volte in 7 giorni, quasi due minuti l'una, più un /inizio dopo ogni
 giro. Ora a compito chiuso Claude fa commit, push e chiude il todo, e continua nella stessa sessione. Il
-salvataggio e la sessione nuova partono all'avviso CONTEXT WARNING di hooks/context-monitor.js, cioè a
+salvataggio e la sessione nuova partono all'avviso CONTEXT WARNING di hooks/context-monitor.py, cioè a
 questa soglia, oppure dalle 18 col /fine completo del giorno.
 
 La soglia della persona sta in ~/.claude/personale/rotazione.txt, nell'Orsa: gli aggiornamenti non la

@@ -147,27 +147,28 @@ PY
   rm -f "$script_file"
 done
 
-# Il dispatcher richiama guardie transitive: il settings da solo non le mostra.
-dispatcher="$CODICE/hooks/bash-dispatcher.sh"
-if [[ -f "$dispatcher" ]]; then
+# hub e il dispatcher richiamano guardie transitive: il settings da solo non le mostra. Dal 23/11/2026
+# (#6492) hooks/hub.py lancia gli hook della sua TABELLA ("hooks/x.py", "bin/y.py") e hooks/dispatcher.py le
+# guardie di Bash ("x.py", in hooks/ o in bin/). Le righe di commento non contano.
+for transitivo in "$CODICE/hooks/hub.py" "$CODICE/hooks/dispatcher.py"; do
+  [[ -f "$transitivo" ]] || continue
   while IFS= read -r guard; do
     [[ -z "$guard" ]] && continue
-    if [[ -f "$CODICE/hooks/$guard" ]]; then
-      ok "guardia transitiva: $guard"
+    if [[ -f "$CODICE/$guard" || -f "$CODICE/hooks/$guard" || -f "$CODICE/bin/$guard" ]]; then
+      ok "guardia transitiva: ${guard#hooks/}"
     else
       ko "guardia transitiva mancante: $guard"
     fi
-  # Ogni chiamata `run_guard X` (anche dentro un blocco if) e ogni script chiamato per percorso
-  # (`python3 "$HOME/.claude/hooks/X"`). Le righe di commento non contano.
-  done < <(grep -vE '^[[:space:]]*#' "$dispatcher" \
-    | grep -oE 'run_guard[[:space:]]+[A-Za-z0-9_.-]+\.(py|sh|js)|\.claude/hooks/[A-Za-z0-9_.-]+\.(py|sh|js)' \
-    | sed -E 's#^run_guard[[:space:]]+##; s#^\.claude/hooks/##' | sort -u)
-fi
+  done < <(grep -vE '^[[:space:]]*#' "$transitivo" \
+    | grep -oE '"((hooks|bin)/)?[A-Za-z0-9_.-]+\.(py|sh|js)"' | tr -d '"' | sort -u)
+done
 
 smoke=0
 for script in ${hook_files[@]+"${hook_files[@]}"}; do
   [[ -f "$script" ]] || continue
   case "$script" in
+    # hub.py vuole la voce: con `post` e il payload vuoto non lancia nessun hook ed esce 0.
+    */hub.py) runner=(python3 -B "$script" post) ;;
     *.py) runner=(python3 -B "$script") ;;
     *.js) runner=(node --check "$script") ;;
     *) continue ;;

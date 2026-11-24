@@ -313,12 +313,24 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash",
+        "matcher": "Bash|Monitor",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/agente-worktree.py",
-            "timeout": 5
+            "command": "python3 ~/.claude/hooks/hub.py pre; r=$?; case $r in 0|2) exit $r;; esac; printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Le guardie non hanno letto il comando: manca un python3 che funziona, oppure si sono fermate oltre il tempo. Conferma solo se sai cosa fa. Per sistemare: /diagnosi.\"}}'",
+            "timeout": 30,
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Read|Grep|mcp__.*[Dd]raft.*|WebFetch|mcp__jina__.*|mcp__tavily__.*|mcp__playwright__browser_navigate|mcp__playwright-ff__browser_navigate|mcp__claude-in-chrome__navigate|mcp__claude-in-chrome__browser_batch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/hub.py pre",
+            "timeout": 30,
+            "onFailure": "block"
           }
         ]
       },
@@ -330,71 +342,6 @@
             "command": "python3 ~/.claude/hooks/carta-sessione.py",
             "timeout": 5,
             "async": true
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/block-dangerous.py",
-            "timeout": 10,
-            "onFailure": "block"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/protect_claude_md.py",
-            "timeout": 20,
-            "onFailure": "block"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|Monitor",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/bash-dispatcher.sh",
-            "timeout": 30,
-            "onFailure": "block"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(*gws*)",
-            "command": "python3 ~/.claude/hooks/gws-esito.py",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__.*[Dd]raft.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/bozze-mcp-auto-approve.py",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "WebFetch|mcp__jina__.*|mcp__tavily__.*|mcp__playwright__browser_navigate|mcp__playwright-ff__browser_navigate|mcp__claude-in-chrome__navigate|mcp__claude-in-chrome__browser_batch",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/web-egress-guard.py",
-            "timeout": 20,
-            "onFailure": "block"
           }
         ]
       },
@@ -411,19 +358,12 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash|WebFetch|WebSearch|mcp__.*|Monitor|Skill",
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(*commit*)",
-            "command": "python3 ~/.claude/hooks/block-dangerous.py dopo",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "if": "Bash(*gws*)",
-            "command": "python3 ~/.claude/hooks/gws-esito.py",
-            "timeout": 10
+            "command": "python3 ~/.claude/hooks/hub.py post",
+            "timeout": 30
           }
         ]
       },
@@ -432,90 +372,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/emoji_remover.py",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "python3 ~/.claude/hooks/scoperta-indice.py",
             "timeout": 10,
             "async": true
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/bin/telemetria-esito.sh",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "python3 ~/.claude/hooks/melchior-postwrite.py",
             "timeout": 10,
             "async": true
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|MultiEdit|Write|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "PATH=\"$PATH:${ARTURO_NODE_DIRS-/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin}\" node ~/.claude/hooks/context-monitor.js",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "WebFetch|WebSearch|mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/prompt-injection-scanner.py",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|WebFetch|WebSearch|mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/credential-leak-scanner.py",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/bin/telemetria-esito.sh",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Monitor",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/bin/telemetria-esito.sh",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/estensione-skill.py",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|MultiEdit|Write|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/memory-write-scanner.py",
-            "timeout": 6
           }
         ]
       },
@@ -551,7 +416,8 @@
           {
             "type": "command",
             "command": "sh ~/.claude/hooks/herdr-stato.sh working",
-            "timeout": 5
+            "timeout": 5,
+            "async": true
           }
         ]
       }
@@ -562,24 +428,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/bin/telemetria-esito.sh",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/memory-firma.py",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(*gws*)",
-            "command": "python3 ~/.claude/hooks/gws-esito.py",
-            "timeout": 10
+            "command": "python3 ~/.claude/hooks/hub.py postfail",
+            "timeout": 15
           }
         ]
       }
@@ -589,13 +439,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/inject-now.sh",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/memory-retrieve.py",
-            "timeout": 5
+            "command": "python3 ~/.claude/hooks/hub.py prompt",
+            "timeout": 10
           },
           {
             "type": "command",
@@ -647,6 +492,11 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/continua.py",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/carta-sessione.py",

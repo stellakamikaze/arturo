@@ -13,6 +13,32 @@ modo di lavorare.
 
 ---
 
+## 2026-11-24 — Claude non si ferma su un passo suo
+
+**Cosa cambia**: a fine turno Arturo legge l'ultima risposta di Claude. Se dice che il passo dopo è di Claude ("il prossimo passo è mio", "Prossimo passo: ... (io)"), e non c'è una domanda per te, Claude continua da solo nello stesso turno.
+- Arturo non fa continuare Claude se la risposta chiede qualcosa, nomina un freno (una password, un codice, un invio, un pagamento, una firma, una conferma), rimanda il passo a dopo ("quando torna online", "domani") o ha appena armato una rotazione.
+- Dopo 3 continuazioni di fila senza un tuo messaggio, Arturo lascia fermare Claude. Il conto riparte dal tuo messaggio dopo.
+- Ogni continuazione lascia una riga in `~/.claude/cache/continua/registro.jsonl`.
+
+**Perché**: Claude a volte chiudeva il turno scrivendo che il passo dopo era suo, e poi aspettava un "vai". Arturo dice già che un lavoro tuo e reversibile si fa senza chiedere: adesso un controllo lo fa valere. Sui turni di una settimana il controllo sarebbe scattato 5 volte su 1958, mai su una domanda o un freno.
+
+**A chi serve**: a chi lascia lavorare Claude su un piano a più passi.
+
+---
+
+## 2026-11-24 — Gli hook partono in un processo solo
+
+**Cosa cambia**: per ogni evento di Claude Code (un comando, un prompt, la risposta di uno strumento) `settings.json` lancia un solo processo, `hooks/hub.py`. Hub esegue al suo interno gli hook e le guardie Python, che prima partivano in un `python3` nuovo ciascuno. Anche il router dei comandi Bash, il ricordo della memoria al prompt e l'avviso sul contesto girano lì.
+- Se hub non risponde entro 25 secondi, il comando ti chiede conferma.
+- Le guardie personali in `~/.claude/arturo/bash-dispatcher.local` possono girare nello stesso processo: una riga che nomina un file `.py` lo esegue lì.
+- L'avviso sul contesto segue la finestra della compattazione che Claude Code usa davvero.
+
+**Perché**: ogni comando faceva partire fino a una decina di processi Python, e su Windows l'antivirus esamina ognuno. Su un computer lento questo voleva dire secondi di attesa a ogni passo.
+
+**A chi serve**: a tutti, di più a chi usa Arturo su Windows o su un computer lento.
+
+---
+
 ## 2026-11-23 — Arturo si legge meglio, anche nella console di Windows
 
 **Cosa cambia**: i riquadri, le barre e le liste che Arturo stampa usano solo caratteri che la console di Windows mostra coi suoi font: angoli dritti, linee semplici, blocchi pieni e vuoti, lettere accentate. Prima alcuni segni (gli angoli arrotondati, la freccia, la spunta, i tre puntini) lì diventavano quadratini.

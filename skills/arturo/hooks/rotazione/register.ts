@@ -26,7 +26,7 @@ import {
   SCADENZA_CLEAR_MS,
   spenta,
 } from './rotazione'
-import { type Avanti, type Evento, parteSpenta, stato } from '../parti'
+import { type Avanti, type Evento, casa, parteSpenta, stato } from '../parti'
 
 const CHIAVE_ULTIMA = 'ultima-rotazione'
 // i giri fatti dall'ultimo messaggio della persona (#6334)
@@ -284,7 +284,8 @@ export async function fineSessione($: EngineInterface, e: Evento<'session.end'>,
 // L'ultima decisione, in un file da leggere quando una rotazione non parte (ultime 40 righe).
 async function registra($: EngineInterface, riga: string): Promise<void> {
   try {
-    const home = await $.env.get('HOME')
+    // Fino al 23/11/2026 solo HOME: su Windows Claude Code parte spesso senza, e il registro taceva (#6492, B6).
+    const home = await casa($)
     if (!home) return
     const f = `${home}/.claude/cache/rotazione-ultimo.txt`
     let prima = ''

@@ -86,9 +86,10 @@ def main() -> int:
     elif "def testo_shell" not in forma or '"bash", "sh", "zsh"' in gate:
         rossi.append("S02 il tokenizer non sta in forma_comando.py, o commit-secret-gate.py ha ancora la sua lista di shell")
 
-    impostazioni = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-    matcher = [g.get("matcher", "") for g in impostazioni["hooks"]["PostToolUse"]
-               if any("prompt-injection-scanner.py" in h.get("command", "") for h in g.get("hooks", []))]
+    # Dal 23/11/2026 (#6492) lo scanner gira dentro hooks/hub.py: voci_hook legge anche la sua TABELLA.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import voci_hook
+    matcher = voci_hook.matcher(repo, "PostToolUse", "prompt-injection-scanner.py")
     if not matcher or any("Bash" in m.split("|") for m in matcher):
         rossi.append(f"S03 prompt-injection-scanner parte anche su Bash: matcher {matcher}")
 

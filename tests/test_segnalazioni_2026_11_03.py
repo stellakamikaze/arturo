@@ -67,8 +67,9 @@ def test_sz01(repo: Path) -> None:
 
 def test_sz02(repo: Path) -> None:
     assert not (repo / "skills" / "riscrivi-bash").exists(), "SZ02 il mod riscrivi-bash c'è ancora e cambia il comando"
-    assert MARCATORE in read(repo / "hooks" / "bash-dispatcher.sh"), \
-        "SZ02 bash-dispatcher.sh non legge il marcatore dell'avvio"
+    # Il marcatore lo legge il pre-filtro delle guardie di Bash (prefiltro_bash.py, dal dispatcher).
+    assert MARCATORE in read(repo / "hooks" / "prefiltro_bash.py"), \
+        "SZ02 il pre-filtro delle guardie di Bash non legge il marcatore dell'avvio"
     assert MARCATORE in read(repo / "hooks" / "session-start.sh"), "SZ02 l'avvio non scrive il marcatore"
 
 

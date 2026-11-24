@@ -473,6 +473,29 @@ let input = '';
 const stdinTimeout = setTimeout(() => process.exit(0), 3000);
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', chunk => input += chunk);
+// La compattazione automatica scatta ad autoCompactWindow token (settings.json o settings.local.json della config),
+// prima della fine della finestra del modello. Il 23/11/2026, con 1M di finestra e autoCompactWindow 300000, una
+// sessione si è compattata a 266.797 token, cioè al 27% della scala grezza: l'avviso del 50% non arrivava mai (#6492,
+// B5). Qui la percentuale usata si riporta sulla finestra che conta davvero. Senza la chiave, o con una finestra del
+// modello già più piccola, resta la scala grezza.
+function finestraCompattazione() {
+  let finestra = 0;
+  for (const nome of ['settings.json', 'settings.local.json']) {
+    try {
+      const v = JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, nome), 'utf8')).autoCompactWindow;
+      if (Number.isInteger(v) && v > 0) finestra = v;
+    } catch (e) { /* file assente o rotto: conta l'altro */ }
+  }
+  return finestra;
+}
+
+function usatoNellaFinestra(remaining, finestraModello) {
+  const grezzo = 100 - remaining;
+  const compattazione = finestraCompattazione();
+  if (!(finestraModello > 0) || !(compattazione > 0) || compattazione >= finestraModello) return grezzo;
+  return grezzo * finestraModello / compattazione;
+}
+
 process.stdin.on('end', () => {
   clearTimeout(stdinTimeout);
   try {
@@ -482,13 +505,15 @@ process.stdin.on('end', () => {
     const session = data.session_id || '';
     const remaining = data.context_window?.remaining_percentage;
 
-    // Context usato, scala GREZZA (100 - remaining): una scala sola per statusline,
-    // context-monitor e la regola della rotazione al ~50% (3/10/2026; in Arturo dal 20/10/2026; 50% dal 23/11/2026).
-    // Prima la barra normalizzava sul context utile (tolto il 16,5% di autocompact) e
-    // mostrava ~7 punti in più di quanto dicesse la regola.
+    // Context usato: una scala sola per statusline, context-monitor e la regola della rotazione al ~50%
+    // (3/10/2026; in Arturo dal 20/10/2026; 50% dal 23/11/2026). Prima la barra normalizzava sul context
+    // utile (tolto il 16,5% di autocompact) e mostrava ~7 punti in più di quanto dicesse la regola.
+    // Con autoCompactWindow più piccola della finestra del modello la scala è quella finestra (#6492, B5).
     let ctx = '';
     if (remaining != null) {
-      const used = Math.max(0, Math.min(100, Math.round(100 - remaining)));
+      const usato = usatoNellaFinestra(remaining, data.context_window?.context_window_size);
+      const used = Math.max(0, Math.min(100, Math.round(usato)));
+      const rimasto = usato === 100 - remaining ? remaining : 100 - used;
 
       // Write context metrics to bridge file for the context-monitor PostToolUse hook.
       // The monitor reads this file to inject agent-facing warnings when context is low.
@@ -500,7 +525,7 @@ process.stdin.on('end', () => {
           const bridgePath = path.join(os.tmpdir(), `claude-ctx-${session}.json`);
           const bridgeData = JSON.stringify({
             session_id: session,
-            remaining_percentage: remaining,
+            remaining_percentage: rimasto,
             used_pct: used,
             timestamp: Math.floor(Date.now() / 1000)
           });

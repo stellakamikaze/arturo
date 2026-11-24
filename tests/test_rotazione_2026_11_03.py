@@ -34,6 +34,10 @@ RT13 chi usava già Arturo (data/setup-fatto) riceve dalla riga di session-start
 RT14 chi installa adesso (senza setup-fatto né novità viste) riceve solo la riga CONTEXT, senza l'avviso.
 RT15 `arturo rotazione` va a capo entro 78 colonne e tiene il comando su una riga sua; a_capo() di disegno.py non
      spezza un percorso lungo né il testo fra virgolette (23/11/2026, le uscite di stato da 220 caratteri).
+RT16 il registro del mod rotazione (~/.claude/cache/rotazione-ultimo.txt) trova la casa anche senza HOME: su Windows
+     Claude Code parte spesso con il solo USERPROFILE, e registra() taceva (#6492, B6, 23/11/2026). Il mod è
+     TypeScript e i banchi non lo eseguono: il caso legge che registra() passa da casa() di parti.ts, e che casa()
+     ripiega su USERPROFILE.
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
@@ -55,12 +59,13 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15", "RT16"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15", "RT16"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
-            "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js",
+            "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js", "hooks/context-monitor.py",
             # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
-            "hooks/commit-secret-gate.py", "hooks/heredoc.py", "hooks/forma_comando.py"]
+            "hooks/commit-secret-gate.py", "hooks/heredoc.py", "hooks/forma_comando.py",
+            "skills/arturo/hooks/parti.ts", "skills/arturo/hooks/rotazione/register.ts"]
 SEGNO = ".ultimo-fine-completo"
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
@@ -76,12 +81,12 @@ VELENI = [
     (["RT06"], "bin/contesto.py", 'if p != "--tutti"]', 'if p not in ("--tutti", "--rotazione")]'),
     (["RT07"], "hooks/session-start.sh", "solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)",
      "a ogni compito chiuso"),
-    (["RT07"], "hooks/context-monitor.js", "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 50;",
-     "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 35;"),
-    (["RT08"], "hooks/context-monitor.js", "    if (data.agent_id) {", "    if (false) {"),
+    (["RT07"], "hooks/context-monitor.py", 'avviso_soglia = _numero(os.environ.get("CLAUDE_CTX_WARN")) or soglia_persona() or 50',
+     'avviso_soglia = _numero(os.environ.get("CLAUDE_CTX_WARN")) or soglia_persona() or 35'),
+    (["RT08"], "hooks/context-monitor.py", '    if data.get("agent_id"):', '    if False:'),
     (["RT09"], "bin/contesto.py", "separa_attesa(compito) if rotazione else", "separa_attesa(compito) if False else"),
     (["RT09"], "commands/inizio.md", "Con la riga `in attesa: <domanda>` non parti", "Con la riga `in attesa: <domanda>` parti"),
-    (["RT10"], "hooks/context-monitor.js", "|| sogliaPersona() || 50;", "|| 50;"),
+    (["RT10"], "hooks/context-monitor.py", " or soglia_persona() or 50", " or 50"),
     (["RT11"], "bin/rotazione.py", "            file_soglia().unlink()\n", "            pass\n"),
     (["RT12"], "bin/rotazione.py", "    return n if MINIMO <= n <= MASSIMO else None", "    return n"),
     (["RT13"], "bin/rotazione.py", "    if argv == [\"visto\"]:\n        scrivi(", "    if argv == [\"visto\"]:\n        print("),
@@ -90,6 +95,9 @@ VELENI = [
     (["RT13"], "bin/disegno.py", 'fuori = [MARGINE + "┌"', 'fuori = [MARGINE + "╭"'),
     (["RT15"], "bin/disegno.py", '.replace(" ", "\\0"), testo)', '.replace(" ", " "), testo)'),
     (["RT15"], "bin/rotazione.py", "        print(a_capo(stato()))", "        print(stato())"),
+    (["RT16"], "skills/arturo/hooks/rotazione/register.ts", "    const home = await casa($)\n",
+     "    const home = await $.env.get('HOME')\n"),
+    (["RT16"], "skills/arturo/hooks/parti.ts", "?? (await $.env.get('USERPROFILE').catch(() => undefined))", ""),
     (["RT14"], "bin/rotazione.py", "if not file_visto().exists() and persona_di_prima():", "if not file_visto().exists():"),
 ]
 
@@ -238,6 +246,23 @@ def rt06(lab: Lab):
         return f"rc={r.returncode} {r.stdout[:200]!r} {r.stderr[-160:]!r}"
 
 
+def monitor_contesto(lab: Lab):
+    """Il monitor del contesto e la riga della soglia: context-monitor.py dal 23/11/2026 (#6492, B5), prima il .js."""
+    py = lab.cl / "hooks" / "context-monitor.py"
+    if py.exists():
+        return py, 'avviso_soglia = _numero(os.environ.get("CLAUDE_CTX_WARN")) or soglia_persona() or 50'
+    return lab.cl / "hooks" / "context-monitor.js", "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 50;"
+
+
+def comando_monitor(lab: Lab):
+    """Il comando che lancia il monitor, o None se manca l'interprete."""
+    monitor, _ = monitor_contesto(lab)
+    if monitor.suffix == ".py":
+        return [sys.executable, "-B", str(monitor)]
+    node = shutil.which("node")
+    return [node, str(monitor)] if node else None
+
+
 def rt07(lab: Lab):
     avvio = lab.cl / "hooks" / "session-start.sh"
     fine = lab.cl / "commands" / "fine.md"
@@ -246,9 +271,9 @@ def rt07(lab: Lab):
     riga = next((x for x in avvio.read_text(encoding="utf-8").splitlines() if "CONTEXT:" in x), "")
     mancano = [f for f in ("solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)", "nello stesso contesto",
                            "solo se il passo dopo è tuo") if f not in riga]
-    monitor = lab.cl / "hooks" / "context-monitor.js"
-    if not monitor.exists() or "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 50;" not in monitor.read_text(encoding="utf-8"):
-        mancano.append("context-monitor.js con l'avviso al 50%")
+    monitor, soglia = monitor_contesto(lab)
+    if not monitor.exists() or soglia not in monitor.read_text(encoding="utf-8"):
+        mancano.append(f"{monitor.name} con l'avviso al 50%")
     testo = fine.read_text(encoding="utf-8")
     inizio = testo.find("## Modo rotazione")
     sezione = testo[inizio:testo.find("\n## ", inizio + 1)] if inizio >= 0 else ""
@@ -261,16 +286,15 @@ def rt07(lab: Lab):
 def rt08(lab: Lab):
     import json as _json
     import time as _time
-    node = shutil.which("node")
-    if node is None:
+    comando = comando_monitor(lab)
+    if comando is None:
         return "node assente: il banco prova context-monitor.js"
-    hook = lab.cl / "hooks" / "context-monitor.js"
     temp = Path(lab.ambiente["TMPDIR"])
     (temp / "claude-ctx-s-rt08.json").write_text(_json.dumps(
         {"timestamp": int(_time.time()), "remaining_percentage": 30, "used_pct": 70}), encoding="utf-8")
 
     def chiama(dati: dict) -> str:
-        return subprocess.run([node, str(hook)], input=_json.dumps(dati), capture_output=True, text=True,
+        return subprocess.run(comando, input=_json.dumps(dati), capture_output=True, text=True,
                               encoding="utf-8", errors="replace", env=lab.ambiente, timeout=30).stdout
 
     sub = chiama({"session_id": "s-rt08", "agent_id": "a123", "tool_name": "Bash"})
@@ -305,21 +329,20 @@ def rotazione(lab: Lab, *a: str, **extra) -> subprocess.CompletedProcess:
 
 
 def avvisa_al(lab: Lab, usato: int, **extra) -> bool:
-    """Se context-monitor.js avvisa con le metriche di una sessione al `usato`% di contesto."""
+    """Se il monitor del contesto avvisa con le metriche di una sessione al `usato`% di contesto."""
     import json as _json
     import time as _time
     temp = Path(lab.ambiente["TMPDIR"])
     sessione = f"s-soglia-{usato}-{_time.monotonic_ns()}"
     (temp / f"claude-ctx-{sessione}.json").write_text(_json.dumps(
         {"timestamp": int(_time.time()), "remaining_percentage": 100 - usato, "used_pct": usato}), encoding="utf-8")
-    r = subprocess.run([shutil.which("node"), str(lab.cl / "hooks" / "context-monitor.js")],
-                       input=_json.dumps({"session_id": sessione}), capture_output=True, text=True, encoding="utf-8",
+    r = subprocess.run(comando_monitor(lab), input=_json.dumps({"session_id": sessione}), capture_output=True, text=True, encoding="utf-8",
                        errors="replace", env=ambiente_soglia(lab, **extra), timeout=30)
     return "CONTEXT WARNING" in r.stdout
 
 
 def rt10(lab: Lab):
-    if shutil.which("node") is None:
+    if comando_monitor(lab) is None:
         return "node assente: il banco prova context-monitor.js"
     if avvisa_al(lab, 45):
         return "col default il monitor avvisa già al 45%"
@@ -333,7 +356,7 @@ def rt10(lab: Lab):
 
 
 def rt11(lab: Lab):
-    if shutil.which("node") is None:
+    if comando_monitor(lab) is None:
         return "node assente: il banco prova context-monitor.js"
     rotazione(lab, "40")
     r = rotazione(lab, "togli")
@@ -344,7 +367,7 @@ def rt11(lab: Lab):
 
 
 def rt12(lab: Lab):
-    if shutil.which("node") is None:
+    if comando_monitor(lab) is None:
         return "node assente: il banco prova context-monitor.js"
     for sbagliata in ("80", "20", "tanto"):
         r = rotazione(lab, sbagliata)
@@ -412,8 +435,26 @@ def rt15(lab: Lab):
         return f"a_capo spezza un percorso o le virgolette: {righe!r} {r.stderr[-200:]!r}"
 
 
+def rt16(lab: Lab):
+    import re as _re
+    mod = lab.cl / "skills" / "arturo" / "hooks" / "rotazione" / "register.ts"
+    parti = lab.cl / "skills" / "arturo" / "hooks" / "parti.ts"
+    if not mod.exists() or not parti.exists():
+        return "skills/arturo/hooks/rotazione/register.ts o parti.ts assente"
+    testo = mod.read_text(encoding="utf-8")
+    corpo = testo[testo.find("async function registra("):]
+    corpo = corpo[:corpo.find("\n}\n")]
+    if "await casa($)" not in corpo or "$.env.get('HOME')" in corpo:
+        return f"registra() non passa da casa(): {corpo[:200]!r}"
+    if not _re.search(r"import \{[^}]*\bcasa\b[^}]*\} from '\.\./parti'", testo):
+        return "register.ts non importa casa da ../parti"
+    p = parti.read_text(encoding="utf-8")
+    if "export async function casa(" not in p or "USERPROFILE" not in p[p.find("function casa("):][:300]:
+        return "casa() di parti.ts non è esportata o non ripiega su USERPROFILE"
+
+
 PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08,
-         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14, "RT15": rt15}
+         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14, "RT15": rt15, "RT16": rt16}
 
 
 def prova(repo: Path, ref: str | None) -> list:

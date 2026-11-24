@@ -126,7 +126,8 @@ if [ -f "$ORSA_RADICE/personale/nome.txt" ] && [ -f "$ARTURO_CODICE/bin/nome.py"
   python3 "$ARTURO_CODICE/bin/nome.py" riga 2>/dev/null || true
 fi
 
-# La barra in basso (statusline.js) e l'avviso sul contesto (context-monitor.js) girano con node.
+# La barra in basso (statusline.js) gira con node, e scrive le metriche che legge l'avviso sul contesto
+# (context-monitor.py, dentro hub.py post dal 23/11/2026).
 # Claude Code si installa anche senza node, e allora restano spenti in silenzio (19/10/2026).
 command -v node >/dev/null 2>&1 \
   || echo "NODE: manca node, la barra in basso (contesto e quota) e l'avviso sul contesto sono spenti. Dillo a Claude: installa node da nodejs.org, poi riapri Claude Code."
