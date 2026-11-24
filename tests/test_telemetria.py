@@ -553,13 +553,17 @@ def test_m26(repo: Path) -> None:
     # Review del 7/11/2026, finding 43: due invii partiti insieme mandavano gli stessi eventi due volte e poi tagliavano
     # dalla coda quelli registrati nel frattempo. Un invio alla volta: il secondo esce, e niente si perde.
     srv = Server()
-    srv.ritardo = 1.0
+    # Il sesto evento si registra quando il primo invio è già al server, non dopo un tempo fisso: col mezzo secondo
+    # di prima, su un computer carico della CI il primo invio leggeva la coda dopo il sesto (gate 45411971970).
+    srv.ritardo = 3.0
     lab = Lab(repo, srv)
     for i in range(5):
         lab.arturo("telemetria", "registra", "comando", ["fine", "inizio", "setup", "segnala", "aggiorna"][i])
     comando = [sys.executable, "-B", str(repo / "bin" / "arturo"), "telemetria", "invia"]
     invii = [subprocess.Popen(comando, env=lab.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(2)]
-    time.sleep(0.5)
+    fine = time.monotonic() + 30
+    while not any(p == "/v1/eventi" for p, _ in srv.richieste) and time.monotonic() < fine:
+        time.sleep(0.05)
     lab.arturo("telemetria", "registra", "comando", "novita")
     for p in invii:
         p.communicate(timeout=60)
