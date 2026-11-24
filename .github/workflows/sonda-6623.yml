@@ -28,17 +28,18 @@ jobs:
           python-version: "3.12"
       - name: Base 663bcba
         run: git worktree add --detach ../base 663bcba
-      - name: Da solo, base e dev
+      - name: Tempi del comando triplo, base e dev
         run: |
-          python .github/sonda-6623/sonda.py ../base 8 base-solo
-          python .github/sonda-6623/sonda.py . 8 dev-solo
-      - name: Sotto carico, quattro giri insieme come i worker del gate
+          python .github/sonda-6623/sonda.py ../base 2 base-solo
+          python .github/sonda-6623/sonda.py . 4 dev-solo
+      - name: Il test vero, quattro giri insieme come i worker del gate
         run: |
-          python .github/sonda-6623/sonda.py ../base 8 base-a > a.log 2>&1 &
-          python .github/sonda-6623/sonda.py ../base 8 base-b > b.log 2>&1 &
-          python .github/sonda-6623/sonda.py . 12 dev-c > c.log 2>&1 &
-          python .github/sonda-6623/sonda.py . 12 dev-d > d.log 2>&1 &
+          bash .github/sonda-6623/giri.sh ../base 10 base-a --baseline-ref 663bcba > a.log 2>&1 &
+          bash .github/sonda-6623/giri.sh ../base 10 base-b --baseline-ref 663bcba > b.log 2>&1 &
+          bash .github/sonda-6623/giri.sh . 10 dev-c > c.log 2>&1 &
+          bash .github/sonda-6623/giri.sh . 10 dev-d > d.log 2>&1 &
           wait
           cat a.log b.log c.log d.log
           echo "=== SINTESI"
-          grep -h PASSA_SP02 a.log b.log || true
+          echo "base discriminante: $(cat a.log b.log | grep -c 'BASELINE_DISCRIMINANTE=SP01,SP02') su 20"
+          echo "dev verde: $(cat c.log d.log | grep -c ' rc=0 .*PASS SP01') su 20"

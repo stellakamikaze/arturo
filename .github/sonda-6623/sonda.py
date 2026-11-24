@@ -15,18 +15,19 @@ def evento(c):
 
 def t(c):
     i = time.perf_counter()
-    p = subprocess.run([sys.executable, str(guardia)], input=evento(c), capture_output=True, text=True,
-                       encoding="utf-8", timeout=60)
-    return round(time.perf_counter() - i, 2), p.returncode, len(p.stdout)
+    try:
+        subprocess.run([sys.executable, str(guardia)], input=evento(c), capture_output=True, text=True,
+                       encoding="utf-8", timeout=90)
+    except subprocess.TimeoutExpired:
+        return 90.0
+    return round(time.perf_counter() - i, 2)
 
 
-corto = "ls -la"
-quarto = "python3 -c \"" + "print('a b c d');" * 1_312 + "\""
-lungo = "python3 -c \"" + "print('a b c d');" * 5_247 + "\""
+def comando(n):
+    return "python3 -c \"" + "print('a b c d');" * n + "\""
+
+
 for g in range(giri):
-    s, q, l = t(corto), t(quarto), t(lungo)
-    r = l[0] / max(q[0], .05)
-    netto = (l[0] - s[0]) / max(q[0] - s[0], .05)
-    esito = "PASSA_SP02" if l[0] < 8 and r < 6 else "ROSSO_SP02"
-    print(f"{etichetta} giro={g} corto={s[0]} quarto={q[0]} lungo={l[0]} rapporto={r:.1f} netto={netto:.1f} "
-          f"rc={q[1]},{l[1]} {esito}", flush=True)
+    s, q, l, tr = t("ls -la"), t(comando(1_312)), t(comando(5_247)), t(comando(15_741))
+    print(f"{etichetta} giro={g} corto={s} quarto={q} lungo={l} triplo={tr} rapporto={l / max(q, .05):.1f} "
+          f"{'TRIPLO_SOTTO_8' if tr < 8 else 'TRIPLO_OLTRE_8'}", flush=True)
