@@ -178,7 +178,14 @@ def prepara():
     except OSError:
         pass
     git("config", "core.bare", "false")
-    git("config", "core.autocrlf", "false")
+    # I fine riga seguono main: il work tree è lo stesso, scritto dal checkout di main. Su Windows Git mette
+    # core.autocrlf=true nella config di sistema e i file stanno su disco in CRLF; con false qui il ramo sync
+    # vedeva cambiato ogni file e li avrebbe spinti tutti in CRLF alle altre macchine (una macchina Windows, 24/11/2026).
+    crlf = git_main("config", "--get", "core.autocrlf")[1].strip()
+    if crlf:
+        git("config", "core.autocrlf", crlf)
+    else:
+        git("config", "--unset", "core.autocrlf")
     git("config", "status.showUntrackedFiles", "no")
     # La config di main può portare un .gitignore con questi stessi path: il ramo sync li aggiunge con -f e
     # non legge altre regole, così non finisce dentro niente che il passo di transito non abbia scelto.
@@ -290,6 +297,17 @@ def segreti(guardia, argomenti):
 
 # --- giro --------------------------------------------------------------------------------------------------
 
+def git_con_elenco(comando, paths):
+    """git <comando> con i path da un file, non nella riga di comando: su Windows la riga si ferma a 32.767
+    caratteri, e mille note fanno WinError 206 (una macchina Windows, 24/11/2026)."""
+    elenco = SYNC / "elenco-path"
+    elenco.write_bytes(b"".join(p.encode("utf-8") + b"\0" for p in paths))
+    try:
+        return git(*comando, f"--pathspec-from-file={elenco}", "--pathspec-file-nul")
+    finally:
+        elenco.unlink(missing_ok=True)
+
+
 def a_meta():
     return any((SYNC / n).is_dir() for n in ("rebase-merge", "rebase-apply"))
 
@@ -297,8 +315,8 @@ def a_meta():
 def aggiungi():
     """Mette in stage i file di transito: -f perché il .gitignore di main li nomina, e i cancellati con -u."""
     elenco = file_di_transito()
-    for i in range(0, len(elenco), 200):
-        rc, out, err = git("add", "-f", "-A", "--", *elenco[i:i + 200])
+    if elenco:
+        rc, out, err = git_con_elenco(("add", "-f", "-A"), elenco)
         if rc != 0:
             return False, ultima(err, out)
     tracciati = [p for p in percorsi() if git("ls-files", "--", p)[1].strip()]
@@ -347,7 +365,7 @@ def commit(guardia, esiti):
             continue
         # Dall'indice con un pathspec: git riprende dal disco solo questi file, e "git commit -- <path>" li
         # prende interi. Il commit della memoria va prima e porta solo i suoi path.
-        rc, out, err = git("commit", "-q", "-m", msg, "--only", "--", *paths) if memoria and resto else \
+        rc, out, err = git_con_elenco(("commit", "-q", "-m", msg, "--only"), paths) if memoria and resto else \
             git("commit", "-q", "-m", msg)
         if rc != 0:
             esiti.append(f"commit fallito: {ultima(err, out)}")
