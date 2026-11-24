@@ -120,8 +120,16 @@ def escluso(rel):
     return nome.endswith(".pyc") or any(x in RIGENERABILI for x in parti[:-1])
 
 
+def collegamenti():
+    """I path che main tiene come collegamenti simbolici (modo 120000). Su Windows Git li scrive come file di
+    testo col nome della destinazione: dentro il ramo sync diventerebbero file veri, e sul Mac il rebase si
+    fermerebbe sul collegamento vero ("impossibile scollegare l'HEAD", una macchina Windows, 24/11/2026)."""
+    out = git_main("ls-files", "-s", "-z", "--", *percorsi())[1]
+    return {r.split("\t", 1)[1] for r in out.split("\0") if r.startswith("120000 ") and "\t" in r}
+
+
 def file_di_transito():
-    """I file su disco sotto i path di transito, senza gli esclusi."""
+    """I file su disco sotto i path di transito, senza gli esclusi e senza i collegamenti simbolici."""
     out = []
     for p in percorsi():
         pieno = CL / p
@@ -132,7 +140,8 @@ def file_di_transito():
             dirs[:] = [d for d in dirs if d != ".git" and d not in RIGENERABILI]
             base = Path(cartella).relative_to(CL).as_posix()
             out += [f"{base}/{n}" for n in nomi]
-    return [x for x in dict.fromkeys(out) if not escluso(x)]
+    link = collegamenti()
+    return [x for x in dict.fromkeys(out) if not escluso(x) and x not in link and not (CL / x).is_symlink()]
 
 
 def origine():
@@ -182,7 +191,14 @@ def prepara():
     except OSError:
         pass
     git("config", "core.bare", "false")
-    git("config", "core.autocrlf", "false")
+    # I fine riga seguono main: il work tree è lo stesso, scritto dal checkout di main. Su Windows Git mette
+    # core.autocrlf=true nella config di sistema e i file stanno su disco in CRLF; con false qui il ramo sync
+    # vedeva cambiato ogni file e li avrebbe spinti tutti in CRLF alle altre macchine (una macchina Windows, 24/11/2026).
+    crlf = git_main("config", "--get", "core.autocrlf")[1].strip()
+    if crlf:
+        git("config", "core.autocrlf", crlf)
+    else:
+        git("config", "--unset", "core.autocrlf")
     git("config", "status.showUntrackedFiles", "no")
     # La config di main può portare un .gitignore con questi stessi path: il ramo sync li aggiunge con -f e
     # non legge altre regole, così non finisce dentro niente che il passo di transito non abbia scelto.
@@ -320,6 +336,17 @@ def segreti(guardia, argomenti):
 
 # --- giro --------------------------------------------------------------------------------------------------
 
+def git_con_elenco(comando, paths):
+    """git <comando> con i path da un file, non nella riga di comando: su Windows la riga si ferma a 32.767
+    caratteri, e mille note fanno WinError 206 (una macchina Windows, 24/11/2026)."""
+    elenco = SYNC / "elenco-path"
+    elenco.write_bytes(b"".join(p.encode("utf-8") + b"\0" for p in paths))
+    try:
+        return git(*comando, f"--pathspec-from-file={elenco}", "--pathspec-file-nul")
+    finally:
+        elenco.unlink(missing_ok=True)
+
+
 def a_meta():
     return any((SYNC / n).is_dir() for n in ("rebase-merge", "rebase-apply"))
 
@@ -327,8 +354,8 @@ def a_meta():
 def aggiungi():
     """Mette in stage i file di transito: -f perché il .gitignore di main li nomina, e i cancellati con -u."""
     elenco = file_di_transito()
-    for i in range(0, len(elenco), 200):
-        rc, out, err = git("add", "-f", "-A", "--", *elenco[i:i + 200])
+    if elenco:
+        rc, out, err = git_con_elenco(("add", "-f", "-A"), elenco)
         if rc != 0:
             return False, ultima(err, out)
     tracciati = [p for p in percorsi() if git("ls-files", "--", p)[1].strip()]
@@ -337,8 +364,9 @@ def aggiungi():
         if rc != 0:
             return False, ultima(err, out)
     # Un file diventato escluso (un lucchetto, una chiave) non deve restare nel ramo: fuori dall'indice, non dal disco.
+    link = collegamenti()
     for x in git("ls-files", "-z")[1].split("\0"):
-        if x and escluso(x):
+        if x and (escluso(x) or x in link):
             git("rm", "-q", "--cached", "--", x)
     return True, ""
 
@@ -377,7 +405,7 @@ def commit(guardia, esiti):
             continue
         # Dall'indice con un pathspec: git riprende dal disco solo questi file, e "git commit -- <path>" li
         # prende interi. Il commit della memoria va prima e porta solo i suoi path.
-        rc, out, err = git("commit", "-q", "-m", msg, "--only", "--", *paths) if memoria and resto else \
+        rc, out, err = git_con_elenco(("commit", "-q", "-m", msg, "--only"), paths) if memoria and resto else \
             git("commit", "-q", "-m", msg)
         if rc != 0:
             esiti.append(f"commit fallito: {ultima(err, out)}")
@@ -431,8 +459,36 @@ def push(esiti):
         (SYNC / "ultimo-push").write_text(f"{time.time()}\n", encoding="utf-8")
     except OSError:
         pass
+    segna_fetch()  # il push ha appena fatto fetch e rebase: l'entrata riparte da qui
     esiti.append("push riuscito")
     return 0
+
+
+def segna_fetch():
+    try:
+        (SYNC / "ultimo-fetch").write_text(f"{time.time()}\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def secondi_dall_ultimo_fetch():
+    try:
+        return time.time() - float((SYNC / "ultimo-fetch").read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return 1e9
+
+
+def entrata(esiti):
+    """I dati delle altre macchine, anche senza niente da spingere (24/11/2026): ogni SYNC_TRANSITO_ENTRATA
+    secondi (300) un fetch e un rebase del ramo sync. Prima arrivavano solo col push di questa macchina o col
+    pull della config, e una macchina ferma restava indietro. Un giro dentro i 5 minuti non tocca la rete."""
+    if secondi_dall_ultimo_fetch() < float(os.environ.get("SYNC_TRANSITO_ENTRATA") or 300):
+        return 0
+    suoi = []
+    rc = aggiorna(suoi)
+    segna_fetch()
+    esiti += [e for e in suoi if "già allineato" not in e and "non ancora su origin" not in e]
+    return rc
 
 
 def secondi_dall_ultimo_push():
@@ -509,6 +565,11 @@ def giro():
             esiti.append("push al prossimo minuto")
         else:
             rc = push(esiti)
+            if rc:
+                print("sync: " + " · ".join(esiti))
+                return rc
+        if spingibile and git("rev-list", "--count", f"origin/{RAMO}..HEAD")[1].strip() in ("", "0"):
+            rc = entrata(esiti)
             if rc:
                 print("sync: " + " · ".join(esiti))
                 return rc
