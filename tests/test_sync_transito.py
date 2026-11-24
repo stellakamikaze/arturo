@@ -83,7 +83,7 @@ class Macchina:
     def scrivi(self, rel, testo):
         p = self.cl / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(testo, encoding="utf-8")
+        p.write_text(testo, encoding="utf-8", newline="\n")  # LF su ogni sistema: a fa da Mac, solo b scrive CRLF (ST18)
 
     def lancia(self, *a, env=None):
         return subprocess.run([sys.executable, str(SCRIPT), *a], capture_output=True, text=True,
