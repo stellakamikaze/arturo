@@ -176,6 +176,10 @@ class Banco:
                     "GIT_TERMINAL_PROMPT": "0", "ARTURO_ALTRE_SESSIONI": "0", "ARTURO_CATALOGO": str(self.catalogo)}
         for variabile in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PLUGIN_DATA", "ARTURO_CODICE", "ARTURO_RADICE"):
             self.env.pop(variabile, None)
+        if os.name == "nt":
+            # Su Windows Path.home() legge USERPROFILE: migra.corto accorcia con ~ e barre dritte solo i percorsi
+            # sotto la casa, e la casa della persona è quella che contiene ~/.claude (gate 45365302535, #6455).
+            self.env["USERPROFILE"] = str(self.casa)
 
     def rilascio(self, versione: str, firmato: bool = True, giorni: int = 90) -> str:
         """Il pacchetto del plugin generato da `up`, con cleanupPeriodDays a `giorni`, e il suo tag."""
@@ -530,9 +534,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
             "uscita 0": p.returncode == 0,
             "stato del clone via": not stato_clone.exists(),
             "copia con .git e bin/arturo": (copia / "copia" / ".git").is_dir() and (copia / "copia" / "bin" / "arturo").is_file()
-            and (copia / "codice" / "bin" / "migra.py").is_file()
-            # su Windows il percorso del comando esce con le barre rovesciate: codice\bin\arturo
-            and "codice/bin/arturo migra indietro" in p.stdout.replace("\\", "/"),
+            and (copia / "codice" / "bin" / "migra.py").is_file() and "codice/bin/arturo migra indietro" in p.stdout,
             "personale/inizio.md": personale.is_file() and RIGA_MIA.strip() in personale.read_text(encoding="utf-8"),
             "plugin allo sha": voce.get("gitCommitSha") == sha,
             "hook di Arturo tolti": di_arturo == [HOOK_MIO],
