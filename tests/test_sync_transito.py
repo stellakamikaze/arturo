@@ -25,6 +25,9 @@ ST18 fine riga di Windows (una macchina Windows, 24/11/2026): main ha core.autoc
      Agganciata al ramo, la macchina non vede cambiato nessun file, e sul ramo non entra nessun CR.
 ST19 mille note con nomi lunghi e un handoff nello stesso giro: il commit non passa i path nella riga di comando,
      che su Windows si ferma a 32.767 caratteri (WinError 206). Un git finto rifiuta le righe oltre 30.000.
+ST20 un collegamento simbolico di main (data/handoffs/link -> volta): la macchina Windows lo ha su disco come
+     file di testo e non lo mette nel ramo; se c'era già entrato, il giro lo toglie. L'altra macchina, col
+     collegamento vero su disco, riceve il ramo senza conflitto nel rebase.
 ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
      dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
 
@@ -414,6 +417,38 @@ def st19(tmp):
         return f"rc={r.returncode} commit {n}->{m.commit_sync()} {r.stdout.strip()[-300:]!r}"
 
 
+def st20(tmp):
+    if os.name == "nt":
+        return None  # os.symlink su Windows chiede privilegi; il caso Windows qui si simula con core.symlinks
+    origin = coppia(tmp)
+    a = Macchina(tmp, "a", origin)
+    a.scrivi("data/handoffs/volta/H.md", "h\n")
+    os.symlink("volta", a.cl / "data/handoffs/link")
+    a.lancia("--migra")
+    b = Macchina(tmp, "b", origin)
+    sh(b.cl, "git", "config", "core.symlinks", "false")
+    b.scrivi("data/handoffs/volta/H.md", "h\n")
+    b.scrivi("data/handoffs/link", "volta")
+    blob = sh(b.cl, "git", "hash-object", "-w", "data/handoffs/link")
+    sh(b.cl, "git", "update-index", "--add", "--cacheinfo", f"120000,{blob},data/handoffs/link")
+    sh(b.cl, "git", "commit", "-q", "-m", "collegamento")
+    b.lancia("--migra", env=dict(b.env, SYNC_TRANSITO_MINUTO="0"))
+    # Lo stato di prima della correzione: il file di testo è già entrato nel ramo e sta su origin.
+    b.sync("add", "-f", "data/handoffs/link")
+    b.sync("commit", "-q", "-m", "come su Windows prima della correzione")
+    b.sync("push", "-q", "origin", "HEAD:sync")
+    b.scrivi("data/handoffs/volta/H2.md", "da b\n")
+    r = b.lancia("--giro", env=dict(b.env, SYNC_TRANSITO_MINUTO="0"))
+    albero = sh(tmp, "git", f"--git-dir={origin}", "ls-tree", "-r", "--name-only", "sync")
+    if r.returncode != 0 or "data/handoffs/link" in albero.split("\n"):
+        return f"b: rc={r.returncode} link nel ramo={'data/handoffs/link' in albero.split(chr(10))} " \
+               f"{r.stdout.strip()[-300:]!r}"
+    r = a.lancia("--giro", env=dict(a.env, SYNC_TRANSITO_ENTRATA="0"))
+    if r.returncode != 0 or not (a.cl / "data/handoffs/link").is_symlink() \
+            or not (a.cl / "data/handoffs/volta/H2.md").exists():
+        return f"a: rc={r.returncode} {r.stdout.strip()[-300:]!r}{r.stderr.strip()[-200:]!r}"
+
+
 def st16(tmp):
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
@@ -496,7 +531,7 @@ def fy03(tmp):
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
-        ("ST18", st18), ("ST19", st19),
+        ("ST18", st18), ("ST19", st19), ("ST20", st20),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
 
 
