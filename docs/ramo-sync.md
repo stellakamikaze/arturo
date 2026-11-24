@@ -2,7 +2,7 @@
 
 Questa pagina dice perché handoff, stati dei progetti e memoria stanno su un ramo a parte, `sync`, e come
 un computer passa a quel ramo. Vale per chi tiene `~/.claude` come repository privato su GitHub e lo usa su
-più computer. Il codice sta in `bin/sync_transito.py`, il banco in `tests/test_sync_transito.py` (ST01-ST16).
+più computer. Il codice sta in `bin/sync_transito.py`, il banco in `tests/test_sync_transito.py` (ST01-ST24).
 
 ## Perché un ramo a parte (D5, 22/11/2026)
 
@@ -57,9 +57,14 @@ di passaggio vanno sul ramo `sync`.
   altro file, prende la versione scritta per ultimo, secondo la data d'autore del commit. La versione che
   perde resta nella storia del ramo. Prima il giro usciva 4 a ogni minuto: il 24/11 un Mac ha tenuto fermi
   20 commit. Caso ST21 del banco.
-- **Un blocco lungo si segnala.** Se il giro esce 4 per altri motivi, `.git-sync/bloccato-dal` tiene l'ora
-  del primo giro fermo. Dopo 10 minuti il giro stampa una volta sola la riga `AVVISO:`, e `--stato` dice
-  `BLOCCATO`. Il primo giro riuscito toglie il segno. Caso ST22.
+- **Un file coi segni di conflitto si ferma** (24/11/2026). Se fra le righe nuove di un file ci sono le righe
+  `<<<<<<<` e `>>>>>>>`, di solito lasciate da un merge fermo a metà, il commit non parte (exit 4) e il giro
+  nomina il file. Spinto, il file rotto arriverebbe a tutte le macchine: `stati.json` non si leggerebbe più.
+  Una riga `=======` da sola passa, perché in Markdown è un titolo. Caso ST23.
+- **Un blocco lungo si segnala.** Se il giro esce 4, 6 o 7, oppure trova un rebase di `main` lasciato a metà,
+  `.git-sync/bloccato-dal` tiene l'ora del primo giro fermo. Dopo 10 minuti il giro stampa una volta sola la
+  riga `AVVISO:` col motivo, e `--stato` dice `BLOCCATO`. Il primo giro riuscito toglie il segno. Col rebase
+  di `main` a metà il giro esce 0 lo stesso, perché la coda di `/fine` non si fermi. Casi ST22 e ST24.
 
 ## Chi lancia cosa
 
@@ -68,7 +73,7 @@ di passaggio vanno sul ramo `sync`.
 giro ogni minuto (facoltativo)       sync_transito.py --giro        lo stesso, senza aspettare /fine
 pull della config, prima             sync_transito.py --prima-del-pull main
 pull della config, dopo              sync_transito.py --dopo-il-pull <HEAD di main prima del pull>
-a mano                               sync_transito.py --stato       commit non spinti, ultimo push, lucchetto
+a mano                               sync_transito.py --stato       commit non spinti, ultimo push, lucchetto, blocco
 ```
 
 - **`/fine`.** Sui computer che hanno `.git-sync`, la coda di `/fine` lascia fuori dal commit su `main`
