@@ -31,6 +31,10 @@ ST20 un collegamento simbolico di main (data/handoffs/link -> volta): la macchin
 ST21 due macchine cambiano la stessa nota e lo stesso handoff (24/11/2026): il giro della seconda non si ferma.
      La nota tiene le righe di tutte e due, l'handoff la versione scritta per ultimo, anche se è quella dell'altra.
 ST22 un giro fermo (exit 4) da più di 10 minuti stampa AVVISO una volta sola; il primo giro riuscito toglie il segno.
+ST23 un file con le righe <<<<<<< e >>>>>>> (stati.json dopo un merge fermo, #5528): exit 4, niente commit e
+     niente push, lo stage vuoto. Un titolo Markdown con ======= passa. Tolti i segni, il giro riparte.
+ST24 anche una chiave nello stage (exit 7) e un rebase di main a metà (exit 0) contano come blocco: dopo 10
+     minuti l'AVVISO col motivo, senza il valore della chiave; il primo giro riuscito toglie il segno (#6566).
 ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
      dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
 
@@ -508,6 +512,63 @@ def st22(tmp):
         return f"giro riuscito: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
 
 
+def st23(tmp):
+    origin = coppia(tmp)
+    m = Macchina(tmp, "m", origin)
+    m.scrivi("data/memory/titolo.md", "Titolo\n=======\n")
+    m.scrivi("data/progetti/stati.json", '{"a": 1}\n')
+    m.lancia("--migra")
+    n = m.commit_sync()
+    m.scrivi("data/memory/titolo.md", "Titolo nuovo\n=======\n")
+    r = m.lancia("--giro", env=dict(m.env, SYNC_TRANSITO_MINUTO="0"))
+    if r.returncode != 0 or m.commit_sync() != n + 1:
+        return f"un titolo Markdown con ======= fermato: rc={r.returncode} {r.stdout!r}"
+    rotto = '<<<<<<< Updated upstream\n{"a": 2}\n=======\n{"a": 3}\n>>>>>>> Stashed changes\n'
+    m.scrivi("data/progetti/stati.json", rotto)
+    r = m.lancia("--giro", env=dict(m.env, SYNC_TRANSITO_MINUTO="0"))
+    remoto = sh(tmp, "git", f"--git-dir={origin}", "show", "sync:data/progetti/stati.json")
+    if r.returncode != 4 or "segni di conflitto" not in r.stdout or "stati.json" not in r.stdout \
+            or m.commit_sync() != n + 1 or "<<<<<<<" in remoto or m.sync("diff", "--cached", "--name-only"):
+        return f"segni passati: rc={r.returncode} commit {n + 1}->{m.commit_sync()} remoto={remoto!r} {r.stdout!r}"
+    m.scrivi("data/progetti/stati.json", '{"a": 3}\n')
+    r = m.lancia("--giro", env=dict(m.env, SYNC_TRANSITO_MINUTO="0"))
+    if r.returncode != 0 or m.commit_sync() != n + 2:
+        return f"dopo la correzione: rc={r.returncode} {r.stdout!r}"
+
+
+def st24(tmp):
+    m = Macchina(tmp, "m", coppia(tmp))
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "uno\n")
+    m.lancia("--migra")
+    segno = m.cl / ".git-sync" / "bloccato-dal"
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", f"chiave {TOKEN}\n")
+    r = m.lancia("--giro")
+    if r.returncode != 7 or not segno.exists():
+        return f"segreto: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
+    segno.write_text(f"{time.time() - 700}\n", encoding="utf-8")
+    r = m.lancia("--giro")
+    if "AVVISO" not in r.stdout or "una chiave" not in r.stdout or TOKEN in r.stdout:
+        return f"segreto, dopo 11 minuti: rc={r.returncode} {r.stdout!r}"
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "due\n")
+    r = m.lancia("--giro")
+    if r.returncode != 0 or segno.exists():
+        return f"segreto tolto: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
+    (m.cl / ".git" / "rebase-merge").mkdir()
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "tre\n")
+    n = m.commit_sync()
+    r = m.lancia("--giro")
+    if r.returncode != 0 or not segno.exists() or m.commit_sync() != n:
+        return f"rebase di main: rc={r.returncode} segno={segno.exists()} commit {n}->{m.commit_sync()} {r.stdout!r}"
+    segno.write_text(f"{time.time() - 700}\n", encoding="utf-8")
+    r = m.lancia("--giro")
+    if r.returncode != 0 or "AVVISO" not in r.stdout or "rebase di main" not in r.stdout:
+        return f"rebase di main, dopo 11 minuti: rc={r.returncode} {r.stdout!r}"
+    shutil.rmtree(m.cl / ".git" / "rebase-merge")
+    r = m.lancia("--giro")
+    if r.returncode != 0 or segno.exists() or m.commit_sync() != n + 1:
+        return f"rebase chiuso: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
+
+
 def st16(tmp):
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
@@ -591,6 +652,7 @@ CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05",
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
         ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22),
+        ("ST23", st23), ("ST24", st24),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
 
 
