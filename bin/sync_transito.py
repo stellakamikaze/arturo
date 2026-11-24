@@ -11,7 +11,7 @@ Uso:
   sync_transito.py --giro        commit raggruppato dei path di transito, poi il push se è passato il minuto
   sync_transito.py --subito      come --giro: lo chiama la coda di /fine a fine corsa
   sync_transito.py --migra       crea .git-sync e il ramo sync (con --prova stampa soltanto, non scrive)
-  sync_transito.py --stato       una riga: commit locali non spinti, ultimo push, lucchetto
+  sync_transito.py --stato       una riga: commit locali non spinti, ultimo push, lucchetto, blocco
   sync_transito.py --prima-del-pull [main]    prima del pull di main: commit dei path di transito e segno
                                               "pull in corso", che ferma i giri fino al passo dopo. Se il
                                               pull toglie path di transito cambiati qui, tornano alla copia
@@ -28,6 +28,10 @@ Un giro senza commit nuovi né commit da spingere non tocca la rete.
 Prima del commit la guardia dei segreti (hooks/commit-secret-gate.py) legge le righe nuove: una chiave trovata
 ferma il giro (exit 7), e il file la nomina senza mostrare il valore. Più di 25 file cancellati in un giro
 fermano il commit (exit 4): di solito è un pull di main fatto a mano, che toglie dal disco i path di transito.
+
+Un conflitto nel rebase si risolve da solo (24/11/2026): una nota di data/memory tiene le righe di tutte e due le
+versioni, un handoff e ogni altro file la versione scritta per ultimo. Un giro fermo da 10 minuti stampa una volta
+la riga AVVISO.
 
 Exit: 0 fatto o niente da fare · 4 rebase a metà, conflitto o troppe cancellazioni: il ramo sync resta com'era
 · 5 uso sbagliato · 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
@@ -414,11 +418,83 @@ def commit(guardia, esiti):
     return 0
 
 
+def piu_nuovo(rel):
+    """Nel rebase "ours" (stadio 2) è origin/sync, "theirs" (stadio 3) il commit locale che si riapplica. Vince
+    quello scritto per ultimo: conta la data d'autore, che il rebase non cambia. A pari data vince il locale."""
+    mio = git("log", "-1", "--format=%at", "REBASE_HEAD")[1].strip()
+    loro = git("log", "-1", "--format=%at", "HEAD", "--", rel)[1].strip()
+    try:
+        return 2 if int(loro) > int(mio) else 3
+    except ValueError:
+        return 3
+
+
+def unione_righe(base, a, b):
+    """Le righe di tutte e due le versioni (git merge-file --union), o None se git non le sa unire (binari)."""
+    with tempfile.TemporaryDirectory(prefix="sync-rebase-") as d:
+        fo, fa, fb = (Path(d) / n for n in ("base", "a", "b"))
+        fo.write_bytes(base or b"")
+        fa.write_bytes(a)
+        fb.write_bytes(b)
+        p = subprocess.run(["git", "merge-file", "-q", "--union", str(fa), str(fo), str(fb)],
+                           capture_output=True, timeout=60)
+        return fa.read_bytes() if p.returncode >= 0 else None
+
+
+def risolvi(rel):
+    """Un file in conflitto nel rebase, senza persona davanti (24/11/2026, scelta di Federico). Una nota di
+    data/memory tiene le righe di tutte e due le versioni, e qualche riga può uscire doppia; se una versione l'ha
+    cancellata e l'altra cambiata, resta la cambiata. Un handoff, e ogni altro file, prende la versione scritta per
+    ultimo. La versione che perde resta nella storia del ramo. (ok, come)."""
+    stadi = {n: blob([f"--git-dir={SYNC}"], f":{n}:{rel}") for n in (1, 2, 3)}
+    unito = None
+    if rel.startswith("data/memory/"):
+        if stadi[2] is not None and stadi[3] is not None:
+            unito = unione_righe(stadi[1], stadi[2], stadi[3])
+            come = "righe unite"
+        else:
+            unito = stadi[2] if stadi[2] is not None else stadi[3]
+            come = "tenuta la versione cambiata"
+    if unito is None:
+        unito = stadi[piu_nuovo(rel)]
+        come = "tenuta la più recente"
+    pieno = CL / rel
+    if unito is None:
+        pieno.unlink(missing_ok=True)
+        return git("rm", "-q", "--cached", "--ignore-unmatch", "--", rel)[0] == 0, "cancellato"
+    pieno.parent.mkdir(parents=True, exist_ok=True)
+    pieno.write_bytes(unito)
+    return git("add", "-f", "--", rel)[0] == 0, come
+
+
 def fai_rebase():
-    """Il ramo locale sopra origin/sync. (ok, perché non). In conflitto torna com'era."""
+    """Il ramo locale sopra origin/sync. (ok, nota). Un conflitto si risolve da solo con risolvi(): prima il giro
+    si fermava per sempre, e il 24/11/2026 il Mac ha tenuto fermi 20 commit. Se il rebase si ferma per altro, o
+    un file non si risolve, torna com'era."""
     rc, out, err = git("rebase", f"origin/{RAMO}", timeout=180)
-    if rc == 0:
-        return True, ""
+    risolti = []
+    for _ in range(500):
+        if rc == 0 or not a_meta():
+            break
+        conflitti = [p for p in git("diff", "--name-only", "--diff-filter=U", "-z")[1].split("\0") if p]
+        if not conflitti:
+            break
+        for rel in conflitti:
+            ok, come = risolvi(rel)
+            if not ok:
+                break
+            risolti.append(f"{rel} ({come})")
+        else:
+            # Un commit che dopo la scelta non cambia più niente si salta: --continue lo rifiuterebbe.
+            passo = "--skip" if git("diff", "--cached", "--quiet", "HEAD")[0] == 0 else "--continue"
+            rc, out, err = git("-c", "core.editor=true", "rebase", passo, timeout=180)
+            continue
+        break
+    if rc == 0 and not a_meta():
+        if not risolti:
+            return True, ""
+        return True, f"{len(risolti)} conflitti risolti da soli: " + ", ".join(risolti[:3]) + \
+            (" e altri" if len(risolti) > 3 else "")
     git("rebase", "--abort")
     return False, f"conflitto nel rebase su origin/{RAMO}: {ultima(err, out)}"
 
@@ -440,16 +516,18 @@ def push(esiti):
             return 0
         if git("merge-base", "--is-ancestor", f"origin/{RAMO}", "HEAD")[0] != 0:
             ok, perche = fai_rebase()
-            if not ok:
+            if perche:
                 esiti.append(perche)
+            if not ok:
                 return 4
     rc, out, err = git("push", "-q", "origin", f"HEAD:{RAMO}", timeout=90)
     if rc != 0:
         # Un altro processo ha spinto fra il fetch e il push: un secondo giro di rebase.
         git("fetch", "-q", "origin", RAMO, timeout=90)
         ok, perche = fai_rebase()
-        if not ok:
+        if perche:
             esiti.append(perche)
+        if not ok:
             return 4
         rc, out, err = git("push", "-q", "origin", f"HEAD:{RAMO}", timeout=90)
         if rc != 0:
@@ -529,7 +607,48 @@ def aspetta_lucchetto(secondi=30):
         time.sleep(0.5)
 
 
+BLOCCO_AVVISO = 600  # secondi di giri fermi prima della riga AVVISO
+_GIRO_FATTO = False
+
+
+def segna_blocco(rc):
+    """Da quando il giro esce 4 (rebase non risolto, troppe cancellazioni): .git-sync/bloccato-dal tiene l'ora del
+    primo giro fermo. Oltre BLOCCO_AVVISO stampa una volta sola la riga AVVISO, che la config gira alla persona.
+    Il primo giro riuscito toglie il segno."""
+    f = SYNC / "bloccato-dal"
+    if rc != 4:
+        if rc == 0:
+            f.unlink(missing_ok=True)
+        return
+    try:
+        parti = f.read_text(encoding="utf-8").split()
+        dal, avvisato = float(parti[0]), len(parti) > 1
+    except (OSError, ValueError, IndexError):
+        dal, avvisato = time.time(), False
+    minuti = int((time.time() - dal) // 60)
+    if minuti >= 1:
+        print(f"sync: bloccato da {minuti} minuti")
+    if time.time() - dal >= BLOCCO_AVVISO and not avvisato:
+        print(f"AVVISO: il ramo sync di questa macchina è fermo da {minuti} minuti e le note non partono. "
+              f"Guarda data/logs/sync-transito.log.")
+        avvisato = True
+    try:
+        f.write_text(f"{dal}{' avvisato' if avvisato else ''}\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def giro():
+    global _GIRO_FATTO
+    _GIRO_FATTO = False
+    rc = _giro()
+    if _GIRO_FATTO:
+        segna_blocco(rc)
+    return rc
+
+
+def _giro():
+    global _GIRO_FATTO
     if not migrato():
         return 0
     if pull_in_corso() or any((CL / ".git" / n).is_dir() for n in ("rebase-merge", "rebase-apply")):
@@ -542,6 +661,7 @@ def giro():
     if lucchetto is None:
         print("sync: un altro giro tiene il lucchetto, riprovo al prossimo minuto")
         return 0
+    _GIRO_FATTO = True
     esiti = []
     try:
         prepara()
@@ -682,8 +802,9 @@ def aggiorna(esiti):
         return 0
     prima = git("rev-parse", "HEAD")[1].strip()
     ok, perche = fai_rebase()
-    if not ok:
+    if perche:
         esiti.append(perche)
+    if not ok:
         return 4
     n = git("rev-list", "--count", f"{prima}..HEAD")[1].strip() if prima else "?"
     esiti.append(f"ramo {RAMO} aggiornato ({n} commit arrivati)")
@@ -816,7 +937,8 @@ def stato():
     avanti = git("rev-list", "--count", f"origin/{RAMO}..HEAD")[1].strip() or "?"
     eta = secondi_dall_ultimo_push()
     print(f"sync: {avanti} commit non spinti · ultimo push "
-          f"{'mai' if eta > 1e8 else str(int(eta)) + ' s fa'} · lucchetto {'preso' if file_lucchetto().exists() else 'libero'}")
+          f"{'mai' if eta > 1e8 else str(int(eta)) + ' s fa'} · lucchetto {'preso' if file_lucchetto().exists() else 'libero'}"
+          f"{' · BLOCCATO, guarda data/logs/sync-transito.log' if (SYNC / 'bloccato-dal').exists() else ''}")
     return 0
 
 
