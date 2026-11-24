@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-24 — Le shell rimaste accese si chiudono all'avvio
+
+**Cosa cambia**: all'avvio di ogni sessione Arturo cerca le shell dei comandi di Claude che non hanno più una sessione dietro, e le chiude. Scrive cosa ha chiuso in `~/.claude/data/logs/shell-orfane.log`.
+- Tocca solo le shell di Claude (quelle con `shell-snapshots` nel comando) con almeno 2 minuti di vita e senza una sessione di Claude per padre. Le shell delle sessioni aperte restano.
+- Una shell che deve restare accesa porta nel comando il segno `arturo:tieni`.
+- `python3 ~/.claude/bin/shell-orfane.py elenca` mostra cosa chiuderebbe, senza chiudere niente.
+- `/fine` ferma le shell in background della sessione, e un'attesa che deve continuare diventa un todo con la data o un job di `bgjob.sh`.
+
+**Perché**: quando una sessione si chiude, Claude Code lascia accese le shell lanciate in background. Su un Mac, in 11 giorni, erano 23: cicli d'attesa via ssh fino a sera, server di prova, ricerche su disco. Una leggeva un log su un altro computer ogni 15 minuti per 16 ore, e il suo esito non lo leggeva più nessuno.
+
+**A chi serve**: a chi fa aspettare a Claude un lavoro lungo, su questo computer o su un altro. Su Windows non cambia niente.
+
+---
+
 ## 2026-11-24 — Claude non si ferma su un passo suo
 
 **Cosa cambia**: a fine turno Arturo legge l'ultima risposta di Claude. Se dice che il passo dopo è di Claude ("il prossimo passo è mio", "Prossimo passo: ... (io)"), e non c'è una domanda per te, Claude continua da solo nello stesso turno.

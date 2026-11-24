@@ -77,6 +77,10 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'artur
   printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
     "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
+# Le shell in background di una sessione chiusa restano accese: Claude Code non le spegne (24/11/2026, 23 su
+# un Mac in 11 giorni). bin/shell-orfane.py chiude quelle senza più una sessione di Claude per padre, e scrive
+# cosa ha chiuso in data/logs/shell-orfane.log. Staccata e muta: l'avvio non la aspetta. Su Windows non fa niente.
+[ -f "$ARTURO_CODICE/bin/shell-orfane.py" ] && ( python3 "$ARTURO_CODICE/bin/shell-orfane.py" chiudi </dev/null >/dev/null 2>&1 & )
 # Una sessione aperta dal demone di `claude --bg` eredita il PATH minimo di launchd
 # (/usr/bin:/bin:/usr/sbin:/sbin), senza Homebrew: node, npm e gh sembrano mancare anche se ci sono
 # (15/11/2026). Le cartelle che esistono e mancano dal PATH entrano in coda, dopo quelle di sistema,
