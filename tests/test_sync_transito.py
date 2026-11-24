@@ -21,6 +21,10 @@ ST14 più di 25 file cancellati in un giro: exit 4, niente commit; con SYNC_TRAN
 ST15 un giro senza niente di nuovo non tocca la rete: con origin irraggiungibile esce 0 senza errori.
 ST16 la seconda macchina si aggancia senza un handoff che il ramo ha: non lo cancella dal ramo e lo riprende
      su disco; un file cambiato solo sul ramo vince, uno cambiato da tutte e due le parti si fonde.
+ST18 fine riga di Windows (una macchina Windows, 24/11/2026): main ha core.autocrlf=true e le note stanno su disco in CRLF.
+     Agganciata al ramo, la macchina non vede cambiato nessun file, e sul ramo non entra nessun CR.
+ST19 mille note con nomi lunghi e un handoff nello stesso giro: il commit non passa i path nella riga di comando,
+     che su Windows si ferma a 32.767 caratteri (WinError 206). Un git finto rifiuta le righe oltre 30.000.
 ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
      dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
 
@@ -362,6 +366,54 @@ def st17(tmp):
         return f"dopo i 5 minuti: rc={r.returncode} nota={nota.exists()} {r.stdout!r}{r.stderr!r}"
 
 
+def st18(tmp):
+    origin = coppia(tmp)
+    a = Macchina(tmp, "a", origin)
+    for i in range(5):
+        a.scrivi(f"data/memory/nota-{i}.md", f"riga uno {i}\nriga due\n")
+    a.lancia("--migra")
+    b = Macchina(tmp, "b", origin)
+    sh(b.cl, "git", "config", "core.autocrlf", "true")
+    for i in range(5):
+        p = b.cl / f"data/memory/nota-{i}.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(f"riga uno {i}\r\nriga due\r\n".encode())
+    r = b.lancia("--migra", env=dict(b.env, SYNC_TRANSITO_MINUTO="0"))
+    cambiati = b.sync("status", "--short")
+    blob = sh(tmp, "git", f"--git-dir={origin}", "show", "sync:data/memory/nota-0.md", env=None)
+    cr = subprocess.run(["git", f"--git-dir={origin}", "show", "sync:data/memory/nota-0.md"],
+                        capture_output=True).stdout
+    con_cr = b"\r" in cr
+    if r.returncode != 0 or cambiati or con_cr or "riga uno 0" not in blob or b.commit_sync() != a.commit_sync():
+        return f"rc={r.returncode} cambiati={cambiati!r} cr={con_cr} commit a={a.commit_sync()} " \
+               f"b={b.commit_sync()} {r.stdout.strip()[-300:]!r}"
+
+
+def st19(tmp):
+    if os.name == "nt":
+        return None  # il git finto è uno script sh; su Windows il limite vero lo prova una macchina Windows
+    vero = shutil.which("git")
+    finto = tmp / "bin"
+    finto.mkdir()
+    (finto / "git").write_text(
+        "#!/bin/sh\n"
+        "n=$(printf '%s' \"$*\" | wc -c)\n"
+        "if [ \"$n\" -gt 30000 ]; then echo \"riga di comando di $n caratteri (WinError 206)\" >&2; exit 1; fi\n"
+        f"exec '{vero}' \"$@\"\n", encoding="utf-8")
+    (finto / "git").chmod(0o755)
+    m = Macchina(tmp, "m", coppia(tmp))
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "uno\n")
+    m.lancia("--migra")
+    lungo = "nota-con-un-nome-lungo-come-quelli-veri-della-memoria-di-melchior-e-dei-suoi-progetti"
+    for i in range(1000):
+        m.scrivi(f"data/memory/{lungo}-{i:04d}.md", f"nota {i}\n")
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "uno, cambiato\n")
+    n = m.commit_sync()
+    r = m.lancia("--giro", env=dict(m.env, PATH=f"{finto}{os.pathsep}{os.environ['PATH']}"))
+    if r.returncode != 0 or m.commit_sync() != n + 2 or m.sync("status", "--short"):
+        return f"rc={r.returncode} commit {n}->{m.commit_sync()} {r.stdout.strip()[-300:]!r}"
+
+
 def st16(tmp):
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
@@ -444,6 +496,7 @@ def fy03(tmp):
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
+        ("ST18", st18), ("ST19", st19),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
 
 
