@@ -945,7 +945,8 @@ export function validaSito(dati) {
 // Gli avvisi su Telegram: secret TELEGRAM_TOKEN e TELEGRAM_CHAT. Senza, non parte niente. Sta qui e non in worker.js
 // (24/10/2026), perché worker.js importa cloudflare:email e node non lo carica: così test.mjs prova che una risposta
 // di Telegram che non è ok diventa un errore (V43), che consegna() conta in "telegram-ko". Prima finiva solo nel log
-// del Worker, che nessuno legge. `chiama` è fetch, o quello finto del banco.
+// del Worker, che nessuno legge. `chiama` è fetch, o quello finto del banco. Dal 24/11/2026 Telegram ha 5 secondi:
+// oltre, la chiamata si interrompe e consegna() la conta in "telegram-ko" come ogni altro invio fallito.
 export function avvisoTelegram(env, chiama = (...a) => fetch(...a)) {
   return async (testo) => {
     if (!env.TELEGRAM_TOKEN || !env.TELEGRAM_CHAT) return;
@@ -953,6 +954,7 @@ export function avvisoTelegram(env, chiama = (...a) => fetch(...a)) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT, text: testo, disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(5000),
     });
     const esito = await r.json().catch(() => ({}));
     if (!esito.ok) throw new Error(`Telegram ha risposto ${r.status}`);
@@ -992,8 +994,10 @@ async function spedisci(archivio, posta, messaggio, adesso) {
 // richiesta va oltre. Senza binding, come nei test e in un fork che non lo configura, lascia passare.
 // `versione` è VERSIONE_SERVER del Worker: lo sha che stampa server/versione.sh al deploy (revisione del 22/11/2026, A4).
 // GET / lo dice, e firma-rilascio-arturo.sh lo legge per fermarsi se il rilascio porta un server/ più nuovo.
+// `dopo(promessa)` è ctx.waitUntil del Worker (24/11/2026): i campanelli del sito (feedback e download) partono
+// dopo la risposta, e chi invia non aspetta Telegram. Senza `dopo`, come nei test, il campanello si aspetta.
 export async function gestisci(request, { archivio, posta, avviso = async () => {}, adesso = new Date(), token,
-  limite = async () => true, leggi = "", versione = "" }) {
+  limite = async () => true, leggi = "", versione = "", dopo = null }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
     const v = /^[0-9a-f]{7,40}$/.test(versione) ? versione : "sconosciuta";
@@ -1215,7 +1219,10 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
       return fine(429, { errore: "troppi messaggi oggi" }, "troppi");
     }
     const numero = await archivio.salvaFeedback(feedback, adesso.toISOString());
-    await telegram(avvisoFeedback(feedback, numero));
+    // consegna() non rifiuta mai: la promessa passata a dopo() non lascia errori in giro.
+    const campanello = telegram(avvisoFeedback(feedback, numero));
+    if (dopo) dopo(campanello);
+    else await campanello;
     return fine(201, { numero }, "inviato");
   }
 
@@ -1229,7 +1236,11 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     const { evento, motivo } = validaSito(dati);
     if (motivo) return risposta(400, { errore: motivo });
     const n = await archivio.incrementa(giorno, `sito:${evento.tipo}`);
-    if (n <= LIMITI.sitoPerGiorno) await telegram(avvisoSito(evento, n));
+    if (n <= LIMITI.sitoPerGiorno) {
+      const campanello = telegram(avvisoSito(evento, n));
+      if (dopo) dopo(campanello);
+      else await campanello;
+    }
     return risposta(202, { ricevuto: true });
   }
 
