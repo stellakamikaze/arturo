@@ -404,7 +404,9 @@ def sc11(lab: Lab) -> str:
     indice = lab.cl / "data" / "scoperta" / "indice.jsonl"
     indice.parent.mkdir(parents=True, exist_ok=True)
     ieri = (dt.datetime.now() - dt.timedelta(days=1)).isoformat(timespec="seconds")
-    indice.write_text(json.dumps({"ora": ieri, "sessione": "sessione-altra-00", "percorso": str(progetto / "note.md"),
+    # Il percorso come lo scrive l'hook (scoperta.normalizza): su Windows con le barre dritte, o non combacia mai.
+    nota = os.path.normpath(str(progetto / "note.md")).replace(os.sep, "/")
+    indice.write_text(json.dumps({"ora": ieri, "sessione": "sessione-altra-00", "percorso": nota,
                                   "strumento": "Edit", "piu": 1, "meno": 1, "campi": ["stato"]}) + "\n", encoding="utf-8")
     r = lab.lancia(str(lab.cl / "bin" / "arturo"), "scoperta", "impronta", "--cartella", str(progetto), sessione=sid)
     if "impronta di 2 file" not in r.stdout:

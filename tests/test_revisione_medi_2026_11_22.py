@@ -24,9 +24,11 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import cartella_prova  # noqa: E402
 
 CASI = ["RM04", "RM05", "RM06", "RM07", "RM08", "RM09", "RM10"]
 DISCRIMINANTI = list(CASI)
@@ -268,7 +270,8 @@ def rm10(repo: Path, tmp: Path) -> list:
 def prova(repo: Path) -> list:
     rossi = []
     for caso in (rm04, rm05, rm06, rm07, rm08, rm09, rm10):
-        with tempfile.TemporaryDirectory(prefix="arturo-rm-") as tmp:
+        # Su Windows un git staccato del caso tiene aperta la cartella del worktree: cartella_prova aspetta (WinError 32).
+        with cartella_prova() as tmp:
             try:
                 rossi += caso(repo, Path(tmp))
             except FileNotFoundError as e:                        # sulla base un file del caso può mancare
@@ -287,7 +290,10 @@ def main() -> int:
     rossi = prova(Path(argomenti.repo).resolve())
     if argomenti.baseline_ref:
         codici = sorted({r.split()[0] for r in rossi})
-        assert codici == DISCRIMINANTI, f"baseline non discriminante: rossi {codici}, attesi {DISCRIMINANTI}"
+        # Su Windows l'handoff-gate della base legge già gli a capo \r\n: RM07 lì è verde anche sulla base
+        # (sonda 45363564837 del 24/11/2026), e il caso si prova su macOS e Linux.
+        attesi = [c for c in DISCRIMINANTI if not (os.name == "nt" and c == "RM07")]
+        assert codici == attesi, f"baseline non discriminante: rossi {codici}, attesi {attesi}"
         print(f"BASELINE_DISCRIMINANTE={','.join(codici)}")
         return 0
     for r in rossi:

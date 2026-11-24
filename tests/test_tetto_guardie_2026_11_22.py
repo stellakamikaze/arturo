@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from salti_windows import dichiara  # noqa: E402
+from salti_windows import attesi_senza_salti, dichiara  # noqa: E402
 
 WINDOWS = os.name == "nt"
 BASH = shutil.which("bash") or "bash"
@@ -102,7 +102,8 @@ def main() -> int:
                 test(repo)
             except AssertionError as e:
                 (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
-        assert not altro and len(rossi) == len(TESTS), \
+        # Un caso saltato su Windows non gira e non può essere rosso (salti_windows.SALTATI).
+        assert not altro and sorted(r.split(":")[0] for r in rossi) == sorted(attesi_senza_salti(TESTS)), \
             "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
         print(f"baseline {args.baseline_ref}: {len(rossi)}/{len(TESTS)} rossi col loro codice")
         return 0

@@ -52,6 +52,9 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import attesi_senza_salti, dichiara  # noqa: E402
+
 QUI = Path(__file__).resolve().parent
 SCRIPT = QUI.parent / "bin" / "sync_transito.py"
 TOKEN = "gh" + "p_" + "A1b2C3d4" * 5
@@ -397,7 +400,8 @@ def st18(tmp):
 
 def st19(tmp):
     if os.name == "nt":
-        return None  # il git finto è uno script sh; su Windows il limite vero lo prova una macchina Windows
+        dichiara("ST19", "il git finto è uno script sh; su Windows il limite vero lo prova una macchina Windows")
+        return None
     vero = shutil.which("git")
     finto = tmp / "bin"
     finto.mkdir()
@@ -422,7 +426,8 @@ def st19(tmp):
 
 def st20(tmp):
     if os.name == "nt":
-        return None  # os.symlink su Windows chiede privilegi; il caso Windows qui si simula con core.symlinks
+        dichiara("ST20", "os.symlink su Windows chiede privilegi; il caso Windows qui si simula con core.symlinks")
+        return None
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
     a.scrivi("data/handoffs/volta/H.md", "h\n")
@@ -612,7 +617,10 @@ def main() -> int:
                 rossi.append(f"{codice} {e}")
     if args.baseline_ref:
         # La base non ha ancora bin/sync_transito.py: ogni caso deve essere rosso.
-        assert len(rossi) == len(CASI), f"baseline non discriminante: rossi {[r.split()[0] for r in rossi]}"
+        # Un caso saltato su Windows torna verde anche sulla base: non si chiede rosso (gate 45365302535, #6455).
+        attesi = attesi_senza_salti([c for c, _ in CASI])
+        assert sorted(r.split()[0] for r in rossi) == sorted(attesi), \
+            f"baseline non discriminante: rossi {[r.split()[0] for r in rossi]}, attesi {attesi}"
         print(f"baseline {args.baseline_ref}: {len(rossi)}/{len(CASI)} rossi")
         return 0
     for r in rossi:

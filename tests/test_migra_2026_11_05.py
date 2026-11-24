@@ -176,6 +176,10 @@ class Banco:
                     "GIT_TERMINAL_PROMPT": "0", "ARTURO_ALTRE_SESSIONI": "0", "ARTURO_CATALOGO": str(self.catalogo)}
         for variabile in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PLUGIN_DATA", "ARTURO_CODICE", "ARTURO_RADICE"):
             self.env.pop(variabile, None)
+        if os.name == "nt":
+            # Su Windows Path.home() legge USERPROFILE: migra.corto accorcia con ~ e barre dritte solo i percorsi
+            # sotto la casa, e la casa della persona è quella che contiene ~/.claude (gate 45365302535, #6455).
+            self.env["USERPROFILE"] = str(self.casa)
 
     def rilascio(self, versione: str, firmato: bool = True, giorni: int = 90) -> str:
         """Il pacchetto del plugin generato da `up`, con cleanupPeriodDays a `giorni`, e il suo tag."""
