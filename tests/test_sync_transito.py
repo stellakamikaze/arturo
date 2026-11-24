@@ -30,6 +30,12 @@ ST20 un collegamento simbolico di main (data/handoffs/link -> volta): la macchin
      collegamento vero su disco, riceve il ramo senza conflitto nel rebase.
 ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
      dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
+ST21 git --git-dir=.git-sync status gira (exit 0): core.excludesFile punta a un file vero, non a os.devnull, che
+     su Windows vale "nul" e fa morire git status (una macchina Windows, 24/11/2026).
+ST22 una macchina migrata col codice vecchio (autocrlf=false nel ramo sync) ha in stage blob CRLF: al passaggio
+     a core.autocrlf=true il giro rifà lo stage, e sul remote non arriva nessun CR.
+ST23 i registri di Melchior: due macchine allungano .melchior-log.jsonl e il rebase unisce le righe senza
+     conflitto; la coda .melchior-crystallize-queue.jsonl esce dal ramo e resta su disco.
 
 La coda di /fine (bin/fine-coda.py) con il ramo sync:
 FY01 con .git-sync migrato: handoff e indice non entrano nel commit su main né vanno sul remote main; li porta
@@ -528,10 +534,64 @@ def fy03(tmp):
         return f"rc={r.returncode} sync={rami!r} {r.stdout.strip()[-300:]!r}"
 
 
+def st21(tmp):
+    m = Macchina(tmp, "m", coppia(tmp))
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "uno\n")
+    m.lancia("--migra")
+    p = subprocess.run(["git", f"--git-dir={m.cl / '.git-sync'}", f"--work-tree={m.cl}", "status", "--short"],
+                       capture_output=True, text=True)
+    escl = m.sync("config", "--get", "core.excludesFile")
+    if p.returncode != 0 or not os.path.isfile(escl):
+        return f"status rc={p.returncode} {p.stderr.strip()!r} excludesFile={escl!r}"
+
+
+def st22(tmp):
+    origin = coppia(tmp)
+    m = Macchina(tmp, "m", origin)
+    sh(m.cl, "git", "config", "core.autocrlf", "true")
+    m.scrivi("data/memory/nota.md", "uno\n")
+    zero = dict(m.env, SYNC_TRANSITO_MINUTO="0")
+    m.lancia("--migra", env=zero)
+    # il codice vecchio: autocrlf=false nel ramo sync, e un cambio in CRLF messo in stage così
+    m.sync("config", "core.autocrlf", "false")
+    (m.cl / "data/memory/nota.md").write_bytes(b"uno\r\ndue\r\n")
+    m.sync("add", "-f", "data/memory/nota.md")
+    r = m.lancia("--giro", env=zero)
+    cr = subprocess.run(["git", f"--git-dir={origin}", "show", "sync:data/memory/nota.md"],
+                        capture_output=True).stdout
+    if r.returncode != 0 or b"\r" in cr or b"due" not in cr:
+        return f"rc={r.returncode} remoto={cr!r} {r.stdout.strip()[-300:]!r}"
+
+
+def st23(tmp):
+    origin = coppia(tmp)
+    a = Macchina(tmp, "a", origin)
+    log, coda = "data/memory/.melchior-log.jsonl", "data/memory/.melchior-crystallize-queue.jsonl"
+    a.scrivi(log, '{"base": 1}\n')
+    a.scrivi("data/memory/nota.md", "nota\n")
+    a.lancia("--migra")
+    b = Macchina(tmp, "b", origin)
+    b.scrivi(log, '{"base": 1}\n')
+    b.scrivi("data/memory/nota.md", "nota\n")
+    b.lancia("--migra")
+    a.scrivi(log, '{"base": 1}\n{"a": 1}\n')
+    a.scrivi(coda, '{"in coda": "a"}\n')
+    b.scrivi(log, '{"base": 1}\n{"b": 1}\n')
+    zero = dict(a.env, SYNC_TRANSITO_MINUTO="0")
+    ra = a.lancia("--giro", env=zero)
+    rb = b.lancia("--giro", env=dict(b.env, SYNC_TRANSITO_MINUTO="0"))
+    tb = (b.cl / log).read_text(encoding="utf-8")
+    if rb.returncode != 0 or '"a": 1' not in tb or '"b": 1' not in tb or "<<<<<<<" in tb:
+        return f"rb={rb.returncode} log b={tb!r} | {ra.stdout.strip()!r} {rb.stdout.strip()!r}"
+    remoto = sh(tmp, "git", f"--git-dir={origin}", "ls-tree", "-r", "--name-only", "sync")
+    if coda in remoto or coda in a.sync("ls-files") or not (a.cl / coda).is_file():
+        return f"coda nel ramo o sparita dal disco: remoto={remoto!r}"
+
+
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
-        ("ST18", st18), ("ST19", st19), ("ST20", st20),
+        ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22), ("ST23", st23),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
 
 

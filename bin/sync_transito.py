@@ -68,6 +68,10 @@ DIFF = ["--no-color", "--no-ext-diff", "--no-textconv", "--unified=0", "--no-ren
 LUCCHETTO_VECCHIO = 600  # secondi: un giro dura pochi secondi, oltre è di un processo morto male
 PULL_VECCHIO = 600  # un segno "pull in corso" più vecchio è di un pull morto a metà: i giri ripartono
 TANTE_CANCELLAZIONI = 25
+# Stato di Melchior che vale per una macchina sola: le code di lavoro (unite fra macchine, un elemento fatto
+# qui tornerebbe dall'altra) e gli embedding, binari e rigenerabili. Main li ignora come locali dal 14/4.
+LOCALI = {".melchior-crystallize-queue.jsonl", ".melchior-actions-queue.jsonl", ".melchior-embeddings.npz"}
+REGISTRI_IN_UNIONE = ("data/memory/.melchior-log.jsonl merge=union",)
 _OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
 
 
@@ -109,7 +113,7 @@ def escluso(rel):
     """Fuori dal ramo sync anche se sta sotto un path di transito: lucchetti, copie di sicurezza, sensibili."""
     parti = rel.split("/")
     nome = parti[-1]
-    if nome.endswith(".lock") or ".bak-" in nome or ".git" in parti:
+    if nome.endswith(".lock") or ".bak-" in nome or ".git" in parti or nome in LOCALI:
         return True
     if RE_SENSIBILE.match(nome) or any(x in CARTELLE_SENSIBILI for x in parti[:-1]):
         return True
@@ -169,6 +173,33 @@ def origine():
     return url, vis == "PRIVATE", f"visibilità {vis or 'sconosciuta'}"
 
 
+def rinormalizza():
+    """Dopo un cambio di core.autocrlf, lo stage si rifà coi fine riga nuovi. Con autocrlf=true git non converte
+    un file che nell'indice ha già un CR: senza --renormalize i blob CRLF messi in stage dal codice vecchio
+    (autocrlf=false) sarebbero partiti così verso le altre macchine (una macchina Windows, 24/11/2026)."""
+    if a_meta() or git("rev-parse", "--verify", "-q", "HEAD")[0] != 0:
+        return
+    git("reset", "-q")
+    tracciati = [p for p in percorsi() if git("ls-files", "--", p)[1].strip()]
+    if tracciati:
+        git("add", "--renormalize", "--", *tracciati)
+
+
+def unione_dei_registri(attributi):
+    """I registri che crescono solo in coda, scritti da ogni macchina: nel rebase si uniscono riga per riga.
+    Senza, il primo rebase dopo un giro dell'altra macchina va in conflitto (una macchina Windows, 24/11/2026).
+    Sta in .git-sync/info/attributes: vale anche dove la config di main non porta un .gitattributes."""
+    try:
+        testo = attributi.read_text(encoding="utf-8") if attributi.exists() else ""
+        righe = testo.splitlines()
+        nuove = [r for r in REGISTRI_IN_UNIONE if r not in righe]
+        if nuove:
+            attributi.write_text(testo + ("" if not testo or testo.endswith("\n") else "\n")
+                                 + "".join(r + "\n" for r in nuove), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def prepara():
     """Il git dir del ramo sync, creato se manca. True se l'ha creato adesso."""
     nuovo = not (SYNC / "HEAD").exists()
@@ -191,14 +222,25 @@ def prepara():
     # core.autocrlf=true nella config di sistema e i file stanno su disco in CRLF; con false qui il ramo sync
     # vedeva cambiato ogni file e li avrebbe spinti tutti in CRLF alle altre macchine (una macchina Windows, 24/11/2026).
     crlf = git_main("config", "--get", "core.autocrlf")[1].strip()
+    crlf_prima = git("config", "--get", "core.autocrlf")[1].strip()
     if crlf:
         git("config", "core.autocrlf", crlf)
     else:
         git("config", "--unset", "core.autocrlf")
+    if crlf != crlf_prima and not nuovo:
+        rinormalizza()
     git("config", "status.showUntrackedFiles", "no")
     # La config di main può portare un .gitignore con questi stessi path: il ramo sync li aggiunge con -f e
     # non legge altre regole, così non finisce dentro niente che il passo di transito non abbia scelto.
-    git("config", "core.excludesFile", os.devnull)
+    # Un file vuoto e non os.devnull: su Windows vale "nul", e git status muore con "cannot use nul as an
+    # exclude file" (una macchina Windows, 24/11/2026).
+    info = SYNC / "info"
+    info.mkdir(parents=True, exist_ok=True)
+    vuoto = info / "nessuna-esclusione"
+    if not vuoto.exists():
+        vuoto.write_bytes(b"")
+    git("config", "core.excludesFile", vuoto.as_posix())
+    unione_dei_registri(info / "attributes")
     url = git_main("remote", "get-url", "origin")[1].strip()
     if url:
         if git("remote", "get-url", "origin")[0] == 0:
