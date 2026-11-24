@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MG01-MG18: arturo migra, dal clone in ~/.claude al plugin (strati F4, #4534, docs/migrazione.md).
+"""MG01-MG19: arturo migra, dal clone in ~/.claude al plugin (strati F4, #4534, docs/migrazione.md).
 
 Un clone di prova con le modifiche tipiche di chi usa Arturo da settimane: una riga aggiunta a /inizio,
 una guardia cambiata, un hook e un permesso suoi in settings.json, CLAUDE.md, todo e una skill sua.
@@ -43,6 +43,8 @@ MG15 `migra indietro` mette in sostituiti-<ora>/ i file cambiati dopo la migrazi
 MG16 il conto delle regole consigliate ripetute dal CLAUDE.md: 0 senza regole, 1 con una (23);
 MG17 dopo `claude plugin install` uno sha diverso da quello verificato, un file diverso dal MANIFEST o una firma
      che non torna fermano con uscita 3 (4 se la firma non si può verificare), con la CLI e la fiducia finte (85, 86).
+MG19 la CLI di Claude Code si lancia col percorso di shutil.which: su Windows npm installa claude.cmd, e il nome
+     nudo "claude" fa WinError 2 in CreateProcess (gate 45247537994, 23/11/2026). which e run sono finti.
 
 Sulla base 53450c6 (il dev prima di F4) sono tutti rossi: arturo migra non c'è. Su a442b38 (prima del lotto L4)
 sono rossi MG09, MG11, MG15 e MG16. Con --avvelena una copia
@@ -62,8 +64,8 @@ import tempfile
 from pathlib import Path
 
 CASI = ["MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07", "MG08",
-        "MG09", "MG10", "MG11", "MG12", "MG13", "MG14", "MG15", "MG16", "MG17", "MG18"]
-UNITA = CASI[8:17]
+        "MG09", "MG10", "MG11", "MG12", "MG13", "MG14", "MG15", "MG16", "MG17", "MG18", "MG19"]
+UNITA = CASI[8:17] + ["MG19"]
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
 RIGA_MIA = "Riga mia della prova: i miei progetti stanno in ~/lavoro.\n"
@@ -416,6 +418,20 @@ def prova_unita(repo: Path, solo: str | None = None) -> list:
                     una = m.regole_doppie(personale, f"# Il mio CLAUDE.md\n- {regola}\n")
                     if (zero, una) != (0, 1):
                         rossi.append(f"MG16 regole doppie: {zero} senza regole e {una} con una, attesi 0 e 1")
+                elif caso == "MG19":
+                    # La CLI si lancia col percorso che dà shutil.which: su Windows è claude.cmd, e il solo nome
+                    # "claude" fa WinError 2 (gate 45247537994). Qui which e run sono finti: vale su ogni sistema.
+                    lanciati, which_vero, run_vero = [], m.shutil.which, m.subprocess.run
+                    m.shutil.which = lambda nome, *x, **k: "C:/npm/claude.cmd" if nome == "claude" else None
+                    m.subprocess.run = lambda comando, *x, **k: lanciati.append(list(comando)) or \
+                        subprocess.CompletedProcess(comando, 0, "", "")
+                    os.environ.pop("ARTURO_CLAUDE", None)
+                    try:
+                        m._claude("marketplace", "list")
+                    finally:
+                        m.shutil.which, m.subprocess.run = which_vero, run_vero
+                    if not lanciati or lanciati[0][:2] != ["C:/npm/claude.cmd", "plugin"]:
+                        rossi.append(f"MG19 la CLI senza il percorso di shutil.which: lanciati {lanciati}")
                 elif caso == "MG17":
                     import types
                     cartella = tmp / "copia-di-prova"
@@ -691,6 +707,7 @@ VELENI = [
     ("MG17", "bin/migra.py", '    if controllo["firma"] != "ok" or controllo["cambiati"] or controllo["mancano"]:\n',
      '    if controllo["firma"] != "ok":\n'),
     ("MG16", "bin/migra.py", "personale.regole_consigliate(radice_arturo()))[0])", "personale.regole_consigliate(radice_arturo())))"),
+    ("MG19", "bin/migra.py", "    comando = [shutil.which(nome) or nome, \"plugin\", *argomenti]", "    comando = [nome, \"plugin\", *argomenti]"),
 ]
 
 

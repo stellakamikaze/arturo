@@ -13,10 +13,11 @@ RT03 arturo contesto libro -- --rotazione scrivere i test: "compito: scrivere i 
 RT04 arturo contesto libro -- scrivere i test: il compito, e nessuna riga rotazione.
 RT05 arturo contesto --stdin con la marca, nella forma di commands/inizio.md: compito e rotazione.
 RT06 --rotazione prima di " -- " resta un'opzione sconosciuta: exit 3, nessuna riga rotazione.
-RT07 il fine leggero parte a ogni compito chiuso, anche senza rotazione (4/11/2026): l'avviso di
-     hooks/session-start.sh lega /fine --rotazione al compito chiuso e il tool ruota al passo dopo di
-     Claude; commands/fine.md dice che parte sempre, che un'azione senza traccia non lo fa partire e che
-     senza rotazione il fine resta fatto.
+RT07 il fine leggero parte a compito chiuso solo a contesto oltre il 50% o dalle 18 (23/11/2026; dal 4/11 partiva
+     sempre): l'avviso di hooks/session-start.sh lega /fine --rotazione al CONTEXT WARNING e il tool ruota al
+     passo dopo di Claude; commands/fine.md dice il 50%, che sotto si continua nello stesso contesto, che
+     un'azione senza traccia non lo fa partire e che senza rotazione il fine resta fatto; context-monitor.js
+     avvisa al 50% rimasto.
 RT08 context-monitor.js tace nei subagenti (review del 7/11/2026, finding 48): con la metrica della
      sessione al 30% una chiamata con agent_id non riceve l'avviso di rotazione e non tocca il file del
      debounce; la sessione principale subito dopo lo riceve.
@@ -24,11 +25,21 @@ RT09 una domanda alla persona rimasta aperta dopo ruota (segnalazione n. 65, 10/
      "-- --rotazione <compito> --in-attesa <domanda>" arturo contesto stampa il compito senza la domanda e la
      riga "in attesa: <domanda>", e il Modo rotazione di commands/inizio.md dice di non partire con quella riga.
 
+RT10 `arturo rotazione 40` (bin/rotazione.py, 23/11/2026) scrive la soglia della persona: context-monitor.js avvisa
+     al 45% usato, che col default non avvisa, e `arturo rotazione` dice il 40%.
+RT11 `arturo rotazione togli` torna al 50%: al 45% usato context-monitor.js tace.
+RT12 una soglia fuori scala (80, 20, "tanto") esce 3 e non scrive niente; CLAUDE_CTX_WARN vince sul file.
+RT13 chi usava già Arturo (data/setup-fatto) riceve dalla riga di session-start.sh l'avviso della rotazione nuova,
+     con la soglia vera, i comandi, il bordo del riquadro dritto e solo caratteri di CP850 (la console di Windows); dopo `arturo rotazione visto` non esce più, e session-start.sh chiama la riga.
+RT14 chi installa adesso (senza setup-fatto né novità viste) riceve solo la riga CONTEXT, senza l'avviso.
+RT15 `arturo rotazione` va a capo entro 78 colonne e tiene il comando su una riga sua; a_capo() di disegno.py non
+     spezza un percorso lungo né il testo fra virgolette (23/11/2026, le uscite di stato da 220 caratteri).
+
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
 
 Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05, RT07, RT08 e RT09; RT04 e RT06
-sono invarianti. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
+sono invarianti. RT10-RT15 sono rossi anche lì: bin/rotazione.py non c'è. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
 che lo sorvegliano.
 """
 from __future__ import annotations
@@ -44,8 +55,8 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
             "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js",
             # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
@@ -63,11 +74,23 @@ VELENI = [
     (["RT03", "RT05"], "bin/contesto.py", "        parole = parole[1:]\n", "        parole = parole[0:]\n"),
     (["RT04"], "bin/contesto.py", "    if rotazione:\n        righe.append(", "    if True:\n        righe.append("),
     (["RT06"], "bin/contesto.py", 'if p != "--tutti"]', 'if p not in ("--tutti", "--rotazione")]'),
-    (["RT07"], "hooks/session-start.sh", "a ogni compito chiuso con una traccia",
-     "a ogni passo chiuso con una traccia"),
+    (["RT07"], "hooks/session-start.sh", "solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)",
+     "a ogni compito chiuso"),
+    (["RT07"], "hooks/context-monitor.js", "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 50;",
+     "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 35;"),
     (["RT08"], "hooks/context-monitor.js", "    if (data.agent_id) {", "    if (false) {"),
     (["RT09"], "bin/contesto.py", "separa_attesa(compito) if rotazione else", "separa_attesa(compito) if False else"),
     (["RT09"], "commands/inizio.md", "Con la riga `in attesa: <domanda>` non parti", "Con la riga `in attesa: <domanda>` parti"),
+    (["RT10"], "hooks/context-monitor.js", "|| sogliaPersona() || 50;", "|| 50;"),
+    (["RT11"], "bin/rotazione.py", "            file_soglia().unlink()\n", "            pass\n"),
+    (["RT12"], "bin/rotazione.py", "    return n if MINIMO <= n <= MASSIMO else None", "    return n"),
+    (["RT13"], "bin/rotazione.py", "    if argv == [\"visto\"]:\n        scrivi(", "    if argv == [\"visto\"]:\n        print("),
+    (["RT13"], "bin/disegno.py", '        fuori.append(MARGINE + "│" + r.ljust(larghezza) + "│")',
+     '        fuori.append(MARGINE + "│" + r + "│")'),
+    (["RT13"], "bin/disegno.py", 'fuori = [MARGINE + "┌"', 'fuori = [MARGINE + "╭"'),
+    (["RT15"], "bin/disegno.py", '.replace(" ", "\\0"), testo)', '.replace(" ", " "), testo)'),
+    (["RT15"], "bin/rotazione.py", "        print(a_capo(stato()))", "        print(stato())"),
+    (["RT14"], "bin/rotazione.py", "if not file_visto().exists() and persona_di_prima():", "if not file_visto().exists():"),
 ]
 
 
@@ -221,12 +244,15 @@ def rt07(lab: Lab):
     if not avvio.exists() or not fine.exists():
         return "hooks/session-start.sh o commands/fine.md assente"
     riga = next((x for x in avvio.read_text(encoding="utf-8").splitlines() if "CONTEXT:" in x), "")
-    mancano = [f for f in ("a ogni compito chiuso", "/fine --rotazione, sempre", "solo se il passo dopo è tuo")
-               if f not in riga]
+    mancano = [f for f in ("solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)", "nello stesso contesto",
+                           "solo se il passo dopo è tuo") if f not in riga]
+    monitor = lab.cl / "hooks" / "context-monitor.js"
+    if not monitor.exists() or "Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 50;" not in monitor.read_text(encoding="utf-8"):
+        mancano.append("context-monitor.js con l'avviso al 50%")
     testo = fine.read_text(encoding="utf-8")
     inizio = testo.find("## Modo rotazione")
     sezione = testo[inizio:testo.find("\n## ", inizio + 1)] if inizio >= 0 else ""
-    mancano += [f for f in ("a ogni compito chiuso", "Parte sempre", "Un'azione senza traccia",
+    mancano += [f for f in ("solo a contesto oltre la soglia della rotazione (50% di default", "nello stesso contesto", "Un'azione senza traccia",
                             "Il fine leggero resta fatto") if f not in " ".join(sezione.split())]
     if mancano:
         return f"mancano {mancano} · CONTEXT {riga[:160]!r}"
@@ -266,8 +292,128 @@ def rt09(lab: Lab):
         return "commands/inizio.md non dice di fermarsi sulla riga in attesa"
 
 
+def ambiente_soglia(lab: Lab, **extra) -> dict:
+    env = {k: v for k, v in lab.ambiente.items() if k not in ("CLAUDE_CTX_WARN", "CLAUDE_CTX_CRIT", "CLAUDE_CONFIG_DIR")}
+    env.update(extra)
+    return env
+
+
+def rotazione(lab: Lab, *a: str, **extra) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "-B", str(lab.cl / "bin" / "arturo"), "rotazione", *a], capture_output=True,
+                          text=True, encoding="utf-8", errors="replace", env=ambiente_soglia(lab, **extra), timeout=60,
+                          cwd=str(lab.home))
+
+
+def avvisa_al(lab: Lab, usato: int, **extra) -> bool:
+    """Se context-monitor.js avvisa con le metriche di una sessione al `usato`% di contesto."""
+    import json as _json
+    import time as _time
+    temp = Path(lab.ambiente["TMPDIR"])
+    sessione = f"s-soglia-{usato}-{_time.monotonic_ns()}"
+    (temp / f"claude-ctx-{sessione}.json").write_text(_json.dumps(
+        {"timestamp": int(_time.time()), "remaining_percentage": 100 - usato, "used_pct": usato}), encoding="utf-8")
+    r = subprocess.run([shutil.which("node"), str(lab.cl / "hooks" / "context-monitor.js")],
+                       input=_json.dumps({"session_id": sessione}), capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", env=ambiente_soglia(lab, **extra), timeout=30)
+    return "CONTEXT WARNING" in r.stdout
+
+
+def rt10(lab: Lab):
+    if shutil.which("node") is None:
+        return "node assente: il banco prova context-monitor.js"
+    if avvisa_al(lab, 45):
+        return "col default il monitor avvisa già al 45%"
+    r = rotazione(lab, "40")
+    if r.returncode != 0:
+        return f"arturo rotazione 40 rc={r.returncode} {(r.stdout + r.stderr).strip()[:160]!r}"
+    if not avvisa_al(lab, 45):
+        return "con la soglia al 40% il monitor tace al 45% usato"
+    if "40%" not in rotazione(lab).stdout:
+        return "arturo rotazione non dice la soglia scelta"
+
+
+def rt11(lab: Lab):
+    if shutil.which("node") is None:
+        return "node assente: il banco prova context-monitor.js"
+    rotazione(lab, "40")
+    r = rotazione(lab, "togli")
+    if r.returncode != 0 or "50%" not in r.stdout:
+        return f"togli non torna al 50%: rc={r.returncode} {(r.stdout + r.stderr).strip()[:160]!r}"
+    if avvisa_al(lab, 45):
+        return "dopo togli il monitor avvisa ancora al 45%"
+
+
+def rt12(lab: Lab):
+    if shutil.which("node") is None:
+        return "node assente: il banco prova context-monitor.js"
+    for sbagliata in ("80", "20", "tanto"):
+        r = rotazione(lab, sbagliata)
+        if r.returncode != 3:
+            return f"la soglia {sbagliata!r} non esce 3: rc={r.returncode} {(r.stdout + r.stderr).strip()[:120]!r}"
+    if (lab.cl / "personale" / "rotazione.txt").exists():
+        return "una soglia fuori scala ha scritto il file"
+    rotazione(lab, "40")
+    if "CLAUDE_CTX_WARN" not in rotazione(lab, CLAUDE_CTX_WARN="50").stdout:
+        return "lo stato non dice che vince la variabile"
+    if avvisa_al(lab, 45, CLAUDE_CTX_WARN="50"):
+        return "il file vince su CLAUDE_CTX_WARN"
+
+
+def rt13(lab: Lab):
+    (lab.cl / "data").mkdir(parents=True, exist_ok=True)
+    (lab.cl / "data" / "setup-fatto").write_text("", encoding="utf-8")
+    rotazione(lab, "60")
+    uscita = rotazione(lab, "riga").stdout
+    if "contesto oltre il 60%" not in uscita:
+        return f"la riga CONTEXT non dice la soglia scelta: {uscita[:200]!r}"
+    if "AVVISO DA DARE ALLA PERSONA" not in uscita or "NOVITÀ DI ARTURO" not in uscita:
+        return "l'avviso non esce per chi aveva già Arturo"
+    if "rotazione visto" not in uscita or "rotazione N" not in uscita:
+        return "l'avviso non dice i comandi"
+    disegno = [r for r in uscita.splitlines() if r[2:3] in ("┌", "│", "├", "└", "╭", "╰")]
+    bordo = {len(r) for r in disegno}
+    if len(bordo) != 1:
+        return f"le righe del riquadro hanno larghezze diverse: {sorted(bordo)}"
+    try:
+        "".join(disegno).encode("cp850")
+    except UnicodeEncodeError as e:
+        return f"il riquadro ha caratteri fuori da CP850, quadratini nella console di Windows: {e.object[e.start:e.end]!r}"
+    if rotazione(lab, "visto").returncode != 0:
+        return "arturo rotazione visto non esce 0"
+    uscita = rotazione(lab, "riga").stdout
+    if "AVVISO DA DARE ALLA PERSONA" in uscita or "contesto oltre il 60%" not in uscita:
+        return f"dopo visto l'avviso esce ancora o manca la riga CONTEXT: {uscita[:200]!r}"
+    avvio = lab.cl / "hooks" / "session-start.sh"
+    if 'bin/rotazione.py" riga' not in (avvio.read_text(encoding="utf-8") if avvio.exists() else ""):
+        return "session-start.sh non chiama la riga di bin/rotazione.py"
+
+
+def rt14(lab: Lab):
+    uscita = rotazione(lab, "riga").stdout
+    if "contesto oltre il 50%" not in uscita:
+        return f"manca la riga CONTEXT: {uscita[:200]!r}"
+    if "AVVISO DA DARE ALLA PERSONA" in uscita:
+        return "chi installa adesso riceve l'avviso"
+
+
+def rt15(lab: Lab):
+    uscita = rotazione(lab, CLAUDE_CTX_WARN="50").stdout
+    lunghe = [r for r in uscita.splitlines() if len(r) > 78]
+    if lunghe or not any(r.startswith("Per usare arturo rotazione N,") for r in uscita.splitlines()):
+        return f"arturo rotazione non va a capo bene: {uscita!r}"
+    percorso = "/una/cartella/" + "molto-lunga/" * 8 + "memoria.md"
+    codice = ("import sys; sys.path.insert(0, sys.argv[1]); from disegno import a_capo; "
+              "print(a_capo(sys.argv[2]))")
+    frase = "parola " * 9 + 'e chiede "La mando?" prima di partire. Cosa ricorda e dove: ' + percorso
+    r = subprocess.run([sys.executable, "-B", "-c", codice, str(lab.cl / "bin"), frase], capture_output=True,
+                       text=True, encoding="utf-8", timeout=60)
+    righe = r.stdout.splitlines()
+    if percorso not in righe or not any('"La mando?"' in x for x in righe):
+        return f"a_capo spezza un percorso o le virgolette: {righe!r} {r.stderr[-200:]!r}"
+
+
 PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08,
-         "RT09": rt09}
+         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14, "RT15": rt15}
 
 
 def prova(repo: Path, ref: str | None) -> list:

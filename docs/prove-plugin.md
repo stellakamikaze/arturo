@@ -9,7 +9,7 @@ Questa pagina dice come `bin/impacchetta.py` genera il plugin dal repository, e 
 - `hooks/hooks.json` dagli hook di `settings.json`, con `"${CLAUDE_PLUGIN_ROOT}/..."` tra virgolette;
 - `impostazioni/arturo.json`: il resto di `settings.json`, che `arturo impostazioni applica` unisce ai settings della persona;
 - ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`, tranne
-  `fine`, `segnala` e `diagnosi`: li lancia anche Claude (`/fine --rotazione` a ogni compito chiuso).
+  `fine`, `segnala` e `diagnosi`: li lancia anche Claude (`/fine --rotazione` a contesto oltre il 50%).
 
 `arturo impostazioni applica` fa un'unione a tre vie: la base è il file di blocco, poi i settings della persona, poi il frammento nuovo. Arturo cambia solo le voci che la persona ha lasciato com'erano. Se una voce è cambiata da tutte e due le parti, il comando non scrive niente e la nomina.
 

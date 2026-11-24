@@ -29,6 +29,9 @@ scaduti, scadenza vicina. Fermi e attese restano fuori. T26 la vista porta il bl
 parola di stato, riga scritta o calcolata, catena dei "dopo" e todo da cui partire (#3887).
 T27 una scadenza gg/mm senza anno vale la data più vicina (review del 7/11/2026, finding 32): dal 3/10
 "15/1" è il gennaio che viene, "1/10" resta due giorni fa; la conferma dice la data. Rosso su 0b083f5.
+T29 la lista si legge anche nella console di Windows (23/11/2026): ogni gruppo apre con una riga titolo
+"── TOCCA A TE · 2 ───", i titoli stanno in colonna, uno scaduto ha "!" davanti alla scadenza, todo progetti ha
+la barra dei chiusi; tutto sta in CP850. Veleni a mano: titolo() senza "── ", ljust(colonna) tolto, "! " tolto.
 Sulla base b8eff39 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -824,13 +827,37 @@ def test_t28(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_t29(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Mandare il preventivo", "--progetto", "libro", "--chi", "tu", "--scadenza", "1/10")
+        c.cli("aggiungi", "Firmare", "--progetto", "libro", "--chi", "tu", "--scadenza", "10/10")
+        c.cli("aggiungi", "Rileggere la bozza lunga", "--progetto", "sito", "--chi", "io")
+        testo = c.cli().stdout
+        try:
+            testo.encode("cp850")
+        except UnicodeEncodeError as e:
+            raise AssertionError(f"T29 carattere fuori da CP850 nella lista: {e.object[e.start:e.end]!r}")
+        assert re.search(r"^── TOCCA A TE · 2 ─{3,}$", testo, re.M), f"T29 manca la riga titolo: {testo!r}"
+        righe = [r for r in testo.splitlines() if re.match(r"\s+#[12] ", r)]
+        inizi = {r.index("libro") for r in righe}
+        assert len(righe) == 2 and len(inizi) == 1, f"T29 i dettagli non stanno in colonna: {righe!r}"
+        scaduto = next(r for r in righe if "preventivo" in r)
+        assert "! scaduto da 2 g" in scaduto, f"T29 lo scaduto non ha il segno: {scaduto!r}"
+        c.cli("fatto", "2")
+        progetti = c.cli("progetti").stdout
+        assert "── PROGETTI" in progetti and re.search(r"libro\s+█{5}░{5}", progetti), \
+            f"T29 todo progetti senza titolo o barra: {progetti!r}"
+        progetti.encode("cp850")
+    con_casa(repo, prova)
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
     "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19,
     "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
-    "T26": test_t26, "T27": test_t27, "T28": test_t28,
+    "T26": test_t26, "T27": test_t27, "T28": test_t28, "T29": test_t29,
 }
 
 

@@ -89,6 +89,9 @@ solo quel pezzo e di scrivere prima il confine; il gate dell'handoff di /fine fa
 che nomina; la bozza di /setup cambia solo la parte corretta.
 F36 sync-progetti porta le correzioni della copia di Federico (revisione del 22/11/2026, passo 2): un progetto
 già allineato non passa da stash e pop, un HEAD staccato è un errore e resta com'era.
+F37 la chiusura di /fine dà i fatti tecnici in un blocco di codice a cinque righe, etichetta in 12 colonne, senza
+bordo e tutto in CP850 (23/11/2026): una riga unica di nove fatti si leggeva male, e ✓ o un emoji nella console
+di Windows diventano quadratini.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1737,6 +1740,20 @@ def test_f36(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f37(repo: Path) -> None:
+    parti = read(repo / "commands" / "fine.md").split("## Chiusura", 1)
+    assert len(parti) == 2, "F37 /fine non ha la sezione Chiusura"
+    chiusura = parti[1].split("\n## ", 1)[0]
+    blocco = re.search(r"```\n((?:   \S.*\n)+)   ```", chiusura)
+    assert blocco, f"F37 la chiusura di /fine non ha il blocco tecnico in un blocco di codice: {chiusura[:400]!r}"
+    righe = [r[3:] for r in blocco.group(1).splitlines()]
+    etichette = [r[:12].strip() for r in righe]
+    assert etichette == ["chiuso", "controlli", "config", "segnala", "riprendi"], f"F37 etichette: {etichette}"
+    assert all(len(r) > 12 and r[11] == " " and r[12] != " " for r in righe), f"F37 i fatti non stanno in colonna: {righe}"
+    assert not re.search(r"[┌│└╭]", blocco.group(1)), "F37 il blocco tecnico ha un bordo scritto a mano"
+    blocco.group(1).encode("cp850")
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
@@ -1744,7 +1761,7 @@ TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F0
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
          "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
-         "F33": test_f33, "F34": test_f34, "F35": test_f35, "F36": test_f36}
+         "F33": test_f33, "F34": test_f34, "F35": test_f35, "F36": test_f36, "F37": test_f37}
 
 
 def main() -> int:

@@ -55,9 +55,11 @@ from pathlib import Path
 QUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(QUI.parent / "scripts"))
 sys.path.insert(0, str(QUI.parent / "hooks"))
+sys.path.append(str(QUI))  # in fondo: disegno.py, senza coprire i moduli di scripts/ e hooks/
 import melchior_match as mm  # noqa: E402
 import melchior_recall as mr  # noqa: E402
 from radici import radice_arturo, scrivi_atomico  # noqa: E402
+from disegno import a_capo  # noqa: E402
 
 AIUTO = __doc__.split("\n\n")[3] if __doc__ else ""
 
@@ -150,9 +152,24 @@ def bersaglio(interno: str):
     return t
 
 
+def note_archiviate(dirs) -> dict:
+    """{nome: successore} delle note in <cartella>/_archive/. Il successore viene da superseded_by o unito_in
+    (lo scrive `arturo progetti unisci`), senza [[ ]] e virgolette; "" se la nota non ne ha."""
+    fuori = {}
+    for d in dirs:
+        for p in sorted((Path(d) / "_archive").rglob("*.md")):
+            fm, _ = frontmatter(leggi(p))
+            fm = fm if isinstance(fm, dict) else {}
+            dopo = campo(fm, "superseded_by") or campo(fm, "unito_in") or ""
+            dopo = re.sub(r"[\[\]\"' ]", "", str(dopo[0] if isinstance(dopo, list) and dopo else dopo)).split(",")[0]
+            for nome in {p.stem.lower(), str(campo(fm, "name") or "").lower()} - {""}:
+                fuori.setdefault(nome, dopo.lower())
+    return fuori
+
+
 def controlla(dirs=None) -> dict:
     dirs = cartelle() if dirs is None else dirs
-    errori, avvisi, da_scrivere = [], [], []
+    errori, avvisi, da_scrivere, archiviate = [], [], [], []
     elenco = file_note(dirs)
     testi = {p: leggi(p) for _d, p in elenco}
     nomi = set()
@@ -162,6 +179,7 @@ def controlla(dirs=None) -> dict:
         if isinstance(fm, dict) and campo(fm, "name"):
             nomi.add(str(campo(fm, "name")).lower())
 
+    archivio = note_archiviate(dirs)
     for _d, p in elenco:
         testo = testi[p]
         fm, _ = frontmatter(testo)
@@ -184,7 +202,11 @@ def controlla(dirs=None) -> dict:
             for w in WIKILINK.finditer(r):
                 b = bersaglio(w.group(1))
                 if b and b not in nomi:
-                    da_scrivere.append({"file": dove, "riga": n, "link": b})
+                    if b in archivio:
+                        dopo = archivio[b] if archivio[b] in nomi else ""
+                        archiviate.append({"file": dove, "riga": n, "link": b, "successore": dopo})
+                    else:
+                        da_scrivere.append({"file": dove, "riga": n, "link": b})
             for l in LINK_MD.finditer(r):
                 dest = l.group(1)
                 if "://" in dest:
@@ -212,7 +234,7 @@ def controlla(dirs=None) -> dict:
                 avvisi.append({"file": breve(p), "motivo": f"fuori da {INDICE}: Claude Code non la vede all'avvio"})
 
     return {"note": len(elenco), "cartelle": len(dirs), "errori": errori, "avvisi": avvisi,
-            "da_scrivere": da_scrivere}
+            "da_scrivere": da_scrivere, "archiviate": archiviate}
 
 
 # --- Comandi ---------------------------------------------------------------------------------
@@ -236,9 +258,9 @@ def stato() -> int:
         print("Cartelle tue:")
         for d in mie:
             print(f"  - {breve(d)} ({len(file_note([d]))} note)")
-    print("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione.")
-    print("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce.")
-    print(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}.")
+    print(a_capo("Le note stanno su questo computer. Quelle che Claude apre passano ad Anthropic con la conversazione."))
+    print(a_capo("Il nome e il testo delle note non entrano mai nella telemetria: solo il loro numero, in fasce."))
+    print(a_capo(f"Cosa ricorda e dove: {breve(radice_arturo() / 'docs' / 'memoria.md')}."))
     print('Accendi con "arturo memoria accendi", spegni con "arturo memoria spegni".')
     return 0
 
@@ -334,6 +356,12 @@ def comando_controlla(argv: list) -> int:
               "segnano una nota da scrivere più avanti.")
         for v in esito["da_scrivere"]:
             print(f"  - [[{v['link']}]] in {v['file']}:{v['riga']}")
+    if esito.get("archiviate"):
+        print("\n" + a_capo(f"ARCHIVIATE ({len(esito['archiviate'])}): link [[nome]] a una nota in _archive/. Il link "
+                            "regge come storia; dove c'è un successore vivo, il link può puntare a lui."))
+        for v in esito["archiviate"]:
+            dopo = f" → [[{v['successore']}]]" if v["successore"] else ""
+            print(f"  - [[{v['link']}]] in {v['file']}:{v['riga']}{dopo}")
     n = len(esito["errori"])
     print("\nEsito: " + ("tutto a posto." if not n else f"{n} errori da correggere."))
     return 1 if n else 0

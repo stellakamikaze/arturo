@@ -12,7 +12,8 @@
 //    as additionalContext, which the agent sees in its conversation
 //
 // Thresholds:
-//   WARNING  (remaining <= 35%): Agent should wrap up current task
+//   WARNING  (remaining <= 50%): Agent should wrap up current task (35% until 23/11/2026: the rotation
+//            moved from every closed task to half context, so the warning marks the rotation point)
 //   CRITICAL (remaining <= 25%): Agent should stop immediately and save state
 //
 // Debounce: 5 tool uses between warnings to avoid spam
@@ -27,7 +28,19 @@ const path = require('path');
 // far too eager). Surfacing the metric is the legitimate part (the model can't
 // perceive its own remaining context); the exact cutoff is a tunable, not a law.
 // Override with CLAUDE_CTX_WARN / CLAUDE_CTX_CRIT (percent remaining).
-const WARNING_THRESHOLD = Number(process.env.CLAUDE_CTX_WARN) || 35;  // remaining % to advise wrap-up
+// The person picks the rotation point with `arturo rotazione N` (bin/rotazione.py, 23/11/2026): N is the
+// percent USED, from 30 to 70, in personale/rotazione.txt of the Orsa. The env var still wins.
+function sogliaPersona() {
+  try {
+    const radice = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const testo = fs.readFileSync(path.join(radice, 'personale', 'rotazione.txt'), 'utf8');
+    const riga = testo.split(/\r?\n/).find(r => r.trim() && !r.trim().startsWith('#')) || '';
+    const usato = Number(riga.trim().replace(/%$/, ''));
+    if (Number.isInteger(usato) && usato >= 30 && usato <= 70) return 100 - usato;
+  } catch (e) { /* no file: Arturo's default */ }
+  return 0;
+}
+const WARNING_THRESHOLD = Number(process.env.CLAUDE_CTX_WARN) || sogliaPersona() || 50;  // remaining % to advise wrap-up
 const CRITICAL_THRESHOLD = Number(process.env.CLAUDE_CTX_CRIT) || 25; // remaining % to advise stop
 const STALE_SECONDS = 60;      // ignore metrics older than 60s
 const DEBOUNCE_CALLS = 5;      // min tool uses between warnings

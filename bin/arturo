@@ -24,6 +24,9 @@ from radici import radice_orsa  # noqa: E402
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
+from disegno import barra, titolo  # noqa: E402
+
+COLONNA_TITOLO = 44  # oltre, i dettagli seguono il titolo senza allinearsi
 
 for flusso in (sys.stdout, sys.stderr):
     try:
@@ -102,10 +105,15 @@ def progetto_corrente() -> str:
     return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower())) or "generale"
 
 
-def riga(t: dict, con_progetto: bool = True) -> list:
+def riga(t: dict, con_progetto: bool = True, colonna: int = 0) -> list:
+    """Un todo in una riga: ID a destra in 5 colonne, il titolo largo `colonna`, poi i dettagli. Uno scaduto
+    porta "!" davanti alla scadenza, così si vede anche senza colori."""
     pezzi = [f"#{t['id']}", t["titolo"]]
+    scadenza = t["scadenza_testo"] or ""
+    if scadenza and t["giorni"] is not None and t["giorni"] < 0:
+        scadenza = "! " + scadenza
     dettagli = [x for x in (t["progetto"] if con_progetto else "", t["priorita"] if t["priorita"] != "media" else "",
-                            t["scadenza_testo"] or "", t["quando"] if t["quando"] == "oggi" and t["giorni"] != 0 else "")
+                            scadenza, t["quando"] if t["quando"] == "oggi" and t["giorni"] != 0 else "")
                 if x]
     sotto = []
     if t["perche"]:
@@ -116,10 +124,15 @@ def riga(t: dict, con_progetto: bool = True) -> list:
         sotto.append("aspetta " + ", ".join(f"#{n}" for n in t["attende"]))
     if t["stato"] == "in corso":
         sotto.append("in corso")
-    righe = [f"  {pezzi[0]:>5}  {pezzi[1]}" + (f"   · {' · '.join(dettagli)}" if dettagli else "")]
+    testo = pezzi[1].ljust(colonna) if dettagli else pezzi[1]
+    righe = [f"  {pezzi[0]:>5}  {testo}" + (f"   {' · '.join(dettagli)}" if dettagli else "")]
     if sotto:
         righe.append(f"         {' · '.join(sotto)}")
     return righe
+
+
+def colonna_per(todo: list) -> int:
+    return min(COLONNA_TITOLO, max((len(t["titolo"]) for t in todo), default=0))
 
 
 def stampa_vista(v: dict) -> None:
@@ -128,9 +141,10 @@ def stampa_vista(v: dict) -> None:
         if not g["todo"]:
             continue
         vuoto = False
-        print(g["titolo"])
+        print(titolo(f"{g['titolo']} · {len(g['todo'])}"))
+        colonna = colonna_per(g["todo"])
         for t in g["todo"]:
-            print("\n".join(riga(t, con_progetto=not v["progetto"])))
+            print("\n".join(riga(t, con_progetto=not v["progetto"], colonna=colonna)))
         print()
     if vuoto:
         print("Nessun todo aperto." + ("" if v["chiusi"] else ' Aggiungine uno con: arturo todo aggiungi "cosa fare"'))
@@ -387,8 +401,9 @@ def todo(argv: list) -> int:
         avvisa(avvisi)
         if not scelti:
             print(f"Niente per oggi e niente in scadenza nei prossimi {args.giorni} giorni.")
+        colonna = colonna_per(scelti)
         for t in scelti:
-            print("\n".join(riga(t)))
+            print("\n".join(riga(t, colonna=colonna)))
         return 0
 
     if cmd == "progetti":
@@ -400,9 +415,16 @@ def todo(argv: list) -> int:
         avvisa(avvisi)
         if not conti:
             print("Nessun todo.")
+        else:
+            print(titolo(f"PROGETTI · {len(conti)}", 78))
+            larga = max(len(n) for n in conti)
         for nome in sorted(conti):
             c = conti[nome]
-            print(f"  {nome:<24} {c['aperti']:>3} aperti   {c['scaduti']:>2} scaduti   {c['fermi']:>2} fermi   {c['chiusi']:>3} chiusi")
+            # La barra dice quanto è chiuso del totale: piena = tutto fatto.
+            totale = c["aperti"] + c["chiusi"]
+            fatto = barra(100 * c["chiusi"] / totale if totale else 0, 10)
+            scaduti = f"! {c['scaduti']} scaduti" if c["scaduti"] else "  0 scaduti"
+            print(f"  {nome:<{larga}}  {fatto}  {c['aperti']:>3} aperti  {scaduti:>11}  {c['fermi']:>2} fermi  {c['chiusi']:>3} chiusi")
         return 0
 
     if cmd == "mostra":
@@ -569,6 +591,7 @@ COMANDI = {
     "memoria": ("memoria", "la memoria dei progetti, accesa di default: senza parole dice cosa ricorda; stato, accendi, spegni, cerca, controlla, scheda, nota, togli, igiene"),
     "intervista": ("intervista", "l'intervista che continua dopo /setup, una domanda al giorno da /inizio: stato, proponi, risposta, salta, famiglia, spegni, accendi"),
     "spazi": ("spazi", "gli spazi che Arturo ti propone quando vede un segnale (Melchior, l'Orsa), una volta sola: stato, proponi, si, no, spegni, accendi"),
+    "rotazione": ("rotazione", "a che percento di contesto usato Claude salva e riparte pulito (50 di default): senza parole la dice; N da 30 a 70, togli"),
     "nome": ("nome", "il nome con cui chiami Arturo, nell'avvio e nei testi: senza parole dice quello di oggi; NOME, togli"),
     "revisione": ("revisione", "la revisione di come usi Arturo, per /revisione: estrai, sintesi, igiene, registro, bozza, salva"),
     "fascicolo": ("fascicolo", "il contesto di un progetto in una cartella di file di testo, per un collega o un'altra IA: esporta, importa (con le guardie sui testi altrui)"),
