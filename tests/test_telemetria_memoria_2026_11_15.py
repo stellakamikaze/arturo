@@ -42,7 +42,7 @@ VELENI = {
     "TM01": (TEL, "                        if chiave in proposte:", "                        if True:"),
     "TM02": (TEL, "                    proposte.update(_chiave_nota(p) for p in _note_proposte(x))", "                    pass"),
     "TM03": (TEL, "            if leggi_stato().get(\"memoria_giorno\") != giorno \\", "            if True \\"),
-    "TM04": ("hooks/inject-now.sh", "[[ \"$INPUT\" =~ $RE_ROTAZIONE ]] && ORIGINE=rotazione", "true"),
+    "TM04": ("hooks/inject-now.py", 'origine = "rotazione" if re.search(RE_ROTAZIONE, grezzo) else "persona"', 'origine = "persona"'),
     "TM05": ("bin/salva-automatico.py", "    if gia is None:  # M7", "    if True:  # M7"),
     "TM06": (TEL, "PROMESSA = 13", "PROMESSA = 10"),
 }

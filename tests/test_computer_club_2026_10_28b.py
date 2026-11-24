@@ -211,8 +211,8 @@ def test_cc11(repo: Path) -> None:
     # Senza bin/correzioni.py il comando `arturo correzione` non c'è: la riga che lo chiede deve tacere,
     # mentre il promemoria del brief resta (PM-1 della revisione skill dell'8/11/2026).
     nuda = lab.dir / "senza-bin"
-    (nuda / "hooks").mkdir(parents=True)
-    shutil.copy2(repo / "hooks" / "inject-now.sh", nuda / "hooks" / "inject-now.sh")
+    nuda.mkdir(parents=True)
+    shutil.copytree(repo / "hooks", nuda / "hooks")
     r = subprocess.run([banco_telemetria().BASH, str(nuda / "hooks" / "inject-now.sh")],
                        input=json.dumps({"prompt": "rifai la tabella"}), capture_output=True, text=True,
                        encoding="utf-8", errors="replace", env=lab.env, cwd=str(nuda), timeout=60)

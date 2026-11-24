@@ -42,7 +42,7 @@ I primi due sono le fondamenta, il 3 e il 4 il lavoro di ogni giorno, il 5 e il 
 
 ## Estendere una skill senza copiarla
 
-Se una persona vuole cambiare una skill di Arturo, scrive `~/.claude/personale/<skill>.md`. Un hook lo aggiunge al contesto ogni volta che la skill parte: `inject-now.sh` quando la persona scrive `/<nome>`, `hooks/estensione-skill.py` quando la sceglie il modello col tool Skill (banco `tests/test_ruoli_2026_11_20.py`). Una skill che legge da sola il suo file personale, come `humanizer`, non lo riceve due volte. L'estensione aggiunge e precisa, ma freni e guardie di Arturo vincono sempre.
+Se una persona vuole cambiare una skill di Arturo, scrive `~/.claude/personale/<skill>.md`. Un hook lo aggiunge al contesto ogni volta che la skill parte: `inject-now.py` quando la persona scrive `/<nome>`, `hooks/estensione-skill.py` quando la sceglie il modello col tool Skill (banco `tests/test_ruoli_2026_11_20.py`). Una skill che legge da sola il suo file personale, come `humanizer`, non lo riceve due volte. L'estensione aggiunge e precisa, ma freni e guardie di Arturo vincono sempre.
 
 Se una persona vuole sostituire una skill, scrive una skill con lo stesso nome nell'Orsa. Il nome senza prefisso va alla sua, quella di Arturo resta raggiungibile come `arturo:<nome>`. La sostituzione si dichiara in `personale/sostituzioni.txt`: un nome per riga (skill, comando o `name:` di uno stile), col motivo dopo `#`. `arturo personale omonimi` e `system-audit` nominano ogni omonimo non dichiarato e ogni riga che non ha più un omonimo (banco `tests/test_sostituzioni_2026_11_05.py`, SO01-SO05). Senza dichiarazione, una skill nuova di Arturo con un nome che la persona usa già non si vedrebbe mai.
 

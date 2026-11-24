@@ -45,6 +45,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 BASE = "e441828"
 _QUI = Path(__file__).resolve().parent
@@ -280,10 +282,7 @@ def test_rw06(repo: Path) -> int:
             ("Grep sulla cartella", ssh, "ask"),
         ]
         n += verifica("RW06", col_grep, grep)
-        impostazioni = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-        matcher = [v.get("matcher", "") for v in impostazioni["hooks"]["PreToolUse"]
-                   if any("block-dangerous.py" in h.get("command", "") and "dopo" not in h.get("command", "")
-                          for h in v.get("hooks", []))]
+        matcher = voci_hook.matcher(repo, "PreToolUse", "block-dangerous.py")
         assert any("Grep" in m.split("|") for m in matcher), f"RW06 settings.json non manda Grep a block-dangerous: {matcher}"
         return n + 1
 

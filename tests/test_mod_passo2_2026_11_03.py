@@ -30,6 +30,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 from typing import Callable, Dict, List
 
 EVENTI = ("PreToolUse", "PostToolUse", "PostToolUseFailure")
@@ -124,9 +126,7 @@ def test_mp03(repo: Path) -> None:
     settings = json.loads(read(repo / "settings.json") or "{}")
     mancano: List[str] = []
     for evento in EVENTI:
-        gruppi = settings.get("hooks", {}).get(evento, [])
-        if not any(re.fullmatch(g.get("matcher") or ".*", "Bash") and
-                   any("hooks/gws-esito.py" in h.get("command", "") for h in g.get("hooks", [])) for g in gruppi):
+        if not any(re.fullmatch(m or ".*", "Bash") for m in voci_hook.matcher(repo, evento, "gws-esito.py")):
             mancano.append(evento)
     assert not mancano, f"MP03 settings.json non registra gws-esito.py su {mancano}"
     rimasti = [m for m in ("gws", "riscrivi-bash") if (repo / "skills" / m).exists()]

@@ -77,9 +77,13 @@ def _riduci_heredoc(comando):
 
 def _campi(crlf):
     """I quattro campi di `leggi`, più il JSON letto e il testo grezzo dell'evento."""
+    return campi_da(sys.stdin.buffer.read().decode("utf-8", "replace"), crlf)
+
+
+def campi_da(grezzo, crlf):
+    """I campi di `_campi` dal testo dell'evento già letto: lo usa anche hooks/dispatcher.py (#6492)."""
     import json
     campi = ["", "", "", ""]
-    grezzo = sys.stdin.buffer.read().decode("utf-8", "replace")
     try:
         dati = json.loads(grezzo)
     except Exception:
@@ -130,6 +134,12 @@ def prefiltra(opzioni):
     ridotto di comms-prefilter. Un errore del pre-filtro dà la sola vista `errore`, e il dispatcher chiede
     conferma: una guardia che non si sa se serve non si salta."""
     campi, dati, grezzo = _campi("crlf" in opzioni)
+    viste, ridotto = viste_da(campi, dati, grezzo, opzioni)
+    return _scrivi(campi + [" ".join(viste), ridotto or ""])
+
+
+def viste_da(campi, dati, grezzo, opzioni):
+    """Le viste del pre-filtro e il comando ridotto (None se nessun ramo lo chiede), dai campi di `campi_da`."""
     viste, ridotto = [], None
     if campi[0] and isinstance(dati, dict):
         try:
@@ -142,7 +152,7 @@ def prefiltra(opzioni):
                                          windows="crlf" in opzioni, zsh="zsh" in opzioni)
         except Exception:
             viste, ridotto = ["errore"], None
-    return _scrivi(campi + [" ".join(viste), ridotto or ""])
+    return viste, ridotto
 
 
 def _bytecode_controllato(percorso):

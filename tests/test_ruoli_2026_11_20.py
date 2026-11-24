@@ -36,6 +36,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 BASH = shutil.which("bash") or "bash"
 
@@ -125,10 +127,8 @@ def test_rl04(repo: Path) -> None:
 
 
 def test_rl05(repo: Path) -> None:
-    settings = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-    voci = [h.get("command", "") for e in settings["hooks"].get("PostToolUse", [])
-            if e.get("matcher") == "Skill" for h in e.get("hooks", [])]
-    assert any("estensione-skill.py" in c for c in voci), f"RL05 settings.json non registra l'hook su Skill: {voci}"
+    voci = voci_hook.matcher(repo, "PostToolUse", "estensione-skill.py")
+    assert any("Skill" in m.split("|") for m in voci), f"RL05 settings.json non registra l'hook su Skill: {voci}"
     sys.path.insert(0, str(repo / "bin"))
     try:
         spec = importlib.util.spec_from_file_location("impacchetta_rl05", repo / "bin" / "impacchetta.py")
@@ -136,10 +136,11 @@ def test_rl05(repo: Path) -> None:
         spec.loader.exec_module(modulo)
     finally:
         sys.path.pop(0)
-    plugin = modulo.hooks_json(settings)
-    comandi = [h.get("command", "") for e in plugin["hooks"]["PostToolUse"] if e.get("matcher") == "Skill"
+    plugin = modulo.hooks_json(json.loads((repo / "settings.json").read_text(encoding="utf-8")))
+    comandi = [h.get("command", "") for e in plugin["hooks"]["PostToolUse"] if "Skill" in e.get("matcher", "").split("|")
                for h in e.get("hooks", [])]
-    assert any("${CLAUDE_PLUGIN_ROOT}/hooks/estensione-skill.py" in c for c in comandi), \
+    # Dal 23/11/2026 (#6492) l'hook parte da hub.py, che nel plugin sta nella stessa radice.
+    assert any(f"${{CLAUDE_PLUGIN_ROOT}}/hooks/{f}" in c for c in comandi for f in ("estensione-skill.py", "hub.py")), \
         f"RL05 il plugin non porta l'hook col suo percorso: {comandi}"
 
 

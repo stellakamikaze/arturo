@@ -53,7 +53,7 @@ VELENI = {
     "FG06": (FG, "            if f.stat().st_mtime < dopo:", "            if False:"),
     "FG07": (FG, "                ultimo = None   # un'altra sessione", "                pass"),
     "FG08": (FG, "    if quando is None:\n        return None\n", "    if quando is None:\n        quando = 0.0\n"),
-    "FG09": ("hooks/inject-now.sh", "|| [ $? -ne 2 ] || exit 2", "|| true"),
+    "FG09": ("hooks/inject-now.py", 'script("bin/fine-gia-chiusa.py", [], entrata, errori=True) == 2:', 'script("bin/fine-gia-chiusa.py", [], entrata, errori=True) == 99:'),
     "FG10": (FG, "        return 0   # nel dubbio", "        return 2   # nel dubbio"),
     "FG11": (FG, r'r"\s*/(?:arturo:)?fine(?:\s+(.*))?\s*\Z"', r'r"\s*/(?:arturo:)?fine(.*)"'),
     "FG12": (FG, "    if (m.group(1) or \"\").lstrip().startswith(VOLTA):", "    if False:"),

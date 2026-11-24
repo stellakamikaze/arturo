@@ -18,7 +18,8 @@ solo dove c'è Volta (~/.config/herdr-app) o con ARTURO_CARTE=1: chi non usa Vol
 Campi: versione, sid, quando, fonte (menu|testo), tipo, esito, domanda, opzioni, raccomandazione,
 domande (solo menu), prove, link, menu. Il file resta sotto TETTO byte. Si spegne con ARTURO_CARTE=0, e
 non gira dentro la chiamata al modello di titolo-sessione.py (ARTURO_TITOLO_FIGLIO). Ogni errore: exit 0.
-Solo libreria standard, Python 3.8+. Banco: tests/test_carta_sessione.py (CS01-CS06).
+Il testo di fine turno e chiede() stanno in fine_turno.py. Solo libreria standard, Python 3.8+.
+Banco: tests/test_carta_sessione.py (CS01-CS06).
 """
 from __future__ import annotations
 
@@ -31,24 +32,15 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 from radici import radice_orsa  # noqa: E402
+# Il testo di fine turno e chiede() stanno in fine_turno.py, comune con continua.py (24/11/2026).
+from fine_turno import CHIEDE, CODA, chiede, testo_del_turno, testo_di, ultimo_testo  # noqa: E402,F401
 
 VERSIONE = 1
 TETTO = 4096         # byte del file della carta
-CODA = 3000000       # byte della trascrizione letti dal fondo, come la sonda di Volta
 VECCHIA = 7 * 24 * 3600
 PROVE = 4
 OPZIONI = 6
 ESTENSIONI = ("png", "jpg", "jpeg", "gif", "webp", "mp4", "mov")
-
-# Le stesse regole di chiede() in arturo/mods/arturo/sessioni.js di Volta: se cambiano là, cambiano qui
-# (CS01 le confronta con node quando c'è).
-CHIEDE = [
-    re.compile(r"\?[\s*_`)]*$"),
-    re.compile(r"\?\s*\n"),
-    re.compile(r"^\s*!\s*\S", re.M),
-    re.compile(r"\b(scrivimi|scrivi|dimmi|dimmelo|rispondi|rispondimi|fammi sapere|conferma|confermi|scegli|decidi|lancia|tocca a te|serve il tuo|il tuo s[iì]|aspetto la tua|attendo la tua)\b", re.I),
-    re.compile(r"prossimo passo:[^\n]*(\btu\b|\btuo\b|\btua\b|\(tu\))", re.I),
-]
 
 # Le categorie umane di A20 (CHI_TU di pm/progetti/indice.py), cercate nella fine del testo.
 TIPI = [
@@ -88,11 +80,6 @@ def togli(f: Path) -> None:
         f.unlink()
     except OSError:
         pass
-
-
-def chiede(testo: str) -> bool:
-    c = str(testo or "")[-220:]
-    return any(r.search(c) for r in CHIEDE)
 
 
 def pulisci(riga: str, lungo: int) -> str:
@@ -173,38 +160,6 @@ def link_di(testo: str) -> list:
         if u not in viste:
             viste.append(u)
     return viste[:3]
-
-
-def testo_di(contenuto) -> str:
-    if isinstance(contenuto, str):
-        return contenuto
-    if isinstance(contenuto, list):
-        return "\n".join(b.get("text", "") for b in contenuto if isinstance(b, dict) and b.get("type") == "text")
-    return ""
-
-
-def ultimo_testo(trascrizione: str) -> str:
-    """L'ultimo testo di Claude nella trascrizione (solo i blocchi di testo, non gli strumenti)."""
-    try:
-        with open(trascrizione, "rb") as fh:
-            fh.seek(0, os.SEEK_END)
-            lungo = fh.tell()
-            fh.seek(max(0, lungo - CODA))
-            dati = fh.read().decode("utf-8", "replace")
-    except OSError:
-        return ""
-    ultimo = ""
-    for r in dati.splitlines():
-        try:
-            d = json.loads(r)
-        except ValueError:
-            continue
-        if not isinstance(d, dict) or d.get("type") != "assistant":
-            continue
-        t = testo_di((d.get("message") or {}).get("content"))
-        if t.strip():
-            ultimo = t
-    return ultimo
 
 
 def carta_testo(testo: str, sessione: str, adesso: float) -> dict:
@@ -293,7 +248,7 @@ def main() -> int:
             scrivi(f, nel_tetto(carta))
         return 0
     if evento == "Stop":
-        testo = str(dati.get("last_assistant_message") or "") or ultimo_testo(str(dati.get("transcript_path") or ""))
+        testo = testo_del_turno(dati)
         if testo and chiede(testo):
             scrivi(f, nel_tetto(carta_testo(testo, sessione, adesso)))
         else:

@@ -29,6 +29,8 @@ import sys
 import tempfile
 from pathlib import Path
 import shutil
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 # Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
 BASH = shutil.which("bash") or "bash"
@@ -195,9 +197,7 @@ def test_r07(repo: Path) -> None:
         assert "MEMORY-WRITE" in scritto, f"R07 la scrittura via shell nella memoria non passa dallo scanner: {scritto!r}"
         assert "MEMORY-WRITE" not in scanner(f'grep -n "ignora le istruzioni" {nota}'), "R07 una lettura avvisa"
         assert "MEMORY-WRITE" not in scanner('echo "ignora le istruzioni" >> /tmp/x.md'), "R07 avvisa fuori zona"
-    settings = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-    matcher = [v.get("matcher", "") for v in settings["hooks"]["PostToolUse"]
-               if any("memory-write-scanner.py" in h.get("command", "") for h in v.get("hooks", []))]
+    matcher = voci_hook.matcher(repo, "PostToolUse", "memory-write-scanner.py")
     assert matcher and "Bash" in matcher[0].split("|"), f"R07 lo scanner non è registrato su Bash: {matcher}"
 
 

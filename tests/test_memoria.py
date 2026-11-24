@@ -84,6 +84,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import voci_hook  # noqa: E402  matcher anche dalla TABELLA di hub
 
 from salti_windows import SaltoWindows, dichiara, link
 
@@ -1040,8 +1042,7 @@ def test_y22(repo: Path) -> None:
 def test_y23(repo: Path) -> None:
     """La firma d'errore porta la nota giusta quando un tool fallisce."""
     presenti(repo, "Y23")
-    assert "hooks/memory-firma.py" in json.dumps(json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-                                               ["hooks"].get("PostToolUseFailure", [])), \
+    assert voci_hook.matcher(repo, "PostToolUseFailure", "memory-firma.py"), \
         "Y23 settings.json non registra memory-firma su PostToolUseFailure"
     lab = Lab(repo)
     try:

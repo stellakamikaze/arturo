@@ -28,6 +28,9 @@ ST19 mille note con nomi lunghi e un handoff nello stesso giro: il commit non pa
 ST20 un collegamento simbolico di main (data/handoffs/link -> volta): la macchina Windows lo ha su disco come
      file di testo e non lo mette nel ramo; se c'era già entrato, il giro lo toglie. L'altra macchina, col
      collegamento vero su disco, riceve il ramo senza conflitto nel rebase.
+ST21 due macchine cambiano la stessa nota e lo stesso handoff (24/11/2026): il giro della seconda non si ferma.
+     La nota tiene le righe di tutte e due, l'handoff la versione scritta per ultimo, anche se è quella dell'altra.
+ST22 un giro fermo (exit 4) da più di 10 minuti stampa AVVISO una volta sola; il primo giro riuscito toglie il segno.
 ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
      dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
 
@@ -454,6 +457,62 @@ def st20(tmp):
         return f"a: rc={r.returncode} {r.stdout.strip()[-300:]!r}{r.stderr.strip()[-200:]!r}"
 
 
+def st21(tmp):
+    origin = coppia(tmp)
+    a = Macchina(tmp, "a", origin)
+    a.scrivi("data/memory/nota.md", "uno\n")
+    a.scrivi("data/handoffs/a/HANDOFF_1.md", "base\n")
+    a.lancia("--migra")
+    b = Macchina(tmp, "b", origin)
+    b.scrivi("data/memory/nota.md", "uno\n")
+    b.scrivi("data/handoffs/a/HANDOFF_1.md", "base\n")
+    b.lancia("--migra")
+    a.scrivi("data/memory/nota.md", "uno\nriga di a\n")
+    a.scrivi("data/handoffs/a/HANDOFF_1.md", "scritto da a alle 10\n")
+    ra = a.lancia("--giro", env=dict(a.env, SYNC_TRANSITO_MINUTO="0", GIT_AUTHOR_DATE="2026-11-24T10:00:00+0100"))
+    b.scrivi("data/memory/nota.md", "uno\nriga di b\n")
+    b.scrivi("data/handoffs/a/HANDOFF_1.md", "scritto da b alle 9\n")
+    r = b.lancia("--giro", env=dict(b.env, SYNC_TRANSITO_MINUTO="0", GIT_AUTHOR_DATE="2026-11-24T09:00:00+0100"))
+    nota = (b.cl / "data/memory/nota.md").read_text(encoding="utf-8")
+    hand = (b.cl / "data/handoffs/a/HANDOFF_1.md").read_text(encoding="utf-8")
+    if r.returncode != 0 or "risolti da soli" not in r.stdout or (b.cl / ".git-sync/rebase-merge").exists():
+        return f"rc={r.returncode} {r.stdout!r}{r.stderr!r} (a: {ra.stdout!r})"
+    if "riga di a" not in nota or "riga di b" not in nota or "<<<<<<<" in nota:
+        return f"nota {nota!r}"
+    if hand != "scritto da a alle 10\n":
+        return f"handoff {hand!r}"
+    if b.sync("rev-list", "--count", "origin/sync..HEAD") != "0" or b.sync("status", "--short"):
+        return f"b non allineato: {b.sync('status', '--short')!r}"
+    r = a.lancia("--giro", env=dict(a.env, SYNC_TRANSITO_ENTRATA="0"))
+    nota_a = (a.cl / "data/memory/nota.md").read_text(encoding="utf-8")
+    if r.returncode != 0 or "riga di b" not in nota_a:
+        return f"a non riceve l'unione: rc={r.returncode} {nota_a!r} {r.stdout!r}"
+
+
+def st22(tmp):
+    m = Macchina(tmp, "m", coppia(tmp))
+    for i in range(30):
+        m.scrivi(f"data/memory/nota{i}.md", f"{i}\n")
+    m.lancia("--migra")
+    shutil.rmtree(m.cl / "data" / "memory")
+    segno = m.cl / ".git-sync" / "bloccato-dal"
+    r = m.lancia("--giro")
+    if r.returncode != 4 or not segno.exists() or "AVVISO" in r.stdout:
+        return f"primo giro fermo: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
+    segno.write_text(f"{time.time() - 700}\n", encoding="utf-8")
+    r = m.lancia("--giro")
+    if r.returncode != 4 or "AVVISO" not in r.stdout or "bloccato da 11 minuti" not in r.stdout:
+        return f"dopo 11 minuti: rc={r.returncode} {r.stdout!r}"
+    r = m.lancia("--giro")
+    if "AVVISO" in r.stdout:
+        return f"AVVISO ripetuto: {r.stdout!r}"
+    if "BLOCCATO" not in m.lancia("--stato").stdout:
+        return "--stato non dice BLOCCATO"
+    r = m.lancia("--giro", env=dict(m.env, SYNC_TRANSITO_CANCELLAZIONI_OK="1"))
+    if r.returncode != 0 or segno.exists():
+        return f"giro riuscito: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
+
+
 def st16(tmp):
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
@@ -536,7 +595,7 @@ def fy03(tmp):
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
-        ("ST18", st18), ("ST19", st19), ("ST20", st20),
+        ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
 
 

@@ -72,7 +72,7 @@ def test_rl02(repo: Path) -> None:
     vetrina = len(re.findall(r"^- \*\*`/", rotta, re.MULTILINE))
     assert f"{PAROLE.get(vetrina, vetrina)} comandi, e Arturo" in rotta, \
         f"RL02 la rotta mostra {vetrina} comandi ma il testo ne conta un altro numero"
-    riga = next((r for r in readme.splitlines() if r.startswith("- `inject-now.sh`")), "")
+    riga = next((r for r in readme.splitlines() if r.startswith("- `inject-now.py`")), "")
     blocco = readme[readme.index(riga):readme.index("- `input-notifier-start.sh`")] if riga else ""
     assert "ultracode" in blocco, "RL02 il README non dice che inject-now avvisa prima di un ultracode"
     pannello = read(repo / "skills" / "arturo" / "hooks" / "dafare" / "register.tsx")
@@ -145,7 +145,7 @@ def test_rl05(repo: Path) -> None:
 
 
 def test_rl06(repo: Path) -> None:
-    promemoria = " ".join(read(repo / "hooks" / "inject-now.sh").split("<<'PROMEMORIA'", 1)[-1].split())
+    promemoria = " ".join(read(repo / "hooks" / "inject-now.py").split('PROMEMORIA = """', 1)[-1].split())
     assert "correzione a lavoro iniziato è una riga" in promemoria and "Brief corretto" in promemoria, \
         "RL06 il promemoria chiede prompt e brief interi anche per una correzione a lavoro iniziato"
 
@@ -276,8 +276,9 @@ def test_rl09(repo: Path) -> None:
 
 
 # I file di hooks/ che non girano da soli: moduli e strumenti che le guardie e l'avvio usano.
-STRUMENTI = ("aspetto_valori.py", "avvio-fetch.py", "controlla-config.py", "deriva.py", "evento_bash.py", "fiducia.py", "forma_comando.py",
-             "heredoc.py", "melchior_match.py", "prefiltro_bash.py", "prefiltro_regex.py", "radici.py", "scheda_file.py")
+STRUMENTI = ("aspetto_valori.py", "avvio-fetch.py", "controlla-config.py", "deriva.py", "evento_bash.py", "fiducia.py", "fine_turno.py", "forma_comando.py",
+             "heredoc.py", "melchior_match.py", "nel_processo.py", "prefiltro_bash.py", "prefiltro_regex.py", "radici.py",
+             "scheda_file.py")
 
 
 def test_rl10(repo: Path) -> None:
