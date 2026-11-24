@@ -35,10 +35,19 @@ from salti_windows import cartella_prova, dichiara  # noqa: E402
 GPG = shutil.which("gpg")
 
 
+def percorso_gpg(cartella: Path) -> str:
+    """Il gpg di Git per Windows è un programma msys: C:\\... e anche C:/... gli sembrano percorsi relativi, e ci
+    attacca davanti la cartella corrente (sonda sul runner, #6455). Lui legge /c/... ."""
+    if os.name != "nt":
+        return str(cartella)
+    p = cartella.as_posix()
+    return "/" + p[0].lower() + p[2:] if len(p) > 1 and p[1] == ":" else p
+
+
 class Lab:
     def __init__(self, repo: Path, base: Path, gnupg: Path):
         self.base = base
-        self.env = dict(os.environ, GNUPGHOME=str(gnupg), GIT_CONFIG_GLOBAL=str(base / "gitconfig"),
+        self.env = dict(os.environ, GNUPGHOME=percorso_gpg(gnupg), GIT_CONFIG_GLOBAL=str(base / "gitconfig"),
                         GIT_CONFIG_NOSYSTEM="1", GIT_CEILING_DIRECTORIES=str(base), GIT_TERMINAL_PROMPT="0",
                         GIT_AUTHOR_NAME="a", GIT_AUTHOR_EMAIL="a@example.invalid", GIT_COMMITTER_NAME="a",
                         GIT_COMMITTER_EMAIL="a@example.invalid", PYTHONDONTWRITEBYTECODE="1")
@@ -99,7 +108,7 @@ def lab(repo: Path) -> Iterator[Lab]:
     # non si apre ("File name too long"). Nel gate TMPDIR è già lungo: il portachiavi va in /tmp, se c'è.
     gnupg = Path(tempfile.mkdtemp(prefix="fsg", dir="/tmp" if os.path.isdir("/tmp") else None))
     gnupg.chmod(0o700)
-    env = dict(os.environ, GNUPGHOME=str(gnupg))
+    env = dict(os.environ, GNUPGHOME=percorso_gpg(gnupg))
     try:
         with cartella_prova() as d:
             yield Lab(repo, Path(d), gnupg)

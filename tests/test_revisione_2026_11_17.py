@@ -38,6 +38,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
+
 CASI = ["RV01", "RV02", "RV03", "RV04", "RV05", "RV06", "RV07", "RV08", "RV09", "RV10", "RV11"]
 SEGRETO = "sk-prova-NONDEVEUSCIRE-4242"
 
@@ -234,7 +237,7 @@ def prova(repo: Path, solo: str = "") -> list:
                         f.write_text("prova\n", encoding="utf-8")
                     elif f.exists():
                         f.unlink()
-                    esiti.append(esegui(["bash", "-c", m.group(1)], env)[1].strip())
+                    esiti.append(esegui([BASH_VERO, "-c", m.group(1)], env)[1].strip())
             if esiti != ["PERSONA", "SVILUPPATORE"]:
                 rossi.append(f"RV06 passo 0 della skill: {esiti!r}")
         if not solo or solo == "RV07":

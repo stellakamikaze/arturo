@@ -32,6 +32,10 @@ PM15 uno slug della fonte che è già alias di una scheda (vecchio-nome) si fond
 PM18 un nome alternativo già unito (21/11/2026): la sua cartella di handoff è un collegamento a quella del
      progetto, quindi non ha handoff suoi. Non resta una voce a parte: entra negli alias, anche con la sua
      cartella di codice. Dove il sistema non fa creare collegamenti il caso si salta.
+PM19 un nome della fonte che appartiene solo a schede chiuse (status closed, o scheda in _archive/) non torna
+     in elenco (24/11/2026): la fonte tiene le commesse chiuse.
+PM20 una scheda chiusa con un alias non crea una voce vuota col suo nome.
+PM21 un nome chiuso che è anche alias di una voce viva resta: entra nella voce viva, con la categoria della fonte.
 
 Veleno: --avvelena rompe bin/progetti.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso (VELENI del gate).
@@ -49,7 +53,7 @@ import time
 import os
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17", "PM18"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17", "PM18", "PM19", "PM20", "PM21"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
@@ -58,7 +62,9 @@ CATALOGO = ('import json, sys\n'
             '    {"slug": "madre", "titolo": "Madre", "categoria": "Dev", "alias": ["filone"]},\n'
             '    {"slug": "solo-fonte", "titolo": "Solo Fonte", "categoria": "Clienti", "alias": []},\n'
             '    {"slug": "vecchio-nome", "titolo": "Fonte Vecchio", "categoria": "Clienti", "alias": []},\n'
-            '    {"slug": "titolata", "titolo": "Dalla Fonte", "categoria": "Clienti", "alias": []}]}))\n')
+            '    {"slug": "titolata", "titolo": "Dalla Fonte", "categoria": "Clienti", "alias": []},\n'
+            '    {"slug": "nome-chiuso", "titolo": "Chiusa", "categoria": "Clienti", "alias": []},\n'
+            '    {"slug": "archiviata", "titolo": "Archiviata", "categoria": "Clienti", "alias": []}]}))\n')
 SENZA = 'import sys\nsys.exit(2)\n'
 # caso -> (testo di bin/progetti.py, testo rotto): ogni rottura deve far rosso il suo caso
 VELENI = {
@@ -81,6 +87,9 @@ VELENI = {
     "PM16": ("(d == 1 and corto >= 5)", "(d == 1 and corto >= 50)", "doppioni.py"),
     "PM17": ("if isinstance(n, int) and n % 2 == 1:", "if True:", "doppioni.py"),
     "PM18": ("or not cx.e_cartella(d) or collegata(d):", "or not cx.e_cartella(d):"),
+    "PM19": ('if not ({c["slug"], *c["alias"]} & chiusi) or', "if True or"),
+    "PM20": ('if v.get("alias") and v.get("status") != "closed"]', 'if v.get("alias")]'),
+    "PM21": (' or {c["slug"], *c["alias"]} & vivi]', "]"),
 }
 
 
@@ -190,6 +199,13 @@ def prova(lab: Lab) -> list:
         encoding="utf-8")
     (scheda.parent / "progetto-chiusa-sola.md").write_text("---\nname: progetto-chiusa-sola\nstatus: closed\n---\n",
                                                            encoding="utf-8")
+    (scheda.parent / "progetto-chiusa-alias.md").write_text(
+        "---\nname: progetto-chiusa-alias\nstatus: closed\nalias: [nome-chiuso]\n---\n", encoding="utf-8")
+    (scheda.parent / "progetto-chiusa-viva.md").write_text(
+        "---\nname: progetto-chiusa-viva\nstatus: closed\nalias: [vecchio-nome]\n---\n", encoding="utf-8")
+    archivio = scheda.parent.parent / "_archive" / "progetti"
+    archivio.mkdir(parents=True)
+    (archivio / "progetto-archiviata.md").write_text("---\nname: progetto-archiviata\nstatus: closed\n---\n", encoding="utf-8")
 
     prima = lab.impronta()
     p, avvisi, r = lab.progetti()
@@ -237,6 +253,13 @@ def prova(lab: Lab) -> list:
             or "vecchio-nome" not in p.get("con-index", {}).get("alias", []):
         rossi.append(f"PM12 titolo e alias della scheda: titolata={p.get('titolata')} vecchio-nome in elenco={'vecchio-nome' in p} "
                      f"con-index={p.get('con-index')}")
+    if "nome-chiuso" in p or "archiviata" in p:
+        rossi.append(f"PM19 nome della fonte di una scheda chiusa: nome-chiuso={'nome-chiuso' in p} archiviata={'archiviata' in p}")
+    if "chiusa-alias" in p or "chiusa-viva" in p:
+        rossi.append(f"PM20 scheda chiusa con alias: {p.get('chiusa-alias')}")
+    if "vecchio-nome" in p or "vecchio-nome" not in p.get("con-index", {}).get("alias", []) \
+            or p.get("con-index", {}).get("categoria") != "Clienti":
+        rossi.append(f"PM21 nome chiuso e vivo: con-index={p.get('con-index')}")
     if "vecchio-nome" in p or p.get("con-index", {}).get("categoria") != "Clienti":
         rossi.append(f"PM15 slug della fonte uguale a un alias: vecchio-nome in elenco={'vecchio-nome' in p} "
                      f"con-index={p.get('con-index')}")

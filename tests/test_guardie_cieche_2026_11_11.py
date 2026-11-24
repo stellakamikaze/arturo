@@ -403,7 +403,8 @@ def test_gc12(b: Banco):
         ("cartella dei segreti dietro un link", "cat chiavi/github"),
         ("base64 del link", "base64 k"),
         ("link dopo un'opzione con l'uguale", "openssl pkey --in=k"),
-        ("link col percorso intero", f"cat {progetto}/k"),
+        # barre dritte: in bash la barra rovesciata di C:\ è un escape, e il comando non nominerebbe il file
+        ("link col percorso intero", f"cat {progetto.as_posix()}/k"),
     ]
     casi = [(nome, due(b, c, progetto), "ask/ask") for nome, c in chiede]
     tace = [

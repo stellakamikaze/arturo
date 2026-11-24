@@ -64,6 +64,15 @@ def bash_vero() -> str:
     return shutil.which("bash") or "bash"
 
 
+def barre_dritte(comando: str) -> str:
+    """I percorsi C:\\... di un comando bash con le barre dritte, come li scrive Claude su Windows (#6455).
+
+    In bash la barra rovesciata è un escape: rm -rf C:\\Users\\x tocca C:Usersx, e la guardia lo legge giusto.
+    I casi del banco vogliono il percorso vero, quindi C:/Users/x."""
+    import re
+    return re.sub(r"[A-Za-z]:\\[^\s'\";&|<>()`]*", lambda m: m.group(0).replace("\\", "/"), comando)
+
+
 class Banco:
     def __init__(self, hooks: Path, radice: Path):
         self.hooks = hooks
@@ -81,6 +90,8 @@ class Banco:
             f.write_text("x\n", encoding="utf-8")
 
     def _dati(self, comando: str, cwd: Path | None = None, strumento: str = "Bash", dati: dict | None = None) -> str:
+        if os.name == "nt" and strumento == "Bash":
+            comando = barre_dritte(comando)
         return json.dumps({"tool_name": strumento, "tool_input": dati or {"command": comando},
                            "cwd": str(cwd or self.home), "hook_event_name": "PreToolUse", "session_id": "ms"})
 

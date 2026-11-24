@@ -11,7 +11,7 @@ Uso:
   sync_transito.py --giro        commit raggruppato dei path di transito, poi il push se è passato il minuto
   sync_transito.py --subito      come --giro: lo chiama la coda di /fine a fine corsa
   sync_transito.py --migra       crea .git-sync e il ramo sync (con --prova stampa soltanto, non scrive)
-  sync_transito.py --stato       una riga: commit locali non spinti, ultimo push, lucchetto
+  sync_transito.py --stato       una riga: commit locali non spinti, ultimo push, lucchetto, blocco
   sync_transito.py --prima-del-pull [main]    prima del pull di main: commit dei path di transito e segno
                                               "pull in corso", che ferma i giri fino al passo dopo. Se il
                                               pull toglie path di transito cambiati qui, tornano alla copia
@@ -29,6 +29,10 @@ Prima del commit la guardia dei segreti (hooks/commit-secret-gate.py) legge le r
 ferma il giro (exit 7), e il file la nomina senza mostrare il valore. Più di 25 file cancellati in un giro
 fermano il commit (exit 4): di solito è un pull di main fatto a mano, che toglie dal disco i path di transito.
 
+Un conflitto nel rebase si risolve da solo (24/11/2026): una nota di data/memory tiene le righe di tutte e due le
+versioni, un handoff e ogni altro file la versione scritta per ultimo. Un giro fermo da 10 minuti stampa una volta
+la riga AVVISO.
+
 Exit: 0 fatto o niente da fare · 4 rebase a metà, conflitto o troppe cancellazioni: il ramo sync resta com'era
 · 5 uso sbagliato · 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
 
@@ -43,6 +47,7 @@ import importlib.util
 import os
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,6 +57,9 @@ from pathlib import Path
 QUI = Path(__file__).resolve().parent
 sys.path.append(str(QUI.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
+
+# Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
+BASH_VERO = shutil.which("bash") or "bash"
 
 CL = Path(os.environ.get("SYNC_TRANSITO_CLAUDE") or radice_orsa())
 SYNC = CL / ".git-sync"
@@ -116,8 +124,16 @@ def escluso(rel):
     return nome.endswith(".pyc") or any(x in RIGENERABILI for x in parti[:-1])
 
 
+def collegamenti():
+    """I path che main tiene come collegamenti simbolici (modo 120000). Su Windows Git li scrive come file di
+    testo col nome della destinazione: dentro il ramo sync diventerebbero file veri, e sul Mac il rebase si
+    fermerebbe sul collegamento vero ("impossibile scollegare l'HEAD", una macchina Windows, 24/11/2026)."""
+    out = git_main("ls-files", "-s", "-z", "--", *percorsi())[1]
+    return {r.split("\t", 1)[1] for r in out.split("\0") if r.startswith("120000 ") and "\t" in r}
+
+
 def file_di_transito():
-    """I file su disco sotto i path di transito, senza gli esclusi."""
+    """I file su disco sotto i path di transito, senza gli esclusi e senza i collegamenti simbolici."""
     out = []
     for p in percorsi():
         pieno = CL / p
@@ -128,7 +144,8 @@ def file_di_transito():
             dirs[:] = [d for d in dirs if d != ".git" and d not in RIGENERABILI]
             base = Path(cartella).relative_to(CL).as_posix()
             out += [f"{base}/{n}" for n in nomi]
-    return [x for x in dict.fromkeys(out) if not escluso(x)]
+    link = collegamenti()
+    return [x for x in dict.fromkeys(out) if not escluso(x) and x not in link and not (CL / x).is_symlink()]
 
 
 def origine():
@@ -150,7 +167,7 @@ def origine():
                 return url, vis == "PRIVATE", f"visibilità {vis or 'sconosciuta'}"
     except OSError:
         pass
-    rc, out, _ = run(["bash", "-c", 'gh repo view "$1" --json visibility -q .visibility', "gh", url], 30)
+    rc, out, _ = run([BASH_VERO, "-c", 'gh repo view "$1" --json visibility -q .visibility', "gh", url], 30)
     vis = out.strip() if rc == 0 else ""
     if vis:
         try:
@@ -178,7 +195,14 @@ def prepara():
     except OSError:
         pass
     git("config", "core.bare", "false")
-    git("config", "core.autocrlf", "false")
+    # I fine riga seguono main: il work tree è lo stesso, scritto dal checkout di main. Su Windows Git mette
+    # core.autocrlf=true nella config di sistema e i file stanno su disco in CRLF; con false qui il ramo sync
+    # vedeva cambiato ogni file e li avrebbe spinti tutti in CRLF alle altre macchine (una macchina Windows, 24/11/2026).
+    crlf = git_main("config", "--get", "core.autocrlf")[1].strip()
+    if crlf:
+        git("config", "core.autocrlf", crlf)
+    else:
+        git("config", "--unset", "core.autocrlf")
     git("config", "status.showUntrackedFiles", "no")
     # La config di main può portare un .gitignore con questi stessi path: il ramo sync li aggiunge con -f e
     # non legge altre regole, così non finisce dentro niente che il passo di transito non abbia scelto.
@@ -202,11 +226,37 @@ def file_lucchetto():
     return SYNC / "lock"
 
 
-def viva(pid):
-    if os.name == "nt":
-        return True
+def _viva_windows(pid: int) -> bool:
+    """Come in fine-coda.py: su Windows os.kill(pid, 0) manda un Ctrl+C, e prima un lucchetto di un giro
+    morto restava valido per sempre (ST04, sonda #6455)."""
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ctypes.get_last_error() == 5  # accesso negato: il processo c'è
     try:
-        os.kill(int(pid), 0)
+        codice = wintypes.DWORD()
+        if not k.GetExitCodeProcess(h, ctypes.byref(codice)):
+            return True
+        return codice.value == 259  # STILL_ACTIVE
+    finally:
+        k.CloseHandle(h)
+
+
+def viva(pid):
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        return False
+    if os.name == "nt":
+        return _viva_windows(pid)
+    try:
+        os.kill(pid, 0)
         return True
     except (ValueError, ProcessLookupError):
         return False
@@ -290,6 +340,17 @@ def segreti(guardia, argomenti):
 
 # --- giro --------------------------------------------------------------------------------------------------
 
+def git_con_elenco(comando, paths):
+    """git <comando> con i path da un file, non nella riga di comando: su Windows la riga si ferma a 32.767
+    caratteri, e mille note fanno WinError 206 (una macchina Windows, 24/11/2026)."""
+    elenco = SYNC / "elenco-path"
+    elenco.write_bytes(b"".join(p.encode("utf-8") + b"\0" for p in paths))
+    try:
+        return git(*comando, f"--pathspec-from-file={elenco}", "--pathspec-file-nul")
+    finally:
+        elenco.unlink(missing_ok=True)
+
+
 def a_meta():
     return any((SYNC / n).is_dir() for n in ("rebase-merge", "rebase-apply"))
 
@@ -297,8 +358,8 @@ def a_meta():
 def aggiungi():
     """Mette in stage i file di transito: -f perché il .gitignore di main li nomina, e i cancellati con -u."""
     elenco = file_di_transito()
-    for i in range(0, len(elenco), 200):
-        rc, out, err = git("add", "-f", "-A", "--", *elenco[i:i + 200])
+    if elenco:
+        rc, out, err = git_con_elenco(("add", "-f", "-A"), elenco)
         if rc != 0:
             return False, ultima(err, out)
     tracciati = [p for p in percorsi() if git("ls-files", "--", p)[1].strip()]
@@ -307,8 +368,9 @@ def aggiungi():
         if rc != 0:
             return False, ultima(err, out)
     # Un file diventato escluso (un lucchetto, una chiave) non deve restare nel ramo: fuori dall'indice, non dal disco.
+    link = collegamenti()
     for x in git("ls-files", "-z")[1].split("\0"):
-        if x and escluso(x):
+        if x and (escluso(x) or x in link):
             git("rm", "-q", "--cached", "--", x)
     return True, ""
 
@@ -347,7 +409,7 @@ def commit(guardia, esiti):
             continue
         # Dall'indice con un pathspec: git riprende dal disco solo questi file, e "git commit -- <path>" li
         # prende interi. Il commit della memoria va prima e porta solo i suoi path.
-        rc, out, err = git("commit", "-q", "-m", msg, "--only", "--", *paths) if memoria and resto else \
+        rc, out, err = git_con_elenco(("commit", "-q", "-m", msg, "--only"), paths) if memoria and resto else \
             git("commit", "-q", "-m", msg)
         if rc != 0:
             esiti.append(f"commit fallito: {ultima(err, out)}")
@@ -356,11 +418,83 @@ def commit(guardia, esiti):
     return 0
 
 
+def piu_nuovo(rel):
+    """Nel rebase "ours" (stadio 2) è origin/sync, "theirs" (stadio 3) il commit locale che si riapplica. Vince
+    quello scritto per ultimo: conta la data d'autore, che il rebase non cambia. A pari data vince il locale."""
+    mio = git("log", "-1", "--format=%at", "REBASE_HEAD")[1].strip()
+    loro = git("log", "-1", "--format=%at", "HEAD", "--", rel)[1].strip()
+    try:
+        return 2 if int(loro) > int(mio) else 3
+    except ValueError:
+        return 3
+
+
+def unione_righe(base, a, b):
+    """Le righe di tutte e due le versioni (git merge-file --union), o None se git non le sa unire (binari)."""
+    with tempfile.TemporaryDirectory(prefix="sync-rebase-") as d:
+        fo, fa, fb = (Path(d) / n for n in ("base", "a", "b"))
+        fo.write_bytes(base or b"")
+        fa.write_bytes(a)
+        fb.write_bytes(b)
+        p = subprocess.run(["git", "merge-file", "-q", "--union", str(fa), str(fo), str(fb)],
+                           capture_output=True, timeout=60)
+        return fa.read_bytes() if p.returncode >= 0 else None
+
+
+def risolvi(rel):
+    """Un file in conflitto nel rebase, senza persona davanti (24/11/2026, scelta di Federico). Una nota di
+    data/memory tiene le righe di tutte e due le versioni, e qualche riga può uscire doppia; se una versione l'ha
+    cancellata e l'altra cambiata, resta la cambiata. Un handoff, e ogni altro file, prende la versione scritta per
+    ultimo. La versione che perde resta nella storia del ramo. (ok, come)."""
+    stadi = {n: blob([f"--git-dir={SYNC}"], f":{n}:{rel}") for n in (1, 2, 3)}
+    unito = None
+    if rel.startswith("data/memory/"):
+        if stadi[2] is not None and stadi[3] is not None:
+            unito = unione_righe(stadi[1], stadi[2], stadi[3])
+            come = "righe unite"
+        else:
+            unito = stadi[2] if stadi[2] is not None else stadi[3]
+            come = "tenuta la versione cambiata"
+    if unito is None:
+        unito = stadi[piu_nuovo(rel)]
+        come = "tenuta la più recente"
+    pieno = CL / rel
+    if unito is None:
+        pieno.unlink(missing_ok=True)
+        return git("rm", "-q", "--cached", "--ignore-unmatch", "--", rel)[0] == 0, "cancellato"
+    pieno.parent.mkdir(parents=True, exist_ok=True)
+    pieno.write_bytes(unito)
+    return git("add", "-f", "--", rel)[0] == 0, come
+
+
 def fai_rebase():
-    """Il ramo locale sopra origin/sync. (ok, perché non). In conflitto torna com'era."""
+    """Il ramo locale sopra origin/sync. (ok, nota). Un conflitto si risolve da solo con risolvi(): prima il giro
+    si fermava per sempre, e il 24/11/2026 il Mac ha tenuto fermi 20 commit. Se il rebase si ferma per altro, o
+    un file non si risolve, torna com'era."""
     rc, out, err = git("rebase", f"origin/{RAMO}", timeout=180)
-    if rc == 0:
-        return True, ""
+    risolti = []
+    for _ in range(500):
+        if rc == 0 or not a_meta():
+            break
+        conflitti = [p for p in git("diff", "--name-only", "--diff-filter=U", "-z")[1].split("\0") if p]
+        if not conflitti:
+            break
+        for rel in conflitti:
+            ok, come = risolvi(rel)
+            if not ok:
+                break
+            risolti.append(f"{rel} ({come})")
+        else:
+            # Un commit che dopo la scelta non cambia più niente si salta: --continue lo rifiuterebbe.
+            passo = "--skip" if git("diff", "--cached", "--quiet", "HEAD")[0] == 0 else "--continue"
+            rc, out, err = git("-c", "core.editor=true", "rebase", passo, timeout=180)
+            continue
+        break
+    if rc == 0 and not a_meta():
+        if not risolti:
+            return True, ""
+        return True, f"{len(risolti)} conflitti risolti da soli: " + ", ".join(risolti[:3]) + \
+            (" e altri" if len(risolti) > 3 else "")
     git("rebase", "--abort")
     return False, f"conflitto nel rebase su origin/{RAMO}: {ultima(err, out)}"
 
@@ -382,16 +516,18 @@ def push(esiti):
             return 0
         if git("merge-base", "--is-ancestor", f"origin/{RAMO}", "HEAD")[0] != 0:
             ok, perche = fai_rebase()
-            if not ok:
+            if perche:
                 esiti.append(perche)
+            if not ok:
                 return 4
     rc, out, err = git("push", "-q", "origin", f"HEAD:{RAMO}", timeout=90)
     if rc != 0:
         # Un altro processo ha spinto fra il fetch e il push: un secondo giro di rebase.
         git("fetch", "-q", "origin", RAMO, timeout=90)
         ok, perche = fai_rebase()
-        if not ok:
+        if perche:
             esiti.append(perche)
+        if not ok:
             return 4
         rc, out, err = git("push", "-q", "origin", f"HEAD:{RAMO}", timeout=90)
         if rc != 0:
@@ -401,8 +537,36 @@ def push(esiti):
         (SYNC / "ultimo-push").write_text(f"{time.time()}\n", encoding="utf-8")
     except OSError:
         pass
+    segna_fetch()  # il push ha appena fatto fetch e rebase: l'entrata riparte da qui
     esiti.append("push riuscito")
     return 0
+
+
+def segna_fetch():
+    try:
+        (SYNC / "ultimo-fetch").write_text(f"{time.time()}\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def secondi_dall_ultimo_fetch():
+    try:
+        return time.time() - float((SYNC / "ultimo-fetch").read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return 1e9
+
+
+def entrata(esiti):
+    """I dati delle altre macchine, anche senza niente da spingere (24/11/2026): ogni SYNC_TRANSITO_ENTRATA
+    secondi (300) un fetch e un rebase del ramo sync. Prima arrivavano solo col push di questa macchina o col
+    pull della config, e una macchina ferma restava indietro. Un giro dentro i 5 minuti non tocca la rete."""
+    if secondi_dall_ultimo_fetch() < float(os.environ.get("SYNC_TRANSITO_ENTRATA") or 300):
+        return 0
+    suoi = []
+    rc = aggiorna(suoi)
+    segna_fetch()
+    esiti += [e for e in suoi if "già allineato" not in e and "non ancora su origin" not in e]
+    return rc
 
 
 def secondi_dall_ultimo_push():
@@ -443,7 +607,48 @@ def aspetta_lucchetto(secondi=30):
         time.sleep(0.5)
 
 
+BLOCCO_AVVISO = 600  # secondi di giri fermi prima della riga AVVISO
+_GIRO_FATTO = False
+
+
+def segna_blocco(rc):
+    """Da quando il giro esce 4 (rebase non risolto, troppe cancellazioni): .git-sync/bloccato-dal tiene l'ora del
+    primo giro fermo. Oltre BLOCCO_AVVISO stampa una volta sola la riga AVVISO, che la config gira alla persona.
+    Il primo giro riuscito toglie il segno."""
+    f = SYNC / "bloccato-dal"
+    if rc != 4:
+        if rc == 0:
+            f.unlink(missing_ok=True)
+        return
+    try:
+        parti = f.read_text(encoding="utf-8").split()
+        dal, avvisato = float(parti[0]), len(parti) > 1
+    except (OSError, ValueError, IndexError):
+        dal, avvisato = time.time(), False
+    minuti = int((time.time() - dal) // 60)
+    if minuti >= 1:
+        print(f"sync: bloccato da {minuti} minuti")
+    if time.time() - dal >= BLOCCO_AVVISO and not avvisato:
+        print(f"AVVISO: il ramo sync di questa macchina è fermo da {minuti} minuti e le note non partono. "
+              f"Guarda data/logs/sync-transito.log.")
+        avvisato = True
+    try:
+        f.write_text(f"{dal}{' avvisato' if avvisato else ''}\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def giro():
+    global _GIRO_FATTO
+    _GIRO_FATTO = False
+    rc = _giro()
+    if _GIRO_FATTO:
+        segna_blocco(rc)
+    return rc
+
+
+def _giro():
+    global _GIRO_FATTO
     if not migrato():
         return 0
     if pull_in_corso() or any((CL / ".git" / n).is_dir() for n in ("rebase-merge", "rebase-apply")):
@@ -456,6 +661,7 @@ def giro():
     if lucchetto is None:
         print("sync: un altro giro tiene il lucchetto, riprovo al prossimo minuto")
         return 0
+    _GIRO_FATTO = True
     esiti = []
     try:
         prepara()
@@ -479,6 +685,11 @@ def giro():
             esiti.append("push al prossimo minuto")
         else:
             rc = push(esiti)
+            if rc:
+                print("sync: " + " · ".join(esiti))
+                return rc
+        if spingibile and git("rev-list", "--count", f"origin/{RAMO}..HEAD")[1].strip() in ("", "0"):
+            rc = entrata(esiti)
             if rc:
                 print("sync: " + " · ".join(esiti))
                 return rc
@@ -591,8 +802,9 @@ def aggiorna(esiti):
         return 0
     prima = git("rev-parse", "HEAD")[1].strip()
     ok, perche = fai_rebase()
-    if not ok:
+    if perche:
         esiti.append(perche)
+    if not ok:
         return 4
     n = git("rev-list", "--count", f"{prima}..HEAD")[1].strip() if prima else "?"
     esiti.append(f"ramo {RAMO} aggiornato ({n} commit arrivati)")
@@ -725,7 +937,8 @@ def stato():
     avanti = git("rev-list", "--count", f"origin/{RAMO}..HEAD")[1].strip() or "?"
     eta = secondi_dall_ultimo_push()
     print(f"sync: {avanti} commit non spinti · ultimo push "
-          f"{'mai' if eta > 1e8 else str(int(eta)) + ' s fa'} · lucchetto {'preso' if file_lucchetto().exists() else 'libero'}")
+          f"{'mai' if eta > 1e8 else str(int(eta)) + ' s fa'} · lucchetto {'preso' if file_lucchetto().exists() else 'libero'}"
+          f"{' · BLOCCATO, guarda data/logs/sync-transito.log' if (SYNC / 'bloccato-dal').exists() else ''}")
     return 0
 
 

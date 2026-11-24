@@ -2,7 +2,7 @@
 
 Le regex Python dei pattern del pre-filtro, già tradotte. Valgono solo con l'impronta del sorgente.
 """
-IMPRONTA = '9f068ace8f95c168ebfbb8777da64fe8773e738eb2ca4608e4e01d2b5cefa1ff'
+IMPRONTA = '95e175811690313fdf2051620a7cec5ea1cec95868e7fc7a0d6a2f73e2c34728'
 REGEX = {
     # PATTERN_API_GITHUB
     'E:api\\.github\\.com': [

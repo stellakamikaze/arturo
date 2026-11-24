@@ -330,7 +330,7 @@ def sc08(lab: Lab) -> str:
     if r.returncode or r.stdout or not indice.exists():
         return f"hook: rc {r.returncode} out {r.stdout!r} indice {indice.exists()}"
     righe = [json.loads(x) for x in indice.read_text(encoding="utf-8").splitlines()]
-    if len(righe) != 1 or righe[0]["campi"] != ["stato"] or righe[0]["percorso"] != str(nota) or righe[0]["piu"] != 1:
+    if len(righe) != 1 or righe[0]["campi"] != ["stato"] or righe[0]["percorso"] != str(nota).replace(os.sep, "/") or righe[0]["piu"] != 1:
         return f"riga dell'indice: {righe}"
     if "segreta" in indice.read_text(encoding="utf-8"):
         return "il testo della modifica è entrato nell'indice"

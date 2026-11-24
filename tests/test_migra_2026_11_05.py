@@ -707,7 +707,7 @@ VELENI = [
     ("MG17", "bin/migra.py", '    if controllo["firma"] != "ok" or controllo["cambiati"] or controllo["mancano"]:\n',
      '    if controllo["firma"] != "ok":\n'),
     ("MG16", "bin/migra.py", "personale.regole_consigliate(radice_arturo()))[0])", "personale.regole_consigliate(radice_arturo())))"),
-    ("MG19", "bin/migra.py", "    return shutil.which(nome) or nome\n", "    return nome\n"),
+    ("MG19", "bin/migra.py", "    comando = [shutil.which(nome) or nome, \"plugin\", *argomenti]", "    comando = [nome, \"plugin\", *argomenti]"),
 ]
 
 

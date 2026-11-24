@@ -414,7 +414,7 @@ def programma(riga: str) -> str:
         return primo
     for m in re.finditer(r"/claude(?=\s|$)", riga):
         candidato = riga[:m.end()]
-        if " " in candidato and candidato.startswith("/") and os.path.isfile(candidato):
+        if " " in candidato and os.path.isabs(candidato) and os.path.isfile(candidato):
             return candidato
     return primo
 
