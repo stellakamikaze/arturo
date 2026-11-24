@@ -442,7 +442,7 @@ def unione_righe(base, a, b):
 
 
 def risolvi(rel):
-    """Un file in conflitto nel rebase, senza persona davanti (24/11/2026, scelta di Federico). Una nota di
+    """Un file in conflitto nel rebase, senza persona davanti (24/11/2026, scelta di chi mantiene Arturo). Una nota di
     data/memory tiene le righe di tutte e due le versioni, e qualche riga può uscire doppia; se una versione l'ha
     cancellata e l'altra cambiata, resta la cambiata. Un handoff, e ogni altro file, prende la versione scritta per
     ultimo. La versione che perde resta nella storia del ramo. (ok, come)."""
