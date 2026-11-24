@@ -51,6 +51,15 @@ di passaggio vanno sul ramo `sync`.
   guardato le cancellazioni, `SYNC_TRANSITO_CANCELLAZIONI_OK=1` lascia passare il giro.
 - **Gli stessi merge driver.** Il ramo sync legge lo stesso `.gitattributes` di `main` e copia da `main`
   la config dei driver: `stati.json` e i registri si uniscono senza conflitti.
+- **I conflitti si risolvono da soli** (24/11/2026). Se due macchine cambiano lo stesso file, il rebase non
+  si ferma più. Una nota di `data/memory` tiene le righe di tutte e due le versioni, e qualche riga può
+  uscire doppia. Se una macchina l'ha cancellata e l'altra cambiata, resta la cambiata. Un handoff, e ogni
+  altro file, prende la versione scritta per ultimo, secondo la data d'autore del commit. La versione che
+  perde resta nella storia del ramo. Prima il giro usciva 4 a ogni minuto: il 24/11 un Mac ha tenuto fermi
+  20 commit. Caso ST21 del banco.
+- **Un blocco lungo si segnala.** Se il giro esce 4 per altri motivi, `.git-sync/bloccato-dal` tiene l'ora
+  del primo giro fermo. Dopo 10 minuti il giro stampa una volta sola la riga `AVVISO:`, e `--stato` dice
+  `BLOCCATO`. Il primo giro riuscito toglie il segno. Caso ST22.
 
 ## Chi lancia cosa
 
