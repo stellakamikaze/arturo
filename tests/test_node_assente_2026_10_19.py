@@ -116,7 +116,7 @@ def test_na02(repo: Path) -> None:
         env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice), "ARTURO_BANCHI_AVVIO": "0",
                "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "ARTURO_PATH_CANDIDATE": ""}
         p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
-                           cwd=radice, capture_output=True, text=True, timeout=60)
+                           cwd=radice, capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert any(r.startswith("NODE: manca node") for r in p.stdout.splitlines()), \
             f"NA02 senza node l'avvio non lo dice: rc={p.returncode} out={p.stdout[-400:]!r}"
 
@@ -137,7 +137,7 @@ def test_na03(repo: Path) -> None:
                "ARTURO_PATH_CANDIDATE": per_bash(os.pathsep.join([str(brew), base, str(radice / "non-esiste")]))}
         for giro in (1, 2):
             p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
-                               cwd=radice, capture_output=True, text=True, timeout=60)
+                               cwd=radice, capture_output=True, text=True, encoding="utf-8", timeout=60)
             assert not any(r.startswith("NODE:") for r in p.stdout.splitlines()), \
                 f"NA03 giro {giro}: node c'è in {brew} ma l'avvio dice che manca: {p.stdout[-400:]!r}"
         testo = ambiente.read_text(encoding="utf-8") if ambiente.exists() else ""

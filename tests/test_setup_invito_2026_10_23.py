@@ -52,7 +52,7 @@ def avvio(home: Path, radice: Path) -> list:
     env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ["PATH"], "ARTURO_BANCHI_AVVIO": "0",
            "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice)}
     p = subprocess.run([BASH_VERO, str(home / ".claude" / "hooks" / "session-start.sh")], input="{}", env=env,
-                       cwd=radice, capture_output=True, text=True, timeout=60)
+                       cwd=radice, capture_output=True, text=True, encoding="utf-8", timeout=60)
     return [r for r in p.stdout.splitlines() if r.startswith("SETUP:")]
 
 
@@ -123,7 +123,7 @@ def avvio_plugin(home: Path, codice: Path, radice: Path) -> list:
     env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ["PATH"], "ARTURO_BANCHI_AVVIO": "0",
            "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice)}
     p = subprocess.run([BASH_VERO, str(codice / "hooks" / "session-start.sh")], input="{}", env=env,
-                       cwd=radice, capture_output=True, text=True, timeout=60)
+                       cwd=radice, capture_output=True, text=True, encoding="utf-8", timeout=60)
     return [r for r in p.stdout.splitlines() if r.startswith("SETUP:")]
 
 

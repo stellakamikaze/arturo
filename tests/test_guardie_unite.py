@@ -463,7 +463,7 @@ def test_g209(repo: Path) -> None:
 
         def avvio(**extra: str):
             inizio = time.time()
-            p = subprocess.run([BASH, str(claude / "hooks" / "session-start.sh")], input="{}", text=True,
+            p = subprocess.run([BASH, str(claude / "hooks" / "session-start.sh")], input="{}", text=True, encoding="utf-8",
                                capture_output=True, cwd=str(progetto), env=env_di(home, **extra), timeout=60)
             ultimo.update(secondi=time.time() - inizio, rc=p.returncode, err=p.stderr)
             return p, time.time() - inizio

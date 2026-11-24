@@ -832,7 +832,7 @@ def test_t29(repo: Path) -> None:
         c.cli("aggiungi", "Mandare il preventivo", "--progetto", "libro", "--chi", "tu", "--scadenza", "1/10")
         c.cli("aggiungi", "Firmare", "--progetto", "libro", "--chi", "tu", "--scadenza", "10/10")
         c.cli("aggiungi", "Rileggere la bozza lunga", "--progetto", "sito", "--chi", "io")
-        testo = c.cli().stdout
+        testo = c.cli().stdout.replace("\r\n", "\n")  # su Windows print scrive \r\n, e $ di re.M non lo salta
         try:
             testo.encode("cp850")
         except UnicodeEncodeError as e:

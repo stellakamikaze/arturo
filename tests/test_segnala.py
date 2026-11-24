@@ -134,6 +134,7 @@ def test_s04(repo: Path) -> None:
 
     def avvio() -> str:
         return subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], capture_output=True, text=True,
+                              encoding="utf-8",
                               env=lab.env, cwd=str(lab.dir), stdin=subprocess.DEVNULL, timeout=60).stdout
     assert "SEGNALA:" in avvio(), "S04 l'avvio non invita a segnalare"
     assert lab.arturo("basta").returncode == 0

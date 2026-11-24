@@ -239,7 +239,7 @@ def test_c05(repo: Path) -> None:
         assert "APPLICAZIONE NON PARTITA" in uscita and "sync" in uscita and copia.parent.name in uscita, \
             f"C05 con {lab.shell} l'esito non dice che una copia di prova aspetta: {uscita[-400:]!r}"
         avvio = subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env,
-                               cwd=str(lab.base), capture_output=True, text=True, timeout=60).stdout
+                               cwd=str(lab.base), capture_output=True, text=True, encoding="utf-8", timeout=60).stdout
         assert "copia di prova con un conflitto aspetta" in avvio, f"C05 con {lab.shell} l'avvio non ricorda la copia in attesa"
         scarta = blocco(aggiorna(repo), "## Passo 3", "C05", indice=1)
         fine = lab.lancia(scarta)
@@ -280,7 +280,7 @@ def test_c10(repo: Path) -> None:
                 f"C10 con {shell} il sync dopo ha cancellato la cartella sopra la HOME con lo spazio"
             assert copia.is_dir() and stato.exists(), f"C10 con {shell} il sync dopo ha tolto la copia in attesa: {uscita[-300:]!r}"
             avvio = subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env,
-                                   cwd=str(lab.base), capture_output=True, text=True, timeout=60).stdout
+                                   cwd=str(lab.base), capture_output=True, text=True, encoding="utf-8", timeout=60).stdout
             assert "copia di prova con un conflitto aspetta" in avvio, \
                 f"C10 con {shell} l'avvio non ricorda la copia in attesa con lo spazio nel percorso"
             trova = concludi(aggiorna(repo), "C10").split("APPLICA=")[0] + 'echo "TROVATA=[$COPIA]"\n'

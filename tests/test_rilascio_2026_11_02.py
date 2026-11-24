@@ -153,7 +153,9 @@ def test_rl06(repo: Path) -> None:
 def ambiente(home: Path) -> dict:
     """HOME finta per statusline.js. Su Windows node non parte senza SystemRoot e il PATH vero."""
     env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin",
-           "GIT_CONFIG_GLOBAL": os.devnull}
+           "GIT_CONFIG_GLOBAL": os.devnull,
+           # I tagli si contano col segno … anche su Windows: i segni ASCII della console li prova AV11.
+           "ARTURO_SEGNI": "unicode"}
     if os.name == "nt":
         env.update({k: v for k, v in os.environ.items() if k.upper() in ("SYSTEMROOT", "WINDIR", "PATH", "TEMP", "TMP")})
     return env
