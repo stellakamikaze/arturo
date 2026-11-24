@@ -31,10 +31,12 @@ fermano il commit (exit 4): di solito è un pull di main fatto a mano, che togli
 
 Un conflitto nel rebase si risolve da solo (24/11/2026): una nota di data/memory tiene le righe di tutte e due le
 versioni, un handoff e ogni altro file la versione scritta per ultimo. Un giro fermo da 10 minuti stampa una volta
-la riga AVVISO.
+la riga AVVISO col motivo: vale per le uscite 4, 6 e 7 e per un rebase di main lasciato a metà (#6566). Un file
+con le righe <<<<<<< e >>>>>>> fra le righe nuove non entra nel ramo (#5528).
 
-Exit: 0 fatto o niente da fare · 4 rebase a metà, conflitto o troppe cancellazioni: il ramo sync resta com'era
-· 5 uso sbagliato · 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
+Exit: 0 fatto o niente da fare (anche col rebase di main a metà, che conta come blocco) · 4 rebase a metà in
+.git-sync, troppe cancellazioni o segni di conflitto in un file: il ramo sync resta com'era · 5 uso sbagliato
+· 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
 
 Variabili per i banchi: SYNC_TRANSITO_CLAUDE (la radice), SYNC_TRANSITO_MINUTO (secondi fra due push, 60),
 SYNC_TRANSITO_VISIBILITA (PRIVATE per saltare gh). SYNC_TRANSITO_CANCELLAZIONI_OK=1 lascia passare un giro
@@ -68,6 +70,8 @@ GUARDIA = QUI.parent / "hooks" / "commit-secret-gate.py"
 RAMO = "sync"
 RE_ARTURO = re.compile(r"github\.com[:/]stellakamikaze/arturo(\.git)?/?$")
 RE_FILE_DIFF = re.compile(r"^diff --git a/.* b/(.*)$", re.M)
+RE_SEGNO_APRE = re.compile(r"^\+<<<<<<< ", re.M)
+RE_SEGNO_CHIUDE = re.compile(r"^\+>>>>>>> ", re.M)
 RE_SENSIBILE = re.compile(r"(?i)^(\.env(\..*)?|.*\.(env|key|pem|p12|pfx)|\.?credentials\.json|client_secret.*\.json"
                           r"|id_(rsa|ed25519|ecdsa|dsa))$")
 CARTELLE_SENSIBILI = {"secrets", "credentials"}
@@ -375,8 +379,24 @@ def aggiungi():
     return True, ""
 
 
+def segni_di_conflitto():
+    """I file in stage con le righe <<<<<<< e >>>>>>> fra le righe nuove: un merge fermo a metà le ha lasciate sul
+    disco (stati.json il 12 e il 13/11/2026, #5528). Servono tutte e due: una riga ======= da sola è un titolo
+    Markdown."""
+    rc, out, _ = git("diff", "--cached", *DIFF)
+    if rc != 0:
+        return []
+    segnati = []
+    inizi = list(RE_FILE_DIFF.finditer(out))
+    for i, m in enumerate(inizi):
+        pezzo = out[m.end():inizi[i + 1].start() if i + 1 < len(inizi) else len(out)]
+        if RE_SEGNO_APRE.search(pezzo) and RE_SEGNO_CHIUDE.search(pezzo):
+            segnati.append(m.group(1))
+    return segnati
+
+
 def commit(guardia, esiti):
-    """0 fatto (o niente), 6 commit fallito, 7 segreto."""
+    """0 fatto (o niente), 4 troppe cancellazioni o segni di conflitto, 6 commit fallito, 7 segreto."""
     ok, err = aggiungi()
     if not ok:
         esiti.append(f"git add fallito: {err}")
@@ -394,6 +414,13 @@ def commit(guardia, esiti):
         esiti.append(f"STOP, {len(tolti)} file cancellati dal disco (fra cui {tolti[0]}): niente commit. "
                      f"Se le cancellazioni sono volute, rilancia con SYNC_TRANSITO_CANCELLAZIONI_OK=1; se no "
                      f"python3 bin/sync_transito.py --dopo-il-pull <HEAD di main prima del pull> li ripristina")
+        return 4
+    segnati = segni_di_conflitto()
+    if segnati:
+        # Spinto, il file rotto arriverebbe a tutte le macchine: stati.json non si leggerebbe più come JSON.
+        git("reset", "-q")
+        esiti.append(f"STOP, segni di conflitto <<<<<<< >>>>>>> in {', '.join(segnati[:3])}: niente commit. "
+                     f"Togli i segni dal file e tieni le righe giuste: il giro dopo riparte da solo")
         return 4
     ferma = segreti(guardia, ("diff", "--cached", *DIFF))
     if ferma:
@@ -608,15 +635,21 @@ def aspetta_lucchetto(secondi=30):
 
 
 BLOCCO_AVVISO = 600  # secondi di giri fermi prima della riga AVVISO
+# Le uscite che non passano da sole: il giro dopo trova la stessa cosa (24/11/2026, #6566).
+MOTIVI = {4: "rebase, segni di conflitto o troppe cancellazioni", 6: "git add o commit falliti",
+          7: "una chiave nei file da salvare"}
+MAIN_A_META = "un rebase di main lasciato a metà"
 _GIRO_FATTO = False
+_FERMO = ""
 
 
-def segna_blocco(rc):
-    """Da quando il giro esce 4 (rebase non risolto, troppe cancellazioni): .git-sync/bloccato-dal tiene l'ora del
-    primo giro fermo. Oltre BLOCCO_AVVISO stampa una volta sola la riga AVVISO, che la config gira alla persona.
-    Il primo giro riuscito toglie il segno."""
+def segna_blocco(rc, motivo=""):
+    """Da quando il giro è fermo (exit 4, 6 o 7, oppure un rebase di main a metà, che esce 0 per non fermare la
+    coda di /fine): .git-sync/bloccato-dal tiene l'ora del primo giro fermo. Oltre BLOCCO_AVVISO stampa una volta
+    sola la riga AVVISO, col motivo, che la config gira alla persona. Il primo giro riuscito toglie il segno."""
     f = SYNC / "bloccato-dal"
-    if rc != 4:
+    motivo = motivo or MOTIVI.get(rc, "")
+    if not motivo:
         if rc == 0:
             f.unlink(missing_ok=True)
         return
@@ -629,8 +662,8 @@ def segna_blocco(rc):
     if minuti >= 1:
         print(f"sync: bloccato da {minuti} minuti")
     if time.time() - dal >= BLOCCO_AVVISO and not avvisato:
-        print(f"AVVISO: il ramo sync di questa macchina è fermo da {minuti} minuti e le note non partono. "
-              f"Guarda data/logs/sync-transito.log.")
+        print(f"AVVISO: il ramo sync di questa macchina è fermo da {minuti} minuti ({motivo}) e le note non "
+              f"partono. Guarda data/logs/sync-transito.log.")
         avvisato = True
     try:
         f.write_text(f"{dal}{' avvisato' if avvisato else ''}\n", encoding="utf-8")
@@ -639,23 +672,28 @@ def segna_blocco(rc):
 
 
 def giro():
-    global _GIRO_FATTO
-    _GIRO_FATTO = False
+    global _GIRO_FATTO, _FERMO
+    _GIRO_FATTO, _FERMO = False, ""
     rc = _giro()
-    if _GIRO_FATTO:
-        segna_blocco(rc)
+    if _GIRO_FATTO or _FERMO:
+        segna_blocco(rc, _FERMO)
     return rc
 
 
 def _giro():
-    global _GIRO_FATTO
+    global _GIRO_FATTO, _FERMO
     if not migrato():
         return 0
-    if pull_in_corso() or any((CL / ".git" / n).is_dir() for n in ("rebase-merge", "rebase-apply")):
+    if pull_in_corso():
         # Fra il pull di main e il ripristino i path di transito possono mancare dal disco: un giro adesso
-        # committerebbe le loro cancellazioni. Il segno lo toglie --dopo-il-pull; un rebase di main a metà
-        # ferma i giri finché qualcuno non lo chiude.
+        # committerebbe le loro cancellazioni. Il segno lo toglie --dopo-il-pull.
         print("sync: pull della config in corso, riprovo al prossimo minuto")
+        return 0
+    if any((CL / ".git" / n).is_dir() for n in ("rebase-merge", "rebase-apply")):
+        # Lo stesso rischio, ma un rebase di main a metà non si chiude da solo: conta come blocco, e dopo 10
+        # minuti arriva l'AVVISO. Esce 0 lo stesso, perché la coda di /fine non si fermi.
+        print("sync: rebase di main a metà, riprovo al prossimo minuto")
+        _FERMO = MAIN_A_META
         return 0
     lucchetto = prendi_lucchetto()
     if lucchetto is None:

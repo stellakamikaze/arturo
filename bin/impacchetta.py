@@ -48,7 +48,10 @@ NOME = "arturo"
 # Cosa entra nel plugin. Restano fuori: tests (si girano sul repository), server (il Worker della
 # telemetria, si pubblica a parte), settings.json (diventa hooks.json più impostazioni/arturo.json).
 CARTELLE = ["agents", "bin", "docs", "firme", "hooks", "output-styles", "scripts", "shared", "skills", "tools"]
-FILE = ["LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json"]
+# data/transito.paths: l'elenco dei path del ramo sync, che bin/sync_transito.py legge accanto a sé (0.2.24 non
+# l'aveva, e lo script installato non trovava nessun path di transito: #6621, 24/11/2026).
+FILE = ["LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json",
+        "data/transito.paths"]
 IGNORA = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "node_modules")
 # Cartelle e file di ~/.claude che nel clone sono codice di Arturo e nel plugin stanno nella sua cartella.
 # output-styles resta fuori: nei testi ~/.claude/output-styles/ è la cartella degli stili della persona
@@ -183,6 +186,7 @@ def impacchetta(uscita: Path, versione: str) -> None:
             shutil.copytree(RADICE / c, uscita / c, ignore=IGNORA, symlinks=True)
     for f in FILE:
         if (RADICE / f).is_file():
+            (uscita / f).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(RADICE / f, uscita / f)
     skill = skill_di_arturo()
     for comando in sorted((RADICE / "commands").glob("*.md")):
