@@ -53,8 +53,12 @@ import time
 from pathlib import Path
 
 QUI = Path(__file__).resolve().parent
+sys.path.insert(0, str(QUI))
+from salti_windows import dichiara  # noqa: E402
+
 SCRIPT = QUI.parent / "bin" / "sync_transito.py"
 TOKEN = "gh" + "p_" + "A1b2C3d4" * 5
+SALTATO = "saltato"  # un caso che su questo sistema non si prova: né verde né rosso, e la controprova lo esclude
 
 
 def sh(cwd, *a, env=None):
@@ -397,7 +401,7 @@ def st18(tmp):
 
 def st19(tmp):
     if os.name == "nt":
-        return None  # il git finto è uno script sh; su Windows il limite vero lo prova una macchina Windows
+        return SALTATO  # il git finto è uno script sh; su Windows il limite vero lo prova una macchina Windows
     vero = shutil.which("git")
     finto = tmp / "bin"
     finto.mkdir()
@@ -422,7 +426,7 @@ def st19(tmp):
 
 def st20(tmp):
     if os.name == "nt":
-        return None  # os.symlink su Windows chiede privilegi; il caso Windows qui si simula con core.symlinks
+        return SALTATO  # os.symlink su Windows chiede privilegi; il caso Windows qui si simula con core.symlinks
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
     a.scrivi("data/handoffs/volta/H.md", "h\n")
@@ -601,23 +605,31 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     SCRIPT = args.repo.resolve() / "bin" / "sync_transito.py"
-    rossi = []
+    rossi, saltati = [], []
     for codice, fn in CASI:
         with tempfile.TemporaryDirectory(prefix="arturo-st-") as tmp:
             try:
                 e = fn(Path(tmp))
             except Exception as ex:  # noqa: BLE001 - un banco che salta è rosso, col motivo
                 e = f"eccezione {ex!r}"
-            if e:
+            if e == SALTATO:
+                saltati.append(codice)
+                if not args.baseline_ref:
+                    dichiara(codice, "non si prova su Windows (git finto in sh, link simbolici)")
+            elif e:
                 rossi.append(f"{codice} {e}")
     if args.baseline_ref:
         # La base non ha ancora bin/sync_transito.py: ogni caso deve essere rosso.
-        assert len(rossi) == len(CASI), f"baseline non discriminante: rossi {[r.split()[0] for r in rossi]}"
-        print(f"baseline {args.baseline_ref}: {len(rossi)}/{len(CASI)} rossi")
+        # Un caso saltato su questo sistema non conta: prima, su Windows, ST19 e ST20 risultavano verdi anche qui.
+        assert len(rossi) == len(CASI) - len(saltati), \
+            f"baseline non discriminante: rossi {[r.split()[0] for r in rossi]}, saltati {saltati}"
+        print(f"baseline {args.baseline_ref}: {len(rossi)}/{len(CASI) - len(saltati)} rossi"
+              + (f", saltati {', '.join(saltati)}" if saltati else ""))
         return 0
     for r in rossi:
         print("ROSSO", r)
-    print(f"sync dei dati di transito: {len(CASI) - len(rossi)}/{len(CASI)} casi verdi")
+    print(f"sync dei dati di transito: {len(CASI) - len(rossi) - len(saltati)}/{len(CASI) - len(saltati)} casi verdi"
+          + (f", saltati {', '.join(saltati)}" if saltati else ""))
     return 1 if rossi else 0
 
 
