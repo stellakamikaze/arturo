@@ -24,6 +24,13 @@ un giro solo dice ogni rosso.
       quel commit e non da HEAD: la CI lo usa sul push a dev, dove i cambi sono già in commit (revisione
       del 22/11/2026, A1). Un commit che non esiste ferma il gate: senza base il giro sarebbe vuoto e verde.
       Esce 1 se un lavoro è rosso, dopo averli fatti girare tutti.
+      Con --parte I/N fa girare solo la parte I di N (24/11/2026): la CI divide il gate su più computer
+      per sistema. Ogni parte sceglie i suoi lavori con la stessa regola (dividi), così le N parti
+      insieme fanno ogni lavoro una volta sola. Il controllo degli elenchi gira solo nella parte 1.
+
+  esegui_gate.py pesi --root R LOG...
+      Rifà tests/gate-pesi.json dai log di una run della CI (gh run view <id> --log): per ogni lavoro il
+      tempo più alto fra i sistemi. Un peso vecchio sbilancia un poco le parti, ma non toglie lavori.
 
 Controprove in cache (3/11/2026). Una controprova verde dice che il banco è rosso sulla sua base. Finché
 il banco, le sue fonti e la base non cambiano, rifarla non dice niente di nuovo: costava 87 lavori a ogni
@@ -58,6 +65,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 TETTO = 1800  # un lavoro appeso non deve tenere fermo il gate per sempre
+PESI = Path("tests") / "gate-pesi.json"  # i tempi della CI, per dividere i lavori fra le parti
+RIGA_LAVORO = re.compile(r"(?:^|\s)(?:OK|ROSSO)\s+([\d.]+)s\s+((?:banco|py38|controprova|veleno):\S+)\s*$")
 RIGHE_ROSSO = 40
 PAROLA = re.compile(r"[\w.\-]+")
 IMPORT = re.compile(r"^\s*(?:from|import)\s+([\w.]+)", re.M)
@@ -142,7 +151,8 @@ class Worker:
 # Le variabili che l'avvio di Arturo mette nella sessione di Claude. Un gate lanciato da una sessione con
 # Arturo installato come plugin le passava ai banchi: /inizio nella HOME finta vedeva ARTURO_CODICE diverso
 # da ~/.claude, si credeva un plugin e dava "COPIA IN ~/.claude" (C04, A05, AF04 rossi, 10/11/2026, #5206).
-VARIABILI_DELLA_SESSIONE = ("ARTURO_CODICE", "CLAUDE_PLUGIN_ROOT", "CLAUDE_ENV_FILE")
+# ARTURO_GATE_PARTE è della CI: un banco che lancia il gate al suo interno farebbe solo una parte.
+VARIABILI_DELLA_SESSIONE = ("ARTURO_CODICE", "CLAUDE_PLUGIN_ROOT", "CLAUDE_ENV_FILE", "ARTURO_GATE_PARTE")
 
 
 def ambiente_pulito() -> Dict[str, str]:
@@ -307,6 +317,10 @@ def elenchi_incompleti(root: Path, a: argparse.Namespace) -> List[str]:
     errori = [f"{n}: in tests/ ma in nessun elenco del gate (BANCHI o IN_FILA)"
               for n in sorted(su_disco - elencati - set(FUORI_ELENCO))]
     errori += [f"{n}: nelle liste del gate ma non in tests/" for n in sorted(elencati) if not (cartella / n).is_file()]
+    # Un banco elencato due volte girava due volte su ogni sistema (24/11/2026: quattro banchi e i loro veleni).
+    for nome, lista in (("BANCHI e IN_FILA", list(a.banchi) + list(a.in_fila)), ("VELENI", list(a.veleni)),
+                        ("PY38_BANCHI", list(a.banchi_py38))):
+        errori += [f"{n}: due volte in {nome}" for n in sorted({x for x in lista if lista.count(x) > 1})]
     controprove = {riga.split()[0] for riga in a.controprove if riga.split()}
     for nome, lista in (("PY38_BANCHI", set(a.banchi_py38)), ("BASELINE", controprove), ("VELENI", set(a.veleni))):
         errori += [f"{n}: in {nome} ma non fra i banchi del gate" for n in sorted(lista - elencati)]
@@ -317,6 +331,54 @@ def elenchi_incompleti(root: Path, a: argparse.Namespace) -> List[str]:
         errori += [f"{n}: eccezione del controllo degli elenchi da togliere (il file non c'è o è già in lista)"
                    for n in sorted(eccezioni) if n not in su_disco or n in dentro]
     return errori
+
+
+def parte_di(testo: str) -> "tuple[int, int]":
+    """'2/4' -> (2, 4). Una parte fuori da 1..N ferma il gate: una parte vuota sarebbe verde."""
+    m = re.fullmatch(r"\s*(\d+)\s*/\s*(\d+)\s*", testo or "")
+    if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
+        raise SystemExit(f"FAIL: --parte {testo!r}: serve I/N con 1 <= I <= N")
+    return int(m.group(1)), int(m.group(2))
+
+
+def dividi(lavori: List[Lavoro], parte: int, parti: int, pesi: Dict[str, float]) -> List[Lavoro]:
+    """I lavori della parte, con la stessa regola in ogni parte: dal più pesante al più leggero (a pari peso
+    per id), ognuno va alla parte col carico più basso (a pari carico, la prima). Senza peso, la mediana."""
+    noti = sorted(pesi.values())
+    mediana = noti[len(noti) // 2] if noti else 1.0
+    carico = [0.0] * parti
+    mie = set()
+    for x in sorted(lavori, key=lambda x: (-pesi.get(x.id, mediana), x.id)):
+        i = min(range(parti), key=lambda k: (carico[k], k))
+        carico[i] += pesi.get(x.id, mediana)
+        if i == parte - 1:
+            mie.add(x.id)
+    return [x for x in lavori if x.id in mie]
+
+
+def leggi_pesi(root: Path) -> Dict[str, float]:
+    try:
+        dati = json.loads((root / PESI).read_text(encoding="utf-8"))
+        return {str(k): float(v) for k, v in dati.items()}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def pesi(root: Path, log: List[str]) -> int:
+    """tests/gate-pesi.json dai log della CI: per ogni lavoro il tempo più alto fra i sistemi."""
+    alti: Dict[str, float] = {}
+    for f in log:
+        for riga in Path(f).read_text(encoding="utf-8", errors="replace").splitlines():
+            m = RIGA_LAVORO.search(riga)
+            if m:
+                alti[m.group(2)] = max(alti.get(m.group(2), 0.0), float(m.group(1)))
+    if not alti:
+        print("FAIL: nessuna riga di lavoro nei log (OK  12.3s  banco:...)", file=sys.stderr)
+        return 1
+    (root / PESI).write_text(json.dumps({k: round(v, 1) for k, v in alti.items()}, indent=1, sort_keys=True) + "\n",
+                             encoding="utf-8")
+    print(f"PESI: {len(alti)} lavori in {PESI.as_posix()}")
+    return 0
 
 
 def lavori_da(a: argparse.Namespace) -> List[Lavoro]:
@@ -352,7 +414,12 @@ def esegui(a: argparse.Namespace) -> int:
         if not paralleli and not in_fila:
             print(f"PARZIALE: nessun lavoro ha una fonte fra i {len(mossi)} file cambiati, niente da fare")
             return 0
-    incompleti = elenchi_incompleti(root, a) if a.elenchi and not (a.rossi or a.toccati) else []
+    parte, parti = parte_di(a.parte) if a.parte else (1, 1)
+    if parti > 1:
+        p_pesi = leggi_pesi(root)
+        paralleli = dividi(paralleli, parte, parti, p_pesi)
+        in_fila = dividi(in_fila, parte, parti, p_pesi)
+    incompleti = elenchi_incompleti(root, a) if a.elenchi and parte == 1 and not (a.rossi or a.toccati) else []
     for riga in incompleti:
         print(f"=== ROSSO elenchi del gate: {riga}")
     impronte = leggi_impronte(f_impronte)
@@ -426,7 +493,7 @@ def esegui(a: argparse.Namespace) -> int:
     for x in tutti:
         conta[x.tipo] = conta.get(x.tipo, 0) + 1
     riepilogo = " ".join(f"{k}={v}" for k, v in sorted(conta.items()))
-    print(f"\nLAVORI: {riepilogo} worker={n} rossi={len(rossi)} controprove saltate={saltate}"
+    print(f"\nLAVORI: {riepilogo} worker={n} parte={parte}/{parti} rossi={len(rossi)} controprove saltate={saltate}"
           f" in {time.monotonic() - inizio:.0f}s"
           + (" PARZIALE (solo i rossi del giro prima: non vale per un rilascio)" if a.rossi else "")
           + (" PARZIALE (solo i lavori dei file cambiati: non vale per un rilascio)" if a.toccati else ""))
@@ -452,9 +519,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     e.add_argument("--rilascio", action="store_true")
     e.add_argument("--py38", default="")
     e.add_argument("--elenchi", action="store_true", help="confronta le liste con i file di tests/ (il gate vero)")
+    e.add_argument("--parte", default="", help="I/N: solo la parte I di N")
     for lista in ("--banchi", "--in-fila", "--banchi-py38", "--controprove", "--veleni"):
         e.add_argument(lista, nargs="*", default=[])
+    w = sub.add_parser("pesi")
+    w.add_argument("--root", required=True)
+    w.add_argument("log", nargs="+")
     a = p.parse_args(argv)
+    if a.cmd == "pesi":
+        return pesi(Path(a.root).resolve(), a.log)
     if a.cmd == "copia":
         copia(a.sorgente, a.dest)
         return 0

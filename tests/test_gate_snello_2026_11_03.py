@@ -11,7 +11,7 @@ GS05 una controprova verde, al giro dopo con banco, fonti e base uguali, si salt
 GS06 una controprova si rifà se cambia il banco, o un file che il banco importa (le sue fonti).
 GS07 --rilascio, e ARTURO_GATE_RILASCIO=1, rifanno tutte le controprove anche in cache.
 GS08 --toccati fa girare solo i lavori con una fonte fra i file cambiati e stampa PARZIALE.
-GS09 --elenchi (il gate vero): un test_*.py in tests/ fuori dagli elenchi, un banco con --avvelena fuori da
+GS09 --elenchi (il gate vero): un test_*.py in tests/ fuori dagli elenchi, un banco due volte, uno con --avvelena fuori da
      VELENI e un nome in lista senza file fanno rosso col nome; con gli elenchi completi esce 0 (review del
      7/11/2026, finding 94).
 GS10 un banco non eredita ARTURO_CODICE né la cartella bin del codice nel PATH dalla sessione che lancia il
@@ -26,12 +26,18 @@ GS12 con ARTURO_GATE_BASE=<commit> --toccati confronta da quel commit: un cambio
 GS13 .github/workflows/gate.yml fa girare il gate su ubuntu, macos e windows, solo nel repository pubblico, in
      sola lettura e senza segreti: --toccati con ARTURO_GATE_BASE sul push a dev, --rilascio sul tag e a mano.
      Il nome della run dice il modo ("gate rilascio"), perché la firma del rilascio lo cerca. Azioni fissate a
-     un commit.
+     un commit. Il rilascio gira in 4 parti per sistema (ARTURO_GATE_PARTE), il push su dev in una.
+
+GS14 --parte I/N (24/11/2026): le N parti insieme fanno ogni lavoro una volta sola, anche quelli di --in-fila,
+     e due lanci della stessa parte scelgono gli stessi lavori. Una parte fuori da 1..N ferma il gate.
+GS15 le parti seguono tests/gate-pesi.json: il lavoro pesante sta da solo nella sua parte. Il controllo degli
+     elenchi gira solo nella parte 1: nelle altre un elenco incompleto non fa rosso due volte.
 
 Ogni caso gira su un repository finto con banchi finti, così misura l'esecutore e non i banchi veri.
 Con --avvelena girano tre esecutori rotti. Uno ignora il codice d'uscita dei lavori: GS01 e GS04 devono
 essere rossi. Uno salta sempre le controprove: rossi GS05, GS06 e GS07. Uno non le salta mai: rosso GS05.
-Uno non confronta gli elenchi: rosso GS09. Uno passa ai banchi l'ambiente intero: rosso GS10. Uno non passa
+Uno non confronta gli elenchi: rosso GS09. Uno dà a ogni parte tutti i lavori: rossi GS14 e GS15. Uno ignora
+i pesi: rosso GS15. Uno confronta gli elenchi in ogni parte: rosso GS15. Uno passa ai banchi l'ambiente intero: rosso GS10. Uno non passa
 la base del sito utente: rosso GS11. Uno confronta sempre da HEAD: rosso GS12.
 
 Sulla base 177852f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -88,6 +94,9 @@ VELENI = (
     (("GS10",), "        e = dict(ambiente_pulito(), HOME=", "        e = dict(os.environ, HOME="),
     (("GS11",), "        e.update(base_utente())\n", "        pass\n"),
     (("GS12",), '    base = os.environ.get(BASE_TOCCATI, "").strip() or "HEAD"\n', '    base = "HEAD"\n'),
+    (("GS14", "GS15"), "        if i == parte - 1:\n", "        if True:\n"),
+    (("GS15",), "        carico[i] += pesi.get(x.id, mediana)\n", "        carico[i] += 1.0\n"),
+    (("GS15",), "if a.elenchi and parte == 1 and not", "if a.elenchi and not"),
 )
 
 
@@ -264,10 +273,13 @@ def test_gs09(esecutore: Path) -> None:
         lab.scrivi("test_nuovo.py", "print('PASS')\n")
         lab.scrivi("test_veleno.py", "import sys\nprint('PASS')\nsys.exit(0 if '--avvelena' in sys.argv else 0)\n")
         base = ["--elenchi", "--banchi", "test_elencato.py", "test_veleno.py", "test_guardie_involucri.py"]
-        rosso = lab.esegui(*base, "test_sparito.py")
+        rosso = lab.esegui(*base, "test_sparito.py", "--veleni", "test_veleno.py", "test_veleno.py")
         tutto = lab.esegui(*base, "test_nuovo.py", "--veleni", "test_veleno.py")
-        attesi = ("test_nuovo.py: in tests/ ma in nessun elenco", "test_veleno.py: ha --avvelena ma non sta in VELENI",
+        attesi = ("test_nuovo.py: in tests/ ma in nessun elenco", "test_veleno.py: due volte in VELENI",
                   "test_sparito.py: nelle liste del gate ma non in tests/")
+        senza_veleno = lab.esegui(*base, "test_nuovo.py")
+        assert "test_veleno.py: ha --avvelena ma non sta in VELENI" in senza_veleno.stdout, \
+            f"GS09 un banco con --avvelena fuori da VELENI non si vede: {senza_veleno.stdout[-300:]!r}"
         mancano = [x for x in attesi if x not in rosso.stdout]
         assert rosso.returncode == 1 and not mancano, f"GS09 elenchi incompleti non visti: rc {rosso.returncode}, " \
             f"mancano {mancano}, {rosso.stdout[-300:]!r}"
@@ -357,6 +369,10 @@ def test_gs13(esecutore: Path) -> None:
     strategia = lavoro.get("strategy") or {}
     assert strategia.get("fail-fast") is False and sorted((strategia.get("matrix") or {}).get("os") or []) == \
         ["macos-latest", "ubuntu-latest", "windows-latest"], f"GS13 la matrice non ha i tre sistemi: {strategia}"
+    parte = str((strategia.get("matrix") or {}).get("parte") or "")
+    assert '["1/4","2/4","3/4","4/4"]' in parte and '["1/1"]' in parte and "ref_type == 'branch'" in parte \
+        and "ARTURO_GATE_PARTE: ${{ matrix.parte }}" in testo, \
+        f"GS13 il rilascio non è diviso in 4 parti per sistema, o la parte non arriva al gate: {parte!r}"
     passi = lavoro.get("steps") or []
     azioni = [p["uses"] for p in passi if "uses" in p]
     assert azioni and all(len(a.split("@")[1].split()[0]) == 40 for a in azioni), f"GS13 azioni non fissate a un commit: {azioni}"
@@ -366,9 +382,43 @@ def test_gs13(esecutore: Path) -> None:
     assert "core.autocrlf false" in comandi, "GS13 su Windows il checkout converte gli a capo e bash non legge gli script"
 
 
+def test_gs14(esecutore: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        lab = Lab(Path(t), esecutore)
+        liste = ("--lavori", "2", "--banchi", "ok_a.py", "ok_b.py", "rosso.py", "usa_aiuto.py",
+                 "--in-fila", "casa.py", "casa2.py", "--controprove", "rosso2.py HEAD", "--veleni", "ok_a.py")
+        tutti = sorted(ordine(lab.esegui(*liste).stdout))
+        parti = [ordine(lab.esegui("--parte", f"{i}/3", *liste).stdout) for i in (1, 2, 3)]
+        unione = sorted(x for p in parti for x in p)
+        assert len(tutti) == 8 and unione == tutti, f"GS14 le parti non fanno ogni lavoro una volta sola: {parti} contro {tutti}"
+        assert all(parti), f"GS14 una parte è vuota con 8 lavori e 3 parti: {parti}"
+        di_nuovo = ordine(lab.esegui("--parte", "2/3", *liste).stdout)
+        assert sorted(di_nuovo) == sorted(parti[1]), f"GS14 la parte 2 cambia lavori fra due lanci: {parti[1]} {di_nuovo}"
+        fuori = lab.esegui("--parte", "4/3", *liste)
+        assert fuori.returncode != 0 and not ordine(fuori.stdout), \
+            f"GS14 la parte 4/3 non ferma il gate: rc {fuori.returncode} {fuori.stdout[-200:]!r}"
+
+
+def test_gs15(esecutore: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        lab = Lab(Path(t), esecutore)
+        pesi = {"banco:ok_a.py": 100, "banco:ok_b.py": 10, "banco:usa_aiuto.py": 10, "banco:aiuto.py": 10}
+        (lab.root / "tests" / "gate-pesi.json").write_text(json.dumps(pesi), encoding="utf-8")
+        liste = ("--banchi", "ok_a.py", "ok_b.py", "usa_aiuto.py", "aiuto.py")
+        parti = [sorted(ordine(lab.esegui("--parte", f"{i}/2", *liste).stdout)) for i in (1, 2)]
+        assert ["banco:ok_a.py"] in parti, f"GS15 il lavoro pesante non sta da solo nella sua parte: {parti}"
+        for nome in ("test_gate_run.sh", "test_pattern_segreti_allineati.py", "test_guardie_involucri.py"):
+            lab.scrivi(nome, "print('PASS')\n")
+        lab.scrivi("test_nuovo.py", "print('PASS')\n")
+        esiti = [lab.esegui("--elenchi", "--parte", f"{i}/2", *liste, "test_guardie_involucri.py") for i in (1, 2)]
+        visti = ["test_nuovo.py: in tests/ ma in nessun elenco" in r.stdout for r in esiti]
+        assert visti == [True, False] and esiti[1].returncode == 0, \
+            f"GS15 il controllo degli elenchi non gira solo nella parte 1: {visti}, rc parte 2 {esiti[1].returncode}"
+
+
 TESTS = {"GS01": test_gs01, "GS02": test_gs02, "GS03": test_gs03, "GS04": test_gs04, "GS05": test_gs05,
          "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09, "GS10": test_gs10,
-         "GS11": test_gs11, "GS12": test_gs12, "GS13": test_gs13}
+         "GS11": test_gs11, "GS12": test_gs12, "GS13": test_gs13, "GS14": test_gs14, "GS15": test_gs15}
 
 
 def avvelena(repo: Path) -> None:
