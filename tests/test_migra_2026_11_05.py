@@ -530,7 +530,9 @@ def prova(repo: Path, solo: str | None = None) -> list:
             "uscita 0": p.returncode == 0,
             "stato del clone via": not stato_clone.exists(),
             "copia con .git e bin/arturo": (copia / "copia" / ".git").is_dir() and (copia / "copia" / "bin" / "arturo").is_file()
-            and (copia / "codice" / "bin" / "migra.py").is_file() and "codice/bin/arturo migra indietro" in p.stdout,
+            and (copia / "codice" / "bin" / "migra.py").is_file()
+            # su Windows il percorso del comando esce con le barre rovesciate: codice\bin\arturo
+            and "codice/bin/arturo migra indietro" in p.stdout.replace("\\", "/"),
             "personale/inizio.md": personale.is_file() and RIGA_MIA.strip() in personale.read_text(encoding="utf-8"),
             "plugin allo sha": voce.get("gitCommitSha") == sha,
             "hook di Arturo tolti": di_arturo == [HOOK_MIO],

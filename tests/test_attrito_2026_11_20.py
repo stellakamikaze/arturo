@@ -26,6 +26,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import SALTATI, dichiara  # noqa: E402
+
 # Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
 BASH_VERO = shutil.which("bash") or "bash"
 
@@ -192,7 +195,8 @@ def _dispatcher_nudo(b: Banco, comando: str, cartelle: str) -> str:
 @gruppo
 def at05(b: Banco) -> int:
     if os.name == "nt":
-        return 0  # su Windows timeout c'è in Git Bash
+        dichiara("AT05", "su Windows timeout c'è sempre in Git Bash: il dispatcher senza timeout non si prova")
+        return 0
     brew = b.home.parent / "brew-finto"
     brew.mkdir()
     (brew / "timeout").write_text("#!/bin/sh\nshift; exec \"$@\"\n", encoding="utf-8")
@@ -343,6 +347,9 @@ def avvelena(repo: Path, ref: str) -> int:
             (copia / "tests" / "banchi-avvio.sh").write_bytes(vecchio.stdout)
             try:
                 test(copia / "hooks")
+                if codice in SALTATI:  # su Windows il caso non gira: il suo veleno non può mordere
+                    print(f"VELENO {codice} SALTATO su Windows")
+                    continue
                 inerti.append(f"{codice}: verde con le guardie di {ref}")
             except AssertionError as e:
                 if not str(e).startswith(codice):

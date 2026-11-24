@@ -24,9 +24,11 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import cartella_prova  # noqa: E402
 
 CASI = ["RM04", "RM05", "RM06", "RM07", "RM08", "RM09", "RM10"]
 DISCRIMINANTI = list(CASI)
@@ -268,7 +270,8 @@ def rm10(repo: Path, tmp: Path) -> list:
 def prova(repo: Path) -> list:
     rossi = []
     for caso in (rm04, rm05, rm06, rm07, rm08, rm09, rm10):
-        with tempfile.TemporaryDirectory(prefix="arturo-rm-") as tmp:
+        # Su Windows un git staccato del caso tiene aperta la cartella del worktree: cartella_prova aspetta (WinError 32).
+        with cartella_prova() as tmp:
             try:
                 rossi += caso(repo, Path(tmp))
             except FileNotFoundError as e:                        # sulla base un file del caso può mancare
