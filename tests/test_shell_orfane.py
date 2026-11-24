@@ -16,11 +16,16 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
+
+# La shell dei comandi di Claude: zsh sul Mac, bash dove zsh non c'è (il runner Linux del gate, 24/11/2026).
+# shell-orfane.py riconosce la shell dal testo del comando, non dal programma.
+SHELL = shutil.which("zsh") or shutil.which("bash") or "/bin/sh"
 
 CASI = ["SO01", "SO02", "SO03", "SO04", "SO05"]
 DISCRIMINANTI = CASI
@@ -42,7 +47,7 @@ def orfana(tmp: Path, nome: str, extra: str = "") -> int:
     """Shell capogruppo il cui padre esce subito: passa a launchd come una shell di una sessione chiusa."""
     pidfile = tmp / f"{nome}.pid"
     lancia = ("import subprocess,sys;"
-              f"p=subprocess.Popen(['/bin/zsh','-c',{comando(tmp, nome, extra)!r}],start_new_session=True,"
+              f"p=subprocess.Popen([{SHELL!r},'-c',{comando(tmp, nome, extra)!r}],start_new_session=True,"
               "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);"
               f"open({str(pidfile)!r},'w').write(str(p.pid))")
     subprocess.run([sys.executable, "-c", lancia], check=True)
@@ -51,7 +56,7 @@ def orfana(tmp: Path, nome: str, extra: str = "") -> int:
 
 def con_padre_claude(tmp: Path, nome: str) -> tuple[subprocess.Popen, int]:
     pidfile = tmp / f"{nome}.pid"
-    corpo = f"/bin/zsh -c {comando(tmp, nome)!r} & echo $! > {pidfile}; wait"
+    corpo = f"{SHELL} -c {comando(tmp, nome)!r} & echo $! > {pidfile}; wait"
     padre = subprocess.Popen(["claude-finto", "-c", corpo], executable="/bin/sh", start_new_session=True,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(50):
