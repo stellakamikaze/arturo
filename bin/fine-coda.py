@@ -66,7 +66,8 @@ Exit:
   chiede /clear alla persona · 3 l'aggancio personale
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
   dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti, anche nel passo del ramo
-  sync dei dati di transito (lì il commit su main è già fatto) · 7 segreto nello stage
+  sync dei dati di transito (lì il commit su main è già fatto), anche quando un altro giro tiene il suo
+  lucchetto oltre l'attesa · 7 segreto nello stage
   (niente commit) o nei commit da spingere (niente push), o guardia dei segreti che non si carica
   · 8 un'altra coda tiene il lucchetto oltre l'attesa: niente commit
 
@@ -1132,7 +1133,8 @@ def coda(a, ap, suoi):
         print(f"-- {nome} {h} --\n{stat}")
         esiti.append(f"{nome} {h}")
     if not staged:
-        esiti.append("config: niente da committare")
+        # Col ramo sync attivo handoff e note non passano da main: la riga dice di quale commit parla (n. 102).
+        esiti.append("config: niente da committare" + (" su main" if sync_attivo() else ""))
     fuori = [r for r in git("status", "--short")[1].splitlines() if r.strip()]
     if fuori:
         print(f"-- fuori dal commit: {len(fuori)} righe di git status --")

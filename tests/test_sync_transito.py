@@ -47,6 +47,8 @@ FY04 la coda lanciata da una sottocartella della config (data/handoffs): handoff
      ramo sync. Prima il git del ramo sync leggeva i path dalla cartella corrente, e "git add" non trovava
      data/handoffs/INDEX.md (segnalazione n. 101, 24/11/2026).
 FY05 il passo del ramo sync fallisce (index.lock di .git-sync occupato): la coda esce 6, non 0, e lo dice.
+FY06 un altro giro tiene il lucchetto del ramo sync oltre l'attesa: la coda esce 6, non 0, e dice che handoff e
+     note non sono sul ramo. Prima usciva 0 con "niente da committare" (segnalazione n. 102, 24/11/2026).
 """
 from __future__ import annotations
 
@@ -693,12 +695,25 @@ def fy05(tmp):
         return f"rc={r.returncode} {r.stdout.strip()[-300:]!r}"
 
 
+def fy06(tmp):
+    repo = SCRIPT.parent.parent
+    lab = lab_con_sync(repo, tmp, True)
+    h = lab.handoff()
+    # Il lucchetto di un giro vivo (il processo del banco), e un'attesa corta perché il banco non aspetti 30 s.
+    (lab.cl / ".git-sync" / "lock").write_text(f"{os.getpid()}\n", encoding="ascii")
+    lab.ambiente["SYNC_TRANSITO_ATTESA"] = "1"
+    r = lab.coda(h)
+    rel = h.relative_to(lab.cl).as_posix()
+    if r.returncode != 6 or "lucchetto" not in r.stdout or "NON" not in r.stdout or rel in nel_ramo_locale(lab):
+        return f"rc={r.returncode} nel ramo={rel in nel_ramo_locale(lab)} {r.stdout.strip()[-300:]!r}"
+
+
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
         ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22),
         ("ST23", st23), ("ST24", st24),
-        ("FY01", fy01), ("FY02", fy02), ("FY03", fy03), ("FY04", fy04), ("FY05", fy05)]
+        ("FY01", fy01), ("FY02", fy02), ("FY03", fy03), ("FY04", fy04), ("FY05", fy05), ("FY06", fy06)]
 
 
 def main() -> int:

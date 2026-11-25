@@ -22,7 +22,8 @@ Uso:
                                               fetch e rebase del ramo sync anche dentro il minuto
 
 Un solo giro alla volta per macchina (lucchetto .git-sync/lock col pid) e al massimo un push al minuto
-(.git-sync/ultimo-push). Un giro che trova il lucchetto occupato esce 0 senza fare niente. Il push parte solo
+(.git-sync/ultimo-push). Un giro che trova il lucchetto occupato esce 0 senza fare niente; --subito aspetta
+fino a SYNC_TRANSITO_ATTESA secondi (30) e, se il lucchetto resta preso, esce 8. Il push parte solo
 se il remote è privato: con origin sul repository pubblico di Arturo, o senza origin, i commit restano locali.
 Un giro senza commit nuovi né commit da spingere non tocca la rete.
 Prima del commit la guardia dei segreti (hooks/commit-secret-gate.py) legge le righe nuove: una chiave trovata
@@ -36,7 +37,8 @@ con le righe <<<<<<< e >>>>>>> fra le righe nuove non entra nel ramo (#5528).
 
 Exit: 0 fatto o niente da fare (anche col rebase di main a metà, che conta come blocco) · 4 rebase a metà in
 .git-sync, troppe cancellazioni o segni di conflitto in un file: il ramo sync resta com'era · 5 uso sbagliato
-· 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica.
+· 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica · 8 solo con --subito: un
+altro giro tiene il lucchetto oltre l'attesa, niente commit.
 
 Variabili per i banchi: SYNC_TRANSITO_CLAUDE (la radice), SYNC_TRANSITO_MINUTO (secondi fra due push, 60),
 SYNC_TRANSITO_VISIBILITA (PRIVATE per saltare gh). SYNC_TRANSITO_CANCELLAZIONI_OK=1 lascia passare un giro
@@ -81,6 +83,7 @@ LUCCHETTO_VECCHIO = 600  # secondi: un giro dura pochi secondi, oltre è di un p
 PULL_VECCHIO = 600  # un segno "pull in corso" più vecchio è di un pull morto a metà: i giri ripartono
 TANTE_CANCELLAZIONI = 25
 _OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
+OCCUPATO = 8  # --subito: un altro giro tiene il lucchetto oltre l'attesa, niente commit
 
 
 def run(cmd, timeout=120, env=None, cwd=None):
@@ -673,16 +676,16 @@ def segna_blocco(rc, motivo=""):
         pass
 
 
-def giro():
+def giro(subito=False):
     global _GIRO_FATTO, _FERMO
     _GIRO_FATTO, _FERMO = False, ""
-    rc = _giro()
+    rc = _giro(subito)
     if _GIRO_FATTO or _FERMO:
         segna_blocco(rc, _FERMO)
     return rc
 
 
-def _giro():
+def _giro(subito=False):
     global _GIRO_FATTO, _FERMO
     if not migrato():
         return 0
@@ -697,7 +700,17 @@ def _giro():
         print("sync: rebase di main a metà, riprovo al prossimo minuto")
         _FERMO = MAIN_A_META
         return 0
-    lucchetto = prendi_lucchetto()
+    if subito:
+        # La coda di /fine non ha un minuto dopo: aspetta il giro in corso, e se non finisce lo dice con un'uscita
+        # diversa da 0. Prima usciva 0 e la coda chiudeva con handoff e note fuori dal ramo (segnalazione n. 102).
+        attesa = float(os.environ.get("SYNC_TRANSITO_ATTESA") or 30)
+        lucchetto = aspetta_lucchetto(attesa)
+        if lucchetto is None:
+            print(f"sync: un altro giro tiene il lucchetto da oltre {int(attesa)} s: handoff e note di questa /fine "
+                  "NON sono sul ramo sync. Li prende il giro del prossimo minuto, o rilancia la coda.")
+            return OCCUPATO
+    else:
+        lucchetto = prendi_lucchetto()
     if lucchetto is None:
         print("sync: un altro giro tiene il lucchetto, riprovo al prossimo minuto")
         return 0
@@ -1001,7 +1014,7 @@ def main(argv):
         return migra(a.prova)
     if a.stato:
         return stato()
-    return giro()
+    return giro(subito=a.subito)
 
 
 if __name__ == "__main__":
