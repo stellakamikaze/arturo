@@ -12,6 +12,8 @@ WM04 impostazioni.py e unisci-settings.py scrivono in UTF-8 anche se la pipe ha 
 WM05 (16/11/2026, segnalazione n. 80) sul Mac `arturo sessione` apre la finestra in iTerm2 se il comando parte da
      iTerm2 (TERM_PROGRAM=iTerm.app) o se ARTURO_TERMINALE=iterm, e in Terminale negli altri casi e con
      ARTURO_TERMINALE=terminal anche dentro iTerm2.
+WM06 (25/11/2026, #6683) `arturo sessione` aspetta claude mentre npm lo reinstalla: il comando manca e compare
+     dopo 1 s, e la finestra si apre lo stesso invece di "Non trovo il comando claude".
 
 Le funzioni girano in un processo figlio con bin/ della copia da provare, HOME e USERPROFILE spostati in una
 cartella di prova, e il programma degli appunti finto: niente appunti veri, niente finestre. Sulla base 3f12336
@@ -28,7 +30,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["WM01", "WM02", "WM03", "WM04", "WM05"]
+CASI = ["WM01", "WM02", "WM03", "WM04", "WM05", "WM06"]
 DISCRIMINANTI = list(CASI)
 
 # Gira nel figlio: sys.argv[1] è la cartella bin/ da provare. Stampa i rossi in JSON.
@@ -94,6 +96,22 @@ for nome, env in (("iterm", {"TERM_PROGRAM": "iTerm.app"}), ("scelta", {"ARTURO_
 if app != {"iterm": "iTerm", "scelta": "iTerm", "terminale": "Terminal", "forzato": "Terminal"}:
     rossi.append(f"WM05 terminale del Mac: {app!r}")
 
+import contextlib, io, time
+vero_which, vero_comando = sessione.shutil.which, sessione.comando
+parte = time.monotonic()
+sessione.shutil.which = lambda nome, *a, **k: "/x/claude" if nome == "claude" and time.monotonic() - parte > 1 else None
+sessione.comando = lambda sis, dove, prompt: ([sys.executable, "-c", ""], "a mano")
+os.environ["ARTURO_SISTEMA"] = "linux"
+uscita = io.StringIO()
+try:
+    with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(uscita):
+        rc = sessione.main(["libro"])
+finally:
+    sessione.shutil.which, sessione.comando = vero_which, vero_comando
+    os.environ.pop("ARTURO_SISTEMA", None)
+if rc != 0 or "Aperta" not in uscita.getvalue():
+    rossi.append(f"WM06 claude reinstallato da npm: rc {rc}, {uscita.getvalue()[-120:]!r}")
+
 for nome, argomenti in (("impostazioni.py", ["aiuto"]), ("unisci-settings.py", [])):
     p = subprocess.run([sys.executable, str(Path(sys.argv[1]) / nome), *argomenti], capture_output=True, timeout=30,
                        env=dict(os.environ, PYTHONIOENCODING="latin-1"))
@@ -138,6 +156,8 @@ VELENI = [
     ("WM05", "bin/sessione.py", '    return "iterm" if env.get("TERM_PROGRAM") == "iTerm.app" else "terminal"',
      '    return "terminal"'),
     ("WM05", "bin/sessione.py", '        if terminale_mac() == "iterm":', '        if False:'),
+    ("WM06", "bin/sessione.py", "        if time.monotonic() >= scade:\n            return False\n",
+     "        if True:\n            return False\n"),
     ("WM04", "bin/impostazioni.py", '            flusso.reconfigure(encoding="utf-8")', '            pass'),
     ("WM04", "bin/unisci-settings.py", '            flusso.reconfigure(encoding="utf-8")', '            pass'),
 ]

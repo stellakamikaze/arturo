@@ -9,6 +9,8 @@ PV05 /fine apre con la FASE 0 che lancia prova.py --elimina, e il metodo dice di
      FASE 0 e metodo dicono che conta solo il nome dato con --name o /rename (#6343);
 PV06 prova- solo nel nome che Claude Code inventa (agent-name, e name di claude agents) non è di prova: rc 1,
      e --elimina non lancia niente (#6321: /fine eliminava una sessione vera senza handoff).
+PV07 (25/11/2026, #6683) --elimina aspetta claude mentre npm lo reinstalla: fuori dal PATH, il comando manca e
+     compare dopo 1,5 s, e claude rm parte lo stesso.
 
 Senza rete né Claude: una HOME di prova e un claude finto (ARTURO_CLAUDE) che risponde ad agents --json e
 scrive su file le chiamate rm. Sulla base 22e5935 (il dev prima) sono tutti rossi. --avvelena: ogni veleno
@@ -26,7 +28,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["PV01", "PV02", "PV03", "PV04", "PV05", "PV06"]
+CASI = ["PV01", "PV02", "PV03", "PV04", "PV05", "PV06", "PV07"]
 FINTO = """#!/usr/bin/env python3
 import json, os, sys
 if sys.argv[1:2] == ["agents"]:
@@ -121,6 +123,26 @@ def prova(repo: Path, solo: str = "") -> list:
             dopo = rm.read_text(encoding="utf-8") if rm.is_file() else ""
             if rc != 1 or dopo != prima:
                 rossi.append(f"PV06 nome inventato: rc {rc}, rm in più {dopo[len(prima):]!r} · {out[:120]!r}")
+        if not solo or solo == "PV07":
+            prima = rm.read_text(encoding="utf-8") if rm.is_file() else ""
+            tardi = tmp / "tardi" / "claude"
+            tardi.parent.mkdir()
+            senza = os.pathsep.join(c for c in os.environ.get("PATH", "").split(os.pathsep)
+                                    if c and not (Path(c) / "claude").exists())
+            # npm reinstalla claude: il comando manca e torna dopo 1,5 s, mentre --elimina lo cerca.
+            copia = subprocess.Popen([sys.executable, "-c", "import shutil, sys, time; time.sleep(1.5); "
+                                      "shutil.copy2(sys.argv[1], sys.argv[2])", str(finto), str(tardi)])
+            rc, out = esegui([sys.executable, str(script), "--session", "44444444-dddd", "--elimina"],
+                             {**env, "ARTURO_CLAUDE": str(tardi), "PATH": senza})
+            copia.wait(timeout=30)
+            dopo = prima
+            for _ in range(40):
+                dopo = rm.read_text(encoding="utf-8") if rm.is_file() else ""
+                if dopo != prima:
+                    break
+                time.sleep(0.25)
+            if rc != 0 or "claude rm ab12cd34" not in out or dopo[len(prima):].strip() != "rm ab12cd34":
+                rossi.append(f"PV07 claude reinstallato da npm: rc {rc}, rm {dopo[len(prima):]!r} · {out[:120]!r}")
     return rossi
 
 
@@ -132,6 +154,8 @@ VELENI = [
     ("PV05", "commands/fine.md", "`python3 ~/.claude/bin/prova.py --elimina; echo \"rc=$?\"`", "`true`"),
     ("PV06", "bin/prova.py", "    nome = nome_da_transcript(file)\n",
      '    nome = str(voce_agents(sid).get("name") or "") or nome_da_transcript(file)\n'),
+    ("PV07", "bin/prova.py", "        if time.monotonic() >= scade:\n            _SENZA_CLAUDE.append(True)\n",
+     "        if True:\n            _SENZA_CLAUDE.append(True)\n"),
 ]
 
 
