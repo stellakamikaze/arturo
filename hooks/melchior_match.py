@@ -46,7 +46,8 @@ Punteggio del richiamo:
 
 Il parser del frontmatter legge chiavi di primo livello (anche col trattino), liste a trattini e
 fra parentesi quadre, blocchi > e |, una mappa annidata di un livello (Claude Code scrive
-`metadata:` con `type:` dentro) e `triggers: a, b` scritto come stringa. problemi_frontmatter() è
+`metadata:` con `type:` dentro, e un formattatore ci annida anche le liste `answers:` e `triggers:`)
+e `triggers: a, b` scritto come stringa. problemi_frontmatter() è
 l'unico controllo della forma YAML: lo usano melchior-postwrite e `arturo memoria controlla`.
 
 Solo libreria standard, Python 3.8 o successivo. Python aggiunge la cartella dello script a
@@ -475,11 +476,22 @@ def frontmatter(text):
                     voci[-1] += " " + f
             campi[chiave] = [_scalare(v) for v in voci]
         elif resto == "" and figli:
-            mappa = {}
+            # Una mappa di un livello (`metadata:`). Un formattatore ci annida anche `answers:` e
+            # `triggers:` come liste a trattini o fra quadre: le voci vanno alla chiave di sopra (#103).
+            mappa, ultima = {}, None
             for f in figli:
                 kk = CHIAVE_RE.match(f)
                 if kk:
-                    mappa[kk.group(1)] = _scalare(kk.group(2))
+                    ultima, v = kk.group(1), kk.group(2).strip()
+                    if v.startswith("["):
+                        dentro = v[1:-1] if v.endswith("]") else v[1:]
+                        mappa[ultima] = [_scalare(x) for x in dentro.split(",") if x.strip()]
+                    else:
+                        mappa[ultima] = _scalare(v)
+                elif _voce(f) and ultima is not None and (mappa[ultima] == "" or isinstance(mappa[ultima], list)):
+                    if mappa[ultima] == "":
+                        mappa[ultima] = []
+                    mappa[ultima].append(_scalare(f[1:].strip()))
             campi[chiave] = mappa
         elif resto == "":
             campi[chiave] = []

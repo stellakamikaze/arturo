@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y24: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y25: la memoria, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta con `arturo memoria spegni`: memory-retrieve, memory-autoload, subagent-memory-context e
@@ -67,6 +67,8 @@ Y24 il rumore del richiamo (revisione del 22/11/2026, O7): il campo answers pesa
     che risponde solo lì non esce più; una nota proposta 30 volte senza letture perde tre punti ed esce dal
     richiamo, ma solo se una macchina registra le letture, e la prima lettura la riporta; l'igiene dice la
     precisione della settimana ed elenca le note sopra 30 KiB, non le storie; docs/memoria.md lo spiega.
+Y25 answers e triggers annidati sotto `metadata:` come liste (segnalazione 103, 24/11/2026): il parser li
+    legge, lo scanner delle scritture non dà MEMORY-REACH e `arturo memoria cerca` trova la nota.
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
 suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y20 una copia del
@@ -1142,11 +1144,65 @@ def test_y24(repo: Path) -> None:
         lab.chiudi()
 
 
+NOTA_ANNIDATA = """---
+name: errore-comune-banchi-windows
+description: i banchi su Windows senza i permessi dei link
+metadata:
+  type: feedback
+  entity_type: errore-comune
+  answers:
+  - perché manca il privilegio dei symlink?
+  - come provo il salto su Windows?
+  triggers:
+    - banchi windows
+    - salto dichiarato
+  node_type: memory
+  originSessionId: 0000
+  modified: 2026-11-24
+---
+Una copia della cartella vale lo stesso.
+"""
+
+
+def test_y25(repo: Path) -> None:
+    """Segnalazione 103: un formattatore annida answers e triggers sotto metadata:, come liste a trattini."""
+    presenti(repo, "Y25")
+    lab = Lab(repo)
+    try:
+        lab.arturo("accendi")
+        nota = lab.claude / "data" / "memory" / "errori" / "errore-comune-banchi-windows.md"
+        nota.parent.mkdir(parents=True)
+        nota.write_text(NOTA_ANNIDATA, encoding="utf-8")
+        r = lab.scrivi(nota, NOTA_ANNIDATA)
+        assert "MEMORY-REACH" not in r.stdout, \
+            f"Y25 answers e triggers annidati in metadata: danno MEMORY-REACH: {r.stdout[:300]!r}"
+        sys.path.insert(0, str(repo / "hooks"))
+        try:
+            import importlib
+            mm = importlib.import_module("melchior_match")
+            fm = mm.parse_frontmatter_simple(NOTA_ANNIDATA)
+            risposte, inneschi = mm.campo(fm, "answers"), mm.campo(fm, "triggers")
+        except Exception as e:  # su una base vecchia campo() può mancare: il rosso resta col suo codice
+            raise AssertionError(f"Y25 il parser non legge answers e triggers annidati in metadata: {e}")
+        finally:
+            sys.path.pop(0)
+            sys.modules.pop("melchior_match", None)
+        assert isinstance(risposte, list) and len(risposte) == 2 and "symlink" in risposte[0], \
+            f"Y25 le answers annidate in metadata: non si leggono: {risposte!r}"
+        assert inneschi == ["banchi windows", "salto dichiarato"], \
+            f"Y25 i triggers annidati in metadata: non si leggono: {inneschi!r}"
+        r = lab.arturo("cerca", "privilegio", "symlink")
+        assert r.returncode == 0 and nota.name in r.stdout, \
+            f"Y25 il recall non trova la nota dalle answers annidate in metadata: {r.stdout[-300:]!r}"
+    finally:
+        lab.chiudi()
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
          "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
          "Y13": test_y13, "Y14": test_y14, "Y15": test_y15, "Y16": test_y16,
          "Y17": test_y17, "Y18": test_y18, "Y19": test_y19, "Y20": test_y20, "Y21": test_y21,
-         "Y22": test_y22, "Y23": test_y23, "Y24": test_y24}
+         "Y22": test_y22, "Y23": test_y23, "Y24": test_y24, "Y25": test_y25}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -1234,6 +1290,9 @@ VELENI = (
      "dividere una storia"),
     ("Y23", [("hooks/memory-firma.py", '    e = payload.get("error")', '    e = payload.get("tool_response")')],
      "la firma non trova la nota"),
+    ("Y25", [("hooks/melchior_match.py", "                    mappa[ultima].append(_scalare(f[1:].strip()))\n",
+              "                    pass\n")],
+     "danno MEMORY-REACH"),
 )
 
 
