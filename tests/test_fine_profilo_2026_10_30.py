@@ -203,7 +203,9 @@ def prova(b: Banco) -> list:
             or "](docs/bozza.md)" in indice:
         rossi.append(f"FP07 indice: rc={r.returncode} {r.stderr.strip()[-160:]!r}, righe libro {len(righe_libro)}")
 
-    # FP08 l'inventario si ferma da solo oltre il suo tetto, con 124
+    # FP08 l'inventario si ferma da solo oltre il suo tetto, con 124. Il lavoro dura circa 0,3 s sul Mac di prova: col
+    # tetto a 0,2 s una macchina più veloce finiva prima del tetto e usciva 0 (routine del 25/11/2026, #6647).
+    # A 0,01 s il margine è di 30 volte.
     progetti = b.tmp / "progetti" / "p"
     progetti.mkdir(parents=True)
     with open(progetti / "s1.jsonl", "w", encoding="utf-8") as f:
@@ -211,8 +213,8 @@ def prova(b: Banco) -> list:
         f.write(riga * 200000)
     r = subprocess.run([sys.executable, "-B", str(b.radice / "bin" / "inventario-sessione.py"), "--session", "s1",
                         "--projects", str(b.tmp / "progetti")], capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", env={**b.env(), "INVENTARIO_TIMEOUT": "0.2"}, timeout=120)
-    if r.returncode != 124:
+                       errors="replace", env={**b.env(), "INVENTARIO_TIMEOUT": "0.01"}, timeout=120)
+    if r.returncode != 124 or "interrotto" not in r.stderr:
         rossi.append(f"FP08 tetto dell'inventario: rc={r.returncode} {r.stderr.strip()[-120:]!r}")
 
     # FP09 l'inventario vede gli oggetti creati con gws e con uno script elencato in ~/.claude/arturo/inventario.local
