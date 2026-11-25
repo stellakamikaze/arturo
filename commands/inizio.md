@@ -460,6 +460,13 @@ Perché è fatta così:
   Claude" usa `--chi io`, "A me" usa `--chi tu`. Una nota sotto un numero vale per quel todo, la nota
   generale per tutta la sessione. Una riga senza todo (`id` nullo) si tratta a parole. Riporta in una
   riga cosa hai scritto nell'archivio, poi parti da "Lavora su".
+- **"Lavora su tutto".** Arriva dalla checklist di Volta col pulsante "Su tutto" acceso. È una passata di
+  scrematura sull'elenco intero. Per ogni voce aperta: se è già fatta, controlla il risultato vero e
+  chiudila (`arturo todo fatto ID`); se è superata, scartala col motivo (`arturo todo scarta ID
+  "<motivo>"`). Poi esegui i "Faccio io" reversibili, uno dopo l'altro, come per "tutto il delegabile".
+  Alla fine riporta il conto: chiusi, scartati, fatti, rimasti per la persona. I gesti espliciti del
+  messaggio (Già fatto, Scartati, Rimandati, le note) vincono sulla passata. Davanti a un'azione con
+  effetti che non si annullano ti fermi e chiedi.
 - **La risposta all'intervista.** Riscrivi la risposta in una o due frasi coi fatti della persona, senza
   aggiungerne. Mostrala e chiedi: "La salvo nella memoria?". Solo col sì lancia
   `python3 ~/.claude/bin/arturo intervista risposta <id> --testo "<le frasi approvate>"`: la nota entra
