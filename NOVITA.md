@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — Una conferma non apre lavoro su un altro file
+
+**Cosa cambia**: il metodo di Arturo dice adesso che il lavoro senza "vai" resta dentro la richiesta. Se rispondi solo per confermare un dato, Claude chiude il dubbio e non tocca altro. Se un file che non hai nominato va corretto, Claude ti propone la modifica e aspetta il tuo sì.
+
+**Perché**: la proposta n. 105. Claude ha segnalato un indirizzo diverso fra due documenti dello stesso cliente. La persona ha risposto quale indirizzo era giusto, e Claude ha corretto da solo l'altro documento, che nessuno gli aveva chiesto di toccare.
+
+**A chi serve**: a tutti.
+
+---
+
 ## 2026-11-24 — Il ramo sync gira anche dal plugin
 
 **Cosa cambia**: il plugin porta adesso `data/transito.paths`, l'elenco dei file che il ramo `sync` salva e scarica. Il plugin 0.2.24 aveva lo script del ramo ma non l'elenco: lo script installato non trovava niente da salvare e si fermava senza dire niente.

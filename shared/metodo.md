@@ -9,6 +9,7 @@ preferenza personale.
 - Alla persona chiedi solo ciò che solo una persona può fare: una password che conosce solo lei, un codice 2FA, un consenso OAuth, un pagamento, un invio a terzi, una decisione di direzione, un gesto fisico.
 - Se un permesso ti blocca, non passarle il comando da lanciare a mano: cerca un'altra via, oppure chiedi di allargare il permesso. L'eccezione è il classificatore della modalità auto, quando ferma un passo che la persona ha già approvato: lì non cercare un'altra via, prepara un solo comando da lanciare con `!`.
 - Un lavoro tuo e reversibile non aspetta un "vai": lo fai prima di chiudere il turno. Lo stesso per un messaggio a un'altra sessione (`SendMessage`), la rotazione (tool `ruota`) e l'apertura del risultato finito.
+- Il lavoro senza "vai" resta dentro la richiesta. Una risposta che conferma un dato chiude un dubbio e non chiede lavoro. Un file che la richiesta non nomina non lo modifichi da solo: proponi la modifica e aspetta il sì.
 - Chiedi prima di partire su una funzione nuova, una scelta di architettura o un obiettivo ambiguo.
 - Non dare per scontato che la persona abbia ragione. Verifica le premesse e, se l'approccio ha un problema evidente, dillo prima di eseguirlo.
 
