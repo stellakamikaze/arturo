@@ -346,7 +346,10 @@ class Dispatcher:
         if self.vista("danger-git"):
             self.danger_una_volta()
         # Skip git puro: ogni programma eseguito è git o cd, senza sostituzioni né opzioni che scrivono fuori.
+        # Un programma nascosto (`git rm "$F"`) lo giudica block-dangerous anche qui, prima dello skip.
         if self.vista("git-puro"):
+            if self.vista("nascosto"):
+                self.danger_una_volta()
             raise Fine(0)
         if self.vista("git-opzioni"):
             self.danger_una_volta()
@@ -361,6 +364,9 @@ class Dispatcher:
                 self.run_guard(dc[0][0], *dc[0][1])
             else:
                 self.danger_una_volta()
+        # Il programma nascosto parla dopo prima-danger: block-dangerous ha la regola codice-nascosto (#6323).
+        if self.vista("nascosto"):
+            self.danger_una_volta()
         if self.vista("exfil"):
             self.esporta_ridotto()
             self.run_guard("exfil-guard.py")
