@@ -2,7 +2,7 @@
 
 Questa pagina dice perché handoff, stati dei progetti e memoria stanno su un ramo a parte, `sync`, e come
 un computer passa a quel ramo. Vale per chi tiene `~/.claude` come repository privato su GitHub e lo usa su
-più computer. Il codice sta in `bin/sync_transito.py`, il banco in `tests/test_sync_transito.py` (ST01-ST24).
+più computer. Il codice sta in `bin/sync_transito.py`, il banco in `tests/test_sync_transito.py` (ST01-ST25).
 
 ## Perché un ramo a parte (D5, 22/11/2026)
 
@@ -61,10 +61,14 @@ di passaggio vanno sul ramo `sync`.
   `<<<<<<<` e `>>>>>>>`, di solito lasciate da un merge fermo a metà, il commit non parte (exit 4) e il giro
   nomina il file. Spinto, il file rotto arriverebbe a tutte le macchine: `stati.json` non si leggerebbe più.
   Una riga `=======` da sola passa, perché in Markdown è un titolo. Caso ST23.
-- **Un blocco lungo si segnala.** Se il giro esce 4, 6 o 7, oppure trova un rebase di `main` lasciato a metà,
+- **Un blocco lungo si segnala.** Se il giro esce 4, 6, 7 o 9, oppure trova un rebase di `main` lasciato a metà,
   `.git-sync/bloccato-dal` tiene l'ora del primo giro fermo. Dopo 10 minuti il giro stampa una volta sola la
   riga `AVVISO:` col motivo, e `--stato` dice `BLOCCATO`. Il primo giro riuscito toglie il segno. Col rebase
   di `main` a metà il giro esce 0 lo stesso, perché la coda di `/fine` non si fermi. Casi ST22 e ST24.
+- **Un push rifiutato si dice.** Se il push non passa nemmeno dopo il secondo rebase (un pre-push che blocca,
+  un remote che rifiuta), il giro esce 9 e riporta la riga `BLOCK` o `error`, senza i colori. Prima usciva 0
+  con l'ultima riga stampata, che col pre-push di gitleaks era "no leaks found" (25/11/2026, #6654). Un remote
+  che non risponde esce 0: passa da solo. Caso ST25.
 
 ## Chi lancia cosa
 

@@ -32,13 +32,15 @@ fermano il commit (exit 4): di solito è un pull di main fatto a mano, che togli
 
 Un conflitto nel rebase si risolve da solo (24/11/2026): una nota di data/memory tiene le righe di tutte e due le
 versioni, un handoff e ogni altro file la versione scritta per ultimo. Un giro fermo da 10 minuti stampa una volta
-la riga AVVISO col motivo: vale per le uscite 4, 6 e 7 e per un rebase di main lasciato a metà (#6566). Un file
+la riga AVVISO col motivo: vale per le uscite 4, 6, 7 e 9 e per un rebase di main lasciato a metà (#6566). Un push
+rifiutato (un pre-push che blocca, un remote che rifiuta) esce 9 e dice la riga BLOCK o error, non l'ultima (#6654). Un file
 con le righe <<<<<<< e >>>>>>> fra le righe nuove non entra nel ramo (#5528).
 
 Exit: 0 fatto o niente da fare (anche col rebase di main a metà, che conta come blocco) · 4 rebase a metà in
 .git-sync, troppe cancellazioni o segni di conflitto in un file: il ramo sync resta com'era · 5 uso sbagliato
 · 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica · 8 solo con --subito: un
-altro giro tiene il lucchetto oltre l'attesa, niente commit.
+altro giro tiene il lucchetto oltre l'attesa, niente commit · 9 push rifiutato anche dopo il secondo rebase: i
+commit restano locali. Un remote che non risponde esce 0: passa da solo.
 
 Variabili per i banchi: SYNC_TRANSITO_CLAUDE (la radice), SYNC_TRANSITO_MINUTO (secondi fra due push, 60),
 SYNC_TRANSITO_VISIBILITA (PRIVATE per saltare gh). SYNC_TRANSITO_CANCELLAZIONI_OK=1 lascia passare un giro
@@ -74,6 +76,10 @@ RE_ARTURO = re.compile(r"github\.com[:/]stellakamikaze/arturo(\.git)?/?$")
 RE_FILE_DIFF = re.compile(r"^diff --git a/.* b/(.*)$", re.M)
 RE_SEGNO_APRE = re.compile(r"^\+<<<<<<< ", re.M)
 RE_SEGNO_CHIUDE = re.compile(r"^\+>>>>>>> ", re.M)
+RE_ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+# Le righe che dicono perché un push non passa, in ordine: il blocco di un hook, poi il rifiuto di git.
+RE_MOTIVO_PUSH = (re.compile(r"\bBLOCK\b"),
+                  re.compile(r"(?i)\[(remote )?rejected\]|^(error|fatal|remote: error):|hook declined"))
 RE_SENSIBILE = re.compile(r"(?i)^(\.env(\..*)?|.*\.(env|key|pem|p12|pfx)|\.?credentials\.json|client_secret.*\.json"
                           r"|id_(rsa|ed25519|ecdsa|dsa))$")
 CARTELLE_SENSIBILI = {"secrets", "credentials"}
@@ -84,6 +90,7 @@ PULL_VECCHIO = 600  # un segno "pull in corso" più vecchio è di un pull morto 
 TANTE_CANCELLAZIONI = 25
 _OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
 OCCUPATO = 8  # --subito: un altro giro tiene il lucchetto oltre l'attesa, niente commit
+PUSH_RIFIUTATO = 9  # il push non passa anche dopo il secondo rebase: i commit restano locali
 
 
 def run(cmd, timeout=120, env=None, cwd=None):
@@ -111,6 +118,19 @@ def git_main(*a, timeout=60):
 def ultima(*testi):
     righe = [r.strip() for t in testi for r in (t or "").replace("\x00", "").splitlines() if r.strip()]
     return righe[-1][:160] if righe else "nessun messaggio"
+
+
+def motivo_push(err, out):
+    """La riga che dice perché il push non passa. Il pre-push della config stampa su stdout la riga INF di gitleaks
+    e su stderr la riga BLOCK: ultima() prendeva la INF, e il 25/11/2026 il log ha detto "no leaks found" per due
+    ore mentre il pre-push bloccava ogni push (#6654). I colori di gitleaks si tolgono."""
+    righe = [RE_ANSI.sub("", r).strip() for t in (err, out) for r in (t or "").replace("\x00", "").splitlines()]
+    righe = [r for r in righe if r]
+    for regola in RE_MOTIVO_PUSH:
+        for r in righe:
+            if regola.search(r):
+                return r[:160]
+    return ultima("\n".join(righe))
 
 
 def percorsi():
@@ -563,8 +583,11 @@ def push(esiti):
             return 4
         rc, out, err = git("push", "-q", "origin", f"HEAD:{RAMO}", timeout=90)
         if rc != 0:
-            esiti.append(f"push non riuscito: {ultima(err, out)}")
-            return 0
+            # Prima usciva 0: il giro fermo non contava come blocco e l'AVVISO dei 10 minuti non scattava (#6654).
+            global _FERMO
+            _FERMO = f"push rifiutato: {motivo_push(err, out)}"
+            esiti.append(_FERMO)
+            return PUSH_RIFIUTATO
     try:
         (SYNC / "ultimo-push").write_text(f"{time.time()}\n", encoding="utf-8")
     except OSError:
@@ -642,14 +665,14 @@ def aspetta_lucchetto(secondi=30):
 BLOCCO_AVVISO = 600  # secondi di giri fermi prima della riga AVVISO
 # Le uscite che non passano da sole: il giro dopo trova la stessa cosa (24/11/2026, #6566).
 MOTIVI = {4: "rebase, segni di conflitto o troppe cancellazioni", 6: "git add o commit falliti",
-          7: "una chiave nei file da salvare"}
+          7: "una chiave nei file da salvare", PUSH_RIFIUTATO: "push rifiutato"}
 MAIN_A_META = "un rebase di main lasciato a metà"
 _GIRO_FATTO = False
 _FERMO = ""
 
 
 def segna_blocco(rc, motivo=""):
-    """Da quando il giro è fermo (exit 4, 6 o 7, oppure un rebase di main a metà, che esce 0 per non fermare la
+    """Da quando il giro è fermo (exit 4, 6, 7 o 9, oppure un rebase di main a metà, che esce 0 per non fermare la
     coda di /fine): .git-sync/bloccato-dal tiene l'ora del primo giro fermo. Oltre BLOCCO_AVVISO stampa una volta
     sola la riga AVVISO, col motivo, che la config gira alla persona. Il primo giro riuscito toglie il segno."""
     f = SYNC / "bloccato-dal"

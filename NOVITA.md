@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — Il ramo sync dice perché un push non passa
+
+**Cosa cambia**: se il push del ramo `sync` viene rifiutato, il giro esce con un errore e il log riporta la riga che blocca, per esempio quella `BLOCK` del controllo dei segreti. Dopo 10 minuti di push rifiutati arriva la riga `AVVISO:` col motivo, come per gli altri blocchi.
+
+**Perché**: il 25/11 il controllo prima del push ha fermato il ramo `sync` di un computer per circa due ore, per un falso allarme. Il log diceva solo "no leaks found", il giro usciva 0 e l'avviso non è mai partito.
+
+**A chi serve**: a chi usa Arturo su più computer, col ramo `sync`.
+
+---
+
 ## 2026-11-25 — Una conferma non apre lavoro su un altro file
 
 **Cosa cambia**: il metodo di Arturo dice adesso che il lavoro senza "vai" resta dentro la richiesta. Se rispondi solo per confermare un dato, Claude chiude il dubbio e non tocca altro. Se un file che non hai nominato va corretto, Claude ti propone la modifica e aspetta il tuo sì.

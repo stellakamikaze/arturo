@@ -35,6 +35,9 @@ ST23 un file con le righe <<<<<<< e >>>>>>> (stati.json dopo un merge fermo, #55
      niente push, lo stage vuoto. Un titolo Markdown con ======= passa. Tolti i segni, il giro riparte.
 ST24 anche una chiave nello stage (exit 7) e un rebase di main a metà (exit 0) contano come blocco: dopo 10
      minuti l'AVVISO col motivo, senza il valore della chiave; il primo giro riuscito toglie il segno (#6566).
+ST25 il pre-push blocca ogni push (gitleaks, 25/11/2026, #6654): un pre-push finto stampa la riga INF colorata su
+     stdout e la riga BLOCK su stderr. Il giro esce 9, dice la riga BLOCK senza la INF e senza i colori, e dopo 10
+     minuti stampa l'AVVISO col motivo. Tolto il blocco, il push passa e il segno sparisce.
 ST17 una macchina ferma riceve le note dell'altra senza spingere niente (24/11/2026): passati i 5 minuti
      dall'ultimo fetch (SYNC_TRANSITO_ENTRATA) il giro fa fetch e rebase; dentro i 5 minuti non tocca la rete.
 
@@ -580,6 +583,43 @@ def st24(tmp):
         return f"rebase chiuso: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
 
 
+PRE_PUSH_FINTO = """#!/bin/sh
+printf '\\033[90m10:14AM\\033[0m \\033[32mINF\\033[0m \\033[1mno leaks found\\033[0m\\n'
+echo "[pre-push] BLOCK: gitleaks ha rilevato secret nei commit da pushare (abc..def)" >&2
+echo "  Bypass (sconsigliato): PRE_PUSH_SKIP=1 git push ..." >&2
+exit 1
+"""
+
+
+def st25(tmp):
+    origin = coppia(tmp)
+    m = Macchina(tmp, "m", origin)
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "uno\n")
+    m.lancia("--migra")
+    ganci = tmp / "ganci"
+    ganci.mkdir()
+    (ganci / "pre-push").write_text(PRE_PUSH_FINTO, encoding="utf-8", newline="\n")
+    (ganci / "pre-push").chmod(0o755)
+    m.sync("config", "core.hooksPath", str(ganci))
+    segno = m.cl / ".git-sync" / "bloccato-dal"
+    env = dict(m.env, SYNC_TRANSITO_MINUTO="0")
+    m.scrivi("data/handoffs/a/HANDOFF_1.md", "due\n")
+    r = m.lancia("--giro", env=env)
+    if r.returncode != 9 or "BLOCK: gitleaks" not in r.stdout or "no leaks" in r.stdout or "\x1b" in r.stdout \
+            or not segno.exists():
+        return f"push bloccato: rc={r.returncode} segno={segno.exists()} {r.stdout!r}"
+    segno.write_text(f"{time.time() - 700}\n", encoding="utf-8")
+    r = m.lancia("--giro", env=env)
+    if r.returncode != 9 or "AVVISO" not in r.stdout or "BLOCK: gitleaks" not in r.stdout:
+        return f"dopo 11 minuti: rc={r.returncode} {r.stdout!r}"
+    m.sync("config", "--unset", "core.hooksPath")
+    m.sync("config", "core.hooksPath", str(tmp / "nessun-gancio"))
+    r = m.lancia("--giro", env=env)
+    remoto = sh(tmp, "git", f"--git-dir={origin}", "show", "sync:data/handoffs/a/HANDOFF_1.md")
+    if r.returncode != 0 or segno.exists() or remoto != "due":
+        return f"blocco tolto: rc={r.returncode} segno={segno.exists()} remoto={remoto!r} {r.stdout!r}"
+
+
 def st16(tmp):
     origin = coppia(tmp)
     a = Macchina(tmp, "a", origin)
@@ -712,7 +752,7 @@ CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05",
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
         ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22),
-        ("ST23", st23), ("ST24", st24),
+        ("ST23", st23), ("ST24", st24), ("ST25", st25),
         ("FY01", fy01), ("FY02", fy02), ("FY03", fy03), ("FY04", fy04), ("FY05", fy05), ("FY06", fy06)]
 
 
