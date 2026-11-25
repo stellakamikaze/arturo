@@ -52,6 +52,8 @@ FY04 la coda lanciata da una sottocartella della config (data/handoffs): handoff
 FY05 il passo del ramo sync fallisce (index.lock di .git-sync occupato): la coda esce 6, non 0, e lo dice.
 FY06 un altro giro tiene il lucchetto del ramo sync oltre l'attesa: la coda esce 6, non 0, e dice che handoff e
      note non sono sul ramo. Prima usciva 0 con "niente da committare" (segnalazione n. 102, 24/11/2026).
+FY07 il ramo sync è fermo da 11 minuti su un push rifiutato: la riga della coda dice il motivo (la riga BLOCK), non
+     "bloccato da 11 minuti" né la riga AVVISO, che resta sotto. Prima la coda prendeva l'ultima riga (#6655).
 """
 from __future__ import annotations
 
@@ -748,12 +750,34 @@ def fy06(tmp):
         return f"rc={r.returncode} nel ramo={rel in nel_ramo_locale(lab)} {r.stdout.strip()[-300:]!r}"
 
 
+def fy07(tmp):
+    repo = SCRIPT.parent.parent
+    lab = lab_con_sync(repo, tmp, True)
+    lab.ambiente["SYNC_TRANSITO_MINUTO"] = "0"
+    r = lab.coda(lab.handoff())  # il primo giro porta il ramo sync sul remote, come su una macchina già migrata
+    if r.returncode != 0:
+        return f"primo giro: rc={r.returncode} {r.stdout.strip()[-300:]!r}"
+    h = lab.handoff("HANDOFF_2026-10-30_21-00.md")
+    ganci = tmp / "ganci"
+    ganci.mkdir()
+    (ganci / "pre-push").write_text(PRE_PUSH_FINTO, encoding="utf-8", newline="\n")
+    (ganci / "pre-push").chmod(0o755)
+    subprocess.run(["git", f"--git-dir={lab.cl / '.git-sync'}", "config", "core.hooksPath", str(ganci)], check=True)
+    (lab.cl / ".git-sync" / "bloccato-dal").write_text(f"{time.time() - 700}\n", encoding="utf-8")
+    r = lab.coda(h)
+    riga = next((x for x in r.stdout.splitlines() if x.startswith("coda: ")), "")
+    if r.returncode != 6 or "BLOCK: gitleaks" not in riga or "AVVISO" in riga or "bloccato da" in riga \
+            or "AVVISO" not in r.stdout:
+        return f"rc={r.returncode} riga della coda={riga[-300:]!r} {r.stdout.strip()[-300:]!r}"
+
+
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
         ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22),
         ("ST23", st23), ("ST24", st24), ("ST25", st25),
-        ("FY01", fy01), ("FY02", fy02), ("FY03", fy03), ("FY04", fy04), ("FY05", fy05), ("FY06", fy06)]
+        ("FY01", fy01), ("FY02", fy02), ("FY03", fy03), ("FY04", fy04), ("FY05", fy05), ("FY06", fy06),
+        ("FY07", fy07)]
 
 
 def main() -> int:

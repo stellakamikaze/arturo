@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — /fine dice perché il ramo sync è fermo
+
+**Cosa cambia**: quando il ramo `sync` è fermo, la riga finale di `/fine` riporta il motivo, per esempio la riga `BLOCK` di un push rifiutato. La riga `AVVISO:` resta sotto, su una riga sua.
+
+**Perché**: dopo qualche minuto di blocco le ultime righe del ramo `sync` sono "bloccato da N minuti" e l'`AVVISO`. La coda di `/fine` prendeva l'ultima riga, e il motivo non arrivava alla sessione.
+
+**A chi serve**: a chi ha il ramo `sync` attivo, cioè ogni macchina migrata.
+
+---
+
 ## 2026-11-25 — /fine segna il ramo chiuso senza toccare git
 
 **Cosa cambia**: quando una sessione non può uscire dal suo worktree, `/fine` segna il ramo chiuso con `arturo riporto segna <ramo>`. Il segno sta in `~/.claude/data/riporti.json` e non più nella config di git. Il prossimo `/inizio` nel tree principale lo legge come prima e riporta il ramo.

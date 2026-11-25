@@ -230,6 +230,15 @@ def ultima(*testi):
     return righe[-1][:160] if righe else "nessun messaggio"
 
 
+def esito_sync(out, err):
+    """Il motivo del ramo sync e le sue righe AVVISO. Dopo un blocco le ultime righe sono "sync: bloccato da N minuti"
+    e AVVISO, e ultima() prendeva quelle al posto del motivo, la riga BLOCK di un push rifiutato (#6655)."""
+    righe = [r.strip() for t in (out, err) for r in (t or "").splitlines() if r.strip()]
+    avvisi = [r for r in righe if r.startswith("AVVISO:")]
+    motivo = [r for r in righe if r not in avvisi and not r.startswith("sync: bloccato da ")]
+    return ultima(*motivo), avvisi
+
+
 def rebase_a_meta(radice=None):
     """Un rebase fermo in ~/.claude, o nella cartella `radice` (la copia di prova, dove .git è un file)."""
     if radice is None:
@@ -1174,15 +1183,21 @@ def coda(a, ap, suoi):
             print("coda: " + " · ".join(esiti))
             print(out.strip())
             return 7
+        motivo, avvisi = esito_sync(out, err)
         if rc != 0:
             # Un giro fermo usciva 0 con una riga in mezzo agli esiti e passava inosservato (segnalazione n. 101).
-            esiti.append(f"sync dei dati di transito rc={rc}: {ultima(out, err)}")
+            esiti.append(f"sync dei dati di transito rc={rc}: {motivo}")
             print("coda: " + " · ".join(esiti))
             print(out.strip())
             return 6
-        esiti.append(ultima(out, err))
+        esiti.append(motivo)
+    else:
+        avvisi = []
 
     print("coda: " + " · ".join(esiti))
+    # Un rebase di main a metà esce 0 ma dopo 10 minuti porta l'AVVISO: resta visibile sotto la riga della coda.
+    for riga in avvisi:
+        print(riga)
     return 3 if offline else 0
 
 
