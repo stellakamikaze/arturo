@@ -11,6 +11,9 @@ HW02 se python3 non parte (rimando del Microsoft Store, 9009), lo sh prova pytho
 HW03 fuori da Herdr (senza HC_TERMINAL_ID) e con uno stato sconosciuto lo sh non chiama nessun python.
 HW04 scegli() trova claude.exe fra gli antenati, e si ferma su un PID riusato (padre nato dopo il figlio).
 HW05 fuori da Windows l'aiutante esce 0 senza scrivere niente.
+HW06 (#5587) una sessione in background (CLAUDE_JOB_DIR, senza HC_TERMINAL_ID) scrive lo stato in
+     ~/.cache/herdr-stato/<job id>, che l'aggancio di Volta legge all'apertura.
+HW07 (#5587) uno stato nuovo sostituisce quello di prima nel file.
 
 Sulla base 75082b4 (dev prima della modifica) sono rossi tutti: l'aiutante non c'è.
 Solo libreria standard. Nessun modello.
@@ -27,7 +30,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["HW01", "HW02", "HW03", "HW04", "HW05"]
+CASI = ["HW01", "HW02", "HW03", "HW04", "HW05", "HW06", "HW07"]
 DISCRIMINANTI = CASI
 
 FINTO = "#!/bin/sh\nprintf '%s|%s|%s\\n' \"$(basename \"$0\")\" \"$1\" \"$2\" >> \"$REGISTRO\"\nexit {rc}\n"
@@ -49,6 +52,16 @@ def _lancia(script: str, stato: str, d: Path, rc3: int = 0, hc: str = "t1") -> l
     env = {"PATH": f"{finti}:/usr/bin:/bin", "OS": "Windows_NT", "REGISTRO": str(registro), "HC_TERMINAL_ID": hc}
     subprocess.run(["sh", script, stato], input=b"{}", env=env, capture_output=True, timeout=20)
     return [r for r in registro.read_text(encoding="utf-8").splitlines() if r]
+
+
+def _job(script: Path, stati: list, d: Path) -> str:
+    casa = d / "casa"
+    casa.mkdir(exist_ok=True)
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(casa), "CLAUDE_JOB_DIR": str(d / "jobs" / "ab12cd34")}
+    for x in stati:
+        subprocess.run(["sh", str(script), x], input=b"{}", env=env, capture_output=True, timeout=20)
+    f = casa / ".cache" / "herdr-stato" / "ab12cd34"
+    return f.read_text(encoding="utf-8").strip() if f.is_file() else ""
 
 
 def prova(repo: Path) -> list:
@@ -77,6 +90,12 @@ def prova(repo: Path) -> list:
         ignoto = _lancia(str(hooks / "herdr-stato.sh"), "boh", d)
         if senza or ignoto:
             rossi.append(f"HW03 lo sh chiama python fuori da Herdr o con uno stato ignoto: {senza} {ignoto}")
+    with tempfile.TemporaryDirectory() as t:
+        if _job(sh, ["working"], Path(t)) != "working":
+            rossi.append("HW06 la sessione in background senza HC_TERMINAL_ID non scrive lo stato in ~/.cache/herdr-stato")
+    with tempfile.TemporaryDirectory() as t:
+        if _job(sh, ["working", "blocked", "done"], Path(t)) != "done":
+            rossi.append("HW07 lo stato nuovo non sostituisce quello di prima in ~/.cache/herdr-stato")
     spec = importlib.util.spec_from_file_location("herdr_stato_windows", aiuto)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
