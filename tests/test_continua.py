@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CN01-CN07: hooks/continua.py, la sessione continua da sola quando il passo dopo è di Claude (24/11/2026).
+"""CN01-CN08: hooks/continua.py, la sessione continua da sola quando il passo dopo è di Claude (24/11/2026).
 
 Su Stop l'hook legge l'ultimo testo di Claude (hooks/fine_turno.py, comune con carta-sessione.py) e, se la
 fine dice che il passo è di Claude e non chiede niente alla persona, risponde decision "block". Ogni caso
@@ -17,6 +17,11 @@ CN05 il tetto: 3 continuazioni di fila, la quarta tace e il registro dice tetto.
 CN06 un messaggio della persona azzera il conto: `hub.py prompt` toglie il file, e l'hook riparte.
 CN07 la trascrizione senza last_assistant_message: conta l'ultimo testo di Claude. Un ingresso rotto o
      senza sessione esce 0 in silenzio.
+CN08 lo stato verso Herdr (#6594): dentro Herdr (HC_TERMINAL_ID) il turno che continua manda "working", ogni
+     altro turno "done" (niente passo mio, hook spento, ingresso rotto, tetto). Fuori da Herdr e nel figlio di
+     titolo-sessione.py non parte niente. Lo Stop di settings.json non ha più `herdr-stato.sh done`, che
+     girava in parallelo e segnava fatto anche il turno che continua. L'hook gira su una copia di hooks/ con
+     un herdr-stato.sh finto che scrive lo stato in un file.
 
 --avvelena rompe ogni regola su una copia di hooks/ ed esce 0 solo se ogni rottura fa rosso i suoi casi.
 Il primo veleno è PASSO_MIO sempre vero e nessun filtro (decidi dà sempre "continua"): CN01-CN04 rossi.
@@ -34,7 +39,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["CN01", "CN02", "CN03", "CN04", "CN05", "CN06", "CN07"]
+CASI = ["CN01", "CN02", "CN03", "CN04", "CN05", "CN06", "CN07", "CN08"]
 DISCRIMINANTI = list(CASI)
 MOTIVO = ("Il passo dopo è tuo e reversibile: eseguilo ora, nello stesso turno. "
           "Se tocca un freno, fermati e dillo.")
@@ -104,7 +109,7 @@ class Lab:
         self.orsa = casa / ".claude"
         self.orsa.mkdir(parents=True, exist_ok=True)
         self.env = dict(os.environ)
-        for k in ("ARTURO_CONTINUA", "ARTURO_TITOLO_FIGLIO", "ARTURO_HUB_TETTO"):
+        for k in ("ARTURO_CONTINUA", "ARTURO_TITOLO_FIGLIO", "ARTURO_HUB_TETTO", "HC_TERMINAL_ID"):
             self.env.pop(k, None)
         self.env.update(HOME=str(casa), USERPROFILE=str(casa), CLAUDE_CONFIG_DIR=str(self.orsa),
                         PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
@@ -266,7 +271,54 @@ def cn07(lab: Lab) -> str | None:
     return None
 
 
-FUNZIONI = {"CN01": cn01, "CN02": cn02, "CN03": cn03, "CN04": cn04, "CN05": cn05, "CN06": cn06, "CN07": cn07}
+FINTO = "#!/bin/sh\ncat >/dev/null 2>&1\nprintf '%s\\n' \"$1\" >> \"$HERDR_FINTO\"\n"
+
+
+def cn08(lab: Lab) -> str | None:
+    impostazioni = lab.hooks.parent / "settings.json"
+    if impostazioni.is_file():
+        stop = json.loads(impostazioni.read_text(encoding="utf-8")).get("hooks", {}).get("Stop", [])
+        comandi = [h.get("command", "") for m in stop for h in m.get("hooks", [])]
+        if any("herdr-stato" in c for c in comandi):
+            return "CN08 ROSSO: lo Stop di settings.json ha ancora herdr-stato.sh, che segna fatto anche il turno che continua"
+    copia = lab.casa / "hooks"
+    shutil.copytree(str(lab.hooks), str(copia), ignore=shutil.ignore_patterns("__pycache__"))
+    (copia / "herdr-stato.sh").write_text(FINTO, encoding="utf-8")
+    lab.hooks = copia
+    stati = lab.casa / "herdr.txt"
+    dentro = {"HC_TERMINAL_ID": "t-cn08", "HERDR_FINTO": str(stati)}
+
+    def nuovi_stati(passo) -> tuple:
+        prima = stati.read_text(encoding="utf-8").split() if stati.is_file() else []
+        r = passo()
+        dopo = stati.read_text(encoding="utf-8").split() if stati.is_file() else []
+        return r, dopo[len(prima):]
+
+    r, nuovi = nuovi_stati(lambda: lab.stop("h1", PASSO_MIO[0], extra_env=dentro))
+    if not blocca(r) or nuovi != ["working"]:
+        return f"CN08 ROSSO: il turno che continua manda a Herdr {nuovi}, atteso ['working'] (block: {blocca(r)})"
+    for nome, passo in (
+            ("niente passo mio", lambda: lab.stop("h2", NIENTE[0], extra_env=dentro)),
+            ("hook spento", lambda: lab.stop("h3", PASSO_MIO[0], extra_env=dict(dentro, ARTURO_CONTINUA="0"))),
+            ("ingresso rotto", lambda: lab.stop("h4", grezzo=b"non json", extra_env=dentro))):
+        r, nuovi = nuovi_stati(passo)
+        if not tace(r) or nuovi != ["done"]:
+            return f"CN08 ROSSO: {nome}: Herdr riceve {nuovi}, atteso ['done'] (rc {r.returncode})"
+    for _ in range(3):
+        lab.stop("h5", PASSO_MIO[0], extra_env=dentro)
+    r, nuovi = nuovi_stati(lambda: lab.stop("h5", PASSO_MIO[0], extra_env=dentro))
+    if not tace(r) or nuovi != ["done"]:
+        return f"CN08 ROSSO: al tetto Herdr riceve {nuovi}, atteso ['done']"
+    for nome, env in (("fuori da Herdr", {"HERDR_FINTO": str(stati)}),
+                      ("nel figlio di titolo-sessione.py", dict(dentro, ARTURO_TITOLO_FIGLIO="1"))):
+        r, nuovi = nuovi_stati(lambda: lab.stop("h6", NIENTE[0], extra_env=env))
+        if r.returncode != 0 or nuovi:
+            return f"CN08 ROSSO: {nome} l'hook manda a Herdr {nuovi}"
+    return None
+
+
+FUNZIONI = {"CN01": cn01, "CN02": cn02, "CN03": cn03, "CN04": cn04, "CN05": cn05, "CN06": cn06, "CN07": cn07,
+            "CN08": cn08}
 
 
 def prova(hooks: Path) -> list:
@@ -294,7 +346,7 @@ VELENI = [
     ({"CN03"}, "continua.py", '    if RINVIO.search(righe_del_passo(fine)):\n        return "rinvio"\n', ''),
     ({"CN01"}, "continua.py", '    if RINVIO.search(righe_del_passo(fine)):\n', '    if RINVIO.search(fine):\n'),
     ({"CN04"}, "continua.py", '    if RUOTO.search(fine):\n        return "rotazione"\n', ''),
-    ({"CN04"}, "continua.py", '    if ruota_nel_turno(str(dati.get("transcript_path") or "")):\n        return 0\n', ''),
+    ({"CN04"}, "continua.py", '    if ruota_nel_turno(str(dati.get("transcript_path") or "")):\n        return False\n', ''),
     ({"CN04"}, "continua.py", '        if prompt_vero(d):\n            visto = False\n', '        if prompt_vero(d):\n            pass\n'),
     ({"CN05"}, "continua.py", '    if giri >= TETTO:\n', '    if False:\n'),
     ({"CN05"}, "continua.py", '    giri = leggi_conto(f)\n', '    giri = 0 if attivo else leggi_conto(f)\n'),
@@ -302,8 +354,13 @@ VELENI = [
     ({"CN07"}, "fine_turno.py",
      '    return str(dati.get("last_assistant_message") or "") or ultimo_testo(str(dati.get("transcript_path") or ""))',
      '    return str(dati.get("last_assistant_message") or "")'),
-    ({"CN07"}, "continua.py", "    except Exception:  # noqa: BLE001 - un hook di Stop rotto non deve mai fermare né trattenere la sessione\n        sys.exit(0)\n",
+    ({"CN07"}, "continua.py", "    except Exception:  # noqa: BLE001 - un hook di Stop rotto non deve mai fermare né trattenere la sessione\n        pass\n",
      "    except Exception:\n        raise\n"),
+    # Lo stato verso Herdr: sempre done (il difetto di #6594), nessuno stato, anche fuori da Herdr.
+    ({"CN08"}, "continua.py", '    herdr("working" if continua else "done")\n', '    herdr("done")\n'),
+    ({"CN08"}, "continua.py", '    herdr("working" if continua else "done")\n', ''),
+    ({"CN08"}, "continua.py", '    if not os.environ.get("HC_TERMINAL_ID") or os.environ.get("ARTURO_TITOLO_FIGLIO"):\n',
+     '    if False:\n'),
 ]
 
 

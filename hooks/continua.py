@@ -25,15 +25,22 @@ con stop_hook_active vero (Claude sta già continuando per un hook Stop) il giro
 Ogni block e ogni tetto raggiunto lasciano una riga in cache/continua/registro.jsonl, tenuto sotto
 REGISTRO_TETTO byte.
 
+Lo stato verso Herdr (25/11/2026, #6594): fino a 0.2.25 un hook Stop a parte (`herdr-stato.sh done`) girava in
+parallelo a questo e segnava fatto anche il turno che questo hook faceva continuare. Ora lo stato di fine
+turno lo manda solo questo hook, dopo la decisione: "working" se continua, "done" in ogni altro caso, anche
+con l'hook spento o rotto. Fuori da Herdr (HC_TERMINAL_ID vuoto) non parte nessun processo.
+
 Si spegne con ARTURO_CONTINUA=0, e non gira dentro la chiamata al modello di titolo-sessione.py
-(ARTURO_TITOLO_FIGLIO). Ogni errore: exit 0 in silenzio. Solo libreria standard, Python 3.8+.
-Banco: tests/test_continua.py (CN01-CN07).
+(ARTURO_TITOLO_FIGLIO), dove tace anche verso Herdr. Ogni errore: exit 0 in silenzio. Solo libreria standard,
+Python 3.8+. Banco: tests/test_continua.py (CN01-CN08).
 """
 from __future__ import annotations
 
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -182,34 +189,54 @@ def registra(esito: str, sessione: str, giro: int, attivo: bool) -> None:
         pass
 
 
-def main() -> int:
+def herdr(stato: str) -> None:
+    """Lo stato di fine turno verso Herdr, con herdr-stato.sh accanto a questo file. Fuori da Herdr niente."""
+    if not os.environ.get("HC_TERMINAL_ID") or os.environ.get("ARTURO_TITOLO_FIGLIO"):
+        return
+    script = os.path.join(os.path.dirname(os.path.realpath(__file__)), "herdr-stato.sh")
+    sh = shutil.which("sh")
+    if not sh or not os.path.isfile(script):
+        return
+    try:
+        subprocess.run([sh, script, stato], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=3)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def main() -> bool:
+    """Vero se il turno continua (block scritto su stdout)."""
     if os.environ.get("ARTURO_CONTINUA") == "0" or os.environ.get("ARTURO_TITOLO_FIGLIO"):
-        return 0
+        return False
     dati = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
     if not isinstance(dati, dict) or str(dati.get("hook_event_name") or "Stop") != "Stop":
-        return 0
+        return False
     sessione = sessione_di(dati.get("session_id"))
     if not sessione:
-        return 0
+        return False
     if decidi(testo_del_turno(dati)) != "continua":
-        return 0
+        return False
     if ruota_nel_turno(str(dati.get("transcript_path") or "")):
-        return 0
+        return False
     attivo = bool(dati.get("stop_hook_active"))
     f = cartella() / sessione
     giri = leggi_conto(f)
     if giri >= TETTO:
         registra("tetto", sessione, giri, attivo)
-        return 0
+        return False
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(str(giri + 1), encoding="utf-8")
     registra("block", sessione, giri + 1, attivo)
     sys.stdout.write(json.dumps({"decision": "block", "reason": MOTIVO}, ensure_ascii=False))
-    return 0
+    sys.stdout.flush()
+    return True
 
 
 if __name__ == "__main__":
+    continua = False
     try:
-        sys.exit(main())
+        continua = main()
     except Exception:  # noqa: BLE001 - un hook di Stop rotto non deve mai fermare né trattenere la sessione
-        sys.exit(0)
+        pass
+    herdr("working" if continua else "done")
+    sys.exit(0)

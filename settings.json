@@ -516,15 +516,6 @@
             "async": true
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh ~/.claude/hooks/herdr-stato.sh done",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "StopFailure": [

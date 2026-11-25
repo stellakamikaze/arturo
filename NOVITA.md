@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — Herdr non segna più fatto una sessione che continua da sola
+
+**Cosa cambia**: in Herdr e in Volta, una sessione che chiude il turno con "il prossimo passo è mio" e continua da sola resta "sta lavorando". Prima passava per un momento a "fatto", con l'avviso di fine.
+
+**Perché**: lo stato di fine turno lo mandava un hook a parte, in parallelo a quello che fa continuare la sessione, e non sapeva della sua scelta. Adesso lo manda solo `continua.py`, dopo la scelta: "fatto" solo se la sessione si ferma davvero.
+
+**A chi serve**: a chi usa Arturo dentro Herdr o Volta. Fuori da lì non cambia niente.
+
+---
+
 ## 2026-11-25 — /fine dice perché il ramo sync è fermo
 
 **Cosa cambia**: quando il ramo `sync` è fermo, la riga finale di `/fine` riporta il motivo, per esempio la riga `BLOCK` di un push rifiutato. La riga `AVVISO:` resta sotto, su una riga sua.
