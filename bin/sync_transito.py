@@ -40,7 +40,8 @@ Exit: 0 fatto o niente da fare (anche col rebase di main a metà, che conta come
 .git-sync, troppe cancellazioni o segni di conflitto in un file: il ramo sync resta com'era · 5 uso sbagliato
 · 6 git add o commit falliti · 7 segreto nello stage, o guardia che non si carica · 8 solo con --subito: un
 altro giro tiene il lucchetto oltre l'attesa, niente commit · 9 push rifiutato anche dopo il secondo rebase: i
-commit restano locali. Un remote che non risponde esce 0: passa da solo.
+commit restano locali, anche per un push andato in timeout. Un remote che non risponde a ls-remote o a fetch
+esce 0: passa da solo.
 
 Variabili per i banchi: SYNC_TRANSITO_CLAUDE (la radice), SYNC_TRANSITO_MINUTO (secondi fra due push, 60),
 SYNC_TRANSITO_VISIBILITA (PRIVATE per saltare gh). SYNC_TRANSITO_CANCELLAZIONI_OK=1 lascia passare un giro

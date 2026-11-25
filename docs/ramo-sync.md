@@ -67,8 +67,9 @@ di passaggio vanno sul ramo `sync`.
   di `main` a metà il giro esce 0 lo stesso, perché la coda di `/fine` non si fermi. Casi ST22 e ST24.
 - **Un push rifiutato si dice.** Se il push non passa nemmeno dopo il secondo rebase (un pre-push che blocca,
   un remote che rifiuta), il giro esce 9 e riporta la riga `BLOCK` o `error`, senza i colori. Prima usciva 0
-  con l'ultima riga stampata, che col pre-push di gitleaks era "no leaks found" (25/11/2026, #6654). Un remote
-  che non risponde esce 0: passa da solo. Caso ST25.
+  con l'ultima riga stampata, che col pre-push di gitleaks era "no leaks found" (25/11/2026, #6654). Anche un push
+  in timeout esce 9; un remote che non risponde a `ls-remote` o a `fetch` esce 0, perché passa da solo. La coda
+  di `/fine` con un push rifiutato esce 6. Caso ST25.
 
 ## Chi lancia cosa
 

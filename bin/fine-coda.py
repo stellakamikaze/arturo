@@ -65,7 +65,7 @@ Exit:
   0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
   chiede /clear alla persona · 3 l'aggancio personale
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
-  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti, anche nel passo del ramo
+  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti, o push del ramo sync rifiutato (#6654), anche nel passo del ramo
   sync dei dati di transito (lì il commit su main è già fatto), anche quando un altro giro tiene il suo
   lucchetto oltre l'attesa · 7 segreto nello stage
   (niente commit) o nei commit da spingere (niente push), o guardia dei segreti che non si carica
