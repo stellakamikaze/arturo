@@ -47,6 +47,7 @@ VECCHIO = 7 * 24 * 3600
 LUNGO = 60           # caratteri: il titolo sta in una riga della barra di Volta
 CODA = 3000000       # byte della trascrizione letti dal fondo, come la sonda di Volta
 CONTESTO = 2000      # caratteri passati al modello
+ATTESA_BIN = 6       # secondi di attesa del link di claude mentre npm lo reinstalla (#6682, come la config)
 ISTRUZIONE = (
     "Dai un titolo a una sessione di lavoro fra una persona e un assistente, per un elenco che la persona "
     "scorre con l'occhio. Ricevi degli appunti: progetto, ultime richieste della persona, ultimo comando e "
@@ -214,10 +215,23 @@ def appunti(trascrizione: str, progetto: str, prima: str = "") -> str:
     return "\n".join(pezzi)[:CONTESTO]
 
 
-def chiedi(testo: str) -> str:
+def claude_bin(attesa: float = ATTESA_BIN) -> str:
+    """Il percorso di claude; se manca, riprova ogni 0,2 s per `attesa` secondi (#6682).
+    L'aggiornatore di Claude Code reinstalla claude con npm e il link manca per 4-5 s (misura del 25/11/2026)."""
     fine = ".exe" if os.name == "nt" else ""
-    cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
-    if not os.path.exists(cl):
+    scade = time.monotonic() + attesa
+    while True:
+        cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+        if os.path.exists(cl):
+            return cl
+        if time.monotonic() >= scade:
+            return ""
+        time.sleep(0.2)
+
+
+def chiedi(testo: str) -> str:
+    cl = claude_bin()
+    if not cl:
         return ""
     env = dict(os.environ, ARTURO_TITOLO_FIGLIO="1", CLAUDE_CODE_DISABLE_CLAUDE_MDS="1",
                CLAUDE_CODE_DISABLE_AUTO_MEMORY="1", PYTHONIOENCODING="utf-8")

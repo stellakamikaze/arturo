@@ -9,9 +9,17 @@ invece arriva a Herdr se qualcuno la scrive sulla console giusta: ConPTY la pass
 aiutante sale fra gli antenati veri (gli ID di Windows, non quelli di MSYS) fino a claude.exe, lascia la sua
 console, si aggancia a quella di claude.exe con AttachConsole e scrive su CONOUT$.
 
-Un PID di Windows si riusa: un padre nato dopo il figlio è un altro processo, e lì la salita si ferma.
-Esce sempre 0, anche quando non trova niente: herdr-stato.sh prova `python` dopo `python3` solo se il primo
-non parte (il rimando del Microsoft Store esce 9009 senza eseguire).
+Un PID di Windows si riusa: un padre nato dopo il figlio è un altro processo, e lì la salita si ferma. Se
+l'ora di nascita di un antenato non si legge, il confronto usa l'ultima ora letta più in basso.
+
+L'ordine (revisione della PR #49, 25/11/2026). PostToolUse lancia `working` in async, e Python su Windows
+parte lento: un `working` vecchio può arrivare dopo lo stato di fine turno. Ogni hook porta l'ora di nascita
+del processo che Claude Code ha lanciato per lui, cioè il figlio di claude.exe nella salita. Un file per
+sessione in %TEMP% tiene l'ora dell'ultimo stato scritto, sotto un lucchetto: uno stato più vecchio si scarta.
+Il lucchetto mette in fila anche gli aiutanti che cambiano la modalità della console.
+
+Su un Python di Windows esce sempre 0, anche quando non trova niente. Su un Python di MSYS2 o Cygwin
+(`sys.platform` diverso da win32) esce 2: herdr-stato.sh allora prova l'interprete dopo.
 """
 from __future__ import annotations
 
@@ -22,32 +30,89 @@ STATI = ("idle", "working", "blocked", "done", "error")
 NOMI = ("claude.exe", "node.exe")
 PASSI = 12
 VT = 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING: senza, la console stampa ESC come un carattere.
+NON_WINDOWS = 2
 
 
 def sequenza(stato: str) -> bytes:
     return f"\033]7501;state={stato}:app=claude-code\033\\".encode("ascii")
 
 
-def scegli(padri: dict, io: int, nato, passi: int = PASSI):
-    """Il PID del primo antenato di `io` che si chiama come in NOMI, o None.
+def sali(padri: dict, io: int, nato, passi: int = PASSI):
+    """(PID di Claude Code, PID del suo figlio nella salita): il primo antenato di `io` con un nome di NOMI.
 
     padri: {pid: (pid del padre, nome dell'eseguibile)}. nato(pid): l'ora di nascita, o None se non si legge.
+    Senza Claude Code fra gli antenati, o dopo un PID riusato: (None, None).
     """
     pid, quando = io, nato(io)
     for _ in range(passi):
         voce = padri.get(pid)
         if not voce:
-            return None
+            return None, None
         padre = voce[0]
         if padre in (0, pid) or padre not in padri:
-            return None
+            return None, None
         quando_padre = nato(padre)
         if quando is not None and quando_padre is not None and quando_padre > quando:
-            return None  # PID riusato: il padre vero è già uscito
+            return None, None  # PID riusato: il padre vero è già uscito
         if padri[padre][1].lower() in NOMI:
-            return padre
-        pid, quando = padre, quando_padre
-    return None
+            return padre, pid
+        pid = padre
+        if quando_padre is not None:
+            quando = quando_padre
+    return None, None
+
+
+def scegli(padri: dict, io: int, nato, passi: int = PASSI):
+    """Il PID del primo antenato di `io` che si chiama come in NOMI, o None."""
+    return sali(padri, io, nato, passi)[0]
+
+
+def _blocca(f) -> None:
+    try:
+        import msvcrt
+    except ImportError:  # fuori da Windows: solo per il banco
+        import fcntl
+
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        return
+    f.seek(0)
+    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+
+
+def _sblocca(f) -> None:
+    try:
+        import msvcrt
+    except ImportError:
+        import fcntl
+
+        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        return
+    f.seek(0)
+    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+
+
+def in_ordine(percorso, ora: int, scrivi) -> bool:
+    """Chiama scrivi() solo se `ora` non è più vecchia dell'ultimo stato scritto in `percorso`.
+
+    Vero se lo stato è partito. Il file tiene l'ora dell'ultimo stato scritto; tutto avviene sotto lucchetto.
+    """
+    with open(percorso, "a+b") as f:
+        _blocca(f)
+        try:
+            f.seek(0)
+            testo = f.read().strip()
+            prima = int(testo) if testo.isdigit() else 0
+            if ora < prima:
+                return False
+            if not scrivi():
+                return False
+            f.seek(0)
+            f.truncate()
+            f.write(str(ora).encode("ascii"))
+            f.flush()
+            return True
+        finally:
+            _sblocca(f)
 
 
 def _kernel32():
@@ -144,7 +209,10 @@ def scrivi(k, pid: int, dati: bytes) -> bool:
             scritti = w.DWORD()
             ok = k.WriteFile(h, dati, len(dati), ctypes.byref(scritti), None)
             if accendi:
-                k.SetConsoleMode(h, modo.value)
+                # Si rilegge la modalità: si spegne solo il VT acceso qui, il resto resta com'è adesso.
+                ora = w.DWORD()
+                if k.GetConsoleMode(h, ctypes.byref(ora)):
+                    k.SetConsoleMode(h, ora.value & ~VT)
             return bool(ok) and scritti.value == len(dati)
         finally:
             k.CloseHandle(h)
@@ -154,20 +222,29 @@ def scrivi(k, pid: int, dati: bytes) -> bool:
 
 def main(argv: list) -> int:
     stato = argv[1] if len(argv) > 1 else ""
-    if sys.platform != "win32" or stato not in STATI:
+    if sys.platform != "win32":
+        return NON_WINDOWS
+    if stato not in STATI:
         return 0
     import os
+    import tempfile
 
     k = _kernel32()
-    pid = scegli(processi(k), os.getpid(), lambda p: nascita(k, p))
-    if pid:
+    pid, figlio = sali(processi(k), os.getpid(), lambda p: nascita(k, p))
+    if not pid:
+        return 0
+    ora = nascita(k, figlio)
+    if ora is None:  # senza l'ora dell'hook non c'è ordine: lo stato parte comunque
         scrivi(k, pid, sequenza(stato))
+        return 0
+    file = os.path.join(tempfile.gettempdir(), f"herdr-stato-{pid}-{nascita(k, pid) or 0}.txt")
+    in_ordine(file, ora, lambda: scrivi(k, pid, sequenza(stato)))
     return 0
 
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        rc = main(sys.argv)
     except Exception:  # un hook di stato non ferma mai Claude Code
-        pass
-    sys.exit(0)
+        rc = 0
+    sys.exit(rc)

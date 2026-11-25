@@ -7,12 +7,15 @@ cat >/dev/null 2>&1
 [ -n "${HC_TERMINAL_ID:-}" ] || [ -n "${CLAUDE_JOB_DIR:-}" ] || exit 0
 case "${1:-}" in idle|working|blocked|done|error) ;; *) exit 0 ;; esac
 # Windows (25/11/2026, #5639): l'hook gira senza terminale di controllo, il ps di Git non ha -o e il padre che
-# vede sh è 1. Scrive l'aiutante accanto, agganciato alla console di claude.exe. python3 può essere il
-# rimando del Microsoft Store, che esce senza eseguire: allora prova python. Il percorso può avere le \.
+# vede sh è 1. Scrive l'aiutante accanto, agganciato alla console di claude.exe. Prima python: su Windows
+# python3 è spesso il rimando del Microsoft Store, che esce 9009 senza eseguire. Un Python di MSYS2 o Cygwin
+# fa uscire l'aiutante con 2: anche allora si prova l'interprete dopo. Il percorso può avere le \.
 if [ "${OS:-}" = Windows_NT ]; then
+  # Una sessione in background su Windows non ha lo stato nel file (niente /bin/sh per l'aggancio, #5587).
+  [ -n "${HC_TERMINAL_ID:-}" ] || exit 0
   export PYTHONIOENCODING=utf-8
   case "$0" in */* | *\\*) cartella=${0%[/\\]*} ;; *) cartella=. ;; esac
-  for py in python3 python; do
+  for py in python python3; do
     "$py" "$cartella/herdr-stato-windows.py" "$1" </dev/null >/dev/null 2>&1 && exit 0
   done
   exit 0

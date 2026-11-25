@@ -42,6 +42,8 @@ PC25 la barra dice "riapri Claude Code" solo alla sessione rimasta sulla copia d
 Dal 14/11/2026 (#5610):
 PC26 un'installazione riuscita alla chiusura manda l'evento aggiorna "automatico", una volta per versione; un
      rilascio che non si scarica manda "non-partito": prima col plugin non partiva nessuno dei due.
+PC27 (25/11/2026, #6683) la chiusura aspetta claude mentre npm lo reinstalla: fuori dal PATH, il comando in
+     ~/.local/bin manca e compare dopo 2 s, e il plugin update parte lo stesso.
 
 Rilasci, catalogo, chiavi e CLI finta sono quelli di test_fiducia_2026_11_05.py: niente rete, niente CLI vera.
 Sulla base 62786fd sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -53,6 +55,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -62,7 +65,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from salti_windows import attesi_senza_salti, dichiara  # noqa: E402
 
 CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13",
-        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "PC26"]
+        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "PC26", "PC27"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -610,7 +613,29 @@ def caso_pc26(repo, tmp, chiavi) -> list:
     return rossi
 
 
-GRUPPI = [(("PC26",), caso_pc26), (("PC24",), caso_pc24), (("PC25",), caso_pc25), (("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
+def caso_pc27(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc27", chiavi)
+    posto = s.casa / ".local" / "bin"
+    posto.mkdir(parents=True)
+    if os.name == "nt":
+        shutil.copy2(s.base / "claude-finto.py", posto / "claude-finto.py")
+        meta = posto / "claude.cmd"
+    else:
+        meta = posto / "claude"
+    senza = os.pathsep.join(c for c in os.environ.get("PATH", "").split(os.pathsep)
+                            if c and not any((Path(c) / n).exists() for n in ("claude", "claude.exe", "claude.cmd")))
+    # npm reinstalla claude: il comando manca e torna dopo 2 s, mentre la chiusura lo cerca.
+    tardi = subprocess.Popen([sys.executable, "-c", "import shutil, sys, time; time.sleep(2); "
+                              "shutil.copy2(sys.argv[1], sys.argv[2])", str(s.finto), str(meta)])
+    s.agg("applica", ARTURO_CLAUDE="", PATH=senza)
+    tardi.wait(timeout=30)
+    esito = leggi(s.file_esito)
+    if esito.get("esito") != "APPLICATO" or not s.spia.exists():
+        return [f"PC27 claude reinstallato da npm: esito {esito}, update partito {s.spia.exists()}"]
+    return []
+
+
+GRUPPI = [(("PC27",), caso_pc27), (("PC26",), caso_pc26), (("PC24",), caso_pc24), (("PC25",), caso_pc25), (("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
           (("PC06",), caso_pc06), (("PC07",), caso_pc07), (("PC08",), caso_pc08), (("PC09",), caso_pc09),
           (("PC10",), caso_pc10), (("PC11",), caso_pc11), (("PC12",), caso_pc12), (("PC13",), caso_pc13),
           (("PC14",), caso_pc14), (("PC15",), caso_pc15), (("PC16",), caso_pc16), (("PC17",), caso_pc17),
@@ -686,6 +711,8 @@ VELENI = [
     ("PC25", AGG, '        (cartella / sessione).write_text(in_uso, encoding="utf-8")', '        pass'),
     ("PC26", AGG, '        _segnala_ostacolo(r, {"versione": versione}, "automatico")\n', ''),
     ("PC26", AGG, '        _segnala_ostacolo(r, {"versione": versione}, "non-partito")\n', '        pass\n'),
+    ("PC27", AGG, "        if time.monotonic() >= scade:\n            _SENZA_CLAUDE.append(True)\n",
+     "        if True:\n            _SENZA_CLAUDE.append(True)\n"),
 ]
 
 
