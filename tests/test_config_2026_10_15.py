@@ -405,7 +405,9 @@ def test_k16(repo: Path) -> None:
                   "Python, node or curl scripts that READ public web pages", "Creating, loading or removing a scheduled job",
                   "Stopping a process on the user's own machine", "Closing, reopening, labelling or commenting on an issue",
                   "Read-only system diagnostics on the user's own Windows machine", "Changing a setting of an app",
-                  "Claude writing its own memory notes and handoffs"):
+                  "Claude writing its own memory notes and handoffs",
+                  # Segnalazione n. 104 (#6640): il classificatore negava arturo correzione aggiungi.
+                  "Arturo's own session records, unmodified: running `arturo correzione aggiungi"):
         assert frase in allow, f"K16 manca la regola autoMode.allow: {frase}"
     for frase in ("**Live configuration**", "**Key internal services / personal machines**", "**Temp files**",
                   "**Local git**", "**Trusted repo / projects folder**", "**Org-specific CLIs**",

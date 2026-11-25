@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — La correzione registrata passa anche in modalità auto
+
+**Cosa cambia**: le regole di Arturo per la modalità auto ora nominano `arturo correzione aggiungi`, `elenco` e `togli`. Il classificatore di Claude Code le legge come una nota della sessione, e non come un'azione distruttiva.
+
+**Perché**: segnalazione n. 104. In modalità auto il classificatore ha fermato la registrazione di una correzione, mentre poco prima nella stessa sessione un'altra era passata. La regola chiesta dalla persona non è entrata fra le correzioni di sessione.
+
+**A chi serve**: a chi usa Arturo in modalità auto. La regola arriva in `settings.json` con il prossimo `/aggiorna`.
+
+---
+
 ## 2026-11-25 — Il ramo sync dice perché un push non passa
 
 **Cosa cambia**: se il push del ramo `sync` viene rifiutato, il giro esce con un errore e il log riporta la riga che blocca, per esempio quella `BLOCK` del controllo dei segreti. Dopo 10 minuti di push rifiutati arriva la riga `AVVISO:` col motivo, come per gli altri blocchi.
