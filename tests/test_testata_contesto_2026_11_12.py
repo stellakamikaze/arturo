@@ -13,6 +13,8 @@ TC05 titolo-sessione.py legge le due righe del modello (TITOLO: e ADESSO:); la s
 TC06 su PostToolUse l'hook scrive la sintesi; un secondo PostToolUse subito dopo non chiama il modello;
      sotto un nome scritto dalla persona cambia la sintesi e il titolo resta; una risposta senza ADESSO
      sposta comunque il turno della sintesi.
+TC07 chiedi() aspetta claude mentre npm lo reinstalla: il comando manca e compare dopo 1 s, e la risposta
+     del claude finto arriva lo stesso (#6682, come AC01 della config).
 
 Veleno: --avvelena rompe la copia di prova, un punto per caso, ed esce 0 solo se ogni rottura fa rosso
 il suo caso.
@@ -30,7 +32,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["TC01", "TC02", "TC03", "TC04", "TC05", "TC06"]
+CASI = ["TC01", "TC02", "TC03", "TC04", "TC05", "TC06", "TC07"]
 # caso -> (file, testo giusto, testo rotto)
 VELENI = [
     ("TC01", "bin/contesto.py", 'fonte("handoff", "Ultimo handoff"', 'fonte("handoff-x", "Ultimo handoff"'),
@@ -44,6 +46,7 @@ VELENI = [
     ("TC06", "hooks/titolo-sessione.py", "    if s:\n        nuovo[\"sintesi\"] = s\n", ""),
     ("TC06", "hooks/titolo-sessione.py", 'evento not in ("UserPromptSubmit", "Stop", "PostToolUse")', 'evento not in ("UserPromptSubmit", "Stop")'),
     ("TC06", "hooks/titolo-sessione.py", "        nuovo.update({\"quando_sintesi\": adesso, \"peso_sintesi\": peso})\n", "        pass\n"),
+    ("TC07", "hooks/titolo-sessione.py", "        if time.monotonic() >= scade:\n", "        if True:\n"),
 ]
 
 # Un claude finto: conta le chiamate e risponde con RISPOSTA (variabile d'ambiente).
@@ -152,6 +155,38 @@ def lancia_hook(lab: Lab, evento: str, sid: str, tr: Path, risposta: str, chiama
                           capture_output=True, env=env, timeout=60)
 
 
+def attesa_claude(lab: Lab) -> "str | None":
+    """TC07: il claude finto entra nel PATH 1 s dopo l'avvio di chiedi(), come il link che npm rimette (#6682)."""
+    tardi, pronto = lab.tmp / "bin-tardi", lab.tmp / "claude-pronto"
+    tardi.mkdir()
+    pronto.mkdir()
+    ch = lab.tmp / "chiamate-tc07.txt"
+    if os.name == "nt":
+        (pronto / "claude.py").write_text(CLAUDE_FINTO, encoding="utf-8")
+        (pronto / "claude.cmd").write_text(f'@"{sys.executable}" "%~dp0claude.py" %*\r\n', encoding="utf-8")
+        sistema = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    else:
+        cl = pronto / "claude"
+        cl.write_text("#!" + sys.executable + "\n" + CLAUDE_FINTO.split("\n", 1)[1], encoding="utf-8")
+        cl.chmod(0o755)
+        sistema = "/usr/bin:/bin"
+    env = lab.env(TC_RISPOSTA="TITOLO: Arrivato tardi\nADESSO: Aspetta claude", TC_CHIAMATE=str(ch))
+    env["PATH"] = str(tardi) + os.pathsep + sistema  # niente claude vero: la casa è finta, il PATH è minimo
+    codice = ("import importlib.util, sys\n"
+              "s = importlib.util.spec_from_file_location('t', sys.argv[1])\n"
+              "m = importlib.util.module_from_spec(s); s.loader.exec_module(m)\n"
+              "print('ESITO', repr(m.chiedi('prova')))\n")
+    p = subprocess.Popen([sys.executable, "-B", "-c", codice, str(lab.cl / "hooks" / "titolo-sessione.py")], env=env,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=str(lab.home))
+    time.sleep(1)
+    for f in sorted(pronto.iterdir(), key=lambda x: x.suffix != ".py"):  # su Windows claude.py prima di claude.cmd
+        os.replace(str(f), str(tardi / f.name))
+    out, err = p.communicate(timeout=60)
+    if "Arrivato tardi" not in out or conta(ch) != 1:
+        return f"chiedi() non ha aspettato claude: {out.strip()[-160:]} {err.strip()[-160:]} chiamate {conta(ch)}"
+    return None
+
+
 def conta(f: Path) -> int:
     return len(f.read_text().splitlines()) if f.exists() else 0
 
@@ -245,6 +280,7 @@ def prova(repo: Path) -> dict:
             esiti["TC06"] = "il segno 'chiede' resta nel file dopo la risposta"
         else:
             esiti["TC06"] = None
+        esiti["TC07"] = attesa_claude(lab)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return esiti
