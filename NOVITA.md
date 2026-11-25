@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — /fine segna il ramo chiuso senza toccare git
+
+**Cosa cambia**: quando una sessione non può uscire dal suo worktree, `/fine` segna il ramo chiuso con `arturo riporto segna <ramo>`. Il segno sta in `~/.claude/data/riporti.json` e non più nella config di git. Il prossimo `/inizio` nel tree principale lo legge come prima e riporta il ramo.
+
+**Perché**: segnalazione n. 97. La guardia del worktree di Claude Code rifiuta ogni `git config` da dentro il worktree, perché la config del repository è comune a tutti i worktree. Il passo si fermava a ogni chiusura, e la persona doveva lanciarlo a mano.
+
+**A chi serve**: a chi lavora con più sessioni sullo stesso progetto. I segni vecchi in git config si leggono ancora.
+
+---
+
 ## 2026-11-25 — La correzione registrata passa anche in modalità auto
 
 **Cosa cambia**: le regole di Arturo per la modalità auto ora nominano `arturo correzione aggiungi`, `elenco` e `togli`. Il classificatore di Claude Code le legge come una nota della sessione, e non come un'azione distruttiva.

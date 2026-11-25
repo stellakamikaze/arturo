@@ -595,6 +595,7 @@ COMANDI = {
     "nome": ("nome", "il nome con cui chiami Arturo, nell'avvio e nei testi: senza parole dice quello di oggi; NOME, togli"),
     "revisione": ("revisione", "la revisione di come usi Arturo, per /revisione: estrai, sintesi, igiene, registro, bozza, salva"),
     "fascicolo": ("fascicolo", "il contesto di un progetto in una cartella di file di testo, per un collega o un'altra IA: esporta, importa (con le guardie sui testi altrui)"),
+    "riporto": ("riporti", "i rami che /fine ha chiuso da dentro un worktree e che /inizio riporta: segna RAMO, elenco"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
     "apertura": ("apertura", "le letture della FASE 4 di /inizio insieme: todo del progetto e di generale, git log, pannello"),
     "ripartenza": ("ripartenza", "la ripartenza di /inizio come dati, per la checklist di Volta: scrivi (JSON su stdin)"),

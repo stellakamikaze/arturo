@@ -66,9 +66,11 @@ chiedere, la chiusura annuncia con ricordate --annuncia e "togli N" archivia; un
 di rotazione si annuncia nella chiusura dopo; il gate accetta l'idea "→ memoria" con la nota salvata e
 la rifiuta dopo "togli"; l'igiene settimanale sta nel fine completo.
 F30 il riporto differito (#4007, 19/11/2026): da una sessione fissata al worktree la guardia rifiuta
-ogni git sul tree principale. shared/fine-worktree.md segna il ramo con la config comune
-(branch.<ramo>.arturo-riporta) e non usa mai git -C; arturo contesto mostra il ramo "chiuso da /fine";
-/inizio lo riporta da solo dal tree principale; il segno sparisce con git branch -d.
+ogni git sul tree principale. shared/fine-worktree.md segna il ramo con arturo riporto segna, in
+data/riporti.json e mai con git config, che la guardia rifiuta (segnalazione n. 97, 25/11/2026), e non usa
+mai git -C; arturo contesto mostra il ramo "chiuso da /fine", anche col segno vecchio in git config; un commit
+dopo il segno lo rende vecchio; /inizio lo riporta da solo dal tree principale; il segno sparisce con
+git branch -d.
 F31 il lavoro che torna ha la sua prova e i suoi attrezzi (20/11/2026): /creaskill fa la quinta domanda
 ("come capisci che è venuto bene?") e la skill nasce con "Finito quando" e "Attrezzi"; il metodo dice di
 chiudere con quella lista e di salvare script e modelli nella skill; la FASE 8 di /fine manda la correzione
@@ -170,6 +172,8 @@ class Lab:
                  ARTURO_TELEMETRIA="0", PYTHONDONTWRITEBYTECODE="1", **GIT_ENV)
         e.pop("PROJECTS_BASE", None)
         e.pop("CLAUDE_CODE_SESSION_ID", None)
+        e.pop("CLAUDE_CONFIG_DIR", None)  # i file di data/ (riporti.json) restano nella HOME finta
+        e.pop("ARTURO_RADICE", None)
         e.update(altro)
         return e
 
@@ -1438,9 +1442,11 @@ def test_f30(repo: Path) -> None:
     assert "**Sessione in un worktree**" in fine and "## FASE 4" in fine, "F30 /fine non ha il passo del worktree"
     passo = passo_worktree(repo, fine, "F30")
     assert "## Riporto differito" in passo, "F30 /fine non dice cosa fare se la sessione non può uscire dal worktree"
-    assert "git config branch.<branch>.arturo-riporta" in passo, "F30 /fine non segna il ramo chiuso da dentro il worktree"
+    assert "arturo riporto segna <branch>" in passo, "F30 /fine non segna il ramo chiuso da dentro il worktree"
+    assert "git config branch" not in passo, \
+        "F30 /fine segna il ramo con git config, che la guardia del worktree rifiuta (segnalazione n. 97)"
     assert "git -C" not in passo, "F30 /fine usa git -C, che una sessione nel worktree si vede rifiutare"
-    assert passo.index("arturo-riporta") < passo.index("ExitWorktree") < passo.index("merge --ff-only"), \
+    assert passo.index("riporto segna") < passo.index("ExitWorktree") < passo.index("merge --ff-only"), \
         "F30 /fine segna il ramo dopo l'uscita: se l'uscita fallisce, il ramo resta senza segno"
     assert "chiuso da /fine, da riportare" in inizio and "lo riporti tu" in inizio, \
         "F30 /inizio non riporta da solo il ramo chiuso da /fine"
@@ -1461,13 +1467,37 @@ def test_f30(repo: Path) -> None:
         out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
         assert f"{ramo} · 1 commit" in out and "chiuso da /fine" not in out, \
             f"F30 un ramo senza segno risulta chiuso da /fine: {out}"
-        # Il segno e il controllo si fanno da dentro il worktree: config e rami sono comuni.
+        # Il segno vecchio in git config (fino al 25/11/2026) si legge ancora.
         lab.git(albero, "config", f"branch.{ramo}.arturo-riporta", "2026-11-19")
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert f"{ramo} · 1 commit" in out and "chiuso da /fine il 2026-11-19" in out, \
+            f"F30 arturo contesto non legge più il segno vecchio in git config: {out}"
+        lab.git(albero, "config", "--unset", f"branch.{ramo}.arturo-riporta")
+        # Il segno e il controllo si fanno da dentro il worktree, senza scrivere niente in git.
+        config_prima = (progetto / ".git" / "config").read_text(encoding="utf-8")
+        r = lab.arturo("riporto", "segna", ramo, cwd=albero)
+        assert r.returncode == 0 and "Segnato" in r.stdout, f"F30 arturo riporto segna non segna: {r.stdout}{r.stderr}"
+        assert (progetto / ".git" / "config").read_text(encoding="utf-8") == config_prima, \
+            "F30 arturo riporto segna scrive nella config del repository"
+        segni = json.loads((lab.home / ".claude" / "data" / "riporti.json").read_text(encoding="utf-8"))
+        assert [list(v) for v in segni.values()] == [[ramo]], f"F30 il segno non sta in data/riporti.json: {segni}"
+        r = lab.arturo("riporto", "segna", "non-esiste", cwd=albero)
+        assert r.returncode == 2, f"F30 arturo riporto segna accetta un ramo che non esiste: {r.stdout}"
         piu = [c for c in lab.git(albero, "cherry", "main", ramo).splitlines() if c.startswith("+")]
         assert len(piu) == 1, f"F30 git cherry dal worktree non vede il commit da riportare: {piu}"
         out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
-        assert re.search(rf"{re.escape(ramo)} · 1 commit · ultimo \S+ · worktree \S+ · chiuso da /fine il 2026-11-19, "
+        assert re.search(rf"{re.escape(ramo)} · 1 commit · ultimo \S+ · worktree \S+ · chiuso da /fine il {OGGI}, "
                          r"da riportare", out), f"F30 arturo contesto non mostra il ramo chiuso da /fine: {out}"
+        assert f"{ramo} · chiuso da /fine il {OGGI}" in lab.arturo("riporto", "elenco", cwd=progetto).stdout, \
+            "F30 arturo riporto elenco dal tree principale non vede il segno fatto dal worktree"
+        # Un commit dopo il segno lo rende vecchio: il ramo non è più quello chiuso da /fine.
+        (albero / "d.md").write_text("d\n", encoding="utf-8")
+        lab.git(albero, "add", "d.md")
+        lab.git(albero, "commit", "-qm", "dopo il segno")
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert f"{ramo} · 2 commit" in out and "chiuso da /fine" not in out, \
+            f"F30 un commit dopo il segno lascia il ramo chiuso da /fine: {out}"
+        assert lab.arturo("riporto", "segna", ramo, cwd=albero).returncode == 0
         # Un ramo senza segno che viene prima in ordine alfabetico: il ramo chiuso resta in cima, perché
         # l'elenco si taglia a 15 righe (32 rami in un repository vero, 19/11/2026).
         lab.git(progetto, "checkout", "-q", "-b", "aaa-prova")
@@ -1484,10 +1514,26 @@ def test_f30(repo: Path) -> None:
         lab.git(progetto, "merge", "--ff-only", ramo)
         lab.git(progetto, "worktree", "remove", str(albero))
         lab.git(progetto, "branch", "-d", ramo)
-        r = lab.run(["git", "-C", str(progetto), "config", "--get", f"branch.{ramo}.arturo-riporta"])
-        assert r.returncode == 1 and not r.stdout, f"F30 il segno resta dopo git branch -d: {r.stdout}"
+        assert "Nessun ramo segnato" in lab.arturo("riporto", "elenco", cwd=progetto).stdout, \
+            "F30 il segno resta valido dopo git branch -d"
         out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
         assert "RAMI CON COMMIT" not in out, f"F30 il ramo riportato resta in elenco: {out}"
+        # Un ramo nuovo con lo stesso nome, col suo commit, non eredita il segno; il segna dopo toglie
+        # quello vecchio.
+        lab.git(progetto, "checkout", "-q", "-b", ramo)
+        (progetto / "e.md").write_text("e\n", encoding="utf-8")
+        lab.git(progetto, "add", "e.md")
+        lab.git(progetto, "commit", "-qm", "ramo nuovo")
+        lab.git(progetto, "checkout", "-q", "main")
+        assert "Nessun ramo segnato" in lab.arturo("riporto", "elenco", cwd=progetto).stdout, \
+            "F30 un ramo nuovo con lo stesso nome risulta chiuso da /fine"
+        out = lab.arturo("contesto", "tavole", cwd=lab.home).stdout
+        assert f"{ramo} · 1 commit" in out and "chiuso da /fine" not in out, \
+            f"F30 contesto mostra chiuso da /fine un ramo nuovo con lo stesso nome: {out}"
+        lab.git(progetto, "branch", "altro")
+        assert lab.arturo("riporto", "segna", "altro", cwd=progetto).returncode == 0
+        segni = json.loads((lab.home / ".claude" / "data" / "riporti.json").read_text(encoding="utf-8"))
+        assert [list(v) for v in segni.values()] == [["altro"]], f"F30 il segna non toglie i segni vecchi: {segni}"
     con_lab(repo, prova)
 
 
