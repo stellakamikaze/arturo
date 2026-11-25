@@ -65,7 +65,8 @@ Exit:
   0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
   chiede /clear alla persona · 3 l'aggancio personale
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
-  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti · 7 segreto nello stage
+  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti, anche nel passo del ramo
+  sync dei dati di transito (lì il commit su main è già fatto) · 7 segreto nello stage
   (niente commit) o nei commit da spingere (niente push), o guardia dei segreti che non si carica
   · 8 un'altra coda tiene il lucchetto oltre l'attesa: niente commit
 
@@ -1171,7 +1172,13 @@ def coda(a, ap, suoi):
             print("coda: " + " · ".join(esiti))
             print(out.strip())
             return 7
-        esiti.append(ultima(out, err) if rc == 0 else f"sync dei dati di transito rc={rc}: {ultima(out, err)}")
+        if rc != 0:
+            # Un giro fermo usciva 0 con una riga in mezzo agli esiti e passava inosservato (segnalazione n. 101).
+            esiti.append(f"sync dei dati di transito rc={rc}: {ultima(out, err)}")
+            print("coda: " + " · ".join(esiti))
+            print(out.strip())
+            return 6
+        esiti.append(ultima(out, err))
 
     print("coda: " + " · ".join(esiti))
     return 3 if offline else 0

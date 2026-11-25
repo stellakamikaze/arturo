@@ -83,10 +83,10 @@ TANTE_CANCELLAZIONI = 25
 _OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
 
 
-def run(cmd, timeout=120, env=None):
+def run(cmd, timeout=120, env=None, cwd=None):
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=timeout, env=env)
+                           timeout=timeout, env=env, cwd=cwd)
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired:
         return None, "", f"timeout dopo {timeout} s"
@@ -95,8 +95,10 @@ def run(cmd, timeout=120, env=None):
 
 
 def git(*a, timeout=120):
-    """Il git del ramo sync."""
-    return run(["git", f"--git-dir={SYNC}", f"--work-tree={CL}", *a], timeout)
+    """Il git del ramo sync, dalla radice della config. Con --work-tree e la cartella corrente in una sua
+    sottocartella, git legge i path relativi a quella: la coda di /fine lanciata da data/handoffs falliva con
+    "git add: data/handoffs/INDEX.md non corrisponde ad alcun file" (segnalazione n. 101, 24/11/2026)."""
+    return run(["git", f"--git-dir={SYNC}", f"--work-tree={CL}", *a], timeout, cwd=str(CL))
 
 
 def git_main(*a, timeout=60):

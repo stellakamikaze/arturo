@@ -43,6 +43,10 @@ FY01 con .git-sync migrato: handoff e indice non entrano nel commit su main né 
      il ramo sync, e il remote lo riceve. La riga della coda lo dice.
 FY02 senza .git-sync (macchina non migrata) il comportamento è quello di prima: l'handoff esce su main.
 FY03 una chiave in un handoff col ramo sync attivo: exit 7, niente sul ramo sync del remote.
+FY04 la coda lanciata da una sottocartella della config (data/handoffs): handoff e indice entrano lo stesso nel
+     ramo sync. Prima il git del ramo sync leggeva i path dalla cartella corrente, e "git add" non trovava
+     data/handoffs/INDEX.md (segnalazione n. 101, 24/11/2026).
+FY05 il passo del ramo sync fallisce (index.lock di .git-sync occupato): la coda esce 6, non 0, e lo dice.
 """
 from __future__ import annotations
 
@@ -653,12 +657,48 @@ def fy03(tmp):
         return f"rc={r.returncode} sync={rami!r} {r.stdout.strip()[-300:]!r}"
 
 
+def coda_da(lab, h, cartella):
+    """La coda di /fine lanciata con la cartella corrente in `cartella`, come una sessione che lavora lì."""
+    return subprocess.run([sys.executable, "-B", str(lab.cl / "bin" / "fine-coda.py"), "--handoff", str(h),
+                           "--slug", "libro", "--trailer", "Prova: banco"], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", env=lab.ambiente, timeout=300, cwd=str(cartella))
+
+
+def nel_ramo_locale(lab):
+    p = subprocess.run(["git", f"--git-dir={lab.cl / '.git-sync'}", "ls-tree", "-r", "--name-only", "HEAD"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return p.stdout.split()
+
+
+def fy04(tmp):
+    repo = SCRIPT.parent.parent
+    lab = lab_con_sync(repo, tmp, True)
+    h = lab.handoff()
+    r = coda_da(lab, h, lab.cl / "data" / "handoffs")
+    rel = h.relative_to(lab.cl).as_posix()
+    albero = nel_ramo_locale(lab)
+    if r.returncode != 0 or rel not in albero or "data/handoffs/INDEX.md" not in albero or "rc=6" in r.stdout:
+        return f"rc={r.returncode} handoff nel ramo={rel in albero} indice={'data/handoffs/INDEX.md' in albero} " \
+               f"{r.stdout.strip()[-300:]!r}"
+
+
+def fy05(tmp):
+    repo = SCRIPT.parent.parent
+    lab = lab_con_sync(repo, tmp, True)
+    h = lab.handoff()
+    (lab.cl / ".git-sync" / "index.lock").write_text("", encoding="utf-8")  # un altro git tiene l'indice del ramo
+    r = lab.coda(h)
+    rel = h.relative_to(lab.cl).as_posix()
+    if r.returncode != 6 or "git add fallito" not in r.stdout or rel in nel_ramo_locale(lab):
+        return f"rc={r.returncode} {r.stdout.strip()[-300:]!r}"
+
+
 CASI = [("ST01", st01), ("ST02", st02), ("ST03", st03), ("ST04", st04), ("ST05", st05), ("ST06", st06),
         ("ST07", st07), ("ST08", st08), ("ST09", st09), ("ST10", st10), ("ST11", st11), ("ST12", st12),
         ("ST13", st13), ("ST14", st14), ("ST15", st15), ("ST16", st16), ("ST17", st17),
         ("ST18", st18), ("ST19", st19), ("ST20", st20), ("ST21", st21), ("ST22", st22),
         ("ST23", st23), ("ST24", st24),
-        ("FY01", fy01), ("FY02", fy02), ("FY03", fy03)]
+        ("FY01", fy01), ("FY02", fy02), ("FY03", fy03), ("FY04", fy04), ("FY05", fy05)]
 
 
 def main() -> int:
