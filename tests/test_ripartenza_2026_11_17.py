@@ -6,7 +6,8 @@
 
 RP01 scrive, da bin/arturo: versione, sid, numeri, id con o senza "#", marca, partenza; un campo
      sconosciuto sparisce.
-RP02 tetti: 80 voci diventano VOCI, un testo lungo si ferma a TESTO caratteri.
+RP02 tetti: 320 voci diventano VOCI (300), un testo lungo si ferma a TESTO caratteri, e l'uscita dice che 20
+     voci non entrano.
 RP03 schema rotto: niente filoni, voce senza testo o numero doppio danno exit 2 e nessun file.
 RP04 senza sessione esce 0 e non scrive; ARTURO_RIPARTENZA=0 spegne; un sottocomando sbagliato dà 2.
 RP05 una ripartenza di più di due giorni si cancella alla scrittura dopo; una recente di un'altra sessione resta.
@@ -85,12 +86,13 @@ def test_rp01(b: Banco) -> None:
 
 
 def test_rp02(b: Banco) -> None:
-    molte = {"filoni": [{"nome": "x", "voci": [{"n": i, "testo": "t" * 500} for i in range(1, 81)]}]}
+    molte = {"filoni": [{"nome": "x", "voci": [{"n": i, "testo": "t" * 500} for i in range(1, 321)]}]}
     r = b.lancia(molte)
     assert r.returncode == 0, f"RP02 exit {r.returncode}: {r.stderr.strip()}"
     voci = json.loads(b.file().read_text(encoding="utf-8"))["filoni"][0]["voci"]
-    assert len(voci) == 60, f"RP02 tetto voci: {len(voci)}"
+    assert len(voci) == 300, f"RP02 tetto voci: {len(voci)}"
     assert len(voci[0]["testo"]) == 300, f"RP02 tetto testo: {len(voci[0]['testo'])}"
+    assert "20 voci oltre il tetto" in r.stdout, f"RP02 voci tagliate non dette: {r.stdout.strip()[-200:]}"
 
 
 def test_rp03(b: Banco) -> None:

@@ -428,7 +428,7 @@ Perché è fatta così:
   elenco, con gli stessi numeri e le stesse parole, a `arturo ripartenza scrivi` su stdin, in un solo comando
   Bash. La persona lo vede in Volta come checklist con una nota per riga, e la sua scelta torna qui come
   messaggio (FASE 6). Senza la riga `VOLTA` salta questo passo: Volta non c'è, e nessuno leggerebbe il file. Exit 2 = schema rotto: correggi il campo che dice e
-  rilancia. Non vale per il Modo rotazione e per la ripartenza breve di "Con un compito", che non hanno
+  rilancia. Se l'uscita dice "voci oltre il tetto", di' alla persona quante voci non arrivano alla checklist. Non vale per il Modo rotazione e per la ripartenza breve di "Con un compito", che non hanno
   l'elenco numerato. `id` è il numero del todo, oppure `null` per una riga senza todo.
   ```bash
   python3 ~/.claude/bin/arturo ripartenza scrivi <<'RIPARTENZA'
