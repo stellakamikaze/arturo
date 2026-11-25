@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-25 — Su Windows Herdr vede se Claude lavora o aspetta
+
+**Cosa cambia**: in Herdr e in Volta su Windows, una sessione di Claude dice di nuovo se sta lavorando, se aspetta te o se ha finito. Prima lo stato restava vuoto.
+
+**Perché**: su Windows Claude Code lancia gli hook senza una finestra di terminale, e `herdr-stato.sh` non sapeva dove scrivere. Ora su Windows lo scrive `herdr-stato-windows.py`, che si aggancia alla console di Claude. Serve un `python3` o un `python` che funziona, come per le guardie.
+
+**A chi serve**: a chi usa Arturo dentro Herdr o Volta su Windows. Sul Mac e fuori da Herdr non cambia niente.
+
+---
+
 ## 2026-11-25 — Herdr non segna più fatto una sessione che continua da sola
 
 **Cosa cambia**: in Herdr e in Volta, una sessione che chiude il turno con "il prossimo passo è mio" e continua da sola resta "sta lavorando". Prima passava per un momento a "fatto", con l'avviso di fine.
