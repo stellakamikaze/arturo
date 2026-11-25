@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
@@ -43,6 +44,7 @@ Lo usa il pannello /dafare (tasto o). Sul Mac apre la finestra in iTerm2 se il c
 altrimenti in Terminale; ARTURO_TERMINALE=iterm oppure ARTURO_TERMINALE=terminal sceglie a mano."""
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+ATTESA_CLAUDE = 6  # secondi di attesa della CLI mentre npm la reinstalla (#6683, come hooks/titolo-sessione.py)
 # Caratteri che cmd di Windows legge anche dentro le virgolette, e le virgolette stesse: dal titolo
 # di un todo si tolgono, perché il prompt deve arrivare a claude così com'è.
 SPORCHI = re.compile(r'["%^`\x00-\x1f\x7f]')
@@ -135,6 +137,18 @@ def comando(sis: str, dove: Path, prompt: str) -> tuple:
         if shutil.which(nome):
             return argv, a_mano
     return [], a_mano
+
+
+def claude_presente(attesa: float = ATTESA_CLAUDE) -> bool:
+    """Vero se il comando claude c'è. Se manca, riprova ogni 0,2 s per `attesa` secondi: l'aggiornatore di Claude
+    Code lo reinstalla con npm e il link manca per 4-5 s, e arturo sessione usciva con "Non trovo" (#6683)."""
+    scade = time.monotonic() + attesa
+    while True:
+        if shutil.which("claude"):
+            return True
+        if time.monotonic() >= scade:
+            return False
+        time.sleep(0.2)
 
 
 NOME_PROGETTO = re.compile(r"^[\w.-]{1,60}$")
@@ -235,7 +249,7 @@ def main(argv: list) -> int:
     if stampa:
         print(json.dumps({"argv": argv_terminale, "a_mano": a_mano, "prompt": prompt}, ensure_ascii=False))
         return 0
-    if not shutil.which("claude"):
+    if not claude_presente():
         print("Non trovo il comando claude: scrivi /diagnosi in una sessione aperta.", file=sys.stderr)
         return 1
     perche = ""
