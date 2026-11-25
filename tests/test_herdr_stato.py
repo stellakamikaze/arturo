@@ -25,9 +25,11 @@ HW12 (#5587) lo stato arriva al tty di ogni claude attach <job id>, anche con un
      sola per tty, e non a un attach di un altro job.
 HW13 (#5587) un attach via ssh non riceve lo stato.
 HW14 (#5587) uno stato ripetuto non riscrive sul tty, uno nuovo sì.
+HW15 (#5587) con lo zsh -lic di una scheda di Volta sullo stesso tty, il tempo CPU misurato è quello di claude
+     attach (prova dal vero del 25/11/2026: zsh ha il PID più basso ed è fermo).
 
 HW08-HW09 vengono dalla revisione della PR #49 (25/11/2026). HW06-HW07 dalla PR #50 (25/11/2026), HW10-HW14
-dalla sua revisione.
+dalla sua revisione, HW15 dalla prova dal vero.
 
 Sulla base 75082b4 (dev prima della modifica) sono rossi tutti: l'aiutante non c'è.
 Solo libreria standard. Nessun modello.
@@ -49,7 +51,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from salti_windows import dichiara  # noqa: E402  (i salti contano nell'esito del gate)
 
 CASI = ["HW01", "HW02", "HW03", "HW04", "HW05", "HW06", "HW07", "HW08", "HW09", "HW10", "HW11", "HW12", "HW13",
-        "HW14"]
+        "HW14", "HW15"]
 DISCRIMINANTI = CASI
 
 FINTO = "#!/bin/sh\nprintf '%s|%s|%s\\n' \"$(basename \"$0\")\" \"$1\" \"$2\" >> \"$REGISTRO\"\nexit {rc}\n"
@@ -87,7 +89,9 @@ def _job(script: Path, stati: list, d: Path) -> str:
 
 # ps finto: l'elenco dei processi viene da un file, il tempo CPU è fermo (claude attach non disegna). I PID
 # sono alti, così su Linux non c'è un /proc/<pid> vero che li confonde.
-PS_FINTO = "#!/bin/sh\ncase \"$*\" in *-Ao*) cat \"$PS_ELENCO\" ;; *time=*) echo 0:00.10 ;; esac\nexit 0\n"
+# Ogni PID di cui l'hook chiede il tempo CPU va in <elenco>.cpu (HW15).
+PS_FINTO = ("#!/bin/sh\ncase \"$*\" in *-Ao*) cat \"$PS_ELENCO\" ;;\n"
+            "  *time=*) echo \"$4\" >> \"$PS_ELENCO.cpu\"; echo 0:00.10 ;; esac\nexit 0\n")
 OSC = "\033]7501;state={}:app=claude-code\033\\"
 
 
@@ -188,6 +192,19 @@ def prova_sfondo(sh: Path) -> list:
         nuovo = b.aspetta("ttys001", OSC.format("blocked"))
         if ripetuto != OSC.format("working") or not nuovo:
             rossi.append(f"HW14 lo stato ripetuto riscrive o quello nuovo non arriva: {ripetuto!r} {b.tty('ttys001')!r}")
+    # La riga di una scheda di Volta: zsh -lic col PID più basso, poi claude attach sullo stesso tty.
+    elenco = "".join(f"{r}\n" for r in (
+        "3999910 ttys003 /bin/zsh -lic \"$@\"; exec \"$0\" -li /bin/zsh /usr/bin/env VOLTA_DA=M /opt/bin/claude attach ab12cd34",
+        "3999911 ttys003 /opt/bin/claude attach ab12cd34",
+    ))
+    with tempfile.TemporaryDirectory() as t:
+        b = Banco(sh, Path(t), elenco=elenco)
+        b.lancia("working")
+        arrivato = b.aspetta("ttys003", OSC.format("working"))
+        cpu = Path(t) / "elenco.txt.cpu"
+        chiesti = set(cpu.read_text(encoding="utf-8").split()) if cpu.is_file() else set()
+        if not arrivato or chiesti != {"3999911"} or b.tty("ttys003") != OSC.format("working"):
+            rossi.append(f"HW15 il tempo CPU non è quello di claude attach: PID {sorted(chiesti)} {b.tty('ttys003')!r}")
     return rossi
 
 

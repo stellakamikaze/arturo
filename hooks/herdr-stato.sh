@@ -102,8 +102,11 @@ cpu() {
     ps -o time= -p "$1" 2>/dev/null | tr -d ' '
   fi
 }
+# Le schede di Volta lanciano l'attach dentro uno zsh -lic che ha lo stesso tty e la stessa riga di comando
+# (prova dal vero del 25/11/2026, #5587): zsh ha il PID più basso ma è fermo. Prima vanno quindi i processi
+# che sono claude, così il tempo CPU misurato è quello di claude attach.
 (
-  ps -Ao pid=,tty=,args= 2>/dev/null | {
+  ps -Ao pid=,tty=,args= 2>/dev/null | awk '{ n = split($3, p, "/"); if (p[n] == "claude") print; else r = r $0 "\n" } END { printf "%s", r }' | {
     visti=" "
     while read -r pid t a; do
       case "$t" in '' | '?' | '??') continue ;; esac
