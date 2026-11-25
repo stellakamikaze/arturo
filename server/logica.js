@@ -92,7 +92,7 @@ export const DERIVA_NOMI = {
     "carta-sessione.py", "commit-secret-gate.py", "comms-guard.py", "comms-prefilter.py", "context-monitor.js", "context-monitor.py",
     "continua.py", "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "dispatcher.py", "emoji_remover.py", "estensione-skill.py",
     "evento_bash.py", "exfil-guard.py", "fiducia.py", "fine_turno.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py",
-    "herdr-stato.sh", "heredoc.py", "hub.py", "inject-now.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py",
+    "herdr-stato-windows.py", "herdr-stato.sh", "heredoc.py", "hub.py", "inject-now.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py",
     "memory-autoload.py", "memory-firma.py", "memory-retrieve.py", "memory-write-scanner.py", "metodo.sh", "nel_processo.py", "prefiltro_bash.py",
     "prefiltro_regex.py", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py", "scheda_file.py",
     "scoperta-indice.py", "session-end.sh", "session-start.sh", "statusline.js", "subagent-memory-context.py", "titolo-sessione.py",

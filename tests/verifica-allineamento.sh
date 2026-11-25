@@ -293,6 +293,8 @@ BANCHI=(
   test_fine_gia_chiusa_2026_11_22.py
   # L'avviso del sync della config parte solo per i file fuori da data/ e solo a chi li ha toccati (22/11/2026, #6275).
   test_fine_avvisi_2026_11_22.py
+  # Lo stato verso Herdr su Windows: l'aiutante sulla console di claude.exe (25/11/2026, #5639).
+  test_herdr_stato.py
   # arturo contesto legge git mentre la fonte esterna dei todo risponde (22/11/2026, #6317).
   test_parallelo_2026_11_22.py
   # Le letture della FASE 4 di /inizio partono insieme con arturo apertura (22/11/2026, #6368).
@@ -628,6 +630,8 @@ BASELINE=(
   "test_fine_gia_chiusa_2026_11_22.py b54e244"
   # L'avviso del sync della config a ogni sessione viva (22/11/2026, #6275). e1a03e6, il dev prima.
   "test_fine_avvisi_2026_11_22.py e1a03e6 radice"
+  # Lo stato verso Herdr su Windows (25/11/2026, #5639): l'aiutante non c'è. 75082b4, il dev prima.
+  "test_herdr_stato.py 75082b4"
   # Le guardie senza tetto di tempo (22/11/2026, #6363): l'hook va oltre i 30 secondi su curl ripetuti. e1a03e6, il dev prima.
   "test_tetto_guardie_2026_11_22.py e1a03e6"
   # Git e la fonte esterna dei todo in fila in arturo contesto (22/11/2026, #6317). 300567c, il dev prima.
