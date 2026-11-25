@@ -18,7 +18,16 @@ HW07 (#5587) uno stato nuovo sostituisce quello di prima nel file.
 HW08 in_ordine() scarta uno stato più vecchio dell'ultimo scritto, e non segna l'ora se la scrittura fallisce.
 HW09 sali() dà anche il figlio di claude.exe, e con un'ora illeggibile confronta l'ultima ora letta più in basso.
 
-HW08-HW09 vengono dalla revisione della PR #49 (25/11/2026). HW06-HW07 dalla PR #50 (25/11/2026).
+HW10 (#5587) uno stato più vecchio dell'ultima ora (file <job>.ora) si scarta, e un lucchetto rimasto si rompe.
+HW11 (#5587) un claude -p figlio (session id che state.json non ha) non scrive; la sessione dopo /clear
+     (resumeSessionId) e uno state.json senza sessionId scrivono.
+HW12 (#5587) lo stato arriva al tty di ogni claude attach <job id>, anche con un flag o un percorso, una volta
+     sola per tty, e non a un attach di un altro job.
+HW13 (#5587) un attach via ssh non riceve lo stato.
+HW14 (#5587) uno stato ripetuto non riscrive sul tty, uno nuovo sì.
+
+HW08-HW09 vengono dalla revisione della PR #49 (25/11/2026). HW06-HW07 dalla PR #50 (25/11/2026), HW10-HW14
+dalla sua revisione.
 
 Sulla base 75082b4 (dev prima della modifica) sono rossi tutti: l'aiutante non c'è.
 Solo libreria standard. Nessun modello.
@@ -33,12 +42,14 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from salti_windows import dichiara  # noqa: E402  (i salti contano nell'esito del gate)
 
-CASI = ["HW01", "HW02", "HW03", "HW04", "HW05", "HW06", "HW07", "HW08", "HW09"]
+CASI = ["HW01", "HW02", "HW03", "HW04", "HW05", "HW06", "HW07", "HW08", "HW09", "HW10", "HW11", "HW12", "HW13",
+        "HW14"]
 DISCRIMINANTI = CASI
 
 FINTO = "#!/bin/sh\nprintf '%s|%s|%s\\n' \"$(basename \"$0\")\" \"$1\" \"$2\" >> \"$REGISTRO\"\nexit {rc}\n"
@@ -72,6 +83,112 @@ def _job(script: Path, stati: list, d: Path) -> str:
         subprocess.run(["sh", str(script), x], input=b"{}", env=env, capture_output=True, timeout=20)
     f = casa / ".cache" / "herdr-stato" / "ab12cd34"
     return f.read_text(encoding="utf-8").strip() if f.is_file() else ""
+
+
+# ps finto: l'elenco dei processi viene da un file, il tempo CPU è fermo (claude attach non disegna). I PID
+# sono alti, così su Linux non c'è un /proc/<pid> vero che li confonde.
+PS_FINTO = "#!/bin/sh\ncase \"$*\" in *-Ao*) cat \"$PS_ELENCO\" ;; *time=*) echo 0:00.10 ;; esac\nexit 0\n"
+OSC = "\033]7501;state={}:app=claude-code\033\\"
+
+
+class Banco:
+    """Una casa, un job e un /dev finti per l'hook di una sessione in background."""
+
+    def __init__(self, script: Path, d: Path, elenco: str = "", stato_json: str = '{"sessionId": "S1"}'):
+        self.script, self.d = script, d
+        self.casa, self.dev, finti = d / "casa", d / "dev", d / "finti-ps"
+        for x in (self.casa, self.dev, finti):
+            x.mkdir(exist_ok=True)
+        self.jobdir = d / "jobs" / "ab12cd34"
+        self.jobdir.mkdir(parents=True, exist_ok=True)
+        if stato_json:
+            (self.jobdir / "state.json").write_text(stato_json, encoding="utf-8")
+        ps = finti / "ps"
+        ps.write_text(PS_FINTO, encoding="utf-8")
+        ps.chmod(ps.stat().st_mode | stat.S_IEXEC)
+        (d / "elenco.txt").write_text(elenco, encoding="utf-8")
+        self.path = f"{finti}:/usr/bin:/bin"
+        self.cache = self.casa / ".cache" / "herdr-stato"
+
+    def lancia(self, x: str, sid: str = "S1", stdin_sid: str = "") -> None:
+        env = {"PATH": self.path, "HOME": str(self.casa), "CLAUDE_JOB_DIR": str(self.jobdir),
+               "PS_ELENCO": str(self.d / "elenco.txt"), "HERDR_STATO_DEV": str(self.dev)}
+        if sid:
+            env["CLAUDE_CODE_SESSION_ID"] = sid
+        ingresso = ('{"session_id": "%s", "hook_event_name": "Stop"}' % stdin_sid) if stdin_sid else "{}"
+        subprocess.run(["sh", str(self.script), x], input=ingresso.encode(), env=env, capture_output=True, timeout=20)
+
+    def stato(self) -> str:
+        f = self.cache / "ab12cd34"
+        return f.read_text(encoding="utf-8").strip() if f.is_file() else ""
+
+    def tty(self, nome: str) -> str:
+        f = self.dev / nome
+        return f.read_text(encoding="utf-8") if f.is_file() else ""
+
+    def aspetta(self, nome: str, testo: str, secondi: float = 4.0) -> bool:
+        fine = time.monotonic() + secondi
+        while time.monotonic() < fine:
+            if self.tty(nome).endswith(testo):
+                return True
+            time.sleep(0.05)
+        return False
+
+
+def prova_sfondo(sh: Path) -> list:
+    rossi = []
+    with tempfile.TemporaryDirectory() as t:
+        b = Banco(sh, Path(t))
+        b.lancia("working")
+        b.cache.mkdir(parents=True, exist_ok=True)
+        (b.cache / "ab12cd34.ora").write_text("8000000000000000000\n", encoding="utf-8")
+        b.lancia("blocked")
+        vecchio = b.stato()
+        (b.cache / "ab12cd34.ora").write_text("0\n", encoding="utf-8")
+        (b.cache / "ab12cd34.lock").mkdir()
+        b.lancia("done")
+        if vecchio != "working" or b.stato() != "done" or (b.cache / "ab12cd34.lock").exists():
+            rossi.append(f"HW10 l'ordine non scarta lo stato vecchio o il lucchetto resta: {vecchio} {b.stato()}")
+    esiti = {}
+    for nome, json_stato, sid, stdin_sid in (("figlio", '{"sessionId": "S1", "resumeSessionId": "S2"}', "S1", "S3"),
+                                              ("clear", '{"sessionId": "S1", "resumeSessionId": "S2"}', "S2", ""),
+                                              ("formato", '{"id": "S1"}', "", "S3")):
+        with tempfile.TemporaryDirectory() as t:
+            b = Banco(sh, Path(t), stato_json=json_stato)
+            b.lancia("working", sid=sid, stdin_sid=stdin_sid)
+            esiti[nome] = b.stato()
+    if esiti != {"figlio": "", "clear": "working", "formato": "working"}:
+        rossi.append(f"HW11 il figlio scrive o la sessione vera no: {esiti}")
+    elenco = "".join(f"{r}\n" for r in (
+        "3999901 ttys009 ssh amaltea claude attach ab12cd34",
+        "3999902 ttys008 claude attach zz99ee88",
+        "3999903 ?? claude attach ab12cd34",
+        "3999904 ttys001 claude attach ab12cd34",
+        "3999905 ttys001 claude attach ab12cd34",
+        "3999906 ttys002 /opt/bin/claude attach --quiet ab12cd34",
+    ))
+    with tempfile.TemporaryDirectory() as t:
+        b = Banco(sh, Path(t), elenco=elenco)
+        inizio = time.monotonic()
+        b.lancia("working")
+        durata = time.monotonic() - inizio
+        arrivato = b.aspetta("ttys002", OSC.format("working"))
+        time.sleep(0.2)
+        uno, due = b.tty("ttys001"), b.tty("ttys002")
+        if not arrivato or uno != OSC.format("working") or due != OSC.format("working") or b.tty("ttys008"):
+            rossi.append(f"HW12 lo stato non arriva una volta a ogni attach del job: {uno!r} {due!r} {b.tty('ttys008')!r}")
+        elif durata > 2:
+            rossi.append(f"HW12 l'hook aspetta il processo che scrive sui tty: {durata:.1f} s")
+        if b.tty("ttys009"):
+            rossi.append("HW13 un attach via ssh riceve lo stato")
+        b.lancia("working")
+        time.sleep(0.5)
+        ripetuto = b.tty("ttys001")
+        b.lancia("blocked")
+        nuovo = b.aspetta("ttys001", OSC.format("blocked"))
+        if ripetuto != OSC.format("working") or not nuovo:
+            rossi.append(f"HW14 lo stato ripetuto riscrive o quello nuovo non arriva: {ripetuto!r} {b.tty('ttys001')!r}")
+    return rossi
 
 
 def prova(repo: Path) -> list:
@@ -108,6 +225,7 @@ def prova(repo: Path) -> list:
     with tempfile.TemporaryDirectory() as t:
         if _job(sh, ["working", "blocked", "done"], Path(t)) != "done":
             rossi.append("HW07 lo stato nuovo non sostituisce quello di prima in ~/.cache/herdr-stato")
+    rossi += prova_sfondo(sh)
     spec = importlib.util.spec_from_file_location("herdr_stato_windows", aiuto)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
