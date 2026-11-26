@@ -107,7 +107,12 @@ def avvelena() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--avvelena", action="store_true")
-    if ap.parse_args().avvelena:
+    ap.add_argument("--repo", type=Path, help="la copia del repository da provare (il gate la passa)")
+    a = ap.parse_args()
+    global REPO
+    if a.repo:
+        REPO = a.repo.resolve()
+    if a.avvelena:
         return avvelena()
     esiti = casi(REPO / "hooks")
     for caso in CASI:
