@@ -95,6 +95,8 @@ BANCHI=(
   test_ritratto_2026_11_01.py
   # Il contesto del progetto e la sintesi della testata di Volta (12/11/2026, TC01-TC06).
   test_testata_contesto_2026_11_12.py
+  # Il progetto dal contenuto nel titolo della sessione (#6717, portato dalla config, TT01-TT06).
+  test_titolo_progetto_2026_11_14.py
   test_setup_ritratto_2026_11_01.py
   test-block-dangerous-falsi-positivi.py
   test-web-egress-guard.py
@@ -732,6 +734,8 @@ VELENI=(
   test_windows_minori_2026_11_10.py
   # Il contesto del progetto e la testata (12/11/2026): ogni rottura fa rosso il suo caso TC.
   test_testata_contesto_2026_11_12.py
+  # Il progetto dal contenuto nel titolo (#6717): ogni rottura di titolo-sessione.py fa rosso il suo caso TT.
+  test_titolo_progetto_2026_11_14.py
   # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
   # arturo progetti rinomina (#6095): ogni rottura di rinomina.py o di contesto.py fa rosso il suo caso RN.

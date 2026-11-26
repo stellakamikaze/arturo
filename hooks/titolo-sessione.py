@@ -17,6 +17,13 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
     trascrizione è cresciuta, anche su PostToolUse, così cambia durante un turno lungo; il titolo resta
     ogni OGNI secondi. Vale anche sotto un nome scritto dalla persona: lì cambia solo la sintesi. Due
     hook partiti insieme non chiamano il modello due volte: il primo segna "chiede" nel file.
+  - Il progetto (14/11/2026, Federico: "il progetto associato alle sessioni non viene aggiornato"): la stessa
+    chiamata sceglie il progetto dal contenuto fra quelli noti (`arturo progetti --json`, cioè
+    bin/progetti.py accanto a questo hook, letto al più una volta all'ora in cache/titolo-progetti.json).
+    Scrive "progetto" e "candidato": il primo verdetto vale subito, un cambio solo se il modello lo ripete
+    al giro dopo, e "nessuno" non toglie mai un progetto. Vale anche sotto un nome scritto dalla persona.
+    Lo legge volta_sonda.py, sopra un file scritto e la cartella, sotto /inizio e la scelta della persona.
+    ARTURO_TITOLI_PROGETTI=<file json> dà l'elenco (banchi). Portato dalla copia della config (#6717).
 Il file è a parte da quello della scheda (cache/scheda), che scheda-terminale.py riscrive per intero e
 toglie a fine sessione. Lo leggono la sonda di Volta (volta_sonda.py) e chi elenca le sessioni.
 Richiesta del 10/11/2026: aprire Volta e capire dal titolo cosa fa ogni sessione.
@@ -57,13 +64,25 @@ ISTRUZIONE = (
     "Da 3 a 7 parole in italiano, una frase naturale con articoli e preposizioni, che comincia col nome "
     "dell'azione o della cosa. Esempi: Prova dei gesti sulle sessioni. Preventivo per il libro dei "
     "vent'anni. Correzione del banco dei test. Titoli chiari per le sessioni. "
+    "Il titolo va senza punto finale, senza virgolette, senza due punti e senza numeri di task. "
     "Poi una seconda cosa: cosa sta succedendo adesso nella sessione, da 2 a 5 parole in italiano, al "
     "presente, dal punto di vista dell'assistente. Esempi: Scrive la testata nuova. Lancia il banco dei test. "
     "Aspetta la tua risposta. Legge la posta di oggi. "
-    "Rispondi con due righe e basta: la prima comincia con TITOLO: e porta il titolo, la seconda comincia "
-    "con ADESSO: e porta cosa succede adesso. Niente punto finale, niente virgolette, niente numeri di task, "
-    "niente premesse."
+    "Poi una terza cosa: il progetto del lavoro fra i progetti noti degli appunti, quello di cui parla il "
+    "lavoro, anche se i file stanno nella cartella di un altro: il progetto è il cliente o il lavoro, non lo "
+    "strumento usato per farlo. Scrivi lo slug esatto dell'elenco, oppure nessuno se non è chiaro. "
+    "Rispondi con tre righe e niente altro, senza punto finale, virgolette e premesse:\n"
+    "TITOLO: <il titolo>\n"
+    "ADESSO: <cosa succede adesso>\n"
+    "PROGETTO: <slug oppure nessuno>"
 )
+PROGETTI_ORA = 3600  # secondi: l'elenco dei progetti noti si rilegge al più una volta all'ora
+PROGETTI_MAX = 80    # i progetti più recenti passati al modello (l'elenco di arturo è dal più recente)
+DESCRIZIONE = 90     # caratteri della descrizione di ogni progetto negli appunti
+RIASSUNTO = 700      # caratteri del riassunto di una compattazione negli appunti
+COMPATTATA = "This session is being continued from a previous conversation"
+TESTA = 512000       # byte letti dall'inizio della trascrizione per la prima richiesta
+SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,59}")
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
 ARGOMENTI = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 COMANDO = re.compile(r"<command-name>(.*?)</command-name>", re.S)
@@ -109,13 +128,18 @@ def compito(prompt: str) -> str:
         p = p.split(None, 1)[1] if len(p.split(None, 1)) > 1 else ""
     p = re.sub(r"\(#\d+\)|#\d+", "", p)
     p = re.sub(r"\s+([,;:.])", r"\1", p)
-    return accorcia(p.split("\n")[0] if p else "")
+    # 22/11/2026: "/inizio x -- #6357: fare y" dava il titolo ": fare y". La punteggiatura in testa se ne va.
+    return accorcia(re.sub(r"^[\s,;:.·|—–-]+", "", p.split("\n")[0]) if p else "")
 
 
 def pulito(risposta: str) -> str:
-    """Il titolo dentro la risposta del modello, o "" se non è una riga da 2 a LUNGO caratteri."""
+    """Il titolo dentro la risposta del modello, o "" se non è una riga da 2 a LUNGO caratteri. La riga
+    "Titolo: …" se c'è, altrimenti la risposta di una riga sola (il formato di prima)."""
     righe = [r.strip() for r in (risposta or "").strip().splitlines() if r.strip()]
-    if len(righe) != 1:
+    etichettate = [r for r in righe if re.match(r"titolo\s*:", r, re.I)]
+    if len(etichettate) == 1:
+        righe = etichettate
+    elif len(righe) != 1 or re.match(r"progetto\s*:", righe[0], re.I):
         return ""
     t = re.sub(r"^(?:titolo\s*:\s*)", "", righe[0], flags=re.I).strip().strip("\"'`*\u00ab\u00bb\u201c\u201d").strip()
     t = t.rstrip(".").strip()
@@ -149,6 +173,78 @@ def due_righe(risposta: str) -> tuple:
     return titolo, sintesi
 
 
+def progetto_scelto(risposta: str, noti: dict) -> str:
+    """Lo slug della riga "Progetto: …" se è un progetto noto (anche per nome alternativo), altrimenti ""."""
+    for r in (risposta or "").splitlines():
+        m = re.match(r"\s*progetto\s*:\s*(.+)$", r, re.I)
+        if m:
+            v = m.group(1).strip().strip("\"'`*").strip().lower()
+            return noti.get(v, "")
+    return ""
+
+
+def progetti_noti() -> tuple:
+    """({nome: slug}, righe): i progetti noti dal più recente, con slug e nomi alternativi, e una riga per
+    progetto da dare al modello ("slug: titolo, descrizione"). ({}, []) se non si sa."""
+    fonte = os.environ.get("ARTURO_TITOLI_PROGETTI")
+    dati = None
+    if fonte:
+        try:
+            dati = json.loads(Path(fonte).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}, []
+    else:
+        f = cartella().parent / "titolo-progetti.json"
+        salvati = leggi(f)
+        if time.time() - float(salvati.get("quando") or 0) < PROGETTI_ORA and isinstance(salvati.get("progetti"), list):
+            dati = salvati
+        else:
+            dati = chiedi_progetti()
+            if dati is None:
+                return {}, []
+            try:
+                scrivi(f, {"quando": time.time(), "progetti": dati.get("progetti") or []})
+            except OSError:
+                pass
+    out, righe = {}, []
+    for p in (dati or {}).get("progetti") or []:
+        if not isinstance(p, dict) or not SLUG.fullmatch(str(p.get("slug") or "")) or p["slug"] in out:
+            continue
+        s = p["slug"]
+        out[s] = s
+        detto = ", ".join(x for x in (str(p.get("titolo") or "").strip(), accorcia(str(p.get("descrizione") or ""), DESCRIZIONE)) if x)
+        righe.append(f"- {s}: {detto}" if detto else f"- {s}")
+        for a in p.get("alias") or []:
+            if isinstance(a, str) and SLUG.fullmatch(a.lower()):
+                out.setdefault(a.lower(), s)
+        if len(righe) >= PROGETTI_MAX:
+            break
+    return out, righe
+
+
+def chiedi_progetti():
+    """`arturo progetti --json` (bin/progetti.py accanto a questo hook), o None."""
+    try:
+        bin_ = Path(os.path.realpath(__file__)).parent.parent / "bin" / "progetti.py"
+        r = subprocess.run([sys.executable, "-B", str(bin_), "--json"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=20, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+        d = json.loads(r.stdout) if r.returncode == 0 else None
+        return d if isinstance(d, dict) else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def accetta(salvato: dict, verdetto: str) -> tuple:
+    """(progetto, candidato) dopo un verdetto del modello. Il primo vale subito; un cambio vale solo se il
+    modello lo ripete al giro dopo; un verdetto vuoto non toglie il progetto."""
+    prima, candidato = str(salvato.get("progetto") or ""), str(salvato.get("candidato") or "")
+    if not verdetto:
+        return prima, candidato
+    if not prima or verdetto == prima or verdetto == candidato:
+        return verdetto, verdetto
+    return prima, verdetto
+
+
 def testo_di(contenuto) -> str:
     if isinstance(contenuto, str):
         return contenuto
@@ -169,16 +265,35 @@ def richiesta(testo: str) -> str:
     return re.sub(r"\s+", " ", t)[:500]
 
 
-def appunti(trascrizione: str, progetto: str, prima: str = "") -> str:
-    """Il testo per il modello: progetto, titolo di prima, ultime tre richieste, ultima azione, ultima risposta."""
+def appunti(trascrizione: str, progetto: str, prima: str = "", noti: str = "") -> str:
+    """Il testo per il modello: progetto, titolo di prima, prima richiesta, ultime tre richieste, ultima azione,
+    ultima risposta. Una trascrizione più lunga di CODA perdeva la richiesta che ha aperto la sessione: le
+    uscite lunghe degli strumenti la spingevano fuori, e il modello vedeva solo l'ultimo comando (14/11/2026).
+    La prima richiesta si cerca allora nei primi TESTA byte."""
     try:
         with open(trascrizione, "rb") as fh:
             fh.seek(0, 2)
-            fh.seek(max(0, fh.tell() - CODA))
+            lungo = fh.tell()
+            fh.seek(max(0, lungo - CODA))
             righe = fh.read().decode("utf-8", "replace").splitlines()[1:]
+            testa = []
+            if lungo > CODA:
+                fh.seek(0)
+                testa = fh.read(TESTA).decode("utf-8", "replace").splitlines()[:-1]
     except OSError:
         return ""
-    richieste, risposta, azione = [], "", ""
+    apertura = ""
+    for riga in testa:
+        try:
+            d = json.loads(riga)
+        except ValueError:
+            continue
+        if isinstance(d, dict) and d.get("type") == "user" and not d.get("isSidechain") and not d.get("isMeta"):
+            r = richiesta(testo_di((d.get("message") or {}).get("content")))
+            if len(r) >= 12 and not r.startswith(COMPATTATA):
+                apertura = r
+                break
+    richieste, risposta, azione, riassunto = [], "", "", ""
     for riga in righe:
         try:
             d = json.loads(riga)
@@ -189,7 +304,14 @@ def appunti(trascrizione: str, progetto: str, prima: str = "") -> str:
             continue
         m = d.get("message") or {}
         if d.get("type") == "user":
-            r = richiesta(testo_di(m.get("content")))
+            grezzo = testo_di(m.get("content"))
+            # Il riassunto di una compattazione non è una richiesta: dice di cosa parla la sessione, e
+            # tagliato a 500 caratteri come richiesta perdeva proprio il lavoro (Spoleto, 14/11/2026).
+            if grezzo.lstrip().startswith(COMPATTATA):
+                i = grezzo.find("Summary:")
+                riassunto = re.sub(r"\s+", " ", grezzo[i + 8:] if i >= 0 else grezzo).strip()[:RIASSUNTO]
+                continue
+            r = richiesta(grezzo)
             # "1", "vai", "sì" rispondono a una domanda: non dicono il lavoro
             if len(r) >= 12:
                 richieste.append(r)
@@ -202,17 +324,25 @@ def appunti(trascrizione: str, progetto: str, prima: str = "") -> str:
                 elif b.get("type") == "tool_use":
                     i = b.get("input") or {}
                     azione = (b.get("name", "") + ": " + str(i.get("description") or i.get("command") or i.get("file_path") or ""))[:200]
-    if not richieste and not risposta:
+    if not richieste and not risposta and not apertura:
         return ""
-    pezzi = ["Progetto: " + (progetto or "nessuno")]
+    pezzi = ["Progetto scelto all'avvio: " + (progetto or "nessuno")]
+    if noti:
+        pezzi.append("Progetti noti:\n" + noti)
     if prima:
         pezzi.append("Titolo di prima: " + prima)
+    if riassunto:
+        pezzi.append("Riassunto della conversazione di prima: " + riassunto)
+    if apertura and apertura not in richieste[-3:]:
+        pezzi.append("Richiesta che ha aperto la sessione: " + apertura)
     pezzi += ["Richiesta della persona: " + r for r in richieste[-3:]]
     if risposta:
         pezzi.append("Ultima risposta dell'assistente: " + risposta[:500])
     if azione:
         pezzi.append("Ultimo comando: " + azione)
-    return "\n".join(pezzi)[:CONTESTO]
+    testa, coda = (pezzi[:2], pezzi[2:]) if noti else (pezzi[:1], pezzi[1:])
+    # l'elenco dei progetti non conta nel tetto: il contesto del lavoro resta intero
+    return "\n".join(testa + ["\n".join(coda)[:CONTESTO]])
 
 
 def claude_bin(attesa: float = ATTESA_BIN) -> str:
@@ -238,7 +368,7 @@ def chiedi(testo: str) -> str:
     env.pop("CLAUDECODE", None)
     r = subprocess.run([cl, "-p", "--model", "haiku", "--tools", "", "--strict-mcp-config", "--no-session-persistence",
                         "--settings", '{"disableAllHooks":true}', "--system-prompt", ISTRUZIONE],
-                       input="Appunti:\n" + testo + "\n\nLe due righe:", capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       input="Appunti:\n" + testo + "\n\nLe tre righe:", capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=TETTO, env=env, cwd=os.path.expanduser("~"))
     return r.stdout if r.returncode == 0 else ""
 
@@ -277,7 +407,8 @@ def main() -> int:
             return 0
         t = compito(str(dati.get("prompt") or ""))
         if len(t) >= 2:
-            scrivi(f, {"titolo": t, "fonte": "avvio", "quando": adesso, "peso": 0})
+            scrivi(f, {"titolo": t, "fonte": "avvio", "quando": adesso, "peso": 0,
+                       **{k: salvato[k] for k in ("progetto", "candidato") if k in salvato}})
         return 0
     try:
         ogni = float(os.environ.get("ARTURO_TITOLI_OGNI") or OGNI)
@@ -302,11 +433,16 @@ def main() -> int:
     if not vuole_titolo and not vuole_sintesi:
         return 0
     scheda = leggi(cartella().parent / "scheda" / f"{sessione}.json")
-    testo = appunti(trascrizione, str(scheda.get("progetto") or ""), str(salvato.get("titolo") or ""))
+    noti, righe = progetti_noti()
+    # il progetto della scheda si dice al modello solo se l'ha scelto qualcuno (/inizio, la persona, Volta):
+    # la cartella di un file scritto lo portava sullo strumento invece che sul lavoro (14/11/2026)
+    scelto = str(scheda.get("progetto") or "") if scheda.get("fonte") in ("inizio", "persona", "volta", "teletrasporto") else ""
+    testo = appunti(trascrizione, scelto, str(salvato.get("titolo") or ""), "\n".join(righe))
     if not testo:
         return 0
     scrivi(f, {**salvato, "chiede": adesso})
-    t, s = due_righe(chiedi(testo))
+    risposta = chiedi(testo)
+    t, s = due_righe(risposta)
     nuovo = {k: v for k, v in leggi(f).items() if k != "chiede"}
     if t and vuole_titolo:
         nuovo.update({"titolo": t, "fonte": "modello", "quando": adesso, "peso": peso})
@@ -315,6 +451,11 @@ def main() -> int:
         nuovo.update({"quando_sintesi": adesso, "peso_sintesi": peso})
     if s:
         nuovo["sintesi"] = s
+    if t or s:
+        # vota sul progetto solo una risposta nel formato giusto
+        progetto, candidato = accetta(nuovo, progetto_scelto(risposta, noti))
+        if progetto:
+            nuovo.update(progetto=progetto, candidato=candidato)
     scrivi(f, nuovo)
     spazza(adesso)
     return 0
