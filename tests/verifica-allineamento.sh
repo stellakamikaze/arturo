@@ -273,6 +273,8 @@ BANCHI=(
   test_protect_percorso_2026_11_21.py
   # protect_claude_md chiede su un settings che non legge e su un suo errore interno (26/11/2026, #6416).
   test_guardie_protect_failclosed_2026_11_26.py
+  # rsync verso una macchina remota e rsync -t non scrivono sulla config (26/11/2026, #6732).
+  test_guardie_rsync_remoto_2026_11_26.py
   # Una chiave letta con un glob o con le graffe su cartella e nome arriva alle guardie (21/11/2026, #6279).
   test_glob_segreti_2026_11_21.py
   # Gli aggiramenti delle guardie della revisione del 20/11, rilievi S4-S10 e S13 (21/11/2026, #6259).
@@ -665,6 +667,8 @@ BASELINE=(
   # protect_claude_md fail-closed (26/11/2026, #6416): deny sul settings che non legge, blocco sull'errore interno.
   # 0951400, il dev prima.
   "test_guardie_protect_failclosed_2026_11_26.py 0951400 radice"
+  # rsync verso host:percorso letto come cartella locale (26/11/2026, #6732). 062e126, il dev prima.
+  "test_guardie_rsync_remoto_2026_11_26.py 062e126"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

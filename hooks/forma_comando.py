@@ -1529,8 +1529,11 @@ def scritture_config(cmd: str, cwd: str):
         candidati += indiretti
         cartelle += dentro
         if nome in _SCRIVONO_ULTIMO and len(liberi) >= 2:
-            candidati.append((liberi[-1], base))
-            if "-t" in args and args.index("-t") + 1 < len(args):
+            # 26/11/2026 (#6732): `rsync a host:dir` scrive sulla macchina remota, non in cwd/host:dir.
+            # Per rsync -t è --times, non la cartella di destinazione.
+            if not (nome == "rsync" and re.match(r"^[^/]*:", liberi[-1])):
+                candidati.append((liberi[-1], base))
+            if nome != "rsync" and "-t" in args and args.index("-t") + 1 < len(args):
                 candidati.append((args[args.index("-t") + 1], base))
         elif nome in _SCRIVONO_TUTTI:
             candidati += [(a, base) for a in liberi]

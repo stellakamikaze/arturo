@@ -80,7 +80,7 @@ def _lancia(script: str, stato: str, d: Path, rc_py: int = 0, hc: str = "t1", jo
 def _job(script: Path, stati: list, d: Path) -> str:
     casa = d / "casa"
     casa.mkdir(exist_ok=True)
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(casa), "CLAUDE_JOB_DIR": str(d / "jobs" / "ab12cd34")}
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(casa), "USERPROFILE": str(casa), "CLAUDE_JOB_DIR": str(d / "jobs" / "ab12cd34")}
     for x in stati:
         subprocess.run(["sh", str(script), x], input=b"{}", env=env, capture_output=True, timeout=20)
     f = casa / ".cache" / "herdr-stato" / "ab12cd34"
@@ -115,7 +115,7 @@ class Banco:
         self.cache = self.casa / ".cache" / "herdr-stato"
 
     def lancia(self, x: str, sid: str = "S1", stdin_sid: str = "") -> None:
-        env = {"PATH": self.path, "HOME": str(self.casa), "CLAUDE_JOB_DIR": str(self.jobdir),
+        env = {"PATH": self.path, "HOME": str(self.casa), "USERPROFILE": str(self.casa), "CLAUDE_JOB_DIR": str(self.jobdir),
                "PS_ELENCO": str(self.d / "elenco.txt"), "HERDR_STATO_DEV": str(self.dev)}
         if sid:
             env["CLAUDE_CODE_SESSION_ID"] = sid
