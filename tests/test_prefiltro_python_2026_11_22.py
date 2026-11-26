@@ -17,6 +17,9 @@ traduce da POSIX ERE a regex Python, e il limite è 1.000.000.
   PB06  hooks/prefiltro_regex.py è quello che genera il sorgente di adesso;
   PB07  un link verso un file che non esiste fa partire block-dangerous, come `readlink -f` su macOS;
   PB08  un pre-filtro rotto fa chiedere conferma, mai passare muto.
+  PB09  un programma di posta fra virgolette apre comms-guard: `subprocess.run(['sendmail', 'a@b'])` in un
+        heredoc python chiede conferma, come col vecchio dispatcher della config (#6732, 26/11/2026). Un
+        heredoc che scrive `'sendmail'` in un file senza lanciare programmi resta muto.
 
 Il confronto completo con il dispatcher di prima, sui 52.148 comandi Bash veri dei 30 giorni prima, ha dato una
 sola differenza (PB07, corretta): sta in una sonda privata, perché i comandi sono della persona. Qui ci sono le
@@ -219,8 +222,27 @@ def test_pb08(repo: Path) -> None:
         assert decisione == "ask", f"PB08 con il pre-filtro rotto ls -la non chiede conferma: {decisione}"
 
 
+def test_pb09(repo: Path) -> None:
+    if WINDOWS:
+        dichiara("PB09", "il banco copia la casa intera e lancia il dispatcher con bash: lo copre il gate su macOS")
+        return
+    chiede = [
+        "python3 - <<'EOF'\nimport subprocess\nsubprocess.run(['sendmail', 'a@esempio.org'], input=b'x')\nEOF",
+        "python3 - <<'EOF'\nimport os\nos.posix_spawn('/usr/sbin/sendmail', ['sendmail', 'a@esempio.org'], {})\nEOF",
+    ]
+    muto = "python3 - <<'EOF'\nopen('/tmp/pb09-nota.txt', 'w').write(str(['sendmail', 'mail']))\nEOF"
+    with tempfile.TemporaryDirectory(prefix="pb09-") as d:
+        casa = _casa(repo, Path(d))
+        for comando in chiede:
+            decisione, motivo = _dispatcher(casa, comando, _ambiente(casa))
+            assert decisione == "ask" and "sendmail" in motivo, \
+                f"PB09 sendmail fra virgolette passa senza comms-guard: {comando.splitlines()[2][:50]!r} {decisione}"
+        decisione, _ = _dispatcher(casa, muto, _ambiente(casa))
+        assert decisione in ("silent", "allow"), f"PB09 un heredoc che scrive solo testo chiede: {decisione}"
+
+
 TESTS = {"PB01": test_pb01, "PB02": test_pb02, "PB03": test_pb03, "PB04": test_pb04, "PB05": test_pb05,
-         "PB06": test_pb06, "PB07": test_pb07, "PB08": test_pb08}
+         "PB06": test_pb06, "PB07": test_pb07, "PB08": test_pb08, "PB09": test_pb09}
 
 
 def main() -> int:

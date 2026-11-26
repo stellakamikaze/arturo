@@ -338,8 +338,11 @@ PATTERN_GIT_TEXT = Pattern(
     r"(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?"
     r"(commit|log|show|tag|stash[[:space:]]+(push|save))")
 
+# 26/11/2026 (#6732): dopo il nome anche una virgoletta, una virgola o una parentesi. `['sendmail', 'a@b']` in
+# un heredoc python che lancia subprocess non apriva comms-guard: il vecchio dispatcher della config cercava
+# sendmail nudo e chiedeva (banco conferme ridotte della config, 23/25).
 PATTERN_COMMS = Pattern(
-    r"""(^|[[:space:];|&("'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:]]|$)|mailto:|smtps?://"""
+    r"""(^|[[:space:];|&("'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:];|&)"'`,]|$)|mailto:|smtps?://"""
     r"|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send"
     r"|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)"
     r"|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp"
