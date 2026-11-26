@@ -249,6 +249,8 @@ BANCHI=(
   test_salva_automatico.py
   # Gli eventi della memoria nella telemetria: memoria, richiamo, salvataggio, inizio (M7, #5672).
   test_telemetria_memoria_2026_11_15.py
+  # Il log degli accessi di Melchior col nome canonico della macchina (O10, #6416).
+  test_macchine_canoniche.py
   # La barra trova node col PATH minimo di ssh, come nelle sessioni che Volta apre su un'altra macchina (15/11/2026).
   test_statusline_path_2026_11_15.py
   # /monitor impara dalle correzioni: segnali, mittenti, regole, sezioni, annullo (17/11/2026).
@@ -767,6 +769,8 @@ VELENI=(
   test_salva_automatico.py
   # La telemetria della memoria (M7, #5672): ogni rottura di telemetria.py, inject-now.sh o salva-automatico.py fa rosso il suo caso TM.
   test_telemetria_memoria_2026_11_15.py
+  # Il nome canonico (#6416): ogni rottura di access_host() in melchior_match.py fa rosso il suo caso MC.
+  test_macchine_canoniche.py
   # /monitor impara (17/11/2026): ogni rottura di impara.py (soglie, sempre, modo proposta, annullo) fa rosso il suo caso IM.
   test_monitor_impara_2026_11_17.py
   # Il giro di /monitor (#4538): impronta doppia, ponte a nome d'altri, visto ignorato, cursore su fonte troncata, testo nascosto.

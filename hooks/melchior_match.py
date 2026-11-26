@@ -246,10 +246,36 @@ def in_memory_dir(p):
 
 # --- Log degli accessi ---------------------------------------------------------------------
 
+MACCHINE = CLAUDE_DIR / "data" / "macchine.json"
+_CANONICI = None
+
+
+def _canonici():
+    """{alias minuscolo senza .local: nome canonico} da data/macchine.json della persona (revisione del
+    22/11/2026, O10). Senza file, o con un file rotto, un dizionario vuoto: vale il nome della macchina."""
+    global _CANONICI
+    if _CANONICI is None:
+        _CANONICI = {}
+        try:
+            dati = json.loads(MACCHINE.read_text(encoding="utf-8"))
+            for chiave, m in dati["macchine"].items():
+                for a in [chiave, *m.get("alias", [])]:
+                    a = str(a).strip().lower()
+                    _CANONICI.setdefault(a[:-len(".local")] if a.endswith(".local") else a, str(chiave))
+        except Exception:
+            _CANONICI = {}
+    return _CANONICI
+
+
 def access_host():
-    """Nome corto della macchina, ripulito per un nome di file; "" se ignoto."""
+    """Nome corto della macchina, ripulito per un nome di file; "" se ignoto. Se data/macchine.json
+    conosce il nome come alias, il nome canonico: una macchina scrive un solo log anche se cambia nome."""
     import platform
-    host = (platform.node() or "").split(".")[0]
+    nodo = (platform.node() or "").strip()
+    pieno = nodo.lower()
+    pieno = pieno[:-len(".local")] if pieno.endswith(".local") else pieno
+    canonici = _canonici()
+    host = canonici.get(pieno) or canonici.get(pieno.split(".")[0]) or nodo.split(".")[0]
     host = re.sub(r"[^A-Za-z0-9_-]", "-", host).strip("-")
     return "" if host in ("", "localhost") else host
 
