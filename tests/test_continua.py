@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CN01-CN08: hooks/continua.py, la sessione continua da sola quando il passo dopo è di Claude (24/11/2026).
+"""CN01-CN09: hooks/continua.py, la sessione continua da sola quando il passo dopo è di Claude (24/11/2026).
 
 Su Stop l'hook legge l'ultimo testo di Claude (hooks/fine_turno.py, comune con carta-sessione.py) e, se la
 fine dice che il passo è di Claude e non chiede niente alla persona, risponde decision "block". Ogni caso
@@ -23,6 +23,12 @@ CN08 lo stato verso Herdr (#6594): dentro Herdr (HC_TERMINAL_ID) il turno che co
      girava in parallelo e segnava fatto anche il turno che continua. L'hook gira su una copia di hooks/ con
      un herdr-stato.sh finto che scrive lo stato in un file.
 
+CN09 la chiusura del turno (#6403): un passo di Claude passato alla persona (/clear e /inizio, la rotazione,
+     un messaggio a un'altra sessione), il via chiesto per un lavoro di Claude ("scrivimi vai e parto"), un controllo
+     promesso a un'ora ("domattina guardo io") danno un block col loro motivo. Tacciono col secondo Stop
+     (stop_hook_active), con un freno o una spesa, col tool ruota nel turno, e il rinvio con un richiamo armato nel
+     turno (Monitor, un Bash con run_in_background).
+
 --avvelena rompe ogni regola su una copia di hooks/ ed esce 0 solo se ogni rottura fa rosso i suoi casi.
 Il primo veleno è PASSO_MIO sempre vero e nessun filtro (decidi dà sempre "continua"): CN01-CN04 rossi.
 Sulla base 067606f (il ramo di hub prima di continua.py) sono tutti rossi: l'hook non c'è.
@@ -39,7 +45,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["CN01", "CN02", "CN03", "CN04", "CN05", "CN06", "CN07", "CN08"]
+CASI = ["CN01", "CN02", "CN03", "CN04", "CN05", "CN06", "CN07", "CN08", "CN09"]
 DISCRIMINANTI = list(CASI)
 MOTIVO = ("Il passo dopo è tuo e reversibile: eseguilo ora, nello stesso turno. "
           "Se tocca un freno, fermati e dillo.")
@@ -317,8 +323,73 @@ def cn08(lab: Lab) -> str | None:
     return None
 
 
+MOTIVI_CHIUSURA = {
+    "passato": "La chiusura passa alla persona un passo tuo",
+    "via": "La chiusura chiede il via per un lavoro tuo",
+    "rinvio": "Prometti un controllo per più tardi",
+}
+CHIUSURE = [
+    ("passato", "Il contesto è al 65%. Per continuare pulito, scrivi **/clear** e poi **/inizio volta**."),
+    ("passato", "Salvo con /fine. Dopo, `/clear` e `/inizio volta` aprono una sessione pulita.\n\nNiente da fare per te."),
+    ("passato", "Il gate è verde. Fai tu la rotazione quando vuoi."),
+    ("passato", "Prossimo passo: scrivi tu all'altra sessione che il push è fatto."),
+    ("via", "Ho letto i dieci rilievi.\n\nScrivimi **vai** e parto con la #16."),
+    ("via", "Scrivimi **correggi i dieci** e preparo il piano delle correzioni."),
+    ("via", "Il ramo è pronto. Parto se mi scrivi ok."),
+    ("rinvio", "Prossimo passo: domattina guardo io il registro delle 07:45 e l'esito del test del disco."),
+    ("rinvio", "Il backup è armato. Domattina controllo che la copia notturna abbia girato.\n\nNiente da fare per te."),
+    ("rinvio", "Il prossimo passo è mio: il controllo del registro, domattina alle 6:30."),
+]
+CHIUSURE_ZITTE = [
+    "Scrivimi **parti Cristicchi** e avvio la sponsorizzata in dark da 330 euro.",
+    "Scrivimi **vai** e invio l'email al cliente.",
+    "Il prossimo passo è mio, ma scrivimi **vai** quando hai letto la tabella.",
+    "La prossima copia parte quando finisce il test del disco: la leggo alla prossima accensione del server.",
+    "Il controllo di Search Console è domani.\n\nNiente da fare per te.",
+    "Ho tolto la richiesta di /clear e /inizio quando il passo dopo è mio.",
+]
+
+
+def _trascrizione(lab: Lab, nome: str, testo: str, strumento: dict | None) -> Path:
+    righe = [riga("user", "fai il lavoro")]
+    if strumento:
+        righe += [json.dumps({"type": "assistant", "message": {"content": [dict(type="tool_use", id="t9", **strumento)]}}),
+                  riga("risultato")]
+    tr = lab.casa / f"{nome}.jsonl"
+    tr.write_text("\n".join(righe + [riga("assistant", testo)]) + "\n", encoding="utf-8")
+    return tr
+
+
+def cn09(lab: Lab) -> str | None:
+    for i, (forma, testo) in enumerate(CHIUSURE):
+        r = lab.stop(f"c9-{i}", testo)
+        try:
+            d = json.loads(r.stdout.decode("utf-8") or "{}")
+        except ValueError:
+            d = {}
+        if d.get("decision") != "block" or not str(d.get("reason", "")).startswith(MOTIVI_CHIUSURA[forma]):
+            return f"CN09 ROSSO: la chiusura {forma} non dà il suo block: {testo[:60]!r} -> {r.stdout[:100]!r}"
+        if not tace(lab.stop(f"c9-{i}", testo, attivo=True)):
+            return f"CN09 ROSSO: col secondo Stop (stop_hook_active) la chiusura {forma} blocca ancora: {testo[:50]!r}"
+    for i, testo in enumerate(CHIUSURE_ZITTE):
+        if not tace(lab.stop(f"z9-{i}", testo)):
+            return f"CN09 ROSSO: una chiusura giusta dà un block: {testo[:60]!r}"
+    rinvio, passato = CHIUSURE[7][1], CHIUSURE[0][1]
+    for nome, strumento in (("monitor", {"name": "Monitor", "input": {}}),
+                            ("fondo", {"name": "Bash", "input": {"command": "sleep 600; leggi", "run_in_background": True}})):
+        if not tace(lab.stop(f"a9-{nome}", rinvio, trascrizione=_trascrizione(lab, nome, rinvio, strumento))):
+            return f"CN09 ROSSO: il rinvio con un richiamo armato nel turno ({nome}) dà un block"
+    nudo = {"name": "Bash", "input": {"command": "ls"}}
+    if tace(lab.stop("a9-nudo", rinvio, trascrizione=_trascrizione(lab, "nudo", rinvio, nudo))):
+        return "CN09 ROSSO: un Bash in primo piano vale come richiamo armato"
+    ruota = {"name": "mcp__arturo__ruota", "input": {}}
+    if not tace(lab.stop("a9-ruota", passato, trascrizione=_trascrizione(lab, "ruota", passato, ruota))):
+        return "CN09 ROSSO: /clear e /inizio col tool ruota chiamato nel turno danno un block"
+    return None
+
+
 FUNZIONI = {"CN01": cn01, "CN02": cn02, "CN03": cn03, "CN04": cn04, "CN05": cn05, "CN06": cn06, "CN07": cn07,
-            "CN08": cn08}
+            "CN08": cn08, "CN09": cn09}
 
 
 def prova(hooks: Path) -> list:
@@ -346,8 +417,20 @@ VELENI = [
     ({"CN03"}, "continua.py", '    if RINVIO.search(righe_del_passo(fine)):\n        return "rinvio"\n', ''),
     ({"CN01"}, "continua.py", '    if RINVIO.search(righe_del_passo(fine)):\n', '    if RINVIO.search(fine):\n'),
     ({"CN04"}, "continua.py", '    if RUOTO.search(fine):\n        return "rotazione"\n', ''),
-    ({"CN04"}, "continua.py", '    if ruota_nel_turno(str(dati.get("transcript_path") or "")):\n        return False\n', ''),
-    ({"CN04"}, "continua.py", '        if prompt_vero(d):\n            visto = False\n', '        if prompt_vero(d):\n            pass\n'),
+    ({"CN04"}, "continua.py", '    if decidi(testo) != "continua" or ruota_nel_turno(strumenti):\n',
+     '    if decidi(testo) != "continua":\n'),
+    # La chiusura (#6403): ogni forma spenta, il secondo Stop che blocca ancora, spesa e richiamo armato ignorati.
+    ({"CN09"}, "continua.py", '    if any(r.search(fine) for r in PASSATO) and not ruota_nel_turno(strumenti):\n',
+     '    if False:\n'),
+    ({"CN09"}, "continua.py", '    if righe_via and not SPESA.search(righe_via)', '    if False and righe_via'),
+    ({"CN09"}, "continua.py", '    if promessa and not armato_nel_turno(strumenti):\n', '    if False:\n'),
+    ({"CN09"}, "continua.py", '        difetto = "niente" if attivo else chiusura(testo, strumenti)\n',
+     '        difetto = chiusura(testo, strumenti)\n'),
+    ({"CN09"}, "continua.py", '    if promessa and not armato_nel_turno(strumenti):\n', '    if promessa:\n'),
+    ({"CN09"}, "continua.py", '    if righe_via and not SPESA.search(righe_via)', '    if righe_via'),
+    ({"CN09"}, "continua.py", '    if any(r.search(fine) for r in PASSATO) and not ruota_nel_turno(strumenti):\n',
+     '    if any(r.search(fine) for r in PASSATO):\n'),
+    ({"CN04"}, "continua.py", '        if prompt_vero(d):\n            visti = []\n', '        if prompt_vero(d):\n            pass\n'),
     ({"CN05"}, "continua.py", '    if giri >= TETTO:\n', '    if False:\n'),
     ({"CN05"}, "continua.py", '    giri = leggi_conto(f)\n', '    giri = 0 if attivo else leggi_conto(f)\n'),
     ({"CN06"}, "hub.py", '    if voce == "prompt":\n        _azzera_continua(dati)\n', ''),
