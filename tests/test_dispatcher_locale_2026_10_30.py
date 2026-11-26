@@ -13,6 +13,8 @@ DL10-DL11 (5/11/2026, #4535): la regola di uscita di una guardia personale. 2 bl
 diversa da 0 chiede, come nella config di Federico.
 DL12-DL13 (26/11/2026, #6716): attenua scioglie la conferma di gh-destructive-guard (DL12, rosso sulla base)
 ma non il suo blocco (DL13, invariante).
+DL14 (26/11/2026, #6416): una guardia personale che esce 0 con un testo non JSON chiede. È il caso che il banco
+B6 fail-closed della config provava col veleno `_e_ask` sul suo dispatcher, uscito dalla config.
 """
 from __future__ import annotations
 
@@ -25,8 +27,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["DL01", "DL02", "DL03", "DL04", "DL05", "DL06", "DL07", "DL08", "DL09", "DL10", "DL11", "DL12", "DL13"]
-DISCRIMINANTI = ["DL02", "DL04", "DL05", "DL06", "DL08", "DL09", "DL10", "DL11", "DL12"]
+CASI = ["DL01", "DL02", "DL03", "DL04", "DL05", "DL06", "DL07", "DL08", "DL09", "DL10", "DL11", "DL12", "DL13", "DL14"]
+DISCRIMINANTI = ["DL02", "DL04", "DL05", "DL06", "DL08", "DL09", "DL10", "DL11", "DL12", "DL14"]
 BASH = shutil.which("bash") or "bash"
 
 GUARDIE = {
@@ -34,6 +36,7 @@ GUARDIE = {
                      '"permissionDecision": "allow", "permissionDecisionReason": "allow personale"}}))\n',
     "tace.py": "",
     "si-rompe.py": "import sys\nsys.exit(1)\n",
+    "non-json.py": 'print("{non json")\n',
     "blocca.py": "import sys\nprint('fermo personale', file=sys.stderr)\nsys.exit(2)\n",
     # print scrive CRLF su Windows: il dispatcher deve riconoscere "tace" lo stesso.
     "attenua-finta.py": 'print("tace")\n',
@@ -101,6 +104,8 @@ def prova(repo: Path, dispatcher: str | None) -> list[str]:
          lambda d, m, e: d == "silent")
     caso("DL13", "attenua attenua-finta.py\n", "gh repo delete esempio/privato --yes",
          lambda d, m, e: d in ("block", "deny"))
+    caso("DL14", "finale non-json.py\n", "ls ~/.claude/data",
+         lambda d, m, e: d == "ask" and "non ha prodotto una decisione valida" in m)
     return rossi
 
 
