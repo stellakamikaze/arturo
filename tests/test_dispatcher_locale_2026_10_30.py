@@ -11,6 +11,8 @@ riga `exit 0` nel .local non spegne le guardie; DL07 attenua non scioglie un blo
 Sulla base 749e18d sono rossi i casi del meccanismo: DL02, DL04, DL05, DL06, DL08, DL09, DL10, DL11.
 DL10-DL11 (5/11/2026, #4535): la regola di uscita di una guardia personale. 2 blocca, ogni altra uscita
 diversa da 0 chiede, come nella config di Federico.
+DL12-DL13 (26/11/2026, #6716): attenua scioglie la conferma di gh-destructive-guard (DL12, rosso sulla base)
+ma non il suo blocco (DL13, invariante).
 """
 from __future__ import annotations
 
@@ -23,8 +25,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["DL01", "DL02", "DL03", "DL04", "DL05", "DL06", "DL07", "DL08", "DL09", "DL10", "DL11"]
-DISCRIMINANTI = ["DL02", "DL04", "DL05", "DL06", "DL08", "DL09", "DL10", "DL11"]
+CASI = ["DL01", "DL02", "DL03", "DL04", "DL05", "DL06", "DL07", "DL08", "DL09", "DL10", "DL11", "DL12", "DL13"]
+DISCRIMINANTI = ["DL02", "DL04", "DL05", "DL06", "DL08", "DL09", "DL10", "DL11", "DL12"]
 BASH = shutil.which("bash") or "bash"
 
 GUARDIE = {
@@ -93,6 +95,12 @@ def prova(repo: Path, dispatcher: str | None) -> list[str]:
     caso("DL10", "finale si-rompe.py\n", "ls ~/.claude/data",
          lambda d, m, e: d == "ask" and "non ha prodotto una decisione valida" in m)
     caso("DL11", "finale blocca.py\n", "ls ~/.claude/data", lambda d, m, e: d == "block" and "fermo personale" in e)
+    # DL12-DL13 (26/11/2026, #6716): l'attenuatore personale scioglie anche la conferma di gh-destructive-guard,
+    # come nella config di Federico, ma non il suo blocco.
+    caso("DL12", "attenua attenua-finta.py\n", "gh pr merge -R esempio/privato 1 --merge",
+         lambda d, m, e: d == "silent")
+    caso("DL13", "attenua attenua-finta.py\n", "gh repo delete esempio/privato --yes",
+         lambda d, m, e: d in ("block", "deny"))
     return rossi
 
 
