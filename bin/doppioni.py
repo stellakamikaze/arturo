@@ -34,6 +34,9 @@ VERSIONE = 1
 SOGLIA = 2
 MAX = 40  # la revisione si fa a mano, una riga alla volta
 RIGA_MIN = 20  # una riga di stato più corta non dice niente: "Fermo." è uguale in dieci progetti
+# Le righe che Arturo scrive uguali in ogni progetto non dicono che due progetti sono lo stesso: il prossimo passo
+# fisso del salvataggio automatico (bin/salva-automatico.py) cade lo stesso giorno in più progetti (#6742).
+RIGHE_FISSE = {"riprendere da qui e chiudere con /fine, che completa questo salvataggio."}
 
 
 def chiave_coppia(a, b) -> str:
@@ -134,7 +137,8 @@ def segni_doppione(a: dict, b: dict, repo_comuni=frozenset()) -> list:
     if ta and ta == tb and na != nb:
         segni.append({"forza": 3, "testo": f"hanno lo stesso titolo, {str(a['titolo']).strip()}"})
     ra = str(a.get("riga") or "").strip()
-    if len(ra) >= RIGA_MIN and ra == str(b.get("riga") or "").strip() and a.get("data") and a.get("data") == b.get("data"):
+    fissa = _piano(ra) in {_piano(x) for x in RIGHE_FISSE}
+    if len(ra) >= RIGA_MIN and not fissa and ra == str(b.get("riga") or "").strip() and a.get("data") and a.get("data") == b.get("data"):
         segni.append({"forza": 3, "testo": "hanno la stessa riga di stato, dello stesso giorno"})
     repo = str(a.get("repo") or "").strip()
     if repo and repo not in repo_comuni and repo == str(b.get("repo") or "").strip():

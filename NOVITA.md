@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-26 — I doppioni non scambiano più i salvataggi automatici per lo stesso progetto
+
+**Cosa cambia**: `arturo progetti doppioni`, e la revisione dei doppioni in Volta, non propone più di unire due progetti solo perché lo stesso giorno hanno avuto entrambi un salvataggio automatico.
+
+**Perché**: il salvataggio automatico scrive in ogni progetto lo stesso prossimo passo, "riprendere da qui e chiudere con /fine". La stessa riga di stato nello stesso giorno era un segno forte di doppione. Ora quella frase non conta, e una riga uguale scritta a mano conta ancora.
+
+**A chi serve**: a chi rivede i doppioni dei progetti. Il resto dell'elenco non cambia.
+
+---
+
 ## 2026-11-25 — Su Windows Herdr vede se Claude lavora o aspetta
 
 **Cosa cambia**: in Herdr e in Volta su Windows, una sessione di Claude dice di nuovo se sta lavorando, se aspetta te o se ha finito. Prima lo stato restava vuoto.
