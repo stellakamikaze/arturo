@@ -63,7 +63,9 @@ Dal 21/11/2026 lo stesso file accetta anche righe per percorso: `ask percorso <g
 Una riga per percorso stringe soltanto: vince sulla categoria quando è più severa, e non allenta mai niente.
 Serve a chi apre una categoria intera (`allow config`) e vuole confermare i pochi file che decidono i permessi.
 
-Fail-closed: errore di parsing = blocca per sicurezza.
+Fail-closed: un input che non si legge blocca (uscita 2); un errore dell'analisi chiede conferma, e così un
+settings*.json che il controllo del JSON non legge, salvo un deny già scritto (26/11/2026, #6416). Il deny
+resta per il JSON non valido.
 """
 import fnmatch
 import json
@@ -100,12 +102,31 @@ def _righe_dopo(path, ti):
 
 
 def _ferma_json_rotto(rp, ti):
-    """Un settings*.json che diventerebbe JSON non valido si ferma, anche con l'unlock o con allow."""
+    """Un settings*.json che diventerebbe JSON non valido si ferma, anche con l'unlock o con allow.
+    Un settings che il controllo non legge (assente, illeggibile, non UTF-8) non è un JSON rotto: torna il
+    motivo, e decide _chiedi_illeggibile (26/11/2026, #6416). La lettura sta fuori dal try del JSON, perché
+    UnicodeDecodeError è una sottoclasse di ValueError."""
     try:
-        json.loads(_testo_dopo(rp, ti))
-    except (ValueError, OSError) as e:
+        testo = _testo_dopo(rp, ti)
+    except (OSError, UnicodeDecodeError) as e:
+        return str(e) or type(e).__name__
+    try:
+        json.loads(testo)
+    except ValueError as e:
         _emit("deny", f"{os.path.basename(rp)} non sarebbe JSON valido dopo la modifica ({e}). "
               "Un settings rotto spegne deny e hook: correggi la modifica e riprova.")
+        sys.exit(0)
+    return None
+
+
+def _chiedi_illeggibile(rp, motivo, chiede, *decisioni):
+    """Su un settings che il controllo del JSON non legge chiede, salvo un deny già scritto (categoria, riga per
+    percorso o default di Arturo): mai allow, perché la validità non è provata, e mai più largo del file leggibile.
+    È la scelta della config dell'autore dal 24/10/2026 (#3575): un guasto del controllo chiede, non nega."""
+    if motivo and max((SEVERITA[d] for d in decisioni), default=0) < SEVERITA['deny']:
+        chiede()
+        _emit("ask", f"{os.path.basename(rp)}: il controllo del JSON non legge il file ({motivo}). "
+              "Conferma solo se la modifica l'hai chiesta tu.")
         sys.exit(0)
 
 
@@ -317,8 +338,15 @@ def _testo_mod(rp, mod, claude_dir, safe_id):
 
 
 def main():
+    # Un input che non si legge blocca (invariante I02): senza il percorso la guardia non sa cosa protegge.
     try:
         data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("l'input non è un oggetto JSON")
+    except Exception as e:
+        print(f"protect_claude_md: input illeggibile ({e}), modifica bloccata per sicurezza", file=sys.stderr)
+        sys.exit(2)
+    try:
         tool = data.get('tool_name', '')
         if tool not in ('Edit', 'MultiEdit', 'Write', 'NotebookEdit'):
             sys.exit(0)
@@ -459,9 +487,9 @@ def main():
             # Un settings*.json che diventerebbe JSON non valido si ferma anche con l'unlock: un
             # settings rotto spegne deny e hook alla ricarica successiva (dalla config dell'autore,
             # 20/10/2026).
-            if re.match(r'SETTINGS.*\.JSON$', base) is not None:
-                _ferma_json_rotto(rp, ti)
+            illeggibile = _ferma_json_rotto(rp, ti) if re.match(r'SETTINGS.*\.JSON$', base) is not None else None
             if unlocked('config-unlock'):
+                _chiedi_illeggibile(rp, illeggibile, chiede)
                 _emit("allow", "config/hook Claude Code sbloccati da conferma utente")
                 sys.exit(0)
             # Il codice dei plugin installati (col plugin, anche le guardie di Arturo): il .local
@@ -472,9 +500,10 @@ def main():
                            or (relativo.startswith(('hooks/', 'arturo/')) and relativo.endswith('.local')))
             if not intoccabile:
                 in_radice = os.path.dirname(rp) == claude_dir
-                _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
-                                                                    or base == '.CLAUDE.JSON') else 'config',
-                               chiede=chiede, percorso=percorso, rp=rp, default='deny')
+                categoria = ('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
+                                                                 or base == '.CLAUDE.JSON') else 'config')
+                _chiedi_illeggibile(rp, illeggibile, chiede, percorso, _locale().get(categoria) or 'deny')
+                _emetti_locale(categoria, chiede=chiede, percorso=percorso, rp=rp, default='deny')
             mod = _mod_di(rp, claude_dir)
             if mod and not intoccabile:
                 _emit("deny", _testo_mod(rp, mod, claude_dir, safe_id))
@@ -501,7 +530,8 @@ def main():
         if (not under_claude and rp != config_altrove and not rp.startswith(config_altrove + os.sep)
                 and (os.sep + '.claude' + os.sep) in rp):
             if re.match(r'SETTINGS.*\.JSON$', base) is not None:
-                _ferma_json_rotto(rp, ti)
+                _chiedi_illeggibile(rp, _ferma_json_rotto(rp, ti), chiede, percorso,
+                                    _locale().get('dot-claude-progetto'))
             _emetti_locale('dot-claude-progetto', chiede=chiede, percorso=percorso, rp=rp)
 
         # Fuori dalle categorie decide solo una riga per percorso, se c'è.
@@ -510,8 +540,12 @@ def main():
         sys.exit(0)
 
     except Exception as e:
-        print(f"protect_claude_md: errore interno ({e}), modifica bloccata per sicurezza", file=sys.stderr)
-        sys.exit(2)
+        # Un errore dell'analisi chiede conferma, mai allow e mai blocco (26/11/2026, #6416): un hook rotto non
+        # deve fermare ogni Edit e ogni Write, e una conferma resta una decisione della persona.
+        print(f"protect_claude_md: errore interno ({e})", file=sys.stderr)
+        _emit("ask", f"protect_claude_md: errore interno ({type(e).__name__}), conferma manuale. "
+              "Conferma solo se la modifica l'hai chiesta tu.")
+        sys.exit(0)
 
 
 if __name__ == '__main__':

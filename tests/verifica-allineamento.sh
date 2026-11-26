@@ -269,6 +269,8 @@ BANCHI=(
   test_telemetria_log_dimentica_2026_11_20.py
   # Le righe per percorso di protect_claude_md.local: stringono, non allentano (21/11/2026, #6278).
   test_protect_percorso_2026_11_21.py
+  # protect_claude_md chiede su un settings che non legge e su un suo errore interno (26/11/2026, #6416).
+  test_guardie_protect_failclosed_2026_11_26.py
   # Una chiave letta con un glob o con le graffe su cartella e nome arriva alle guardie (21/11/2026, #6279).
   test_glob_segreti_2026_11_21.py
   # Gli aggiramenti delle guardie della revisione del 20/11, rilievi S4-S10 e S13 (21/11/2026, #6259).
@@ -658,6 +660,9 @@ BASELINE=(
   "test_dispatcher.py bcb3907"
   # hooks/continua.py (24/11/2026): senza l'hook rossi tutti e sette. 067606f, il ramo di hub prima.
   "test_continua.py 067606f"
+  # protect_claude_md fail-closed (26/11/2026, #6416): deny sul settings che non legge, blocco sull'errore interno.
+  # 0951400, il dev prima.
+  "test_guardie_protect_failclosed_2026_11_26.py 0951400 radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

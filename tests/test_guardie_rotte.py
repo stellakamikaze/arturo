@@ -3,8 +3,9 @@
 
 Le guardie Bash passano dal dispatcher, che trasforma un crash in "ask". web-egress-guard è
 registrata da sola in settings.json: fino al 15/10/2026, rotta, usciva con 1, un errore non
-bloccante, e l'URL passava. Ora chiede, come ask_guard. protect_claude_md resta com'è: rotta esce
-con 2 e blocca, per scelta (invariante I02 di test_permissivita_2026_09_08.py).
+bloccante, e l'URL passava. Ora chiede, come ask_guard. protect_claude_md su un input che non legge esce
+con 2 e blocca (invariante I02 di test_permissivita_2026_09_08.py); rotta dentro l'analisi chiede dal 26/11/2026
+(test_guardie_protect_failclosed_2026_11_26.py).
 
 Il banco rompe una copia della guardia con un'eccezione dentro l'analisi e guarda l'uscita.
 
