@@ -11,6 +11,9 @@ SE05 sessione, progetto o fonte non validi escono 3 e non scrivono niente.
 SE06 una scrittura che la regola rifiuta esce 2 col motivo, e il file resta com'era.
 SE07 una correzione della persona (forza, senza fonte: unisci) cambia il progetto e lascia fonte e segni; e
      bin/unisci.py passa dal modulo, non riscrive il JSON.
+SE08 i segni passati a imposta_progetto (Volta, #6421 passo 8d): `inizio` False resta scritto, None toglie
+     `spostata` anche con lo stesso progetto e la stessa fonte, un segno fuori da SEGNI esce col motivo.
+SE09 togli_spostata toglie solo il segno e lascia progetto e fonte; senza il segno il file non cambia.
 
 Veleno: --avvelena rompe il codice nella copia di prova, un punto per caso, ed esce 0 solo se ogni rottura fa
 rosso il suo caso (VELENI del gate).
@@ -25,7 +28,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["SE01", "SE02", "SE03", "SE04", "SE05", "SE06", "SE07"]
+CASI = ["SE01", "SE02", "SE03", "SE04", "SE05", "SE06", "SE07", "SE08", "SE09"]
 # caso -> (file, testo da rompere, testo rotto)
 VELENI = {
     "SE01": ("hooks/scheda_file.py", 'return FONTI.get(salvata or "", 0) >= DECISA and',
@@ -38,6 +41,8 @@ VELENI = {
     "SE06": ("bin/sessione.py", "    if not ok:\n        print(motivo, file=sys.stderr)\n        return 2\n",
              "    if not ok:\n        print(motivo, file=sys.stderr)\n        return 0\n"),
     "SE07": ("hooks/scheda_file.py", "if forza and fonte is None:", "if False:"),
+    "SE08": ("hooks/scheda_file.py", "            nuovo.pop(campo, None)\n", "            pass\n"),
+    "SE09": ("hooks/scheda_file.py", '    dati.pop("spostata")\n', "    pass\n"),
 }
 
 
@@ -144,6 +149,26 @@ def prova(lab: Lab) -> list:
     if d.get("progetto") != "nuovo" or d.get("fonte") != "volta" or d.get("spostata", {}).get("su") != "amaltea" \
             or "scheda_file" not in sorgente or "rn.scrivi_atomico(f, json.dumps" in sorgente:
         rossi.append(f"SE07 correzione della persona: {r.stdout.strip()} {r.stderr.strip()[-150:]} file={d}")
+    # SE08
+    r = lab.modulo("import scheda_file as sf\n"
+                   "print(sf.imposta_progetto('segni', 'primo', 'persona', segni={'inizio': False}))\n"
+                   "print(sf.segna_spostata('segni', 'torre'))\n"
+                   "print(sf.imposta_progetto('segni', 'primo', 'persona', segni={'spostata': None}))\n"
+                   "print(sf.imposta_progetto('segni', 'primo', 'persona', segni={'colore': 1}))")
+    d = lab.leggi("segni")
+    righe = r.stdout.strip().splitlines()
+    if r.returncode != 0 or d.get("inizio") is not False or "spostata" in d or d.get("progetto") != "primo" \
+            or len(righe) != 4 or "segno sconosciuto" not in righe[3]:
+        rossi.append(f"SE08 segni di imposta_progetto: {r.stdout.strip()} {r.stderr.strip()[-150:]} file={d}")
+    # SE09
+    lab.verbo("progetto", "torna", "primo", "--fonte", "teletrasporto")
+    lab.verbo("spostata", "torna", "--su", "torre")
+    prima = (lab.dir / "decisa-volta.json").read_bytes()
+    r = lab.modulo("import scheda_file as sf\nprint(sf.togli_spostata('torna'), sf.togli_spostata('decisa-volta'))")
+    d = lab.leggi("torna")
+    if r.returncode != 0 or "spostata" in d or d.get("progetto") != "primo" or d.get("fonte") != "teletrasporto" \
+            or (lab.dir / "decisa-volta.json").read_bytes() != prima:
+        rossi.append(f"SE09 togli_spostata: {r.stdout.strip()} {r.stderr.strip()[-150:]} file={d}")
     return rossi
 
 
