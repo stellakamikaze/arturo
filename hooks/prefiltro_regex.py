@@ -2,7 +2,7 @@
 
 Le regex Python dei pattern del pre-filtro, già tradotte. Valgono solo con l'impronta del sorgente.
 """
-IMPRONTA = 'd04c30ff17aa9722996befc1ac2139f0beccc5165671542a42c202169885f1d9'
+IMPRONTA = 'bd8b80a72acc37af11fdab77b7bc78c720ee046bb2d2032c730f9b355227e7a2'
 REGEX = {
     # PATTERN_API_GITHUB
     'E:api\\.github\\.com': [
@@ -13,8 +13,8 @@ REGEX = {
         '(^|[;\\&\\|\\(`\'"\\\n])[ \\t\\r\\f\\v]*((env|command|exec|nohup|time|xargs|sudo|then|else|elif|do|if|while|until|!|\\{)[ \\t\\r\\f\\v]+)*([A-Za-z_][A-Za-z0-9_]*=[^ \\t\\n\\r\\f\\v]*[ \\t\\r\\f\\v]+)*(([^ \\t\\n\\r\\f\\v;\\&\\|]*/)?git([ \\t\\n\\r\\f\\v]+-[^ \\t\\n\\r\\f\\v]+([ \\t\\n\\r\\f\\v]+[^\\- \\t\\n\\r\\f\\v][^ \\t\\n\\r\\f\\v]*)?)*[ \\t\\n\\r\\f\\v]+commit|gh[ \\t\\n\\r\\f\\v]+pr[ \\t\\n\\r\\f\\v]+create)',
     ],
     # PATTERN_COMMS
-    'L:(^|[[:space:];|&("\'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:]]|$)|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\\.telegram\\.org|hooks\\.slack\\.com|slack\\.com/api/chat|api\\.sendgrid|api\\.mailgun|api\\.postmarkapp|api\\.resend|api\\.mailjet|api\\.brevo|smtp2go|api\\.sparkpost|api\\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\\.amazonaws|hooks\\.zapier|hook\\.[a-z0-9.]*make\\.com|integromat|graph\\.microsoft\\.com.*sendmail|gmail\\.googleapis\\.com.*messages/send|discord(app)?\\.com/api/webhooks|api\\.twilio\\.com|graph\\.facebook\\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|http\\.client|git[[:space:]]+(send-email|imap-send)|\\+send([[:space:]]|$)|drafts[[:space:]]+send|sendUpdates|sendNotifications|permissions[[:space:]]+(create|update)|mailgun\\.net|nodemailer|wa\\.me/|whatsapp\\.com/send|whatsapp://|t\\.me/share|tg://msg': [
-        '(^|[ \\t\\n\\r\\f\\v;\\|\\&\\("\'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([ \\t\\n\\r\\f\\v]|\\Z)',
+    'L:(^|[[:space:];|&("\'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:];|&)"\'`,]|$)|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\\.telegram\\.org|hooks\\.slack\\.com|slack\\.com/api/chat|api\\.sendgrid|api\\.mailgun|api\\.postmarkapp|api\\.resend|api\\.mailjet|api\\.brevo|smtp2go|api\\.sparkpost|api\\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\\.amazonaws|hooks\\.zapier|hook\\.[a-z0-9.]*make\\.com|integromat|graph\\.microsoft\\.com.*sendmail|gmail\\.googleapis\\.com.*messages/send|discord(app)?\\.com/api/webhooks|api\\.twilio\\.com|graph\\.facebook\\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|http\\.client|git[[:space:]]+(send-email|imap-send)|\\+send([[:space:]]|$)|drafts[[:space:]]+send|sendUpdates|sendNotifications|permissions[[:space:]]+(create|update)|mailgun\\.net|nodemailer|wa\\.me/|whatsapp\\.com/send|whatsapp://|t\\.me/share|tg://msg': [
+        '(^|[ \\t\\n\\r\\f\\v;\\|\\&\\("\'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([ \\t\\n\\r\\f\\v;\\|\\&\\)"\'`,]|\\Z)',
         'mailto:',
         'smtps?://',
         'gws[ \\t\\n\\r\\f\\v](?:(?!gws[ \\t\\n\\r\\f\\v]).)*(messages[ \\t\\n\\r\\f\\v]+send|send[ \\t\\n\\r\\f\\v]+message|gmail[ \\t\\n\\r\\f\\v](?:(?!gmail[ \\t\\n\\r\\f\\v]).)*(\\+send|drafts[ \\t\\n\\r\\f\\v]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))',
