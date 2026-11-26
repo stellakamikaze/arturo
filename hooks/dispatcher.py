@@ -335,7 +335,7 @@ class Dispatcher:
 
         self.leggi_locali()
         # gh-destructive-guard chiede sul merge di una PR anche su un repo privato della persona: l'attenuatore
-        # personale lo scioglie come nella config di Federico (#6716). Un blocco resta un blocco.
+        # personale lo scioglie come nella config di chi mantiene Arturo (#6716). Un blocco resta un blocco.
         self.attenuabili = {"block-dangerous.py", "exfil-guard.py", "data-guard.py", "gh-destructive-guard.py"}
         dc = self.di_punto("danger-claude")
         if dc:
