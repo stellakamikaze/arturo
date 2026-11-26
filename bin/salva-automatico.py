@@ -315,6 +315,7 @@ def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richie
         corpo += f" L'ultima richiesta: \"{ultima}\"."
     if file:
         corpo += f" File scritti: {len(file)}."
+    # Se cambi questa frase, aggiorna RIGHE_FISSE in bin/doppioni.py: lì la frase non conta come doppione (#6742).
     out = testa + ["## Ripartenza", corpo,
                    "Prossimo passo: riprendere da qui e chiudere con /fine, che completa questo salvataggio."]
     if richieste:
