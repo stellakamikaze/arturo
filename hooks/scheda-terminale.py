@@ -15,8 +15,9 @@ StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
     rosso se il turno si è fermato per un errore (StopFailure), viola a turno finito se la sessione è già
     chiusa con /fine e la persona non ha più scritto (proposta n. 71). Windows Terminal con DECAC,
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
-Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CONTESTO <slug>" di
-contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
+Il progetto viene dallo slug che il risolutore di /inizio stampa ("# CONTESTO <slug>" di
+contesto-progetto.py e avvio-progetto.py, "PROGETTO <slug>" di arturo contesto): vale la prima riga così in
+tutto lo stdout, perché avvio-progetto.py stampa prima il sync della config (#6400). Prima della risoluzione dal testo intero
 dopo "/inizio" (una fonte debole: un file scritto la sostituisce, lo slug no). Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
 (<PROJECTS_BASE>/<progetto>, di default ~/Documents/ClaudeCode; hook, comandi, skill e file di testa della
 config = "claude-config", non piani, memoria e cache; l'handoff in data/handoffs/<slug>/ = <slug>), poi la
@@ -70,10 +71,12 @@ RGB = {"nuova": (40, 167, 69), "fermo": (40, 167, 69), "attende": (40, 167, 69),
        "problema": (200, 40, 40), "chiusa": (135, 95, 215)}
 CHIUSA_GIORNI = 7  # un handoff più vecchio non segna più la sessione come chiusa
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
-# Il comando deve eseguire il risolutore (un grep che lo nomina non conta), e la sua prima riga
-# d'intestazione c'è solo se ha trovato il progetto.
-RISOLUTORE = re.compile(r"(?:^|[\s;&|(])(?:\S*contesto-progetto\.py|\S*arturo\s+contesto)(?=\s|$|[;&|)])", re.M)
-CONTESTO = re.compile(r"^(?:# CONTESTO|PROGETTO) (\w[\w.-]*)\s*$")
+# Il comando deve eseguire il risolutore (un grep che lo nomina non conta), e la sua riga d'intestazione
+# c'è solo se ha trovato il progetto. avvio-progetto.py (la FASE 0 di /inizio nella config) stampa prima
+# il sync e poi l'intestazione: si cerca la prima riga d'intestazione in tutto lo stdout (#6400, 26/11/2026).
+RISOLUTORE = re.compile(r"(?:^|[\s;&|(])(?:\S*(?:contesto|avvio)-progetto\.py|\S*arturo\s+contesto)(?=\s|$|[;&|)])",
+                        re.M)
+CONTESTO = re.compile(r"^(?:# CONTESTO|PROGETTO) (\w[\w.-]*)\s*$", re.M)
 SCRITTURE = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 # Le cartelle della config che sono lavoro sulla config. Piani, memoria automatica, cache e dati di
 # sessione li scrive Claude Code mentre lavora su altro: non rinominano la scheda.
@@ -165,8 +168,8 @@ def progetto_da_strumento(dati: dict) -> tuple:
     if nome == "Bash":
         risposta = dati.get("tool_response")
         uscita = risposta.get("stdout") if isinstance(risposta, dict) else risposta
-        prima = (str(uscita or "").strip().splitlines() or [""])[0]
-        m = CONTESTO.match(prima) if RISOLUTORE.search(str(entrata.get("command") or "")) else None
+        testo = str(uscita or "").replace("\r\n", "\n")
+        m = CONTESTO.search(testo) if RISOLUTORE.search(str(entrata.get("command") or "")) else None
         return (m.group(1)[:40], "inizio") if m else ("", "")
     if nome not in SCRITTURE:
         return "", ""
