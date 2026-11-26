@@ -36,6 +36,9 @@ PM19 un nome della fonte che appartiene solo a schede chiuse (status closed, o s
      in elenco (24/11/2026): la fonte tiene le commesse chiuse.
 PM20 una scheda chiusa con un alias non crea una voce vuota col suo nome.
 PM21 un nome chiuso che è anche alias di una voce viva resta: entra nella voce viva, con la categoria della fonte.
+PM22 il prossimo passo fisso del salvataggio automatico (letto da bin/salva-automatico.py), uguale in due progetti
+     dello stesso giorno, non fa una coppia di doppioni (26/11/2026, #6742); una riga di stato uguale scritta a
+     mano la fa ancora.
 
 Veleno: --avvelena rompe bin/progetti.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso (VELENI del gate).
@@ -51,9 +54,10 @@ import sys
 import tempfile
 import time
 import os
+import re
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17", "PM18", "PM19", "PM20", "PM21"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13", "PM14", "PM15", "PM16", "PM17", "PM18", "PM19", "PM20", "PM21", "PM22"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
@@ -90,6 +94,7 @@ VELENI = {
     "PM19": ('if not ({c["slug"], *c["alias"]} & chiusi) or', "if True or"),
     "PM20": ('if v.get("alias") and v.get("status") != "closed"]', 'if v.get("alias")]'),
     "PM21": (' or {c["slug"], *c["alias"]} & vivi]', "]"),
+    "PM22": ("and not fissa and", "and", "doppioni.py"),
 }
 
 
@@ -305,6 +310,22 @@ def prova(lab: Lab) -> list:
     rotto = con_scarti("{non json")
     if uno != (0, set()) or n1 != (0, set()) or n2[0] != 0 or "teleclub|telecub" not in (n2[1] or ()) or rotto != (4, None):
         rossi.append(f"PM17 scartate: numero solo={uno} n1={n1} n2={n2} rotto={rotto}")
+
+    # PM22: la frase la scrive salva-automatico.py; se cambia lì e non in doppioni.py, il caso torna rosso
+    salva = (lab.cl / "bin" / "salva-automatico.py").read_text(encoding="utf-8")
+    fisse = re.findall(r'"Prossimo passo: ([^"]+)"', salva)
+    assert len(fisse) == 1, f"PM22: in salva-automatico.py la frase fissa compare {len(fisse)} volte"
+    for slug in ("lampone", "orologio"):
+        lab.scrivi_handoff(slug, "2026-11-05_09-00", "salvato in automatico", fisse[0])
+    for slug in ("girasole", "tamburo"):
+        lab.scrivi_handoff(slug, "2026-11-05_09-00", "in progress", "RIGA-UGUALE-SCRITTA-A-MANO-IN-DUE-PROGETTI")
+    r = lab.arturo("progetti", "doppioni", "--json")
+    try:
+        coppie = {c["chiave"]: c for c in json.loads(r.stdout)["coppie"]}
+    except (ValueError, KeyError):
+        coppie = {}
+    if r.returncode != 0 or "lampone|orologio" in coppie or "girasole|tamburo" not in coppie:
+        rossi.append(f"PM22 frase fissa del salvataggio: rc={r.returncode} coppie={sorted(coppie)}")
 
     lab.locale(SENZA)
     p, avvisi, r = lab.progetti()
