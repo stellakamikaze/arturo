@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TS01-TS16: titolo e colore della scheda del terminale (hooks/scheda-terminale.py, 16/10/2026).
+"""TS01-TS17: titolo e colore della scheda del terminale (hooks/scheda-terminale.py, 16/10/2026).
 
 TS01 lo stato segue l'evento: al lavoro giallo, attende verde, problema rosso (StopFailure). Il titolo
      è "LAVORANDO · <progetto>" al lavoro e "SBLOCCA · <progetto>" quando la sessione aspetta la persona
@@ -34,6 +34,9 @@ TS15 il progetto segue il lavoro anche senza file nel progetto (14/11/2026, Volt
      l'handoff scritto in data/handoffs/<slug>/ dà lo slug; un cd di Bash dentro un progetto sposta una
      scheda che sa solo la cartella, mai una con un progetto forte; il progetto dato dalla persona in Volta
      non lo cambia un file scritto; i segni di Volta (inizio) restano mentre lo stato cambia.
+TS17 (#6400, 26/11/2026) avvio-progetto.py stampa prima il sync della config e poi "# CONTESTO <slug>": lo
+     slug vale da qualsiasi riga dello stdout, e un file scritto in un altro progetto non lo toglie più.
+     Una riga rientrata o citata non vale, e neanche l'uscita di un comando che non è il risolutore.
 TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
      tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.
 
@@ -520,9 +523,37 @@ def test_ts16(repo: Path) -> None:
         c.chiudi()
 
 
+def test_ts17(repo: Path) -> None:
+    c = Casa(repo, "TS17", {"TERM_PROGRAM": "Apple_Terminal"})
+    c.env.pop("PROJECTS_BASE", None)
+    progetti = c.home / "Documents" / "ClaudeCode"
+    avvio_ = "python3 ~/.claude/scripts/avvio-progetto.py <<'ARGOMENTI'; echo \"rc=$?\"\norto -- --rotazione x\nARGOMENTI"
+    try:
+        c.evento("UserPromptSubmit", prompt="/inizio orto -- --rotazione controlla il backup")
+        uscita = c.evento("PostToolUse", **bash(avvio_, (
+            "## SYNC DELLA CONFIG\nConfig sync: già allineata a origin/main\n\n# CONTESTO orto\n\n## NOME\n"
+            "compito: cercare \"# CONTESTO <slug>\" nell'uscita\nrc=0")))
+        assert "]0;LAVORANDO · orto\x07" in uscita, f"TS17 l'intestazione dopo il sync non dà lo slug: {uscita!r}"
+        altro = c.evento("PostToolUse", tool_name="Write",
+                         tool_input={"file_path": str(progetti / "giardino" / "nota.md")}, tool_response={})
+        assert "giardino" not in altro, f"TS17 un file scritto altrove toglie il progetto di /inizio: {altro!r}"
+        c.evento("UserPromptSubmit", sessione="v", prompt="/inizio orto")
+        citato = c.evento("PostToolUse", sessione="v", **bash(avvio_, (
+            "## SYNC DELLA CONFIG\nNON TROVATO\ncompito: la riga\n  # CONTESTO finto\n> PROGETTO finto\nrc=2")))
+        assert "finto" not in citato, f"TS17 una riga rientrata o citata vale come intestazione: {citato!r}"
+        letto = c.evento("PostToolUse", sessione="v", **bash("cat handoff.md", "## SYNC\n# CONTESTO finto\n"))
+        assert "finto" not in letto, f"TS17 l'uscita di un comando qualsiasi cambia il progetto: {letto!r}"
+        cede = c.evento("PostToolUse", sessione="v", tool_name="Edit",
+                        tool_input={"file_path": str(progetti / "saggio" / "a.md")}, tool_response={})
+        assert "]0;LAVORANDO · saggio\x07" in cede, f"TS17 /inizio non risolto non cede a un file scritto: {cede!r}"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
          "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10,
-         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14, "TS15": test_ts15, "TS16": test_ts16}
+         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14, "TS15": test_ts15, "TS16": test_ts16,
+         "TS17": test_ts17}
 
 
 def main() -> int:
