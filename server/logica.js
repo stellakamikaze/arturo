@@ -14,8 +14,9 @@
 //   GET  /v1/uso           chi usa Arturo, quanto e come: una riga per installazione, ultimi 30 giorni (2/11/2026)
 //   POST /v1/contributi/<n> lo stato e la risposta di una segnalazione, scritti da chi mantiene Arturo (4/11/2026)
 // Lo sportello (4/11/2026, #3925): chi segnala riceve col numero un codice, che il server tiene solo come hash.
-// Col codice nell'header x-arturo-codice la persona legge lo stato e la risposta, aggiunge un seguito o la ritira:
-//   GET  /v1/contributi/<n>          stato, risposta, versione con la correzione
+// Col codice nell'header x-arturo-codice la persona legge lo stato e la risposta, aggiunge un seguito o la ritira.
+// Dal 27/11/2026 (#6770, rilievo S12) c'è anche il codice di lettura, ricavato dal primo (codiceLettura): legge e basta.
+//   GET  /v1/contributi/<n>          stato, risposta, versione con la correzione (col codice o col codice di lettura)
 //   POST /v1/contributi/<n>/seguito  un'aggiunta alla segnalazione (le informazioni che chi la mantiene ha chiesto)
 //   POST /v1/contributi/<n>/ritira   titolo, testo, pacchetto e seguiti cancellati, resta il numero
 // La cancellazione (20/11/2026, #4793): la persona cancella da sola i suoi dati dal server, con l'id della sua installazione.
@@ -430,6 +431,14 @@ export function nuovoCodice() {
 export async function hashCodice(codice) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codice));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Il codice di lettura (27/11/2026, #6770, rilievo S12): legge stato e risposta, non aggiunge seguiti e non ritira.
+// Il client lo usa per ogni lettura, anche nel controllo in background, e il codice intero viaggia solo quando la
+// persona aggiunge o ritira. Si ricava dall'hash del codice: vale anche per le ricevute di prima, senza colonne
+// nuove in D1, e non porta al codice intero. bin/telemetria.py (codice_lettura) lo ricava allo stesso modo.
+export async function codiceLettura(codiceHash) {
+  return (await hashCodice(`lettura:${codiceHash}`)).slice(0, 32);
 }
 
 // Quello che la persona legge col suo codice: mai titolo, testo o pacchetto, che ha già nella sua copia.
@@ -1041,7 +1050,8 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     return trovata ? risposta(200, trovata) : risposta(404, { errore: "segnalazione inesistente" });
   }
   // Lo sportello (4/11/2026, #3925). Con il token: chi mantiene Arturo scrive stato e risposta. Col codice della
-  // ricevuta: la persona legge, aggiunge un seguito, ritira. Codice sbagliato e numero inesistente: stesso 404.
+  // ricevuta: la persona legge, aggiunge un seguito, ritira; col codice di lettura legge e basta (#6770). Codice
+  // sbagliato e numero inesistente: stesso 404.
   const contributo = /^\/v1\/contributi\/([0-9]{1,9})(?:\/(seguito|ritira))?$/.exec(url.pathname);
   if (contributo) {
     const numero = Number(contributo[1]);
@@ -1061,9 +1071,13 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     const codice = (request.headers.get("x-arturo-codice") || "").trim().toLowerCase();
     if (!CODICE.test(codice)) return nonTrovata();
     const riga = await archivio.contributo(numero);
-    if (!riga || !riga.codice_hash || !stessoToken(await hashCodice(codice), riga.codice_hash)) return nonTrovata();
+    if (!riga || !riga.codice_hash) return nonTrovata();
+    const intero = stessoToken(await hashCodice(codice), riga.codice_hash);
+    if (!intero && !stessoToken(codice, await codiceLettura(riga.codice_hash))) return nonTrovata();
     if (request.method === "GET" && !azione) return risposta(200, vistaPersona(riga));
     if (request.method !== "POST" || !azione) return risposta(405, { errore: "metodo non ammesso" });
+    // Il codice di lettura (#6770) non aggiunge e non ritira: chi lo ha sa già che la segnalazione esiste.
+    if (!intero) return risposta(403, { errore: "il codice di lettura non aggiunge e non ritira" });
     const giornoC = oggi(adesso);
     if (azione === "ritira") {
       // Un ritiro ripetuto non suona di nuovo, e l'avviso sta sotto lo stesso tetto del seguito (finding 42): prima

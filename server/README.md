@@ -38,6 +38,9 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   `POST /v1/contributi/<n>/seguito` aggiunge un testo (8000 caratteri, 10 per segnalazione; `serve-info` torna
   `ricevuta`); `POST /v1/contributi/<n>/ritira` cancella titolo, testo, pacchetto, seguiti e id e lascia numero,
   tipo e data. Un codice sbagliato e un numero inesistente danno lo stesso `404`, col corpo uguale (caso V36).
+  Dal 27/11/2026 (#6770) la `GET` accetta anche il codice di lettura: i primi 32 caratteri dello SHA-256 di
+  `lettura:` più `codice_hash`, che il client ricava dalla sua ricevuta. Il client legge sempre con questo; seguito
+  e ritiro col codice di lettura danno `403` (caso V70).
   Seguito e ritiro suonano su Telegram col solo numero.
 - `POST /v1/dimentica` (20/11/2026, #4793): la persona cancella da sola i suoi dati, con `arturo telemetria
   dimentica`. Il corpo porta solo `installazione`. Il server cancella gli eventi di quell'id, le segnalazioni

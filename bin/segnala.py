@@ -983,7 +983,8 @@ def stato() -> int:
         uscite = novita_per_numero((radice_arturo() / "NOVITA.md").read_text(encoding="utf-8"))
     except OSError:
         uscite = {}
-    codici, sportello, rete = telemetria.codici(), telemetria.leggi_sportello(), True
+    # Lo stato si legge col codice di lettura (#6770): il codice intero resta per seguito e ritira.
+    codici, sportello, rete = telemetria.letture(), telemetria.leggi_sportello(), True
     rifiutate = {f.name.replace(".rifiutata.json", "") for f in cartella_copie().glob("*.rifiutata.json")}
     for c in copie:
         numero, esito, risposta = c["numero"], c["esito"], {}

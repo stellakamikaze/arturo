@@ -967,6 +967,34 @@ const casi = {
     assert.equal(resta.stato, "ritirata", "V48 la segnalazione ritirata non è segnata");
     assert.equal((await manda("seguito", { testo: "ancora" })).status, 409, "V48 dopo il ritiro si aggiunge un seguito");
   },
+  // V70 (27/11/2026, #6770, rilievo S12): il codice di lettura legge stato e risposta, non aggiunge e non ritira.
+  // Si ricava dall'hash del codice come in bin/telemetria.py: il vettore fisso è lo stesso del banco SP10.
+  async V70() {
+    assert.equal(await logica.codiceLettura(await logica.hashCodice("0123456789abcdef0123456789abcdef")),
+      "9303f01d9fb26216f131f126fd3dec94", "V70 il codice di lettura non si ricava come in bin/telemetria.py");
+    const f = finti();
+    const { codice } = await (await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Titolo riservato", testo: "x" }),
+      { ...f, adesso })).json();
+    const lettura = await logica.codiceLettura(await logica.hashCodice(codice));
+    assert.notEqual(lettura, codice, "V70 il codice di lettura è il codice intero");
+    const chiedi = (azione, c) => gestisci(new Request(`https://arturo.example/v1/contributi/1${azione}`, azione
+      ? { method: "POST", headers: { "x-arturo-codice": c }, body: JSON.stringify({ testo: "aggiunta" }) }
+      : { headers: { "x-arturo-codice": c } }), { ...f, adesso });
+    const letta = await chiedi("", lettura);
+    assert.equal(letta.status, 200, "V70 il codice di lettura non legge la segnalazione");
+    assert.equal((await letta.json()).stato, "ricevuta", "V70 il codice di lettura non dà lo stato");
+    const avvisiPrima = f.stato.avvisi.length;
+    for (const azione of ["/seguito", "/ritira"]) {
+      assert.equal((await chiedi(azione, lettura)).status, 403, `V70 il codice di lettura scrive con ${azione}`);
+    }
+    const resta = f.stato.segnalazioni[0];
+    assert.equal(resta.stato || "ricevuta", "ricevuta", "V70 il codice di lettura cambia lo stato");
+    assert.equal(resta.titolo, "Titolo riservato", "V70 il codice di lettura ritira la segnalazione");
+    assert.equal(f.stato.avvisi.length, avvisiPrima, "V70 il codice di lettura suona il campanello");
+    assert.equal((await chiedi("", lettura.replace(/^./, (x) => (x === "0" ? "1" : "0")))).status, 404,
+      "V70 un codice di lettura sbagliato legge");
+    assert.equal((await chiedi("/seguito", codice)).status, 201, "V70 il codice intero non aggiunge più");
+  },
   // V49: la pulizia svuota il pacchetto tecnico dopo 90 giorni, il testo dopo 12 mesi.
   async V49() {
     const f = finti();

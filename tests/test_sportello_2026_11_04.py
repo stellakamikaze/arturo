@@ -18,6 +18,8 @@ SP07 una segnalazione partita in differita salva anche lei il codice; una rifiut
 SP08 /segnala, docs/privacy.md e server/README.md raccontano lo sportello.
 SP09 le liste scritte due volte coincidono: voci del pacchetto, origini e stati in bin/segnala.py,
      bin/telemetria.py e server/logica.js.
+SP10 il codice di lettura (27/11/2026, #6770, rilievo S12): stato e controllo in background leggono col codice di
+     lettura, mai col codice intero; si ricava come in server/logica.js (lo stesso vettore di V70).
 
 Sulla base fa14218 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -42,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from server_locale import ServerLocale  # noqa: E402
 
 CODICE = "0123456789abcdef0123456789abcdef"
+LETTURA = "9303f01d9fb26216f131f126fd3dec94"  # codiceLettura(hashCodice(CODICE)), come V70 in server/test.mjs
 NUMERO = 7
 
 
@@ -71,7 +74,7 @@ class Server:
 
             def do_GET(self):  # noqa: N802
                 self._registra()
-                if self.path == f"/v1/contributi/{NUMERO}" and self.headers.get("x-arturo-codice") == CODICE:
+                if self.path == f"/v1/contributi/{NUMERO}" and self.headers.get("x-arturo-codice") in (CODICE, LETTURA):
                     return self._rispondi(200, {"numero": NUMERO, "stato": "serve-info", "risposta": "Su quale cartella succede?",
                                                 "versione_fix": "", "aggiornata": "2026-11-05T09:00:00Z", "seguiti": 0})
                 return self._rispondi(404, {"errore": "segnalazione inesistente o codice sbagliato"})
@@ -233,7 +236,7 @@ def test_sp04(repo: Path) -> None:
     assert r.returncode == 0 and "Su quale cartella succede?" in r.stdout, f"SP04 stato non mostra la risposta: {r.stdout!r}"
     assert "altre informazioni" in r.stdout, f"SP04 stato non dice che serve un'informazione: {r.stdout!r}"
     letture = [x for x in server.richieste if x["metodo"] == "GET"]
-    assert letture and all(x["codice"] == CODICE and CODICE not in x["percorso"] for x in letture), \
+    assert letture and all(x["codice"] in (CODICE, LETTURA) and x["codice"] not in x["percorso"] for x in letture), \
         f"SP04 il codice non viaggia nell'header: {letture}"
 
 
@@ -329,8 +332,23 @@ def test_sp09(repo: Path) -> None:
     assert sorted(getattr(segnala, "STATO_IN_PAROLE", {})) == sorted(stati), "SP09 uno stato non ha le sue parole in /segnala stato"
 
 
+def test_sp10(repo: Path) -> None:
+    telemetria = _modulo(repo, "telemetria")
+    assert getattr(telemetria, "codice_lettura", lambda c: "")(CODICE) == LETTURA, \
+        "SP10 il codice di lettura non si ricava come in server/logica.js"
+    server = Server()
+    lab = Lab(repo, server)
+    _, _, pronta = lab.prepara("Non parte.")
+    lab.arturo("segnala", "invia", "--canale", "arturo", "--file", pronta)
+    lab.telemetria("segnalazioni")
+    lab.arturo("segnala", "stato")
+    letture = [x["codice"] for x in server.richieste if x["metodo"] == "GET"]
+    assert len(letture) >= 2 and set(letture) == {LETTURA}, f"SP10 una lettura manda il codice intero: {letture}"
+    assert lab.codici() == {str(NUMERO): CODICE}, "SP10 la ricevuta non tiene più il codice intero"
+
+
 TESTS = {"SP01": test_sp01, "SP02": test_sp02, "SP03": test_sp03, "SP04": test_sp04, "SP05": test_sp05,
-         "SP06": test_sp06, "SP07": test_sp07, "SP08": test_sp08, "SP09": test_sp09}
+         "SP06": test_sp06, "SP07": test_sp07, "SP08": test_sp08, "SP09": test_sp09, "SP10": test_sp10}
 
 
 def main() -> int:
