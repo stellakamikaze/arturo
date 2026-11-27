@@ -64,9 +64,12 @@ La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la 
   `python3 ~/.claude/bin/arturo aggiornamenti riapri`. Con uscita 0 non ruotare: il `/clear` non chiude Claude
   Code, e il rilascio resta fermo. Chiudi con la riga che stampa e con "chiudi e riapri Claude Code, poi
   scrivi **/inizio <slug>**".
-- **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
-  la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la
-  persona ha scritto durante il turno; il tool risponde "Rotazione spenta" o "Rotazione fermata". Il fine leggero resta fatto:
+- **Una domanda alla persona viaggia con la rotazione.** Se il passo dopo chiede la persona (una decisione, un
+  invio, un pagamento, un accesso, un gesto fisico), ruoti lo stesso: `compito` è quel passo, e dopo `ruota`
+  la chiusura finisce con la domanda nell'ultima riga. Il mod la porta in `/inizio` con `--in-attesa`, e la
+  sessione nuova si ferma lì e la rifà. Un messaggio della persona nel turno non ferma la rotazione.
+- **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; non ci sono passi; il
+  tool risponde "Rotazione spenta" o "Rotazione fermata". Il fine leggero resta fatto:
   la chiusura alla persona è la raccolta dei risultati, cioè l'esito, una riga per materiale con la sua
   posizione e il prossimo passo con chi lo fa. Se il tool non c'è (mod spento),
   chiudi con "scrivi **/clear** e poi **/inizio <slug>**".

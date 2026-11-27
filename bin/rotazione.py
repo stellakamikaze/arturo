@@ -91,7 +91,7 @@ def riga_contesto(n: int) -> str:
     return (f"CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e "
             f"chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo "
             f"l'avviso CONTEXT WARNING (contesto oltre il {n}%) o dalle 18. Il tool ruota (mod rotazione) segue "
-            f"solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine.")
+            f"sempre: una domanda alla persona viaggia con la rotazione. Senza il mod, all'avviso il compito si chiude e si salva con /fine.")
 
 
 def avviso(n: int) -> str:
