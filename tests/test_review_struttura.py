@@ -6,8 +6,8 @@ virgolette (`bash -c 'git commit'`, `eval "git commit"`) e dopo nohup, xargs, su
 già leggere, ma il pre-filtro non lo chiamava.
 S02 block-dangerous.py e forma_comando.py non si caricano a vicenda: una sola copia di ogni modulo,
 e il tokenizer sta in forma_comando.py. Le shell di commit-secret-gate.py sono quelle di forma_comando.
-S03 prompt-injection-scanner.py guarda solo WebFetch, WebSearch e MCP: il suo matcher non nomina
-Bash, che faceva partire un processo a ogni comando per uscire subito.
+S03 prompt-injection-scanner.py non parte su ogni Bash: faceva partire un processo a ogni comando per uscire
+subito. Dal 27/11/2026 (#5601) guarda anche Bash, ma solo dalla riga di hub con la parola delle fonti esterne.
 
 Sulla base 4515e63 ogni controllo è rosso.
 """
@@ -90,8 +90,10 @@ def main() -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import voci_hook
     matcher = voci_hook.matcher(repo, "PostToolUse", "prompt-injection-scanner.py")
-    if not matcher or any("Bash" in m.split("|") for m in matcher):
-        rossi.append(f"S03 prompt-injection-scanner parte anche su Bash: matcher {matcher}")
+    col_filtro = sum(1 for righe in voci_hook.tabella(repo).values() for r in righe
+                     if r[2].endswith("prompt-injection-scanner.py") and "Bash" in r[0].split("|") and r[1])
+    if not matcher or sum("Bash" in m.split("|") for m in matcher) > col_filtro:
+        rossi.append(f"S03 prompt-injection-scanner parte su ogni Bash: matcher {matcher}")
 
     if argomenti.baseline_ref:
         codici = [r.split()[0] for r in rossi]

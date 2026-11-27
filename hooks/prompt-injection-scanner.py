@@ -70,6 +70,29 @@ def scan(text: str) -> list[str]:
             findings.append(f"Pattern #{i}: {INJECTION_PATTERNS[i][:60]}... → '{sample[:80]}'")
     return findings
 
+# I programmi che portano dentro testo scritto da altri (#5601). hooks/hub.py ripete gli stessi nomi nella parola
+# della sua riga, come prefiltro: tests/test_injection_scanner.py (IB06) li vuole allineati.
+FONTI_ESTERNE = ("gws", "curl", "wget", "scrape", "gh", "yt-dlp", "gallery-dl")
+
+
+def legge_fonte_esterna(command: str) -> bool:
+    """Vero se un comando semplice di `command` lancia un programma di FONTI_ESTERNE, anche dentro una pipe,
+    dopo `&&`, in `bash -c` o con un path (`/opt/homebrew/bin/gh`). Una parola fra gli argomenti non conta."""
+    if not command or not any(p in command for p in FONTI_ESTERNE):
+        return False
+    import os
+    qui = os.path.dirname(os.path.abspath(__file__))
+    if qui not in sys.path:
+        sys.path.insert(0, qui)
+    try:
+        import forma_comando
+        nomi = {p for p, _a in forma_comando.programmi(command)}
+    except Exception:
+        # Un comando che il tokenizer non legge: meglio un avviso di troppo che una pagina non guardata.
+        return True
+    return bool(nomi & set(FONTI_ESTERNE))
+
+
 def main():
     try:
         if _HAS_SIGALRM:
@@ -87,12 +110,19 @@ def main():
     # Scansiona solo output da MCP server e WebFetch (superficie di attacco esterna)
     is_mcp = tool_name.startswith("mcp__")
     is_web = tool_name in ("WebFetch", "WebSearch")
+    # Bash che legge una fonte esterna (#5601, 27/11/2026): la posta letta con gws, le pagine con curl o
+    # scrape, i commenti di GitHub con gh. Un comando locale (ls, git, cat) resta fuori.
+    is_bash = tool_name == "Bash" and legge_fonte_esterna(
+        str((data.get("tool_input") or {}).get("command") or ""))
 
-    if not (is_mcp or is_web):
+    if not (is_mcp or is_web or is_bash):
         sys.exit(0)
 
     # Estrai testo dall'output
-    if isinstance(tool_output, (dict, list)):
+    if is_bash and isinstance(tool_output, dict):
+        # Bash risponde {stdout, stderr, interrupted, ...}: conta solo il testo, non le chiavi.
+        text = "\n".join(str(tool_output.get(k) or "") for k in ("stdout", "stderr"))
+    elif isinstance(tool_output, (dict, list)):
         text = json.dumps(tool_output)
     else:
         text = str(tool_output)
