@@ -208,7 +208,7 @@ italiano.
 
 ## FASE 4b — Stile di scrittura (opzionale)
 
-Lo stile decide lunghezza e tono delle risposte, non i permessi. Di' una riga: "Stile di scrittura:
+Lo stile decide lunghezza e tono delle risposte. Di' una riga: "Stile di scrittura:
 resta Conciso, si cambia con /output-style." Mostra il menu solo se il ritratto suggerisce altro:
 
 1. **Conciso** (consigliato): risposte brevi, prima l'esito e poi cosa fare.
@@ -429,9 +429,10 @@ Prima segui `~/.claude/shared/setup-herdr.md`.
 Con il ritratto proponi tre lavori da dieci minuti sul suo materiale vero, uno per riga,
 il primo consigliato: lo stato di un progetto trovato, letto dai suoi file, poi /inizio col sì;
 /guidami se ci sono sessioni recenti; una bozza nella sua voce di una cosa che il ritratto mostra
-ricorrente. Fai quello che sceglie e mostra l'esito. Se la bozza le piace, proponile
+ricorrente. Fai quello scelto e mostra l'esito. Se la bozza le piace, proponile
 di farne una skill: col sì lancia `/creaskill` su quel lavoro. Senza ritratto, o se lo chiede, usa
 `~/.claude/commands/sparring.md`: le sue tre domande diventano conferme del ritratto.
+Senza `personale/humanizer.md`, col sì lancia `/voce`.
 Per esplorare da solo, indicagli `~/.claude/docs/principi/README.md` e chiudi.
 
 ---

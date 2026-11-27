@@ -169,7 +169,7 @@ PROMESSA = 13
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
 COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala",
-                     "setup", "sparring"})
+                     "setup", "sparring", "voce"})
 # Le skill di Arturo, le uniche di cui parte il nome (3/11/2026, #4540). Una skill della persona o di un plugin
 # esce come `altro`, come un comando. Il banco TS01 (tests/test_telemetria_fase2_2026_11_03.py) controlla che
 # l'elenco coincida con skills/ del repository e con SKILL in server/logica.js.

@@ -118,7 +118,7 @@ def prova(repo: Path) -> list[str]:
             skill = pacchetto / "skills" / nome / "SKILL.md"
             testa = skill.read_text(encoding="utf-8").split("\n---", 1)[0] if skill.exists() else ""
             bloccato = "disable-model-invocation: true" in testa
-            if f"name: {nome}" not in testa or bloccato == (nome in ("fine", "segnala", "diagnosi", "creaskill")):
+            if f"name: {nome}" not in testa or bloccato == (nome in ("fine", "segnala", "diagnosi", "creaskill", "voce")):
                 mancanti.append(nome)
         if mancanti or (pacchetto / "commands").exists() or not comandi:
             rossi.append(f"IP02 comandi non diventati skill: {mancanti[:4]}")

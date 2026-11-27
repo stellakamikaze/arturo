@@ -6,11 +6,10 @@ persona corregge un testo riscritto.
 Il file `personale/humanizer.md` è della persona: lo scrivi solo dopo il suo sì, e un aggiornamento
 di Arturo non lo tocca mai.
 
-- **Se manca**, alla prima riscrittura fai una breve intervista. Chiedi due o tre testi scritti da lei,
-  che le piacciono: una lettera, un'email inviata, un post. Mostrale cosa ci trovi, una cosa per riga:
-  lunghezza delle frasi, connettivi, registro, quanto racconta di sé, cosa evita. Chiedi conferma punto
-  per punto, poi proponi il file con le tre parti: i testi fra i campioni, e le regole confermate,
-  scritte con le sue parole.
+- **Se manca**, proponi `/voce` in una riga: costruisce la sua voce con qualche testo suo, una prova e
+  il suo sì (`~/.claude/commands/voce.md`). Col sì lancia `/voce`, poi torna al testo. Se vuole andare
+  avanti senza, scrivi il testo e dille che segue le regole generali di questa skill, non la sua voce.
+  Il file lo compone `/voce` col modello `voce-modello.md`, con le quattro parti.
 - **Mai un'altra persona come modello**: la voce si ricava dai testi di chi firma. Il nome di un'altra
   persona entra solo se lei lo chiede esplicitamente, e allora lo scrivi con le sue parole.
 - **Quando la persona corregge** un testo che hai riscritto ("io avrei scritto...", una sua versione

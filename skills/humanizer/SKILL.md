@@ -86,9 +86,11 @@ Cerca la voce in quest'ordine, e usa tutto quello che trovi, con il primo che vi
 1. **Un campione dato dalla persona** in questa conversazione: un testo suo, un'email inviata, un
    post. Leggilo prima e imitane la lunghezza delle frasi, le parole, la punteggiatura, gli attacchi
    e i passaggi.
-2. **`~/.claude/personale/humanizer.md`**, il file della sua voce nell'Orsa. Ha tre parti: `## I miei
-   testi` (campioni), `## Le mie regole` (per esempio "uso le lineette", "mai il punto esclamativo")
-   e `## Le mie correzioni` (un prima e un dopo per ogni correzione). Leggilo per intero ogni volta.
+2. **`~/.claude/personale/humanizer.md`**, il file della sua voce nell'Orsa, che costruisce `/voce`
+   (modello in `references/voce-modello.md`). Ha quattro parti: `## I miei testi` (campioni), `## Le mie
+   regole` (per esempio "uso le lineette", "mai il punto esclamativo"), `## Per tipo di testo` (email,
+   CV e lettere, post, documenti) e `## Le mie correzioni` (un prima e un dopo per ogni correzione). Un
+   file nato prima di `/voce` può avere solo tre parti. Leggilo per intero ogni volta.
 3. **La sezione "Come scrivo" del suo `~/.claude/CLAUDE.md`**, che `/setup` scrive con tre tratti e
    un esempio.
 4. **Il tipo di testo.** Post, saggi, opinioni e testi personali tengono le opinioni, i dubbi, i

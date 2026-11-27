@@ -64,9 +64,10 @@ RELATIVO = re.compile(r"(?<![\w/~$}.-])`(?:shared|docs)/[\w.-]")
 METODO = 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/metodo.sh"'
 # I comandi che lancia anche Claude, come nel clone: /fine --rotazione a contesto oltre il 50% (commands/fine.md),
 # /segnala da /fine FASE 10, /diagnosi da /inizio FASE 6, /creaskill dal metodo, dall'intervista e da /setup
-# FASE 10 (21/11/2026, #6277). Gli altri li lancia solo la persona (review del 7/11/2026, finding 74: con
+# FASE 10 (21/11/2026, #6277), /voce dallo spazio voce, da humanizer e da /setup FASE 10
+# (27/11/2026, #6815). Gli altri li lancia solo la persona (review del 7/11/2026, finding 74: con
 # disable-model-invocation il giro della rotazione col plugin non partiva).
-CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill")
+CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill", "voce")
 TAG_PLUGIN = re.compile(r"plugin-v\d{1,4}\.\d{1,4}\.\d{1,6}")
 VARIANTI_HOME = (r"~/\.claude", r"\$HOME/\.claude", r"\$\{HOME\}/\.claude", r"\$\{ARTURO_CODICE:-\$HOME/\.claude\}")
 

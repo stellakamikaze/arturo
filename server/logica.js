@@ -65,7 +65,7 @@ export const CAUSE = {
 };
 // COMANDI: i file di commands/, lo stesso elenco di COMANDI in bin/telemetria.py (banco M10). Il client manda
 // "altro" per un comando che non è di Arturo: il server lo accetta, il nome vero non esce mai.
-export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
+export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring", "voce"];
 // SKILL: le cartelle di skills/, lo stesso elenco di SKILL in bin/telemetria.py (banco TS01, 3/11/2026). Come per i
 // comandi, una skill della persona arriva come "altro".
 export const SKILL = ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "revisione", "system-audit", "todo"];
