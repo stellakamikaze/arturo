@@ -23,7 +23,8 @@ Non scrive niente quando:
   - la memoria è spenta (ARTURO_MEMORIA=0 o "accesa": false nelle impostazioni);
   - la cartella non è un progetto (né git né CLAUDE.md), o è la home o la cartella dei progetti, senza un
     /inizio <nome> nella sessione che porti a un progetto con handoff.
-Un secondo giro della stessa sessione riscrive il suo handoff automatico: nessun doppione.
+Un secondo giro della stessa sessione riscrive il suo handoff automatico: nessun doppione. Due giri insieme
+(un congedo da Volta ne lancia più d'uno) passano uno alla volta, con una chiave per sessione (#5784).
 
 USO
   salva-automatico.py < json-dell-hook
@@ -35,14 +36,17 @@ USCITA
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import glob
+import hashlib
 import importlib.util
 import json
 import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 QUI = Path(os.path.realpath(__file__)).parent
@@ -54,6 +58,8 @@ MARCA = "- Salvato: in automatico"
 MAX_RICHIESTE = 5
 MAX_RICHIESTA = 240
 MAX_FILE = 30
+CHIAVE_ATTESA = 60  # secondi che un giro aspetta la chiave della sessione tenuta da un altro giro
+CHIAVE_VECCHIA = 300  # una chiave più vecchia l'ha lasciata un giro morto: si toglie
 # I comandi che non dicono cosa stavi facendo.
 COMANDI_MUTI = {"/clear", "/fine", "/exit", "/quit", "/compact", "/resume", "/model", "/config", "/status",
                 "/cost", "/help", "/login", "/logout", "/doctor", "/memory", "/permissions", "/context"}
@@ -220,15 +226,20 @@ def leggi_transcript(path: Path) -> dict:
 
 def lavoro_dopo_fine(letto: dict) -> tuple:
     """(richieste, file) venuti dopo l'ultimo /fine, senza la coda del /fine stesso: le risposte corte e i
-    file che /fine scrive da sé (handoff, memoria, CLAUDE.md della persona). Vuoti se il lavoro non c'è."""
+    file che /fine scrive da sé (handoff, memoria, CLAUDE.md della persona, gli script nella cartella tmp del
+    job). Vuoti se il lavoro non c'è."""
     orsa = os.path.realpath(radice_orsa())
     propri = (os.path.join(orsa, "data") + os.sep, os.path.join(orsa, "CLAUDE.md"))
+    job = os.path.join(orsa, "jobs") + os.sep
     richieste = [r for r in letto["richieste_dopo"]
                  if not re.match(r"^/(?:[\w-]+:)?inizio(\s|$)", r) and len(r.split()) >= PAROLE_LAVORO]
     file = []
     for f in letto["file_dopo"]:
         vero = os.path.realpath(os.path.expanduser(f))
         if vero == propri[1] or vero.startswith(propri[0]):
+            continue
+        # ~/.claude/jobs/<id>/tmp: /fine ci scrive fase1.sh e coda.sh prima di ruotare, e non è lavoro (#6759).
+        if vero.startswith(job) and vero[len(job):].split(os.sep)[1:2] == ["tmp"]:
             continue
         file.append(f)
     return richieste, file
@@ -315,6 +326,7 @@ def componi(s: str, cartella: Path | None, sid: str, quando: dt.datetime, richie
         corpo += f" L'ultima richiesta: \"{ultima}\"."
     if file:
         corpo += f" File scritti: {len(file)}."
+    # Se cambi questa frase, aggiorna RIGHE_FISSE in bin/doppioni.py: lì la frase non conta come doppione (#6742).
     out = testa + ["## Ripartenza", corpo,
                    "Prossimo passo: riprendere da qui e chiudere con /fine, che completa questo salvataggio."]
     if richieste:
@@ -408,6 +420,44 @@ def scegli_progetto(cwd: Path, richieste: list) -> tuple:
     return "", None
 
 
+@contextlib.contextmanager
+def chiave_sessione(sid: str):
+    """Un giro alla volta per sessione: la cartella della chiave nasce con os.mkdir, che non riesce a due processi.
+
+    Fino al 27/11/2026 più giri insieme della stessa sessione cercavano tutti l'handoff, non lo trovavano, e
+    scrivevano ognuno il suo nel primo minuto libero: il 16/11 tre doppioni alle 12:46, 12:47 e 12:48 (#5784).
+    Dopo CHIAVE_ATTESA secondi il giro salva lo stesso: meglio un doppione che un lavoro perso."""
+    radice = radice_orsa() / "data" / "handoffs"
+    chiave = radice / f".salva-{hashlib.sha256(sid.encode('utf-8')).hexdigest()[:16]}.chiave"
+    presa = False
+    try:
+        radice.mkdir(parents=True, exist_ok=True)
+        fine = time.monotonic() + CHIAVE_ATTESA
+        while time.monotonic() < fine:
+            try:
+                os.mkdir(str(chiave))
+                presa = True
+                break
+            except FileExistsError:
+                try:
+                    if time.time() - chiave.stat().st_mtime > CHIAVE_VECCHIA:
+                        os.rmdir(str(chiave))
+                        continue
+                except OSError:
+                    pass
+                time.sleep(0.1)
+    except OSError:
+        pass
+    try:
+        yield
+    finally:
+        if presa:
+            try:
+                os.rmdir(str(chiave))
+            except OSError:
+                pass
+
+
 def main(argv: list) -> int:
     for flusso in (sys.stdout, sys.stderr):
         try:
@@ -443,6 +493,12 @@ def main(argv: list) -> int:
     if not sid or not transcript.is_file():
         print("NIENTE: id di sessione o transcript assente")
         return 0
+    with chiave_sessione(sid):
+        return salva_sessione(sid, transcript, dati)
+
+
+def salva_sessione(sid: str, transcript: Path, dati: dict) -> int:
+    """Cerca l'handoff della sessione e scrive il suo automatico: il tratto che gira sotto la chiave."""
     letto = leggi_transcript(transcript)
     # L'handoff di /fine più recente della sessione, e l'automatico se è venuto dopo. Un /fine a metà non
     # chiude la sessione: fino al 22/11/2026 il lavoro venuto dopo si perdeva (A5, revisione del 20/11).

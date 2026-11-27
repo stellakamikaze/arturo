@@ -533,6 +533,8 @@ class Lucchetto:
                 return False
         except FileNotFoundError:
             return True
+        except _IN_CANCELLAZIONE:
+            return False  # Windows: il lucchetto e' appena stato cancellato e non e' ancora sparito (#6622)
         # Il rename sposta un file solo: fra due processi che vedono lo stesso lucchetto vecchio, uno solo lo prende.
         preso = self.file.with_name(f"{self.file.name}.{segno}.vecchio")
         try:
@@ -568,6 +570,10 @@ class Lucchetto:
 # Su Windows un .lock appena cancellato da un altro processo risponde PermissionError finche' il
 # sistema non lo toglie davvero: li' vale come occupato. Altrove PermissionError e' un errore vero.
 _OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
+# Lo stesso .lock in cancellazione risponde PermissionError anche a stat() con Python 3.8, che non ripiega
+# sulla lettura della cartella come le versioni nuove: era la scrittura persa di T08 nel gate su Windows
+# (#6622, sonda del 24/11/2026: 2 cadute su 60 giri con 3.8, nessuna con 3.12). Li' vale come occupato.
+_IN_CANCELLAZIONE = (PermissionError,) if os.name == "nt" else ()
 
 
 class _Libero:

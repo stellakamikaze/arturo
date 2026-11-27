@@ -13,10 +13,11 @@ dentro, e il merge parte solo dopo l'uscita, nella cartella corrente.
 1. Il commit della FASE 3 va sul branch del worktree.
 2. Guarda i file ignorati con `git status --short --ignored` (righe `!!`). I file di lavoro fuori da
    git, come una cartella `lavoro/`, esistono solo lì.
-3. Segna il ramo come chiuso, da dentro il worktree e senza `-C`:
-   `git config branch.<branch>.arturo-riporta <aaaa-mm-gg>`. La config del repository vale per tutti i
-   worktree: il prossimo `/inizio` nel tree principale vede il segno e sa che il ramo aspetta solo il
-   merge (#4007, 19/11/2026).
+3. Segna il ramo come chiuso, da dentro il worktree: `python3 $ARTURO_CODICE/bin/arturo riporto segna <branch>`.
+   Il segno sta in `~/.claude/data/riporti.json`, fuori dal repository: la guardia del worktree
+   rifiuta `git config`, che scrive nella config comune a tutti i worktree (segnalazione n. 97). Il
+   prossimo `/inizio` nel tree principale vede il segno e sa che il ramo aspetta solo il merge (#4007).
+   Il segno vale per il commit in cima al ramo: dopo un altro commit sul ramo, rilancia il comando.
 4. Esci con `ExitWorktree` e `keep`. Se il tool manca o rifiuta, la sessione è fissata al worktree
    (un subagent isolato, una sessione aperta già dentro): passa al riporto differito.
 5. Fuori, nella cartella corrente, che è il tree principale: `git merge --ff-only <branch>`, senza `-C`.
@@ -29,8 +30,8 @@ dentro, e il merge parte solo dopo l'uscita, nella cartella corrente.
    della sessione. Cache, dipendenze e build si rigenerano (`node_modules`, `__pycache__`, `.venv`,
    `dist`) e restano fuori. Un file che esiste già nel tree principale non si sovrascrive: il worktree
    resta e l'handoff lo dice.
-8. Solo dopo la copia lancia `git worktree remove <percorso del worktree>` e `git branch -d <branch>`,
-   che toglie anche il segno del passo 3. `worktree remove` cancella anche i file ignorati, senza
+8. Solo dopo la copia lancia `git worktree remove <percorso del worktree>` e `git branch -d <branch>`:
+   col ramo sparisce anche il segno del passo 3. `worktree remove` cancella anche i file ignorati, senza
    avviso (segnalazione n. 13).
    Mai `--force`: se `remove` si rifiuta, nel worktree ci sono file non salvati in un commit, e
    `--force` li cancella (segnalazione n. 55). La guardia chiede conferma e li elenca.

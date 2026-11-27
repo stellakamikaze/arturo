@@ -46,6 +46,7 @@ from pathlib import Path
 QUI = Path(os.path.realpath(__file__)).parent
 sys.path.insert(0, str(QUI))
 import todo_store as ts  # noqa: E402
+import riporti  # noqa: E402
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
 
@@ -289,11 +290,14 @@ def rami_non_riportati(cartella: Path) -> list:
         elif r.startswith("branch refs/heads/"):
             worktree[r[len("branch refs/heads/"):]] = percorso
     # Il segno di shared/fine-worktree.md: la sessione ha chiuso il ramo ma non poteva toccare il
-    # tree principale (#4007, 19/11/2026). Manca solo il merge, e lo fa /inizio.
+    # tree principale (#4007, 19/11/2026). Manca solo il merge, e lo fa /inizio. Dal 25/11/2026 il segno
+    # sta in data/riporti.json (bin/riporti.py, segnalazione n. 97): la guardia del worktree rifiuta
+    # git config. Si leggono ancora i segni vecchi in git config, che spariscono con git branch -d.
     segnati = {}
     for r in git(cartella, "config", "--get-regexp", r"^branch\..*\.arturo-riporta$").splitlines():
         chiave, _, valore = r.partition(" ")
         segnati[chiave[len("branch."):-len(".arturo-riporta")]] = valore
+    segnati.update(riporti.segnati(cartella))
     righe = []
     elenco = git(cartella, "for-each-ref", "refs/heads", "--no-merged=HEAD",
                  "--format=%(refname:short)\t%(committerdate:short)")

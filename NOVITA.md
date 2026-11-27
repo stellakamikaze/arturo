@@ -13,6 +13,106 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — All'avviso del contesto la rotazione parte sempre
+
+**Cosa cambia**: quando il contesto supera la soglia, Claude salva con `/fine --rotazione` e passa a una sessione nuova anche se in quel turno hai scritto tu, o se il passo dopo chiede una tua risposta. La domanda non si perde: la sessione nuova si apre su quel passo, si ferma e te la rifà.
+
+**Perché**: in sei sessioni dal 25 al 27/11 la persona scriveva mentre il contesto si riempiva, e Claude ha chiuso con "scrivi /fine" invece di ruotare. Tre testi di Arturo gli davano questa uscita: la descrizione del tool della rotazione, il `/fine` e l'avviso del contesto. Ora dicono tutti la stessa cosa.
+
+**A chi serve**: a chi ha il mod della rotazione acceso. Senza il mod, all'avviso Claude chiude il compito e lo salva con `/fine`, come prima.
+
+---
+
+## 2026-11-27 — La memoria legge le note con le liste dentro metadata
+
+**Cosa cambia**: una nota di memoria con `answers` e `triggers` scritti dentro `metadata:` torna a uscire quando la cerchi. Prima Arturo leggeva quelle liste vuote, e la nota restava fuori dai risultati.
+
+**Perché**: segnalazione n. 103. Un formattatore aveva spostato le liste sotto `metadata:`, come elenco a trattini o fra quadre. Il lettore delle note guardava un livello solo: l'elenco a trattini diventava vuoto, quello fra quadre restava una riga di testo.
+
+**A chi serve**: a chi ha note di memoria scritte o riordinate da un altro strumento. Le note con le liste in cima al frontmatter non cambiano.
+
+---
+
+## 2026-11-26 — I doppioni non scambiano più i salvataggi automatici per lo stesso progetto
+
+**Cosa cambia**: `arturo progetti doppioni`, e la revisione dei doppioni in Volta, non propone più di unire due progetti solo perché lo stesso giorno hanno avuto entrambi un salvataggio automatico.
+
+**Perché**: il salvataggio automatico scrive in ogni progetto lo stesso prossimo passo, "riprendere da qui e chiudere con /fine". La stessa riga di stato nello stesso giorno era un segno forte di doppione. Ora quella frase non conta, e una riga uguale scritta a mano conta ancora.
+
+**A chi serve**: a chi rivede i doppioni dei progetti. Il resto dell'elenco non cambia.
+
+---
+
+## 2026-11-25 — Su Windows Herdr vede se Claude lavora o aspetta
+
+**Cosa cambia**: in Herdr e in Volta su Windows, una sessione di Claude dice di nuovo se sta lavorando, se aspetta te o se ha finito. Prima lo stato restava vuoto.
+
+**Perché**: su Windows Claude Code lancia gli hook senza una finestra di terminale, e `herdr-stato.sh` non sapeva dove scrivere. Ora su Windows lo scrive `herdr-stato-windows.py`, che si aggancia alla console di Claude. Serve un `python3` o un `python` che funziona, come per le guardie.
+
+**A chi serve**: a chi usa Arturo dentro Herdr o Volta su Windows. Sul Mac e fuori da Herdr non cambia niente.
+
+---
+
+## 2026-11-25 — Herdr non segna più fatto una sessione che continua da sola
+
+**Cosa cambia**: in Herdr e in Volta, una sessione che chiude il turno con "il prossimo passo è mio" e continua da sola resta "sta lavorando". Prima passava per un momento a "fatto", con l'avviso di fine.
+
+**Perché**: lo stato di fine turno lo mandava un hook a parte, in parallelo a quello che fa continuare la sessione, e non sapeva della sua scelta. Adesso lo manda solo `continua.py`, dopo la scelta: "fatto" solo se la sessione si ferma davvero.
+
+**A chi serve**: a chi usa Arturo dentro Herdr o Volta. Fuori da lì non cambia niente.
+
+---
+
+## 2026-11-25 — /fine dice perché il ramo sync è fermo
+
+**Cosa cambia**: quando il ramo `sync` è fermo, la riga finale di `/fine` riporta il motivo, per esempio la riga `BLOCK` di un push rifiutato. La riga `AVVISO:` resta sotto, su una riga sua.
+
+**Perché**: dopo qualche minuto di blocco le ultime righe del ramo `sync` sono "bloccato da N minuti" e l'`AVVISO`. La coda di `/fine` prendeva l'ultima riga, e il motivo non arrivava alla sessione.
+
+**A chi serve**: a chi ha il ramo `sync` attivo, cioè ogni macchina migrata.
+
+---
+
+## 2026-11-25 — /fine segna il ramo chiuso senza toccare git
+
+**Cosa cambia**: quando una sessione non può uscire dal suo worktree, `/fine` segna il ramo chiuso con `arturo riporto segna <ramo>`. Il segno sta in `~/.claude/data/riporti.json` e non più nella config di git. Il prossimo `/inizio` nel tree principale lo legge come prima e riporta il ramo.
+
+**Perché**: segnalazione n. 97. La guardia del worktree di Claude Code rifiuta ogni `git config` da dentro il worktree, perché la config del repository è comune a tutti i worktree. Il passo si fermava a ogni chiusura, e la persona doveva lanciarlo a mano.
+
+**A chi serve**: a chi lavora con più sessioni sullo stesso progetto. I segni vecchi in git config si leggono ancora.
+
+---
+
+## 2026-11-25 — La correzione registrata passa anche in modalità auto
+
+**Cosa cambia**: le regole di Arturo per la modalità auto ora nominano `arturo correzione aggiungi`, `elenco` e `togli`. Il classificatore di Claude Code le legge come una nota della sessione, e non come un'azione distruttiva.
+
+**Perché**: segnalazione n. 104. In modalità auto il classificatore ha fermato la registrazione di una correzione, mentre poco prima nella stessa sessione un'altra era passata. La regola chiesta dalla persona non è entrata fra le correzioni di sessione.
+
+**A chi serve**: a chi usa Arturo in modalità auto. La regola arriva in `settings.json` con il prossimo `/aggiorna`.
+
+---
+
+## 2026-11-25 — Il ramo sync dice perché un push non passa
+
+**Cosa cambia**: se il push del ramo `sync` viene rifiutato, il giro esce con un errore e il log riporta la riga che blocca, per esempio quella `BLOCK` del controllo dei segreti. Dopo 10 minuti di push rifiutati arriva la riga `AVVISO:` col motivo, come per gli altri blocchi.
+
+**Perché**: il 25/11 il controllo prima del push ha fermato il ramo `sync` di un computer per circa due ore, per un falso allarme. Il log diceva solo "no leaks found", il giro usciva 0 e l'avviso non è mai partito.
+
+**A chi serve**: a chi usa Arturo su più computer, col ramo `sync`.
+
+---
+
+## 2026-11-25 — Una conferma non apre lavoro su un altro file
+
+**Cosa cambia**: il metodo di Arturo dice adesso che il lavoro senza "vai" resta dentro la richiesta. Se rispondi solo per confermare un dato, Claude chiude il dubbio e non tocca altro. Se un file che non hai nominato va corretto, Claude ti propone la modifica e aspetta il tuo sì.
+
+**Perché**: la proposta n. 105. Claude ha segnalato un indirizzo diverso fra due documenti dello stesso cliente. La persona ha risposto quale indirizzo era giusto, e Claude ha corretto da solo l'altro documento, che nessuno gli aveva chiesto di toccare.
+
+**A chi serve**: a tutti.
+
+---
+
 ## 2026-11-24 — Il ramo sync gira anche dal plugin
 
 **Cosa cambia**: il plugin porta adesso `data/transito.paths`, l'elenco dei file che il ramo `sync` salva e scarica. Il plugin 0.2.24 aveva lo script del ramo ma non l'elenco: lo script installato non trovava niente da salvare e si fermava senza dire niente.

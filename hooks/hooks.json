@@ -309,15 +309,6 @@
             "async": true
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/herdr-stato.sh\" done",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "StopFailure": [

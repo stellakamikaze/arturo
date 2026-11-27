@@ -65,7 +65,9 @@ Exit:
   0 fatto (l'ultima riga è la riga tecnica per la chiusura) · 1 gate rosso, o handoff che in rotazione
   chiede /clear alla persona · 3 l'aggancio personale
   dice che un servizio è giù · 4 rebase a metà, config rotta, marcatori di conflitto o blocco
-  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti · 7 segreto nello stage
+  dell'aggancio: niente commit · 5 uso sbagliato · 6 git add o git commit falliti, o push del ramo sync rifiutato (#6654), anche nel passo del ramo
+  sync dei dati di transito (lì il commit su main è già fatto), anche quando un altro giro tiene il suo
+  lucchetto oltre l'attesa · 7 segreto nello stage
   (niente commit) o nei commit da spingere (niente push), o guardia dei segreti che non si carica
   · 8 un'altra coda tiene il lucchetto oltre l'attesa: niente commit
 
@@ -226,6 +228,15 @@ def git(*a, timeout=120):
 def ultima(*testi):
     righe = [r.strip() for t in testi for r in (t or "").splitlines() if r.strip()]
     return righe[-1][:160] if righe else "nessun messaggio"
+
+
+def esito_sync(out, err):
+    """Il motivo del ramo sync e le sue righe AVVISO. Dopo un blocco le ultime righe sono "sync: bloccato da N minuti"
+    e AVVISO, e ultima() prendeva quelle al posto del motivo, la riga BLOCK di un push rifiutato (#6655)."""
+    righe = [r.strip() for t in (out, err) for r in (t or "").splitlines() if r.strip()]
+    avvisi = [r for r in righe if r.startswith("AVVISO:")]
+    motivo = [r for r in righe if r not in avvisi and not r.startswith("sync: bloccato da ")]
+    return ultima(*motivo), avvisi
 
 
 def rebase_a_meta(radice=None):
@@ -1131,7 +1142,8 @@ def coda(a, ap, suoi):
         print(f"-- {nome} {h} --\n{stat}")
         esiti.append(f"{nome} {h}")
     if not staged:
-        esiti.append("config: niente da committare")
+        # Col ramo sync attivo handoff e note non passano da main: la riga dice di quale commit parla (n. 102).
+        esiti.append("config: niente da committare" + (" su main" if sync_attivo() else ""))
     fuori = [r for r in git("status", "--short")[1].splitlines() if r.strip()]
     if fuori:
         print(f"-- fuori dal commit: {len(fuori)} righe di git status --")
@@ -1171,9 +1183,21 @@ def coda(a, ap, suoi):
             print("coda: " + " · ".join(esiti))
             print(out.strip())
             return 7
-        esiti.append(ultima(out, err) if rc == 0 else f"sync dei dati di transito rc={rc}: {ultima(out, err)}")
+        motivo, avvisi = esito_sync(out, err)
+        if rc != 0:
+            # Un giro fermo usciva 0 con una riga in mezzo agli esiti e passava inosservato (segnalazione n. 101).
+            esiti.append(f"sync dei dati di transito rc={rc}: {motivo}")
+            print("coda: " + " · ".join(esiti))
+            print(out.strip())
+            return 6
+        esiti.append(motivo)
+    else:
+        avvisi = []
 
     print("coda: " + " · ".join(esiti))
+    # Un rebase di main a metà esce 0 ma dopo 10 minuti porta l'AVVISO: resta visibile sotto la riga della coda.
+    for riga in avvisi:
+        print(riga)
     return 3 if offline else 0
 
 

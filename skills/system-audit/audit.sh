@@ -204,15 +204,26 @@ try:
 except ImportError:
     def carica(testo):
         # Parser ridotto senza PyYAML: chiavi di primo livello, blocchi > e | inclusi.
-        valori, chiave = {}, None
+        # Come PyYAML, boccia ": " in un valore senza virgolette, anche a capo: spezza il mapping (#5704).
+        def spezza(valore):
+            valore = valore.split(" #", 1)[0].rstrip()
+            return ": " in valore or valore.endswith(":")
+        valori, chiave, semplice = {}, None, False
         for riga in testo.splitlines():
+            if riga.lstrip().startswith("#"):
+                continue
             if riga[:1] in (" ", "\t"):
                 if chiave and riga.strip():
+                    if semplice and spezza(riga.strip()):
+                        raise ValueError("due punti in un valore senza virgolette")
                     valori[chiave] = (valori[chiave] + " " + riga.strip()).strip()
                 continue
             if ":" in riga:
                 chiave, _, valore = riga.partition(":")
                 chiave, valore = chiave.strip(), valore.strip()
+                semplice = bool(valore) and valore[0] not in "\"'>|[{"
+                if semplice and spezza(valore):
+                    raise ValueError("due punti in un valore senza virgolette")
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
 for path in [p for d in sys.argv[1:] for p in Path(d).glob("*.md")]:
@@ -248,15 +259,26 @@ try:
 except ImportError:
     def carica(testo):
         # Parser ridotto senza PyYAML: chiavi di primo livello, blocchi > e | inclusi.
-        valori, chiave = {}, None
+        # Come PyYAML, boccia ": " in un valore senza virgolette, anche a capo: spezza il mapping (#5704).
+        def spezza(valore):
+            valore = valore.split(" #", 1)[0].rstrip()
+            return ": " in valore or valore.endswith(":")
+        valori, chiave, semplice = {}, None, False
         for riga in testo.splitlines():
+            if riga.lstrip().startswith("#"):
+                continue
             if riga[:1] in (" ", "\t"):
                 if chiave and riga.strip():
+                    if semplice and spezza(riga.strip()):
+                        raise ValueError("due punti in un valore senza virgolette")
                     valori[chiave] = (valori[chiave] + " " + riga.strip()).strip()
                 continue
             if ":" in riga:
                 chiave, _, valore = riga.partition(":")
                 chiave, valore = chiave.strip(), valore.strip()
+                semplice = bool(valore) and valore[0] not in "\"'>|[{"
+                if semplice and spezza(valore):
+                    raise ValueError("due punti in un valore senza virgolette")
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
 import json
@@ -380,7 +402,7 @@ NATIVE = {"add-dir", "agents", "artifacts", "bg", "btw", "bug", "clear", "code-r
           "context", "cost", "debug", "doctor", "effort", "exit", "export", "fast", "feedback", "goal", "help",
           "hooks", "ide", "init", "insights", "install-github-app", "login", "logout", "loop", "mcp",
           "memory", "model", "output-style", "permissions", "plan", "plugin", "plugins",
-          "privacy-settings", "release-notes", "remember", "resume", "review", "rewind", "schedule",
+          "privacy-settings", "release-notes", "remember", "rename", "resume", "review", "rewind", "schedule",
           "security-review", "simplify", "status", "statusline", "terminal-setup", "todos", "upgrade",
           "usage", "verify", "vim", "workflows"}
 # Parole che compaiono come `/parola` senza essere comandi: path e rotte.
@@ -396,7 +418,8 @@ ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\
 PAT = re.compile(r"(?<![A-Za-z0-9_])`/([a-z][a-z0-9:_-]{1,30})(?:\s[^`]*)?`")
 # Un percorso di pagina web ("vista `/gare` su uf-dashboard", "la pagina `/roadmap/`") non è un comando.
 # Conta solo la parola subito prima: un comando vero più avanti nella stessa riga resta controllato.
-PAGINA = re.compile(r"\b(?:vista|pagina|rotta|indirizzo|url|sezione)\s*$", re.I)
+# "pagina web `/x`" vale come "pagina `/x`" (segnalazione 109, 26/11/2026).
+PAGINA = re.compile(r"\b(?:vista|pagina|rotta|indirizzo|url|sezione)(?:\s+web)?\s*$", re.I)
 docs = [(ORSA, "CLAUDE.md")] + [(H, "README.md") for H in RADICI] + sorted(
     (H, os.path.relpath(p, H).replace(os.sep, "/")) for H in RADICI for p in glob.glob(H + "/commands/*.md")
     + glob.glob(H + "/skills/*/SKILL.md") + glob.glob(H + "/agents/*.md") + glob.glob(H + "/shared/*.md"))
@@ -437,7 +460,8 @@ fi
 for f in "$CODICE"/skills/*/SKILL.md "$CODICE"/commands/*.md; do
   [[ -f "$f" ]] || continue
   sz=$(wc -c < "$f" | tr -d ' ')
-  if [[ "$sz" -gt 30000 ]]; then
+  # 30 KB veri (30720 byte): con 30000 un corpo da 29,3 KB usciva come "pesa 29 KB (tetto 30 KB)" (segnalazione 109).
+  if [[ "$sz" -gt 30720 ]]; then
     warning "${f#$CODICE/} pesa $((sz / 1024)) KB (tetto 30 KB): sposta in references/ le parti lette solo in un caso"
   fi
 done

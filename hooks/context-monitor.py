@@ -149,9 +149,13 @@ def avviso(data):
     scrivi()
     # Con il mod rotazione (tool mcp__<plugin>__ruota, 3/11/2026) il giro è automatico: niente da proporre. Il
     # modello sa se il tool c'è; senza, vale il testo di sempre.
+    # #6765 (27/11/2026): il vecchio "Altrimenti: proponi /fine" valeva anche col tool, e in sei sessioni con la
+    # persona che scriveva il modello ha chiuso con "scrivi /fine" invece di ruotare.
     con_rotazione = ("Se la sessione ha il tool della rotazione (mcp__arturo__ruota, o un altro nome che finisce in "
-                     "__ruota): chiudi lo step in corso, lancia /fine --rotazione, poi chiama quel tool, senza "
-                     "proporre niente alla persona. Altrimenti: ")
+                     "__ruota): chiudi lo step in corso, lancia /fine --rotazione, poi chiama quel tool. Ruota "
+                     "anche se la persona ha scritto in questo turno o se il passo dopo chiede lei: la domanda va "
+                     "nell'ultima riga, e il tool la porta nella sessione nuova. Non proporre /fine, /clear o "
+                     "/inizio alla persona. Solo se il tool manca: ")
     u, r = _testo(usato) if usato is not None else "undefined", _testo(rimasto)
     if critico:
         return (f"CONTEXT CRITICAL: contesto usato al {u}%, restano {r}%. " + con_rotazione +

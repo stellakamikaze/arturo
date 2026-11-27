@@ -168,7 +168,9 @@ script trova il progetto nelle prime parole e il nome resta pulito. Senza nome u
 # Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
 # Gli argomenti passano su stdin, fra le due righe ARGOMENTI e mai nella riga di comando: il compito
 # può contenere virgolette, # e $(...), e la shell li taglierebbe o li eseguirebbe.
-python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo contesto --stdin <<'ARGOMENTI'; echo "rc=$?"
+# Nessun altro comando sulla riga dell'heredoc: in una sessione isolata in un worktree la guardia di
+# Claude Code rifiuta "<<'X'; echo" (#6505). Il codice d'uscita lo dice il tool: senza "Exit code" vale 0.
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo contesto --stdin <<'ARGOMENTI'
 $ARGUMENTS
 ARGOMENTI
 ```
@@ -208,7 +210,7 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   corregge la stessa cosa in più sessioni. Ogni spazio si propone una
   volta sola. Manca in rotazione e a proposte spente.
 
-Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
+Con l'uscita 0 entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
 resta dove sei.
 
@@ -272,13 +274,13 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
 
 ## FASE 2: Progetto non trovato
 
-Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
+Con l'uscita 2 lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
 Proponi i candidati e aspetta la scelta. Se l'uscita ha la riga `compito:`, la persona ha scritto cosa
 vuole fare senza il nome del progetto: proponi il progetto più vicino al compito, oppure di lavorare qui
 senza progetto, e col sì parti sul compito senza farglielo riscrivere. Se quel lavoro riprende nei giorni
 dopo, `/fine` lascia un handoff breve col nome del lavoro, e `/inizio <nome>` lo ritrova (#4071). Per una vista di cosa c'è da fare ovunque leggi
 `~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
-da lì. Con `rc=3` il nome non è valido: chiedi quello giusto.
+da lì. Con l'uscita 3 il nome non è valido: chiedi quello giusto.
 
 Se la persona dice che è un progetto nuovo, chiedi in una frase cosa è. Non creare cartelle e non
 lanciare `git init` senza un sì. Col sì crei il progetto in `PROJECTS_BASE`, poi rilanci la FASE 1
@@ -338,7 +340,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo apertura
 Le sezioni escono in quest'ordine:
 - `PROGETTO`: il progetto dei todo della cartella.
 - `TODO DEL PROGETTO`: la lista che hai già dalla FASE 1, con gli avvisi di rinumerazione.
-- `TODO DI GENERALE`: i todo presi fuori da un progetto (nella HOME, in /setup, fuori da git). Se il
+- `TODO DI GENERALE`: i todo presi fuori da un progetto (nella HOME, in /setup, in una cartella senza git fuori dalla base dei progetti). Se il
   progetto è `generale`, la sezione rimanda alla lista sopra.
 - `GIT LOG`: gli ultimi 20 commit, per il confronto del punto 1.
 - `PANNELLO`: "mod caricato" se il pannello /dafare c'è. I comandi di un mod non compaiono fra quelli
@@ -430,7 +432,7 @@ Perché è fatta così:
   elenco, con gli stessi numeri e le stesse parole, a `arturo ripartenza scrivi` su stdin, in un solo comando
   Bash. La persona lo vede in Volta come checklist con una nota per riga, e la sua scelta torna qui come
   messaggio (FASE 6). Senza la riga `VOLTA` salta questo passo: Volta non c'è, e nessuno leggerebbe il file. Exit 2 = schema rotto: correggi il campo che dice e
-  rilancia. Non vale per il Modo rotazione e per la ripartenza breve di "Con un compito", che non hanno
+  rilancia. Se l'uscita dice "voci oltre il tetto", di' alla persona quante voci non arrivano alla checklist. Non vale per il Modo rotazione e per la ripartenza breve di "Con un compito", che non hanno
   l'elenco numerato. `id` è il numero del todo, oppure `null` per una riga senza todo.
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo ripartenza scrivi <<'RIPARTENZA'
@@ -442,49 +444,9 @@ Perché è fatta così:
 
 ## FASE 6: La risposta della persona
 
-- **Correzioni.** "8 a te" o "7 scarta" vanno subito nell'archivio, e riporti la riga di conferma:
-  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo modifica ID --chi tu|decidi|io` oppure
-  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo scarta ID "motivo"`, col motivo nelle sue parole. Non spostare un
-  todo da tu a io o decidi senza un suo sì.
-- **"tutto il delegabile".** Esegui in sessione, uno dopo l'altro, i todo "Faccio io" reversibili,
-  stime comprese dopo il suo sì. Chiudi ognuno solo dopo aver controllato il risultato vero (il test
-  che passa, il file che c'è, la pagina che si apre): poi `arturo todo fatto ID`. Di un "Preparo io,
-  poi tu" fai la tua parte e il todo resta aperto. Davanti a un'azione con effetti che non si annullano
-  (un invio, un pagamento, una cancellazione) ti fermi e chiedi.
-- **Un filone o dei numeri.** Parti da quei todo. Il task di sessione (`TaskCreate`) nasce solo per
-  i todo scelti: due numerazioni insieme confondono i numeri.
-- **La risposta dalla checklist di Volta.** Arriva come un messaggio della persona, con i numeri della
-  ripartenza: "Lavora su 2 5. Già fatto: 3. Scartati: 4. Rimandati: 6. A Claude: 7. A me: 8. Note: 2:
-  testo. Nota generale". Ogni parte vale come se la persona l'avesse scritta a parole. "Lavora su" sono
-  i numeri da cui parti. "Già fatto" chiude il todo con `arturo todo fatto ID`: lo dice la persona, e
-  non serve un controllo tuo. "Scartati" usa `arturo todo scarta ID "<motivo>"`, col motivo dalla sua
-  nota o "scartato dalla checklist". "Rimandati" usa `arturo todo modifica ID --quando "più avanti"`. "A
-  Claude" usa `--chi io`, "A me" usa `--chi tu`. Una nota sotto un numero vale per quel todo, la nota
-  generale per tutta la sessione. Una riga senza todo (`id` nullo) si tratta a parole. Riporta in una
-  riga cosa hai scritto nell'archivio, poi parti da "Lavora su".
-- **La risposta all'intervista.** Riscrivi la risposta in una o due frasi coi fatti della persona, senza
-  aggiungerne. Mostrala e chiedi: "La salvo nella memoria?". Solo col sì lancia
-  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo intervista risposta <id> --testo "<le frasi approvate>"`: la nota entra
-  come `persona-<id>` e la annuncia `/fine`. Se la risposta dice il mestiere, fissa anche la famiglia con
-  `arturo intervista famiglia <1-6>`. Con **salta** lancia `arturo intervista salta <id>`. Con "basta
-  domande" lancia `arturo intervista spegni`. Un no al salvataggio non salva niente, e la domanda può
-  tornare un altro giorno.
-- **La skill dal lavoro che torna.** [solo se `arturo intervista risposta` stampa la riga `SKILL`] La
-  persona ha appena detto quale lavoro rifà ogni settimana o ogni mese. Chiedile, una volta sola: "Vuoi
-  che ne faccia una skill tua, così non me lo rispieghi ogni volta?". Col sì apri con Read
-  `${CLAUDE_PLUGIN_ROOT}/skills/creaskill/SKILL.md` e seguilo: la sua risposta vale come domanda 1 e riparti dalla 2. Poi
-  lancia `arturo intervista skill si`. Col no lancia `arturo intervista skill no`. La riga `SKILL` esce
-  una volta sola: senza risposta non richiedere.
-- **La risposta alla proposta di uno spazio.** Col sì esegui il passo della riga `col sì` di `SPAZIO`:
-  per Melchior accendi la memoria;
-  per l'Orsa scrivi la regola in una riga, mostrala e solo col suo sì sul testo aggiungila al suo
-  `CLAUDE.md`. Poi lancia `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo spazi si <spazio>`. Col no lancia
-  `arturo spazi no <spazio>`, con "basta proposte" `arturo spazi spegni`. Senza risposta non fare niente:
-  la proposta non torna comunque.
-- **Il nome.** Se la persona vuole chiamare Arturo in un altro modo ("chiamati Bruno"), lancia
-  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo nome "<nome>"`: il nome sta nell'Orsa e l'avvio lo ripete a ogni sessione.
-  Da subito usalo quando parli di te.
-- **"qualcosa non torna".** Se la persona dice che Arturo o il progetto non funzionano come si
-  aspetta, apri con Read `${CLAUDE_PLUGIN_ROOT}/skills/diagnosi/SKILL.md` e seguilo.
+Quando la persona risponde alla ripartenza, apri con Read `${CLAUDE_PLUGIN_ROOT}/shared/inizio-risposta.md` e segui
+il caso della sua risposta: correzioni, "tutto il delegabile", un filone o dei numeri, la checklist di
+Volta, "Lavora su tutto", l'intervista, la skill dal lavoro che torna, uno spazio, il nome, "qualcosa non
+torna". Il file sta a parte perché serve solo dopo la risposta (segnalazione 109).
 
 Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.

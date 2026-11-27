@@ -33,12 +33,15 @@ caso() {
 
 S="$C/skills/_banco-avvelenato"
 mkdir -p "$S"
-if python3 -c 'import yaml' >/dev/null 2>&1; then
-  printf -- '---\nname: _banco-avvelenato\ndescription: Rotta così: i due punti spezzano il mapping YAML\n---\n# x\n' > "$S/SKILL.md"
-  caso "gate-yaml boccia ': ' non quotato in una skill" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
-else
-  CASI+=("gate-yaml boccia ': ' non quotato (serve PyYAML, assente)"); ESITI+=("ROSSO")
-fi
+# Questi casi valgono con PyYAML e senza: senza, l'audit usa il suo parser ridotto (#5704).
+printf -- '---\nname: _banco-avvelenato\ndescription: Rotta così: i due punti spezzano il mapping YAML\n---\n# x\n' > "$S/SKILL.md"
+caso "gate-yaml boccia ': ' non quotato in una skill" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
+
+printf -- '---\nname: _banco-avvelenato\ndescription: Rotta a capo,\n  qui: i due punti spezzano il mapping YAML\n---\n# x\n' > "$S/SKILL.md"
+caso "gate-yaml boccia ': ' non quotato sulla riga a capo" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
+
+printf -- '---\nname: _banco-avvelenato\ndescription: Skill sana con un indirizzo https://esempio.it e un orario 10:30\n---\n# x\n' > "$S/SKILL.md"
+caso "gate-yaml passa i due punti senza spazio dopo" manca '^FAIL  skill'
 
 printf -- '---\nname: _banco-avvelenato\n---\n# x\n' > "$S/SKILL.md"
 caso "gate-yaml boccia description mancante" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
@@ -79,8 +82,19 @@ caso "gate-fantasma: il percorso di una pagina web non è un comando" manca 'pag
 printf -- '---\ndescription: banco\n---\nApri la pagina `/roadmap/`, poi lancia `/comando-che-non-esiste-mai`.\n' > "$K"
 caso "gate-fantasma: dopo una pagina web il comando vero resta controllato" trova '^WARN  commands/_banco.md:4 cita /comando-che-non-esiste-mai'
 
+# Segnalazione 109 (26/11/2026): /rename è un comando di Claude Code, e "pagina web `/x`" è una pagina.
+printf -- '---\ndescription: banco\n---\nConta solo il nome dato a mano, con `--name` o `/rename`.\n' > "$K"
+caso "gate-fantasma passa /rename di Claude Code" manca '_banco.md.*cita /rename'
+
+printf -- '---\ndescription: banco\n---\nApri la pagina web `/pagina-che-non-esiste-mai` nel browser.\n' > "$K"
+caso "gate-fantasma: la pagina web scritta con la barra non è un comando" manca 'pagina-che-non-esiste-mai'
+
 { printf -- '---\ndescription: banco\n---\n'; i=0; while [ $i -lt 700 ]; do printf 'riga di riempimento per superare il tetto di peso del corpo.\n'; i=$((i+1)); done; } > "$K"
 caso "peso dei corpi: un comando oltre 30 KB" trova '^WARN  commands/_banco.md pesa [0-9]+ KB'
+
+# Segnalazione 109: 30 KB sono 30720 byte. Un corpo da circa 30200 byte sta sotto il tetto.
+{ printf -- '---\ndescription: banco\n---\n'; i=0; while [ $i -lt 495 ]; do printf 'riga di riempimento per superare il tetto di peso del corpo.\n'; i=$((i+1)); done; } > "$K"
+caso "peso dei corpi: un comando da 29 KB sta sotto il tetto di 30 KB" manca '_banco.md pesa'
 rm -f "$K"
 
 mkdir -p "$C/plugins"

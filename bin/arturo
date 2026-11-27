@@ -52,6 +52,7 @@ VERBI = (
     ('nota ID "testo"', "aggiunge una nota"),
     ("dopo ID ALTRO [--togli]", "ID aspetta che ALTRO sia chiuso"),
     ('stato ["riga"]', "a che punto è il progetto: senza riga la legge, con la riga la scrive"),
+    ("stato --togli", "toglie la riga di stato (con --progetto NOME, quella di un altro progetto)"),
     ("su ID / giu ID", "lo avvicina o lo allontana: più avanti, settimana, oggi"),
     ("ripristina ID STATO [motivo]", "rimette stato e motivo di prima (annulla un passo)"),
 )
@@ -82,27 +83,59 @@ come annullo di uno precedente. Lo usano pannello e pagina web. ripristina lo me
 """
 
 
+def slug_progetto(nome: str) -> str:
+    """Lo stesso slug di /inizio e /fine."""
+    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower()))
+
+
+def base_progetti() -> Path:
+    """La base dei progetti, come in contesto.py: PROJECTS_BASE o ~/Documents/ClaudeCode."""
+    pb = os.environ.get("PROJECTS_BASE") or str(Path.home() / "Documents" / "ClaudeCode")
+    return Path(str(Path.home()) + pb[1:] if pb.startswith("~") else pb)
+
+
+def progetto_senza_git(cwd: Path) -> str:
+    """Il progetto di una cartella senza git (#5845, segnalazione n. 83): la cartella della base dei progetti
+    in cui sei, anche da una sua sottocartella, oppure una cartella che ha già i suoi handoff. Sono le cartelle
+    a cui /fine dà lo slug dell'handoff. Il resto (Download, Scrivania, la base stessa) resta "generale"."""
+    try:
+        base = base_progetti().resolve()
+        if base in cwd.parents:
+            prima = cwd.relative_to(base).parts[0]
+            if prima[:1] not in "._":
+                return slug_progetto(prima) or "generale"
+            return "generale"
+        nome = slug_progetto(cwd.name)
+        if nome and (radice_orsa() / "data" / "handoffs" / nome).is_dir():
+            return nome
+    except (OSError, ValueError):
+        pass
+    return "generale"
+
+
 def progetto_corrente() -> str:
-    """Il progetto della cartella: la cartella git in cui sei. "generale" fuori da git, nella HOME e
-    dentro ~/.claude, dove /setup e le sessioni di config non sono il lavoro di un progetto."""
+    """Il progetto della cartella: la cartella git in cui sei. "generale" nella HOME e dentro ~/.claude, dove
+    /setup e le sessioni di config non sono il lavoro di un progetto. Fuori da git: progetto_senza_git."""
     try:
         cima = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=5)
         radice = cima.stdout.strip() if cima.returncode == 0 else ""
     except (OSError, subprocess.SubprocessError):
         radice = ""
-    nome = Path(radice).name if radice else ""
     config = radice_orsa()
     try:
+        cwd = Path.cwd().resolve()
         # Una HOME che è un repository (dotfiles) non è un progetto, e nemmeno ~/.claude dentro di lei: col plugin
         # ~/.claude non ha il suo git e il progetto diventava lo slug della HOME (lotto L10).
-        dentro_config = bool(radice) and (Path(radice).resolve() in (config.resolve(), Path.home().resolve())
-                                          or config.resolve() in (Path.cwd().resolve(), *Path.cwd().resolve().parents))
+        dentro_config = (config.resolve() in (cwd, *cwd.parents)
+                         or (bool(radice) and Path(radice).resolve() in (config.resolve(), Path.home().resolve())))
+        a_casa = cwd == Path.home().resolve()
     except OSError:
-        dentro_config = False
-    if not nome or Path.cwd() == Path.home() or dentro_config:
         return "generale"
-    # Lo stesso slug di /inizio e /fine.
-    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower())) or "generale"
+    if a_casa or dentro_config:
+        return "generale"
+    if not radice:
+        return progetto_senza_git(cwd)
+    return slug_progetto(Path(radice).name) or "generale"
 
 
 def riga(t: dict, con_progetto: bool = True, colonna: int = 0) -> list:
@@ -256,6 +289,7 @@ def parser() -> argparse.ArgumentParser:
     c = comando("stato")
     c.add_argument("riga", nargs="?", default=None)
     c.add_argument("--progetto")
+    c.add_argument("--togli", action="store_true")
     c.add_argument("--json", action="store_true")
     for nome in ("aiuto", "help", "progetto"):
         comando(nome)
@@ -517,6 +551,16 @@ def todo(argv: list) -> int:
 
     if cmd == "stato":
         nome = args.progetto or progetto_corrente()
+        if args.togli:
+            if args.riga is not None:
+                raise ts.ErroreTodo("stato --togli non vuole una riga: toglie quella che c'è")
+            if nome not in ts.stati():
+                print(f"{nome}: nessuna riga di stato da togliere")
+                return 0
+            ts.togli_stato(nome)
+            print(json.dumps({"progetto": nome, "tolto": True}, ensure_ascii=False) if args.json
+                  else f"Tolta la riga di stato di {nome}")
+            return 0
         if args.riga is None:
             letto = ts.stati().get(nome)
             if args.json:
@@ -595,6 +639,7 @@ COMANDI = {
     "nome": ("nome", "il nome con cui chiami Arturo, nell'avvio e nei testi: senza parole dice quello di oggi; NOME, togli"),
     "revisione": ("revisione", "la revisione di come usi Arturo, per /revisione: estrai, sintesi, igiene, registro, bozza, salva"),
     "fascicolo": ("fascicolo", "il contesto di un progetto in una cartella di file di testo, per un collega o un'altra IA: esporta, importa (con le guardie sui testi altrui)"),
+    "riporto": ("riporti", "i rami che /fine ha chiuso da dentro un worktree e che /inizio riporta: segna RAMO, elenco"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
     "apertura": ("apertura", "le letture della FASE 4 di /inizio insieme: todo del progetto e di generale, git log, pannello"),
     "ripartenza": ("ripartenza", "la ripartenza di /inizio come dati, per la checklist di Volta: scrivi (JSON su stdin)"),

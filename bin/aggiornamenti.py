@@ -69,6 +69,7 @@ TAG_PLUGIN = re.compile(r"plugin-v(\d{1,4})\.(\d{1,4})\.(\d{1,6})")
 ORA = 3600            # controlla scarica al massimo una volta all'ora
 OCCUPATO = 6          # uscita interna di cmd_applica: un'altra applicazione tiene il lucchetto
 ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiuda davvero
+ATTESA_CLAUDE = 6     # secondi di attesa della CLI mentre npm la reinstalla (#6683, come hooks/titolo-sessione.py)
 SENZA_CONTROLLO = 7 * 86400  # col plugin: dopo 7 giorni senza un controllo riuscito l'avvio lo dice
 FIRME = "firme/rilasci.allowed_signers"
 # Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
@@ -851,9 +852,7 @@ def modo_plugin() -> bool:
     return fiducia.plugin(radici.radice_arturo())
 
 
-def programma_claude() -> str:
-    """La CLI di Claude Code. Il processo staccato della chiusura può avere un PATH senza `claude` (app desktop,
-    shell senza ~/.local/bin): si provano i due posti dove Claude Code si installa."""
+def _cerca_claude() -> str:
     # ARTURO_CLAUDE vale solo se indica un programma che c'è: in Git Bash `command -v claude` dà un percorso
     # POSIX che Python su Windows non sa lanciare, e batteva il ripiego (review del 10/11/2026).
     dato = os.environ.get("ARTURO_CLAUDE") or ""
@@ -864,7 +863,25 @@ def programma_claude() -> str:
         for nome in (("claude.exe", "claude.cmd") if os.name == "nt" else ("claude",)):
             if (cartella / nome).is_file():
                 return str(cartella / nome)
-    return "claude"
+    return ""
+
+
+_SENZA_CLAUDE = []  # pieno dopo un'attesa andata a vuoto: le chiamate dopo, nello stesso processo, non aspettano
+
+
+def programma_claude(attesa: float = ATTESA_CLAUDE) -> str:
+    """La CLI di Claude Code. Il processo staccato della chiusura può avere un PATH senza `claude` (app desktop,
+    shell senza ~/.local/bin): si provano i due posti dove Claude Code si installa. Se manca, riprova ogni 0,2 s
+    per `attesa` secondi: l'aggiornatore di Claude Code la reinstalla con npm e il link manca per 4-5 s (#6683)."""
+    scade = time.monotonic() + (0 if _SENZA_CLAUDE else attesa)
+    while True:
+        trovato = _cerca_claude()
+        if trovato:
+            return trovato
+        if time.monotonic() >= scade:
+            _SENZA_CLAUDE.append(True)
+            return "claude"
+        time.sleep(0.2)
 
 
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:

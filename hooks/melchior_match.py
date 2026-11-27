@@ -46,7 +46,8 @@ Punteggio del richiamo:
 
 Il parser del frontmatter legge chiavi di primo livello (anche col trattino), liste a trattini e
 fra parentesi quadre, blocchi > e |, una mappa annidata di un livello (Claude Code scrive
-`metadata:` con `type:` dentro) e `triggers: a, b` scritto come stringa. problemi_frontmatter() è
+`metadata:` con `type:` dentro, e un formattatore ci annida anche le liste `answers:` e `triggers:`)
+e `triggers: a, b` scritto come stringa. problemi_frontmatter() è
 l'unico controllo della forma YAML: lo usano melchior-postwrite e `arturo memoria controlla`.
 
 Solo libreria standard, Python 3.8 o successivo. Python aggiunge la cartella dello script a
@@ -245,10 +246,36 @@ def in_memory_dir(p):
 
 # --- Log degli accessi ---------------------------------------------------------------------
 
+MACCHINE = CLAUDE_DIR / "data" / "macchine.json"
+_CANONICI = None
+
+
+def _canonici():
+    """{alias minuscolo senza .local: nome canonico} da data/macchine.json della persona (revisione del
+    22/11/2026, O10). Senza file, o con un file rotto, un dizionario vuoto: vale il nome della macchina."""
+    global _CANONICI
+    if _CANONICI is None:
+        _CANONICI = {}
+        try:
+            dati = json.loads(MACCHINE.read_text(encoding="utf-8"))
+            for chiave, m in dati["macchine"].items():
+                for a in [chiave, *m.get("alias", [])]:
+                    a = str(a).strip().lower()
+                    _CANONICI.setdefault(a[:-len(".local")] if a.endswith(".local") else a, str(chiave))
+        except Exception:
+            _CANONICI = {}
+    return _CANONICI
+
+
 def access_host():
-    """Nome corto della macchina, ripulito per un nome di file; "" se ignoto."""
+    """Nome corto della macchina, ripulito per un nome di file; "" se ignoto. Se data/macchine.json
+    conosce il nome come alias, il nome canonico: una macchina scrive un solo log anche se cambia nome."""
     import platform
-    host = (platform.node() or "").split(".")[0]
+    nodo = (platform.node() or "").strip()
+    pieno = nodo.lower()
+    pieno = pieno[:-len(".local")] if pieno.endswith(".local") else pieno
+    canonici = _canonici()
+    host = canonici.get(pieno) or canonici.get(pieno.split(".")[0]) or nodo.split(".")[0]
     host = re.sub(r"[^A-Za-z0-9_-]", "-", host).strip("-")
     return "" if host in ("", "localhost") else host
 
@@ -475,11 +502,22 @@ def frontmatter(text):
                     voci[-1] += " " + f
             campi[chiave] = [_scalare(v) for v in voci]
         elif resto == "" and figli:
-            mappa = {}
+            # Una mappa di un livello (`metadata:`). Un formattatore ci annida anche `answers:` e
+            # `triggers:` come liste a trattini o fra quadre: le voci vanno alla chiave di sopra (#103).
+            mappa, ultima = {}, None
             for f in figli:
                 kk = CHIAVE_RE.match(f)
                 if kk:
-                    mappa[kk.group(1)] = _scalare(kk.group(2))
+                    ultima, v = kk.group(1), kk.group(2).strip()
+                    if v.startswith("["):
+                        dentro = v[1:-1] if v.endswith("]") else v[1:]
+                        mappa[ultima] = [_scalare(x) for x in dentro.split(",") if x.strip()]
+                    else:
+                        mappa[ultima] = _scalare(v)
+                elif _voce(f) and ultima is not None and (mappa[ultima] == "" or isinstance(mappa[ultima], list)):
+                    if mappa[ultima] == "":
+                        mappa[ultima] = []
+                    mappa[ultima].append(_scalare(f[1:].strip()))
             campi[chiave] = mappa
         elif resto == "":
             campi[chiave] = []

@@ -30,6 +30,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
@@ -40,6 +41,7 @@ try:  # secondi: il turno di /fine finisce prima che claude rm fermi la sessione
     ATTESA_RM = max(0, min(600, int(os.environ.get("ARTURO_PROVA_ATTESA") or 30)))
 except ValueError:
     ATTESA_RM = 30
+ATTESA_CLAUDE = 6  # secondi di attesa della CLI mentre npm la reinstalla (#6683, come hooks/titolo-sessione.py)
 
 
 def e_prova(nome) -> bool:
@@ -73,7 +75,7 @@ def nome_da_transcript(file) -> str:
     return nome
 
 
-def programma_claude() -> str:
+def _cerca_claude() -> str:
     dato = os.environ.get("ARTURO_CLAUDE") or ""
     scelto = (shutil.which(dato) if dato else None) or shutil.which("claude")
     if scelto:
@@ -83,6 +85,23 @@ def programma_claude() -> str:
             if (cartella / nome).is_file():
                 return str(cartella / nome)
     return ""
+
+
+_SENZA_CLAUDE = []  # pieno dopo un'attesa andata a vuoto: la seconda chiamata non aspetta di nuovo
+
+
+def programma_claude(attesa: float = ATTESA_CLAUDE) -> str:
+    """La CLI di Claude Code, o "". Se manca, riprova ogni 0,2 s per `attesa` secondi: l'aggiornatore di Claude
+    Code la reinstalla con npm e il link manca per 4-5 s, e la sessione di prova restava viva (#6683)."""
+    scade = time.monotonic() + (0 if _SENZA_CLAUDE else attesa)
+    while True:
+        trovato = _cerca_claude()
+        if trovato:
+            return trovato
+        if time.monotonic() >= scade:
+            _SENZA_CLAUDE.append(True)
+            return ""
+        time.sleep(0.2)
 
 
 def voce_agents(sid: str) -> dict:

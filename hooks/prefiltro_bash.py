@@ -338,8 +338,11 @@ PATTERN_GIT_TEXT = Pattern(
     r"(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?"
     r"(commit|log|show|tag|stash[[:space:]]+(push|save))")
 
+# 26/11/2026 (#6732): dopo il nome anche una virgoletta, una virgola o una parentesi. `['sendmail', 'a@b']` in
+# un heredoc python che lancia subprocess non apriva comms-guard: il vecchio dispatcher della config cercava
+# sendmail nudo e chiedeva (banco conferme ridotte della config, 23/25).
 PATTERN_COMMS = Pattern(
-    r"""(^|[[:space:];|&("'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:]]|$)|mailto:|smtps?://"""
+    r"""(^|[[:space:];|&("'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:];|&)"'`,]|$)|mailto:|smtps?://"""
     r"|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send"
     r"|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)"
     r"|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp"
@@ -761,9 +764,12 @@ def analizza(comando, guardie, grezzo, dati, senza_maiuscole=False, windows=Fals
     if vede(PATTERN_GIT_PUSH):
         viste.append("push")
     if (vede(PATTERN_GIT_CLEAN) or vede(PATTERN_GIT_PERDE) or vede(PATTERN_GIT_PUSH) or vede(PATTERN_GIT_DEST)
-            or vede(PATTERN_GIT_AMEND) or vede(PATTERN_GIT_ALTRI)
-            or (vede(PATTERN_PAROLA_PERICOLOSA) and vede(PATTERN_NASCOSTO))):
+            or vede(PATTERN_GIT_AMEND) or vede(PATTERN_GIT_ALTRI)):
         viste.append("danger-git")
+    # Un programma nascosto con una parola pericolosa (#6323) ha una vista sua: il dispatcher lo giudica dopo le
+    # guardie di prima-danger, come la config, dove `TOKEN=$(cat …) && curl host-interno` passa (#6536, DP10).
+    if vede(PATTERN_PAROLA_PERICOLOSA) and vede(PATTERN_NASCOSTO):
+        viste.append("nascosto")
 
     git_testo = somiglia(comando, PATTERN_GIT_TEXT)
     git_rischio = PATTERN_GIT_OPZIONI.trova(comando) or somiglia(comando, PATTERN_GIT_INVIA)

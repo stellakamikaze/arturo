@@ -14,6 +14,8 @@ Ingresso (stdin, JSON):
    "partenza": {"n": 1, "motivo": "sblocca la rilettura"}}
 Uscita: il file, con versione, sid e quando aggiunti. `n` è il numero che la persona vede nel terminale.
 Tetti: FILONI filoni, VOCI voci in tutto, TESTO caratteri per campo. Un campo sconosciuto si scarta.
+Le voci oltre i tetti non entrano, e l'uscita dice quante sono: VOCI è 300 dal 25/11/2026 (#6687), perché a
+60 su 85 task di un progetto 25 non arrivavano alla checklist.
 
 Esce 2 se lo schema è rotto (lo dice su stderr, così Claude corregge). Senza CLAUDE_CODE_SESSION_ID esce 0 e
 non scrive: la ripartenza fuori da una sessione non ha una checklist. Senza la cartella di Volta
@@ -36,7 +38,7 @@ from radici import radice_orsa  # noqa: E402
 
 VERSIONE = 1
 FILONI = 12
-VOCI = 60
+VOCI = 300
 TESTO = 300
 VECCHIA = 2 * 86400  # secondi: oltre questa età Volta non mostra la ripartenza, e il comando la cancella
 SID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
@@ -86,20 +88,23 @@ def numero(v, campo: str, nullo: bool = False):
     return v
 
 
-def pulisci(grezzo) -> dict:
-    """Lo schema controllato e tagliato ai tetti. ValueError dice il campo rotto."""
+def pulisci(grezzo) -> tuple:
+    """Lo schema controllato e tagliato ai tetti, con il numero di voci rimaste fuori dai tetti.
+    ValueError dice il campo rotto."""
     if not isinstance(grezzo, dict):
         raise ValueError("serve un oggetto JSON")
     filoni = grezzo.get("filoni")
     if not isinstance(filoni, list) or not filoni:
         raise ValueError("filoni: serve un elenco non vuoto")
     fuori, contate, visti = [], 0, set()
+    tagliate = sum(len(f["voci"]) for f in filoni[FILONI:] if isinstance(f, dict) and isinstance(f.get("voci"), list))
     for i, f in enumerate(filoni[:FILONI]):
         if not isinstance(f, dict) or not isinstance(f.get("voci"), list):
             raise ValueError(f"filoni[{i}]: serve un oggetto con voci")
         voci = []
         for j, v in enumerate(f["voci"]):
             if contate >= VOCI:
+                tagliate += len(f["voci"]) - j
                 break
             if not isinstance(v, dict):
                 raise ValueError(f"filoni[{i}].voci[{j}]: serve un oggetto")
@@ -123,7 +128,7 @@ def pulisci(grezzo) -> dict:
     p = grezzo.get("partenza")
     if isinstance(p, dict) and p.get("n") is not None:
         dati["partenza"] = {"n": numero(p.get("n"), "partenza.n"), "motivo": corto(p.get("motivo"), "partenza.motivo")}
-    return dati
+    return dati, tagliate
 
 
 def volta_presente() -> bool:
@@ -138,7 +143,7 @@ def main(argv: list) -> int:
     if os.environ.get("ARTURO_RIPARTENZA") == "0":
         return 0
     try:
-        dati = pulisci(json.loads(sys.stdin.read()))
+        dati, tagliate = pulisci(json.loads(sys.stdin.read()))
     except (ValueError, json.JSONDecodeError) as e:
         print(f"arturo ripartenza: schema rotto: {e}", file=sys.stderr)
         return 2
@@ -156,6 +161,8 @@ def main(argv: list) -> int:
     scrivi(f, dict(versione=VERSIONE, sid=sid, quando=adesso, **dati))
     voci = sum(len(x["voci"]) for x in dati["filoni"])
     print(f"arturo ripartenza: {voci} voci per la checklist di Volta")
+    if tagliate:
+        print(f"arturo ripartenza: {tagliate} voci oltre il tetto ({FILONI} filoni, {VOCI} voci): non entrano nella checklist")
     return 0
 
 

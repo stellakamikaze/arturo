@@ -10,6 +10,7 @@ l'elenco delle fonti e la regola stanno qui, e ogni scrittore passa da questo mo
   cede(salvata, nuova)   True se una scrittura da `nuova` non deve sostituire un progetto di fonte `salvata`
   imposta_progetto  progetto (e stato) della sessione, con la regola delle fonti
   segna_spostata    il segno `spostata` di Volta, senza toccare il resto
+  togli_spostata    toglie il segno `spostata` quando la sessione torna sulla macchina
 
 Solo libreria standard, Python 3.8 o successivo.
 """
@@ -61,15 +62,20 @@ def cede(salvata, nuova) -> bool:
     return FONTI.get(salvata or "", 0) >= DECISA and FONTI[nuova] < FONTI["prompt"]
 
 
-def imposta_progetto(sid: str, progetto: str, fonte=None, stato=None, quando=None, forza: bool = False) -> tuple:
+def imposta_progetto(sid: str, progetto: str, fonte=None, stato=None, quando=None, forza: bool = False,
+                     segni=None) -> tuple:
     """(True, "") se ha scritto, altrimenti (False, motivo). Il file non si tocca se la regola dice no.
 
     `fonte` None con `forza` è una correzione fatta dalla persona (unisci, rinomina): cambia il progetto e
-    lascia fonte e segni come sono. `stato` e `quando` restano quelli del file se non li passi."""
+    lascia fonte e segni come sono. `stato` e `quando` restano quelli del file se non li passi.
+    `segni` ({campo di SEGNI: valore}) scrive quei segni dopo la regola; il valore None li toglie. Lo usa Volta:
+    `inizio` False per una sessione che la persona mette su un altro progetto, `spostata` None all'arrivo."""
     if not SESSIONE.fullmatch(sid or ""):
         return False, f"sessione non valida: {sid!r}"
     if not progetto:
         return False, "progetto vuoto"
+    if segni and not set(segni) <= set(SEGNI):
+        return False, f"segno sconosciuto: {sorted(set(segni) - set(SEGNI))} (valgono {', '.join(SEGNI)})"
     prima = leggi(sid)
     if fonte is not None and fonte not in FONTI:
         return False, f"fonte sconosciuta: {fonte!r} (valgono {', '.join(FONTI)})"
@@ -84,6 +90,11 @@ def imposta_progetto(sid: str, progetto: str, fonte=None, stato=None, quando=Non
         nuovo = dict(prima, progetto=progetto)
     elif prima.get("progetto") == progetto and prima.get("fonte") == nuovo["fonte"]:
         nuovo.update({k: prima[k] for k in SEGNI if k in prima})
+    for campo, valore in (segni or {}).items():
+        if valore is None:
+            nuovo.pop(campo, None)
+        else:
+            nuovo[campo] = valore
     nuovo["versione"] = VERSIONE
     try:
         scrivi_atomico(percorso(sid), json.dumps(nuovo, ensure_ascii=False))
@@ -100,6 +111,23 @@ def segna_spostata(sid: str, su: str, quando=None) -> tuple:
         return False, "macchina vuota"
     dati = dict(leggi(sid), spostata={"su": su, "quando": quando if quando is not None else time.time()},
                 versione=VERSIONE)
+    try:
+        scrivi_atomico(percorso(sid), json.dumps(dati, ensure_ascii=False))
+    except OSError as e:
+        return False, f"scrittura fallita: {e}"
+    return True, ""
+
+
+def togli_spostata(sid: str) -> tuple:
+    """Toglie il segno `spostata` (la sessione torna su questa macchina) e lascia il resto. Senza il segno
+    il file non si tocca."""
+    if not SESSIONE.fullmatch(sid or ""):
+        return False, f"sessione non valida: {sid!r}"
+    dati = leggi(sid)
+    if "spostata" not in dati:
+        return True, ""
+    dati.pop("spostata")
+    dati["versione"] = VERSIONE
     try:
         scrivi_atomico(percorso(sid), json.dumps(dati, ensure_ascii=False))
     except OSError as e:

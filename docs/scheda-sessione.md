@@ -34,7 +34,10 @@ resta la fonte forte. Il `prompt` e le fonti decise sostituiscono sempre.
 
 - Da Python: `scheda_file.imposta_progetto(sessione, progetto, fonte)` e `scheda_file.segna_spostata(sessione, su)`.
   `forza=True` senza fonte è la correzione della persona (`arturo progetti unisci`): cambia il progetto e lascia fonte e segni.
+  `segni={campo: valore}` scrive dopo la regola i segni di `SEGNI`, e il valore `None` li toglie: Volta dà `inizio`
+  False a una sessione che la persona mette su un altro progetto. `scheda_file.togli_spostata(sessione)` toglie il segno
+  quando la sessione torna sulla macchina, e lascia il resto.
 - Da fuori (Volta, teletrasporto, `sposta-sessione`): `arturo sessione progetto SID SLUG --fonte F` e
   `arturo sessione spostata SID --su MACCHINA`. Exit 0 scritto, 2 rifiutato dalla regola (dice perché), 3 argomenti non validi.
 
-Il banco è `tests/test_scheda_file.py` (casi SE01-SE07, con veleni).
+Il banco è `tests/test_scheda_file.py` (casi SE01-SE09, con veleni).

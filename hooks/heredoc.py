@@ -1,8 +1,9 @@
 """Gli heredoc di un comando Bash: dove comincia ognuno, chi ne riceve il corpo, cosa contiene.
 
 Le guardie tolgono il corpo degli heredoc che nessuno esegue: block-dangerous (attraverso
-forma_comando.py), data-guard, commit-secret-gate, comms-prefilter e il dispatcher. Il testo che
-una guardia toglie è testo che non controlla: un confine letto male nasconde un comando che la
+forma_comando.py), data-guard, commit-secret-gate, comms-prefilter e il dispatcher. Dal 23/11/2026
+lo usa anche un giudice dei permessi fuori dal plugin (PermissionRequest della config personale), con
+togli() e INTERPRETI: un cambio di firma qui va provato anche lì. Il testo che una guardia toglie è testo che non controlla: un confine letto male nasconde un comando che la
 shell esegue. Per questo qui la regola è una sola.
 Un corpo si può togliere solo se tutto è certo:
 - l'apertura `<<` sta fuori da virgolette e commenti, e il delimitatore si legge intero;
