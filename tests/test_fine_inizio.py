@@ -16,7 +16,8 @@ F06 arturo contesto: git, ripartenza, todo per chi agisce, chiusi, scadenze in u
 NON TROVATO con i nomi simili; --tutti e il compito dopo " -- " restano fuori dal nome.
 F07 bin/sync-progetti.sh: pull di ogni progetto con stash, conflitti e credenziali riportati.
 F08 /fine usa inventario, gate, retention e indice; il modello della tabella passa il gate;
-niente find|tail|rm; nessun blocco legge una variabile di un altro blocco.
+niente find|tail|rm; nessun blocco legge una variabile di un altro blocco; nessun file shared/fine-*.md
+nomina uno strumento della config dell'autore.
 F09 /fine rilanciato nella stessa sessione riscrive lo stesso handoff.
 F10 /inizio prende il contesto con arturo contesto e con --tutti lancia sync-progetti.
 F11 l'inventario su Windows (16/10/2026): un file in commit in una sottocartella o in un worktree
@@ -835,6 +836,10 @@ def test_f08(repo: Path) -> None:
     fine = con_condiviso(repo, fine, "fine-handoff.md", "F08")
     # Gli strumenti della config dell'autore: solo le impronte, in tests/igiene.py (#3505).
     assert not igiene.trova(fine, igiene.FINE), "F08 /fine nomina uno strumento della config dell'autore"
+    # Le impronte valgono per ogni pezzo di /fine in shared/, non solo per fine-handoff.md (revisione del 3/11, #4577).
+    for pezzo in sorted((repo / "shared").glob("fine-*.md")):
+        assert not igiene.trova(read(pezzo), igiene.FINE), \
+            f"F08 shared/{pezzo.name} nomina uno strumento della config dell'autore"
     orfane = [f"blocco {n}: ${v}" for n, b in enumerate(blocchi(fine), 1) for v in variabili_orfane(b)]
     assert not orfane, "F08 blocchi di /fine che leggono una variabile nata in un altro blocco: " + "; ".join(orfane)
     modello = re.search(r"## Task Pendenti\n.*?\n(\| ID .*?)\n\n", fine, re.S)
