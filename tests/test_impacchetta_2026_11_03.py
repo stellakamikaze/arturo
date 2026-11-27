@@ -419,10 +419,10 @@ def prova(repo: Path) -> list[str]:
 # (caso, file, testo giusto, testo rotto): ogni veleno toglie la riga che il caso sorveglia.
 VELENI = [
     ("IP02", "bin/impacchetta.py", 'testa = f"name: {nome}\\n" + testa', "pass"),
-    ("IP02", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill")',
+    ("IP02", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill", "voce")',
      "CHIAMATI_DAL_MODELLO = ()"),
-    ("IP22", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill")',
-     'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi")'),
+    ("IP22", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill", "voce")',
+     'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "voce")'),
     ("IP22", "shared/inizio-risposta.md", "`~/.claude/commands/creaskill.md` e seguilo", "`/creaskill` e seguilo"),
     ("IP03", "bin/impacchetta.py", """r'"${CLAUDE_PLUGIN_ROOT}/\\1"'""", """r'${CLAUDE_PLUGIN_ROOT}/\\1'"""),
     ("IP04", "bin/impacchetta.py", 'resto["outputStyle"] = f"{NOME}:{stile}"', "pass"),
