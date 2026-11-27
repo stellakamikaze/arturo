@@ -766,13 +766,23 @@ def scrivi_sportello(dati: dict) -> None:
         pass
 
 
+_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\\\)?|.)?")
+_INVISIBILI = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]")
+
+
+def testo_dal_server(testo: str) -> str:
+    """Un testo arrivato dal server senza le sequenze del terminale e i caratteri invisibili (#6260, rilievo S12): non
+    cambia i colori, non riscrive la riga, non nasconde parole a chi legge."""
+    return _INVISIBILI.sub("", _ESCAPE.sub("", testo)) if isinstance(testo, str) else ""
+
+
 def leggi_contributo(numero: int, codice: str, timeout: float = 5) -> tuple:
     """(status, risposta pulita). Della risposta restano solo i campi attesi, con lo stato da un elenco chiuso."""
     status, r = chiedi_json(f"/v1/contributi/{int(numero)}", intestazioni={"x-arturo-codice": codice}, timeout=timeout)
     if not 200 <= status < 300:
         return status, {}
     stato = r.get("stato") if r.get("stato") in STATI_SPORTELLO else "ricevuta"
-    testo = lambda k, n: r.get(k)[:n] if isinstance(r.get(k), str) else ""  # noqa: E731
+    testo = lambda k, n: testo_dal_server(r.get(k))[:n] if isinstance(r.get(k), str) else ""  # noqa: E731
     return status, {"stato": stato, "risposta": testo("risposta", 4000), "versione_fix": testo("versione_fix", 60),
                     "aggiornata": testo("aggiornata", 40)}
 

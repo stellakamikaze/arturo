@@ -759,6 +759,8 @@ VELENI=(
   test_contatto_2026_11_10.py
   # Le segnalazioni automatiche (11/11/2026): ogni filtro tolto da manda fa rosso il suo caso SA.
   test_segnala_auto_2026_11_11.py
+  # #6260: ogni categoria tolta dalla pulizia di /segnala, o la risposta senza segni, fa rosso il suo caso S14-S17.
+  test_segnala.py
   # n. 68: il heredoc rimesso dentro <(...) fa rossi BS01 e, sul Mac, BS02.
   test_bash32_2026_11_10.py
   # La Scoperta (14/11/2026): ogni veleno di scoperta.py e dell'hook fa rosso il suo caso SC.
