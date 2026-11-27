@@ -884,6 +884,9 @@ def test_f10(repo: Path) -> None:
     # Dal 30/10/2026 gli argomenti passano su stdin (#4291): "$ARGUMENTS" nella riga di comando eseguiva un $(...)
     # scritto nel compito.
     assert "arturo contesto --stdin <<'ARGOMENTI'" in fase1, "F10 /inizio non prende il contesto in una chiamata, su stdin"
+    # Un altro comando sulla riga dell'heredoc ("<<'ARGOMENTI'; echo") lo rifiuta la guardia del worktree (#6505).
+    assert any(r.rstrip().endswith("<<'ARGOMENTI'") for r in fase1.splitlines() if "arturo contesto --stdin" in r), \
+        "F10 la riga dell'heredoc di /inizio ha un altro comando dopo: nel worktree la guardia la rifiuta"
     assert "[--tutti]" in inizio.split("---", 2)[1], "F10 l'aiuto di /inizio non mostra --tutti"
     codice = blocchi(fase1)[0]
 
@@ -898,7 +901,7 @@ def test_f10(repo: Path) -> None:
         lab.todo("aggiungi", "Rileggere il capitolo", "--progetto", "libro", "--chi", "io")
         # Claude Code sostituisce $ARGUMENTS nel testo del comando prima che il modello lo legga.
         r = lab.run([BASH, "-c", codice.replace("$ARGUMENTS", "libro --tutti")], cwd=lab.home)
-        assert "PROGETTO libro" in r.stdout and "#1 Rileggere il capitolo" in r.stdout and "rc=0" in r.stdout, \
+        assert "PROGETTO libro" in r.stdout and "#1 Rileggere il capitolo" in r.stdout and r.returncode == 0, \
             f"F10 il blocco della FASE 1 non stampa il contesto: {r.stdout} {r.stderr}"
         trappola = lab.home / "ESEGUITO"
         compito = f'libro -- prova "virgolette" $(touch {trappola.as_posix()}) `touch {trappola.as_posix()}` # fine'
