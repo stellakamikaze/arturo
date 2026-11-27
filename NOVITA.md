@@ -13,6 +13,26 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — All'avviso del contesto la rotazione parte sempre
+
+**Cosa cambia**: quando il contesto supera la soglia, Claude salva con `/fine --rotazione` e passa a una sessione nuova anche se in quel turno hai scritto tu, o se il passo dopo chiede una tua risposta. La domanda non si perde: la sessione nuova si apre su quel passo, si ferma e te la rifà.
+
+**Perché**: in sei sessioni dal 25 al 27/11 la persona scriveva mentre il contesto si riempiva, e Claude ha chiuso con "scrivi /fine" invece di ruotare. Tre testi di Arturo gli davano questa uscita: la descrizione del tool della rotazione, il `/fine` e l'avviso del contesto. Ora dicono tutti la stessa cosa.
+
+**A chi serve**: a chi ha il mod della rotazione acceso. Senza il mod, all'avviso Claude chiude il compito e lo salva con `/fine`, come prima.
+
+---
+
+## 2026-11-27 — La memoria legge le note con le liste dentro metadata
+
+**Cosa cambia**: una nota di memoria con `answers` e `triggers` scritti dentro `metadata:` torna a uscire quando la cerchi. Prima Arturo leggeva quelle liste vuote, e la nota restava fuori dai risultati.
+
+**Perché**: segnalazione n. 103. Un formattatore aveva spostato le liste sotto `metadata:`, come elenco a trattini o fra quadre. Il lettore delle note guardava un livello solo: l'elenco a trattini diventava vuoto, quello fra quadre restava una riga di testo.
+
+**A chi serve**: a chi ha note di memoria scritte o riordinate da un altro strumento. Le note con le liste in cima al frontmatter non cambiano.
+
+---
+
 ## 2026-11-26 — I doppioni non scambiano più i salvataggi automatici per lo stesso progetto
 
 **Cosa cambia**: `arturo progetti doppioni`, e la revisione dei doppioni in Volta, non propone più di unire due progetti solo perché lo stesso giorno hanno avuto entrambi un salvataggio automatico.
