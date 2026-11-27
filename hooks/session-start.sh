@@ -142,14 +142,16 @@ command -v node >/dev/null 2>&1 \
 python3 -c '' >/dev/null 2>&1 \
   || echo "PYTHON: manca un python3 che funziona: ogni comando della shell chiede conferma. Dillo a Claude: installa Python da python.org, poi riapri Claude Code."
 
-# Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
-# l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
-# lo stdout di PostCompact non entra nel contesto.
+# Dopo un compact il contesto e' stato riassunto: un riepilogo che la persona puo' controllare,
+# poi il lavoro riprende da solo, come nella rotazione (segnalazione n. 100, #6555, 27/11/2026):
+# il compact automatico arriva a meta' di un lavoro gia' approvato. Si ferma solo se prima del
+# compact la sessione aspettava la persona. SessionStart con source "compact" e' la via
+# documentata; lo stdout di PostCompact non entra nel contesto.
 # read con tetto di 2 secondi: uno stdin lasciato aperto non deve appendere l'avvio.
 HOOK_INPUT=""
 [ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compact"'; then
-  echo "COMPACT APPENA AVVENUTO: il riassunto può aver perso dettagli. Riepiloga in poche righe file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. In una rotazione automatica lo step continua; fuori dalla rotazione la persona conferma prima di continuare."
+  echo "COMPACT APPENA AVVENUTO: il riassunto può aver perso dettagli. Riepiloga in poche righe file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. Poi riprendi da solo il lavoro in corso, come nella rotazione, senza chiedere un via. Ti fermi solo se prima del compact aspettavi una risposta della persona o eri a un freno."
   # Il riassunto può perdere una correzione della persona: torna intera da qui (#4099).
   if [ -f "$ARTURO_CODICE/bin/correzioni.py" ]; then
     printf '%s' "$HOOK_INPUT" | python3 "$ARTURO_CODICE/bin/correzioni.py" blocco 2>/dev/null || true
