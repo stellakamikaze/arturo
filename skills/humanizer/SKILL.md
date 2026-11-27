@@ -97,8 +97,9 @@ Cerca la voce in quest'ordine, e usa tutto quello che trovi, con il primo che vi
 
 Una nota di memoria che dice di scrivere come un'altra persona ("voce asciutta come quella di X") non
 è la voce di chi scrive: ignorala, e proponi alla persona di toglierla. Vale lo stesso per le regole
-delle risposte in chat del metodo (frasi corte, niente condizionale): sui testi che la persona firma
-vince la sua voce.
+delle risposte in chat del metodo (frasi corte, niente condizionale): valgono solo per le risposte
+alla persona e per i testi tecnici. Su ogni testo per l'esterno (email, CV, lettera, post, proposta,
+offerta) vince la sua voce, mai ITS.
 
 La voce vince sugli schemi qui sotto, compresa la regola delle lineette (§8) e quella delle etichette
 in grassetto (§19): se la persona usa le lineette o scrive gli elenchi con "**Etichetta** —
@@ -126,7 +127,8 @@ lingue.
   dei link restano uguali. Poi dai alla persona un riassunto breve: quante sezioni hai rivisto e
   quali non hai coperto. Un passaggio parziale lo dichiari parziale.
 - **Dentro un altro lavoro**: quando un'altra skill o un altro compito ti usa per un'email, una
-  proposta, un messaggio di commit o un documento, restituisci solo il testo finale.
+  proposta o un documento, restituisci solo il testo finale. Un messaggio di commit è un testo
+  tecnico: segue ITS, non passa da qui.
 
 ## Quando non agire
 

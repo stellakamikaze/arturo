@@ -7,8 +7,8 @@ description: >-
 when_to_use: >-
   Usa quando l'utente passa un testo e dice "riscrivi in ITS", "togli il burocratese", "rendi
   leggibile", "accorcia le frasi", "controlla che sia conforme", o chiede documentazione,
-  runbook, messaggi di errore, note di rilascio, capitolati, istruzioni per agenti. Non per le
-  risposte in chat (le regole base stanno nel metodo di Arturo o nel CLAUDE.md), non per marketing o voce di brand, non per impaginare un documento che ha un suo standard grafico.
+  runbook, messaggi di errore, note di rilascio, istruzioni per agenti. Non per le
+  risposte in chat (le regole base stanno nel metodo di Arturo o nel CLAUDE.md), non per i testi per l'esterno (email, CV, lettere, post, proposte, offerte: lì vale la voce della persona, skill humanizer), non per marketing o voce di brand, non per impaginare un documento che ha un suo standard grafico.
 version: 1.1.0
 license: MIT
 compatibility: claude-code cursor codex gemini-cli opencode

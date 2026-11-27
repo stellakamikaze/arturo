@@ -997,6 +997,9 @@ def test_y21(repo: Path) -> None:
     assert "~/.claude/personale/humanizer.md" in testo("shared/metodo.md") \
         and "Nessuna persona fa da modello di stile" in testo("shared/metodo.md"), \
         "Y21 il metodo non dice che i testi firmati seguono la voce nell'Orsa"
+    metodo = testo("shared/metodo.md")
+    assert "Ogni testo per l'esterno" in metodo and "mai ITS" in metodo, \
+        "Y21 il metodo non dice che i testi per l'esterno seguono la voce, mai ITS"
     assert "Exit 7" in testo("commands/fine.md"), "Y21 /fine non conosce l'exit 7 della nota di voce altrui"
     assert "un'altra persona" in testo("skills/humanizer/SKILL.md") \
         and "Mai un'altra persona come modello" in testo("skills/humanizer/references/voce-cresce.md"), \
@@ -1270,6 +1273,7 @@ VELENI = (
     ("Y21", [("bin/memoria.py", "        if nomi:\n            altrui.append", "        if False:\n            altrui.append")],
      "l'igiene non segnala"),
     ("Y21", [("shared/metodo.md", "~/.claude/personale/humanizer.md", "il CLAUDE.md")], "il metodo non dice"),
+    ("Y21", [("shared/metodo.md", "mai ITS", "anche ITS")], "testi per l'esterno seguono la voce"),
     ("Y21", [("bin/riporta-tuoi.sh", "deciso il 2/11/2026", "deciso da Federico il 2/11/2026")], "fuori dai crediti"),
     ("Y05", [("bin/memoria.py", "                    if b in archivio:\n", "                    if False:\n")],
      "un link a una nota archiviata"),

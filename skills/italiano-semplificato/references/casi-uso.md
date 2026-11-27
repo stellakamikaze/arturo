@@ -49,6 +49,8 @@ Modalità: procedurale. Un prompt di sistema è una procedura eseguita da un let
 
 ## Documenti di gara, capitolati e relazioni tecniche
 
+Un'offerta di gara o una proposta è un testo per l'esterno: la prosa segue la voce della persona (`~/.claude/personale/humanizer.md`, skill `humanizer`), mai ITS. ITS vale solo per le parti procedurali dentro (prescrizioni, passi, requisiti) e per le relazioni tecniche.
+
 Modalità: descrittiva per le relazioni, procedurale per le prescrizioni. Qui il burocratese è la norma di reparto e non un errore di stile, quindi il lavoro va fatto con due cautele.
 
 - Le citazioni normative, i riferimenti di legge, i codici CIG e CUP e le formule richieste dal bando sono intoccabili. Non riscriverli.
