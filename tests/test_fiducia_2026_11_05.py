@@ -53,6 +53,19 @@ FD21 (#5480, CLI vera) la copia installata è lo sha del catalogo ma ha una guar
      la deriva tace e il giro dopo dice "GIÀ AGGIORNATO". `claude plugin update` e `install` da soli non
      rimettono niente.
 
+FD22-FD27 (#6791, rilievo S2 del 20/11) `claude plugin update` e il pannello /plugin installano lo sha del
+     catalogo senza guardare il tag: Arturo segna in session-env/plugin-verificato.json lo sha che ha verificato,
+     e una copia installata diversa si verifica. Sulla base 26d2e4b sono rossi tutti e sei.
+FD22 tag non firmato, copia messa da claude plugin update col MANIFEST firmato: `plugin` dà "possibile
+     compromissione" (uscita 3) e lo stato lo dice, invece di "GIÀ AGGIORNATO";
+FD23 il catalogo riporta indietro a un rilascio firmato più vecchio dell'ultimo verificato: uscita 3;
+FD24 tag firmato giusto, copia messa fuori da /aggiorna: "GIÀ AGGIORNATO", e lo sha resta segnato;
+FD25 l'avvio dice in una riga che la copia non è verificata se lo sha segnato è un altro; tace se è lo stesso e
+     se il file non c'è ancora (la prima apertura con questa versione);
+FD26 il controllo dell'ora (`controlla --subito`) fa lo stesso: tag non firmato = stato compromesso, anche al
+     controllo dopo; tag firmato = sha segnato e stato aggiornato;
+FD27 un aggiornamento riuscito di /aggiorna segna lo sha nuovo, e l'avvio dopo tace.
+
 Sulla base 809868a (il dev prima di F3) sono tutti rossi: fiducia.py, il MANIFEST e `plugin` non ci
 sono. Su a442b38 (prima del lotto L4) è rosso FD14. Su 78dc1a2 è rosso FD20. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire il caso
 che lo sorveglia.
@@ -70,7 +83,8 @@ import time
 from pathlib import Path
 
 CASI = ["FD01", "FD02", "FD03", "FD04", "FD05", "FD06", "FD07", "FD08", "FD09", "FD10", "FD11", "FD12", "FD13",
-        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19", "FD20", "FD21"]
+        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19", "FD20", "FD21", "FD22", "FD23", "FD24", "FD25", "FD26",
+        "FD27"]
 CLI = ["FD06", "FD07", "FD08", "FD09", "FD21"]  # i casi con la CLI vera di Claude Code
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
@@ -696,6 +710,146 @@ def caso_fd21(repo: Path, r: Rilasci) -> list:
     return [f"FD21 copia del plugin cambiata sullo sha del catalogo: {s}" for s in sbagli]
 
 
+# FD22-FD27 (#6791, rilievo S2 del 20/11): la copia installata fuori da /aggiorna si verifica.
+AVVISO = "non è passata dalla verifica della firma"
+
+
+def orsa_con(r, tmp: Path, copia: Path, versione: str, sha: str, verificato: dict | None) -> dict:
+    """L'Orsa di prova: catalogo, copia installata, stato appena controllato e, se c'è, lo sha già verificato."""
+    orsa = r.orsa
+    (orsa / "plugins").mkdir(exist_ok=True)
+    (orsa / "plugins" / "known_marketplaces.json").write_text(
+        json.dumps({"arturo": {"installLocation": str(r.catalogo)}}), encoding="utf-8")
+    (orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+        {"scope": "user", "installPath": str(copia), "version": versione, "gitCommitSha": sha}]}}), encoding="utf-8")
+    (orsa / "session-env").mkdir(exist_ok=True)
+    (orsa / "session-env" / "aggiornamento.json").write_text(json.dumps({
+        "stato": "aggiornato", "plugin": True, "controllato": time.time(), "riuscito": time.time()}), encoding="utf-8")
+    if verificato is not None:
+        (orsa / "session-env" / "plugin-verificato.json").write_text(json.dumps(verificato), encoding="utf-8")
+    modulo_fiducia(r.repo).fissa_ancora(copia, orsa)
+    # manuali: l'avvio non lancia il controllo staccato, che resterebbe vivo dopo il banco.
+    return dict(r.env, ARTURO_CLAUDE=str(cli_finta(tmp, CLAUDE_FINTO)), ARTURO_AGGIORNAMENTI="manuali")
+
+
+def lancia(copia: Path, env: dict, *argomenti):
+    p = esegui([sys.executable, copia / "bin" / "aggiornamenti.py", *argomenti], env=env)
+    return p, (p.stdout + p.stderr).strip()
+
+
+def letto(orsa: Path, nome: str) -> dict:
+    try:
+        return json.loads((orsa / "session-env" / nome).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def un_rilascio(repo: Path, tmp: Path, chiavi: dict, nome: str, firma: str | None, versione: str = "0.4.0"):
+    base = tmp / nome
+    base.mkdir()
+    r = Rilasci(repo, base, chiavi)
+    sha = r.rilascio(versione, firma)
+    r.indica(f"plugin-v{versione}", sha)
+    privata, firmatari = chiavi["rilasci"]
+    copia = copia_plugin(repo, base / "cache" / versione, versione, firmatari, privata)
+    return r, sha, copia
+
+
+def caso_fd22(repo: Path, tmp: Path, chiavi: dict) -> list:
+    r, sha, copia = un_rilascio(repo, tmp, chiavi, "fd22", None)
+    env = orsa_con(r, tmp, copia, "0.4.0", sha, None)
+    p, uscita = lancia(copia, env, "plugin")
+    stato = letto(r.orsa, "aggiornamento.json")
+    if p.returncode != 3 or "POSSIBILE COMPROMISSIONE" not in uscita or not stato.get("compromesso"):
+        return [f"FD22 tag non firmato già installato: rc {p.returncode}, stato {stato.get('stato')!r}, {uscita[-200:]!r}"]
+    return []
+
+
+def caso_fd23(repo: Path, tmp: Path, chiavi: dict) -> list:
+    base = tmp / "fd23"
+    base.mkdir()
+    r = Rilasci(repo, base, chiavi)
+    sha3 = r.rilascio("0.3.0", "rilasci")
+    sha4 = r.rilascio("0.4.0", "rilasci")
+    privata, firmatari = chiavi["rilasci"]
+    # Il catalogo torna al rilascio firmato 0.3.0, e claude plugin update l'ha già installato.
+    git_tag = git(r.pub, "checkout", "-q", "plugin-v0.3.0")
+    r.indica("plugin-v0.3.0", sha3)
+    copia = copia_plugin(repo, base / "cache" / "0.3.0", "0.3.0", firmatari, privata)
+    env = orsa_con(r, tmp, copia, "0.3.0", sha3, {"sha": sha4, "tag": "plugin-v0.4.0", "versione": "0.4.0"})
+    p, uscita = lancia(copia, env, "plugin")
+    if p.returncode != 3 or "più vecchia dell'ultimo rilascio verificato" not in uscita:
+        return [f"FD23 rilascio firmato più vecchio: rc {p.returncode}/{git_tag.returncode}, {uscita[-200:]!r}"]
+    return []
+
+
+def caso_fd24(repo: Path, tmp: Path, chiavi: dict) -> list:
+    r, sha, copia = un_rilascio(repo, tmp, chiavi, "fd24", "rilasci")
+    env = orsa_con(r, tmp, copia, "0.4.0", sha, None)
+    p, uscita = lancia(copia, env, "plugin")
+    segnato = letto(r.orsa, "plugin-verificato.json")
+    if p.returncode != 0 or "GIÀ AGGIORNATO" not in uscita or segnato.get("sha") != sha \
+            or segnato.get("versione") != "0.4.0":
+        return [f"FD24 tag firmato giusto: rc {p.returncode}, segnato {str(segnato.get('sha'))[:12]}, {uscita[-200:]!r}"]
+    return []
+
+
+def caso_fd25(repo: Path, tmp: Path, chiavi: dict) -> list:
+    rossi = []
+    for variante, verificato, atteso in (("altro", {"sha": "e" * 40, "versione": "0.4.0"}, True),
+                                         ("stesso", None, False), ("senza", None, False)):
+        r, sha, copia = un_rilascio(repo, tmp, chiavi, f"fd25-{variante}", "rilasci")
+        if variante == "stesso":
+            verificato = {"sha": sha, "versione": "0.4.0"}
+        env = orsa_con(r, tmp, copia, "0.4.0", sha, verificato)
+        p, uscita = lancia(copia, env, "stato")
+        if (AVVISO in p.stdout) != atteso or p.returncode != 0:
+            rossi.append(f"FD25 avvio con lo sha verificato {variante}: rc {p.returncode}, avviso {AVVISO in p.stdout}, "
+                         f"{uscita[-160:]!r}")
+    return rossi
+
+
+def caso_fd26(repo: Path, tmp: Path, chiavi: dict) -> list:
+    rossi = []
+    r, sha, copia = un_rilascio(repo, tmp, chiavi, "fd26-no", None)
+    env = orsa_con(r, tmp, copia, "0.4.0", sha, {"sha": "e" * 40, "versione": "0.3.0"})
+    for giro in (1, 2):
+        p, uscita = lancia(copia, env, "controlla", "--subito")
+        stato = letto(r.orsa, "aggiornamento.json")
+        if not stato.get("compromesso"):
+            rossi.append(f"FD26 controllo {giro} con tag non firmato: stato {stato!r}, {uscita[-160:]!r}")
+            break
+    r, sha, copia = un_rilascio(repo, tmp, chiavi, "fd26-si", "rilasci")
+    env = orsa_con(r, tmp, copia, "0.4.0", sha, {"sha": "e" * 40, "versione": "0.3.0"})
+    p, uscita = lancia(copia, env, "controlla", "--subito")
+    stato, segnato = letto(r.orsa, "aggiornamento.json"), letto(r.orsa, "plugin-verificato.json")
+    if stato.get("compromesso") or stato.get("stato") != "aggiornato" or segnato.get("sha") != sha:
+        rossi.append(f"FD26 controllo con tag firmato: stato {stato.get('stato')!r}, segnato "
+                     f"{str(segnato.get('sha'))[:12]}, {uscita[-160:]!r}")
+    return rossi
+
+
+def caso_fd27(repo: Path, tmp: Path, chiavi: dict) -> list:
+    base = tmp / "fd27"
+    base.mkdir()
+    r = Rilasci(repo, base, chiavi)
+    privata, firmatari = chiavi["rilasci"]
+    sha3 = r.rilascio("0.3.0", "rilasci")
+    prima = copia_plugin(repo, base / "cache" / "0.3.0", "0.3.0", firmatari, privata)
+    sha4 = r.rilascio("0.4.0", "rilasci")
+    r.indica("plugin-v0.4.0", sha4)
+    nuova = copia_plugin(repo, base / "cache" / "0.4.0", "0.4.0", firmatari, privata)
+    env = orsa_con(r, tmp, prima, "0.3.0", sha3, {"sha": sha3, "tag": "plugin-v0.3.0", "versione": "0.3.0"})
+    env["FINTO_INSTALLA"] = json.dumps({"path": str(nuova), "version": "0.4.0", "sha": sha4})
+    p, uscita = lancia(prima, env, "plugin")
+    segnato = letto(r.orsa, "plugin-verificato.json")
+    dopo, _ = lancia(nuova, env, "stato")
+    if p.returncode != 0 or not p.stdout.startswith("APPLICATO") or segnato.get("sha") != sha4 or AVVISO in dopo.stdout:
+        return [f"FD27 aggiornamento riuscito: rc {p.returncode}, segnato {str(segnato.get('sha'))[:12]}, avvio dopo "
+                f"{dopo.stdout.strip()[:80]!r}, {uscita[-160:]!r}"]
+    return []
+
+
 def prova(repo: Path, solo: str | None = None) -> list:
     rossi = []
     with tempfile.TemporaryDirectory(prefix="fiducia.") as t:
@@ -729,6 +883,13 @@ def prova(repo: Path, solo: str | None = None) -> list:
             except Exception as errore:  # noqa: BLE001
                 rossi += [f"{c} errore: {type(errore).__name__}: {str(errore)[:160]}" for c in ("FD16", "FD17", "FD18")
                           if solo in (None, c)]
+        for codice, fn in (("FD22", caso_fd22), ("FD23", caso_fd23), ("FD24", caso_fd24), ("FD25", caso_fd25),
+                           ("FD26", caso_fd26), ("FD27", caso_fd27)):
+            if solo in (None, codice):
+                try:
+                    rossi += fn(repo, tmp, chiavi)
+                except Exception as errore:  # noqa: BLE001 - sulla base il file dello sha non c'è
+                    rossi.append(f"{codice} errore: {type(errore).__name__}: {str(errore)[:160]}")
         if solo is None or solo in CLI:
             try:
                 rossi += casi_cli(repo, tmp, chiavi, solo)
@@ -776,6 +937,15 @@ VELENI = [
     ("FD21", "bin/aggiornamenti.py", '    if not acceso:\n        _claude("disable"', '    if False:\n        _claude("disable"'),
     ("FD15", "bin/aggiornamenti.py", '    if not TAG_PLUGIN.fullmatch(tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):\n',
      "    if False:\n"),
+    ("FD22", "bin/aggiornamenti.py", "        rc_copia, motivo = verifica_installata(radice(), orsa)\n",
+     '        rc_copia, motivo = 0, ""\n'),
+    ("FD23", "bin/aggiornamenti.py", "        if rc == 0 and numero(tag) < numero(ultimo):", "        if False:"),
+    ("FD24", "bin/aggiornamenti.py", "    if rc == 0:\n        segna_verificato(r, sha, tag)", "    if False:\n        pass"),
+    ("FD25", "bin/aggiornamenti.py", '    if nuova_copia and leggi(file_verificato(r)).get("sha")',
+     '    if False and leggi(file_verificato(r)).get("sha")'),
+    ("FD26", "bin/aggiornamenti.py", '    rc_copia, motivo_copia = verifica_installata(r, orsa) if not estranea else (0, "")',
+     '    rc_copia, motivo_copia = 0, ""'),
+    ("FD27", "bin/aggiornamenti.py", "    segna_verificato(radice(), sha, tag)\n    segna_aggiornato", "    segna_aggiornato"),
 ]
 
 
