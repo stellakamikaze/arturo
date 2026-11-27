@@ -301,7 +301,8 @@ niente decorazioni, il titolo una volta.
 
 **Il problema:** virgolette curve (U+201C e U+201D) o basse (U+00AB e U+00BB) dove chi scrive o il
 formato usa quelle dritte ("). Molti editor le curvano da soli, quindi è *debole da solo*. In Arturo
-le virgolette sono dritte, salvo che il campione della persona usi le basse.
+le virgolette sono dritte, salvo che la voce della persona (`## Le mie regole` di
+`personale/humanizer.md`) o il suo campione usi le basse o le curve: lì decide la voce.
 
 ## E. Resti della chat e della bozza
 

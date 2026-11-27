@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Q01-Q11: mod e skill portati dalla config dell'autore il 15/10/2026.
+"""Q01-Q14: mod e skill portati dalla config dell'autore il 15/10/2026.
 
 Q01 il mod apri passa claude plugin validate e claude plugin test, e apre con il programma
 predefinito del sistema (open, start, xdg-open), mai con un browser scelto nel codice.
@@ -27,6 +27,9 @@ Q11 shared/regole-interfaccia.md (6/11/2026): tre parti, chi vince, ogni regola 
 
 Q12 le description di skill e comandi dicono cosa fanno e quando, senza la chiusa "Segui tutti i passi
     nell'ordine" e sotto i 1024 caratteri del limite delle Agent Skills (guide Anthropic, 19/11/2026).
+Q14 /voce costruisce la voce della persona (27/11/2026, #6815): il comando c'è, il modello del file ha le
+    quattro parti nell'ordine con la riga delle virgolette, humanizer e voce-cresce.md rimandano a /voce
+    invece dell'intervista a metà lavoro, e /setup FASE 10 lo propone.
 
 Il banco richiede il binario `claude`. Sulla base cbd8305 ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.
@@ -354,10 +357,34 @@ def test_q13(repo: Path) -> None:
         "Q13 l'agente ui-ux-consultant non ha un modello d'uscita"
 
 
+PARTI_VOCE = ("## I miei testi", "## Le mie regole", "## Per tipo di testo", "## Le mie correzioni")
+
+
+def test_q14(repo: Path) -> None:
+    comando = repo / "commands" / "voce.md"
+    assert comando.is_file(), "Q14 manca commands/voce.md, il comando /voce"
+    voce = read(comando)
+    assert "references/voce-modello.md" in voce and "solo dopo il suo sì" in voce, \
+        "Q14 /voce non usa il modello o scrive il file senza il sì della persona"
+    modello = repo / "skills" / "humanizer" / "references" / "voce-modello.md"
+    assert modello.is_file(), "Q14 manca il modello del file della voce"
+    testo = read(modello)
+    posti = [testo.find(f"\n{parte}\n") for parte in PARTI_VOCE]
+    assert -1 not in posti and posti == sorted(posti), f"Q14 il modello non ha le quattro parti in ordine: {posti}"
+    assert "- Virgolette: dritte." in testo, "Q14 il modello non ha la riga delle virgolette"
+    cresce = read(repo / "skills" / "humanizer" / "references" / "voce-cresce.md")
+    assert "proponi `/voce`" in cresce and "breve intervista" not in cresce, \
+        "Q14 voce-cresce.md fa ancora l'intervista a metà lavoro invece di proporre /voce"
+    assert "references/voce-modello.md" in read(repo / "skills" / "humanizer" / "SKILL.md"), \
+        "Q14 humanizer non nomina il modello della voce"
+    dieci = read(repo / "commands" / "setup.md").split("## FASE 10", 1)[-1].split("\n## ", 1)[0]
+    assert "col sì lancia `/voce`" in dieci, "Q14 /setup FASE 10 non propone /voce"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
     "Q05": test_q05, "Q06": test_q06, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
-    "Q10": test_q10, "Q11": test_q11, "Q12": test_q12, "Q13": test_q13,
+    "Q10": test_q10, "Q11": test_q11, "Q12": test_q12, "Q13": test_q13, "Q14": test_q14,
 }
 
 

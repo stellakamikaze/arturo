@@ -13,6 +13,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — I testi che mandi fuori ora parlano con la tua voce
+
+**Cosa cambia**: le regole brevi di Arturo (frasi corte, niente condizionale, virgolette dritte) valgono
+solo per le risposte che ti dà in chat e per i testi tecnici. Un'email, un CV, una lettera, un post o una
+proposta seguono la tua voce, scritta nella tua Orsa in `~/.claude/personale/humanizer.md`. Il comando
+`/voce` la costruisce con te: ti chiede due o tre testi tuoi, ti dice cosa ci trova, fa una prova e scrive
+il file solo col tuo sì. Rilanciato, la approfondisce. Anche il brief prima del lavoro è più leggibile, e
+lo stile delle risposte mette una cosa per riga.
+
+**Il principio**: le regole che rendono chiara una risposta in chat non sono il modo in cui scrivi tu. Un
+testo che firmi deve suonare tuo, e la tua voce si ricava dai tuoi testi, mai da quelli di un'altra
+persona (proposta n. 78).
+
+**Da sapere**: se la tua voce non c'è ancora, il prossimo `/inizio` te lo propone una volta sola. Puoi
+anche lanciare `/voce` quando vuoi.
+
 ## 2026-11-27 — L'avvio dice l'handoff recente e i todo fermi del progetto
 
 Una sessione aperta senza /inizio si è fidata di una riga di stato vecchia nel CLAUDE.md, e non ha visto

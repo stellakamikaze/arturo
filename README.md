@@ -388,7 +388,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 In tutto, Arturo porta:
 
 - **43 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
-- **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
+- **12 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **8 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
 
@@ -402,7 +402,7 @@ hooks/               43 guardie e automazioni, più 15 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
-commands/            11 slash command (i dieci qui sotto, più lo sparring che Claude apre da solo)
+commands/            12 slash command (gli undici qui sotto, più lo sparring che Claude apre da solo)
 agents/              8 subagent specializzati
 skills/              8 skill (+ regole condivise in shared/)
 output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
@@ -492,7 +492,7 @@ fa vedere la coda così come parte.
 
 ### I comandi (`commands/`)
 
-Undici comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
+Dodici comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
 
 **Ogni giorno.** Due comandi bastano: apri la giornata con `/inizio` e la chiudi con `/fine`.
 
@@ -511,6 +511,7 @@ Undici comandi, e Arturo te li propone quando servono. Gli altri strumenti li us
 
 - **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Se una richiesta torna uguale da una sessione all'altra, te la propone come cosa da delegare, con la scheda di come Claude la farebbe da solo.
 - **`/creaskill`** — fai spesso lo stesso lavoro? Ti fa cinque domande, una per volta, e ne fa una skill tua in `~/.claude/skills/`, che Claude usa da solo quando la richiesta torna. Il ciclo è questo. Un lavoro che torna diventa una skill: Arturo te la propone quando gli dici quale lavoro rifai ogni settimana, alla fine di `/setup`, o quando `/revisione` e la Scoperta vedono una ripetizione. La skill chiude con la lista "Finito quando": poche righe a cui si risponde sì o no, e Claude consegna il lavoro con l'esito riga per riga. Gli script di quel lavoro stanno nella cartella della skill, elencati in "Attrezzi", e `/fine` ti propone di portarci uno script riusabile nato nella sessione. Se correggi Claude mentre usa la skill, la correzione porta il nome della skill e `/fine` la scrive lì, dopo il tuo sì: la volta dopo il lavoro parte già corretto. Per una skill che hai già, `/creaskill <nome>` fa una domanda sola e aggiunge le due sezioni.
+- **`/voce`** — i testi che mandi fuori (email, CV, post, documenti) seguono la tua voce, non le regole brevi delle risposte in chat. Ti chiede due o tre testi tuoi per tipo, ti mostra cosa ci trova, una cosa per riga, e fa una prova. Dopo il tuo sì scrive la voce nella tua Orsa, in `personale/humanizer.md`. Rilanciato, la approfondisce: un tipo di testo che manca, tre correzioni uguali che diventano una regola.
 - **`/revisione`** — Arturo rilegge le tue sessioni degli ultimi 30 giorni e ti propone cosa migliorare: lavori che ripeti senza una skill, intoppi che tornano, note doppie, regole che si sovrappongono. Ogni proposta porta le prove, con le tue parole. Quelle che scegli e che riguardano Arturo arrivano a chi lo mantiene, dopo il tuo sì sull'anteprima; quelle sulla tua config le applica Claude con te.
 - **`/proponi`** — una tua skill può servire a tutti? La ripulisce con te da nomi e dati, ti mostra il testo e, dopo il tuo sì, la porta a chi mantiene Arturo come proposta.
 
@@ -528,7 +529,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`shared/lavori-lunghi.md`** — un comando che dura più di due minuti va in background. Per un lavoro che deve sopravvivere alla sessione c'è `bin/bgjob.sh`: log, PID e un marker con l'exit code in `data/logs/bgjobs/`.
 - **`shared/procedura-guidata.sh`** — lo scheletro delle procedure guidate: quando un passo lo puoi fare solo tu su un sito (un accesso, una chiave, un file da scaricare), Claude ne scrive una e tu la lanci nel Terminale. Una tappa per schermata, le chiavi incollate non si vedono e finiscono in un file leggibile solo da te (adattato da `mattpocock/skills`, MIT).
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML, permessi, slash-comandi citati nei documenti senza una skill o un comando dietro, peso dei corpi, plugin installati e non attivi. `--strict` fallisce se manca un requisito. Il banco avvelenato `skills/system-audit/tests/banco-gate.sh` lavora su una copia e non tocca la tua `~/.claude`.
-- **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro, anche breve, ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). Domande e conversazione hanno risposta diretta. La skill si carica una volta per sessione, e di nuovo dopo una compattazione: il brief resta su ogni richiesta (segnalazione n. 17). L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi (upstream `nidhinjs/prompt-master`, MIT).
+- **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro, anche breve, ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, risultato, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). Domande e conversazione hanno risposta diretta. La skill si carica una volta per sessione, e di nuovo dopo una compattazione: il brief resta su ogni richiesta (segnalazione n. 17). L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi (upstream `nidhinjs/prompt-master`, MIT).
 - **`todo`** — quando dici "ricordami di…" o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
 
 - **`concetti`** — quando chiedi "cos'è" o "che differenza c'è" su contesto e memoria, git e GitHub, branch e fork, aggiornamenti e modifiche tue, subagent, ultracode, le due finestre della quota o il sì a una conferma, Claude risponde in poche frasi e chiude con dove trovi la cosa in Arturo. Sono le domande della sera del Computer Club del 27/10/2026.

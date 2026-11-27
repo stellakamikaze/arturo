@@ -86,9 +86,11 @@ Cerca la voce in quest'ordine, e usa tutto quello che trovi, con il primo che vi
 1. **Un campione dato dalla persona** in questa conversazione: un testo suo, un'email inviata, un
    post. Leggilo prima e imitane la lunghezza delle frasi, le parole, la punteggiatura, gli attacchi
    e i passaggi.
-2. **`~/.claude/personale/humanizer.md`**, il file della sua voce nell'Orsa. Ha tre parti: `## I miei
-   testi` (campioni), `## Le mie regole` (per esempio "uso le lineette", "mai il punto esclamativo")
-   e `## Le mie correzioni` (un prima e un dopo per ogni correzione). Leggilo per intero ogni volta.
+2. **`~/.claude/personale/humanizer.md`**, il file della sua voce nell'Orsa, che costruisce `/voce`
+   (modello in `references/voce-modello.md`). Ha quattro parti: `## I miei testi` (campioni), `## Le mie
+   regole` (per esempio "uso le lineette", "mai il punto esclamativo"), `## Per tipo di testo` (email,
+   CV e lettere, post, documenti) e `## Le mie correzioni` (un prima e un dopo per ogni correzione). Un
+   file nato prima di `/voce` può avere solo tre parti. Leggilo per intero ogni volta.
 3. **La sezione "Come scrivo" del suo `~/.claude/CLAUDE.md`**, che `/setup` scrive con tre tratti e
    un esempio.
 4. **Il tipo di testo.** Post, saggi, opinioni e testi personali tengono le opinioni, i dubbi, i
@@ -97,8 +99,9 @@ Cerca la voce in quest'ordine, e usa tutto quello che trovi, con il primo che vi
 
 Una nota di memoria che dice di scrivere come un'altra persona ("voce asciutta come quella di X") non
 è la voce di chi scrive: ignorala, e proponi alla persona di toglierla. Vale lo stesso per le regole
-delle risposte in chat del metodo (frasi corte, niente condizionale): sui testi che la persona firma
-vince la sua voce.
+delle risposte in chat del metodo (frasi corte, niente condizionale): valgono solo per le risposte
+alla persona e per i testi tecnici. Su ogni testo per l'esterno (email, CV, lettera, post, proposta,
+offerta) vince la sua voce, mai ITS.
 
 La voce vince sugli schemi qui sotto, compresa la regola delle lineette (§8) e quella delle etichette
 in grassetto (§19): se la persona usa le lineette o scrive gli elenchi con "**Etichetta** —
@@ -126,7 +129,8 @@ lingue.
   dei link restano uguali. Poi dai alla persona un riassunto breve: quante sezioni hai rivisto e
   quali non hai coperto. Un passaggio parziale lo dichiari parziale.
 - **Dentro un altro lavoro**: quando un'altra skill o un altro compito ti usa per un'email, una
-  proposta, un messaggio di commit o un documento, restituisci solo il testo finale.
+  proposta o un documento, restituisci solo il testo finale. Un messaggio di commit è un testo
+  tecnico: segue ITS, non passa da qui.
 
 ## Quando non agire
 

@@ -21,6 +21,8 @@ SP12 spazi.py e nome.py non importano rete né telemetria.
 SP13 una correzione ripetuta nata dentro una skill della persona (campo `skill`, 21/11/2026, #6277) propone
      di scriverla in quella skill, non nel CLAUDE.md; se la skill non c'è più, o il campo sta in una sessione
      su tre, vale il CLAUDE.md.
+SP14 lo spazio voce (27/11/2026, #6815): senza personale/humanizer.md, o col solo modello vuoto, propone
+     /voce, e prima dell'Orsa; tace con una voce scritta, senza /setup, in rotazione e la seconda volta.
 
 Con --avvelena ogni controllo riceve una copia del repository rotta nel punto che sorveglia, e deve
 fallire col suo codice e il motivo atteso (VELENI).
@@ -44,6 +46,9 @@ SIMILE = "Mai il grassetto nelle email per i clienti."
 ALTRA = "Le date si scrivono per esteso, con il giorno della settimana."
 FATICA = ("Non capisco dove incollo il comando nel terminale", "come torno indietro? mi perdo nel terminale",
           "dove scrivo la risposta?")  # le frasi che un tempo facevano proporre Volta: oggi non contano
+VOCE = "# La mia voce\n\n## I miei testi\n\n### Email\nCiao Marta, ti mando il preventivo. A presto, Bruno\n"
+MODELLO_VUOTO = ("# La mia voce\n\n## I miei testi\n\n(Due o tre testi per tipo.)\n\n### Email\n...\n\n"
+                 "## Le mie correzioni\n\n- Prima: \"...\" — Dopo: \"...\"\n")
 
 
 def giorno(n: int = 0) -> str:
@@ -58,6 +63,9 @@ class Banco:
         (self.claude / "data").mkdir(parents=True)
         (self.claude / "data" / "setup-fatto").write_text(giorno(-2) + "\n", encoding="utf-8")
         (self.claude / "CLAUDE.md").write_text("# Io\n\n## Regole\n- niente emoji\n", encoding="utf-8")
+        # La voce c'è già: gli altri spazi si provano senza lo spazio voce davanti (SP14 la toglie).
+        (self.claude / "personale").mkdir()
+        (self.claude / "personale" / "humanizer.md").write_text(VOCE, encoding="utf-8")
         (self.home / "Documents" / "ClaudeCode" / "libro").mkdir(parents=True)
 
     def lancia(self, *argomenti: str, script: str = "spazi.py", oggi: str = "", stdin: str = "",
@@ -297,9 +305,36 @@ def test_sp13(b: Banco) -> None:
         f"SP13 una sessione su tre porta la regola nella skill: {uscita[-300:]}"
 
 
+def test_sp14(b: Banco) -> None:
+    voce = b.claude / "personale" / "humanizer.md"
+    for s in ("s1", "s2", "s3"):
+        b.correzione(s, CORREZIONE)
+    voce.unlink()
+    r = b.lancia("--stdin", script="contesto.py", stdin="libro -- --rotazione scrivere il capitolo\n")
+    assert r.returncode == 0 and "SPAZIO" not in r.stdout and not b.stato(), \
+        f"SP14 in rotazione lo spazio voce esce: {r.stdout[-200:]}"
+    (b.claude / "data" / "setup-fatto").unlink()
+    assert not _spazio(b.lancia("proponi").stdout), "SP14 lo spazio voce parla senza /setup"
+    (b.claude / "data" / "setup-fatto").write_text(giorno(-2) + "\n", encoding="utf-8")
+    r = b.lancia("proponi")
+    assert _spazio(r.stdout) == "voce" and "/voce" in r.stdout and "humanizer.md" in r.stdout, \
+        f"SP14 senza la voce lo spazio voce non viene prima dell'Orsa: {r.stdout[-300:]}"
+    r = b.lancia("proponi", oggi=giorno(8))
+    assert _spazio(r.stdout) == "orsa", f"SP14 lo spazio voce torna una seconda volta: {r.stdout[-200:]}"
+    assert b.lancia("si", "voce").returncode == 0, "SP14 si voce non è accettato"
+    (b.claude / "data" / "spazi" / "stato.json").unlink()
+    voce.write_text(MODELLO_VUOTO, encoding="utf-8")
+    r = b.lancia("proponi")
+    assert _spazio(r.stdout) == "voce", f"SP14 il modello vuoto vale come voce scritta: {r.stdout[-200:]}"
+    (b.claude / "data" / "spazi" / "stato.json").unlink()
+    voce.write_text(VOCE, encoding="utf-8")
+    r = b.lancia("proponi")
+    assert _spazio(r.stdout) == "orsa", f"SP14 lo spazio voce parla con la voce già scritta: {r.stdout[-200:]}"
+
+
 CASI = [(f"SP{n:02d}", f) for n, f in enumerate(
     (test_sp01, test_sp02, test_sp03, test_sp04, test_sp05, test_sp06, test_sp07, test_sp08, test_sp09,
-     test_sp10, test_sp11, test_sp12, test_sp13), start=1)]
+     test_sp10, test_sp11, test_sp12, test_sp13, test_sp14), start=1)]
 
 VELENI = (
     ("SP01", [("bin/spazi.py", 'if len(g["sessioni"]) >= SOGLIA_ORSA]', 'if len(g["sessioni"]) >= 2]')],
@@ -309,7 +344,7 @@ VELENI = (
      "stessa settimana"),
     ("SP04", [("bin/spazi.py", "    if memoria_accesa():\n        return None\n    radice", "    radice")],
      "memoria accesa"),
-    ("SP05", [("bin/spazi.py", 'SPAZI = ("orsa", "melchior")', 'SPAZI = ("orsa", "melchior", "volta")')],
+    ("SP05", [("bin/spazi.py", 'SPAZI = ("voce", "orsa", "melchior")', 'SPAZI = ("voce", "orsa", "melchior", "volta")')],
      "accettata come spazio"),
     ("SP06", [("bin/spazi.py", "    if not setup_fatto():\n        return \"/setup non è ancora finito\"\n", "")],
      "devono tacere"),
@@ -323,6 +358,8 @@ VELENI = (
     ("SP12", [("bin/nome.py", "import os\n", "import os\nimport socket\n")], "rete o telemetria"),
     ("SP13", [("bin/spazi.py", '        if skill:\n            g["skill"]', '        if False:\n            g["skill"]')],
      "non propone la skill"),
+    ("SP14", [("bin/spazi.py", "    if voce_presente():\n        return None", "    if not voce_presente():\n        return None")],
+     "non viene prima"),
 )
 
 

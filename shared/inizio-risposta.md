@@ -44,6 +44,7 @@ segui quello della sua risposta.
   lancia `arturo intervista skill si`. Col no lancia `arturo intervista skill no`. La riga `SKILL` esce
   una volta sola: senza risposta non richiedere.
 - **La risposta alla proposta di uno spazio.** Col sì esegui il passo della riga `col sì` di `SPAZIO`:
+  per la voce lancia `/voce` (apri con Read `~/.claude/commands/voce.md`) e poi torna al lavoro;
   per Melchior accendi la memoria;
   per l'Orsa scrivi la regola in una riga, mostrala e solo col suo sì sul testo aggiungila al suo
   `CLAUDE.md`. Poi lancia `python3 ~/.claude/bin/arturo spazi si <spazio>`. Col no lancia
