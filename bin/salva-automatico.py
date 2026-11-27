@@ -226,15 +226,20 @@ def leggi_transcript(path: Path) -> dict:
 
 def lavoro_dopo_fine(letto: dict) -> tuple:
     """(richieste, file) venuti dopo l'ultimo /fine, senza la coda del /fine stesso: le risposte corte e i
-    file che /fine scrive da sé (handoff, memoria, CLAUDE.md della persona). Vuoti se il lavoro non c'è."""
+    file che /fine scrive da sé (handoff, memoria, CLAUDE.md della persona, gli script nella cartella tmp del
+    job). Vuoti se il lavoro non c'è."""
     orsa = os.path.realpath(radice_orsa())
     propri = (os.path.join(orsa, "data") + os.sep, os.path.join(orsa, "CLAUDE.md"))
+    job = os.path.join(orsa, "jobs") + os.sep
     richieste = [r for r in letto["richieste_dopo"]
                  if not re.match(r"^/(?:[\w-]+:)?inizio(\s|$)", r) and len(r.split()) >= PAROLE_LAVORO]
     file = []
     for f in letto["file_dopo"]:
         vero = os.path.realpath(os.path.expanduser(f))
         if vero == propri[1] or vero.startswith(propri[0]):
+            continue
+        # ~/.claude/jobs/<id>/tmp: /fine ci scrive fase1.sh e coda.sh prima di ruotare, e non è lavoro (#6759).
+        if vero.startswith(job) and vero[len(job):].split(os.sep)[1:2] == ["tmp"]:
             continue
         file.append(f)
     return richieste, file

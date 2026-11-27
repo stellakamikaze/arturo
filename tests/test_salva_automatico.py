@@ -19,6 +19,9 @@ SV13 le correzioni della sessione (arturo correzione) entrano nell'handoff nella
      skill in uso; una correzione con un segreto non entra; /inizio le riporta; il gate resta verde (21/11/2026, #6277).
 SV14 tre salvataggi insieme della stessa sessione, dopo un /fine a metà: un handoff automatico solo. Il 16/11 un
      congedo da Volta ne ha scritti tre uguali alle 12:46, 12:47 e 12:48, uno per minuto libero (#5784).
+SV15 un /fine --rotazione (tool Skill) che poi scrive fase1.sh e coda.sh in ~/.claude/jobs/<id>/tmp e chiama ruota:
+     nessun handoff automatico. Un file del progetto scritto dopo il /fine entra, gli script del job no. Il 27/11
+     alle 11:28 quei due script hanno fatto salvare da solo la sessione 6de74ba6 (#6759).
 
 Veleno: --avvelena rompe bin/salva-automatico.py (o il punto sorvegliato) nella copia di prova, un punto per caso,
 ed esce 0 solo se ogni rottura fa rosso il suo caso (VELENI del gate).
@@ -39,7 +42,8 @@ from pathlib import Path
 # Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
 BASH_VERO = shutil.which("bash") or "bash"
 
-CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12", "SV13", "SV14"]
+CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12", "SV13", "SV14",
+        "SV15"]
 SA = "bin/salva-automatico.py"
 # caso -> (file, testo, testo rotto)
 VELENI = {
@@ -58,7 +62,9 @@ VELENI = {
     "SV12": (SA, "        return slug_del_progetto(cartella), cartella", "        return slug(cartella.name), cartella"),
     "SV13": (SA, "                    correzioni_della_sessione(sid, scanner), dopo)", "                    [], dopo)"),
     "SV14": (SA, "    with chiave_sessione(sid):", "    with contextlib.nullcontext():"),
+    "SV15": (SA, "vero[len(job):].split(os.sep)[1:2] == [\"tmp\"]:", "False:"),
 }
+MARCA_SV = "- Salvato: in automatico"
 SEGRETO = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 
 
@@ -323,6 +329,32 @@ def prova(lab: Lab) -> list:
     automatici = [p for p in lab.tutti() if p != fine_meta and "- Sessione: s-tre" in p.read_text(encoding="utf-8")]
     if len(automatici) != 1 or "DOPO-IL-FINE" not in automatici[0].read_text(encoding="utf-8"):
         rossi.append(f"SV14 tre giri insieme: {[p.name for p in automatici]} {uscite!r}")
+
+    # SV15: /fine --rotazione, poi gli script nella tmp del job e ruota
+    tmp_job = lab.cl / "jobs" / "8020c563" / "tmp"
+    tmp_job.mkdir(parents=True, exist_ok=True)
+    coda_rot = [uso("Skill", {"skill": "fine", "args": "--rotazione"}, "r1"), risultato("r1", "ok"),
+                uso("Write", {"file_path": str(tmp_job / "fase1.sh"), "content": "true\n"}, "r2"), risultato("r2", "ok"),
+                uso("Write", {"file_path": str(tmp_job / "coda.sh"), "content": "true\n"}, "r3"), risultato("r3", "ok"),
+                uso("mcp__arturo__ruota", {"progetto": "mio-libro", "compito": "X", "traccia": ""}, "r4"),
+                risultato("r4", "ok")]
+    for sid, extra in (("s-rot", []), ("s-rot-lavoro", [uso("Write", {"file_path": str(scritto)}, "r5")])):
+        (d / f"HANDOFF_2026-11-03_09-0{len(extra)}.md").write_text(
+            "# Session Handoff\n## Progetto\n- Nome: mio-libro / Status: in progress\n"
+            f"- Sessione: {sid}\n## Ripartenza\nProssimo passo: X\n## Task Pendenti\nNessun task pendente\n",
+            encoding="utf-8")
+        lab.transcript(sid, [utente("Riscrivi il capitolo due")] + coda_rot + extra)
+    r = lab.salva("s-rot", lab.progetto)
+    auto = [p for p in lab.tutti() if "- Sessione: s-rot\n" in p.read_text(encoding="utf-8")
+            and MARCA_SV in p.read_text(encoding="utf-8")]
+    r2 = lab.salva("s-rot-lavoro", lab.progetto)
+    auto2 = [p for p in lab.tutti() if "- Sessione: s-rot-lavoro" in p.read_text(encoding="utf-8")
+             and MARCA_SV in p.read_text(encoding="utf-8")]
+    testo2 = auto2[0].read_text(encoding="utf-8") if len(auto2) == 1 else ""
+    if auto or not r.stdout.startswith("NIENTE") or str(scritto) not in testo2 or "fase1.sh" in testo2 \
+            or "coda.sh" in testo2:
+        rossi.append(f"SV15 tmp del job: auto={[p.name for p in auto]} {r.stdout.strip()!r} {r2.stdout.strip()!r} "
+                     f"{testo2[-400:]!r}")
 
     # SV08: session-end.sh lo lancia
     lab.transcript("s-hook", [utente("chiudi il capitolo tre")])
