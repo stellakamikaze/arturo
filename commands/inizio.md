@@ -204,9 +204,9 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   `~/.claude/docs/mestieri.md`, per famiglia di mestiere. Manca in rotazione, a memoria spenta, a intervista spenta
   o se oggi una domanda c'è già stata.
 - `SPAZIO`: nei giorni senza domanda dell'intervista, al massimo una proposta a settimana di uno spazio,
-  col segnale che l'ha fatta nascere: Melchior se la memoria è spenta e il lavoro cresce, l'Orsa se
-  corregge la stessa cosa in più sessioni. Ogni spazio si propone una
-  volta sola. Manca in rotazione e a proposte spente.
+  col segnale che l'ha fatta nascere: la voce se `personale/humanizer.md` manca (prima delle altre),
+  Melchior se la memoria è spenta e il lavoro cresce, l'Orsa se corregge la stessa cosa in più sessioni.
+  Ogni spazio si propone una volta sola. Manca in rotazione e a proposte spente.
 
 Con l'uscita 0 entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
@@ -422,8 +422,9 @@ Perché è fatta così:
   **salta**". La domanda non ferma il lavoro: con un compito parti lo stesso.
 - **La proposta di uno spazio.** [solo se la FASE 1 stampa `SPAZIO`] prima della riga di risposta metti
   due righe con parole tue: cosa hai visto (il "perché" della riga, coi suoi numeri) e cosa proponi (la
-  "proposta"). Sotto: "Se ti va, scrivimi **sì**; se no, **no** e non te lo ripropongo". Anche la proposta
-  non ferma il lavoro.
+  "proposta"). Per la voce: i testi che manda fuori seguono regole generali, e `/voce` costruisce la sua
+  voce con qualche testo suo. Sotto: "Se ti va, scrivimi **sì**; se no, **no** e non te lo ripropongo".
+  Anche la proposta non ferma il lavoro.
 - **Il messaggio chiude senza menu**, con le parole di risposta in grassetto. La persona risponde a
   parole.
 - **La checklist di Volta.** [solo se la FASE 1 stampa `VOLTA`] Subito dopo la ripartenza passa lo stesso

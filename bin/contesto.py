@@ -615,7 +615,7 @@ def sezione_intervista() -> list:
 
 
 def sezione_spazio() -> list:
-    """La proposta di uno spazio (bin/spazi.py, #5711): Volta, Melchior o l'Orsa, una volta sola e col segnale
+    """La proposta di uno spazio (bin/spazi.py, #5711): la voce, Melchior o l'Orsa, una volta sola e col segnale
     che l'ha fatta nascere. Mai in rotazione, e mai lo stesso giorno della domanda dell'intervista: una
     richiesta sola per /inizio. Scrive il segno della proposta in data/spazi/stato.json. Una sua rottura non
     ferma /inizio."""

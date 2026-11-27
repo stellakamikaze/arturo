@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """arturo spazi: Arturo propone uno spazio quando vede un segnale nel lavoro, una volta sola e col perché.
 
-  arturo spazi [stato] [--json]     i due spazi: il segnale visto oggi, se è già stato proposto, la risposta
+  arturo spazi [stato] [--json]     i tre spazi: il segnale visto oggi, se è già stato proposto, la risposta
   arturo spazi proponi [--json]     la proposta di oggi, se c'è, e la segna come fatta (arturo contesto)
   arturo spazi si SPAZIO            la persona ha detto sì: lo stato lo ricorda (il passo dopo lo fa Claude)
   arturo spazi no SPAZIO            la persona ha detto no: lo spazio non torna
   arturo spazi spegni | accendi     ferma o riprende le proposte
 
 Nasce il 16/11/2026 dalla voce "Arturo ti propone uno spazio quando ti serve" (ROADMAP.md, Fase F1 del piano
-della catena di prodotto, #5711). Gli spazi sono due, e ognuno ha il suo segnale, contato in locale:
+della catena di prodotto, #5711). Gli spazi sono tre, e ognuno ha il suo segnale, contato in locale:
+- voce: /setup è finito e la voce della persona non c'è: personale/humanizer.md manca o non ha testi suoi.
+  Senza la voce i testi per l'esterno (email, CV, post) seguono le regole generali di humanizer; /voce la
+  costruisce coi testi della persona. Viene per primo: chi aggiorna lo vede al primo /inizio (27/11/2026, #6815);
 - melchior: la memoria è spenta e il lavoro cresce: almeno SOGLIA_HANDOFF handoff, oppure un CLAUDE.md di
   almeno SOGLIA_RIGHE righe. Melchior è la memoria di Arturo: ordina quello che oggi sta sparso e lo ritrova;
 - orsa: la persona corregge spesso lo stesso comportamento: la stessa correzione (arturo correzione) in
@@ -42,7 +45,7 @@ sys.path.insert(0, str(QUI))
 sys.path.insert(0, str(QUI.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
 
-SPAZI = ("orsa", "melchior")  # l'ordine quando i segnali sono più di uno: prima la correzione che torna
+SPAZI = ("voce", "orsa", "melchior")  # l'ordine quando i segnali sono più di uno: prima la voce, poi la correzione
 INTERVALLO = 7          # giorni fra una proposta e la successiva
 SOGLIA_HANDOFF = 15
 SOGLIA_RIGHE = 250
@@ -118,6 +121,33 @@ def spente(stato: dict) -> bool:
 def setup_fatto() -> bool:
     return (radice_orsa() / "data" / "setup-fatto").is_file()
 
+
+# --- Il segnale della voce: il file della voce manca o non ha testi -----------------------------------
+
+def voce_presente() -> bool:
+    """True se personale/humanizer.md ha almeno una riga scritta: non un titolo, non un'istruzione fra
+    parentesi del modello (skills/humanizer/references/voce-modello.md), non un segnaposto "...". """
+    try:
+        testo = (radice_orsa() / "personale" / "humanizer.md").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    for riga in testo.splitlines():
+        r = riga.strip().lstrip("-* ").strip()
+        if not r or r.startswith("#") or r.startswith("(") or r.strip(".…") == "" or r.startswith("Prima: \"...\""):
+            continue
+        return True
+    return False
+
+
+def segnale_voce() -> Optional[dict]:
+    if voce_presente():
+        return None
+    return {"spazio": "voce", "chiave": "voce",
+            "perche": "la tua voce non c'è ancora (~/.claude/personale/humanizer.md): i testi che mandi fuori, "
+                      "come email, CV e post, seguono regole generali e non il tuo modo di scrivere",
+            "proposta": "/voce: mi dai due o tre testi tuoi, ti dico cosa ci trovo, facciamo una prova e "
+                        "scrivo la tua voce nell'Orsa col tuo sì",
+            "con_il_si": "lancia /voce (apri con Read ~/.claude/commands/voce.md e seguilo)"}
 
 
 # --- Il segnale di Melchior: la memoria spenta e il lavoro che cresce ---------------------------------
@@ -259,7 +289,8 @@ def segnali(stato: dict) -> List[dict]:
     for spazio in SPAZI:
         if spazio != "orsa" and spazio in stato["proposte"]:
             continue
-        segnale = segnale_orsa(stato) if spazio == "orsa" else segnale_melchior()
+        segnale = segnale_orsa(stato) if spazio == "orsa" else segnale_voce() if spazio == "voce" \
+            else segnale_melchior()
         if segnale:
             fuori.append(segnale)
     return fuori

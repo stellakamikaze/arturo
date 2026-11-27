@@ -76,6 +76,9 @@ Per ogni entry non vista, **una per volta**:
 5. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
 6. Proponi: "vuoi fare un po' di sparring per vedere se ti serve?" → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
 7. Segna questa entry come vista (Passo 3) prima di passare alla successiva.
+8. **La voce.** Raccontata l'entry su `/voce`, se `~/.claude/personale/humanizer.md` manca, proponi
+   `/voce` in una riga: costruisce la sua voce per i testi che manda fuori. Col sì apri con Read
+   `~/.claude/commands/voce.md` e seguilo.
 
 Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una, chiedi dopo ciascuna se proseguire.
 
