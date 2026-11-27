@@ -4,6 +4,8 @@
 GS01 un lavoro rosso non ferma gli altri: due rossi in liste diverse (un banco e una controprova) escono
      tutti e due nel rapporto, i verdi girano lo stesso e l'esecutore esce 1.
 GS02 due worker hanno HOME e TMPDIR diversi: un lavoro che scrive nella sua HOME non si vede dall'altro.
+     TEMP e TMP valgono come TMPDIR: su Windows Node, PowerShell e i programmi nativi leggono quelle, e le
+     cartelle dei banchi restavano nella Temp vera (9.055 voci su un PC Windows il 22/11/2026, #6443).
 GS03 l'ordine segue i tempi dell'ultimo giro (prima i lunghi); senza tempi segue le liste.
 GS04 --rossi rifà solo i rossi del giro prima e stampa PARZIALE.
 GS05 una controprova verde, al giro dopo con banco, fonti e base uguali, si salta e la riga finale la
@@ -71,7 +73,8 @@ BANCHI = {
         "(home / f'segno-{nome}').write_text('x')\ntime.sleep(1.5)\n"
         "altri = sorted(p.name for p in home.glob('segno-*') if p.name != f'segno-{nome}')\n"
         "Path(os.environ['GS_OUT'], nome + '.json').write_text(json.dumps("
-        "{'home': str(home), 'tmp': os.environ['TMPDIR'], 'altri': altri}))\n"),
+        "{'home': str(home), 'tmp': os.environ['TMPDIR'], 'temp': os.environ.get('TEMP'), "
+        "'tmp2': os.environ.get('TMP'), 'altri': altri}))\n"),
 }
 BANCHI["casa2.py"] = BANCHI["casa.py"]
 BANCHI["ambiente.py"] = (
@@ -179,6 +182,8 @@ def test_gs02(esecutore: Path) -> None:
         a, b = (json.loads((uscite / f"{n}.json").read_text(encoding="utf-8")) for n in ("casa", "casa2"))
         assert a["home"] != b["home"] and a["tmp"] != b["tmp"], f"GS02 i due worker condividono HOME o TMPDIR: {a} {b}"
         assert not a["altri"] and not b["altri"], f"GS02 un worker vede i file dell'altro: {a['altri']} {b['altri']}"
+        for x in (a, b):
+            assert x["temp"] == x["tmp"] and x["tmp2"] == x["tmp"], f"GS02 TEMP o TMP diversi da TMPDIR: {x}"
 
 
 def test_gs03(esecutore: Path) -> None:

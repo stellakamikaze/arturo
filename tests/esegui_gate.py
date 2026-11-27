@@ -142,8 +142,10 @@ class Worker:
         return self.basi[ref]
 
     def env(self) -> Dict[str, str]:
+        # TEMP e TMP accanto a TMPDIR: su Windows Node, PowerShell e i programmi nativi leggono quelle, e le
+        # cartelle dei banchi finivano nella Temp vera (22/11/2026, #6443, GS02).
         e = dict(ambiente_pulito(), HOME=str(self.home), USERPROFILE=str(self.home), TMPDIR=str(self.tmp),
-                 XDG_CACHE_HOME=str(self.dir / "cache"), ARTURO_SALTI=str(self.salti))
+                 TEMP=str(self.tmp), TMP=str(self.tmp), XDG_CACHE_HOME=str(self.dir / "cache"), ARTURO_SALTI=str(self.salti))
         e.update(base_utente())
         return e
 
