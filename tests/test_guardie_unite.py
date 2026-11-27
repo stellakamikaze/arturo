@@ -573,6 +573,12 @@ def test_g209(repo: Path) -> None:
 
 def test_g210(repo: Path) -> None:
     import time
+    # Senza node la barra di stato non gira e settings.json mostra l'avviso di installarlo: non c'è niente da provare.
+    # Il 16/11/2026 l'installazione 0461dc93 (Darwin, v0.2.16) dava il banco rosso a ogni avvio con un
+    # FileNotFoundError su node, unico rosso dei banchi rapidi (#6456). Claude Code si installa anche senza node.
+    if shutil.which("node") is None:
+        dichiara("G210 (barra di stato)", "manca node: la barra di stato di Arturo gira con node")
+        return
     with tempfile.TemporaryDirectory() as d:
         home = Path(d) / "home"
         (home / ".claude").mkdir(parents=True)
