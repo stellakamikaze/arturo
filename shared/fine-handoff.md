@@ -57,6 +57,9 @@ lo trova senza `--handoff`.
 - Status `da fare|in corso|fermo`, priorità `alta|media|bassa`, come in `arturo todo`.
 - **Task e Descrizione si leggono senza contesto**: il verbo all'infinito e cosa serve per riprendere.
   Gergo, percorsi e hash vanno in Decisioni.
+- **Un elenco si scrive per intero**: se un task o la Ripartenza rimanda a un elenco ("le tre cose di
+  oggi", "i file rimasti"), le voci stanno nelle note del todo o in Decisioni, una per riga. Un rimando
+  senza le voci non basta a riprendere (segnalazione n. 92).
 - **Ogni idea ha un destino**: un'idea già vista prima non resta idea una terza volta. "→ memoria"
   nomina con `[[nome]]` la nota dove l'idea è finita: il gate cerca quella nota nella memoria o in
   `_in-attesa.md`, e senza nota esce rosso.

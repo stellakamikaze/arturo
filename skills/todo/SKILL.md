@@ -47,6 +47,12 @@ Un todo bloccato da qualcosa di esterno va in FERMO con `ferma ID "motivo"`. Non
 `--chi`. Un todo che aspetta un altro todo si collega con `dopo ID ALTRO`, oppure nasce già legato con `aggiungi "titolo" --dopo ALTRO`. Un todo su cui stai
 lavorando adesso va "in corso" con `inizia ID`.
 
+Un todo che rimanda a un elenco ("le tre cose di oggi", "i file da sistemare", "le domande per
+Rossi") porta le voci nelle note, una per riga, con `--note` o con `nota ID`. Il titolo resta
+corto. Senza le voci, la sessione dopo legge il titolo e non sa di cosa parla (segnalazione n. 92).
+Un todo lasciato a metà riceve con `nota ID` cosa è fatto e cosa resta, prima della fine della
+sessione.
+
 ## I comandi
 
 Scrivi sempre `python3 ~/.claude/bin/arturo todo` davanti. L'avvio della sessione mette `arturo` nel
