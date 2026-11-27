@@ -125,12 +125,12 @@ def prova(repo: Path) -> list[str]:
 
         crea = pacchetto / "skills" / "creaskill" / "SKILL.md"
         testa_crea = crea.read_text(encoding="utf-8").split("\n---", 1)[0] if crea.exists() else ""
-        inizio_p = pacchetto / "skills" / "inizio" / "SKILL.md"
+        inizio_p = pacchetto / "shared" / "inizio-risposta.md"  # la FASE 6 di /inizio, dal 27/11/2026
         inizio_t = inizio_p.read_text(encoding="utf-8") if inizio_p.exists() else ""
         metodo_t = (repo / "shared" / "metodo.md").read_text(encoding="utf-8")
         if "disable-model-invocation" in testa_crea or "\ndescription:" not in testa_crea \
                 or "proponi `/creaskill`" not in metodo_t \
-                or "${CLAUDE_PLUGIN_ROOT}/skills/creaskill/SKILL.md" not in inizio_t:
+                or "$ARTURO_CODICE/skills/creaskill/SKILL.md" not in inizio_t:  # shared/ usa $ARTURO_CODICE
             rossi.append(f"IP22 creaskill non è chiamabile dal modello nel pacchetto: flag "
                          f"{'disable-model-invocation' in testa_crea}, /inizio col percorso del pacchetto "
                          f"{'skills/creaskill/SKILL.md' in inizio_t}")
@@ -423,7 +423,7 @@ VELENI = [
      "CHIAMATI_DAL_MODELLO = ()"),
     ("IP22", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi", "creaskill")',
      'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi")'),
-    ("IP22", "commands/inizio.md", "`~/.claude/commands/creaskill.md` e seguilo", "`/creaskill` e seguilo"),
+    ("IP22", "shared/inizio-risposta.md", "`~/.claude/commands/creaskill.md` e seguilo", "`/creaskill` e seguilo"),
     ("IP03", "bin/impacchetta.py", """r'"${CLAUDE_PLUGIN_ROOT}/\\1"'""", """r'${CLAUDE_PLUGIN_ROOT}/\\1'"""),
     ("IP04", "bin/impacchetta.py", 'resto["outputStyle"] = f"{NOME}:{stile}"', "pass"),
     ("IP06", "bin/impostazioni.py", "        return attuale, None, frammento, f\"{_dove(", "        return attuale, frammento, frammento, None and f\"{_dove("),

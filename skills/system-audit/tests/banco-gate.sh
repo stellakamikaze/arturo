@@ -79,8 +79,19 @@ caso "gate-fantasma: il percorso di una pagina web non è un comando" manca 'pag
 printf -- '---\ndescription: banco\n---\nApri la pagina `/roadmap/`, poi lancia `/comando-che-non-esiste-mai`.\n' > "$K"
 caso "gate-fantasma: dopo una pagina web il comando vero resta controllato" trova '^WARN  commands/_banco.md:4 cita /comando-che-non-esiste-mai'
 
+# Segnalazione 109 (26/11/2026): /rename è un comando di Claude Code, e "pagina web `/x`" è una pagina.
+printf -- '---\ndescription: banco\n---\nConta solo il nome dato a mano, con `--name` o `/rename`.\n' > "$K"
+caso "gate-fantasma passa /rename di Claude Code" manca '_banco.md.*cita /rename'
+
+printf -- '---\ndescription: banco\n---\nApri la pagina web `/pagina-che-non-esiste-mai` nel browser.\n' > "$K"
+caso "gate-fantasma: la pagina web scritta con la barra non è un comando" manca 'pagina-che-non-esiste-mai'
+
 { printf -- '---\ndescription: banco\n---\n'; i=0; while [ $i -lt 700 ]; do printf 'riga di riempimento per superare il tetto di peso del corpo.\n'; i=$((i+1)); done; } > "$K"
 caso "peso dei corpi: un comando oltre 30 KB" trova '^WARN  commands/_banco.md pesa [0-9]+ KB'
+
+# Segnalazione 109: 30 KB sono 30720 byte. Un corpo da circa 30200 byte sta sotto il tetto.
+{ printf -- '---\ndescription: banco\n---\n'; i=0; while [ $i -lt 495 ]; do printf 'riga di riempimento per superare il tetto di peso del corpo.\n'; i=$((i+1)); done; } > "$K"
+caso "peso dei corpi: un comando da 29 KB sta sotto il tetto di 30 KB" manca '_banco.md pesa'
 rm -f "$K"
 
 mkdir -p "$C/plugins"
