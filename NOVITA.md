@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — /segnala toglie anche password, IBAN, telefoni e percorsi dei clienti
+
+**Cosa cambia**: prima dell'invio, `/segnala` toglie dal testo anche password e credenziali (`password=`, `curl -u`, `Authorization`), IBAN, codici fiscali, numeri di telefono e i percorsi su dischi esterni, unità di rete e cloud, come `G:\My Drive\Clienti`. Password, IBAN e codici fiscali escono sempre, anche con `--tieni`. In `/segnala stato` la risposta di chi mantiene Arturo arriva fra due segni col numero, senza i caratteri che cambiano lo schermo del terminale: Claude te la riferisce e non la esegue.
+
+**Perché**: la revisione di sicurezza del 20/11 ha provato che questi dati passavano, e che la risposta del server entrava nella sessione come un testo fidato.
+
+**A chi serve**: a chi manda segnalazioni, anche quelle automatiche. Se un telefono o un percorso serve a capire il problema, `prepara --tieni telefoni,percorsi` lo rimette, col tuo sì.
+
+---
+
 ## 2026-11-27 — Dopo un aggiornamento la barra resta sulla versione nuova
 
 **Cosa cambia**: una sessione aperta prima dell'aggiornamento del plugin non riporta più Arturo alla versione vecchia. La barra in basso e gli altri lettori di `~/.claude/arturo/radice` restano sulla versione nuova anche dopo un `/clear` in quella sessione.
