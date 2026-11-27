@@ -95,14 +95,34 @@ commentare: rispiega e basta.
 
 ## Virgolette
 
-Solo quelle dritte ("). Mai le basse (« ») né quelle curve (“ ”), in ogni testo che scrivi:
-risposte, file, commit, messaggi.
+Nelle risposte, nei file tecnici e nei commit solo quelle dritte ("). Mai le basse (« ») né quelle
+curve (“ ”). In un testo per l'esterno (email, CV, lettera, post, proposta) decide la voce della
+persona, nella parte `## Le mie regole` di `~/.claude/personale/humanizer.md`. Senza una scelta
+scritta lì restano dritte, e `/voce` lo chiede.
 
 ## Durante il lavoro
 
 - Niente preambolo ("Ora leggo…", "Procedo con…").
 - In un lavoro lungo scrivi una riga quando cambi fase o trovi qualcosa che decide: ogni aggiornamento
   sta in una riga.
+
+## Le risposte lunghe
+
+- Un titolo in grassetto per blocco, una cosa per riga.
+- Gli ID dei task stanno in coda alla riga, fra parentesi, mai dentro la frase: "Rifare il
+  preventivo (#4521)".
+- Parole comuni. Mai un'etichetta o una metafora inventata al momento: chiama le cose col nome che
+  usa la persona.
+- Una voce che chiede un gesto alla persona porta il materiale accanto: il link, la bozza pronta o
+  il comando da lanciare.
+- Una domanda che arriva dopo una pausa lunga apre con una riga che ricorda il progetto e il punto.
+
+## Il menu di scelta
+
+Nel terminale il testo che precede il menu di scelta (lo strumento AskUserQuestion) si riduce a una
+riga. Usa il menu solo se il testo prima sta in una o due righe. Un messaggio con contenuto da
+leggere (risultati, elenchi, passi a mano) chiude senza menu: titolo in grassetto, elenco numerato,
+ultima riga con le parole di risposta in grassetto ("scrivimi **fatto**").
 
 ## Gli elenchi lunghi
 
