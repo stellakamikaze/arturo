@@ -829,6 +829,36 @@ def caso_rilascio_vecchio(lab):
     _fermo(lab, variante(lab, prepara), "rilascio vecchio accettato", "più vecchio della")
 
 
+# L'ultimo buco grave chiuso da un rilascio: (rilascio subito prima, rilascio che lo chiude). Quando
+# VERSIONE_MINIMA di installa.sh sale, sale anche questa coppia, e il veleno di caso_rilascio_con_buco.
+ULTIMO_BUCO = ("v0.2.21", "v0.2.22")  # firme PGP accettate (revisione del 20/11/2026, S1 e S3, #6791)
+
+
+def caso_rilascio_con_buco(lab):
+    # main riportato all'ultimo rilascio firmato che ha ancora il buco: firma valida, versione no.
+    def prepara(w):
+        sh("git", "tag", "-d", TAG, cwd=w)
+        firma_tag(w, ULTIMO_BUCO[0], CHIAVE["privata"])
+    out = _fermo(lab, variante(lab, prepara), "rilascio con un buco chiuso accettato", "più vecchio della")
+    assert ULTIMO_BUCO[0] in out, out
+
+
+def caso_rilascio_minimo(lab):
+    # Il rilascio che chiude il buco si installa: VERSIONE_MINIMA è compresa, ed è proprio quel rilascio.
+    m = re.search(r"^VERSIONE_MINIMA=(\S+)$", lab.script.read_text(encoding="utf-8"), re.M)
+    assert m and "v" + m.group(1) == ULTIMO_BUCO[1], \
+        f"VERSIONE_MINIMA {m and m.group(1)} diversa da ULTIMO_BUCO {ULTIMO_BUCO[1]}: allinea le due righe"
+
+    def prepara(w):
+        sh("git", "tag", "-d", TAG, cwd=w)
+        firma_tag(w, ULTIMO_BUCO[1], CHIAVE["privata"])
+    repo = variante(lab, prepara)
+    lab.claude_locale()
+    lab.config_vecchia()
+    rc, out = lab.lancia(repo=repo)
+    assert rc == 0 and f"OK firma del rilascio {ULTIMO_BUCO[1]}" in out, f"rilascio minimo rifiutato: rc {rc}\n{out}"
+
+
 def caso_senza_rilasci(lab):
     def prepara(w):
         sh("git", "tag", "-d", TAG, cwd=w)
@@ -885,7 +915,8 @@ CASI = [caso_nuova, caso_config_di_prima, caso_sincronizzata, caso_senza_cartell
         caso_settings_nel_backup, caso_repo_estraneo, caso_reset_fallito, caso_interrotto, caso_conflitto_cartella,
         caso_config_dir, caso_claude_md_resta, caso_mac_git_rimando, caso_manca_formato, caso_si_cancella,
         caso_python_windows, caso_cartella_collegata, caso_interrotto_backup, caso_mac_licenza, caso_guida_rimandi,
-        caso_firma_altra_chiave, caso_tag_senza_firma, caso_tag_rinominato, caso_rilascio_vecchio, caso_senza_rilasci,
+        caso_firma_altra_chiave, caso_tag_senza_firma, caso_tag_rinominato, caso_rilascio_vecchio, caso_rilascio_con_buco,
+        caso_rilascio_minimo, caso_senza_rilasci,
         caso_firma_non_verificabile, caso_plugin_installato, caso_remoto_senza_file, caso_chiave_come_main,
         caso_firma_pgp, caso_firma_pgp_finta_ssh]
 
@@ -911,6 +942,9 @@ VELENI = [
     (caso_tag_rinominato, '    *-g[0-9a-f]*)\n', '    *-g[0-9a-f]*-mai)\n', "tag rinominato accettato", False),
     (caso_rilascio_vecchio, 'if ! versione_almeno "$rilascio" "$VERSIONE_MINIMA"; then', "if false; then",
      "rilascio vecchio accettato", False),
+    # #6791 (27/11/2026, S3): la versione minima di prima lascia installare un rilascio con S1 aperto.
+    (caso_rilascio_con_buco, "VERSIONE_MINIMA=0.2.22\n", "VERSIONE_MINIMA=0.2.8\n",
+     "rilascio con un buco chiuso accettato", False),
     (caso_firma_non_verificabile, '    return 2\n  fi\n  dentro=', '    return 1\n  fi\n  dentro=',
      "installato senza verifica", False),
     (caso_plugin_installato, "if grep -qs '\"arturo@arturo\"'", "if false", "plugin non visto", False),

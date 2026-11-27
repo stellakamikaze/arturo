@@ -21,8 +21,10 @@
 # main. Per cambiare chiave: docs/manutenzione.md, e questa riga cambia insieme.
 FIRMA_RILASCI='rilasci@arturo namespaces="git,arturo-manifest" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP0HfWu3Wxkq0+trFJ6S7P7MZmo2OXRlVKkgTKXI74K5'
 # Il rilascio più vecchio che lo script accetta, contro un main riportato indietro a un tag firmato con
-# un buco già chiuso. Si alza quando un rilascio chiude un buco grave.
-VERSIONE_MINIMA=0.2.8
+# un buco già chiuso. Si alza quando un rilascio chiude un buco grave. 0.2.22: la verifica dei rilasci
+# accetta solo firme SSH; prima un tag firmato PGP passava dal portachiavi della persona (revisione del
+# 20/11/2026, S1 e S3, #6258 e #6791). Il banco ha il caso del rilascio subito prima.
+VERSIONE_MINIMA=0.2.22
 # Gli errori di verify-tag che dicono "firma verificata e sbagliata": uguali a FIRMA_SBAGLIATA di
 # bin/aggiornamenti.py. Ogni altro errore vuol dire che la verifica non è partita.
 FIRMA_SBAGLIATA='no signature found|no principal matched|could not verify signature|bad signature|non-tag object'
