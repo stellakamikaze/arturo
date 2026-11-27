@@ -162,7 +162,7 @@ esito, cosa non ha funzionato. Poi leggi `~/.claude/shared/fine-handoff.md`: mod
 sopravvive alla sessione e che `/inizio` rilegge. `TaskList` vale solo per questa sessione.
 
 ```bash
-# Il progetto lo calcola la CLI dalla cartella, come per "ricordami di…" ("generale" fuori da git). Comando intero
+# Il progetto lo calcola la CLI dalla cartella, come per "ricordami di…" (fuori da git: la cartella della base dei progetti, o quella con i suoi handoff). Comando intero
 # su ogni riga, tilde fuori dalle virgolette: regge una HOME con spazi, e la guardia del worktree rifiuta "$HOME".
 python3 ~/.claude/bin/arturo todo progetto
 python3 ~/.claude/bin/arturo todo --progetto .     # cosa c'è già: non creare doppioni

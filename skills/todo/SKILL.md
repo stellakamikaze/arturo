@@ -36,7 +36,7 @@ la parola d'ordine, la mando io perché è una password", allora `--perche "è u
 | Campo | Valori | Come lo scegli |
 |---|---|---|
 | titolo | verbo e oggetto | "Mandare il preventivo a Rossi", non "preventivo-rossi" |
-| `--progetto` | slug del progetto | di default la cartella git in cui sei; `generale` fuori da git, nella HOME e dentro `~/.claude`. `todo progetto` lo stampa, `--progetto .` lo usa |
+| `--progetto` | slug del progetto | di default la cartella git in cui sei; fuori da git la cartella della base dei progetti (anche da una sottocartella) o una cartella con i suoi handoff; `generale` altrove, nella HOME e dentro `~/.claude`. `todo progetto` lo stampa, `--progetto .` lo usa |
 | `--scadenza` | `2026-10-10`, `10/10`, `oggi`, `domani`, `venerdì` | solo se la persona ne dice una |
 | `--chi` | `tu` · `decidi` · `io` | `tu`: lo fa la persona. `decidi`: serve una sua scelta, poi lavori tu. `io`: lo fai tu |
 | `--perche` | testo breve | perché tocca alla persona, solo con le sue parole: "la firma è mia", "è una password" |
@@ -70,6 +70,7 @@ sessione aperta prima dell'aggiornamento.
 | `nota ID "testo"` | aggiunge una nota |
 | `dopo ID ALTRO [--togli]` | ID aspetta che ALTRO sia chiuso |
 | `stato ["riga"]` | a che punto è il progetto della cartella: senza riga la legge, con la riga la scrive |
+| `stato --togli` | toglie la riga di stato del progetto, anche finita su quello sbagliato: `--progetto generale` |
 | `su ID` · `giu ID` | lo avvicina o lo allontana: più avanti, settimana, oggi |
 
 Le letture accettano `--json`: è il formato che leggono il pannello e la pagina web, e quello
