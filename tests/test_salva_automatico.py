@@ -17,6 +17,8 @@ SV12 una scheda che ha la cartella fra i suoi alias decide lo slug: gli handoff 
      non in una seconda col nome della cartella di lavoro (18/11/2026).
 SV13 le correzioni della sessione (arturo correzione) entrano nell'handoff nella sezione "## Correzioni", con la
      skill in uso; una correzione con un segreto non entra; /inizio le riporta; il gate resta verde (21/11/2026, #6277).
+SV14 tre salvataggi insieme della stessa sessione, dopo un /fine a metà: un handoff automatico solo. Il 16/11 un
+     congedo da Volta ne ha scritti tre uguali alle 12:46, 12:47 e 12:48, uno per minuto libero (#5784).
 
 Veleno: --avvelena rompe bin/salva-automatico.py (o il punto sorvegliato) nella copia di prova, un punto per caso,
 ed esce 0 solo se ogni rottura fa rosso il suo caso (VELENI del gate).
@@ -37,7 +39,7 @@ from pathlib import Path
 # Il bash del PATH: un "bash" senza percorso, su Windows, apre il bash.exe di WSL in System32 (#6455).
 BASH_VERO = shutil.which("bash") or "bash"
 
-CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12", "SV13"]
+CASI = ["SV01", "SV02", "SV03", "SV04", "SV05", "SV06", "SV07", "SV08", "SV09", "SV10", "SV11", "SV12", "SV13", "SV14"]
 SA = "bin/salva-automatico.py"
 # caso -> (file, testo, testo rotto)
 VELENI = {
@@ -55,6 +57,7 @@ VELENI = {
     "SV11": (SA, "            return slug(m.group(1)), None", "            return \"\", None"),
     "SV12": (SA, "        return slug_del_progetto(cartella), cartella", "        return slug(cartella.name), cartella"),
     "SV13": (SA, "                    correzioni_della_sessione(sid, scanner), dopo)", "                    [], dopo)"),
+    "SV14": (SA, "    with chiave_sessione(sid):", "    with contextlib.nullcontext():"),
 }
 SEGRETO = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 
@@ -138,6 +141,24 @@ class Lab:
         return subprocess.run([sys.executable, "-B", str(self.cl / SA)], input=json.dumps(dati), capture_output=True,
                               text=True, encoding="utf-8", errors="replace", env=self.env(**env), timeout=120,
                               cwd=str(cwd))
+
+    def salva_insieme(self, sid: str, cwd: Path, quanti: int) -> list:
+        """Lancia quanti salvataggi della stessa sessione nello stesso istante, come i congedi doppi di Volta."""
+        dati = json.dumps({"session_id": sid, "transcript_path": str(self.projects / f"{sid}.jsonl"),
+                           "cwd": str(cwd), "reason": "prompt_input_exit"})
+        processi = [subprocess.Popen([sys.executable, "-B", str(self.cl / SA)], stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                                     errors="replace", env=self.env(), cwd=str(cwd)) for _ in range(quanti)]
+        uscite = []
+        for pr in processi:
+            pr.stdin.write(dati)
+            pr.stdin.close()
+        for pr in processi:
+            pr.wait(timeout=120)
+            uscite.append((pr.stdout.read().strip(), pr.stderr.read().strip()[-200:]))
+            pr.stdout.close()
+            pr.stderr.close()
+        return uscite
 
     def handoff(self, slug: str = "mio-libro") -> list:
         return sorted((self.h / slug).glob("HANDOFF_*.md")) if (self.h / slug).is_dir() else []
@@ -290,6 +311,18 @@ def prova(lab: Lab) -> list:
     senza = [p for p in lab.tutti() if "- Sessione: s-segreto" in p.read_text(encoding="utf-8")]
     if senza and "## Correzioni" in senza[0].read_text(encoding="utf-8"):
         rossi.append("SV13 correzioni: la sezione esce anche per una sessione senza correzioni")
+
+    # SV14: tre giri insieme della stessa sessione, con un /fine a metà e lavoro dopo
+    fine_meta = d / "HANDOFF_2026-11-02_09-55.md"
+    fine_meta.write_text("# Session Handoff\n## Progetto\n- Nome: mio-libro / Status: in progress\n- Sessione: s-tre\n"
+                         "## Ripartenza\nProssimo passo: X\n## Task Pendenti\nNessun task pendente\n", encoding="utf-8")
+    lab.transcript("s-tre", [utente("Riscrivi il capitolo due"),
+                             utente("<command-name>/fine</command-name>\n<command-args></command-args>"),
+                             utente("Poi aggiungi la nota sul tram DOPO-IL-FINE")])
+    uscite = lab.salva_insieme("s-tre", lab.progetto, 3)
+    automatici = [p for p in lab.tutti() if p != fine_meta and "- Sessione: s-tre" in p.read_text(encoding="utf-8")]
+    if len(automatici) != 1 or "DOPO-IL-FINE" not in automatici[0].read_text(encoding="utf-8"):
+        rossi.append(f"SV14 tre giri insieme: {[p.name for p in automatici]} {uscite!r}")
 
     # SV08: session-end.sh lo lancia
     lab.transcript("s-hook", [utente("chiudi il capitolo tre")])
