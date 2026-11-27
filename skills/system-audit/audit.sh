@@ -204,15 +204,26 @@ try:
 except ImportError:
     def carica(testo):
         # Parser ridotto senza PyYAML: chiavi di primo livello, blocchi > e | inclusi.
-        valori, chiave = {}, None
+        # Come PyYAML, boccia ": " in un valore senza virgolette, anche a capo: spezza il mapping (#5704).
+        def spezza(valore):
+            valore = valore.split(" #", 1)[0].rstrip()
+            return ": " in valore or valore.endswith(":")
+        valori, chiave, semplice = {}, None, False
         for riga in testo.splitlines():
+            if riga.lstrip().startswith("#"):
+                continue
             if riga[:1] in (" ", "\t"):
                 if chiave and riga.strip():
+                    if semplice and spezza(riga.strip()):
+                        raise ValueError("due punti in un valore senza virgolette")
                     valori[chiave] = (valori[chiave] + " " + riga.strip()).strip()
                 continue
             if ":" in riga:
                 chiave, _, valore = riga.partition(":")
                 chiave, valore = chiave.strip(), valore.strip()
+                semplice = bool(valore) and valore[0] not in "\"'>|[{"
+                if semplice and spezza(valore):
+                    raise ValueError("due punti in un valore senza virgolette")
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
 for path in [p for d in sys.argv[1:] for p in Path(d).glob("*.md")]:
@@ -248,15 +259,26 @@ try:
 except ImportError:
     def carica(testo):
         # Parser ridotto senza PyYAML: chiavi di primo livello, blocchi > e | inclusi.
-        valori, chiave = {}, None
+        # Come PyYAML, boccia ": " in un valore senza virgolette, anche a capo: spezza il mapping (#5704).
+        def spezza(valore):
+            valore = valore.split(" #", 1)[0].rstrip()
+            return ": " in valore or valore.endswith(":")
+        valori, chiave, semplice = {}, None, False
         for riga in testo.splitlines():
+            if riga.lstrip().startswith("#"):
+                continue
             if riga[:1] in (" ", "\t"):
                 if chiave and riga.strip():
+                    if semplice and spezza(riga.strip()):
+                        raise ValueError("due punti in un valore senza virgolette")
                     valori[chiave] = (valori[chiave] + " " + riga.strip()).strip()
                 continue
             if ":" in riga:
                 chiave, _, valore = riga.partition(":")
                 chiave, valore = chiave.strip(), valore.strip()
+                semplice = bool(valore) and valore[0] not in "\"'>|[{"
+                if semplice and spezza(valore):
+                    raise ValueError("due punti in un valore senza virgolette")
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
 import json

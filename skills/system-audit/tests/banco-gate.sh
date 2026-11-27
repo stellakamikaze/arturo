@@ -33,12 +33,15 @@ caso() {
 
 S="$C/skills/_banco-avvelenato"
 mkdir -p "$S"
-if python3 -c 'import yaml' >/dev/null 2>&1; then
-  printf -- '---\nname: _banco-avvelenato\ndescription: Rotta così: i due punti spezzano il mapping YAML\n---\n# x\n' > "$S/SKILL.md"
-  caso "gate-yaml boccia ': ' non quotato in una skill" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
-else
-  CASI+=("gate-yaml boccia ': ' non quotato (serve PyYAML, assente)"); ESITI+=("ROSSO")
-fi
+# Questi casi valgono con PyYAML e senza: senza, l'audit usa il suo parser ridotto (#5704).
+printf -- '---\nname: _banco-avvelenato\ndescription: Rotta così: i due punti spezzano il mapping YAML\n---\n# x\n' > "$S/SKILL.md"
+caso "gate-yaml boccia ': ' non quotato in una skill" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
+
+printf -- '---\nname: _banco-avvelenato\ndescription: Rotta a capo,\n  qui: i due punti spezzano il mapping YAML\n---\n# x\n' > "$S/SKILL.md"
+caso "gate-yaml boccia ': ' non quotato sulla riga a capo" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
+
+printf -- '---\nname: _banco-avvelenato\ndescription: Skill sana con un indirizzo https://esempio.it e un orario 10:30\n---\n# x\n' > "$S/SKILL.md"
+caso "gate-yaml passa i due punti senza spazio dopo" manca '^FAIL  skill'
 
 printf -- '---\nname: _banco-avvelenato\n---\n# x\n' > "$S/SKILL.md"
 caso "gate-yaml boccia description mancante" trova '^FAIL  skill: SKILL.md mancante oppure frontmatter non valido'
