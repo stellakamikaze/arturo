@@ -112,9 +112,29 @@ fi
 # ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/prove-plugin.md).
 # Il puntatore sta dove lo leggono la barra e il lanciatore di scrape: ${CLAUDE_CONFIG_DIR:-~/.claude} (lotto L10).
 ORSA_RADICE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+# Una sessione aperta prima di un aggiornamento gira ancora dalla cartella della versione vecchia, e a
+# ogni /clear riportava radice indietro (27/11/2026: 0.2.26 installata, radice di nuovo a 0.2.25). radice_si_scrive dice no solo se la radice indicata esiste, sta nella stessa cartella dei
+# plugin e ha una versione più nuova. Un clone, una cartella sparita o un nome senza versione si scrivono.
+radice_si_scrive() {
+  local ora="$1" nuova="$2" a b i x y
+  [ -n "$ora" ] && [ -d "$ora" ] || return 0
+  [ "$(dirname "$ora")" = "$(dirname "$nuova")" ] || return 0
+  a="$(basename "$ora")"; b="$(basename "$nuova")"
+  [[ "$a" =~ ^[0-9]+(\.[0-9]+)*$ && "$b" =~ ^[0-9]+(\.[0-9]+)*$ ]] || return 0
+  local -a va vb
+  IFS=. read -r -a va <<< "$a"
+  IFS=. read -r -a vb <<< "$b"
+  for ((i = 0; i < ${#va[@]} || i < ${#vb[@]}; i++)); do
+    x=$((10#${va[i]:-0})); y=$((10#${vb[i]:-0}))
+    [ "$x" -gt "$y" ] && return 1
+    [ "$x" -lt "$y" ] && return 0
+  done
+  return 0
+}
 if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$ORSA_RADICE" 2>/dev/null && pwd -P)" ]; then
+  _radice_ora="$(cat "$ORSA_RADICE/arturo/radice" 2>/dev/null)"
   mkdir -p "$ORSA_RADICE/arturo" 2>/dev/null \
-    && { [ "$(cat "$ORSA_RADICE/arturo/radice" 2>/dev/null)" = "$ARTURO_CODICE" ] \
+    && { [ "$_radice_ora" = "$ARTURO_CODICE" ] || ! radice_si_scrive "$_radice_ora" "$ARTURO_CODICE" \
          || printf '%s' "$ARTURO_CODICE" > "$ORSA_RADICE/arturo/radice" 2>/dev/null; } || true
   echo "ARTURO: il codice di Arturo sta in $ARTURO_CODICE (\$ARTURO_CODICE nel Bash). Un percorso \$ARTURO_CODICE/... o \${CLAUDE_PLUGIN_ROOT}/... in un testo di Arturo letto con Read si legge da lì."
 fi

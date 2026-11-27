@@ -676,6 +676,8 @@ BASELINE=(
   "test_guardie_protect_failclosed_2026_11_26.py 0951400 radice"
   # rsync verso host:percorso letto come cartella locale (26/11/2026, #6732). 062e126, il dev prima.
   "test_guardie_rsync_remoto_2026_11_26.py 062e126"
+  # radice scritta verso una versione più vecchia del plugin (27/11/2026, HS05). c8b3a55, il dev prima.
+  "test_hook_sessione_2026_10_30.py c8b3a55 radice"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
