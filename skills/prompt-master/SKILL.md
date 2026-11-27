@@ -48,19 +48,19 @@ PROMPT
  su quali file o sistemi. Non la parafrasi delle sue parole: la loro traduzione operativa.]
 ```
 
-Se la richiesta era già completa, il prompt è quasi identico all'originale: si mostra lo stesso,
-una riga, e si va avanti. Se l'hai dovuta interpretare, il prompt è il punto in cui l'interpretazione
-diventa visibile.
+Il blocco PROMPT compare solo se la riscrittura cambia o completa la richiesta: se l'hai dovuta
+interpretare, il prompt è il punto in cui l'interpretazione diventa visibile. Se la richiesta era già
+completa, il prompt resta fuori e si parte dal brief.
 
-Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per un comando singolo o una correzione puntuale bastano quattro righe (obiettivo, output, fatto quando, skill); per un lavoro che tocca più file, sistemi o side-effect aggiungi le righe che portano informazione. Una riga ovvia si omette, non si riempie di parole.
+Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per una richiesta piccola (un comando singolo, una correzione puntuale) bastano tre righe (obiettivo, risultato, fatto quando); per un lavoro che tocca più file, sistemi o side-effect aggiungi le righe che portano informazione. Una riga ovvia si omette, non si riempie di parole.
 
 ```
 BRIEF
 Obiettivo:       [azione precisa, verbo concreto, non la parafrasi della richiesta]
-Output:          [forma, formato, dove finisce]
+Risultato:       [cosa ottiene la persona, in che forma, dove lo trova]
 Vincoli:         [cosa deve e non deve accadere; regole del CLAUDE.md applicabili]
 Fatto quando:    [criterio verificabile, binario dove possibile]
-Skill:           [/nome e perché in poche parole, oppure "nessuna"]
+Skill:           [/nome e perché in poche parole; la riga resta fuori se nessuna serve]
 Dove non arrivo: [la parte che resta alla persona e cosa faccio io al suo posto; solo se c'è]
 Assunzioni:      [cosa sto dando per scontato]
 Da chiarire:     [max 3 punti]
@@ -68,9 +68,10 @@ Da chiarire:     [max 3 punti]
 
 - Le etichette stanno in colonna: il testo di ogni riga parte alla colonna 18, così il blocco si legge
   dall'alto in basso anche nella console di Windows. Niente bordo intorno: scritto a mano esce storto.
-- **La riga Skill è sempre presente.** Scegli dall'elenco delle skill di questa sessione per
+- **Le etichette sono parole comuni**: chi legge il brief può non programmare.
+- **La riga Skill c'è quando una skill serve.** Scegli dall'elenco delle skill di questa sessione per
   giudizio sul lavoro da fare, non per parole chiave. Se una skill che la persona non ha nominato
-  fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi "nessuna". Questa skill (prompt-master) non conta: c'è
+  fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, la riga resta fuori. Questa skill (prompt-master) non conta: c'è
   sempre.
 - **Dove non arrivi, dillo nel brief, prima di provarci.** Alcuni lavori Claude li fa male anche
   quando ci prova con impegno: il disegno delle piste di un circuito stampato (lo schema elettrico
@@ -96,7 +97,7 @@ Per un compito già chiaro, anche grande, basta il brief.
 
 ## Importante
 
-- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano quattro righe. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
+- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano tre righe, e il prompt compare solo se cambia la richiesta. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
 - Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, regola del CLAUDE.md che scatta), dillo nel brief prima di procedere: è il motivo principale per cui questa modalità esiste.
 - Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da chiarire, mostri e procedi. Ma se una domanda di approfondimento cambierebbe materialmente il lavoro, si chiede prima, non dopo aver iniziato.
 - **Questa skill si carica col tool `Skill` una volta per sessione**, e di nuovo dopo ogni compattazione: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. Finché il corpo è nel contesto, una richiesta nuova lo applica senza ricaricarlo: ogni caricamento rimette nel contesto una copia intera. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.

@@ -15,7 +15,7 @@ preferenza personale.
 
 ## Prima di lavorare
 
-- Prima di ogni richiesta di lavoro, anche breve, riscrivi la richiesta come la eseguirai (il prompt). Poi mostra un brief di massimo 8 righe: obiettivo, output, fatto quando e la riga Skill, più vincoli, assunzioni e da chiarire quando portano un fatto. Poi procedi. Lo fa la skill `prompt-master`.
+- Prima di ogni richiesta di lavoro, anche breve, riscrivi la richiesta come la eseguirai (il prompt). Poi mostra un brief di massimo 8 righe: obiettivo, risultato, fatto quando, più skill, vincoli, assunzioni e da chiarire quando portano un fatto. Il prompt si mostra solo se cambia la richiesta. Poi procedi. Lo fa la skill `prompt-master`.
 - Domande e conversazione non hanno brief: rispondi e basta.
 - Se un dubbio cambia il lavoro, chiedi prima di iniziare, con al massimo tre domande e una raccomandazione motivata.
 

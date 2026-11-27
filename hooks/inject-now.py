@@ -56,8 +56,8 @@ RE_ROTAZIONE = r'"prompt"\s*:\s*"/(arturo:)?inizio[^"]*--rotazione'
 # Claude Code chiede fatti, perché un testo imperativo iniettato può sembrare una prompt injection.
 # Per spegnerlo: svuota PROMEMORIA qui sotto, oppure togli la skill prompt-master.
 PROMEMORIA = """\
-BRIEF: in Arturo un lavoro, anche piccolo, si apre con PROMPT e BRIEF e la riga "Skill:". Il corpo di
-prompt-master si carica col tool Skill una volta per sessione, e di nuovo dopo una compattazione.
+BRIEF: in Arturo un lavoro, anche piccolo, si apre col BRIEF, e col PROMPT se la riscrittura cambia
+la richiesta. Il corpo di prompt-master si carica col tool Skill una volta per sessione, e di nuovo dopo una compattazione.
 Domande, commenti, risposte a un menu, stop e comandi di controllo non hanno brief: lì una skill si
 consiglia solo se c'entra davvero. Una correzione a lavoro iniziato è una riga, "Brief corretto: ...".
 """
