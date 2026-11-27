@@ -195,6 +195,9 @@ def prova(repo: Path) -> list[str]:
                                           "plugin": True}), encoding="utf-8")
         # Una copia vera del plugin ha il MANIFEST firmato: senza, /aggiorna la reinstallerebbe (#5480, banco FD21).
         firma_copia(copia, tmp)
+        # La copia è quella che /aggiorna ha già verificato: senza, la verifica del tag andrebbe in rete (#6791, S2).
+        (stato_file.parent / "plugin-verificato.json").write_text(json.dumps({"sha": sha, "versione": "0.2.6"}),
+                                                                  encoding="utf-8")
         aggiorna = esegui(agg + ["plugin"], env=env)
         barra2 = esegui([NODE, str(copia / "hooks" / "statusline.js")], input=entrata, env=env_barra).stdout
         if "GIÀ AGGIORNATO" not in aggiorna.stdout or "serve /aggiorna" in barra2:

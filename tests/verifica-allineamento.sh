@@ -343,6 +343,8 @@ IN_FILA=(
   test_avviso_plugin_2026_11_06.py
   # Col plugin la chiusura installa il rilascio firmato (10/11/2026): misura un'attesa, gira in fila.
   test_chiusura_plugin_2026_11_10.py
+  # #6791 S2 (27/11/2026): la copia installata fuori da /aggiorna si verifica col tag firmato.
+  test_sha_verificato_2026_11_27.py
   # #5880 (17/11/2026): senza chiave SSH su GitHub install e update ripiegano su HTTPS; la regola autoMode.
   test_aggiorna_https_2026_11_17.py
   # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
@@ -588,6 +590,8 @@ BASELINE=(
   "test_avviso_plugin_2026_11_06.py 3b5e6c3"
   # Col plugin la chiusura non lancia niente e applica non fa niente (10/11/2026). 62786fd, il dev prima.
   "test_chiusura_plugin_2026_11_10.py 62786fd"
+  # #6791 S2 (27/11/2026): lo sha verificato non si segna. 26d2e4b, il main prima.
+  "test_sha_verificato_2026_11_27.py 26d2e4b"
   # #5880 (17/11/2026): niente ripiego HTTPS e niente regola sull'aggiornatore. 8e287e4, il dev prima.
   "test_aggiorna_https_2026_11_17.py 8e287e4"
   # #5102 (10/11/2026): i quattro difetti minori su Windows. 3f12336, il dev prima.
@@ -715,6 +719,8 @@ VELENI=(
   test_avviso_plugin_2026_11_06.py
   # Chiusura col plugin (10/11/2026): senza il ramo plugin di session-end.sh la chiusura non installa niente (PC03).
   test_chiusura_plugin_2026_11_10.py
+  # #6791 S2 (27/11/2026): senza la verifica della copia installata un tag non firmato passa (SV01).
+  test_sha_verificato_2026_11_27.py
   # #5880 (17/11/2026): un ripiego solo sul catalogo lascia install senza chiave SSH fallito (AH01).
   test_aggiorna_https_2026_11_17.py
   # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.

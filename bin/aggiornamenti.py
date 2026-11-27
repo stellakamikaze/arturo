@@ -45,7 +45,9 @@ di prima non torna, il plugin si disattiva (claude plugin disable), e l'uscita d
 Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
 per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py). Se il plugin
 arriva da un'altra strada (claude plugin update, il pannello /plugin), stato e il "GIÀ AGGIORNATO" di plugin
-uniscono a settings.json le impostazioni nuove, da una copia che torna col suo MANIFEST firmato (#5101).
+uniscono a settings.json le impostazioni nuove, da una copia che torna col suo MANIFEST firmato (#5101). Dal
+27/11/2026 (#6791, S2) Arturo segna lo sha della copia che ha verificato: una copia installata diversa da quella si
+verifica all'avvio e a ogni controllo (tag firmato, sha del catalogo, mai più vecchia dell'ultima verificata).
 """
 from __future__ import annotations
 
@@ -146,6 +148,11 @@ def file_stato(r: Path) -> Path:
 
 def file_esito(r: Path) -> Path:
     return r / "session-env" / "aggiornamento-esito.json"
+
+
+def file_verificato(r: Path) -> Path:
+    """Lo sha della copia del plugin che Arturo ha verificato l'ultima volta (tag firmato, sha, MANIFEST): #6791, S2."""
+    return r / "session-env" / "plugin-verificato.json"
 
 
 def file_scelta(r: Path) -> Path:
@@ -1053,6 +1060,57 @@ def _blocca(motivo: str, compromesso: bool, scaricata: str = "") -> int:
     return 4
 
 
+def segna_verificato(r: Path, sha: str, tag: str) -> None:
+    try:
+        scrivi(file_verificato(r), {"sha": sha, "tag": tag, "versione": ".".join(str(x) for x in numero(tag)),
+                                    "quando": time.time()})
+    except OSError:
+        pass
+
+
+def da_verificare(r: Path, orsa: Path) -> bool:
+    """Vero se la copia installata non è quella che Arturo ha verificato l'ultima volta: è arrivata da `claude plugin
+    update` o dal pannello /plugin, che installano lo sha del catalogo senza guardare il tag (#6791, S2)."""
+    sha = str(installato(orsa).get("gitCommitSha") or "")
+    return bool(sha) and leggi(file_verificato(r)).get("sha") != sha
+
+
+def verifica_installata(r: Path, orsa: Path) -> tuple:
+    """(rc, motivo): verifica il tag del catalogo anche se il suo sha è già installato, quando la copia installata
+    non è passata da qui. rc 0 e la segna se torna; 3 se il tag non torna o se è più vecchio dell'ultimo rilascio
+    verificato (un catalogo che riporta indietro a un rilascio firmato vecchio); 1 se il catalogo indica un'altra
+    copia e questa non si può verificare. Gli errori li stampa."""
+    if not da_verificare(r, orsa):
+        return 0, ""
+    sha = str(installato(orsa).get("gitCommitSha") or "")
+    sorgente = voce_catalogo(orsa).get("source")
+    if not isinstance(sorgente, dict) or sorgente.get("sha") != sha:
+        print(f"NON VERIFICATA: la copia installata di Arturo ({sha[:12]}) non è passata dalla verifica della firma, "
+              "e il catalogo indica un'altra copia: /aggiorna installa quella verificata.", file=sys.stderr)
+        return 1, ""
+    uscita = io.StringIO()
+    with contextlib.redirect_stderr(uscita):
+        rc, tag, _ = verifica_catalogo(orsa, anche_installato=True)
+        ultimo = str(leggi(file_verificato(r)).get("versione") or "")
+        if rc == 0 and numero(tag) < numero(ultimo):
+            rc = _blocca(f"la copia installata {tag} è più vecchia dell'ultimo rilascio verificato {ultimo}", True)
+    sys.stderr.write(uscita.getvalue())
+    if rc == 0:
+        segna_verificato(r, sha, tag)
+    m = re.search(r"\((.+?)\)\. ", uscita.getvalue())
+    return rc, (m.group(1) if m else uscita.getvalue().strip()[:200])
+
+
+def allarme_installata(r: Path, motivo: str, tag: str = "") -> None:
+    """La copia non verificata è installata e parte a ogni apertura: lo stato lo dice all'avvio e nella barra."""
+    try:
+        scrivi_stato(r, {"stato": "bloccato", "plugin": True, "compromesso": True, "motivo": motivo[:200],
+                         "versione": ".".join(str(x) for x in numero(tag)), "controllato": time.time(),
+                         "riuscito": time.time()})
+    except OSError:
+        pass
+
+
 def verifica_catalogo(orsa: Path, anche_installato: bool = False) -> tuple:
     """(rc, tag, sha): rc 0 se il catalogo indica un tag firmato dalla chiave dell'ancora e il tag porta
     proprio lo sha del catalogo; rc 2 se quello sha è già installato, salvo con `anche_installato` (la copia da
@@ -1155,8 +1213,14 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
     sospetta = bool(vecchio.get("chiusura") and vecchio.get("compromesso") and vecchio.get("sha_prima")
                     and installato(orsa).get("gitCommitSha") != vecchio["sha_prima"]
                     and not installata_pulita(orsa))
+    # Una copia installata fuori da /aggiorna (#6791, S2): ogni controllo la verifica finché non torna, così
+    # l'allarme non cade al controllo dell'ora dopo.
+    rc_copia, motivo_copia = verifica_installata(r, orsa) if not estranea else (0, "")
     if estranea:
         stato = {"stato": "bloccato", "compromesso": True, "motivo": estranea, "versione": nuova, "plugin": True}
+    elif rc_copia == 3:
+        stato = {"stato": "bloccato", "compromesso": True, "motivo": motivo_copia, "plugin": True,
+                 "versione": str(installato(orsa).get("version") or "")}
     elif sospetta or (nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova):
         # Una firma che non torna o non si verifica, vista dalla chiusura: il controllo dell'ora dopo non la
         # riscrive "pronto". La toglie un'installazione riuscita (segna_aggiornato).
@@ -1215,7 +1279,11 @@ def stato_plugin(r: Path) -> int:
     Il controllo lo lancia anche l'avvio, staccato: chi ha una barra sua non lancia mai quello della barra di Arturo."""
     _, radici = _moduli()
     stato = leggi(file_stato(r))
-    if time.time() - float(stato.get("controllato") or 0) >= ORA:
+    # Una copia installata fuori da /aggiorna si verifica subito, senza aspettare l'ora (#6791, S2).
+    nuova_copia = da_verificare(r, radici.radice_orsa())
+    if nuova_copia:
+        avvia_staccato(r, "controlla", "--subito")
+    elif time.time() - float(stato.get("controllato") or 0) >= ORA:
         avvia_staccato(r, "controlla")
     in_uso = str(leggi(radici.radice_arturo() / ".claude-plugin" / "plugin.json").get("version") or "")
     segna_sessione(r, in_uso)
@@ -1228,6 +1296,11 @@ def stato_plugin(r: Path) -> int:
         print(f"ARTURO: {COMPROMISSIONE}. {stato.get('motivo', '')}. Non riaprire Claude Code prima di aver segnalato: "
               "dillo alla persona con queste parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
         return 0
+    if nuova_copia and leggi(file_verificato(r)).get("sha") and not stato.get("compromesso"):
+        # Senza il file (la prima apertura con questa versione) la verifica parte muta: non c'è niente da dire.
+        print("ARTURO: la copia di Arturo installata non è passata dalla verifica della firma: è arrivata da claude "
+              "plugin update o dal pannello /plugin. La verifico adesso; /aggiorna la verifica subito. Dillo alla "
+              "persona in una frase.")
     riga = "" if stato.get("compromesso") else impostazioni_indietro(radici.radice_arturo(), radici.radice_orsa())
     if riga:
         print(f"ARTURO: {riga} Dillo alla persona in una frase.")
@@ -1306,6 +1379,12 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
             # Lo sha è quello del catalogo, ma la copia non ha superato il controllo dopo l'installazione: dire
             # "già aggiornato" cancellerebbe l'allarme con la copia ancora lì (review dell'11/11/2026).
             return _blocca(str(vecchio.get("motivo") or "la copia installata non è verificata"), True)
+        # Lo sha del catalogo è già installato, ma forse non da qui: claude plugin update non guarda il tag (#6791).
+        rc_copia, motivo = verifica_installata(radice(), orsa)
+        if rc_copia == 3:
+            allarme_installata(radice(), motivo, tag)
+        if rc_copia != 0:
+            return rc_copia
         cambiata = da_rimettere(orsa)
         if cambiata:
             return _rimetti(orsa, cambiata, solo_verifica)
@@ -1353,6 +1432,7 @@ def _controlla_installata(orsa: Path, prima: dict, tag: str, sha: str, rimessa: 
         return _blocca(motivo, True, scaricata=_indietro(orsa, prima, True, tag, motivo))
     # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
     fiducia.fissa_ancora(copia, orsa)
+    segna_verificato(radice(), sha, tag)
     segna_aggiornato(radice())
     impostazioni = applica_impostazioni(copia)
     if rimessa:
