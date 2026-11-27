@@ -72,7 +72,10 @@ export ARTURO_USERPROFILE_VERO="${USERPROFILE:-}"
 # finta sparirebbe: con PyYAML installato solo lì quattro banchi uscivano rossi (22/11/2026, #6426, GS11).
 export ARTURO_GATE_HOME_VERA="$HOME"
 HOME="$FIXTURE/home"
+# TEMP e TMP accanto a TMPDIR: su Windows Node, PowerShell e i programmi nativi leggono quelle, e le
+# cartelle dei banchi restavano nella Temp vera (9.055 voci su un PC Windows il 22/11/2026, #6443).
 export HOME USERPROFILE="$HOME" XDG_CACHE_HOME="$FIXTURE/cache" TMPDIR="$FIXTURE/tmp" PYTHONDONTWRITEBYTECODE=1
+export TEMP="$TMPDIR" TMP="$TMPDIR"
 # W13: nel gate la prova nel browser non salta. Senza Chrome o node 22 il gate è rosso.
 export ARTURO_PROVA_BROWSER=obbligatoria
 # Il gate non manda mai niente al server vero della telemetria. I banchi M la riaccendono verso un
