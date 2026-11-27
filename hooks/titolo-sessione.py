@@ -17,7 +17,7 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
     trascrizione è cresciuta, anche su PostToolUse, così cambia durante un turno lungo; il titolo resta
     ogni OGNI secondi. Vale anche sotto un nome scritto dalla persona: lì cambia solo la sintesi. Due
     hook partiti insieme non chiamano il modello due volte: il primo segna "chiede" nel file.
-  - Il progetto (14/11/2026, Federico: "il progetto associato alle sessioni non viene aggiornato"): la stessa
+  - Il progetto (14/11/2026, la persona: "il progetto associato alle sessioni non viene aggiornato"): la stessa
     chiamata sceglie il progetto dal contenuto fra quelli noti (`arturo progetti --json`, cioè
     bin/progetti.py accanto a questo hook, letto al più una volta all'ora in cache/titolo-progetti.json).
     Scrive "progetto" e "candidato": il primo verdetto vale subito, un cambio solo se il modello lo ripete

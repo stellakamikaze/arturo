@@ -338,7 +338,7 @@ python3 ~/.claude/bin/arturo apertura
 Le sezioni escono in quest'ordine:
 - `PROGETTO`: il progetto dei todo della cartella.
 - `TODO DEL PROGETTO`: la lista che hai già dalla FASE 1, con gli avvisi di rinumerazione.
-- `TODO DI GENERALE`: i todo presi fuori da un progetto (nella HOME, in /setup, fuori da git). Se il
+- `TODO DI GENERALE`: i todo presi fuori da un progetto (nella HOME, in /setup, in una cartella senza git fuori dalla base dei progetti). Se il
   progetto è `generale`, la sezione rimanda alla lista sopra.
 - `GIT LOG`: gli ultimi 20 commit, per il confronto del punto 1.
 - `PANNELLO`: "mod caricato" se il pannello /dafare c'è. I comandi di un mod non compaiono fra quelli

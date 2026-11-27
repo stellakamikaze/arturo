@@ -34,6 +34,8 @@ T29 la lista si legge anche nella console di Windows (23/11/2026): ogni gruppo a
 "── TOCCA A TE · 2 ───", i titoli stanno in colonna, uno scaduto ha "!" davanti alla scadenza, todo progetti ha
 la barra dei chiusi; tutto sta in CP850. Veleni a mano: titolo() senza "── ", ljust(colonna) tolto, "! " tolto.
 Sulla base b8eff39 ogni controllo deve fallire.
+T30 fuori da git il progetto è la cartella della base dei progetti, o una cartella con i suoi handoff;
+stato --togli toglie la riga sbagliata (#5845).
 """
 from __future__ import annotations
 
@@ -878,13 +880,52 @@ def test_t29(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_t30(repo: Path) -> None:
+    """#5845 (segnalazione n. 83): in una cartella di progetto senza git, `todo stato` e `aggiungi` vanno sul
+    progetto della cartella, come lo slug dell'handoff di /fine. Una cartella della base dei progetti vale anche
+    da una sua sottocartella; fuori dalla base vale una cartella che ha già i suoi handoff. Download e la base
+    stessa restano "generale". `stato --togli` toglie la riga sbagliata rimasta su un progetto."""
+    def prova(c: Casa) -> None:
+        base = c.home / "Documents" / "ClaudeCode"
+        libro = base / "Il Libro" / "capitoli"
+        altrove = c.home / "Scrivania" / "mostra"
+        scarico = c.home / "Downloads"
+        for d in (libro, altrove, scarico, c.home / ".claude" / "data" / "handoffs" / "mostra"):
+            d.mkdir(parents=True)
+        env = dict(os.environ, HOME=str(c.home), USERPROFILE=str(c.home), ARTURO_OGGI=OGGI, PYTHONIOENCODING="utf-8",
+                   GIT_CEILING_DIRECTORIES=str(c.home.parent))
+        env.pop("ARTURO_TODO", None)
+        env.pop("PROJECTS_BASE", None)
+
+        def todo(cwd: Path, *argomenti: str) -> str:
+            r = subprocess.run([sys.executable, str(c.repo / "bin" / "arturo"), "todo", *argomenti], cwd=str(cwd),
+                               env=env, capture_output=True, timeout=60)
+            assert r.returncode == 0, f"T30 arturo todo {' '.join(argomenti)} in {cwd.name}: {r.stderr.decode()[:200]}"
+            return r.stdout.decode("utf-8").strip()
+
+        attesi = {libro.parent: "il-libro", libro: "il-libro", altrove: "mostra", scarico: "generale",
+                  base: "generale"}
+        for cartella, atteso in attesi.items():
+            assert todo(cartella, "progetto") == atteso, f"T30 progetto di {cartella.name}: atteso {atteso}"
+        todo(libro, "stato", "Capitolo tre in revisione")
+        letto = json.loads(todo(libro.parent, "stato", "--json"))
+        assert letto["progetto"] == "il-libro" and letto["riga"] == "Capitolo tre in revisione", f"T30 stato: {letto}"
+        todo(scarico, "stato", "Frase finita sul progetto sbagliato")
+        assert "Tolta" in todo(libro, "stato", "--togli", "--progetto", "generale")
+        assert json.loads(todo(scarico, "stato", "--json"))["riga"] is None, "T30 --togli non toglie la riga"
+        assert "nessuna riga" in todo(scarico, "stato", "--togli"), "T30 --togli su un progetto senza riga"
+        assert json.loads(todo(libro, "stato", "--json"))["riga"] == "Capitolo tre in revisione", \
+            "T30 --togli su generale ha toccato il-libro"
+    con_casa(repo, prova)
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
     "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19,
     "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
-    "T26": test_t26, "T27": test_t27, "T28": test_t28, "T29": test_t29,
+    "T26": test_t26, "T27": test_t27, "T28": test_t28, "T29": test_t29, "T30": test_t30,
 }
 
 
