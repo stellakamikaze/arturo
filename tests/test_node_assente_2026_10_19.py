@@ -40,11 +40,24 @@ ENTRATA = json.dumps({
 })
 
 
+# Lo stato che l'avvio scrive in ~/.claude: nella copia non entra, e nel repo provato non arriva.
+STATO = {".git", "cache", "session-env", "node_modules", "__pycache__"}
+
+
 def casa_finta(repo: Path, radice: Path) -> Path:
-    """Una HOME con ~/.claude che punta al repository: il comando usa ~/.claude/hooks/…"""
+    """Una HOME con ~/.claude copia del repository: il comando usa ~/.claude/hooks/…
+    Una copia e non un link: con --repo su un albero vero l'avvio scriveva lì data/contatto.json,
+    data/memoria/, cache/ e session-env/, e lanciava il fetch del repository (#5888)."""
+    dati = repo / "data"
+
+    def fuori(cartella: str, nomi: list[str]) -> set[str]:
+        if Path(cartella) == dati:  # in data/ il repository traccia solo transito.paths
+            return {n for n in nomi if n != "transito.paths"}
+        return STATO.intersection(nomi)
+
     home = radice / "home"
     home.mkdir()
-    link(home / ".claude", repo, cartella=True)
+    shutil.copytree(repo, home / ".claude", symlinks=True, ignore=fuori)
     return home
 
 
@@ -115,7 +128,7 @@ def test_na02(repo: Path) -> None:
         home = casa_finta(repo, radice)
         env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": senza_node(radice), "ARTURO_BANCHI_AVVIO": "0",
                "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "ARTURO_PATH_CANDIDATE": ""}
-        p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
+        p = subprocess.run([BASH_VERO, str(home / ".claude" / "hooks" / "session-start.sh")], input="{}", env=env,
                            cwd=radice, capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert any(r.startswith("NODE: manca node") for r in p.stdout.splitlines()), \
             f"NA02 senza node l'avvio non lo dice: rc={p.returncode} out={p.stdout[-400:]!r}"
@@ -136,7 +149,7 @@ def test_na03(repo: Path) -> None:
                "ARTURO_TELEMETRIA": "0", "CLAUDE_PROJECT_DIR": str(radice), "CLAUDE_ENV_FILE": str(ambiente),
                "ARTURO_PATH_CANDIDATE": per_bash(os.pathsep.join([str(brew), base, str(radice / "non-esiste")]))}
         for giro in (1, 2):
-            p = subprocess.run([BASH_VERO, str(repo / "hooks" / "session-start.sh")], input="{}", env=env,
+            p = subprocess.run([BASH_VERO, str(home / ".claude" / "hooks" / "session-start.sh")], input="{}", env=env,
                                cwd=radice, capture_output=True, text=True, encoding="utf-8", timeout=60)
             assert not any(r.startswith("NODE:") for r in p.stdout.splitlines()), \
                 f"NA03 giro {giro}: node c'è in {brew} ma l'avvio dice che manca: {p.stdout[-400:]!r}"
