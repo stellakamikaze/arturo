@@ -95,6 +95,8 @@ già allineato non passa da stash e pop, un HEAD staccato è un errore e resta c
 F37 la chiusura di /fine dà i fatti tecnici in un blocco di codice a cinque righe, etichetta in 12 colonne, senza
 bordo e tutto in CP850 (23/11/2026): una riga unica di nove fatti si leggeva male, e ✓ o un emoji nella console
 di Windows diventano quadratini.
+F38 un todo o un handoff che rimanda a un elenco ne porta le voci, una per riga: nelle note del todo o in
+Decisioni (segnalazione n. 92, #6168, 27/11/2026). Il todo lasciato a metà riceve cosa è fatto e cosa resta.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1808,6 +1810,18 @@ def test_f37(repo: Path) -> None:
     blocco.group(1).encode("cp850")
 
 
+
+def test_f38(repo: Path) -> None:
+    todo = " ".join(read(repo / "skills" / "todo" / "SKILL.md").split())
+    for pezzo in ("Un todo che rimanda a un elenco", "porta le voci nelle note, una per riga",
+                  "segnalazione n. 92", "Un todo lasciato a metà riceve con `nota ID` cosa è fatto e cosa resta"):
+        assert pezzo in todo, f"F38 la skill todo non fa scrivere le voci di un elenco: manca {pezzo}"
+    modello = " ".join(read(repo / "shared" / "fine-handoff.md").split())
+    for pezzo in ("**Un elenco si scrive per intero**", "le voci stanno nelle note del todo o in Decisioni",
+                  "segnalazione n. 92"):
+        assert pezzo in modello, f"F38 il modello dell'handoff non fa scrivere le voci di un elenco: manca {pezzo}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
@@ -1815,7 +1829,8 @@ TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F0
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
          "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
-         "F33": test_f33, "F34": test_f34, "F35": test_f35, "F36": test_f36, "F37": test_f37}
+         "F33": test_f33, "F34": test_f34, "F35": test_f35, "F36": test_f36, "F37": test_f37,
+         "F38": test_f38}
 
 
 def main() -> int:

@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — Un todo che parla di un elenco porta l'elenco
+
+**Cosa cambia**: quando Claude segna un todo come "le tre cose di oggi" o "i file da sistemare", scrive le voci nelle note del todo, una per riga. Lo stesso vale per l'handoff di `/fine`: un rimando a un elenco porta le voci. Un todo lasciato a metà riceve una nota con cosa è fatto e cosa resta.
+
+**Perché**: nella segnalazione n. 92 un todo diceva di chiedere delle tre cose di oggi, ma non diceva quali. La sessione dopo non sapeva rispondere, e l'elenco è tornato fuori solo da altri todo dello stesso minuto.
+
+**A chi serve**: a chi riprende i progetti con `/inizio` a distanza di giorni. Non devi fare niente.
+
+---
+
 ## 2026-11-27 — Prima di scrivere su un sito con più account, Claude guarda quale è aperto
 
 **Cosa cambia**: su un sito con più account o più spazi, come i canali YouTube o gli spazi di lavoro, Claude apre il menu dell'account prima della prima scrittura e confronta il nome con quello che ti aspetti. Se il nome è diverso o non è chiaro, ti chiede prima di scrivere. Anche una pagina quasi vuota, dove tu hai i tuoi dati, lo fa fermare.
