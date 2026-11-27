@@ -205,7 +205,8 @@ def test_iv09(b: Banco) -> None:
 def test_iv10(b: Banco) -> None:
     r = b.lancia("intervista", "stato", script="arturo")
     assert r.returncode == 0 and "intervista:" in r.stdout, f"IV10 arturo intervista non arriva: {r.stderr[-200:]}"
-    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8")
+    # Dal 27/11/2026 la FASE 6 di /inizio sta in shared/inizio-risposta.md (segnalazione 109).
+    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8") + ((b.repo / "shared" / "inizio-risposta.md").read_text(encoding="utf-8") if (b.repo / "shared" / "inizio-risposta.md").exists() else "")
     assert "`INTERVISTA`" in inizio and "arturo intervista risposta <id>" in inizio, \
         "IV10 /inizio non racconta l'intervista"
     privacy = (b.repo / "docs" / "privacy.md").read_text(encoding="utf-8")
@@ -239,7 +240,7 @@ def test_iv12(b: Banco) -> None:
     grezzo = (b.claude / "data" / "intervista" / "stato.json").read_text(encoding="utf-8")
     assert "riepilogo" not in grezzo, f"IV12 lo stato tiene il testo della risposta: {grezzo[:200]}"
     assert b.lancia("skill", "forse").returncode == 3, "IV12 skill accetta un valore che non è sì o no"
-    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8")
+    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8") + ((b.repo / "shared" / "inizio-risposta.md").read_text(encoding="utf-8") if (b.repo / "shared" / "inizio-risposta.md").exists() else "")
     assert "stampa la riga `SKILL`" in inizio and "arturo intervista skill no" in inizio \
         and "commands/creaskill.md" in inizio, "IV12 /inizio non dice cosa fare della riga SKILL"
 

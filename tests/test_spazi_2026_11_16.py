@@ -255,7 +255,8 @@ def test_sp11(b: Banco) -> None:
     assert r.returncode == 0 and "spazi:" in r.stdout, f"SP11 arturo spazi non arriva: {r.stderr[-200:]}"
     r = b.lancia("nome", script="arturo")
     assert r.returncode == 0 and "nome: Arturo" in r.stdout, f"SP11 arturo nome non arriva: {r.stderr[-200:]}"
-    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8")
+    # Dal 27/11/2026 la FASE 6 di /inizio sta in shared/inizio-risposta.md (segnalazione 109).
+    inizio = (b.repo / "commands" / "inizio.md").read_text(encoding="utf-8") + ((b.repo / "shared" / "inizio-risposta.md").read_text(encoding="utf-8") if (b.repo / "shared" / "inizio-risposta.md").exists() else "")
     assert "`SPAZIO`" in inizio and "arturo spazi si <spazio>" in inizio and "arturo nome" in inizio, \
         "SP11 /inizio non racconta la proposta e il nome"
 

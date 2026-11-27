@@ -143,7 +143,8 @@ def test_rp07(b: Banco) -> None:
     assert m, "RP07 /inizio non lancia il comando arturo ripartenza scrivi"
     r = b.lancia(m.group(1))
     assert r.returncode == 0 and b.file().exists(), f"RP07 il modello di /inizio non passa lo schema: {r.stderr.strip()}"
-    fase6 = testo.split("## FASE 6", 1)[-1]
+    # Dal 27/11/2026 la FASE 6 di /inizio sta in shared/inizio-risposta.md (segnalazione 109).
+    fase6 = testo.split("## FASE 6", 1)[-1] + ((b.repo / "shared" / "inizio-risposta.md").read_text(encoding="utf-8") if (b.repo / "shared" / "inizio-risposta.md").exists() else "")
     for parola, gesto in (("Già fatto", "todo fatto"), ("Scartati", "todo scarta"), ("Rimandati", '--quando "più avanti"'),
                           ("A\n  Claude", "--chi io"), ("A me", "--chi tu")):
         assert parola in fase6 and gesto in fase6, f"RP07 la FASE 6 non dice come leggere {parola!r}"
