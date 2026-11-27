@@ -178,6 +178,8 @@ BANCHI=(
   test_unisci_2026_11_20.py
   # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
   test_elimina_nuovo_2026_11_22.py
+  # Lo scanner delle injection anche su Bash che legge fonti esterne (#5601): gws, curl, gh (IB01-).
+  test_injection_scanner.py
   test_strati_2026_11_02.py
   test_impacchetta_2026_11_03.py
   test_lavoro_proprio_2026_10_31.py
@@ -361,7 +363,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_elimina_nuovo_2026_11_22.py test_scheda_file.py test_carta_sessione.py test_continua.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py test_fine_gia_chiusa_2026_11_22.py test_fine_avvisi_2026_11_22.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py test_progetti_memoria_2026_11_11.py test_rinomina_2026_11_19.py test_unisci_2026_11_20.py test_elimina_nuovo_2026_11_22.py test_injection_scanner.py test_scheda_file.py test_carta_sessione.py test_continua.py test_storico_2026_11_15.py test_intervista_2026_11_15.py test_fascicolo_2026_11_15.py test_spazi_2026_11_16.py test_scoperta_forme_2026_11_16.py test_ripartenza_2026_11_17.py test_telemetria_log_dimentica_2026_11_20.py test_fine_gia_chiusa_2026_11_22.py test_fine_avvisi_2026_11_22.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -747,6 +749,8 @@ VELENI=(
   test_unisci_2026_11_20.py
   # arturo progetti elimina e nuovo (22/11/2026, #6432): Miscellanea, il rifiuto dei nomi presi, il JSON per Volta (EL01-).
   test_elimina_nuovo_2026_11_22.py
+  # Scanner su Bash (#5601): ogni rottura dello scanner o della riga di hub fa rosso il suo caso IB.
+  test_injection_scanner.py
   # /revisione (17/11/2026): ogni riga tolta fa rosso il suo caso RV.
   test_revisione_2026_11_17.py
   # #5877 (17/11/2026): ogni riga tolta fa rosso il suo caso PV.

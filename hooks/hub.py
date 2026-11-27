@@ -48,7 +48,8 @@ WEB_EGRESS = ("WebFetch|mcp__jina__.*|mcp__tavily__.*|mcp__playwright__browser_n
 
 # Una riga: (matcher di Claude Code, parola che il comando Bash deve contenere o None, file relativo alla
 # radice, argomenti, tetto in secondi, condizione). La parola sostituisce il campo `if` di settings.json
-# (`Bash(*gws*)`): gli hook col filtro escono già da soli se la parola manca (HI03).
+# (`Bash(*gws*)`): gli hook col filtro escono già da soli se la parola manca (HI03). Vale solo su Bash, e "a|b"
+# vuol dire una delle due.
 # La condizione "telemetria-attese" è il controllo di bin/telemetria-esito.sh: senza il file l'hook tace.
 TABELLA = {
     "pre": [
@@ -68,7 +69,9 @@ TABELLA = {
         (EDIT, None, "hooks/emoji_remover.py", [], 10, None),
         (EDIT + "|Bash|WebFetch|WebSearch|mcp__.*|Monitor", None, "bin/telemetria.py", ["esito"], 10,
          "telemetria-attese"),
-        ("WebFetch|WebSearch|mcp__.*", None, "hooks/prompt-injection-scanner.py", [], 10, None),
+        # Su Bash solo coi programmi che leggono fonti esterne (#5601): gli stessi nomi di FONTI_ESTERNE nello scanner.
+        ("WebFetch|WebSearch|mcp__.*|Bash", "gws|curl|wget|scrape|gh|yt-dlp|gallery-dl",
+         "hooks/prompt-injection-scanner.py", [], 10, None),
         ("Bash|WebFetch|WebSearch|mcp__.*", None, "hooks/credential-leak-scanner.py", [], 10, None),
         ("Skill", None, "hooks/estensione-skill.py", [], 5, None),
         (EDIT + "|Bash", None, "hooks/memory-write-scanner.py", [], 6, None),
@@ -129,7 +132,8 @@ def scelti(voce, dati):
     for matcher, parola, file, argomenti, tetto, cond in _tabella(voce):
         if not _combacia(matcher, strumento):
             continue
-        if parola and parola not in comando:
+        # La parola vale solo per Bash; "a|b" vuol dire una delle due (#5601).
+        if parola and strumento == "Bash" and not any(p in comando for p in parola.split("|")):
             continue
         if cond and not _condizione(cond):
             continue
