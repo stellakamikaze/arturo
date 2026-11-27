@@ -119,20 +119,31 @@ def prova(repo: Path) -> list[str]:
 
     stretti = []
     for (evento, chiave), regola in con_if.items():
-        m = re.fullmatch(r"Bash\(\*([A-Za-z0-9_-]+)\*\)", regola)
+        # "a|b" è la parola di hub con più fonti (#5601): una delle due basta.
+        m = re.fullmatch(r"Bash\(\*([A-Za-z0-9_-]+(?:\|[A-Za-z0-9_-]+)*)\*\)", regola)
         sorgente = repo / chiave.split()[0]
         if not m or not sorgente.is_file():
             stretti.append(f"{evento} {chiave}: regola {regola} non della forma Bash(*parola*) o hook mancante")
             continue
-        if f'"{m.group(1)}" not in' not in sorgente.read_text(encoding="utf-8"):
-            stretti.append(f"{evento} {chiave}: il sorgente non esce con \"{m.group(1)}\" not in")
+        testo = sorgente.read_text(encoding="utf-8")
+        parole = m.group(1).split("|")
+        if len(parole) == 1 and f'"{parole[0]}" not in' not in testo:
+            stretti.append(f"{evento} {chiave}: il sorgente non esce con \"{parole[0]}\" not in")
+        elif len(parole) > 1 and ("not any(p in command for p in " not in testo
+                                  or any(f'"{p}"' not in testo for p in parole)):
+            # Con più parole il sorgente esce con `not any(p in command for p in NOMI)` e ha ogni nome;
+            # l'allineamento esatto dei nomi lo prova IB06 di test_injection_scanner.py.
+            stretti.append(f"{evento} {chiave}: il sorgente non esce senza una di {parole}")
     if stretti:
         rossi.append("HI03 " + "; ".join(stretti))
 
     guardie = [f"{e} {h.get('command')}" for e, h in _voci(hooks) if "if" in h
                and (any(g in h.get("command", "") for g in GUARDIE)
                     or ("block-dangerous.py" in h.get("command", "") and " dopo" not in h.get("command", "")))]
+    # Lo scanner delle injection su Bash (#5601) avvisa sull'output di una fonte esterna, non ferma il comando:
+    # la parola di hub è il suo stesso prefiltro, e su WebFetch e MCP non vale (IB05).
     guardie += [f"{e} {k} (hub, parola {p})" for e, k, p in _tabella_hub(repo) if p
+                and k != "hooks/prompt-injection-scanner.py"
                 and (any(g in k for g in GUARDIE) or (k == "hooks/block-dangerous.py"))]
     if guardie:
         rossi.append(f"HI04 guardie con if, best-effort: {guardie}")

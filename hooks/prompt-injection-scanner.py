@@ -57,10 +57,35 @@ INJECTION_PATTERNS = [
 
 COMPILED_PATTERNS = [re.compile(p) for p in INJECTION_PATTERNS]
 
+# Un ZWJ fra due emoji, anche dopo il selettore FE0F, compone un emoji solo (famiglia, bandiera, mestiere) e non
+# nasconde testo (#6769). Gli emoji: frecce, simboli tecnici, dingbat e i pittogrammi del piano 1.
+_EMOJI = r'[\u2190-\u21ff\u2300-\u23ff\u2460-\u27bf\u2900-\u297f\u2b00-\u2bff\U0001f000-\U0001faff]'
+ZWJ_FRA_EMOJI = re.compile('(' + _EMOJI + r'\ufe0f?)\u200d(?=' + _EMOJI + ')')
+
+
+def testo_di(dato) -> str:
+    """Il testo vero di un output strutturato (MCP): chiavi e valori stringa, uno per riga. json.dumps scriveva
+    gli escape al posto dei caratteri invisibili, delle virgolette e degli a capo, e i pattern non li vedevano
+    (#6769). Una pila al posto della ricorsione: un JSON molto annidato non ferma lo scanner."""
+    parti, pila = [], [dato]
+    while pila:
+        x = pila.pop()
+        if isinstance(x, str):
+            parti.append(x)
+        elif isinstance(x, dict):
+            for k, v in x.items():
+                parti.append(str(k))
+                pila.append(v)
+        elif isinstance(x, list):
+            pila.extend(reversed(x))
+    return "\n".join(parti)
+
+
 def scan(text: str) -> list[str]:
     """Ritorna lista di pattern trovati."""
     if not text:
         return []
+    text = ZWJ_FRA_EMOJI.sub(r"\1", text)
     findings = []
     for i, pattern in enumerate(COMPILED_PATTERNS):
         matches = pattern.findall(text)
@@ -123,7 +148,7 @@ def main():
         # Bash risponde {stdout, stderr, interrupted, ...}: conta solo il testo, non le chiavi.
         text = "\n".join(str(tool_output.get(k) or "") for k in ("stdout", "stderr"))
     elif isinstance(tool_output, (dict, list)):
-        text = json.dumps(tool_output)
+        text = testo_di(tool_output)
     else:
         text = str(tool_output)
 
