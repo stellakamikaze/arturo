@@ -74,6 +74,11 @@ l'account è sbagliato, cambia browser prima di agire. Se un connettore Google r
 Chrome con l'account giusto, senza chiedere alla persona di ricollegarlo. Il login lo fa la persona,
 nel Chrome giusto.
 
+Prima della prima scrittura su un sito con più account o più spazi (canali YouTube, spazi di lavoro,
+profili), apri il menu dell'account e confronta il nome con quello atteso. Una pagina quasi vuota,
+dove la persona ha i suoi dati, è il segno di un account sbagliato. Se il nome non coincide o non è
+chiaro, chiedi prima di scrivere (segnalazione n. 96).
+
 ## Quando la persona non ha capito
 
 Se la persona risponde "non ho capito", "cioè?", "eh?", "in che senso?", oppure risponde a una

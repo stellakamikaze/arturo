@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SG01-SG03: le segnalazioni n. 36, 37, 38, 40 e 41 di fine ottobre 2026, lette il 2/11/2026.
+"""SG01-SG08: le segnalazioni n. 36, 37, 38, 40 e 41 di fine ottobre 2026, lette il 2/11/2026.
 
 SG01 il classificatore della modalità auto ferma un passo già approvato senza offrire una conferma:
      la scrittura di brew shellenv in ~/.zprofile (n. 36), il touch dello sblocco di una guardia (n. 38),
@@ -20,6 +20,8 @@ SG06 Claude usa il browser che la persona nomina, ne carica la skill prima di ri
      MCP del browser, e prima di toccare i dati di un account dice quale account è collegato (n. 74, #5600).
 SG07 un elenco di più di 30 righe va in un file aperto alla persona, in chat il conteggio (proposta n. 76),
      e il brief chiede una riga d'esempio per un foglio di un terzo con colonne ambigue (proposta n. 82).
+SG08 prima della prima scrittura su un sito con più account o spazi Claude apre il menu dell'account,
+     confronta il nome con quello atteso e, se non coincide o non è chiaro, chiede (n. 96, #6359).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -119,8 +121,17 @@ def test_sg07(repo: Path) -> None:
         assert pezzo in brief, f"SG07 il brief non chiede la riga d'esempio per un foglio ambiguo: manca {pezzo}"
 
 
+
+def test_sg08(repo: Path) -> None:
+    stile = " ".join(read(repo / "output-styles" / "conciso.md").split())
+    for pezzo in ("Prima della prima scrittura su un sito con più account", "apri il menu dell'account",
+                  "confronta il nome con quello atteso", "Una pagina quasi vuota",
+                  "Se il nome non coincide o non è chiaro, chiedi prima di scrivere", "segnalazione n. 96"):
+        assert pezzo in stile, f"SG08 lo stile non fa controllare l'account prima della prima scrittura: manca {pezzo}"
+
+
 TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04, "SG05": test_sg05,
-         "SG06": test_sg06, "SG07": test_sg07}
+         "SG06": test_sg06, "SG07": test_sg07, "SG08": test_sg08}
 
 
 def main() -> int:

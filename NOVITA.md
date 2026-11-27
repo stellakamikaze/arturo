@@ -13,6 +13,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — Prima di scrivere su un sito con più account, Claude guarda quale è aperto
+
+**Cosa cambia**: su un sito con più account o più spazi, come i canali YouTube o gli spazi di lavoro, Claude apre il menu dell'account prima della prima scrittura e confronta il nome con quello che ti aspetti. Se il nome è diverso o non è chiaro, ti chiede prima di scrivere. Anche una pagina quasi vuota, dove tu hai i tuoi dati, lo fa fermare.
+
+**Perché**: nella segnalazione n. 96 Claude ha creato una playlist e l'ha riempita con 85 video sul canale sbagliato. La pagina mostrava un account quasi vuoto, ma Claude non ha aperto il menu dell'account.
+
+**A chi serve**: a chi ha più account o più canali sullo stesso sito. Non devi fare niente.
+
+---
+
 ## 2026-11-27 — /segnala toglie anche password, IBAN, telefoni e percorsi dei clienti
 
 **Cosa cambia**: prima dell'invio, `/segnala` toglie dal testo anche password e credenziali (`password=`, `curl -u`, `Authorization`), IBAN, codici fiscali, numeri di telefono e i percorsi su dischi esterni, unità di rete e cloud, come `G:\My Drive\Clienti`. Password, IBAN e codici fiscali escono sempre, anche con `--tieni`. In `/segnala stato` la risposta di chi mantiene Arturo arriva fra due segni col numero, senza i caratteri che cambiano lo schermo del terminale: Claude te la riferisce e non la esegue.

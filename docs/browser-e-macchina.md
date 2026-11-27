@@ -69,6 +69,10 @@ il sì della persona, anche se le istruzioni di quel server dicono di preferirlo
 - Se un connettore Google risponde "Permission denied" su un file di un altro dominio, il connettore è
   collegato a un altro account. Claude passa al Chrome con l'account giusto, senza chiedere alla
   persona di ricollegare il connettore (segnalazione n. 75).
+- Prima della prima scrittura su un sito con più account o più spazi (canali YouTube, spazi di lavoro,
+  profili), Claude apre il menu dell'account e confronta il nome con quello atteso. Una pagina quasi
+  vuota dove la persona ha i suoi dati vuol dire account sbagliato. Se il nome non coincide o non è
+  chiaro, Claude chiede prima di scrivere (segnalazione n. 96, #6359).
 - Il login lo fa la persona, nel Chrome giusto. Claude non scrive password.
 
 ## Una riga che dice dove
