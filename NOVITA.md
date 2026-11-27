@@ -13,6 +13,15 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — L'avvio dice l'handoff recente e i todo fermi del progetto
+
+Una sessione aperta senza /inizio si è fidata di una riga di stato vecchia nel CLAUDE.md, e non ha visto
+l'handoff scritto quel giorno né un todo di Claude aperto da cinque giorni (segnalazione n. 70). Adesso
+l'avvio riconosce il progetto della cartella, anche da un suo worktree. Se il progetto ha un handoff degli
+ultimi 7 giorni, la riga PROGETTO lo nomina col prossimo passo e dice a Claude di leggerlo prima di
+lavorare. Se ha todo di Claude senza un passo da più di 3 giorni, la riga TODO FERMI li elenca, e Claude
+te li dice nella prima risposta. Senza niente di recente l'avvio tace.
+
 ## 2026-11-27 — Un todo che parla di un elenco porta l'elenco
 
 **Cosa cambia**: quando Claude segna un todo come "le tre cose di oggi" o "i file da sistemare", scrive le voci nelle note del todo, una per riga. Lo stesso vale per l'handoff di `/fine`: un rimando a un elenco porta le voci. Un todo lasciato a metà riceve una nota con cosa è fatto e cosa resta.

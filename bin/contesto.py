@@ -5,6 +5,8 @@ Uso: arturo contesto [nome] [--giorni N]
      arturo contesto <nome> --json    le fonti del contesto (istruzioni, indice della memoria, scheda,
                                       quadro di /inizio, ultimo handoff, note collegate) con file, data,
                                       peso e prime righe: la finestra "Contesto del progetto" di Volta
+     arturo contesto --avvio          le righe PROGETTO e TODO FERMI di hooks/session-start.sh per la cartella
+                                      in cui sei: handoff recente e todo di Claude fermi (#5599)
      arturo contesto --stdin          gli argomenti di /inizio su stdin, mai nella riga di comando: il
                                       compito può contenere virgolette, # e $(...) che la shell eseguirebbe
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
@@ -53,6 +55,7 @@ from radici import radice_orsa  # noqa: E402
 GIORNI = 14
 GIORNI_SCADENZE = 7
 GIORNI_FERMI = 3  # proposta n. 52: un todo di Claude senza un passo da più di 3 giorni torna in vista
+GIORNI_AVVIO = 7  # segnalazione n. 70: l'avvio senza /inizio nomina un handoff di questi giorni
 MAX_STATUS = 15
 MAX_COMMIT = 15
 MAX_RIPARTENZA = 700
@@ -725,9 +728,81 @@ def contesto_json(nome: str) -> dict:
             "fonti": fonti, "avvisi": [] if (cartella or elenco or scheda) else [f'Nessuna cartella, scheda o handoff per "{nome}".']}
 
 
+def cartelle_avvio(cwd: Path) -> list:
+    """Le cartelle che possono dare il progetto di cwd: la cima git, poi il repository principale se cwd sta in
+    un worktree (".claude/worktrees/arturo-6432" è il progetto arturo), poi cwd senza git."""
+    cima = cima_git(cwd)
+    if not cima:
+        return [cwd]
+    fuori = [cima]
+    comune = git(cwd, "rev-parse", "--git-common-dir")
+    if comune:
+        c = Path(comune) if Path(comune).is_absolute() else cwd / comune
+        try:
+            c = c.resolve()
+        except OSError:
+            c = None
+        if c and c.name == ".git" and c.parent != cima:
+            fuori.append(c.parent)
+    return fuori
+
+
+def quando(data: str, ora: str) -> str:
+    g = (ts.oggi() - dt.date.fromisoformat(data)).days
+    giorno = {0: "di oggi", 1: "di ieri"}.get(g, f"del {data[8:10]}/{data[5:7]}")
+    return f"{giorno} alle {ora}"
+
+
+def righe_avvio() -> list:
+    """Le righe di hooks/session-start.sh per la sessione aperta senza /inizio (segnalazione n. 70, #5599).
+
+    Il progetto è quello della cartella in cui parte la sessione, anche da un suo worktree. Una riga se ha un
+    handoff degli ultimi GIORNI_AVVIO giorni, una se ha todo di Claude fermi da più di GIORNI_FERMI giorni.
+    Niente rete: con la fonte esterna dei todo la seconda riga non esce. Nella home e nella base dei progetti
+    non esce niente. Sola lettura, come il resto del contesto.
+    """
+    cwd, home, pb = Path.cwd().resolve(), Path.home().resolve(), base_progetti()
+    if cwd in (home, pb.resolve() if pb.exists() else pb):
+        return []
+    esterna = ts.comando_fonte()
+    todo = {} if esterna else ts.carica()[0]
+    for cartella in cartelle_avvio(cwd):
+        s = slug(cartella.name)
+        elenco = handoff_di(s)
+        if s and (elenco or any(t["progetto"] == s for t in todo.values())):
+            break
+    else:
+        return []
+    righe = []
+    limite = (ts.oggi() - dt.timedelta(days=GIORNI_AVVIO)).isoformat()
+    if elenco and elenco[0][1] >= limite:
+        _, data, ora, percorso = elenco[0]
+        riga = f"PROGETTO: questa cartella è il progetto {s}, con un handoff {quando(data, ora)}: {percorso}."
+        try:
+            prossimo = modulo_index().prossimo_handoff(percorso.read_text(encoding="utf-8", errors="replace"))
+        except Exception:  # noqa: BLE001 - il prossimo passo è un di più: la riga esce anche senza
+            prossimo = ""
+        if prossimo:
+            riga += f" Prossimo passo: {corto(prossimo, 200)}"
+        righe.append(riga + f" Se la sessione non parte con /inizio {s}, leggi questo handoff prima di lavorare: "
+                     "vale più di una riga di stato scritta nel CLAUDE.md.")
+    fermi = ts.fermi_da(todo, s, GIORNI_FERMI) if todo else []
+    if fermi:
+        elencati = ", ".join(f"#{t['id']} {corto(t['titolo'], 60)} ({g} g)" for t, g in fermi[:3])
+        altri = f" e altri {len(fermi) - 3}" if len(fermi) > 3 else ""
+        righe.append(f"TODO FERMI: {len(fermi)} todo di Claude del progetto {s} senza un passo da più di "
+                     f"{GIORNI_FERMI} giorni: {elencati}{altri}. Nella prima risposta dillo alla persona in una "
+                     "riga e proponi di riprenderli.")
+    return righe
+
+
 def main(argv: list) -> int:
     if argv and argv[0] in ("-h", "--help", "aiuto", "help"):
         print(__doc__.strip())
+        return 0
+    if argv[:1] == ["--avvio"]:
+        for r in righe_avvio():
+            print(r)
         return 0
     if "--json" in argv:
         nome = " ".join(a for a in argv if a != "--json").strip()
