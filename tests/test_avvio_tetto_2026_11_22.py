@@ -11,10 +11,12 @@ AT02 un avvio veloce esce intero, nell'ordine, e il JSON di stdin arriva al lavo
 AT03 il fetch staccato finisce anche se l'albero dei processi di chi l'ha lanciato viene chiuso subito;
 AT04 un tentativo di fetch senza esito ferma i nuovi per 30 minuti, non per 6 ore;
 AT05 senza un fetch mai riuscito l'avviso dei 7 giorni conta dal primo tentativo;
-AT06 deriva.py usa l'esito di controlla-config.py che l'avvio gli passa, senza rifare i git.
+AT06 deriva.py usa l'esito di controlla-config.py che l'avvio gli passa, senza rifare i git;
+AT07 dopo un compact l'avviso fa riprendere il lavoro da solo, senza chiedere conferma alla persona
+     (segnalazione n. 100, #6555, 27/11/2026: rosso su dev d6ebc94).
 
 Invariante (verde anche sulla base): AT02.
-Sulla base e57fe9f sono rossi AT01, AT03, AT04, AT05, AT06.
+Sulla base e57fe9f sono rossi AT01, AT03, AT04, AT05, AT06, AT07.
 """
 from __future__ import annotations
 
@@ -29,8 +31,8 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["AT01", "AT02", "AT03", "AT04", "AT05", "AT06"]
-DISCRIMINANTI = ["AT01", "AT03", "AT04", "AT05", "AT06"]
+CASI = ["AT01", "AT02", "AT03", "AT04", "AT05", "AT06", "AT07"]
+DISCRIMINANTI = ["AT01", "AT03", "AT04", "AT05", "AT06", "AT07"]
 BASH = shutil.which("bash") or "bash"
 GIT = shutil.which("git") or "git"
 WINDOWS = os.name == "nt"
@@ -278,9 +280,28 @@ def caso_deriva(repo: Path) -> list:
         butta(tmp)
 
 
+def caso_compact(repo: Path) -> list:
+    """L'avviso del compact chiede il riepilogo e la ripresa da sola, non un via della persona."""
+    tmp = nuova_cartella()
+    try:
+        home = casa(tmp, repo)
+        progetto = tmp / "progetto"
+        progetto.mkdir()
+        (home / ".claude" / "session-env" / "ultimo-fetch").write_text(str(int(time.time())), encoding="utf-8")
+        uscita, _ = avvia(home, progetto, {"source": "compact"})
+        riga = next((r for r in uscita.splitlines() if r.startswith("COMPACT APPENA AVVENUTO")), "")
+        if not riga:
+            return [f"AT07 manca l'avviso del compact: {uscita[-300:]!r}"]
+        if "conferma prima di continuare" in riga or "riprendi da solo" not in riga:
+            return [f"AT07 dopo il compact la sessione aspetta un via invece di riprendere da sola: {riga!r}"]
+        return []
+    finally:
+        butta(tmp)
+
+
 def prova(repo: Path) -> list:
     rossi = []
-    for caso in (caso_tetto, caso_intero, caso_staccato, caso_ritenta, caso_sette_giorni, caso_deriva):
+    for caso in (caso_tetto, caso_intero, caso_staccato, caso_ritenta, caso_sette_giorni, caso_deriva, caso_compact):
         rossi += caso(repo)
     return rossi
 
