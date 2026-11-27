@@ -13,10 +13,17 @@ GL06 il gate prende il lucchetto prima della cartella di prova e lo lascia all'u
 GL07 un lucchetto senza "chi": vecchio di oltre un minuto si toglie e si prende, appena creato resta
      (1/11/2026).
 GL08 una cartella con altri file non è un lucchetto: il gate esce rosso e non la tocca (1/11/2026).
+GL09 tre gate insieme (27/11/2026, #4427, F02 della review del 1/11): uno tiene il lucchetto e muore con
+     kill -9, due aspettano. Tutti e due leggono lo stesso "chi" morto; il primo lo toglie e prende il
+     lucchetto, il secondo arriva dopo a toglierlo. Il secondo non deve togliere il lucchetto vivo del
+     primo: lo rimette al suo posto, aspetta e lo prende dopo. Mai due gate dentro insieme, e alla fine
+     niente lucchetto e niente cartella .morto. La corsa si rende stabile con un `mv` lento solo nel
+     secondo gate, una funzione bash che copre il comando.
 
 Veleno interno: GL02 e GL04 girano anche contro un lucchetto finto che non blocca, e devono dare
 rosso col loro codice. GL07 gira contro il lucchetto senza la condizione dell'età, e GL08 contro
-il lucchetto di e80e43d, che toglieva le cartelle con rm -rf: devono dare rosso. Sulla base 5122a03 è
+il lucchetto di e80e43d, che toglieva le cartelle con rm -rf: devono dare rosso. GL09 gira contro il
+lucchetto che non rilegge "chi" dopo il mv: deve dare rosso. Sulla base 5122a03 è
 rosso GL06: il gate non aveva il lucchetto.
 """
 from __future__ import annotations
@@ -29,7 +36,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = [f"GL{n:02d}" for n in range(1, 9)]
+CASI = [f"GL{n:02d}" for n in range(1, 10)]
 DISCRIMINANTI = ["GL06"]
 BASH = shutil.which("bash") or "bash"
 FINTO = """
@@ -128,6 +135,64 @@ def caso_gl08(script: Path, tmp: Path) -> str | None:
     return None
 
 
+def caso_gl09(script: Path, tmp: Path) -> str | None:
+    """Tre gate: uno tiene il lucchetto e muore, due tolgono lo stesso lucchetto morto (F02)."""
+    import os
+    lucchetto = tmp / "gl09.lucchetto"
+    registro = tmp / "gl09.registro"
+    segnale = tmp / "gl09.segnale"
+    L, R, S = lucchetto.as_posix(), registro.as_posix(), segnale.as_posix()
+    # Il gate che tiene: prende il lucchetto e diventa `sleep` con lo stesso pid, così kill -9 lo uccide
+    # senza trap. Il suo "chi" resta con un pid che non gira più.
+    tiene = subprocess.Popen([BASH, "-c", f'source "{script.as_posix()}"\n'
+                              f'gate_lucchetto_prendi "{L}" tiene || exit 1\necho "PRESO $$"\nexec sleep 60\n'],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    riga = tiene.stdout.readline().strip()
+    if not riga.startswith("PRESO "):
+        tiene.kill()
+        return f"GL09 il primo gate non ha preso il lucchetto: {riga!r}"
+
+    def dentro(nome: str, secondi: float) -> str:
+        return (f'gate_lucchetto_prendi "{L}" {nome} || exit 1\necho "DENTRO {nome}" >> "{R}"\n'
+                f'sleep {secondi}\necho "FUORI {nome}" >> "{R}"\ngate_lucchetto_lascia\n')
+
+    # Il secondo gate: il suo primo mv segnala e aspetta, così il terzo toglie il lucchetto morto prima di lui.
+    lento = (f'mv() {{ if [ ! -e "{S}" ]; then : > "{S}"; sleep 1.5; fi; command mv "$@"; }}\n'
+             + dentro("secondo", 0.5))
+    env = {**os.environ, "ARTURO_GATE_PASSO": "0.2", "ARTURO_GATE_ATTESA": "30"}
+    secondo = terzo = None
+    try:
+        secondo = subprocess.Popen([BASH, "-c", f'source "{script.as_posix()}"\n{lento}'], env=env,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+        time.sleep(0.5)
+        subprocess.run([BASH, "-c", f"kill -9 {riga.split()[1]}"], capture_output=True)
+        tiene.wait(timeout=10)
+        t0 = time.monotonic()
+        while not segnale.exists():
+            if time.monotonic() - t0 > 10:
+                return "GL09 il secondo gate non ha provato a togliere il lucchetto morto"
+            time.sleep(0.05)
+        terzo = subprocess.Popen([BASH, "-c", f'source "{script.as_posix()}"\n' + dentro("terzo", 3)], env=env,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+        _out2, err2 = secondo.communicate(timeout=40)
+        _out3, err3 = terzo.communicate(timeout=40)
+    finally:
+        for proc in (tiene, secondo, terzo):
+            if proc and proc.poll() is None:
+                proc.kill()
+    if secondo.returncode != 0 or terzo.returncode != 0:
+        return (f"GL09 un gate in attesa non ha preso il lucchetto: rc {secondo.returncode} {terzo.returncode} "
+                f"{err2!r} {err3!r}")
+    righe = registro.read_text(encoding="utf-8").split() if registro.exists() else []
+    atteso = ["DENTRO", "terzo", "FUORI", "terzo", "DENTRO", "secondo", "FUORI", "secondo"]
+    if righe != atteso:
+        return f"GL09 due gate dentro insieme, o nell'ordine sbagliato: {' '.join(righe)!r} ({err2!r})"
+    resti = [x.name for x in tmp.iterdir() if x.name.startswith("gl09.lucchetto")]
+    if resti:
+        return f"GL09 alla fine restano lucchetti o cartelle .morto: {resti}"
+    return None
+
+
 def prova_script(script: Path) -> list[str]:
     rossi: list[str] = []
     with tempfile.TemporaryDirectory() as t:
@@ -165,7 +230,7 @@ def prova_script(script: Path) -> list[str]:
         r = bash(script, f'GATE_LUCCHETTO_DIR="{l5.as_posix()}"\ngate_lucchetto_lascia')
         if not (l5 / "chi").exists():
             rossi.append("GL05 lasciare ha tolto il lucchetto di un altro gate")
-        for caso in (caso_gl07, caso_gl08):
+        for caso in (caso_gl07, caso_gl08, caso_gl09):
             e = caso(script, tmp)
             if e:
                 rossi.append(e)
@@ -224,7 +289,13 @@ def main() -> int:
         vecchio = Path(t) / "vecchio.sh"
         vecchio.write_bytes(subprocess.run(["git", "-C", str(repo), "show", "e80e43d:bin/gate-lucchetto.sh"],
                                            capture_output=True, check=True).stdout)
-        for codice, caso, rotto in (("GL07", caso_gl07, senza_eta), ("GL08", caso_gl08, vecchio)):
+        # GL09: il lucchetto che dopo il mv non rilegge "chi" toglie anche il lucchetto vivo di un altro gate.
+        cieco = Path(t) / "cieco.sh"
+        rilegge = 'ora=$(cat "$morto/chi" 2>/dev/null || true)'
+        assert rilegge in vero, "GL09 veleno: il lucchetto non rilegge più chi dopo il mv"
+        cieco.write_text(vero.replace(rilegge, 'ora=$letto'), encoding="utf-8")
+        for codice, caso, rotto in (("GL07", caso_gl07, senza_eta), ("GL08", caso_gl08, vecchio),
+                                    ("GL09", caso_gl09, cieco)):
             prova = Path(t) / f"veleno-{codice}"
             prova.mkdir()
             esito = caso(rotto, prova)

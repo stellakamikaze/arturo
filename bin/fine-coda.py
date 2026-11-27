@@ -6,7 +6,13 @@ qui girano in un processo solo. Il giudizio resta in /fine: destino dei file, ha
 salvare degli handoff in uscita (il dry-run della retention), memoria.
 
 Uso:
-  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--rotazione] [--solo-percorsi] [--trailer <riga>] [-- <argomenti tuoi>]
+  python3 ~/.claude/bin/fine-coda.py [--handoff <path>] [--slug <slug>] [--leggero] [--rotazione] [--solo-percorsi] [--trailer <riga>] [-- <argomenti tuoi>]
+  python3 ~/.claude/bin/fine-coda.py --avvisi
+
+--handoff e --slug non sono obbligatori. Senza --handoff la coda cerca l'handoff con la riga
+"- Sessione: <id>" di CLAUDE_CODE_SESSION_ID, il più recente per nome; senza --slug lo slug è la cartella
+dell'handoff. Se non trova un handoff, fa solo il sync della config: è il caso dell'uscita breve di /fine a
+sessione vuota, che la lancia senza argomenti (#4577).
 
 --solo-percorsi: il passo 6 non aggiunge per cartella. Entrano solo l'handoff, l'indice, il segno del fine
 completo, le uscite della retention già tracciate nella cartella dello slug e i path dell'aggancio personale.
