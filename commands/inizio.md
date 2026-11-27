@@ -166,7 +166,9 @@ script trova il progetto nelle prime parole e il nome resta pulito. Senza nome u
 # Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
 # Gli argomenti passano su stdin, fra le due righe ARGOMENTI e mai nella riga di comando: il compito
 # può contenere virgolette, # e $(...), e la shell li taglierebbe o li eseguirebbe.
-python3 ~/.claude/bin/arturo contesto --stdin <<'ARGOMENTI'; echo "rc=$?"
+# Nessun altro comando sulla riga dell'heredoc: in una sessione isolata in un worktree la guardia di
+# Claude Code rifiuta "<<'X'; echo" (#6505). Il codice d'uscita lo dice il tool: senza "Exit code" vale 0.
+python3 ~/.claude/bin/arturo contesto --stdin <<'ARGOMENTI'
 $ARGUMENTS
 ARGOMENTI
 ```
@@ -206,7 +208,7 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
   corregge la stessa cosa in più sessioni. Ogni spazio si propone una
   volta sola. Manca in rotazione e a proposte spente.
 
-Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
+Con l'uscita 0 entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
 resta dove sei.
 
@@ -270,13 +272,13 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
 
 ## FASE 2: Progetto non trovato
 
-Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
+Con l'uscita 2 lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
 Proponi i candidati e aspetta la scelta. Se l'uscita ha la riga `compito:`, la persona ha scritto cosa
 vuole fare senza il nome del progetto: proponi il progetto più vicino al compito, oppure di lavorare qui
 senza progetto, e col sì parti sul compito senza farglielo riscrivere. Se quel lavoro riprende nei giorni
 dopo, `/fine` lascia un handoff breve col nome del lavoro, e `/inizio <nome>` lo ritrova (#4071). Per una vista di cosa c'è da fare ovunque leggi
 `~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
-da lì. Con `rc=3` il nome non è valido: chiedi quello giusto.
+da lì. Con l'uscita 3 il nome non è valido: chiedi quello giusto.
 
 Se la persona dice che è un progetto nuovo, chiedi in una frase cosa è. Non creare cartelle e non
 lanciare `git init` senza un sì. Col sì crei il progetto in `PROJECTS_BASE`, poi rilanci la FASE 1
