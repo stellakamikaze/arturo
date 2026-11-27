@@ -1,4 +1,6 @@
-# Igiene del repository pubblico (I03, #3505): su ogni push, su ogni branch, controlla che nei file, nei
+# Igiene del repository pubblico (I03, #3505): su ogni push, su ogni branch e su ogni pull request (quelle da
+# un fork non hanno un push qui), solo nel repository pubblico
+# di Arturo (il job ha un `if`), controlla che nei file, nei
 # percorsi e nei messaggi dei commit arrivati non ci siano i nomi della config privata dell'autore.
 # Lancia solo tests/igiene.py: niente segreti, niente rete oltre al checkout, permessi in sola lettura.
 name: igiene
@@ -6,12 +8,16 @@ name: igiene
 on:
   push:
     branches: ["**"]
+  pull_request:
 
 permissions:
   contents: read
 
 jobs:
   igiene:
+    # Solo sul repository pubblico. /aggiorna porta questo file anche nella copia privata di ~/.claude
+    # di chi usa Arturo, dove i nomi sono i suoi e il controllo dava falsi rossi a ogni push (segnalazione n. 4, 19/10/2026).
+    if: github.repository == 'stellakamikaze/arturo'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -21,13 +27,35 @@ jobs:
           persist-credentials: false
       - name: Nomi della config privata
         env:
-          PRIMA: ${{ github.event.before }}
-          DOPO: ${{ github.sha }}
+          PRIMA: ${{ github.event.before || github.event.pull_request.base.sha }}
+          DOPO: ${{ github.event.pull_request.head.sha || github.sha }}
+          RAMO: ${{ github.ref_name }}
+          EVENTO: ${{ github.event_name }}
         run: |
-          # Un branch nuovo non ha un «prima»: si controllano tutti i commit che arrivano.
+          # Un branch nuovo, o riscritto da un rebase, non ha un "prima": si controllano i commit che dev
+          # non ha. Prima si controllava tutta la storia, e i nomi nei messaggi dei commit vecchi, già su
+          # dev, davano rosso a ogni branch nuovo (gate-snello e pm-monitor, 3/11/2026).
           if git cat-file -e "${PRIMA}^{commit}" 2>/dev/null; then
             INTERVALLO="${PRIMA}..${DOPO}"
+          elif BASE=$(git merge-base "$DOPO" origin/dev 2>/dev/null); then
+            INTERVALLO="${BASE}..${DOPO}"
           else
             INTERVALLO="${DOPO}"
           fi
+          # Fuori da dev i commit che dev ha già si sono controllati quando sono arrivati su dev: ricontrollarli
+          # mandava la stessa email due o tre volte, da main e da ogni ramo che unisce dev (10/11/2026).
+          if [ "$RAMO" != "dev" ] && git rev-parse -q --verify origin/dev >/dev/null; then
+            INTERVALLO="${INTERVALLO} ^origin/dev"
+          fi
+          # Anche i commit che un altro ramo pubblico ha già si sono controllati al loro arrivo, e un nome nel loro
+          # messaggio è già pubblico: il primo push di landing-catena-voce dava rosso per quattro commit di ottobre
+          # (18/11/2026, #6063). Riscrivere quella storia è una decisione a parte (#5026).
+          # Un ramo che contiene già DOPO non conta: due rami spinti insieme con lo stesso commit nuovo si
+          # toglierebbero a vicenda, e nessuno dei due lo controllerebbe. In una pull request i commit di origin
+          # sono arrivati con un push, che li ha controllati: lì contano tutti i rami, e il fork resta controllato.
+          for R in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
+            case "$R" in refs/remotes/origin/HEAD|"refs/remotes/origin/${RAMO}") continue ;; esac
+            if [ "$EVENTO" != "pull_request" ] && git merge-base --is-ancestor "$DOPO" "$R"; then continue; fi
+            INTERVALLO="${INTERVALLO} ^${R}"
+          done
           python3 tests/igiene.py --repo . --intervallo "$INTERVALLO"
