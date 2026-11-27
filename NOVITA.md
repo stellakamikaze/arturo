@@ -23,6 +23,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-27 — Dopo un aggiornamento la barra resta sulla versione nuova
+
+**Cosa cambia**: una sessione aperta prima dell'aggiornamento del plugin non riporta più Arturo alla versione vecchia. La barra in basso e gli altri lettori di `~/.claude/arturo/radice` restano sulla versione nuova anche dopo un `/clear` in quella sessione.
+
+**Perché**: il 27/11 la 0.2.26 era installata, ma una sessione ancora aperta con la 0.2.25 ha riscritto il puntatore a ogni `/clear`. L'avvio di sessione lo scriveva senza guardare la versione. Ora lo scrive solo se la cartella indicata non esiste più, sta fuori dalla cartella dei plugin, o ha una versione uguale o più vecchia.
+
+**A chi serve**: a chi usa Arturo col plugin e tiene aperte più sessioni mentre arriva un aggiornamento. Non devi fare niente.
+
+---
+
 ## 2026-11-27 — All'avviso del contesto la rotazione parte sempre
 
 **Cosa cambia**: quando il contesto supera la soglia, Claude salva con `/fine --rotazione` e passa a una sessione nuova anche se in quel turno hai scritto tu, o se il passo dopo chiede una tua risposta. La domanda non si perde: la sessione nuova si apre su quel passo, si ferma e te la rifà.
