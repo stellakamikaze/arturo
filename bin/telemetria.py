@@ -703,6 +703,8 @@ def chiedi_json(rotta: str, metodo: str = "GET", dati: dict | None = None, intes
 # Il server dà col numero un codice, che tiene solo come hash: con quello la persona legge la risposta, aggiunge
 # un seguito o ritira la segnalazione. I codici stanno accanto alle copie delle segnalazioni, in un file letto solo
 # dalla persona (0600): la reinstallazione riporta data/segnalazioni intera.
+# Dal 27/11/2026 (#6770) ogni lettura manda il codice di lettura, ricavato da questo: il codice intero parte solo
+# con seguito e ritira.
 
 CODICE = re.compile(r"^[0-9a-f]{32}$")
 
@@ -720,6 +722,19 @@ def codici() -> dict:
     if not isinstance(grezzo, dict):
         return {}
     return {int(n): c for n, c in grezzo.items() if str(n).isdigit() and isinstance(c, str) and CODICE.match(c)}
+
+
+def codice_lettura(codice: str) -> str:
+    """Il codice di lettura (27/11/2026, #6770, rilievo S12): legge stato e risposta, non aggiunge e non ritira.
+    Si ricava dal codice come fa server/logica.js (codiceLettura): SHA-256 di "lettura:" più l'hash del codice,
+    primi 32 caratteri. Ogni lettura, anche quella in background, manda questo: il codice intero parte solo con
+    seguito e ritira."""
+    return hashlib.sha256(("lettura:" + hashlib.sha256(codice.encode("utf-8")).hexdigest()).encode("utf-8")).hexdigest()[:32]
+
+
+def letture() -> dict:
+    """{numero: codice di lettura}, uno per ricevuta: vale anche per le ricevute di prima del 27/11/2026."""
+    return {n: codice_lettura(c) for n, c in codici().items()}
 
 
 def salva_codice(numero, codice) -> bool:
@@ -777,7 +792,8 @@ def testo_dal_server(testo: str) -> str:
 
 
 def leggi_contributo(numero: int, codice: str, timeout: float = 5) -> tuple:
-    """(status, risposta pulita). Della risposta restano solo i campi attesi, con lo stato da un elenco chiuso."""
+    """(status, risposta pulita) col codice di lettura (#6770). Della risposta restano solo i campi attesi, con lo
+    stato da un elenco chiuso."""
     status, r = chiedi_json(f"/v1/contributi/{int(numero)}", intestazioni={"x-arturo-codice": codice}, timeout=timeout)
     if not 200 <= status < 300:
         return status, {}
@@ -797,7 +813,7 @@ def controlla_risposte() -> int:
     più (404) si salta per ASSENTE_GIORNI giorni."""
     noti, lette, cambiate = leggi_sportello(), 0, False
     oggi = ts.oggi()
-    for numero, codice in sorted(codici().items(), reverse=True):
+    for numero, codice in sorted(letture().items(), reverse=True):
         nota = noti.get(numero) or {}
         if nota.get("stato") in STATI_FINALI:
             continue
