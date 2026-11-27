@@ -416,6 +416,10 @@ fi
 if [ -x /usr/bin/python3 ] || command -v python3 >/dev/null 2>&1; then
     python3 "$ARTURO_CODICE/hooks/memory-autoload.py" 2>/dev/null || true
 fi
+# Il progetto della cartella (segnalazione n. 70, #5599): una sessione aperta senza /inizio si fidava di una
+# riga di stato vecchia nel CLAUDE.md, e non vedeva l'handoff del giorno né un todo di Claude fermo da cinque
+# giorni. arturo contesto --avvio li nomina, senza rete; senza handoff recente e senza todo fermi tace.
+[ -f "$ARTURO_CODICE/bin/contesto.py" ] && { python3 "$ARTURO_CODICE/bin/contesto.py" --avvio 2>/dev/null || true; }
 
 # Deriva (hooks/deriva.py): file e hook di Arturo cambiati o spenti, config rotta. Una riga solo se
 # c'è da fare; registra per la telemetria l'elenco quando cambia. Prima dell'avvio della telemetria,

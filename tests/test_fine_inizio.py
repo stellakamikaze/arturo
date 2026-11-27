@@ -97,6 +97,9 @@ bordo e tutto in CP850 (23/11/2026): una riga unica di nove fatti si leggeva mal
 di Windows diventano quadratini.
 F38 un todo o un handoff che rimanda a un elenco ne porta le voci, una per riga: nelle note del todo o in
 Decisioni (segnalazione n. 92, #6168, 27/11/2026). Il todo lasciato a metà riceve cosa è fatto e cosa resta.
+F39 l'avvio senza /inizio (segnalazione n. 70, #5599, 27/11/2026): hooks/session-start.sh lancia arturo contesto
+--avvio, che nomina l'handoff degli ultimi 7 giorni del progetto della cartella, anche da un suo worktree, e i todo
+di Claude fermi da più di 3 giorni. Tace con un handoff vecchio e senza fermi, nella home e nella base dei progetti.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1822,6 +1825,58 @@ def test_f38(repo: Path) -> None:
         assert pezzo in modello, f"F38 il modello dell'handoff non fa scrivere le voci di un elenco: manca {pezzo}"
 
 
+def test_f39(repo: Path) -> None:
+    """L'avvio senza /inizio nomina l'handoff recente e i todo di Claude fermi (segnalazione n. 70, #5599)."""
+    avvio = read(repo / "hooks" / "session-start.sh")
+    assert 'bin/contesto.py" --avvio' in avvio, "F39 hooks/session-start.sh non lancia arturo contesto --avvio"
+    import datetime as dt
+    oggi = dt.date.today()
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        lab.git(progetto, "commit", "-q", "--allow-empty", "-m", "primo")
+        worktree = progetto / ".claude" / "worktrees" / "libro-prova"
+        lab.git(progetto, "worktree", "add", "-q", "-b", "prova", str(worktree))
+        h = lab.handoffs / "libro"
+        h.mkdir()
+        nome = f"HANDOFF_{oggi.isoformat()}_09-30.md"
+        (h / nome).write_text("# Session Handoff\n\n## Ripartenza\nIl capitolo due è riletto.\n"
+                              "Prossimo passo: Claude rilegge il capitolo tre.\n", encoding="utf-8")
+        lab.todo("aggiungi", "Vecchio lavoro mio", "--progetto", "libro", "--chi", "io")   # 1 fermo
+        lab.todo("aggiungi", "Lavoro della persona", "--progetto", "libro", "--chi", "tu")  # 2 tu
+        eventi = []
+        for r in lab.todo_file.read_text(encoding="utf-8").splitlines():
+            e = json.loads(r)
+            e["ts"] = (dt.datetime.combine(oggi - dt.timedelta(days=6), dt.time(9))
+                       .replace(tzinfo=dt.timezone.utc).isoformat())
+            eventi.append(json.dumps(e, ensure_ascii=False))
+        lab.todo_file.write_text("\n".join(eventi) + "\n", encoding="utf-8")
+
+        def avvio(cwd: Path, giorno: dt.date = oggi) -> str:
+            r = lab.run([sys.executable, "-B", str(lab.repo / "bin" / "contesto.py"), "--avvio"], cwd=cwd,
+                        ARTURO_OGGI=giorno.isoformat())
+            assert r.returncode == 0, f"F39 exit {r.returncode}: {r.stderr}"
+            return r.stdout
+
+        for cwd in (progetto, worktree):
+            out = avvio(cwd)
+            assert "PROGETTO: questa cartella è il progetto libro, con un handoff di oggi alle 09:30" in out, \
+                f"F39 da {cwd.name} l'avvio non nomina l'handoff di oggi: {out!r}"
+            assert nome in out and "Claude rilegge il capitolo tre" in out, f"F39 manca percorso o prossimo passo: {out!r}"
+            assert "TODO FERMI: 1 todo di Claude del progetto libro" in out and "#1 Vecchio lavoro mio (6 g)" in out, \
+                f"F39 da {cwd.name} l'avvio non nomina il todo di Claude fermo: {out!r}"
+            assert "#2 " not in out, f"F39 un todo della persona è finito fra i fermi di Claude: {out!r}"
+        dopo = avvio(progetto, oggi + dt.timedelta(days=8))
+        assert "PROGETTO:" not in dopo, f"F39 un handoff di 8 giorni fa conta ancora come recente: {dopo!r}"
+        lab.todo("fatto", "1")
+        assert avvio(progetto, oggi + dt.timedelta(days=8)) == "", "F39 senza handoff recente e senza fermi l'avvio parla"
+        for fuori in (lab.home, lab.progetti):
+            assert avvio(fuori) == "", f"F39 l'avvio parla da {fuori}, che non è un progetto"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
@@ -1830,7 +1885,7 @@ TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F0
          "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27, "F28": test_f28,
          "F29": test_f29, "F30": test_f30, "F31": test_f31, "F32": test_f32,
          "F33": test_f33, "F34": test_f34, "F35": test_f35, "F36": test_f36, "F37": test_f37,
-         "F38": test_f38}
+         "F38": test_f38, "F39": test_f39}
 
 
 def main() -> int:
