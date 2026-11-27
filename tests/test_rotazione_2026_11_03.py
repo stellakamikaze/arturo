@@ -38,6 +38,12 @@ RT16 il registro del mod rotazione (~/.claude/cache/rotazione-ultimo.txt) trova 
      Claude Code parte spesso con il solo USERPROFILE, e registra() taceva (#6492, B6, 23/11/2026). Il mod è
      TypeScript e i banchi non lo eseguono: il caso legge che registra() passa da casa() di parti.ts, e che casa()
      ripiega su USERPROFILE.
+RT17 all'avviso del contesto si ruota sempre (#6765, 27/11/2026): sei sessioni con la persona che scriveva hanno
+     chiuso con "scrivi /fine" invece di chiamare ruota. La descrizione del tool in register.ts dice di ruotare anche
+     se il passo dopo chiede la persona, con la domanda portata da --in-attesa, e non dice più "Non chiamarlo se il
+     prossimo step chiede la persona"; il Modo rotazione di commands/fine.md dice che un messaggio della persona non
+     ferma la rotazione e non la ferma più per un passo della persona; l'avviso di context-monitor col tool dice di
+     ruotare lo stesso, e il "proponi /fine" vale solo se il tool manca.
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
@@ -59,8 +65,8 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15", "RT16"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15", "RT16"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15", "RT16", "RT17"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09", "RT10", "RT11", "RT12", "RT13", "RT14", "RT15", "RT16", "RT17"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
             "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js", "hooks/context-monitor.py",
             # dal 21/11/2026 (#6249) la coda carica la guardia dei segreti, e senza si ferma
@@ -98,6 +104,11 @@ VELENI = [
     (["RT16"], "skills/arturo/hooks/rotazione/register.ts", "    const home = await casa($)\n",
      "    const home = await $.env.get('HOME')\n"),
     (["RT16"], "skills/arturo/hooks/parti.ts", "?? (await $.env.get('USERPROFILE').catch(() => undefined))", ""),
+    (["RT17"], "skills/arturo/hooks/rotazione/register.ts", "All'avviso ruota sempre",
+     "Non chiamarlo se il prossimo step chiede la persona. All'avviso ruota"),
+    (["RT17"], "commands/fine.md", "Un messaggio della persona nel turno non ferma la rotazione.",
+     "La persona ha scritto durante il turno: niente rotazione."),
+    (["RT17"], "hooks/context-monitor.py", '"/inizio alla persona. Solo se il tool manca: ")', '"/inizio alla persona. Altrimenti: ")'),
     (["RT14"], "bin/rotazione.py", "if not file_visto().exists() and persona_di_prima():", "if not file_visto().exists():"),
 ]
 
@@ -270,7 +281,7 @@ def rt07(lab: Lab):
         return "hooks/session-start.sh o commands/fine.md assente"
     riga = next((x for x in avvio.read_text(encoding="utf-8").splitlines() if "CONTEXT:" in x), "")
     mancano = [f for f in ("solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%)", "nello stesso contesto",
-                           "solo se il passo dopo è tuo") if f not in riga]
+                           "segue sempre: una domanda alla persona viaggia con la rotazione") if f not in riga]
     monitor, soglia = monitor_contesto(lab)
     if not monitor.exists() or soglia not in monitor.read_text(encoding="utf-8"):
         mancano.append(f"{monitor.name} con l'avviso al 50%")
@@ -453,8 +464,46 @@ def rt16(lab: Lab):
         return "casa() di parti.ts non è esportata o non ripiega su USERPROFILE"
 
 
+def rt17(lab: Lab):
+    import json as _json
+    import time as _time
+    mancano = []
+    mod = lab.cl / "skills" / "arturo" / "hooks" / "rotazione" / "register.ts"
+    testo = " ".join(mod.read_text(encoding="utf-8").split()) if mod.exists() else ""
+    descrizione = testo[testo.find("description:"):testo.find("inputSchema")]
+    if "All'avviso ruota sempre" not in descrizione or "--in-attesa" not in descrizione:
+        mancano.append("register.ts: la descrizione non dice di ruotare sempre con --in-attesa")
+    if "Non chiamarlo se il prossimo step chiede la persona" in descrizione:
+        mancano.append("register.ts: la descrizione vieta ancora la rotazione se il passo chiede la persona")
+    fine = lab.cl / "commands" / "fine.md"
+    testo = fine.read_text(encoding="utf-8") if fine.exists() else ""
+    inizio = testo.find("## Modo rotazione")
+    sezione = " ".join(testo[inizio:testo.find("\n## ", inizio + 1)].split()) if inizio >= 0 else ""
+    niente = sezione[sezione.find("**Niente rotazione"):][:400]
+    if "Un messaggio della persona nel turno non ferma la rotazione" not in sezione or "--in-attesa" not in sezione:
+        mancano.append("commands/fine.md: manca la rotazione con la domanda e col messaggio della persona")
+    if "ha scritto durante il turno" in niente or "chiede la persona" in niente or "Niente rotazione" not in niente:
+        mancano.append(f"commands/fine.md: il messaggio o il passo della persona fermano ancora la rotazione {niente[:160]!r}")
+    comando = comando_monitor(lab)
+    if comando is None:
+        return "node assente: il banco prova context-monitor"
+    temp = Path(lab.ambiente["TMPDIR"])
+    avvisi = []
+    for sessione, rimasto in (("s-rt17-w", 30), ("s-rt17-c", 20)):
+        (temp / f"claude-ctx-{sessione}.json").write_text(_json.dumps(
+            {"timestamp": int(_time.time()), "remaining_percentage": rimasto, "used_pct": 100 - rimasto}), encoding="utf-8")
+        avvisi.append(subprocess.run(comando, input=_json.dumps({"session_id": sessione}), capture_output=True, text=True,
+                                     encoding="utf-8", errors="replace", env=lab.ambiente, timeout=30).stdout)
+    for a in avvisi:
+        if "anche se la persona ha scritto" not in a or "Solo se il tool manca:" not in a or "Altrimenti" in a:
+            mancano.append(f"context-monitor: {a[:200]!r}")
+    if mancano:
+        return " · ".join(mancano)
+
+
 PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08,
-         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14, "RT15": rt15, "RT16": rt16}
+         "RT09": rt09, "RT10": rt10, "RT11": rt11, "RT12": rt12, "RT13": rt13, "RT14": rt14, "RT15": rt15, "RT16": rt16,
+         "RT17": rt17}
 
 
 def prova(repo: Path, ref: str | None) -> list:

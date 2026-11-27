@@ -54,9 +54,12 @@ export async function avvio($: EngineInterface, e: Evento<'session.start'>, next
       'Rotazione della sessione a fine milestone (uno step del piano o un compito chiuso). Chiamalo DOPO ' +
       '/fine --rotazione andato a buon fine, come ultima azione del turno. A fine turno /clear, poi ' +
       '/inizio <progetto> -- --rotazione <compito>: il lavoro riparte da solo con il contesto pulito. ' +
-      'Non chiamarlo se il prossimo step chiede la persona (una decisione, un invio, un pagamento, un ' +
-      'accesso) o se non ci sono step. Il /fine --rotazione parte solo a contesto oltre la soglia (50% di default, avviso CONTEXT ' +
+      'Il /fine --rotazione parte solo a contesto oltre la soglia (50% di default, avviso CONTEXT ' +
       'WARNING) o dalle 18: sotto, a compito chiuso fai commit e todo e continua nello stesso contesto. ' +
+      "All'avviso ruota sempre, anche se la persona ha scritto nel turno e anche se il prossimo step chiede " +
+      'lei (una decisione, un invio, un pagamento, un accesso): chiudi il turno con la domanda nell\'ultima ' +
+      'riga, e il mod la porta nella sessione nuova con --in-attesa, che si ferma lì e la rifà. Non ' +
+      'chiamarlo solo se non ci sono step. ' +
       'In traccia scrivi cosa ha lasciato lo step appena chiuso (commit, task chiuso, file): vuota se non ' +
       'ha trovato niente di nuovo. Dopo due giri di fila senza una traccia nuova, o oltre il tetto di giri ' +
       'senza un messaggio della persona, il tool non ruota.',

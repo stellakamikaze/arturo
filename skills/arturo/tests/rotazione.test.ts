@@ -155,6 +155,7 @@ type Dati = {
   stato: (string | undefined)[]
   toast: string[]
   riempita?: string
+  descrizione?: string
 }
 
 function motore(on: On, opz: { bozza?: string | (() => string); env?: Record<string, string>; parti?: string } = {}): Dati {
@@ -162,7 +163,10 @@ function motore(on: On, opz: { bozza?: string | (() => string); env?: Record<str
   on('env.get', { name: 'ARTURO_PARTI' }, () => ({ value: opz.parti ?? 'rotazione' }))
   const d: Dati = { comandi: [], store: {}, stato: [], toast: [] }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('tool.register', (_, e) => ({ value: { tool: `mcp__prova__${e.name}` } }))
+  on('tool.register', (_, e) => {
+    d.descrizione = String((e as { description?: unknown }).description)
+    return { value: { tool: `mcp__prova__${e.name}` } }
+  })
   on('tool.call', () => ({ result: 'motore' }))
   on('turn.complete', () => ({ text: '' }))
   on('session.end', (_, e) => ({ sessionId: e.sessionId }))
@@ -210,6 +214,15 @@ test('giro intero: ruota → fine turno → /clear → /inizio con la marca, rig
   expect(d.comandi[1]).toEqual({ command: 'inizio', args: 'arturo -- --rotazione scrivere i test' })
   expect(d.stato.at(-1)).toBeUndefined()
   expect(d.toast.some(t => t.includes('Sessione rinnovata'))).toBe(true)
+})
+
+test('#6765: la descrizione del tool dice di ruotare sempre, anche col passo della persona', async ($, on) => {
+  const d = motore(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const descrizione = d.descrizione ?? ''
+  expect(descrizione).toContain("All'avviso ruota sempre")
+  expect(descrizione).toContain('--in-attesa')
+  expect(descrizione).not.toContain('Non chiamarlo se il prossimo step chiede la persona')
 })
 
 test('domanda con AskUserQuestion dopo ruota: /inizio la porta con --in-attesa', async ($, on) => {

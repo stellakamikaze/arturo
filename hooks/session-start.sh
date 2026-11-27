@@ -165,7 +165,7 @@ CONTEXT_RIGA=$([ -f "$ARTURO_CODICE/bin/rotazione.py" ] && python3 "$ARTURO_CODI
 if [ -n "$CONTEXT_RIGA" ]; then
   printf '%s\n' "$CONTEXT_RIGA"
 else
-  echo "CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%) o dalle 18. Il tool ruota (mod rotazione) segue solo se il passo dopo è tuo. Senza il mod, all'avviso il compito si chiude e si salva con /fine."
+  echo "CONTEXT: a compito chiuso con una traccia (commit, file, decisione, todo) Arturo fa commit, push e chiude il todo, poi parte col passo dopo nello stesso contesto. /fine --rotazione parte solo dopo l'avviso CONTEXT WARNING (contesto oltre il 50%) o dalle 18. Il tool ruota (mod rotazione) segue sempre: una domanda alla persona viaggia con la rotazione. Senza il mod, all'avviso il compito si chiude e si salva con /fine."
 fi
 
 # La mappa dei ruoli (strati F6, #4536): quale skill fa quale lavoro, dalla riga `ruolo:` delle skill di
